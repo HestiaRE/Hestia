@@ -12,6 +12,17 @@ opens above it.
 
 ## Unreleased
 
+### Security
+
+- **Eleven commands stopped executing `hestia.conf` as shell** (#955). They read the file with a
+  plain `source` before (or instead of) the sanitized `source_conf`. A value that reaches the file
+  with unbalanced quotes - the sed writer produced one from a plain `&` - is then parsed as an
+  assignment followed by a command, and bash runs a word taken from the operator's value. The
+  plain reads are gone: eight commands already re-read through `source_conf` on the next line,
+  three (`h-change-user-shell`, `h-update-sys-rrd-ftp`, the quota re-read in `h-change-user-package`)
+  now use it in place of `source`. `source_conf` binds every key as data and refuses the protected
+  shell names; nothing the eleven read comes from `hestia.conf` under a name it withholds.
+
 ### Fixed
 
 - **The installer no longer rewrites the operator's webmail choice when the Tachyon step fails**

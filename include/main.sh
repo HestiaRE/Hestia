@@ -2283,7 +2283,7 @@ is_username_format_valid() {
 # KEY='VALUE' line is refused, not written. Every matching line is replaced, as before; the
 # duplicate collapse stays with syshealth.
 change_sys_value() {
-	local _key="$1" _value="$2" _conf="$HESTIA/conf/hestia.conf" _tmp _line _found=no
+	local _key="$1" _value="$2" _conf="$HESTIA/conf/hestia.conf" _tmp _prev_trap
 	# check_result exits; the returns behind it keep the write unreachable even where it does not
 	case "$_value" in
 		*\'* | *$'\n'*)
@@ -2295,21 +2295,35 @@ change_sys_value() {
 		check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
 		return "$E_UPDATE"
 	}
-	while IFS= read -r _line || [ -n "$_line" ]; do
-		if [[ $_line == "$_key="* ]]; then
-			printf "%s='%s'\n" "$_key" "$_value" >> "$_tmp"
-			_found=yes
-		else
-			printf '%s\n' "$_line" >> "$_tmp"
-		fi
-	done < "$_conf"
-	[ "$_found" = yes ] || printf "%s='%s'\n" "$_key" "$_value" >> "$_tmp"
-	# the file's own mode and owner, not the umask's: the seed sets 660 and readers rely on it
-	chmod --reference="$_conf" "$_tmp" && chown --reference="$_conf" "$_tmp" \
-		&& mv -f "$_tmp" "$_conf" || {
+	# the temp file has one owner, this trap, until the rename; the caller's EXIT trap is kept and put back
+	_prev_trap=$(trap -p EXIT)
+	# shellcheck disable=SC2064  # expand now on purpose: _tmp is local and gone when the trap fires
+	trap "rm -f '$_tmp'" EXIT
+	# one subshell behind one redirect: a failed write (full disk) is rc 1 here, not a truncated file later.
+	# Every line of the key is replaced, quoted or not; collapsing duplicates stays with syshealth.
+	# Mode and owner come from the file, not the umask: the seed sets 660, the old /tmp sort path handed out 644.
+	if (
+		found=no
+		while IFS= read -r line || [ -n "$line" ]; do
+			if [[ $line == "$_key="* ]]; then
+				printf "%s='%s'\n" "$_key" "$_value" || exit 1
+				found=yes
+			else
+				printf '%s\n' "$line" || exit 1
+			fi
+		done < "$_conf"
+		[ "$found" = yes ] || printf "%s='%s'\n" "$_key" "$_value"
+	) > "$_tmp" \
+		&& chmod --reference="$_conf" "$_tmp" \
+		&& { [ "$(stat -c %u:%g "$_conf")" = "$(stat -c %u:%g "$_tmp")" ] || chown --reference="$_conf" "$_tmp"; } \
+		&& mv -f "$_tmp" "$_conf"; then
+		eval "${_prev_trap:-trap - EXIT}"
+	else
 		rm -f "$_tmp"
+		eval "${_prev_trap:-trap - EXIT}"
 		check_result "$E_UPDATE" "hestia.conf was not written: $_key"
-	}
+		return "$E_UPDATE"
+	fi
 }
 
 # Delete a hestia.conf key line entirely (vs change_sys_value which sets it empty).

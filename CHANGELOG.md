@@ -14,6 +14,16 @@ opens above it.
 
 ### Fixed
 
+- **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before
+  the file is touched** (#955). `change_sys_value` rewrote the line with `sed`, whose replacement
+  treats `&` as the whole match and `\` as an escape: "Foo & Bar" landed as
+  `APP_NAME='Foo APP_NAME='Hestia Control Panel' Bar'`, silently under v0.18.0 and as rc 19 since
+  #929. The writer now builds the line, refuses a quote or a line break, and writes the whole file
+  through a temp file next to it, keeping mode and owner; the sort in `h-change-sys-config-value`
+  goes the same way instead of through a fixed name in /tmp. What a value may not contain follows
+  from the readers, not from the writer: `source_conf`, the quote-bounded `sed -n` parsers and the
+  file's own `KEY='VALUE'` form all break on exactly `'` and a line break.
+
 - **The installer no longer rewrites the operator's webmail choice when the Tachyon step fails**
   (#928). The mail stage patched `COMPONENT_MAIL_WEBMAILER` in `install.conf` down to what it
   believed got installed - and that branch did not need a rare network failure: `h-add-sys-tachyon`

@@ -2277,13 +2277,39 @@ is_username_format_valid() {
 	fi
 }
 
+# The line is built and checked BEFORE the file is touched, then written whole through a temp file
+# and rename: the sed it replaces expanded & and \ inside the value (a plain "Foo & Bar" glued the
+# old value into the new one and left the quotes unbalanced, #955). A value that cannot form a
+# KEY='VALUE' line is refused, not written. Every matching line is replaced, as before; the
+# duplicate collapse stays with syshealth.
 change_sys_value() {
-	check_ckey=$(grep "^$1='" "$HESTIA/conf/hestia.conf")
-	if [ -z "$check_ckey" ]; then
-		echo "$1='$2'" >> "$HESTIA/conf/hestia.conf"
-	else
-		sed -i "s|^$1=.*|$1='$2'|g" "$HESTIA/conf/hestia.conf"
-	fi
+	local _key="$1" _value="$2" _conf="$HESTIA/conf/hestia.conf" _tmp _line _found=no
+	# check_result exits; the returns behind it keep the write unreachable even where it does not
+	case "$_value" in
+		*\'* | *$'\n'*)
+			check_result "$E_INVALID" "invalid value for $_key: a quote or a line break cannot be stored"
+			return "$E_INVALID"
+			;;
+	esac
+	_tmp=$(mktemp "$_conf.XXXXXX") || {
+		check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
+		return "$E_UPDATE"
+	}
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		if [[ $_line == "$_key="* ]]; then
+			printf "%s='%s'\n" "$_key" "$_value" >> "$_tmp"
+			_found=yes
+		else
+			printf '%s\n' "$_line" >> "$_tmp"
+		fi
+	done < "$_conf"
+	[ "$_found" = yes ] || printf "%s='%s'\n" "$_key" "$_value" >> "$_tmp"
+	# the file's own mode and owner, not the umask's: the seed sets 660 and readers rely on it
+	chmod --reference="$_conf" "$_tmp" && chown --reference="$_conf" "$_tmp" \
+		&& mv -f "$_tmp" "$_conf" || {
+		rm -f "$_tmp"
+		check_result "$E_UPDATE" "hestia.conf was not written: $_key"
+	}
 }
 
 # Delete a hestia.conf key line entirely (vs change_sys_value which sets it empty).

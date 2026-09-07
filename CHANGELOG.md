@@ -36,6 +36,12 @@ opens above it.
 
 ### Fixed
 
+- **The installer's own key writer no longer hands `hestia.conf` the umask's mode** (#963). The first
+  v0.18.1 install showed the #961 check red: the seed sets 660, and `wcv` in `h-install-hestia` rewrote
+  an existing key through a temp file and `mv`, so the new inode took the installer's umask and every
+  fresh box ended at 644. The `/tmp/updconf` path fixed in #959 was one of two writers with that shape,
+  not the only one. `wcv` now keeps the file's mode and owner across the rename, as the sort does.
+
 - **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before
   the file is touched** (#955). `change_sys_value` rewrote the line with `sed`, whose replacement
   treats `&` as the whole match and `\` as an escape: "Foo & Bar" landed as

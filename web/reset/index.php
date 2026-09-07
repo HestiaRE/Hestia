@@ -43,6 +43,13 @@ if (!empty($_POST["user"]) && empty($_POST["code"])) {
 					$output,
 					$return_var,
 				);
+				if ($return_var != 0) {
+					// the key was not stored: a mail carrying it would send the user to a dead link
+					unlink($v_rkey);
+					$_SESSION["error_msg"] = _("An internal error occurred");
+					header("Location: /reset/");
+					exit();
+				}
 				unset($output);
 				unlink($v_rkey);
 				$template = get_email_template("reset_password", $data[$user]["LANGUAGE"]);
@@ -170,8 +177,9 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 			$rkey = $data[$user]["RKEY"] ?? "";
 			if ($rkey !== "" && password_verify($_POST["code"], $rkey)) {
 				$output = "";
-				exec(HESTIA_CMD . "h-get-user-value " . $v_user . " RKEYEXP", $output, $return_var);
-				if ($output[0] > time() - 900) {
+				// null = failed call or no expiry, both mean "do not honour" (cli_value)
+				$v_rkeyexp = cli_value("h-get-user-value " . $v_user . " RKEYEXP");
+				if ($v_rkeyexp !== null && $v_rkeyexp > time() - 900) {
 					$v_password = tempnam("/tmp", "vst");
 					$fp = fopen($v_password, "w");
 					fwrite($fp, $_POST["password"] . "\n");
@@ -193,38 +201,12 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 				} else {
 					sleep(5);
 					$error = _("Code has been expired");
-					exec(
-						HESTIA_CMD .
-							"h-log-user-login " .
-							$v_user .
-							" " .
-							$v_ip .
-							" failed " .
-							$v_session_id .
-							" " .
-							$v_user_agent .
-							' yes "Reset code has been expired"',
-						$output,
-						$return_var,
-					);
+					cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Reset code has been expired"');
 				}
 			} else {
 				sleep(5);
 				$error = _("Invalid username or code");
-				exec(
-					HESTIA_CMD .
-						"h-log-user-login " .
-						$v_user .
-						" " .
-						$v_ip .
-						" failed " .
-						$v_session_id .
-						" " .
-						$v_user_agent .
-						' yes "Invalid Username or Code"',
-					$output,
-					$return_var,
-				);
+				cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Invalid Username or Code"');
 			}
 		} else {
 			sleep(5);

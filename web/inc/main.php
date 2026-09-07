@@ -55,7 +55,7 @@ if (
 ) {
 	$v_user = quoteshellarg($_SESSION["user"]);
 	$v_session_id = quoteshellarg($_SESSION["token"]);
-	exec(HESTIA_CMD . "h-log-user-logout " . $v_user . " " . $v_session_id, $output, $return_var);
+	cli_log("h-log-user-logout " . $v_user . " " . $v_session_id);
 	destroy_sessions();
 	header("Location: /login/");
 	exit();
@@ -275,6 +275,26 @@ function check_return_code($return_var, $output)
 		$_SESSION["error_msg"] = $error;
 	}
 }
+// Run a command whose exit code carries nothing for the request: the h-log-* writers. A login
+// or logout must not fail because its audit line could not be written, so the code is dropped
+// here on purpose - the one place where that is a decision rather than an omission (#957).
+function cli_log($cmd): void
+{
+	$output = [];
+	exec(HESTIA_CMD . $cmd, $output, $return_var);
+}
+
+// After a bulk loop: name what failed. One failed object must not read as "all done", and the
+// ones that worked must not read as failed, so this appends to error_msg instead of replacing it.
+function bulk_note_failures(array $failed, int $total): void
+{
+	if (!$failed) {
+		return;
+	}
+	$msg = sprintf(_("%d of %d failed: %s"), count($failed), $total, implode(", ", $failed));
+	$_SESSION["error_msg"] = empty($_SESSION["error_msg"]) ? $msg : $_SESSION["error_msg"] . "<br>" . $msg;
+}
+
 function check_return_code_redirect($return_var, $output, $location)
 {
 	if ($return_var != 0) {

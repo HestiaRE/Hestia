@@ -24,41 +24,22 @@ if (!empty($_POST["user"]) && !empty($_POST["twofa"])) {
 	if ($return_var == 0) {
 		$data = json_decode(implode("", $output), true);
 		if ($data[$user]["TWOFA"] == $twofa) {
-			$success = true;
+			// exec() appends: without this the user record read above would land in the error message
+			$output = [];
 			exec(HESTIA_CMD . "h-delete-user-2fa " . $v_user, $output, $return_var);
-			session_destroy();
+			// success only once the key is really gone: a failed delete showed the success page
+			if ($return_var == 0) {
+				$success = true;
+				session_destroy();
+			} else {
+				check_return_code($return_var, $output);
+			}
 		} else {
-			exec(
-				HESTIA_CMD .
-					"h-log-user-login " .
-					$v_user .
-					" " .
-					$v_ip .
-					" failed " .
-					$v_session_id .
-					" " .
-					$v_user_agent .
-					' yes "Failed to enter correct 2FA reset key"',
-				$output,
-				$return_var,
-			);
+			cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Failed to enter correct 2FA reset key"');
 			sleep(5);
 		}
 	} else {
-		exec(
-			HESTIA_CMD .
-				"h-log-user-login " .
-				$v_user .
-				" " .
-				$v_ip .
-				" failed " .
-				$v_session_id .
-				" " .
-				$v_user_agent .
-				' yes "Failed to enter correct 2FA reset key"',
-			$output,
-			$return_var,
-		);
+		cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Failed to enter correct 2FA reset key"');
 		sleep(5);
 	}
 }

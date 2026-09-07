@@ -22,18 +22,22 @@ if (!empty($_POST)) {
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 	if (!empty($_POST["v_title"]) && $_SESSION["TITLE"] != $_POST["v_title"]) {
+		$output = [];
 		exec(
 			HESTIA_CMD . "h-change-sys-config-value TITLE " . quoteshellarg($_POST["v_title"]),
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 	if (
 		!empty($_POST["v_subject_email"]) &&
 		$_SESSION["SUBJECT_EMAIL"] != $_POST["v_subject_email"]
 	) {
+		$output = [];
 		exec(
 			HESTIA_CMD .
 				"h-change-sys-config-value SUBJECT_EMAIL " .
@@ -41,8 +45,10 @@ if (!empty($_POST)) {
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 	if (!empty($_POST["v_hide_docs"]) && $_SESSION["HIDE_DOCS"] != $_POST["v_hide_docs"]) {
+		$output = [];
 		exec(
 			HESTIA_CMD .
 				"h-change-sys-config-value HIDE_DOCS " .
@@ -50,9 +56,11 @@ if (!empty($_POST)) {
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 
 	if (!empty($_POST["v_from_name"]) && $_SESSION["FROM_NAME"] != $_POST["v_from_name"]) {
+		$output = [];
 		exec(
 			HESTIA_CMD .
 				"h-change-sys-config-value FROM_NAME " .
@@ -60,8 +68,10 @@ if (!empty($_POST)) {
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 	if (!empty($_POST["v_from_email"]) && $_SESSION["FROM_EMAIL"] != $_POST["v_from_email"]) {
+		$output = [];
 		exec(
 			HESTIA_CMD .
 				"h-change-sys-config-value FROM_EMAIL " .
@@ -69,8 +79,10 @@ if (!empty($_POST)) {
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 	if (!empty($_POST["v_hide_docs"]) && $_SESSION["HIDE_DOCS"] != $_POST["v_hide_docs"]) {
+		$output = [];
 		exec(
 			HESTIA_CMD .
 				"h-change-sys-config-value HIDE_DOCS " .
@@ -78,12 +90,17 @@ if (!empty($_POST)) {
 			$output,
 			$return_var,
 		);
+		check_return_code($return_var, $output);
 	}
 	if (!empty($_POST["v_update_logo"])) {
-		exec(HESTIA_CMD . "h-update-white-label-logo");
+		$output = [];
+		exec(HESTIA_CMD . "h-update-white-label-logo", $output, $return_var);
+		check_return_code($return_var, $output);
 	}
 	if (!empty($_POST["v_reset_logo"])) {
-		exec(HESTIA_CMD . "h-update-white-label-logo yes yes");
+		$output = [];
+		exec(HESTIA_CMD . "h-update-white-label-logo yes yes", $output, $return_var);
+		check_return_code($return_var, $output);
 	}
 }
 

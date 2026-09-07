@@ -35,15 +35,24 @@ if ($_SESSION["userContext"] === "admin") {
 		case "delete-cron-reports":
 			$cmd = "h-delete-cron-reports";
 			exec(HESTIA_CMD . $cmd . " " . $user, $output, $return_var);
-			$_SESSION["error_msg"] = _("Cron job email reporting has been successfully disabled.");
+			if ($return_var == 0) {
+				$_SESSION["error_msg"] = _("Cron job email reporting has been successfully disabled.");
+			} else {
+				check_return_code($return_var, $output);
+			}
 			unset($output);
 			header("Location: /list/cron/");
 			exit();
 			break;
 		case "add-cron-reports":
 			$cmd = "h-add-cron-reports";
+			$output = [];
 			exec(HESTIA_CMD . $cmd . " " . $user, $output, $return_var);
-			$_SESSION["error_msg"] = _("Cron job email reporting has been successfully enabled.");
+			if ($return_var == 0) {
+				$_SESSION["error_msg"] = _("Cron job email reporting has been successfully enabled.");
+			} else {
+				check_return_code($return_var, $output);
+			}
 			unset($output);
 			header("Location: /list/cron/");
 			exit();
@@ -59,16 +68,26 @@ if ($_SESSION["userContext"] === "admin") {
 			break;
 		case "delete-cron-reports":
 			$cmd = "h-delete-cron-reports";
+			$output = [];
 			exec(HESTIA_CMD . $cmd . " " . $user, $output, $return_var);
-			$_SESSION["error_msg"] = _("Cron job email reporting has been successfully disabled.");
+			if ($return_var == 0) {
+				$_SESSION["error_msg"] = _("Cron job email reporting has been successfully disabled.");
+			} else {
+				check_return_code($return_var, $output);
+			}
 			unset($output);
 			header("Location: /list/cron/");
 			exit();
 			break;
 		case "add-cron-reports":
 			$cmd = "h-add-cron-reports";
+			$output = [];
 			exec(HESTIA_CMD . $cmd . " " . $user, $output, $return_var);
-			$_SESSION["error_msg"] = _("Cron job email reporting has been successfully enabled.");
+			if ($return_var == 0) {
+				$_SESSION["error_msg"] = _("Cron job email reporting has been successfully enabled.");
+			} else {
+				check_return_code($return_var, $output);
+			}
 			unset($output);
 			header("Location: /list/cron/");
 			exit();
@@ -79,14 +98,21 @@ if ($_SESSION["userContext"] === "admin") {
 	}
 }
 
+$failed = [];
 foreach ($job as $value) {
-	$value = quoteshellarg($value);
-	exec(HESTIA_CMD . $cmd . " " . $user . " " . $value . " no", $output, $return_var);
+	exec(HESTIA_CMD . $cmd . " " . $user . " " . quoteshellarg($value) . " no", $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $value;
+	}
 	$restart = "yes";
 }
+bulk_note_failures($failed, count($job));
 
 if (!empty($restart)) {
+	// exec() appends: the loop's lines must not land in the restart's error message
+	$output = [];
 	exec(HESTIA_CMD . "h-restart-cron", $output, $return_var);
+	check_return_code($return_var, $output);
 }
 
 header("Location: /list/cron/");

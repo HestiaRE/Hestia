@@ -30,11 +30,16 @@ switch ($_POST["action"]) {
 		exit();
 }
 
+$failed = [];
 foreach ($_POST["ip"] as $ip) {
 	$v_ip = quoteshellarg($ip);
 	exec(HESTIA_CMD . $cmd . " " . $v_ip, $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $ip;
+	}
 	unset($output);
 }
+bulk_note_failures($failed, count($_POST["ip"]));
 
 header("Location: /list/firewall/exclude/");
 exit();

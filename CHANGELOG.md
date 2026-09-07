@@ -47,6 +47,15 @@ opens above it.
   a Tachyon success wrote the pair back, a failure left the choice lost - the case #928 had removed from
   the installer, alive one layer down. Measured with a blocked Tachyon source on a fresh mailonly box.
   The set is now the recipe's current tokens plus the caller's own, read from `install.conf`.
+- **The panel reads the exit code of every command it writes with** (#957). 94 of the 420 `exec()`
+  sites never looked at it: the whitelabel form answered 200 to a value the command refused, a bulk
+  suspend of ten domains reported nothing when all ten failed, a firewall list whose command died
+  rendered as empty, and a 2FA reset showed its success page before the key was gone. Now a single
+  form notes the command's error (`check_return_code`), a list page whose command failed goes to the
+  error page instead of an empty list, a bulk action names what failed ("2 of 2 failed: a, b"), and the
+  audit writers (`h-log-*`) drop the code on purpose through `cli_log()`, so the next sweep can tell a
+  decision from an omission. Two real bugs on the way: `h-delete-backup-host-restic` was checked through
+  a variable it never wrote, and the password-reset mail went out even when the key was not stored.
 
 - **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before
   the file is touched** (#955). `change_sys_value` rewrote the line with `sed`, whose replacement

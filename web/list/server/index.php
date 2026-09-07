@@ -25,6 +25,9 @@ if (isset($_GET["cpu"])) {
 	$TAB = "CPU";
 	include $_SERVER["DOCUMENT_ROOT"] . "/templates/pages/list_server_info.php";
 	exec(HESTIA_CMD . "h-list-sys-cpu-status", $output, $return_var);
+	if ($return_var != 0) {
+		echo sprintf(_("Error code: %s"), $return_var) . "\n";
+	}
 	foreach ($output as $file) {
 		echo $file . "\n";
 	}
@@ -37,6 +40,9 @@ if (isset($_GET["mem"])) {
 	$TAB = "MEMORY";
 	include $_SERVER["DOCUMENT_ROOT"] . "/templates/pages/list_server_info.php";
 	exec(HESTIA_CMD . "h-list-sys-memory-status", $output, $return_var);
+	if ($return_var != 0) {
+		echo sprintf(_("Error code: %s"), $return_var) . "\n";
+	}
 	foreach ($output as $file) {
 		echo $file . "\n";
 	}
@@ -49,6 +55,9 @@ if (isset($_GET["disk"])) {
 	$TAB = "DISK";
 	include $_SERVER["DOCUMENT_ROOT"] . "/templates/pages/list_server_info.php";
 	exec(HESTIA_CMD . "h-list-sys-disk-status", $output, $return_var);
+	if ($return_var != 0) {
+		echo sprintf(_("Error code: %s"), $return_var) . "\n";
+	}
 	foreach ($output as $file) {
 		echo $file . "\n";
 	}
@@ -61,6 +70,9 @@ if (isset($_GET["net"])) {
 	$TAB = "NETWORK";
 	include $_SERVER["DOCUMENT_ROOT"] . "/templates/pages/list_server_info.php";
 	exec(HESTIA_CMD . "h-list-sys-network-status", $output, $return_var);
+	if ($return_var != 0) {
+		echo sprintf(_("Error code: %s"), $return_var) . "\n";
+	}
 	foreach ($output as $file) {
 		echo $file . "\n";
 	}
@@ -73,6 +85,9 @@ if (isset($_GET["web"])) {
 	$TAB = "WEB";
 	include $_SERVER["DOCUMENT_ROOT"] . "/templates/pages/list_server_info.php";
 	exec(HESTIA_CMD . "h-list-sys-web-status", $output, $return_var);
+	if ($return_var != 0) {
+		echo sprintf(_("Error code: %s"), $return_var) . "\n";
+	}
 	foreach ($output as $file) {
 		$file = str_replace('border="0"', 'border="1"', $file);
 		$file = str_replace('bgcolor="#ffffff"', "", $file);
@@ -116,7 +131,9 @@ if (isset($_GET["db"])) {
 }
 
 // Data
+$output = [];
 exec(HESTIA_CMD . "h-list-sys-info json", $output, $return_var);
+check_error($return_var);
 $sys = json_decode(implode("", $output), true);
 unset($output);
 

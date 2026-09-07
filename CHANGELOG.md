@@ -33,6 +33,14 @@ opens above it.
   did not answer the empty result raised a shell error and the address passed with rc 0 - the
   validator did the opposite of its job exactly when it could not work. It now compares the result
   as a string and refuses on anything but a clean yes (measured with `HESTIA_PHP=/bin/false`).
+- **The LANGUAGE repair never worked, and the repair command reported success anyway** (#929,
+  inherited). `syshealth_repair_system_config` called `h-change-sys-language` with the key name as
+  the language, the command refused, and `h-repair-sys-config` logged "Executed repair" with rc 0.
+  The call now passes the language, every repair sub-command is counted, and the command ends
+  non-zero with the count when one failed. `h-change-sys-config-value` and `h-change-sys-language` verify
+  their write instead of reporting success over a file they could not change, and the LANGUAGE write is
+  anchored to the key. The repair still assembles an absent `WEBMAIL_SYSTEM` from what is on disk; that
+  artefact-driven fill is inherited behaviour and goes with the key registry (UPDATES 1a), not a promise.
 
 ## v0.18.0 (2026-09-01)
 

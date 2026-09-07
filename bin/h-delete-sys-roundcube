@@ -101,15 +101,13 @@ $BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Narrow the component token set: drop our token, an emptied set becomes NONE. Only when the
-# recorded set names us (don't clobber a record about other clients), and rebuilt from the
-# post-strip WEBMAIL_SYSTEM rather than string-edited, so it stays canonical.
+# Narrow the component token set: drop our token, an emptied set becomes NONE. Only when the recorded
+# set names us (a record about other clients stays), and rebuilt from the recipe minus this client, not
+# from the post-strip WEBMAIL_SYSTEM: the status may not list the other client at this moment (#965).
 case ",${COMPONENT_MAIL_WEBMAILER:-}," in
 	*,ROUNDCUBE,*)
-		if echo "${new_webmail:-}" | grep -qw 'tachyon'; then
-			set_install_component MAIL_WEBMAILER TACHYON
-		else
-			set_install_component MAIL_WEBMAILER ""
+		if wm_set=$(webmail_component_set remove ROUNDCUBE); then
+			set_install_component MAIL_WEBMAILER "$wm_set"
 		fi
 		;;
 esac

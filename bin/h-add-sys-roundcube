@@ -288,11 +288,10 @@ $BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# The component is a token set: a second add widens it, never overwrites (canonical order RC,TX)
-if echo "$WEBMAIL_SYSTEM" | grep -qw 'tachyon'; then
-	set_install_component MAIL_WEBMAILER "ROUNDCUBE,TACHYON"
-else
-	set_install_component MAIL_WEBMAILER ROUNDCUBE
+# The component is a token set: a second add widens it, never overwrites. The set comes from the recipe
+# plus this client, not from the status, which does not know the client that is still to come (#965).
+if wm_set=$(webmail_component_set add ROUNDCUBE); then
+	set_install_component MAIL_WEBMAILER "$wm_set"
 fi
 
 $BIN/h-log-action "system" "Info" "Plugins" "Roundcube installed (OS package)."

@@ -1412,9 +1412,15 @@ is_ipv6_format_valid() {
 	fi
 }
 
+# Silent predicate: exit status only, never check_result. The validator below refuses AND logs, so
+# using it as a probe in a subshell wrote an [Error 2] line on every successful domain add (#925).
+# Named far from is_ip46_format_valid on purpose: one asks, the other refuses.
+looks_like_ip46() {
+	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
+}
+
 is_ip46_format_valid() {
-	valid=$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")
-	if [ "$valid" -ne 0 ]; then
+	if ! looks_like_ip46 "$1"; then
 		check_result "$E_INVALID" "invalid IP format :: $1"
 	fi
 }
@@ -2096,10 +2102,11 @@ format_domain() {
 	domain=$(echo $domain | sed 's/^[ \t]*//;s/[ \t]*$//')
 }
 
+# Always the twin of $domain as format_domain left it. Seeding only when empty let a caller's raw
+# argument survive: with `www.other.com` every duplicate guard then checked a name no record carries,
+# while record and vhost were created under the stripped name - another customer's (#925).
 format_domain_idn() {
-	if [ -z "$domain_idn" ]; then
-		domain_idn=$domain
-	fi
+	domain_idn=$domain
 	if [[ "$domain_idn" = *[![:ascii:]]* ]]; then
 		domain_idn=$(idn2 --quiet $domain_idn)
 	fi
@@ -2270,12 +2277,52 @@ is_username_format_valid() {
 	fi
 }
 
+# The line is built and checked BEFORE the file is touched, then written whole through a temp file
+# and rename: the sed it replaces expanded & and \ inside the value (a plain "Foo & Bar" glued the
+# old value into the new one and left the quotes unbalanced, #955). A value that cannot form a
+# KEY='VALUE' line is refused, not written. Every matching line is replaced, as before; the
+# duplicate collapse stays with syshealth.
 change_sys_value() {
-	check_ckey=$(grep "^$1='" "$HESTIA/conf/hestia.conf")
-	if [ -z "$check_ckey" ]; then
-		echo "$1='$2'" >> "$HESTIA/conf/hestia.conf"
+	local _key="$1" _value="$2" _conf="$HESTIA/conf/hestia.conf" _tmp _prev_trap
+	# check_result exits; the returns behind it keep the write unreachable even where it does not
+	case "$_value" in
+		*\'* | *$'\n'*)
+			check_result "$E_INVALID" "invalid value for $_key: a quote or a line break cannot be stored"
+			return "$E_INVALID"
+			;;
+	esac
+	_tmp=$(mktemp "$_conf.XXXXXX") || {
+		check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
+		return "$E_UPDATE"
+	}
+	# the temp file has one owner, this trap, until the rename; the caller's EXIT trap is kept and put back
+	_prev_trap=$(trap -p EXIT)
+	# shellcheck disable=SC2064  # expand now on purpose: _tmp is local and gone when the trap fires
+	trap "rm -f '$_tmp'" EXIT
+	# one subshell behind one redirect: a failed write (full disk) is rc 1 here, not a truncated file later.
+	# Every line of the key is replaced, quoted or not; collapsing duplicates stays with syshealth.
+	# Mode and owner come from the file, not the umask: the seed sets 660, the old /tmp sort path handed out 644.
+	if (
+		found=no
+		while IFS= read -r line || [ -n "$line" ]; do
+			if [[ $line == "$_key="* ]]; then
+				printf "%s='%s'\n" "$_key" "$_value" || exit 1
+				found=yes
+			else
+				printf '%s\n' "$line" || exit 1
+			fi
+		done < "$_conf"
+		[ "$found" = yes ] || printf "%s='%s'\n" "$_key" "$_value"
+	) > "$_tmp" \
+		&& chmod --reference="$_conf" "$_tmp" \
+		&& { [ "$(stat -c %u:%g "$_conf")" = "$(stat -c %u:%g "$_tmp")" ] || chown --reference="$_conf" "$_tmp"; } \
+		&& mv -f "$_tmp" "$_conf"; then
+		eval "${_prev_trap:-trap - EXIT}"
 	else
-		sed -i "s|^$1=.*|$1='$2'|g" "$HESTIA/conf/hestia.conf"
+		rm -f "$_tmp"
+		eval "${_prev_trap:-trap - EXIT}"
+		check_result "$E_UPDATE" "hestia.conf was not written: $_key"
+		return "$E_UPDATE"
 	fi
 }
 

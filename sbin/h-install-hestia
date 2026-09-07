@@ -680,17 +680,17 @@ install_mail() {
 		# WEBMAIL_SYSTEM only after the command succeeds: setting it first made the panel
 		# claim a webmail that a failed download had never unpacked (#573). Non-fatal like
 		# the addons above, but loud - the box stays usable, the gap stays visible.
+		# Roundcube above is NOT caught: an OS package apt cannot install is a broken box, a
+		# network fetch that fails is a gap. Note the else branch also fires when the pin is
+		# already installed (h-add-sys-tachyon exits 2 on "equal version"), so it ran on every
+		# re-run of this stage. Whether ONE rule should cover every soft path is decided at
+		# 1d (#945, E13); this block only names the asymmetry.
 		if "$BIN/h-add-sys-tachyon" >> "$LOG" 2>&1; then
 			wcv "WEBMAIL_ALIAS" "webmail"
 		else
+			# install.conf is the operator's choice and stays as chosen; the status key
+			# WEBMAIL_SYSTEM, written only on success, says what the box has (#928).
 			echo "[ !! ] Tachyon install FAILED - $([ "$wm_rc" = yes ] && echo "Roundcube stays the only webmail" || echo "no webmail configured") (see $LOG)"
-			# The recorded choice must not claim a client the box does not have; the add
-			# commands normalize it on success, only the failure path needs this by hand.
-			if [ "$wm_rc" = yes ]; then
-				set_install_component MAIL_WEBMAILER ROUNDCUBE
-			else
-				set_install_component MAIL_WEBMAILER ""
-			fi
 		fi
 	fi
 	if [ "$wm_rc" = no ] && [ "$wm_tx" = no ]; then
@@ -1062,7 +1062,8 @@ install_tools() {
 		# shellcheck disable=SC2086 # TOOLS_SELECTION is a deliberate space-separated package list
 		apt_install_optional "selected tools" $TOOLS_SELECTION || true
 	fi
-	if is_on "${COMPONENT_ADDON_COMPOSER:-true}"; then
+	# No default: an absent key means "not chosen", like every other addon gate here (#928).
+	if is_on "${COMPONENT_ADDON_COMPOSER:-}"; then
 		# os_package default: apt-maintained with automatic security backports; upstream_installer
 		# (latest preset / h-update-sys-composer) = newest composer, no auto-updates afterwards
 		case "${COMPONENT_ADDON_COMPOSER_SOURCE:-os_package}" in

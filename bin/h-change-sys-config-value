@@ -60,11 +60,20 @@ esac
 
 change_sys_value "$key" "$value"
 
-# Sort configuration file in alphabetical order on change
-sort $HESTIA/conf/hestia.conf -o /tmp/updconf
-mv $HESTIA/conf/hestia.conf $HESTIA/conf/hestia.conf.bak
-mv /tmp/updconf $HESTIA/conf/hestia.conf
-rm -f $HESTIA/conf/hestia.conf.bak
+# Sort configuration file in alphabetical order on change - through a temp file next to it (the old
+# /tmp/updconf was a fixed name, and the mv recreated hestia.conf with the umask's mode instead of its own).
+# The trap owns the temp file until the rename; mode and owner come from the file, chown only when they differ.
+updconf=$(mktemp "$HESTIA/conf/hestia.conf.XXXXXX") || check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
+trap 'rm -f "$updconf"' EXIT
+sort "$HESTIA/conf/hestia.conf" -o "$updconf" \
+	&& chmod --reference="$HESTIA/conf/hestia.conf" "$updconf" \
+	&& { [ "$(stat -c %u:%g "$HESTIA/conf/hestia.conf")" = "$(stat -c %u:%g "$updconf")" ] || chown --reference="$HESTIA/conf/hestia.conf" "$updconf"; } \
+	&& mv -f "$updconf" "$HESTIA/conf/hestia.conf" || check_result "$E_UPDATE" "hestia.conf was not sorted: $key"
+# The write is verified, not assumed: sed and mv fail silently on an unwritable file, and every
+# caller (the repair above all) treated this command's rc 0 as "written" (#929).
+if ! grep -qxF "$key='$value'" "$HESTIA/conf/hestia.conf"; then
+	check_result "$E_UPDATE" "hestia.conf was not written: $key"
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #

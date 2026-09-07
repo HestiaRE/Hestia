@@ -22,9 +22,6 @@ ssl_dir=$3
 ssl_home=${4-same}
 restart="$5"
 
-domain=$domain
-domain_idn=$(idn2 --quiet "$domain")
-
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

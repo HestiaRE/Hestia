@@ -20,8 +20,6 @@ new_package=$2
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# shellcheck source=/usr/local/hestia/conf/hestia.conf
-source $HESTIA/conf/hestia.conf
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 

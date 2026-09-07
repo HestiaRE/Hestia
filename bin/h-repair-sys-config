@@ -1,10 +1,11 @@
 #!/bin/bash
-# info: Restore system configuration
-# options: [SYSTEM]
+# info: repair system configuration
+# options: MODE
 #
-# example: h-repair-sys-config
+# example: h-repair-sys-config repair
 #
-# This function repairs or restores the system configuration file.
+# Adds missing keys to hestia.conf with their defaults. The former `restore` mode copied a
+# conf/defaults/hestia.conf that nothing ever wrote, so it aborted on every box (#930).
 
 mode=$1
 
@@ -24,17 +25,17 @@ source $HESTIA/include/syshealth.sh
 #----------------------------------------------------------#
 
 case "$mode" in
-	restore)
-		syshealth_restore_system_config
-		;;
 	repair)
 		# load config file
 		source_conf "$HESTIA/conf/hestia.conf"
-		syshealth_repair_system_config
+		# The count is the verdict: a failed sub-command must not end in "Executed repair" (#929).
+		if ! syshealth_repair_system_config; then
+			check_result "$E_UPDATE" "$syshealth_repair_failed config repair(s) failed - see the lines above"
+		fi
 		;;
 	*)
 		# Anything else did nothing and still logged "Executed  operation on system configuration".
-		check_result "$E_INVALID" "unknown mode '$mode', expected: repair | restore"
+		check_result "$E_INVALID" "unknown mode '$mode', expected: repair"
 		;;
 esac
 

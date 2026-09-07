@@ -112,8 +112,8 @@ if [ -x "$CONF_DIR/packages/$package.sh" ]; then
 	$CONF_DIR/packages/$package.sh "$user" "$CONTACT" "$NAME"
 fi
 
-# Project quota (self-gated on PROJECT_QUOTA, #211)
-source $HESTIA/conf/hestia.conf
+# Project quota (self-gated on PROJECT_QUOTA, #211); re-read through the sanitized reader, never source
+source_conf "$HESTIA/conf/hestia.conf"
 $BIN/h-update-user-quota "$user"
 
 # The docker cap is per docker customer: the companion slice is the only place it can land.

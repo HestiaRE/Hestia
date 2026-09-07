@@ -12,7 +12,73 @@ opens above it.
 
 ## Unreleased
 
-_Nothing yet._
+### Security
+
+- **Eleven commands stopped executing `hestia.conf` as shell** (#955). They read the file with a
+  plain `source` before (or instead of) the sanitized `source_conf`. A value that reaches the file
+  with unbalanced quotes - the sed writer produced one from a plain `&` - is then parsed as an
+  assignment followed by a command, and bash runs a word taken from the operator's value. The
+  plain reads are gone: eight commands already re-read through `source_conf` on the next line,
+  three (`h-change-user-shell`, `h-update-sys-rrd-ftp`, the quota re-read in `h-change-user-package`)
+  now use it in place of `source`. `source_conf` binds every key as data and refuses the protected
+  shell names; nothing the eleven read comes from `hestia.conf` under a name it withholds.
+
+### Added
+
+- **The smoke measures the chain that keeps `hestia.conf` to root** (#960). Every v0.18.0 box carried
+  the file as 644 root:root: the seed sets 660, and the old sort through `/tmp/updconf` handed out the
+  umask's mode on the first config write of the install. Nothing said so. The chain held anyway -
+  `/etc/hestia` is 700 root:root, and the panel pool, a customer and `nobody` all stop at the directory
+  (measured) - so this was drift, not a leak. The writer fix above keeps the mode; the new check reads
+  the directory's and the file's expected mode from the tree (`include/wizard.sh`, `include/helper.sh`)
+  and fails when a pattern finds nothing, so a fresh install after the release proves the drift gone.
+  No repair for existing boxes: there are none outside the test fleet, which is reset.
+
+### Fixed
+
+- **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before
+  the file is touched** (#955). `change_sys_value` rewrote the line with `sed`, whose replacement
+  treats `&` as the whole match and `\` as an escape: "Foo & Bar" landed as
+  `APP_NAME='Foo APP_NAME='Hestia Control Panel' Bar'`, silently under v0.18.0 and as rc 19 since
+  #929. The writer now builds the line, refuses a quote or a line break, and writes the whole file
+  through a temp file next to it, keeping mode and owner; the sort in `h-change-sys-config-value`
+  goes the same way instead of through a fixed name in /tmp. What a value may not contain follows
+  from the readers, not from the writer: `source_conf`, the quote-bounded `sed -n` parsers and the
+  file's own `KEY='VALUE'` form all break on exactly `'` and a line break.
+
+- **The installer no longer rewrites the operator's webmail choice when the Tachyon step fails**
+  (#928). The mail stage patched `COMPONENT_MAIL_WEBMAILER` in `install.conf` down to what it
+  believed got installed - and that branch did not need a rare network failure: `h-add-sys-tachyon`
+  exits 2 when the pinned version is already installed, so every re-run of the stage on a current
+  box downgraded the choice and, through the changed file hash, invalidated all eight stage markers.
+  install.conf is the recorded choice, not a status file; the status key `WEBMAIL_SYSTEM` (written
+  only on success) says what the box has. The failure line stays. The composer gate also drops its
+  `:-true` default: an absent `COMPONENT_ADDON_COMPOSER` now means "not chosen", as for every other addon.
+- **`www.<domain>` no longer takes over another customer's vhost** (#925, inherited). Every
+  `h-add-*` command bound `domain_idn` from the raw argument before `format_domain` stripped the
+  `www.`, and `format_domain_idn` only seeded an empty value - so both duplicate guards checked a
+  name no record carries while the record, the log files and the conf.d symlink were created under
+  the stripped name. `format_domain_idn` now always derives from the normalized domain. In the same
+  commands the IP probe used the refusing validator in a subshell, which logged `[Error 2]` on every
+  successful add; a silent predicate `looks_like_ip46` carries the probe now. Its refusing twin
+  `is_ip46_format_valid` was also fail-open: it compared the PHP result arithmetically, so when PHP
+  did not answer the empty result raised a shell error and the address passed with rc 0 - the
+  validator did the opposite of its job exactly when it could not work. It now compares the result
+  as a string and refuses on anything but a clean yes (measured with `HESTIA_PHP=/bin/false`).
+- **The LANGUAGE repair never worked, and the repair command reported success anyway** (#929,
+  inherited). `syshealth_repair_system_config` called `h-change-sys-language` with the key name as
+  the language, the command refused, and `h-repair-sys-config` logged "Executed repair" with rc 0.
+  The call now passes the language, every repair sub-command is counted, and the command ends
+  non-zero with the count when one failed. `h-change-sys-config-value` and `h-change-sys-language` verify
+  their write instead of reporting success over a file they could not change, and the LANGUAGE write is
+  anchored to the key. The repair still assembles an absent `WEBMAIL_SYSTEM` from what is on disk; that
+  artefact-driven fill is inherited behaviour and goes with the key registry (UPDATES 1a), not a promise.
+
+### Removed
+
+- **`h-repair-sys-config restore`** (#930). The mode replaced `hestia.conf` with
+  `conf/defaults/hestia.conf`, a file nothing in the tree ever writes, so it aborted on every box
+  and nothing called it. Not a lost capability: it never was one.
 
 ## v0.18.0 (2026-09-01)
 

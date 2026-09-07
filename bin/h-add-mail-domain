@@ -61,9 +61,9 @@ is_object_unsuspended 'user' 'USER' "$user"
 # the appearance of a condition.
 is_domain_new 'mail' "$domain_utf"
 is_domain_new 'mail' "$domain_idn"
-# by exit code, not by output: the validator only prints on failure, so reading its output
-# inverts the check the moment it writes to stderr instead
-if (is_ip46_format_valid "$domain") > /dev/null 2>&1; then
+# The silent predicate, not the validator: the validator logs its refusal, and this is the
+# success path of every domain add (#925).
+if looks_like_ip46 "$domain"; then
 	echo "Error: Invalid domain format. IP address detected as input."
 	exit 1
 fi

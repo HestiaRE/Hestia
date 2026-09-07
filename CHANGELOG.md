@@ -22,6 +22,13 @@ opens above it.
   install.conf is the recorded choice, not a status file; the status key `WEBMAIL_SYSTEM` (written
   only on success) says what the box has. The failure line stays. The composer gate also drops its
   `:-true` default: an absent `COMPONENT_ADDON_COMPOSER` now means "not chosen", as for every other addon.
+- **`www.<domain>` no longer takes over another customer's vhost** (#925, inherited). Every
+  `h-add-*` command bound `domain_idn` from the raw argument before `format_domain` stripped the
+  `www.`, and `format_domain_idn` only seeded an empty value - so both duplicate guards checked a
+  name no record carries while the record, the log files and the conf.d symlink were created under
+  the stripped name. `format_domain_idn` now always derives from the normalized domain. In the same
+  commands the IP probe used the refusing validator in a subshell, which logged `[Error 2]` on every
+  successful add; a silent predicate `looks_like_ip46` carries the probe now.
 
 ## v0.18.0 (2026-09-01)
 

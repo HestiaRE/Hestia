@@ -1412,9 +1412,15 @@ is_ipv6_format_valid() {
 	fi
 }
 
+# Silent predicate: exit status only, never check_result. The validator below refuses AND logs, so
+# using it as a probe in a subshell wrote an [Error 2] line on every successful domain add (#925).
+# Named far from is_ip46_format_valid on purpose: one asks, the other refuses.
+looks_like_ip46() {
+	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
+}
+
 is_ip46_format_valid() {
-	valid=$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")
-	if [ "$valid" -ne 0 ]; then
+	if ! looks_like_ip46 "$1"; then
 		check_result "$E_INVALID" "invalid IP format :: $1"
 	fi
 }
@@ -2096,10 +2102,11 @@ format_domain() {
 	domain=$(echo $domain | sed 's/^[ \t]*//;s/[ \t]*$//')
 }
 
+# Always the twin of $domain as format_domain left it. Seeding only when empty let a caller's raw
+# argument survive: with `www.other.com` every duplicate guard then checked a name no record carries,
+# while record and vhost were created under the stripped name - another customer's (#925).
 format_domain_idn() {
-	if [ -z "$domain_idn" ]; then
-		domain_idn=$domain
-	fi
+	domain_idn=$domain
 	if [[ "$domain_idn" = *[![:ascii:]]* ]]; then
 		domain_idn=$(idn2 --quiet $domain_idn)
 	fi

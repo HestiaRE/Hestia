@@ -18,7 +18,6 @@
 # Argument definition
 user=$1
 domain=$2
-domain_idn=$2
 ip46=$3
 ip="$ip46" # the dispatch is by variable name; $ip is what every consumer below reads
 restart=$4 # will be moved to the end soon

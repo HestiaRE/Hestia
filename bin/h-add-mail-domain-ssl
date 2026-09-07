@@ -28,8 +28,6 @@ if [[ "$domain" =~ .*\.$ ]]; then
 	domain=$(echo "$domain" | sed -e "s/\.$//")
 fi
 
-domain_idn=$(idn2 --quiet "$domain")
-
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

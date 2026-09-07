@@ -359,19 +359,6 @@ function syshealth_update_system_config_format() {
 	unset known_keys
 }
 
-# Restore System Configuration
-# Replaces $HESTIA/conf/hestia.conf with "known good defaults" file ($HESTIA/conf/defaults/hestia.conf)
-function syshealth_restore_system_config() {
-	if [ -f "$HESTIA/conf/defaults/hestia.conf" ]; then
-		mv $HESTIA/conf/hestia.conf $HESTIA/conf/hestia.conf.old
-		cp $HESTIA/conf/defaults/hestia.conf $HESTIA/conf/hestia.conf
-		rm -f $HESTIA/conf/hestia.conf.old
-	else
-		echo "ERROR: System default configuration file not found, aborting."
-		exit 1
-	fi
-}
-
 function check_key_exists() {
 	grep -e "^$1=" $HESTIA/conf/hestia.conf
 }

@@ -42,6 +42,12 @@ opens above it.
   anchored to the key. The repair still assembles an absent `WEBMAIL_SYSTEM` from what is on disk; that
   artefact-driven fill is inherited behaviour and goes with the key registry (UPDATES 1a), not a promise.
 
+### Removed
+
+- **`h-repair-sys-config restore`** (#930). The mode replaced `hestia.conf` with
+  `conf/defaults/hestia.conf`, a file nothing in the tree ever writes, so it aborted on every box
+  and nothing called it. Not a lost capability: it never was one.
+
 ## v0.18.0 (2026-09-01)
 
 _IPv6 through the whole stack, the panel PHP on the distribution's default, and a system-wide CPU cap for customer PHP._

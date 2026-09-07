@@ -1617,6 +1617,31 @@ check_record_only_protected() {
 		ok "record-only names appear in no record ($n names, $reads record file(s) read)"
 	fi
 }
+# check_hestia_conf_mode - the chain that keeps hestia.conf to root: /etc/hestia at the mode the wizard
+# gives it (700, so the panel pool and every customer stop at the directory), and the file at the mode the
+# seed gives it. Both expectations are read from the tree (include/wizard.sh, include/helper.sh), so a
+# changed seed cannot leave a stale number here; a pattern that finds nothing fails. The old /tmp sort
+# path handed out the umask's 644 on every box (#960) - #959 keeps the mode, this check says whether the
+# drift is really gone. Not covered: the other files under conf/, each has its own writer.
+check_hestia_conf_mode() {
+	local conf="$CONF_DIR/conf/hestia.conf" want_dir want_file live_dir live_file
+	want_dir=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$(dirname "\$INSTALL_CONF")".*/\1/p' "$HESTIA/include/wizard.sh" | head -n1)
+	want_file=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$conf_dir\/hestia\.conf".*/\1/p' "$HESTIA/include/helper.sh" | head -n1)
+	if [ -z "$want_dir" ] || [ -z "$want_file" ]; then
+		no "hestia.conf mode: seed line not found (dir '$want_dir' file '$want_file')" "include/wizard.sh, include/helper.sh"
+		return
+	fi
+	live_dir=$(stat -c '%a %U:%G' "$CONF_DIR" 2> /dev/null)
+	live_file=$(stat -c '%a %U:%G' "$conf" 2> /dev/null)
+	if [ "$live_dir" != "$want_dir root:root" ]; then
+		no "$CONF_DIR is ${live_dir:-missing}, the wizard sets $want_dir root:root" "the boundary the panel pool relies on"
+	elif [ "$live_file" != "$want_file root:root" ]; then
+		no "hestia.conf is ${live_file:-missing}, the seed sets $want_file root:root" "a writer handed out the umask's mode"
+	else
+		ok "hestia.conf keeps the seeded $want_file root:root behind a $want_dir /etc/hestia"
+	fi
+}
+
 # check_protected_names_effective - the list above is a claim; this is the effect. A record that
 # tries to bind PATH must not change it, and a harmless one must still bind, in the same run.
 check_protected_names_effective() {
@@ -2411,6 +2436,8 @@ check_restic_mode_supported
 check_restic_pairs
 check_protected_names
 check_protected_names_effective
+# 644 from the old /tmp sort path was silent on every box (#960).
+check_hestia_conf_mode
 check_record_only_protected
 check_eval_sites
 check_yescrypt_hashing

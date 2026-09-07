@@ -28,7 +28,11 @@ opens above it.
   name no record carries while the record, the log files and the conf.d symlink were created under
   the stripped name. `format_domain_idn` now always derives from the normalized domain. In the same
   commands the IP probe used the refusing validator in a subshell, which logged `[Error 2]` on every
-  successful add; a silent predicate `looks_like_ip46` carries the probe now.
+  successful add; a silent predicate `looks_like_ip46` carries the probe now. Its refusing twin
+  `is_ip46_format_valid` was also fail-open: it compared the PHP result arithmetically, so when PHP
+  did not answer the empty result raised a shell error and the address passed with rc 0 - the
+  validator did the opposite of its job exactly when it could not work. It now compares the result
+  as a string and refuses on anything but a clean yes (measured with `HESTIA_PHP=/bin/false`).
 
 ## v0.18.0 (2026-09-01)
 

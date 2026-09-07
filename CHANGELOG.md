@@ -12,7 +12,16 @@ opens above it.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **The installer no longer rewrites the operator's webmail choice when the Tachyon step fails**
+  (#928). The mail stage patched `COMPONENT_MAIL_WEBMAILER` in `install.conf` down to what it
+  believed got installed - and that branch did not need a rare network failure: `h-add-sys-tachyon`
+  exits 2 when the pinned version is already installed, so every re-run of the stage on a current
+  box downgraded the choice and, through the changed file hash, invalidated all eight stage markers.
+  install.conf is the recorded choice, not a status file; the status key `WEBMAIL_SYSTEM` (written
+  only on success) says what the box has. The failure line stays. The composer gate also drops its
+  `:-true` default: an absent `COMPONENT_ADDON_COMPOSER` now means "not chosen", as for every other addon.
 
 ## v0.18.0 (2026-09-01)
 

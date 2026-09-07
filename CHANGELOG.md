@@ -23,6 +23,17 @@ opens above it.
   now use it in place of `source`. `source_conf` binds every key as data and refuses the protected
   shell names; nothing the eleven read comes from `hestia.conf` under a name it withholds.
 
+### Added
+
+- **The smoke measures the chain that keeps `hestia.conf` to root** (#960). Every v0.18.0 box carried
+  the file as 644 root:root: the seed sets 660, and the old sort through `/tmp/updconf` handed out the
+  umask's mode on the first config write of the install. Nothing said so. The chain held anyway -
+  `/etc/hestia` is 700 root:root, and the panel pool, a customer and `nobody` all stop at the directory
+  (measured) - so this was drift, not a leak. The writer fix above keeps the mode; the new check reads
+  the directory's and the file's expected mode from the tree (`include/wizard.sh`, `include/helper.sh`)
+  and fails when a pattern finds nothing, so a fresh install after the release proves the drift gone.
+  No repair for existing boxes: there are none outside the test fleet, which is reset.
+
 ### Fixed
 
 - **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before

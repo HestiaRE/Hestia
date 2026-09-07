@@ -51,10 +51,16 @@ is_language_valid "$language"
 #----------------------------------------------------------#
 
 # Change language
-if [ -z "$(grep LANGUAGE $HESTIA/conf/hestia.conf)" ]; then
+# anchored: the bare pattern also matched any key that merely ends in LANGUAGE (#929)
+if ! grep -q "^LANGUAGE=" $HESTIA/conf/hestia.conf; then
 	echo "LANGUAGE='$language'" >> $HESTIA/conf/hestia.conf
 else
-	sed -i "s/LANGUAGE=.*/LANGUAGE='$language'/g" $HESTIA/conf/hestia.conf
+	sed -i "s/^LANGUAGE=.*/LANGUAGE='$language'/" $HESTIA/conf/hestia.conf
+fi
+# Verified like h-change-sys-config-value: the repair counts this command's rc, and sed fails
+# silently on a file it cannot write (#929).
+if ! grep -qxF "LANGUAGE='$language'" $HESTIA/conf/hestia.conf; then
+	check_result "$E_UPDATE" "hestia.conf was not written: LANGUAGE"
 fi
 
 # Update language for all existing users if specified

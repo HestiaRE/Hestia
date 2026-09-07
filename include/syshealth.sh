@@ -415,12 +415,15 @@ function repair_key() {
 	else
 		echo "[ ! ] Setting empty value in hestia.conf: $key ('$default')"
 	fi
-	$BIN/h-change-sys-config-value "$key" "$default"
+	$BIN/h-change-sys-config-value "$key" "$default" || syshealth_repair_failed=$((syshealth_repair_failed + 1))
 }
 
 # Repair System Configuration
 # Adds missing variables to $HESTIA/conf/hestia.conf with safe default values
 function syshealth_repair_system_config() {
+	# Counted, then returned: a sub-command that failed must not end in a logged "Executed repair".
+	# The LANGUAGE call below once passed the key name as the language and nobody noticed (#929).
+	syshealth_repair_failed=0
 	# Release branch
 	repair_key 'RELEASE_BRANCH' 'release'
 	# Webmail alias
@@ -453,7 +456,7 @@ function syshealth_repair_system_config() {
 	# Its own command, so it asks the shared question instead of repeating the rule.
 	if key_needs_default 'LANGUAGE' 'en'; then
 		echo "[ ! ] Setting missing value in hestia.conf: LANGUAGE ('en')"
-		$BIN/h-change-sys-language 'LANGUAGE' 'en'
+		$BIN/h-change-sys-language 'en' || syshealth_repair_failed=$((syshealth_repair_failed + 1))
 	fi
 
 	# Disk Quota
@@ -497,7 +500,7 @@ function syshealth_repair_system_config() {
 		[ -d "/var/lib/roundcube" ] && found="roundcube"
 		[ -f "/var/lib/tachyon/data/VERSION" ] && found="${found:+$found,}tachyon"
 		echo "[ ! ] Adding missing variable to hestia.conf: WEBMAIL_SYSTEM ('$found')"
-		$BIN/h-change-sys-config-value "WEBMAIL_SYSTEM" "$found"
+		$BIN/h-change-sys-config-value "WEBMAIL_SYSTEM" "$found" || syshealth_repair_failed=$((syshealth_repair_failed + 1))
 		unset found
 	fi
 
@@ -617,6 +620,7 @@ function syshealth_repair_system_config() {
 	rm -f "$HESTIA/conf/hestia.conf.new"
 
 	source_conf "$HESTIA/conf/hestia.conf"
+	return "$syshealth_repair_failed"
 }
 
 # Repair System Cron Jobs

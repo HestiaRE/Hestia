@@ -476,6 +476,8 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 	# set even if the preset did not pre-select it (#196, #272). Deduped so a
 	# pre-selected reference version is not installed twice.
 	if [ "${COMPONENT_PHP_MODE:-sury_multi}" = "sury_multi" ]; then
+		# The status says the source, not the count (#934); the versions come from h-add-web-php below.
+		wcv "PHP_SOURCE" "sury"
 		local php_versions="${COMPONENT_PHP_MULTIPHP_VERSIONS:-}"
 		case " $php_versions " in
 			*" $PHP_VER "*) ;;
@@ -496,6 +498,13 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 		done
 	else
 		echo "[ * ] Skipping multi-PHP (PHP_MODE=${COMPONENT_PHP_MODE:-?})"
+		# OS PHP: h-add-web-php does not run here, so the stage records the one version itself, through the
+		# token function like every other writer of a token key (#933/#934).
+		wcv "PHP_SOURCE" "os"
+		sys_key_token_set PHP_VERSIONS add "$PHP_VER" > /dev/null || {
+			echo "ERROR: PHP_VERSIONS: could not record $PHP_VER" >&2
+			exit 1
+		}
 	fi
 
 	echo "[ * ] Ensuring PHP $PHP_VER FPM pool..."

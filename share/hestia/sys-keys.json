@@ -65,7 +65,7 @@
   "DB_MARIADB_SYSTEM": {
    "class": "system",
    "default": "",
-   "note": "a local MariaDB package is installed; value = its source in the recipe's own words, os_default or mariadb_repo (the source field of the DB_MARIADB_VERSION options). DB_SYSTEM stays the host register and says nothing about a local package (#978, #980)"
+   "note": "a local MariaDB package is installed; value = its source in the recipe's own words, os_default or mariadb_repo (the source field of the DB_MARIADB_VERSION options). The recipe's words on purpose, because that field is exactly the source; PHP_SOURCE has its own words for the opposite reason. This ties the value set to the manifest: a source added or renamed there changes these values while installed boxes keep the old one, so in the update manifests (Phase 3, #947) that is a migration entry, never a rename. DB_SYSTEM stays the host register and says nothing about a local package (#978, #980)"
   },
   "DB_MARIADB_VERSION": {
    "class": "system",
@@ -171,7 +171,7 @@
   "PHP_SOURCE": {
    "class": "system",
    "default": "",
-   "note": "the source of the customer PHP the box got, os or sury; the versions are PHP_VERSIONS. Deliberately not PHP_MODE: that is the recipe's wizard answer (COMPONENT_PHP_MODE, os_single or sury_multi), a different thing with a different vocabulary (#934)"
+   "note": "the source of the customer PHP the box got, os or sury; the versions are PHP_VERSIONS. Deliberately not PHP_MODE: that is the recipe's wizard answer (COMPONENT_PHP_MODE, os_single or sury_multi), a different thing. Own vocabulary on purpose: the recipe value mixes source and multiplicity (sury_multi), so it is not the source. DB_MARIADB_SYSTEM does the opposite for the same reason, there the recipe field IS the source (#934)"
   },
   "PHP_VERSIONS": {
    "class": "system",

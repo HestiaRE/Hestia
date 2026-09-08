@@ -25,7 +25,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 # The installed clients in the order of WEBMAIL_KNOWN_CLIENTS, never in the order of the key: the panel's
 # select and h-add-mail-domain-webmail take the first entry as the default, and the token writers append.
 # A token outside the known list is not offered (it has no template either).
-clients=$(for c in $WEBMAIL_KNOWN_CLIENTS; do grep -qwF -- "$c" <<< "$WEBMAIL_SYSTEM" && echo "$c"; done)
+clients=$(for c in $WEBMAIL_KNOWN_CLIENTS; do case ",$WEBMAIL_SYSTEM," in *",$c,"*) echo "$c" ;; esac done)
 
 # JSON list function
 json_list() {

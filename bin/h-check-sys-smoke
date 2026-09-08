@@ -430,6 +430,22 @@ check_webmail_value_domain() {
 	no "webmail templates outside the value domain:$missing" "extend WEBMAIL_KNOWN_CLIENTS in include/main.sh"
 }
 
+# The other direction: every token the status key holds must be a known client, or h-list-sys-webmail
+# drops it without a word (it offers only what has a template) and the operator sees a choice missing.
+# A hand edit or a migration entry is how such a token gets there. An empty key is a box without webmail.
+check_webmail_tokens_known() {
+	local t unknown='' n=0
+	for t in ${WEBMAIL_SYSTEM//,/ }; do
+		n=$((n + 1))
+		case " $WEBMAIL_KNOWN_CLIENTS " in *" $t "*) ;; *) unknown="$unknown $t" ;; esac
+	done
+	if [ -n "$unknown" ]; then
+		no "WEBMAIL_SYSTEM carries unknown token(s):$unknown" "not in WEBMAIL_KNOWN_CLIENTS, so never offered; fix the key or extend the list"
+	else
+		ok "WEBMAIL_SYSTEM tokens are all known clients ($n token(s))"
+	fi
+}
+
 # Two files have to agree on how a diff payload is spelled: backup.sh names it, h-restore-user greps
 # for it. Both are used AS SHIPPED here - the namer in a subshell, the pattern lifted out of the
 # restore - so a rename on one side cannot go unnoticed. Plus the fallback that keeps pre-#840
@@ -2470,6 +2486,7 @@ fi
 # adminer/webmail: no own daemon, served by a caddy FPM pool, so check the socket
 is_on "${COMPONENT_ADDON_ADMINER:-}" && check_socket /run/hestia-adminer.sock "adminer FPM"
 check_webmail_value_domain
+check_webmail_tokens_known
 check_backup_container_meta
 check_backup_diff_member_name
 if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube'; then

@@ -60,10 +60,12 @@ if [ -z "$webmail" ]; then
 	# WEBMAIL_KNOWN_CLIENTS (roundcube first), never the position in WEBMAIL_SYSTEM - the token
 	# writers append, so a position would make the default depend on install order.
 	for c in $WEBMAIL_KNOWN_CLIENTS; do
-		if grep -qwF -- "$c" <<< "$WEBMAIL_SYSTEM"; then
+		# exact token, not a word boundary: grep -w would take roundcube from roundcube-next
+		case ",$WEBMAIL_SYSTEM," in *",$c,"*)
 			webmail="$c"
 			break
-		fi
+			;;
+		esac
 	done
 fi
 

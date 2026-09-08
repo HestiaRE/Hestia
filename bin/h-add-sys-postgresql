@@ -39,6 +39,7 @@ fi
 if dpkg -l postgresql 2> /dev/null | grep -q '^ii' \
 	&& grep -qs "HOST='localhost'" "$HESTIA/conf/pgsql.conf"; then
 	echo "INFO: PostgreSQL is already installed."
+	change_sys_value "DB_POSTGRESQL_SYSTEM" "os"
 	exit 0
 fi
 
@@ -85,6 +86,8 @@ sudo -u postgres psql -qc "ALTER ROLE postgres WITH PASSWORD '$PGPASS';" > /dev/
 #----------------------------------------------------------#
 
 set_install_component DB_POSTGRESQL true
+# status: a local package, from the OS (#979); DB_SYSTEM's pgsql token is the host register, written below
+change_sys_value "DB_POSTGRESQL_SYSTEM" "os"
 
 # register the local host — composes DB_SYSTEM+=pgsql, letting the panel manage pgsql DBs
 if ! "$BIN/h-add-database-host" pgsql localhost "$MGMT_ROLE" "$PGPASS" > /dev/null 2>&1; then

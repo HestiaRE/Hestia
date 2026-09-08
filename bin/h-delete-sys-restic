@@ -53,6 +53,7 @@ repo=$(sed -n "s/^REPO='\([^']*\)'.*/\1/p" "$HESTIA/conf/restic.conf" 2> /dev/nu
 #----------------------------------------------------------#
 
 $BIN/h-change-sys-config-value 'BACKUP_INCREMENTAL' 'no'
+change_sys_value "RESTIC_SYSTEM" ""
 echo "restic removed - repositories under ${repo:-(none configured)} and their keys were kept"
 log_event "$OK" "$ARGUMENTS"
 

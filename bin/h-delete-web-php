@@ -60,6 +60,9 @@ fi
 # Check if php version exists
 version_check=$($BIN/h-list-sys-php plain | grep "$version")
 if [ -z "$version_check" ]; then
+	# A token without a package is drift (a purge outside HestiaRE); clear it here, before the exit, so
+	# the status can be repaired by the command that owns it instead of by hand (Halt 1b build rule).
+	sys_key_token_set PHP_VERSIONS remove "$version" > /dev/null 2>&1
 	echo "ERROR: Specified PHP version is not installed."
 	exit "$E_INVALID"
 fi
@@ -112,6 +115,10 @@ systemctl daemon-reload
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
+
+# Only after the purge succeeded: a token removed before a failed purge would say "gone" about a
+# version that is still there (#933).
+sys_key_token_set PHP_VERSIONS remove "$version" > /dev/null || check_result "$E_UPDATE" "PHP_VERSIONS: could not drop $version"
 
 # Logging
 $BIN/h-log-action "system" "Info" "System" "Uninstalled PHP $version."

@@ -191,6 +191,9 @@ rm -f "$PHPTPL/PHP-${version/\./_}.tpl"
 #                       Hestia                             #
 #----------------------------------------------------------#
 
+# The version is on the box now, so the status says so; a re-run adds nothing twice (#933).
+sys_key_token_set PHP_VERSIONS add "$version" > /dev/null || check_result "$E_UPDATE" "PHP_VERSIONS: could not record $version"
+
 # Logging
 $BIN/h-log-action "system" "Info" "System" "Installed PHP $version."
 log_event "$OK" "$ARGUMENTS"

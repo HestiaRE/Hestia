@@ -41,6 +41,8 @@ fi
 if dpkg -l mariadb-server 2> /dev/null | grep -q '^ii' \
 	&& grep -qs "HOST='localhost'" "$HESTIA/conf/mysql.conf"; then
 	echo "INFO: MariaDB is already installed."
+	# the status is written on this path too: a box with the package and without the key gets it here
+	mariadb_status_record
 	exit 0
 fi
 
@@ -168,6 +170,8 @@ mariadb -e "FLUSH PRIVILEGES;"
 set_install_component DB_MARIADB true
 # record the actually-installed version (h-delete-sys-mariadb clears it)
 set_install_component DB_MARIADB_VERSION "$MARIADB_VER"
+# status: source and version from the package that is on the box now (#978, #935)
+mariadb_status_record
 
 # register the local host (sole writer of DB_SYSTEM's mysql token); MUST precede
 # phpMyAdmin, whose guard needs 'mysql' in DB_SYSTEM

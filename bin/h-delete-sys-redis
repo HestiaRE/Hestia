@@ -36,6 +36,7 @@ fi
 
 if [ "${COMPONENT_DB_REDIS:-}" != "true" ]; then
 	echo "ERROR: Redis is not installed as a general service."
+	change_sys_value "REDIS_SYSTEM" ""
 	exit "$E_NOTEXIST"
 fi
 
@@ -64,6 +65,7 @@ else
 fi
 
 set_install_component DB_REDIS false
+change_sys_value "REDIS_SYSTEM" ""
 
 #----------------------------------------------------------#
 #                       Hestia                             #

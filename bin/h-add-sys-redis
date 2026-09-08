@@ -39,6 +39,7 @@ fi
 if dpkg -l redis-server 2> /dev/null | grep -q '^ii' \
 	&& ! grep -q "$limit_marker" /etc/redis/redis.conf 2> /dev/null; then
 	echo "INFO: Redis is already installed as a general service."
+	change_sys_value "REDIS_SYSTEM" "redis"
 	exit 0
 fi
 
@@ -71,6 +72,8 @@ if ! systemctl is-active --quiet redis-server; then
 fi
 
 set_install_component DB_REDIS true
+# status: Redis as a general service; rspamd's capped companion leaves this empty (#936)
+change_sys_value "REDIS_SYSTEM" "redis"
 
 echo "Redis is now available as a general service."
 

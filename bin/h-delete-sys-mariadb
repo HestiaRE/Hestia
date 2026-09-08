@@ -34,6 +34,8 @@ fi
 # Not installed?
 if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: MariaDB is not installed."
+	# a key without the package is drift; the delete owns the key, so it clears it before leaving
+	mariadb_status_record
 	exit "$E_NOTEXIST"
 fi
 
@@ -91,6 +93,7 @@ set_install_component DB_MARIADB false
 # no engine, no version
 set_install_component DB_MARIADB_VERSION ""
 $BIN/h-change-sys-config-value 'DB_PMA_ALIAS' '' > /dev/null 2>&1 || true
+mariadb_status_record
 
 echo "[ OK ] MariaDB removed.$([ "${PURGE_DATA:-}" = "yes" ] && echo '' || echo ' (datadir kept — PURGE_DATA=yes to wipe)')"
 

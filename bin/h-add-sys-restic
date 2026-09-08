@@ -45,6 +45,8 @@ restic_version=$(restic version 2>&1 | awk '{print $2}' | head -1)
 #                       Hestia                             #
 #----------------------------------------------------------#
 
+# status: the addon is installed; a configured repository is BACKUP_INCREMENTAL, not this key (#937)
+change_sys_value "RESTIC_SYSTEM" "restic"
 echo "restic $restic_version is installed - configure a repository with h-add-backup-host-restic"
 log_event "$OK" "$ARGUMENTS"
 

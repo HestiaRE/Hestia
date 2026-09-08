@@ -75,12 +75,15 @@ if (!isset($_SESSION["user"]) && !defined("NO_AUTH_REQUIRED")) {
 	exit();
 }
 
-// Generate CSRF Token and set user shell variable
+// A CSRF token for every session, not only a logged-in one: the reset pages print $_SESSION["token"]
+// into their form, and a session that had not seen /login/ carried none, so every direct submit
+// bounced to /login/ without a word (#968). The login page still rotates its own on each render.
+if (!isset($_SESSION["token"])) {
+	$_SESSION["token"] = bin2hex(random_bytes(16));
+}
+
+// Set user shell variable
 if (isset($_SESSION["user"])) {
-	if (!isset($_SESSION["token"])) {
-		$token = bin2hex(random_bytes(16));
-		$_SESSION["token"] = $token;
-	}
 	$username = $_SESSION["user"];
 	if (!empty($_SESSION["look"])) {
 		$username = $_SESSION["look"];

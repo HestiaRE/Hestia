@@ -41,6 +41,12 @@ opens above it.
   an existing key through a temp file and `mv`, so the new inode took the installer's umask and every
   fresh box ended at 644. The `/tmp/updconf` path fixed in #959 was one of two writers with that shape,
   not the only one. `wcv` now keeps the file's mode and owner across the rename, as the sort does.
+- **A webmail add no longer narrows the operator's webmail choice in `install.conf`** (#965).
+  `h-add-sys-roundcube` and `h-add-sys-tachyon` rebuilt `COMPONENT_MAIL_WEBMAILER` from what the status
+  already listed. In a fresh install Roundcube runs first, so the recipe briefly read `ROUNDCUBE` alone;
+  a Tachyon success wrote the pair back, a failure left the choice lost - the case #928 had removed from
+  the installer, alive one layer down. Measured with a blocked Tachyon source on a fresh mailonly box.
+  The set is now the recipe's current tokens plus the caller's own, read from `install.conf`.
 
 - **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before
   the file is touched** (#955). `change_sys_value` rewrote the line with `sed`, whose replacement

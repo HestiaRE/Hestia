@@ -2,7 +2,7 @@
 # Shell lint gate (#477). Modelled on mirror-on-release: no actions at all, a temporary clone, and
 # a trap that removes it. Gitea only - the public mirror carries released code, never pipelines.
 #
-# HOST DEPENDENCY, complete list: git, shellcheck, shfmt. Nothing else - no node (which is why there
+# HOST DEPENDENCY, complete list: git, shellcheck, shfmt, jq. Nothing else - no node (which is why there
 # is no actions/checkout here: it is a node20 action), no package manager, no language runtime. The
 # job installs nothing; if a tool is missing it says which and stops.
 #
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=""
-          for t in git shellcheck shfmt; do command -v "$t" > /dev/null 2>&1 || missing="$missing $t"; done
+          for t in git shellcheck shfmt jq; do command -v "$t" > /dev/null 2>&1 || missing="$missing $t"; done
           if [ -n "$missing" ]; then
             echo "Missing on the runner host:$missing"
             echo "Install once, from the OS repos:  apt install$missing"
@@ -62,3 +62,6 @@ jobs:
           cd "$workdir/repo"
           git checkout --quiet --detach "${HEAD_SHA:-HEAD}"
           .gitea/tools/lint-shell.sh --base "origin/${BASE_REF:-dev}"
+          # The system key registry: every JSON under share/ parses, and sys-keys.json passes the same
+          # sysreg_check the smoke runs on a box (#932). jq is the one dependency this adds.
+          .gitea/tools/check-sys-registry.sh

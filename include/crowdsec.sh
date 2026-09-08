@@ -72,8 +72,9 @@ crowdsec_enable_capi() {
 # local so it wins; mesh+capi is the legacy combination the two-flag wizard allowed, and gets re-normalised.
 crowdsec_current_mode() {
 	local mesh=0 capi=0
-	# No engine at all is not "local", or a caller would report a model for a box that has none.
-	[ -f /etc/crowdsec/config.yaml ] || {
+	# No engine at all is not "local", or a caller would report a model for a box that has none. The config
+	# alone is not the engine: h-delete-sys-crowdsec without PURGE_DATA keeps /etc/crowdsec for a re-add.
+	{ [ -f /etc/crowdsec/config.yaml ] && command -v cscli > /dev/null 2>&1; } || {
 		echo "none"
 		return 0
 	}
@@ -88,6 +89,15 @@ crowdsec_current_mode() {
 	else
 		echo "local"
 	fi
+}
+
+# The status key from the box, never from the recipe (#938): the model crowdsec_current_mode reads off the
+# engine, "none" is an empty key. Called wherever the model can change: apply, mode switch, mesh on/off, delete.
+crowdsec_status_record() {
+	local m
+	m=$(crowdsec_current_mode)
+	[ "$m" = 'none' ] && m=''
+	change_sys_value "CROWDSEC_SYSTEM" "$m"
 }
 
 # SSH detection only when fail2ban is ABSENT, or the two double up. Scenario-level, not collection:
@@ -122,6 +132,7 @@ crowdsec_apply() {
 
 	if [ "$(crowdsec_public_web)" != "nginx" ]; then
 		echo "CrowdSec: nginx is not the public front - nothing to apply."
+		crowdsec_status_record
 		return 0
 	fi
 
@@ -206,6 +217,7 @@ crowdsec_apply() {
 		systemctl reload-or-restart fail2ban > /dev/null 2>&1
 	fi
 
+	crowdsec_status_record
 	echo "CrowdSec: applied (nginx front, L7 bouncer hestia-nginx + L3 set feeder)."
 }
 

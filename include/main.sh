@@ -2373,8 +2373,14 @@ clear_sys_value() {
 }
 
 # sys_key_token_set KEY add|remove TOKEN - one token in a comma-separated hestia.conf key (DB_SYSTEM,
-# BACKUP_SYSTEM, WEBMAIL_SYSTEM), the order kept as found, a token never doubled. Named as token_fn in
-# the registry; 1a only guards that it exists, the callers come with Phase 2 (#946).
+# BACKUP_SYSTEM, WEBMAIL_SYSTEM, PHP_VERSIONS, JAIL_SYSTEM), the order kept as found, a token never
+# doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
+# a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM, #978).
+# The rc, in both directions: on a success path (package installed, purge done) the caller fails the
+# whole command when this write fails - the status is part of the job, a silent gap is worse than a
+# loud exit, the packages stay and a re-run records them. On an exit path ("not installed", drift
+# repair on the way out) the caller drops the rc on purpose: a write problem must not turn a clear
+# "not installed" into a different error.
 sys_key_token_set() {
 	local key="$1" op="$2" tok="$3" cur out=() t
 	[ -n "$key" ] && [ -n "$tok" ] || return 1
@@ -2404,6 +2410,47 @@ sys_key_token_set() {
 	)
 	cur=${cur#,}
 	change_sys_value "$key" "$cur" && printf '%s\n' "$cur"
+}
+
+# The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
+# holds (epoch stripped, major.minor), the source is read off the version string - MariaDB.org builds
+# carry "maria" in it, distro builds do not - and named in the recipe's own words (the source field of the
+# DB_MARIADB_VERSION options), so recipe and status never disagree on a value. The version string on
+# purpose and not apt-cache policy (Origin/Label): policy describes the repository configured NOW, the
+# string travels with the package; remove the repo or upgrade the box and policy changes its answer
+# while the package did not. Called by add, upgrade and delete (#978, #935).
+mariadb_status_record() {
+	local v src
+	v=$(dpkg-query -W -f='${Version}' mariadb-server 2> /dev/null) || v=''
+	if [ -z "$v" ]; then
+		change_sys_value "DB_MARIADB_SYSTEM" ""
+		change_sys_value "DB_MARIADB_VERSION" ""
+		return 0
+	fi
+	case "$v" in *maria*) src="mariadb_repo" ;; *) src="os_default" ;; esac
+	v=${v#*:}
+	v=$(printf '%s' "$v" | grep -oE '^[0-9]+\.[0-9]+')
+	change_sys_value "DB_MARIADB_SYSTEM" "$src" && change_sys_value "DB_MARIADB_VERSION" "$v"
+}
+
+# The composer channel from the box (#939): the upstream phar in /usr/local/bin shadows the OS package on
+# PATH, so it decides when both exist (a switch in h-update-sys-composer removes the other afterwards).
+composer_status_record() {
+	local src=''
+	if [ -x /usr/local/bin/composer ]; then
+		src='upstream'
+	elif dpkg -s composer > /dev/null 2>&1; then
+		src='os'
+	fi
+	change_sys_value "COMPOSER_SYSTEM" "$src"
+}
+
+# The wp-cli version as the installed phar reports it, not the manifest pin (#942): the pin is intent,
+# the key is status. wp-cli refuses root without --allow-root; no phar or no answer is an empty key.
+wpcli_status_record() {
+	local v=''
+	[ -x /usr/local/bin/wp ] && v=$(timeout 30 /usr/local/bin/wp cli version --allow-root 2> /dev/null | awk '{print $2}')
+	change_sys_value "WPCLI_SYSTEM" "$v"
 }
 
 # ── Web-model maintenance freeze (#120) ──────────────────────────────────────
@@ -2471,6 +2518,32 @@ add_chroot_jail() {
 
 delete_chroot_jail() {
 	gpasswd -d "$1" sftp-jailed > /dev/null 2>&1 || true
+}
+
+# The one sshd "Subsystem sftp" line, decided from JAIL_SYSTEM in one place (#941): with the ssh jail it
+# is the sftp-server binary, so a jailbash user's sftp runs inside bwrap; the sftp jail alone takes
+# internal-sftp (its Match block forces that for the group anyway); no jail restores the distro path.
+# /usr/lib/sftp-server is not a typo: openssh-sftp-server ships it as the compat symlink to
+# /usr/lib/openssh/sftp-server on all four targets (HestiaCP used the same line), and jailbash binds
+# /usr read-only, so the path resolves inside the jail too (measured: sftp as a jailbash user lists
+# its home, a bogus path closes the connection). Kept distinct from the distro line so the file says
+# which jail set it. The key is read from the file because the caller has just changed it. Prints
+# "changed" when the line was rewritten, so the caller restarts sshd; validating stays with the caller.
+jail_sshd_subsystem_apply() {
+	local config='/etc/ssh/sshd_config' jails want
+	jails=$(grep -m1 "^JAIL_SYSTEM=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d"'" -f2)
+	case ",$jails," in
+		*,ssh,*) want='/usr/lib/sftp-server' ;;
+		*,sftp,*) want='internal-sftp' ;;
+		*) want='/usr/lib/openssh/sftp-server' ;;
+	esac
+	grep -qE "^Subsystem[[:space:]]+sftp[[:space:]]+${want}[[:space:]]*$" "$config" && return 0
+	if grep -qE '^Subsystem[[:space:]]+sftp[[:space:]]' "$config"; then
+		sed -i -E "0,/^Subsystem[[:space:]]+sftp[[:space:]]/s|^Subsystem[[:space:]]+sftp[[:space:]].*|Subsystem sftp ${want}|" "$config"
+	else
+		echo "Subsystem sftp ${want}" >> "$config"
+	fi
+	echo changed
 }
 
 # Co-maintain the SSH AllowUsers allowlist (#412). Opt-in: acts only if a line exists

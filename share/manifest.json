@@ -1,5 +1,5 @@
 {
-  "$comment": "HestiaRE installer manifest - version 1 target architecture. This is a specification (target state), not necessarily the current implementation status. Read by install.sh to drive the interactive question catalog. Re-check against actually available repo versions on every release refresh (see the 'dynamic' fields).",
+  "$comment": "HestiaRE installer manifest - version 1 target architecture. This is a specification (target state), not necessarily the current implementation status. Read by install.sh to drive the interactive question catalog. Re-check against actually available repo versions on every release refresh (see the 'dynamic' fields). Hand-formatted on purpose (one line per option, a blank line between components): tooling validates it (jq), never rewrites it, so a diff stays readable.",
   "$parser": "jq (not python3 - too heavyweight just for JSON parsing). install.sh must check/install jq as the very first dependency, before the whiptail check, since the manifest must be read before every question. jq is ~113 KB installed size + libjq1/libonig5, much leaner than a python3 dependency.",
   "manifest_version": 1,
 
@@ -98,25 +98,6 @@
         "mailonly": "MAILFRONT"
       },
       "note": "Fixed to MAILFRONT on mailonly, not asked (#193): nginx serves webmail vhosts + ACME termination, but WEB_SYSTEM stays EMPTY - no customer web, every web command refuses, WEBMAIL_FRONT carries the nginx. Repo source (OS vs. Sury Apache / nginx.org) follows repo_strategy, see WEB_REPO_SOURCE."
-    },
-
-    "WEB_REPO_SOURCE": {
-      "group": "web",
-      "type": "implicit",
-      "question": "Web server package source:",
-      "options": [
-        { "value": "os_package",   "label": "OS package",   "description": "Distribution repo (recommended)" },
-        { "value": "upstream_repo", "label": "Upstream repo", "description": "Sury-Apache / nginx.org (newer)" }
-      ],
-      "description": "OS package vs. external upstream repo (Sury-Apache, nginx.org) for Apache/nginx. Normally not a user question, fully determined by the preset.",
-      "default": {
-        "standard":  "os_package",
-        "compact":   "os_package",
-        "latest":    "upstream_repo",
-        "singlephp": "os_package",
-        "nomail":    "os_package",
-        "mailonly":  "os_package"
-      }
     },
 
     "PHP_MODE": {
@@ -271,27 +252,37 @@
     "PANEL_CADDY": {
       "group": "panel",
       "type": "fixed",
-      "always_installed": true
+      "always_installed": true,
+      "no_status_key": "part of the panel itself, always installed; presence is the panel running (E5)"
     },
 
     "PANEL_PHP": {
       "group": "panel",
       "type": "fixed",
       "always_installed": true,
-      "note": "Just a wrapper around a PHP instance for the panel itself. Uses os_single on mailonly, otherwise depends on PHP_MODE. The reference version used by Panel-FPM (always fully installed, #272) is no longer pinned here: it is the OS default php meta version, derived at install by os_default_php in include/helper.sh (#191) and carried as PHP_REFERENCE_VERSION in install.conf; runtime source of truth stays /etc/php/hestia/php-version."
+      "note": "Just a wrapper around a PHP instance for the panel itself. Uses os_single on mailonly, otherwise depends on PHP_MODE. The reference version used by Panel-FPM (always fully installed, #272) is no longer pinned here: it is the OS default php meta version, derived at install by os_default_php in include/helper.sh (#191) and carried as PHP_REFERENCE_VERSION in install.conf; runtime source of truth stays /etc/php/hestia/php-version.",
+      "no_status_key": "part of the panel itself, always installed; presence is the panel running (E5)"
     },
 
     "PANEL_IPTABLES": {
       "group": "panel",
       "type": "fixed",
-      "always_installed": true
+      "always_installed": true,
+      "no_status_key": "part of the panel itself, always installed; presence is the panel running (E5)"
     },
 
     "PANEL_EXIM": {
       "group": "panel",
       "type": "fixed",
       "always_installed": true,
-      "note": "Always installed, and read since #872 - before that the key was written here and consulted by nothing, so the send-only branch only CONFIGURED exim and presumed the package: a nomail box had an MTA only where the base image shipped one (Debian does, Ubuntu does not). The operating mode derives from MAIL_BLOCK_PRESENT, no separate question: with a mail block exim4-daemon-heavy plus the HestiaRE template, without one exim4-daemon-light plus Debian's own update-exim4.conf in send-only shape. Set to false only when notification mail goes through an external SMTP relay (USE_SERVER_SMTP). DKIM signing is done granularly per domain via OpenSSL (existing HestiaCP mechanism), independent of rspamd."
+      "note": "Always installed, and read since #872 - before that the key was written here and consulted by nothing, so the send-only branch only CONFIGURED exim and presumed the package: a nomail box had an MTA only where the base image shipped one (Debian does, Ubuntu does not). The operating mode derives from MAIL_BLOCK_PRESENT, no separate question: with a mail block exim4-daemon-heavy plus the HestiaRE template, without one exim4-daemon-light plus Debian's own update-exim4.conf in send-only shape. Set to false only when notification mail goes through an external SMTP relay (USE_SERVER_SMTP). DKIM signing is done granularly per domain via OpenSSL (existing HestiaCP mechanism), independent of rspamd.",
+      "no_status_key": "part of the panel itself, always installed; presence is the panel running (E5)"
+    },
+
+    "JAIL": {
+      "group": "panel",
+      "type": "fixed",
+      "note": "The sftp and ssh jails are installed unconditionally (h-add-sys-sftp-jail, h-add-sys-ssh-jail); which ones the box has is the status key JAIL_SYSTEM (#941). Not always_installed: unlike PANEL_*, a jail can be removed and the key says so."
     },
 
     "ADDON_ADMINER": {
@@ -316,6 +307,12 @@
         "singlephp": "os_package", "nomail": "os_package"
       },
       "note": "source_default picks the channel per preset: os_package (apt-maintained, automatic security backports) everywhere except latest (signed upstream installer, newest composer, no auto-updates). The wizard writes COMPONENT_ADDON_COMPOSER_SOURCE from it (absent = os_package); h-update-sys-composer switches a live box. Not on mailonly - no customer web to build for."
+    },
+
+    "WPCLI": {
+      "group": "tools",
+      "type": "fixed",
+      "note": "wp-cli is installed system-wide and pinned (software_versions.wp_cli); the installed pin is the status key WPCLI_SYSTEM (#942). This is the only patch channel wp-cli has."
     },
 
     "ADDON_CROWDSEC": {
@@ -428,7 +425,8 @@
       "description": "System utilities (opens tool selection)",
       "default": { "standard": true, "compact": false, "latest": true, "singlephp": true, "nomail": true, "mailonly": true },
       "opens_followup": "TOOLS_SELECTION",
-      "note": "When enabled, the tools follow-up page opens (see the tools section below)."
+      "note": "When enabled, the tools follow-up page opens (see the tools section below).",
+      "no_status_key": "nothing here is state: regular apt packages, nothing is configured, and the selection is a recipe answer (TOOLS_SELECTION). The component guard of 1c asks for no key and reads this reason (E5)."
     }
   },
 

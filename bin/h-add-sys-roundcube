@@ -270,16 +270,10 @@ mkdir -p /etc/caddy/apps
 cp -f "$HESTIA/share/panel-caddy/apps/webmail.tpl" /etc/caddy/apps/webmail.conf
 systemctl try-restart caddy > /dev/null 2>&1 || true
 
-# Update hestia.conf (anchored: an unanchored grep also matches keys that merely start so)
-if ! grep -q '^WEBMAIL_SYSTEM=' "$HESTIA/conf/hestia.conf"; then
-	$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' 'roundcube'
-elif ! echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube'; then
-	if [ -n "$WEBMAIL_SYSTEM" ]; then
-		$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' "roundcube,$WEBMAIL_SYSTEM"
-	else
-		$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' 'roundcube'
-	fi
-fi
+# Update hestia.conf
+# Through the token function like every other token key: the position in the list carries no
+# meaning (the default client is chosen by name, see h-add-mail-domain-webmail), so no prepend.
+sys_key_token_set WEBMAIL_SYSTEM add roundcube > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record roundcube"
 
 # re-render mail domains so they pick up the new client immediately
 $BIN/h-update-mail-templates yes > /dev/null 2>&1 || true

@@ -84,10 +84,7 @@ if echo "$DB_SYSTEM" | grep -qw 'mysql'; then
 fi
 # remove tachyon from WEBMAIL_SYSTEM. Token-based strip (not sed) so no stray
 # commas survive in any position.
-if echo "$WEBMAIL_SYSTEM" | grep -qw 'tachyon'; then
-	new_webmail=$(echo "$WEBMAIL_SYSTEM" | tr ',' '\n' | grep -vx 'tachyon' | grep -v '^$' | paste -sd ',' -)
-	$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' "$new_webmail"
-fi
+sys_key_token_set WEBMAIL_SYSTEM remove tachyon > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not drop tachyon"
 
 # re-render mail domains so vhosts stop proxying to the removed listener
 # (fall back to the remaining client, or the safe 'disabled' vhost)

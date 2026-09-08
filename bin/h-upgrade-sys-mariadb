@@ -16,7 +16,7 @@
 #
 # DOWNGRADES ARE REFUSED (a newer datadir can't be reopened); the repo is restored.
 #
-# ROLLBACK (manual — not undoable in place). Using the dump this forces to /root (0600):
+# ROLLBACK (manual, not undoable in place). Using the dump this forces to /root (0600):
 #   1. h-delete-sys-mariadb (FORCE=yes) && PURGE_DATA=yes   # drop new-format datadir
 #   2. h-add-sys-mariadb <old-version>                      # reinstall old version
 #   3. zcat <backup>.sql.gz | mariadb                       # restore the dump
@@ -62,6 +62,7 @@ fi
 if [ -z "$target" ]; then
 	if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 		echo "ERROR: MariaDB is not installed (use h-add-sys-mariadb)."
+		mariadb_status_record
 		exit "$E_NOTEXIST"
 	fi
 	current=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
@@ -118,10 +119,12 @@ esac
 
 if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: MariaDB is not installed (use h-add-sys-mariadb)."
+	# no package: a key that still claims one is drift, cleared here (Halt 1b build rule)
+	mariadb_status_record
 	exit "$E_NOTEXIST"
 fi
 if ! systemctl is-active --quiet mariadb; then
-	echo "ERROR: MariaDB is not running — refusing to upgrade a stopped server."
+	echo "ERROR: MariaDB is not running, refusing to upgrade a stopped server."
 	exit "$E_RESTART"
 fi
 
@@ -132,7 +135,7 @@ current=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0
 }
 
 if [ "$target" = "${COMPONENT_DB_MARIADB_VERSION:-}" ]; then
-	echo "INFO: MariaDB is already on '$target' — nothing to do."
+	echo "INFO: MariaDB is already on '$target', nothing to do."
 	exit 0
 fi
 
@@ -144,14 +147,14 @@ fi
 backup="/root/mariadb-upgrade-backup-$(date +%F-%H%M%S).sql.gz"
 echo "[ * ] Dumping all databases to $backup (forced pre-upgrade backup)..."
 if ! mariadb-dump --all-databases --events --routines --triggers 2> /tmp/mdb-dump.err | gzip > "$backup"; then
-	echo "ERROR: backup dump failed — upgrade aborted."
+	echo "ERROR: backup dump failed, upgrade aborted."
 	sed 's/^/       | /' /tmp/mdb-dump.err 2> /dev/null | head -5
 	rm -f "$backup"
 	exit "$E_INVALID"
 fi
 chmod 600 "$backup"
 [ -s "$backup" ] || {
-	echo "ERROR: backup file is empty — upgrade aborted."
+	echo "ERROR: backup file is empty, upgrade aborted."
 	rm -f "$backup"
 	exit "$E_INVALID"
 }
@@ -197,7 +200,7 @@ candidate=$(LC_ALL=C apt-cache policy mariadb-server 2> /dev/null | awk '/Candid
 if [ -z "$candidate" ]; then
 	echo "ERROR: no installation candidate for mariadb-server after repo switch."
 	_restore_repo
-	rm -f "$backup" # nothing was changed — drop the unused pre-upgrade dump
+	rm -f "$backup" # nothing was changed, drop the unused pre-upgrade dump
 	exit "$E_INVALID"
 fi
 # an older-only target makes apt's candidate fall back to the installed version, so
@@ -205,11 +208,11 @@ fi
 if [ "$(printf '%s\n%s\n' "$current" "$candidate" | sort -V | tail -1)" != "$candidate" ] \
 	|| [ "$current" = "$candidate" ]; then
 	echo "ERROR: target '$target' offers nothing newer than the running $current"
-	echo "       (candidate: $candidate) — downgrades are refused: MariaDB cannot"
+	echo "       (candidate: $candidate), downgrades are refused: MariaDB cannot"
 	echo "       open a datadir written by a newer version."
 	echo "       To go back anyway: restore from a dump (see the command header)."
 	_restore_repo
-	rm -f "$backup" # nothing was changed — drop the unused pre-upgrade dump
+	rm -f "$backup" # nothing was changed, drop the unused pre-upgrade dump
 	exit "$E_INVALID"
 fi
 echo "[ * ] Upgrading MariaDB $current -> $candidate..."
@@ -218,7 +221,7 @@ echo "[ * ] Upgrading MariaDB $current -> $candidate..."
 if ! DEBIAN_FRONTEND=noninteractive apt-get -y -qq \
 	-o Dpkg::Options::="--force-confold" \
 	install mariadb-server mariadb-client mariadb-common > /dev/null 2>&1; then
-	echo "ERROR: package upgrade failed — MariaDB may be in a mixed state."
+	echo "ERROR: package upgrade failed, MariaDB may be in a mixed state."
 	echo "       Backup for recovery: $backup (rollback: see command header)."
 	exit "$E_INVALID"
 fi
@@ -247,6 +250,7 @@ new_version=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+
 #----------------------------------------------------------#
 
 set_install_component DB_MARIADB_VERSION "$target"
+mariadb_status_record
 
 echo "[ OK ] MariaDB upgraded: $current -> $new_version (source: $target)"
 echo "       Pre-upgrade backup kept at: $backup"

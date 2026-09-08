@@ -22,9 +22,12 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-# Checking if bubblewrap is installed
+# Not installable without bubblewrap: say so, and leave no token behind. The installer puts bubblewrap in
+# its base package set and calls this with || true, so the non-zero exit changes nothing there.
 if [ ! -x /bin/bwrap ]; then
-	exit
+	echo "ERROR: bubblewrap (/bin/bwrap) is not installed, the SSH jail needs it."
+	sys_key_token_set JAIL_SYSTEM remove ssh > /dev/null 2>&1
+	exit "$E_NOTEXIST"
 fi
 
 #----------------------------------------------------------#
@@ -49,12 +52,10 @@ if [ -z "$(grep ^/usr/sbin/jailbash /etc/shells)" ]; then
 	echo "/usr/sbin/jailbash" >> /etc/shells
 fi
 
-# Use sftp-server binary so the sftp process can run inside jailbash
-if [ -z "$(grep 'Subsystem sftp /usr/lib/sftp-server' /etc/ssh/sshd_config)" ]; then
-	sed -i -E "s/Subsystem sftp internal-sftp/Subsystem sftp \/usr\/lib\/sftp-server/g" /etc/ssh/sshd_config
-
-	service ssh restart > /dev/null 2>&1
-fi
+# Token first, then the Subsystem line follows the token set: the ssh jail needs the sftp-server binary
+# so a jailbash user's sftp runs inside bwrap (one decider, #941)
+sys_key_token_set JAIL_SYSTEM add ssh > /dev/null || check_result "$E_UPDATE" "JAIL_SYSTEM: could not record ssh"
+[ "$(jail_sshd_subsystem_apply)" = changed ] && service ssh restart > /dev/null 2>&1
 
 #----------------------------------------------------------#
 #                       Hestia                             #

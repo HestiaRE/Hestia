@@ -36,6 +36,67 @@ opens above it.
 
 ### Changed
 
+- **`WEBMAIL_SYSTEM` goes through its token function, and its order means nothing** (#943, from the
+  review of #982). The four webmail commands composed the list by hand (`'tachyon,$WEBMAIL_SYSTEM'`, a
+  sed filter on delete), prepending the client just installed, and `h-add-mail-domain-webmail` took the
+  first token as the default client when roundcube was absent - the file order was a contract nobody
+  had written down. Decision, written at the registry entry: the order is not a contract. The default
+  client is chosen by name, roundcube when installed, else the first installed client in the order of
+  `WEBMAIL_KNOWN_CLIENTS` (the one list, smoke-guarded against the shipped templates); `h-list-sys-webmail`
+  emits the clients in that order, so the panel's select preselects the same client as the CLI. The six
+  write sites use `sys_key_token_set add|remove`; a token outside the known list is no longer offered,
+  and the smoke says so (`check_webmail_tokens_known`) instead of letting the list shrink without a word.
+  Membership is an exact token match (`case ",$list," in *",$c,"*`), not a word boundary.
+
+- **Panel session store moved out of the install root** (#974). `session.save_path` was
+  `/usr/local/hestia/.sessions`; it is now `/var/lib/hestia/sessions` (770 `hestia:hestia`, created by
+  the installer, next to the web-model switch state already there). Two reasons: an update tars the whole
+  install root to make the overlay reversible, and live login sessions do not belong in that snapshot;
+  and `check_install_root_owner` no longer meets a group-writable directory inside the tree (it reads the
+  pool runtime dirs from the FPM config, so a path that moves out simply drops off the scan). Note for
+  the update path (Phase 5, #949): the directory lives outside the overlay, so the executor has to create
+  it before restarting hestia-php on a box updated from a release that still used `.sessions`.
+
+- **Every component has a status key** (#943, Phase 1b of the update chapter; this entry grows with the
+  phase). The registry gains eleven system keys for the components that had none: `PHP_SOURCE` (the
+  source, `os` or `sury`; not `PHP_MODE`, which is the recipe's wizard answer with its own vocabulary), `PHP_VERSIONS` (the installed versions as tokens), `DB_MARIADB_SYSTEM` and
+  `DB_POSTGRESQL_SYSTEM` (a local package is installed, value = source in the recipe's words: `os_default`/`mariadb_repo`, `os`), `DB_MARIADB_VERSION`,
+  `REDIS_SYSTEM`, `RESTIC_SYSTEM`, `CROWDSEC_SYSTEM` (the model), `COMPOSER_SYSTEM` (the channel),
+  `JAIL_SYSTEM` (tokens) and `WPCLI_SYSTEM` (the pin). `DB_SYSTEM` stays what it is, the host register:
+  a registered host, local or remote, never a package statement (#980). The registry marks
+  `SERVER_SMTP_PASSWD` and `PHPMYADMIN_KEY` as secrets, checked by the schema guard; what the emitter
+  does with that is #976. In the manifest the sftp/ssh jails and wp-cli become fixed components with a
+  key, `WEB_REPO_SOURCE` goes (never read), and the two things that get no key on purpose - the
+  utilities and the mail DNSBL list - say why: nothing about them is state (E5).
+  Writers, slice 3: `h-add-sys-mariadb`, `h-upgrade-sys-mariadb` and `h-delete-sys-mariadb` record
+  `DB_MARIADB_SYSTEM` and `DB_MARIADB_VERSION` from the installed package (the source is read off the
+  dpkg version, in the recipe's own words: `mariadb_repo` for a MariaDB.org build, `os_default` for the distro's;
+  the version is major.minor);
+  `h-add-sys-postgresql`/`h-delete-sys-postgresql` write `DB_POSTGRESQL_SYSTEM`, the redis pair
+  `REDIS_SYSTEM`, the restic pair `RESTIC_SYSTEM`. Every writer sits before the "already installed" and
+  "not installed" exits, so a box that has the component but not the key gets it on the next run and a
+  stale key is cleared. Found on the first measurement: `h-add-database-host` edited `DB_SYSTEM` with an
+  unanchored sed that also rewrote `DB_MARIADB_SYSTEM`, whose name nests it. The four host-register
+  writers (`h-add-database-host`, `h-delete-database-host`, `h-add-backup-host`, `h-delete-backup-host`)
+  now go through `sys_key_token_set`, `h-change-sys-release` through `change_sys_value`, two unanchored
+  reads got their `^`, the write-site extraction of the registry guard knows `sys_key_token_set`, and a
+  new smoke check refuses any grep/sed on hestia.conf that names a key without an anchor. Token order
+  now follows insertion (`mysql,pgsql`) where the old `sort -r` gave `pgsql,mysql`; nothing reads the order.
+  Writers, slice 4: `CROWDSEC_SYSTEM` is the model the engine reports (`crowdsec_status_record`, on top of
+  `crowdsec_current_mode`, which now also wants the `cscli` binary: a delete without `PURGE_DATA` keeps
+  `/etc/crowdsec`, and a kept config is not an engine), written by `crowdsec_apply` at both ends, the mode
+  switch, the mesh on/off commands (the installer and the CLI call them directly) and the delete command.
+  `COMPOSER_SYSTEM` is `upstream` when the phar in `/usr/local/bin` is there (it shadows the package on
+  PATH), else `os` when the package is, else empty; written by the installer's tools stage
+  unconditionally and by `h-update-sys-composer` at every exit. `WPCLI_SYSTEM` is what the installed phar
+  reports; the installer's wp-cli block is now `install_wp_cli_pinned` in helper.sh and records it.
+  `JAIL_SYSTEM` carries `sftp` and `ssh` as tokens, written by the four jail commands before they touch
+  sshd, and the sshd `Subsystem sftp` line is decided in one place from that token set
+  (`jail_sshd_subsystem_apply`): the ssh jail wants the sftp-server binary, the sftp jail alone
+  internal-sftp, no jail the distro path; before, the two add commands fought over the line and the two
+  delete commands each assumed the other's state. `h-add-sys-ssh-jail` without bubblewrap now says so and
+  exits non-zero instead of a silent success.
+
 - **One registry for the system keys of `hestia.conf`** (#932, Phase 1a of the update chapter). Three
   hand-kept lists described the same 82 keys - the compiled key set, the repair table with its defaults,
   and the JSON emitter the panel session is fed from - and none was derived from another: seven written

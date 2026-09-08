@@ -1,5 +1,5 @@
 {
- "$comment": "The system key registry: one entry per hestia.conf key, class and default. Read at runtime from the tree (deliberately, see STRUCTURE.md); never copied to the box. betreiber = a human sets it, the repair fills an absent or empty key with the default, an update never touches it. system = the consequence of an action, written by commands; the repair never fills it (a verification in the smoke says whether it agrees with the box), an update may set it by manifest entry. tokens = a comma-separated token set; token_fn names the function that adds or removes one token (Phase 2 calls it, 1a only checks it exists). Guarded by sysreg_check (include/sysreg.sh), run by the smoke and by CI.",
+ "$comment": "The system key registry: one entry per hestia.conf key, class and default. Read at runtime from the tree (deliberately, see STRUCTURE.md); never copied to the box. betreiber = a human sets it, the repair fills an absent or empty key with the default, an update never touches it. system = the consequence of an action, written by commands; the repair never fills it (a verification in the smoke says whether it agrees with the box), an update may set it by manifest entry. tokens = a comma-separated token set; token_fn names the function that adds or removes one token (Phase 2 calls it, 1a only checks it exists). Guarded by sysreg_check (include/sysreg.sh), run by the smoke and by CI. secret = the value is a credential; the emitter still hands it to the panel session today (#976 decides what changes). note = free text for the reader, not data.",
  "version": 1,
  "keys": {
   "ANTISPAM_SYSTEM": {
@@ -44,23 +44,49 @@
    "class": "betreiber",
    "default": "1d"
   },
+  "COMPOSER_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "the composer channel: os or upstream (#939)"
+  },
   "CRON_SYSTEM": {
    "class": "betreiber",
    "default": "cron"
+  },
+  "CROWDSEC_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "the CrowdSec model: capi, local or mesh; empty when absent (#938)"
   },
   "DB_ADMINER_ALIAS": {
    "class": "system",
    "default": ""
   },
+  "DB_MARIADB_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "a local MariaDB package is installed; value = its source in the recipe's own words, os_default or mariadb_repo (the source field of the DB_MARIADB_VERSION options). The recipe's words on purpose, because that field is exactly the source; PHP_SOURCE has its own words for the opposite reason. This ties the value set to the manifest: a source added or renamed there changes these values while installed boxes keep the old one, so in the update manifests (Phase 3, #947) that is a migration entry, never a rename. DB_SYSTEM stays the host register and says nothing about a local package (#978, #980)"
+  },
+  "DB_MARIADB_VERSION": {
+   "class": "system",
+   "default": "",
+   "note": "the MariaDB pin, e.g. 11.4; the source is DB_MARIADB_SYSTEM (#935)"
+  },
   "DB_PMA_ALIAS": {
    "class": "system",
    "default": ""
+  },
+  "DB_POSTGRESQL_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "a local PostgreSQL package is installed; value = source, os (#979)"
   },
   "DB_SYSTEM": {
    "class": "system",
    "default": "",
    "tokens": true,
-   "token_fn": "sys_key_token_set"
+   "token_fn": "sys_key_token_set",
+   "note": "the panel-side host register: the database types with a registered host (h-add-database-host, any host, local or remote). Never a package statement and never source or version - those are DB_MARIADB_SYSTEM/DB_MARIADB_VERSION and DB_POSTGRESQL_SYSTEM (#980)"
   },
   "DEBUG_MODE": {
    "class": "betreiber",
@@ -118,6 +144,13 @@
    "class": "betreiber",
    "default": "60"
   },
+  "JAIL_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "tokens": true,
+   "token_fn": "sys_key_token_set",
+   "note": "installed jails as tokens: sftp, ssh (#941)"
+  },
   "LANGUAGE": {
    "class": "betreiber",
    "default": "en"
@@ -132,7 +165,20 @@
   },
   "PHPMYADMIN_KEY": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "secret": true
+  },
+  "PHP_SOURCE": {
+   "class": "system",
+   "default": "",
+   "note": "the source of the customer PHP the box got, os or sury; the versions are PHP_VERSIONS. Deliberately not PHP_MODE: that is the recipe's wizard answer (COMPONENT_PHP_MODE, os_single or sury_multi), a different thing. Own vocabulary on purpose: the recipe value mixes source and multiplicity (sury_multi), so it is not the source. DB_MARIADB_SYSTEM does the opposite for the same reason, there the recipe field IS the source (#934)"
+  },
+  "PHP_VERSIONS": {
+   "class": "system",
+   "default": "",
+   "tokens": true,
+   "token_fn": "sys_key_token_set",
+   "note": "installed PHP versions as tokens, e.g. 8.2,8.3 (#933)"
   },
   "POLICY_BACKUP_SUSPENDED_USERS": {
    "class": "betreiber",
@@ -230,9 +276,19 @@
    "class": "system",
    "default": ""
   },
+  "REDIS_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "redis when Redis runs as a general service; empty for rspamd's capped companion (#936)"
+  },
   "RELEASE_BRANCH": {
    "class": "betreiber",
    "default": "release"
+  },
+  "RESTIC_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "restic when the restic addon is installed; BACKUP_INCREMENTAL means a repository is configured (#937)"
   },
   "ROOT_USER": {
    "class": "system",
@@ -248,7 +304,8 @@
   },
   "SERVER_SMTP_PASSWD": {
    "class": "betreiber",
-   "default": ""
+   "default": "",
+   "secret": true
   },
   "SERVER_SMTP_PORT": {
    "class": "betreiber",
@@ -334,7 +391,8 @@
    "class": "system",
    "default": "",
    "tokens": true,
-   "token_fn": "sys_key_token_set"
+   "token_fn": "sys_key_token_set",
+   "note": "the installed webmail clients as tokens. The order carries NO meaning and is not a contract: the default client of a new mail domain is chosen by name, roundcube when installed, else the first installed client in WEBMAIL_KNOWN_CLIENTS order (h-add-mail-domain-webmail, and the panel's add form the same way), never by position. A third client sets its rank in that list, not here"
   },
   "WEB_BACKEND": {
    "class": "system",
@@ -359,6 +417,11 @@
   "WEB_SYSTEM": {
    "class": "system",
    "default": ""
+  },
+  "WPCLI_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "the wp-cli pin version when installed (#942)"
   }
  }
 }

@@ -47,7 +47,7 @@ fi
 #----------------------------------------------------------#
 
 # Install the target version (full extension set) if it is not present yet.
-if [ -z "$($BIN/h-list-sys-php plain | grep -w "$version")" ]; then
+if [ -z "$($BIN/h-list-sys-php plain | grep -xF -- "$version")" ]; then
 	echo "PHP $version is not installed yet — installing it for the panel..."
 	if ! $BIN/h-add-web-php "$version"; then
 		echo "ERROR: Failed to install PHP $version. Panel version unchanged."

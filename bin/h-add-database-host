@@ -154,17 +154,9 @@ esac
 echo "$str" >> $HESTIA/conf/$type.conf
 chmod 660 $HESTIA/conf/$type.conf
 
-# Updating hestia.conf
-if [ -z "$(grep DB_SYSTEM $HESTIA/conf/hestia.conf)" ]; then
-	echo "DB_SYSTEM='$type'" >> $HESTIA/conf/hestia.conf
-else
-	db=$(echo "$DB_SYSTEM,$type" \
-		| sed "s/,/\n/g" \
-		| sort -r -u \
-		| sed "/^$/d" \
-		| sed ':a;N;$!ba;s/\n/,/g')
-	sed -i "s/DB_SYSTEM=.*/DB_SYSTEM='$db'/g" $HESTIA/conf/hestia.conf
-fi
+# The DB_SYSTEM token through its token function, never a bare sed: "s/DB_SYSTEM=.*/" also rewrote
+# DB_MARIADB_SYSTEM, which carries the name as a substring (measured on the first add, #978).
+sys_key_token_set DB_SYSTEM add "$type" > /dev/null || check_result "$E_UPDATE" "DB_SYSTEM: could not record $type"
 
 # Logging
 $BIN/h-log-action "system" "Info" "Database" "Added external $type database server ($host) to the system."

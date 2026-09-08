@@ -36,6 +36,7 @@ fi
 # Not installed?
 if ! dpkg -l postgresql 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: PostgreSQL is not installed."
+	change_sys_value "DB_POSTGRESQL_SYSTEM" ""
 	exit "$E_NOTEXIST"
 fi
 
@@ -85,6 +86,7 @@ fi
 #----------------------------------------------------------#
 
 set_install_component DB_POSTGRESQL false
+change_sys_value "DB_POSTGRESQL_SYSTEM" ""
 
 echo "[ OK ] PostgreSQL removed.$([ "${PURGE_DATA:-}" = "yes" ] && echo '' || echo ' (datadir kept — PURGE_DATA=yes to drop)')"
 

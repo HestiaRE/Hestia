@@ -41,7 +41,7 @@ fi
 #----------------------------------------------------------#
 
 # Logging
-"$BIN/h-log-action" "system" "Info" "System" "Project quota re-armed (state: $(grep -o "PROJECT_QUOTA='[^']*'" "$HESTIA/conf/hestia.conf"))."
+"$BIN/h-log-action" "system" "Info" "System" "Project quota re-armed (state: $(grep -o "^PROJECT_QUOTA='[^']*'" "$HESTIA/conf/hestia.conf"))."
 log_event "$OK" "$ARGUMENTS"
 
 exit

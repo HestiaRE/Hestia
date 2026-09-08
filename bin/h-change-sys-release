@@ -52,11 +52,8 @@ else
 		exit 1
 	fi
 
-	# Remove old branch variable
-	sed -i "/RELEASE_BRANCH/d" $HESTIA/conf/hestia.conf
-
-	# Set new branch variable
-	echo "RELEASE_BRANCH='$branch'" >> $HESTIA/conf/hestia.conf
+	# the one writer (temp+rename, verified) instead of an unanchored delete-and-append (#978)
+	change_sys_value "RELEASE_BRANCH" "$branch"
 	echo "Updated system to update from Git using branch: $branch"
 fi
 

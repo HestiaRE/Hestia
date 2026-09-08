@@ -10,7 +10,8 @@ sysreg_file() {
 	echo "${SYSREG_FILE:-${HESTIA:-.}/share/hestia/sys-keys.json}"
 }
 
-# sysreg_check [file] - the schema. Prints one line per defect, returns 1 on any. Duplicate names are
+# sysreg_check [file] - the schema: name, class, default per class, token_fn exists, secret is a boolean.
+# Prints one line per defect, returns 1 on any. Duplicate names are
 # caught textually, since a JSON parser keeps the last of two and says nothing.
 sysreg_check() {
 	local f="${1:-$(sysreg_file)}" bad=0 n names dups k class def fn
@@ -39,7 +40,7 @@ sysreg_check() {
 	}
 	# \x1f as the separator, not a tab: read collapses consecutive whitespace separators, and an empty
 	# default would shift the columns one to the left
-	while IFS=$'\x1f' read -r k class def fn; do
+	while IFS=$'\x1f' read -r k class def fn sec; do
 		case "$k" in [A-Z]*) ;; *)
 			echo "sysreg: $k is not a key name" >&2
 			bad=1
@@ -59,13 +60,18 @@ sysreg_check() {
 				bad=1
 				;;
 		esac
+		case "$sec" in __absent__ | true | false) ;; *)
+			echo "sysreg: $k has secret '$sec', expected true or false" >&2
+			bad=1
+			;;
+		esac
 		if [ "$fn" != "__absent__" ]; then
 			grep -qE "^${fn}\(\) \{" "${HESTIA:-.}"/include/*.sh 2> /dev/null || {
 				echo "sysreg: $k names token_fn '$fn', which no include/*.sh defines" >&2
 				bad=1
 			}
 		fi
-	done < <(jq -r '.keys | to_entries[] | [.key, (.value.class // "__absent__"), (.value.default // "__absent__"), (.value.token_fn // "__absent__")] | join("\u001f")' "$f")
+	done < <(jq -r '.keys | to_entries[] | [.key, (.value.class // "__absent__"), (.value.default // "__absent__"), (.value.token_fn // "__absent__"), (if .value | has("secret") then (.value.secret | tostring) else "__absent__" end)] | join("\u001f")' "$f")
 	return $bad
 }
 

@@ -476,6 +476,8 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 	# set even if the preset did not pre-select it (#196, #272). Deduped so a
 	# pre-selected reference version is not installed twice.
 	if [ "${COMPONENT_PHP_MODE:-sury_multi}" = "sury_multi" ]; then
+		# The status says the source, not the count (#934); the versions come from h-add-web-php below.
+		wcv "PHP_SOURCE" "sury"
 		local php_versions="${COMPONENT_PHP_MULTIPHP_VERSIONS:-}"
 		case " $php_versions " in
 			*" $PHP_VER "*) ;;
@@ -496,6 +498,13 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 		done
 	else
 		echo "[ * ] Skipping multi-PHP (PHP_MODE=${COMPONENT_PHP_MODE:-?})"
+		# OS PHP: h-add-web-php does not run here, so the stage records the one version itself, through the
+		# token function like every other writer of a token key (#933/#934).
+		wcv "PHP_SOURCE" "os"
+		sys_key_token_set PHP_VERSIONS add "$PHP_VER" > /dev/null || {
+			echo "ERROR: PHP_VERSIONS: could not record $PHP_VER" >&2
+			exit 1
+		}
 	fi
 
 	echo "[ * ] Ensuring PHP $PHP_VER FPM pool..."
@@ -817,7 +826,14 @@ init_hestia_structure() {
 	mkdir -p "$HESTIA/conf" "$HESTIA_SSL" \
 		"$CONF_DIR/ips" "$CONF_DIR/queue" \
 		"$CONF_DIR/users" "$CONF_DIR/firewall" "$CONF_DIR/packages" \
-		"$CONF_DIR/hooks" "$HESTIA/.sessions"
+		"$CONF_DIR/hooks"
+	# The panel session store lives OUTSIDE the install root (#974): an update tars $HESTIA to roll
+	# back the overlay, and live sessions have no place in that snapshot; keeping it here also means
+	# check_install_root_owner never has to except a group-writable dir under the tree.
+	# Expired files are collected by the pool's own PHP GC (compiled defaults, 1/100 per session start,
+	# 1440 s); no distro routine looks here - Debian's phpsessionclean covers only the packaged versions'
+	# save_path, and the installer's cron.daily/php-session-cleanup covers the customers' /home/*/tmp.
+	mkdir -p /var/lib/hestia/sessions
 	# The LE hook mechanism already exists in h-add-letsencrypt-domain (#4925); create the directory
 	# and drop its README so the hooks are discoverable rather than a secret handshake.
 	[ -e "$CONF_DIR/hooks/README.md" ] || cp -f "$HESTIA/share/hestia/hooks/README.md" "$CONF_DIR/hooks/README.md"
@@ -834,7 +850,7 @@ init_hestia_structure() {
 		"$CONF_DIR/firewall" "$CONF_DIR/packages" "$CONF_DIR/hooks"
 	chmod -R 750 "$CONF_DIR/queue"
 	chmod 660 /var/log/hestia/* 2> /dev/null || true
-	chmod 770 "$HESTIA/.sessions"
+	chmod 770 /var/lib/hestia/sessions
 	echo "[ OK ] structure ready"
 }
 
@@ -1086,19 +1102,9 @@ install_tools() {
 				;;
 		esac
 	fi
-	echo "[ * ] Installing wp-cli (system-wide, pinned)..."
-	# pinned + verified phar; no `wp cli update` - a re-run converges to the manifest pin
-	if ! command -v wp > /dev/null 2>&1; then
-		fetch_wp_cli_phar /usr/local/bin/wp \
-			|| {
-				echo "ERROR: could not fetch/verify the pinned wp-cli phar"
-				exit 1
-			}
-		echo "  wp-cli installed"
-	else
-		echo "  wp-cli already present — re-pinning"
-		fetch_wp_cli_phar /usr/local/bin/wp || echo "  WARN: could not refresh wp-cli, keeping the present one"
-	fi
+	# the status keys of this stage (#939, #942); composer's is unconditional, "not chosen" is an empty key
+	composer_status_record
+	install_wp_cli_pinned
 	echo "[ OK ] tools complete"
 }
 
@@ -1127,7 +1133,7 @@ finalize_install() {
 	echo "[ * ] Restarting panel services (Caddy + hestia-php)..."
 	# restart both so configure-stage changes (SSL cert, panel port) take effect
 	systemctl restart caddy hestia-php 2> /dev/null || true
-	chown hestia:hestia "$HESTIA/.sessions"
+	chown hestia:hestia /var/lib/hestia/sessions
 	mkdir -p /backup && chmod 711 /backup
 	# Now, with the cron only as fallback: @reboot alone meant a box that is never rebooted never got
 	# a certificate. The web domain exists and the web server is up by here, so ACME can answer.

@@ -6,7 +6,7 @@
 #
 # Verifies that a fresh install came up: the services implied by the active
 # configuration are running, the expected ports listen, the panel answers, and no
-# critical markers are in the key logs. Preset-independent — it derives what to
+# critical markers are in the key logs. Preset-independent, it derives what to
 # expect from hestia.conf's *_SYSTEM vars and install.conf's COMPONENT_* flags.
 # Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise. No v-* symlink.
 
@@ -49,12 +49,12 @@ ok() {
 	pass=$((pass + 1))
 }
 no() {
-	echo "[ FAIL ] $1${2:+ — $2}"
+	echo "[ FAIL ] $1${2:+, $2}"
 	fail=$((fail + 1))
 }
 skip() { echo "[ skip ] $1"; }
 
-# check_source_absent <label> <pattern> <path...> — a vulnerable pattern must not
+# check_source_absent <label> <pattern> <path...>, a vulnerable pattern must not
 # reappear (static regression guard for a security fix). Comment lines excluded.
 # Whether sudo keeps panel command lines out of the logs depends on the sudo flavor and the
 # distro, so assert the outcome per run: a throwaway marker through an allowed panel call must
@@ -109,11 +109,11 @@ check_source_absent() {
 	fi
 }
 
-# check_session_user_allowlist <webdir> — $_SESSION["user"] is the REAL logged-in
+# check_session_user_allowlist <webdir>, $_SESSION["user"] is the REAL logged-in
 # user; during impersonation it is the ADMIN, not the customer (who is in "look").
 # Scoping customer data by it mis-targets (#438). Rather than chase every spelling
 # of the bug, allowlist the files that may touch the real user at all (auth /
-# dispatch / reset / real-identity display); ANY other file is red — it must use the
+# dispatch / reset / real-identity display); ANY other file is red, it must use the
 # look-aware $user/$user_plain from inc/main.php. Turns "did we catch every spelling"
 # into "may this file see the real user".
 check_session_user_allowlist() {
@@ -136,9 +136,9 @@ templates/pages/list_search.php templates/pages/list_user.php"
 	fi
 }
 
-# check_xaccel_allowlist <webdir> — only list/rrd/image.php may EMIT X-Accel-Redirect. Caddy serves it
+# check_xaccel_allowlist <webdir>, only list/rrd/image.php may EMIT X-Accel-Redirect. Caddy serves it
 # via file_server as `caddy`, which reads only the web-root files it owns (the RRD images); a download
-# handler emitting it for a customer file hits the caddy-can't-read wall (#441) — stream via
+# handler emitting it for a customer file hits the caddy-can't-read wall (#441), stream via
 # inc/download.php as `hestia` instead. Matches header(...) emission, not the handlers' prose.
 check_xaccel_allowlist() {
 	local webdir="$1" bad="" f rel
@@ -174,7 +174,7 @@ check_port() {
 	fi
 }
 
-# check_socket <path> <label> — listening unix socket
+# check_socket <path> <label>, listening unix socket
 check_socket() {
 	if ss -H -xln 2> /dev/null | grep -qF "$1"; then
 		ok "socket $2 ($1) listening"
@@ -430,6 +430,22 @@ check_webmail_value_domain() {
 	no "webmail templates outside the value domain:$missing" "extend WEBMAIL_KNOWN_CLIENTS in include/main.sh"
 }
 
+# The other direction: every token the status key holds must be a known client, or h-list-sys-webmail
+# drops it without a word (it offers only what has a template) and the operator sees a choice missing.
+# A hand edit or a migration entry is how such a token gets there. An empty key is a box without webmail.
+check_webmail_tokens_known() {
+	local t unknown='' n=0
+	for t in ${WEBMAIL_SYSTEM//,/ }; do
+		n=$((n + 1))
+		case " $WEBMAIL_KNOWN_CLIENTS " in *" $t "*) ;; *) unknown="$unknown $t" ;; esac
+	done
+	if [ -n "$unknown" ]; then
+		no "WEBMAIL_SYSTEM carries unknown token(s):$unknown" "not in WEBMAIL_KNOWN_CLIENTS, so never offered; fix the key or extend the list"
+	else
+		ok "WEBMAIL_SYSTEM tokens are all known clients ($n token(s))"
+	fi
+}
+
 # Two files have to agree on how a diff payload is spelled: backup.sh names it, h-restore-user greps
 # for it. Both are used AS SHIPPED here - the namer in a subshell, the pattern lifted out of the
 # restore - so a rename on one side cannot go unnoticed. Plus the fallback that keeps pre-#840
@@ -607,7 +623,7 @@ check_http() {
 	fi
 }
 
-# check_rspamd_ctrl_isolation — the controller socket must be reachable by the
+# check_rspamd_ctrl_isolation, the controller socket must be reachable by the
 # Caddy proxy process but NOT by the app FPM pools that share the caddy user.
 # Checked against live process creds + /etc/group, so a config regression fails here.
 check_rspamd_ctrl_isolation() {
@@ -663,7 +679,7 @@ check_file_empty() {
 	fi
 }
 
-# check_banner <port> <label> — service answers with a protocol banner in 5s.
+# check_banner <port> <label>, service answers with a protocol banner in 5s.
 # Catches "active + listening but dead" (e.g. dovecot IMAP login hangs) that
 # check_service/check_port miss.
 check_banner() {
@@ -677,7 +693,7 @@ check_banner() {
 	fi
 }
 
-# check_v_symlinks_resolve — no v-* compat alias may dangle (catches a rename/
+# check_v_symlinks_resolve, no v-* compat alias may dangle (catches a rename/
 # removal the install-time prune should have cleared). Extra aliases are fine.
 check_v_symlinks_resolve() {
 	local dangling first
@@ -1127,7 +1143,7 @@ check_sbin_not_under_bin() {
 	fi
 }
 
-# check_policy_fragment_coverage — a per-domain POLICY fragment (CrowdSec Layer A, bot rate limiting)
+# check_policy_fragment_coverage, a per-domain POLICY fragment (CrowdSec Layer A, bot rate limiting)
 # must be in EVERY customer-domain template of its web system: it applies to all traffic, so a template
 # missing one is a silent bypass (switch to the wordpress template, escape the throttle, nothing fails).
 # Feature fragments (ssl/hsts/forcessl/fastcgi_cache) are NOT checked - they belong only to the
@@ -1163,7 +1179,7 @@ check_policy_fragment_coverage() {
 	fi
 }
 
-# check_sudoers <file> <label> — file parses under the running sudo. One rejected
+# check_sudoers <file> <label>, file parses under the running sudo. One rejected
 # setting (e.g. requiretty under sudo-rs, ub26) makes sudo drop the WHOLE file.
 check_sudoers() {
 	if [ ! -f "$1" ]; then
@@ -1617,6 +1633,66 @@ check_record_only_protected() {
 		ok "record-only names appear in no record ($n names, $reads record file(s) read)"
 	fi
 }
+# check_install_root_owner - the invariant measured for #974: nothing under the install root belongs
+# to anyone but root, nothing is group- or world-writable. The runtime directories a panel pool needs
+# (session.save_path, upload_tmp_dir, sys_temp_dir) are read from the FPM configuration, never written
+# here as a literal, so the check heals itself when such a directory moves out of the tree. Symlinks
+# are skipped, their targets live elsewhere. A scan that saw almost nothing is red, not green.
+check_install_root_owner() {
+	local allowed p hits n bad
+	allowed=$(grep -hoE '^ *(php_(admin_)?value\[)?(session\.save_path|upload_tmp_dir|sys_temp_dir)\]? *= *"?[^" ]+' \
+		/etc/php/hestia/fpm/php.ini /etc/php/hestia/fpm/pool.d/*.conf 2> /dev/null | sed 's/.*= *"\?//' | sort -u)
+	n=$(find "$HESTIA" -xdev ! -type l 2> /dev/null | wc -l)
+	if [ "${n:-0}" -lt 100 ]; then
+		no "install root: the scan saw only $n entries under $HESTIA"
+		return
+	fi
+	hits=$(find "$HESTIA" -xdev ! -type l \( ! -user root -o -perm /022 \) -printf '%p\n' 2> /dev/null)
+	for p in $allowed; do
+		case "$p" in "$HESTIA"/*) hits=$(printf '%s\n' "$hits" | grep -vE "^$p(/|$)") ;; esac
+	done
+	bad=$(printf '%s\n' "$hits" | grep -c .)
+	if [ "$bad" -gt 0 ]; then
+		no "install root: $bad path(s) not root-owned or group/world-writable" "$(printf '%s\n' "$hits" | grep . | head -n3 | tr '\n' ' ')"
+	else
+		ok "install root: $n entries, nothing writable by anyone but root (pool runtime dirs from the FPM config:$(printf ' %s' $allowed))"
+	fi
+}
+
+# check_secret_file_modes - the files whose mode means something (#974): the sudoers rule (440 root:root,
+# what deploy_hestia_sudoers installs), and every private key the panel or a customer holds - the panel
+# certificate under /etc/ssl/hestia, the mail SNI links under /etc/exim4/ssl (resolved), the customers'
+# keys under /etc/hestia/users/*/ssl and /home/*/conf/{web,mail}/*/ssl. Rule for keys: no world bit at
+# all; group access is by design (root:mail 660, exim reads them). The set is found, not listed; a box
+# without a single key says so as a skip with the count, never as a pass.
+check_secret_file_modes() {
+	local bad='' sudoers=/etc/sudoers.d/hestia keys k m n
+	if [ -f "$sudoers" ]; then
+		m=$(stat -c '%a %U:%G' "$sudoers")
+		[ "$m" = "440 root:root" ] || bad="$bad sudoers($m)"
+	else
+		bad="$bad sudoers(missing)"
+	fi
+	keys=$(find /etc/ssl/hestia /etc/exim4/ssl /etc/hestia/users/*/ssl /home/*/conf/web/*/ssl /home/*/conf/mail/*/ssl \
+		-maxdepth 1 \( -name '*.key' -o -name '*.pem' \) 2> /dev/null | sort -u)
+	n=$(printf '%s\n' "$keys" | grep -c .)
+	for k in $keys; do
+		[ -e "$k" ] || {
+			bad="$bad $k(dangling)"
+			continue
+		}
+		m=$(stat -L -c '%a' "$k")
+		case "$m" in *[1-7]) bad="$bad $k(world:$m)" ;; esac
+	done
+	if [ -n "$bad" ]; then
+		no "secret file modes" "$bad"
+	elif [ "$n" -eq 0 ]; then
+		skip "secret file modes: sudoers 440 root:root, and no private key or pem on this box to check (0 found)"
+	else
+		ok "secret file modes: sudoers 440 root:root, $n key/pem file(s) without a world bit"
+	fi
+}
+
 # check_hestia_conf_mode - the chain that keeps hestia.conf to root: /etc/hestia at the mode the wizard
 # gives it (700, so the panel pool and every customer stop at the directory), and the file at the mode the
 # seed gives it. Both expectations are read from the tree (include/wizard.sh, include/helper.sh), so a
@@ -2064,9 +2140,9 @@ check_record_grammar() {
 
 # check_sys_key_registry - the system key registry (share/hestia/sys-keys.json, #932), three guards:
 # (1) the schema, through the same sysreg_check the CI runs; (2) every key the tree writes into
-# hestia.conf is registered - the write sites are extracted from the shipped code (the six mechanisms:
-# wcv/_wcv, change_sys_value/clear_sys_value, h-change-sys-config-value with a literal key, repair_key,
-# a direct echo/sed on hestia.conf, the web-model key set), never listed here; (3) an empty registry
+# hestia.conf is registered - the write sites are extracted from the shipped code (the seven mechanisms:
+# wcv/_wcv, change_sys_value/clear_sys_value, sys_key_token_set, h-change-sys-config-value with a literal
+# key, repair_key, a direct echo/sed on hestia.conf, the web-model key set), never listed here; (3) an empty registry
 # or an empty extraction is red. A key written through a variable name cannot be extracted and is
 # not covered; the emitter and the repair read the registry, so such a key would surface there.
 check_sys_key_registry() {
@@ -2075,10 +2151,12 @@ check_sys_key_registry() {
 		no "system key registry: schema" "$(echo "$out" | head -n3 | tr '\n' ';')"
 		return
 	fi
+	# full-line comments are dropped first: a usage line like "sys_key_token_set KEY add|remove TOKEN" is
+	# not a write site, and it made the placeholder KEY an unregistered key
 	written=$({
-		grep -rhoE "(_wcv|wcv|change_sys_value|clear_sys_value|repair_key) +['\"]?[A-Z][A-Z0-9_]+" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null
-		grep -rhoE "h-change-sys-config-value +['\"]?[A-Z][A-Z0-9_]+" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" "$HESTIA/web" 2> /dev/null
-		grep -rhE "hestia\.conf" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null | grep -oE "(echo \"|s[|/]\^?)[A-Z][A-Z0-9_]+="
+		grep -rhvE '^[[:space:]]*(#|//)' "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null | grep -oE "(_wcv|wcv|change_sys_value|clear_sys_value|repair_key|sys_key_token_set) +['\"]?[A-Z][A-Z0-9_]+"
+		grep -rhvE '^[[:space:]]*(#|//)' "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" "$HESTIA/web" 2> /dev/null | grep -oE "h-change-sys-config-value +['\"]?[A-Z][A-Z0-9_]+"
+		grep -rhvE '^[[:space:]]*(#|//)' "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null | grep -E "hestia\.conf" | grep -oE "(echo \"|s[|/]\^?)[A-Z][A-Z0-9_]+="
 		grep -hoE '^WEB_MODEL_KEYS="[A-Z_ ]+"' "$HESTIA/include/web-model.sh" 2> /dev/null | tr ' ' '\n'
 	} | grep -oE '[A-Z][A-Z0-9_]{2,}' | grep -vx 'WEB_MODEL_KEYS' | sort -u)
 	# The one exclusion is the variable's own name, picked up from the line the key set is read from; it
@@ -2121,6 +2199,40 @@ check_system_keys_agree() {
 		no "system keys disagree with the box" "$bad"
 	else
 		ok "system keys agree with the box (ROOT_USER=$ROOT_USER, DB_SYSTEM='${DB_SYSTEM}', BACKUP_SYSTEM='${BACKUP_SYSTEM}')"
+	fi
+}
+
+# check_hestia_conf_key_patterns - a grep/sed on $HESTIA/conf/hestia.conf that names a key must anchor it
+# (^KEY, or grep -x): key names nest (DB_SYSTEM inside DB_MARIADB_SYSTEM, VERSION inside PHP_VERSIONS), and
+# an unanchored "s/DB_SYSTEM=.*/" rewrote the nested key on the first h-add-sys-mariadb (#978). Judged on
+# the first key-like token after the command with its flags stripped; a $VAR there is a path, not a key.
+# Not covered: a line that reaches the file through a variable or awk. Zero lines examined is red.
+check_hestia_conf_key_patterns() {
+	local lines n=0 bad='' l body tok key pre xflag
+	lines=$(grep -rnE '(grep|sed)' "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null \
+		| grep -E '(HESTIA|CONF_DIR|conf_dir)\}?/(conf/)?hestia\.conf' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#')
+	while IFS= read -r l; do
+		[ -n "$l" ] || continue
+		n=$((n + 1))
+		body=${l#*:*:}
+		xflag=no
+		printf '%s' "$body" | grep -qE 'grep( +-[a-zA-Z]*x[a-zA-Z]*)' && xflag=yes
+		body=$(printf '%s' "$body" | sed -E 's/(grep|sed)( +-[a-zA-Z]+)+/\1/g')
+		tok=$(printf '%s' "$body" | grep -oE '(grep|sed) [^A-Z]*[A-Z][A-Z0-9_]{2,}' | head -n1)
+		[ -n "$tok" ] || continue
+		key=$(printf '%s' "$tok" | grep -oE '[A-Z][A-Z0-9_]{2,}$')
+		pre=${tok%"$key"}
+		case "${pre: -1}" in
+			'^' | '$' | '{') ;;
+			*) [ "$xflag" = yes ] || bad="$bad $(printf '%s' "$l" | cut -d: -f1-2 | sed "s|^$HESTIA/||")($key)" ;;
+		esac
+	done <<< "$lines"
+	if [ "$n" -eq 0 ]; then
+		no "hestia.conf key patterns: no grep/sed line examined" "the selector no longer matches the code"
+	elif [ -n "$bad" ]; then
+		no "unanchored key pattern on hestia.conf:$bad" "a nested key name is rewritten too (DB_SYSTEM in DB_MARIADB_SYSTEM); anchor with ^KEY"
+	else
+		ok "hestia.conf key patterns anchored ($n grep/sed lines examined)"
 	fi
 }
 
@@ -2371,9 +2483,10 @@ if [ -f "$CONF_DIR/crowdsec/mesh.conf" ]; then
 	check_service hestia-crowdsec-mesh.timer "crowdsec fleet-mesh timer"
 	check_mesh_serve_staged
 fi
-# adminer/webmail: no own daemon — served by a caddy FPM pool, so check the socket
+# adminer/webmail: no own daemon, served by a caddy FPM pool, so check the socket
 is_on "${COMPONENT_ADDON_ADMINER:-}" && check_socket /run/hestia-adminer.sock "adminer FPM"
 check_webmail_value_domain
+check_webmail_tokens_known
 check_backup_container_meta
 check_backup_diff_member_name
 if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube'; then
@@ -2424,7 +2537,7 @@ if [ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ]; then
 fi
 [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && check_banner 25 "smtp"
 if [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
-	# group-restricted unix sockets — rspamd has no TCP ports
+	# group-restricted unix sockets, rspamd has no TCP ports
 	check_socket /run/rspamd/normal.sock "rspamd scan worker"
 	check_socket /run/rspamd/controller.sock "rspamd controller"
 	check_rspamd_ctrl_isolation
@@ -2439,7 +2552,7 @@ if [ -n "$PROXY_SYSTEM" ] || [ -n "${WEBMAIL_FRONT:-}" ]; then
 	check_log_clean "/var/log/nginx/error.log" "\[emerg\]|\[alert\]" "nginx"
 fi
 [ "$WEB_SYSTEM" = 'apache2' ] && check_log_clean "/var/log/apache2/error.log" "\[.*:emerg\]|\[.*:alert\]" "apache2"
-# exim writes serious problems to a dedicated paniclog — non-empty means trouble
+# exim writes serious problems to a dedicated paniclog, non-empty means trouble
 [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && check_file_empty "/var/log/exim4/paniclog" "exim paniclog"
 
 # --- Security invariants (static source gates) ---
@@ -2458,13 +2571,13 @@ else
 	no "invariant: source_conf rejects non-identifier keys (GHSA-xffx class)" "guard missing in include/main.sh"
 fi
 # #438: the real session user may only be touched by allowlisted files (auth /
-# dispatch / reset / real-identity display) — everything else must use the
+# dispatch / reset / real-identity display), everything else must use the
 # look-aware $user/$user_plain, or an admin impersonating a customer mis-targets.
 check_session_user_allowlist "$HESTIA/web"
 # #438: userContext is the effective role and is what admin-gates read. The old
 # effective-mirror $_SESSION["role"] must NOT be compared against (it was unified
-# onto userContext) — a divergent mirror would silently split the gate surface.
-check_source_absent "no gating on the effective-mirror \$_SESSION[role] (#438 — use userContext)" \
+# onto userContext), a divergent mirror would silently split the gate surface.
+check_source_absent "no gating on the effective-mirror \$_SESSION[role] (#438, use userContext)" \
 	'\$_SESSION\["role"\][[:space:]]*(==|!=)' "$HESTIA/web"
 # #441/#443: X-Accel-Redirect only from the allowlisted RRD handler; a new download
 # emitting it would hit the caddy-can't-read wall (stream via inc/download.php instead).
@@ -2502,6 +2615,8 @@ check_protected_names
 check_protected_names_effective
 # 644 from the old /tmp sort path was silent on every box (#960).
 check_hestia_conf_mode
+check_install_root_owner
+check_secret_file_modes
 check_record_only_protected
 check_eval_sites
 check_yescrypt_hashing
@@ -2516,6 +2631,7 @@ check_record_grammar
 check_key_registries
 check_sys_key_registry
 check_system_keys_agree
+check_hestia_conf_key_patterns
 check_identity_band
 # a cap written for a companion that is gone would be inherited by whoever gets the uid next.
 check_slice_dropins_owned

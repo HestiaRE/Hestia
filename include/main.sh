@@ -2514,15 +2514,15 @@ delete_chroot_jail() {
 	gpasswd -d "$1" sftp-jailed > /dev/null 2>&1 || true
 }
 
-# Co-maintain the SSH AllowUsers allowlist (#412). Opt-in: acts only if a line exists
-# (installer seeds one commented). Touches only the $user token (base before @), so
-# operator entries + the commented/active state survive. add=append, del=drop; sshd -t
-# rollback, reload only when active, re-comments rather than leave an active line empty.
 # The one sshd "Subsystem sftp" line, decided from JAIL_SYSTEM in one place (#941): with the ssh jail it
 # is the sftp-server binary, so a jailbash user's sftp runs inside bwrap; the sftp jail alone takes
-# internal-sftp (its Match block forces that for the group anyway); no jail restores the distro path. The
-# key is read from the file because the caller has just changed it. Prints "changed" when the line was
-# rewritten, so the caller restarts sshd; validating the config stays with the caller.
+# internal-sftp (its Match block forces that for the group anyway); no jail restores the distro path.
+# /usr/lib/sftp-server is not a typo: openssh-sftp-server ships it as the compat symlink to
+# /usr/lib/openssh/sftp-server on all four targets (HestiaCP used the same line), and jailbash binds
+# /usr read-only, so the path resolves inside the jail too (measured: sftp as a jailbash user lists
+# its home, a bogus path closes the connection). Kept distinct from the distro line so the file says
+# which jail set it. The key is read from the file because the caller has just changed it. Prints
+# "changed" when the line was rewritten, so the caller restarts sshd; validating stays with the caller.
 jail_sshd_subsystem_apply() {
 	local config='/etc/ssh/sshd_config' jails want
 	jails=$(grep -m1 "^JAIL_SYSTEM=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d"'" -f2)
@@ -2540,6 +2540,10 @@ jail_sshd_subsystem_apply() {
 	echo changed
 }
 
+# Co-maintain the SSH AllowUsers allowlist (#412). Opt-in: acts only if a line exists
+# (installer seeds one commented). Touches only the $user token (base before @), so
+# operator entries + the commented/active state survive. add=append, del=drop; sshd -t
+# rollback, reload only when active, re-comments rather than leave an active line empty.
 manage_sshd_allowusers() {
 	local action=$1 user=$2
 	local config='/etc/ssh/sshd_config'

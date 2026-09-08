@@ -51,13 +51,6 @@ hestia_apt() {
 	return $_rc
 }
 
-# Install packages that are OPTIONAL for the install to succeed - components, tools, addons.
-# A failure must not abort the installer, but it must not vanish either: #480 had two fleet VMs come
-# up with COMPONENT_ADDON_CROWDSEC=true and no crowdsec package, because the apt lock was held and the
-# call site's `|| true` swallowed it. apt's exit code alone is not enough (a partial install can still
-# report success), so the packages are verified against dpkg afterwards and anything missing is
-# collected for the closing summary.
-# Usage: apt_install_optional <label> <pkg>...   [APT_EXTRA_OPTS='-o ...' for per-call apt options]
 # wp-cli system-wide from the manifest pin (#942), one code path for the installer and a later re-pin:
 # a re-run converges to the pin (no `wp cli update`, the phar is sha256-verified), then the status key
 # records what the installed phar reports.
@@ -77,6 +70,13 @@ install_wp_cli_pinned() {
 	wpcli_status_record
 }
 
+# Install packages that are OPTIONAL for the install to succeed - components, tools, addons.
+# A failure must not abort the installer, but it must not vanish either: #480 had two fleet VMs come
+# up with COMPONENT_ADDON_CROWDSEC=true and no crowdsec package, because the apt lock was held and the
+# call site's `|| true` swallowed it. apt's exit code alone is not enough (a partial install can still
+# report success), so the packages are verified against dpkg afterwards and anything missing is
+# collected for the closing summary.
+# Usage: apt_install_optional <label> <pkg>...   [APT_EXTRA_OPTS='-o ...' for per-call apt options]
 apt_install_optional() {
 	local label="$1"
 	shift

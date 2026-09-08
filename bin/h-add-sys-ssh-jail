@@ -22,7 +22,8 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-# Not installable without bubblewrap: say so, and leave no token behind
+# Not installable without bubblewrap: say so, and leave no token behind. The installer puts bubblewrap in
+# its base package set and calls this with || true, so the non-zero exit changes nothing there.
 if [ ! -x /bin/bwrap ]; then
 	echo "ERROR: bubblewrap (/bin/bwrap) is not installed, the SSH jail needs it."
 	sys_key_token_set JAIL_SYSTEM remove ssh > /dev/null 2>&1

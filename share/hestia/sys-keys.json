@@ -391,7 +391,8 @@
    "class": "system",
    "default": "",
    "tokens": true,
-   "token_fn": "sys_key_token_set"
+   "token_fn": "sys_key_token_set",
+   "note": "the installed webmail clients as tokens. The order carries NO meaning and is not a contract: the default client of a new mail domain is chosen by name, roundcube when installed, else the first installed client in WEBMAIL_KNOWN_CLIENTS order (h-add-mail-domain-webmail, and the panel's add form the same way), never by position. A third client sets its rank in that list, not here"
   },
   "WEB_BACKEND": {
    "class": "system",

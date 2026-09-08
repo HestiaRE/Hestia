@@ -830,6 +830,9 @@ init_hestia_structure() {
 	# The panel session store lives OUTSIDE the install root (#974): an update tars $HESTIA to roll
 	# back the overlay, and live sessions have no place in that snapshot; keeping it here also means
 	# check_install_root_owner never has to except a group-writable dir under the tree.
+	# Expired files are collected by the pool's own PHP GC (compiled defaults, 1/100 per session start,
+	# 1440 s); no distro routine looks here - Debian's phpsessionclean covers only the packaged versions'
+	# save_path, and the installer's cron.daily/php-session-cleanup covers the customers' /home/*/tmp.
 	mkdir -p /var/lib/hestia/sessions
 	# The LE hook mechanism already exists in h-add-letsencrypt-domain (#4925); create the directory
 	# and drop its README so the hooks are discoverable rather than a secret handshake.

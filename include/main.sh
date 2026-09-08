@@ -2373,8 +2373,14 @@ clear_sys_value() {
 }
 
 # sys_key_token_set KEY add|remove TOKEN - one token in a comma-separated hestia.conf key (DB_SYSTEM,
-# BACKUP_SYSTEM, WEBMAIL_SYSTEM), the order kept as found, a token never doubled. Named as token_fn in
-# the registry; 1a only guards that it exists, the callers come with Phase 2 (#946).
+# BACKUP_SYSTEM, WEBMAIL_SYSTEM, PHP_VERSIONS, JAIL_SYSTEM), the order kept as found, a token never
+# doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
+# a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM, #978).
+# The rc, in both directions: on a success path (package installed, purge done) the caller fails the
+# whole command when this write fails - the status is part of the job, a silent gap is worse than a
+# loud exit, the packages stay and a re-run records them. On an exit path ("not installed", drift
+# repair on the way out) the caller drops the rc on purpose: a write problem must not turn a clear
+# "not installed" into a different error.
 sys_key_token_set() {
 	local key="$1" op="$2" tok="$3" cur out=() t
 	[ -n "$key" ] && [ -n "$tok" ] || return 1

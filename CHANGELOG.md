@@ -36,6 +36,12 @@ opens above it.
 
 ### Fixed
 
+- **The password-reset and 2FA-reset pages work when opened directly** (#968). The CSRF token was
+  minted only for a logged-in session or by the login page itself, so a session that opened `/reset/`
+  from a bookmark or after its session had expired rendered the form with an empty token, and every
+  submit bounced to `/login/` without a word. Every session now gets a token in `inc/main.php`; the
+  login page keeps rotating its own on each render.
+
 - **The installer's own key writer no longer hands `hestia.conf` the umask's mode** (#963). The first
   v0.18.1 install showed the #961 check red: the seed sets 660, and `wcv` in `h-install-hestia` rewrote
   an existing key through a temp file and `mv`, so the new inode took the installer's umask and every

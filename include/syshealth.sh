@@ -403,8 +403,10 @@ function syshealth_repair_system_config() {
 	syshealth_repair_failed=0
 	# Every betreiber key gets its default when absent or empty; a system key is never filled here -
 	# what the box has is decided by the commands that install things, and the smoke says whether the
-	# key agrees with the box (#932). The old hand table carried three absent-vs-empty special cases
-	# (DB_PMA_ALIAS keyonly, WEBMAIL_SYSTEM by artefact) - both are system keys now, so they went.
+	# key agrees with the box (#932). The rebuild of DB_PMA_ALIAS and WEBMAIL_SYSTEM from their artefacts
+	# is abolished, not parked: a Tachyon box that had lost the key was once answered with an empty
+	# value and lost its webmail, and a guard that fills writes the very assumption it should check.
+	# An absent system key stays absent; the smoke names it (1c adds the artefact fields, not a fill).
 	local _key _keys
 	if ! _keys=$(sysreg_keys betreiber); then
 		echo "[ !! ] system key registry unusable - no config repair" >&2

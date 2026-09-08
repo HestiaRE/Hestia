@@ -35,13 +35,9 @@ nsinit='/etc/security/namespace.d/hestia-jail.init'
 
 cp $config $config.bak
 
-# Re-enable the plain sftp subsystem
-sftp_n=$(grep -n "Subsystem.*sftp" $config | grep -v internal | grep ":#")
-if [ -n "$sftp_n" ]; then
-	fline=$(echo "$sftp_n" | cut -f 1 -d :)
-	sed -i "${fline}s/#Subsystem/Subsystem sftp/" $config
-	restart='yes'
-fi
+# Token off, then the Subsystem line follows the remaining token set (#941); sshd restarts below anyway
+sys_key_token_set JAIL_SYSTEM remove sftp > /dev/null || check_result "$E_UPDATE" "JAIL_SYSTEM: could not drop sftp"
+jail_sshd_subsystem_apply > /dev/null
 
 # Drop the "# Hestia SFTP Chroot" block (marker + following Match/indented lines)
 if grep -q "^# Hestia SFTP Chroot" $config; then
@@ -73,8 +69,9 @@ if ! /usr/sbin/sshd -t > /dev/null 2>&1; then
 	mail_text="OpenSSH can not be restarted. Please check config:
             \n\n$(/usr/sbin/sshd -t 2>&1)"
 	[ -n "$email" ] && echo -e "$mail_text" | $SENDMAIL -s "$subj" $email
-	echo "ERROR: sshd config invalid after SFTP jail removal — restored backup."
+	echo "ERROR: sshd config invalid after SFTP jail removal, restored backup."
 	cp $config.bak $config
+	sys_key_token_set JAIL_SYSTEM add sftp > /dev/null 2>&1
 	log_event "$E_INVALID" "$ARGUMENTS"
 	exit "$E_INVALID"
 fi

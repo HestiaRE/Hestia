@@ -2427,6 +2427,26 @@ mariadb_status_record() {
 	change_sys_value "DB_MARIADB_SYSTEM" "$src" && change_sys_value "DB_MARIADB_VERSION" "$v"
 }
 
+# The composer channel from the box (#939): the upstream phar in /usr/local/bin shadows the OS package on
+# PATH, so it decides when both exist (a switch in h-update-sys-composer removes the other afterwards).
+composer_status_record() {
+	local src=''
+	if [ -x /usr/local/bin/composer ]; then
+		src='upstream'
+	elif dpkg -s composer > /dev/null 2>&1; then
+		src='os'
+	fi
+	change_sys_value "COMPOSER_SYSTEM" "$src"
+}
+
+# The wp-cli version as the installed phar reports it, not the manifest pin (#942): the pin is intent,
+# the key is status. wp-cli refuses root without --allow-root; no phar or no answer is an empty key.
+wpcli_status_record() {
+	local v=''
+	[ -x /usr/local/bin/wp ] && v=$(timeout 30 /usr/local/bin/wp cli version --allow-root 2> /dev/null | awk '{print $2}')
+	change_sys_value "WPCLI_SYSTEM" "$v"
+}
+
 # ── Web-model maintenance freeze (#120) ──────────────────────────────────────
 # A live web-model switch (h-add-sys-nginx/-apache2, h-delete-sys-nginx/-apache2)
 # holds an exclusive lock for the whole operation. Domain-config mutators acquire it
@@ -2498,6 +2518,28 @@ delete_chroot_jail() {
 # (installer seeds one commented). Touches only the $user token (base before @), so
 # operator entries + the commented/active state survive. add=append, del=drop; sshd -t
 # rollback, reload only when active, re-comments rather than leave an active line empty.
+# The one sshd "Subsystem sftp" line, decided from JAIL_SYSTEM in one place (#941): with the ssh jail it
+# is the sftp-server binary, so a jailbash user's sftp runs inside bwrap; the sftp jail alone takes
+# internal-sftp (its Match block forces that for the group anyway); no jail restores the distro path. The
+# key is read from the file because the caller has just changed it. Prints "changed" when the line was
+# rewritten, so the caller restarts sshd; validating the config stays with the caller.
+jail_sshd_subsystem_apply() {
+	local config='/etc/ssh/sshd_config' jails want
+	jails=$(grep -m1 "^JAIL_SYSTEM=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d"'" -f2)
+	case ",$jails," in
+		*,ssh,*) want='/usr/lib/sftp-server' ;;
+		*,sftp,*) want='internal-sftp' ;;
+		*) want='/usr/lib/openssh/sftp-server' ;;
+	esac
+	grep -qE "^Subsystem[[:space:]]+sftp[[:space:]]+${want}[[:space:]]*$" "$config" && return 0
+	if grep -qE '^Subsystem[[:space:]]+sftp[[:space:]]' "$config"; then
+		sed -i -E "0,/^Subsystem[[:space:]]+sftp[[:space:]]/s|^Subsystem[[:space:]]+sftp[[:space:]].*|Subsystem sftp ${want}|" "$config"
+	else
+		echo "Subsystem sftp ${want}" >> "$config"
+	fi
+	echo changed
+}
+
 manage_sshd_allowusers() {
 	local action=$1 user=$2
 	local config='/etc/ssh/sshd_config'

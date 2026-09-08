@@ -37,12 +37,9 @@ if [ -x /usr/sbin/jailbash ]; then
 	service apparmor reload > /dev/null 2>&1
 fi
 
-# Revert back to internal-sftp
-if [ -z "$(grep 'Subsystem sftp internal-sftp' /etc/ssh/sshd_config)" ]; then
-	sed -i -E "s/Subsystem sftp \/usr\/lib\/sftp-server/Subsystem sftp internal-sftp/g" /etc/ssh/sshd_config
-
-	service ssh restart > /dev/null 2>&1
-fi
+# Token off, then the Subsystem line follows the remaining token set (#941)
+sys_key_token_set JAIL_SYSTEM remove ssh > /dev/null || check_result "$E_UPDATE" "JAIL_SYSTEM: could not drop ssh"
+[ "$(jail_sshd_subsystem_apply)" = changed ] && service ssh restart > /dev/null 2>&1
 
 #----------------------------------------------------------#
 #                       Hestia                             #

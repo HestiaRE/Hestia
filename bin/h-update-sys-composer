@@ -48,6 +48,7 @@ fi
 if [ "$source_arg" = 'os' ]; then
 	if dpkg -s composer > /dev/null 2>&1 && [ ! -f "$UPSTREAM_BIN" ]; then
 		echo "composer already comes from the OS package"
+		composer_status_record
 		exit 0
 	fi
 	# install before remove: a failed apt run must not leave the box composer-less.
@@ -60,6 +61,7 @@ if [ "$source_arg" = 'os' ]; then
 else
 	if [ -f "$UPSTREAM_BIN" ] && ! dpkg -s composer > /dev/null 2>&1; then
 		echo "composer already comes from the upstream installer"
+		composer_status_record
 		exit 0
 	fi
 	# verify the new source before touching the old (same signed mechanism as install_composer_upstream)
@@ -89,6 +91,7 @@ fi
 #                       Hestia                             #
 #----------------------------------------------------------#
 
+composer_status_record
 $BIN/h-log-action "system" "Info" "System" "Composer source switched to $new_source."
 log_event "$OK" "$ARGUMENTS"
 

@@ -18,6 +18,7 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+source "$HESTIA/include/crowdsec.sh"
 # live component state
 [ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
@@ -48,6 +49,7 @@ cs_pub="$PROXY_SYSTEM"
 if [ "$cs_pub" != 'nginx' ]; then
 	echo "ERROR: CrowdSec is an nginx-only addon; the public web front is '${cs_pub:-none}'."
 	echo "       Nothing to install on an apache-only model."
+	crowdsec_status_record
 	exit "$E_INVALID"
 fi
 
@@ -56,6 +58,7 @@ if [ "$cs_armed" = 'yes' ] \
 	&& systemctl is-active --quiet crowdsec 2> /dev/null \
 	&& systemctl is-active --quiet hestia-crowdsec-l3.timer 2> /dev/null; then
 	echo "INFO: CrowdSec is already installed and active."
+	crowdsec_status_record
 	exit 0
 fi
 
@@ -78,7 +81,6 @@ if [ -f /etc/crowdsec/config.yaml ]; then
 fi
 
 # detection + L7 nginx wiring + L3 feeder (the one shared path)
-source "$HESTIA/include/crowdsec.sh"
 crowdsec_apply || {
 	echo "ERROR: CrowdSec wiring failed."
 	exit "$E_INVALID"

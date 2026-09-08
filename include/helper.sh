@@ -58,6 +58,25 @@ hestia_apt() {
 # report success), so the packages are verified against dpkg afterwards and anything missing is
 # collected for the closing summary.
 # Usage: apt_install_optional <label> <pkg>...   [APT_EXTRA_OPTS='-o ...' for per-call apt options]
+# wp-cli system-wide from the manifest pin (#942), one code path for the installer and a later re-pin:
+# a re-run converges to the pin (no `wp cli update`, the phar is sha256-verified), then the status key
+# records what the installed phar reports.
+install_wp_cli_pinned() {
+	echo "[ * ] Installing wp-cli (system-wide, pinned)..."
+	if ! command -v wp > /dev/null 2>&1; then
+		fetch_wp_cli_phar /usr/local/bin/wp \
+			|| {
+				echo "ERROR: could not fetch/verify the pinned wp-cli phar"
+				exit 1
+			}
+		echo "  wp-cli installed"
+	else
+		echo "  wp-cli already present, re-pinning"
+		fetch_wp_cli_phar /usr/local/bin/wp || echo "  WARN: could not refresh wp-cli, keeping the present one"
+	fi
+	wpcli_status_record
+}
+
 apt_install_optional() {
 	local label="$1"
 	shift

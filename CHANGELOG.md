@@ -61,6 +61,20 @@ opens above it.
   reads got their `^`, the write-site extraction of the registry guard knows `sys_key_token_set`, and a
   new smoke check refuses any grep/sed on hestia.conf that names a key without an anchor. Token order
   now follows insertion (`mysql,pgsql`) where the old `sort -r` gave `pgsql,mysql`; nothing reads the order.
+  Writers, slice 4: `CROWDSEC_SYSTEM` is the model the engine reports (`crowdsec_status_record`, on top of
+  `crowdsec_current_mode`, which now also wants the `cscli` binary: a delete without `PURGE_DATA` keeps
+  `/etc/crowdsec`, and a kept config is not an engine), written by `crowdsec_apply` at both ends, the mode
+  switch, the mesh on/off commands (the installer and the CLI call them directly) and the delete command.
+  `COMPOSER_SYSTEM` is `upstream` when the phar in `/usr/local/bin` is there (it shadows the package on
+  PATH), else `os` when the package is, else empty; written by the installer's tools stage
+  unconditionally and by `h-update-sys-composer` at every exit. `WPCLI_SYSTEM` is what the installed phar
+  reports; the installer's wp-cli block is now `install_wp_cli_pinned` in helper.sh and records it.
+  `JAIL_SYSTEM` carries `sftp` and `ssh` as tokens, written by the four jail commands before they touch
+  sshd, and the sshd `Subsystem sftp` line is decided in one place from that token set
+  (`jail_sshd_subsystem_apply`): the ssh jail wants the sftp-server binary, the sftp jail alone
+  internal-sftp, no jail the distro path; before, the two add commands fought over the line and the two
+  delete commands each assumed the other's state. `h-add-sys-ssh-jail` without bubblewrap now says so and
+  exits non-zero instead of a silent success.
 
 - **One registry for the system keys of `hestia.conf`** (#932, Phase 1a of the update chapter). Three
   hand-kept lists described the same 82 keys - the compiled key set, the repair table with its defaults,

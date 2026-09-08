@@ -20,6 +20,7 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+source "$HESTIA/include/crowdsec.sh"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -72,6 +73,7 @@ echo "CrowdSec fleet-mesh disabled."
 #                       Hestia                             #
 #----------------------------------------------------------#
 
+crowdsec_status_record
 $BIN/h-log-action "system" "Info" "System" "Disabled CrowdSec fleet-mesh."
 log_event "$OK" "$ARGUMENTS"
 

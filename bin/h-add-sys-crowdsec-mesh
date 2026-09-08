@@ -20,6 +20,7 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+source "$HESTIA/include/crowdsec.sh"
 
 MESH_CONF="$CONF_DIR/crowdsec/mesh.conf"
 
@@ -67,6 +68,7 @@ echo "  ${MESH_PEERS_DIR:-/var/lib/crowdsec/mesh/peers} (see $MESH_CONF)."
 #                       Hestia                             #
 #----------------------------------------------------------#
 
+crowdsec_status_record
 $BIN/h-log-action "system" "Info" "System" "Enabled CrowdSec fleet-mesh."
 log_event "$OK" "$ARGUMENTS"
 

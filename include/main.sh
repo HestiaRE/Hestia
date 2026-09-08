@@ -2408,7 +2408,9 @@ sys_key_token_set() {
 
 # The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
 # holds (epoch stripped, major.minor), the source is read off the version string - MariaDB.org builds
-# carry "maria" in it, distro builds do not. Called by add, upgrade and delete (#978, #935).
+# carry "maria" in it, distro builds do not - and named in the recipe's own words (the source field of the
+# DB_MARIADB_VERSION options), so recipe and status never disagree on a value. Called by add, upgrade
+# and delete (#978, #935).
 mariadb_status_record() {
 	local v src
 	v=$(dpkg-query -W -f='${Version}' mariadb-server 2> /dev/null) || v=''
@@ -2417,7 +2419,7 @@ mariadb_status_record() {
 		change_sys_value "DB_MARIADB_VERSION" ""
 		return 0
 	fi
-	case "$v" in *maria*) src="mariadb" ;; *) src="os" ;; esac
+	case "$v" in *maria*) src="mariadb_repo" ;; *) src="os_default" ;; esac
 	v=${v#*:}
 	v=$(printf '%s' "$v" | grep -oE '^[0-9]+\.[0-9]+')
 	change_sys_value "DB_MARIADB_SYSTEM" "$src" && change_sys_value "DB_MARIADB_VERSION" "$v"

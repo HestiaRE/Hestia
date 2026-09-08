@@ -49,7 +49,8 @@ opens above it.
   utilities and the mail DNSBL list - say why: nothing about them is state (E5).
   Writers, slice 3: `h-add-sys-mariadb`, `h-upgrade-sys-mariadb` and `h-delete-sys-mariadb` record
   `DB_MARIADB_SYSTEM` and `DB_MARIADB_VERSION` from the installed package (the source is read off the
-  dpkg version, `mariadb` for a MariaDB.org build, `os` for the distro's; the version is major.minor);
+  dpkg version, in the recipe's own words: `mariadb_repo` for a MariaDB.org build, `os_default` for the distro's;
+  the version is major.minor);
   `h-add-sys-postgresql`/`h-delete-sys-postgresql` write `DB_POSTGRESQL_SYSTEM`, the redis pair
   `REDIS_SYSTEM`, the restic pair `RESTIC_SYSTEM`. Every writer sits before the "already installed" and
   "not installed" exits, so a box that has the component but not the key gets it on the next run and a

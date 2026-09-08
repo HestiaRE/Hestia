@@ -21,9 +21,7 @@ if ($_SESSION["userContext"] != "admin") {
 $v_hostname = exec("hostname");
 
 // List available timezones and get current one
-exec(HESTIA_CMD . "h-get-sys-timezone", $output, $return_var);
-$v_timezone = $output[0];
-unset($output);
+$v_timezone = cli_value("h-get-sys-timezone") ?? "";
 
 $v_timezones = cli_json("h-get-sys-timezones json");
 
@@ -53,7 +51,9 @@ if (empty($backend_templates)) {
 $backends_active = backendtpl_with_webdomains();
 // Installed PHP versions: the pool template is a profile now (#591), so a version is
 // "installed" when the interpreter is, not when a PHP-X_Y template exists.
+$output = [];
 exec(HESTIA_CMD . "h-list-sys-php plain", $output, $return_var);
+check_error($return_var);
 $installed_php = array_map("trim", $output);
 unset($output);
 $v_php_versions = array_map(function ($php_version) use ($installed_php, $backends_active) {
@@ -378,6 +378,7 @@ if (!empty($_POST["save"])) {
 	if (empty($_SESSION["error_msg"])) {
 		if (!empty($_POST["v_language"]) && $_SESSION["LANGUAGE"] != $_POST["v_language"]) {
 			if (isset($_POST["v_language_update"])) {
+				$output = [];
 				exec(
 					HESTIA_CMD .
 						"h-change-sys-language " .
@@ -386,6 +387,7 @@ if (!empty($_POST["save"])) {
 					$output,
 					$return_var,
 				);
+				check_return_code($return_var, $output);
 				if (empty($_SESSION["error_msg"])) {
 					$_SESSION["LANGUAGE"] = $_POST["v_language"];
 				}
@@ -893,11 +895,13 @@ if (!empty($_POST["save"])) {
 			$_POST["v_backup_type"] != $v_backup_type &&
 			$v_backup_type != ""
 		) {
+			$output = [];
 			exec(
 				HESTIA_CMD . "h-delete-backup-host " . quoteshellarg($v_backup_type),
 				$output,
 				$return_var,
 			);
+			check_return_code($return_var, $output);
 			unset($output);
 			if (in_array($_POST["v_backup_type"], ["ftp", "sftp"])) {
 				$v_backup_host = quoteshellarg($_POST["v_backup_host"]);
@@ -972,7 +976,7 @@ if (!empty($_POST["save"])) {
 					$v_backup_username = quoteshellarg($_POST["v_backup_username"]);
 					$backup_pass_file = secret_tmpfile($_POST["v_backup_password"]);
 					$v_backup_bpath = quoteshellarg($_POST["v_backup_bpath"]);
-				$v_backup_keep_arg = quoteshellarg($_POST["v_backup_keep"] ?? "");
+					$v_backup_keep_arg = quoteshellarg($_POST["v_backup_keep"] ?? "");
 					if ($backup_pass_file !== false) {
 						exec(
 							HESTIA_CMD .
@@ -1096,7 +1100,7 @@ if (!empty($_POST["save"])) {
 	}
 	if (empty($_SESSION["error_msg"])) {
 		if ($_POST["v_backup_incremental"] !== "yes" && $_SESSION["BACKUP_INCREMENTAL"] === "yes") {
-			exec(HESTIA_CMD . "h-delete-backup-host-restic ", $output, $return);
+			exec(HESTIA_CMD . "h-delete-backup-host-restic ", $output, $return_var);
 			check_return_code($return_var, $output);
 			unset($output);
 			$v_backup_incremental = "";
@@ -1110,7 +1114,7 @@ if (!empty($_POST["save"])) {
 	}
 	if (empty($_SESSION["error_msg"])) {
 		if ($_POST["v_backup_incremental"] === "yes" && $_SESSION["BACKUP_INCREMENTAL"] === "yes") {
-			exec(HESTIA_CMD . "h-delete-backup-host-restic ", $output, $return);
+			exec(HESTIA_CMD . "h-delete-backup-host-restic ", $output, $return_var);
 			check_return_code($return_var, $output);
 			unset($output);
 			$repo = quoteshellarg($_POST["v_repo"]);

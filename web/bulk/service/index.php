@@ -40,15 +40,20 @@ if ($_SESSION["userContext"] === "admin") {
 	if (!empty($_POST["system"]) && $action == "restart") {
 		$_SESSION["error_srv"] = _("The system is going down for reboot NOW!");
 		exec(HESTIA_CMD . "h-restart-system yes", $output, $return_var);
+		check_return_code($return_var, $output);
 		unset($output);
 		header("Location: /list/server/");
 		exit();
 	}
 
+	$failed = [];
 	foreach ($service as $value) {
-		$value = quoteshellarg($value);
-		exec(HESTIA_CMD . $cmd . " " . $value, $output, $return_var);
+		exec(HESTIA_CMD . $cmd . " " . quoteshellarg($value), $output, $return_var);
+		if ($return_var != 0) {
+			$failed[] = $value;
+		}
 	}
+	bulk_note_failures($failed, count($service));
 }
 
 header("Location: /list/server/");

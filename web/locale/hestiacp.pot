@@ -145,6 +145,11 @@ msgstr ""
 msgid "Error code: %s"
 msgstr ""
 
+#: ../../web/inc/main.php:289
+#, php-format
+msgid "%d of %d failed: %s"
+msgstr ""
+
 #: ../../web/inc/main.php:267 ../../web/inc/main.php:278
 msgid "You are logged out, please log in again."
 msgstr ""

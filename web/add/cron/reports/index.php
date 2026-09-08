@@ -7,6 +7,7 @@ include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 verify_csrf($_GET);
 
 exec(HESTIA_CMD . "h-add-cron-reports " . $user, $output, $return_var);
+check_return_code($return_var, $output);
 unset($output);
 
 header("Location: /list/cron/");

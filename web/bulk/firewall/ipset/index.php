@@ -36,9 +36,14 @@ switch ($action) {
 		exit();
 }
 
+$failed = [];
 foreach ($setname as $value) {
 	$v_name = quoteshellarg($value);
 	exec(HESTIA_CMD . $cmd . " " . $v_name, $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $value;
+	}
 }
+bulk_note_failures($failed, count($setname));
 
 header("Location: /list/firewall/ipset/");

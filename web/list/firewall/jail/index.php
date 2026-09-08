@@ -13,6 +13,7 @@ if ($_SESSION["userContext"] != "admin") {
 
 // Data
 exec(HESTIA_CMD . "h-list-firewall-jail json", $output, $return_var);
+check_error($return_var);
 $data = json_decode(implode("", $output), true) ?? [];
 unset($output);
 

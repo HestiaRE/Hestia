@@ -18,6 +18,7 @@ function web_ssl_vars(string $user, string $domain): array
 		$output,
 		$return_var,
 	);
+	check_return_code($return_var, $output);
 	$row = (json_decode(implode("", $output), true) ?: [])[$domain] ?? [];
 	$vars = [];
 	foreach (
@@ -41,7 +42,9 @@ if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 }
 
 // Get all user domains
+$output = [];
 exec(HESTIA_CMD . "h-list-web-domains " . $user . " json", $output, $return_var);
+check_error($return_var);
 $all_web = json_decode(implode("", $output), true);
 $user_domains = array_keys((array) $all_web);
 unset($output);

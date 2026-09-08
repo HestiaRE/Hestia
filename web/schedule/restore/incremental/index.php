@@ -36,6 +36,7 @@ if (empty($_GET["type"])) {
 		}
 	}
 } else {
+	$output = [];
 	exec(
 		HESTIA_CMD .
 			"h-schedule-user-restore-restic " .
@@ -49,6 +50,7 @@ if (empty($_GET["type"])) {
 		$output,
 		$return_var,
 	);
+	check_return_code($return_var, $output);
 }
 
 header("Location: /list/backup/incremental/?snapshot=" . $_GET["snapshot"]);

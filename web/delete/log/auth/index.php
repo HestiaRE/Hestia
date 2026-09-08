@@ -27,19 +27,7 @@ $v_session_id = quoteshellarg($_SESSION["token"]);
 
 // Add current user session back to log unless impersonating another user
 if (!isset($_SESSION["look"])) {
-	exec(
-		HESTIA_CMD .
-			"h-log-user-login " .
-			$user .
-			" " .
-			$v_ip .
-			" success " .
-			$v_session_id .
-			" " .
-			$v_user_agent,
-		$output,
-		$return_var,
-	);
+	cli_log("h-log-user-login " . $user . " " . $v_ip . " success " . $v_session_id . " " . $v_user_agent);
 }
 
 // Flush session messages

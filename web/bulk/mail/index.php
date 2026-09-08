@@ -97,24 +97,32 @@ if ($_SESSION["userContext"] === "admin") {
 
 if (empty($_POST["account"])) {
 	if (is_array($domain)) {
+		$failed = [];
 		foreach ($domain as $value) {
 			// Mail
-			$value = quoteshellarg($value);
-			exec(HESTIA_CMD . $cmd . " " . $user . " " . $value, $output, $return_var);
+			exec(HESTIA_CMD . $cmd . " " . $user . " " . quoteshellarg($value), $output, $return_var);
+			if ($return_var != 0) {
+				$failed[] = $value;
+			}
 			$restart = "yes";
 		}
+		bulk_note_failures($failed, count($domain));
 	} else {
 		header("Location: /list/mail/?domain=" . $domain);
 		exit();
 	}
 } else {
+	$failed = [];
 	foreach ($account as $value) {
 		// Mail Account
-		$value = quoteshellarg($value);
 		$dom = quoteshellarg($domain);
-		exec(HESTIA_CMD . $cmd . " " . $user . " " . $dom . " " . $value, $output, $return_var);
+		exec(HESTIA_CMD . $cmd . " " . $user . " " . $dom . " " . quoteshellarg($value), $output, $return_var);
+		if ($return_var != 0) {
+			$failed[] = $value;
+		}
 		$restart = "yes";
 	}
+	bulk_note_failures($failed, count($account));
 }
 
 if (empty($account)) {

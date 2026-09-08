@@ -56,9 +56,13 @@ if ($_SESSION["userContext"] === "admin") {
 	}
 }
 
+$failed = [];
 foreach ($database as $value) {
-	$value = quoteshellarg($value);
-	exec(HESTIA_CMD . $cmd . " " . $user . " " . $value, $output, $return_var);
+	exec(HESTIA_CMD . $cmd . " " . $user . " " . quoteshellarg($value), $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $value;
+	}
 }
+bulk_note_failures($failed, count($database));
 
 header("Location: /list/db/");

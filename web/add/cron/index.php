@@ -109,8 +109,8 @@ if (empty($v_min)) {
 }
 
 // Get current system time
-exec(HESTIA_CMD . "h-get-sys-timezone", $output, $return_var);
-date_default_timezone_set($output[0]);
+// a failed read leaves no timezone; UTC is the only answer that is never wrong by a whole zone
+date_default_timezone_set(cli_value("h-get-sys-timezone") ?: "UTC");
 $current_timestamp = time();
 
 // Render

@@ -274,7 +274,9 @@ if (!empty($_POST["save"])) {
 			unset($output);
 			if (empty($_SESSION["error_msg"])) {
 				// the address is allocated by the command - ask for it rather than guess
+				$output = [];
 				exec(HESTIA_CMD . "h-list-user " . quoteshellarg($v_username) . " json", $output, $return_var);
+				check_error($return_var);
 				$docker_row = json_decode(implode("", $output), true) ?: [];
 				$v_docker_ip = reset($docker_row)["DOCKER_IP"] ?? "";
 				unset($output);

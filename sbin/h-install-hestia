@@ -498,9 +498,13 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 		done
 	else
 		echo "[ * ] Skipping multi-PHP (PHP_MODE=${COMPONENT_PHP_MODE:-?})"
-		# OS PHP: h-add-web-php does not run here, so the one version is recorded by the stage (#933/#934).
+		# OS PHP: h-add-web-php does not run here, so the stage records the one version itself, through the
+		# token function like every other writer of a token key (#933/#934).
 		wcv "PHP_SOURCE" "os"
-		wcv "PHP_VERSIONS" "$PHP_VER"
+		sys_key_token_set PHP_VERSIONS add "$PHP_VER" > /dev/null || {
+			echo "ERROR: PHP_VERSIONS: could not record $PHP_VER" >&2
+			exit 1
+		}
 	fi
 
 	echo "[ * ] Ensuring PHP $PHP_VER FPM pool..."

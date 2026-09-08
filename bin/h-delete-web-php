@@ -120,6 +120,8 @@ systemctl daemon-reload
 
 # Only after the purge succeeded: a token removed before a failed purge would say "gone" about a
 # version that is still there (#933).
+# Same rule as the add: a failed record fails the command although the purge went through; the status
+# must not keep a version that is gone, so the exit says so and a re-run of the delete clears it.
 sys_key_token_set PHP_VERSIONS remove "$version" > /dev/null || check_result "$E_UPDATE" "PHP_VERSIONS: could not drop $version"
 
 # Logging

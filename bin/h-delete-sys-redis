@@ -34,7 +34,10 @@ if [ "x$(id -u)" != 'x0' ]; then
 	exit 10
 fi
 
-if [ "${COMPONENT_DB_REDIS:-}" != "true" ]; then
+# Same truth as the add: the artefact (package present, no rspamd cap), never the recipe. A recipe that
+# says false while redis runs as a general service must still demote here, and the status key it
+# clears on the way out must describe the box, not the wizard answer (#965, one level down).
+if ! dpkg -l redis-server 2> /dev/null | grep -q '^ii' || grep -q "$limit_marker" /etc/redis/redis.conf 2> /dev/null; then
 	echo "ERROR: Redis is not installed as a general service."
 	change_sys_value "REDIS_SYSTEM" ""
 	exit "$E_NOTEXIST"

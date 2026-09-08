@@ -35,10 +35,14 @@ if ($_SESSION["userContext"] === "admin") {
 	exit();
 }
 
+$failed = [];
 foreach ($package as $value) {
-	$value = quoteshellarg($value);
-	exec(HESTIA_CMD . $cmd . " " . $value, $output, $return_var);
+	exec(HESTIA_CMD . $cmd . " " . quoteshellarg($value), $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $value;
+	}
 	$restart = "yes";
 }
+bulk_note_failures($failed, count($package));
 
 header("Location: /list/package/");

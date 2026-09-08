@@ -34,11 +34,16 @@ if ($_GET["q"] !== "") {
 				$output,
 				$return_var,
 			);
+			check_error($return_var);
 		} else {
+			$output = [];
 			exec(HESTIA_CMD . "h-search-object " . $q . " json", $output, $return_var);
+			check_error($return_var);
 		}
 	} else {
+		$output = [];
 		exec(HESTIA_CMD . "h-search-user-object " . $user . " " . $q . " json", $output, $return_var);
+		check_error($return_var);
 	}
 }
 

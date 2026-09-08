@@ -10,12 +10,7 @@ verify_csrf($_GET);
 if (!empty($_SESSION["look"])) {
 	$v_user = quoteshellarg($_SESSION["look"]);
 	$v_impersonator = quoteshellarg($_SESSION["user"]);
-	exec(
-		HESTIA_CMD .
-			"h-log-action system 'Warning' 'Security' 'User impersonation session ended (User: $v_user, Administrator: $v_impersonator)'",
-		$output,
-		$return_var,
-	);
+	cli_log("h-log-action system 'Warning' 'Security' 'User impersonation session ended (User: $v_user, Administrator: $v_impersonator)'");
 	unset($_SESSION["look"]);
 	// Restore the real admin role and rotate the session id on return, so an id
 	// captured during the impersonation window cannot regain admin afterwards (#438).
@@ -32,11 +27,7 @@ if (!empty($_SESSION["look"])) {
 		unset($_SESSION["userTheme"]);
 		$v_user = quoteshellarg($_SESSION["user"]);
 		$v_session_id = quoteshellarg($_SESSION["token"]);
-		exec(
-			HESTIA_CMD . "h-log-user-logout " . $v_user . " " . $v_session_id,
-			$output,
-			$return_var,
-		);
+		cli_log("h-log-user-logout " . $v_user . " " . $v_session_id);
 	}
 
 	// destroy_sessions(), not the same three calls by hand: it also starts a fresh session and

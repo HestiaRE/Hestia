@@ -22,11 +22,14 @@ $proxy_templates = [];
 $v_backups_mode = "full";
 if (!empty($_SESSION["WEB_BACKEND"])) {
 	exec(HESTIA_CMD . "h-list-web-templates-backend json", $output, $return_var);
+	check_error($return_var);
 	$backend_templates = json_decode(implode("", $output), true) ?? [];
 	unset($output);
 }
 if (!empty($_SESSION["PROXY_SYSTEM"])) {
+	$output = [];
 	exec(HESTIA_CMD . "h-list-web-templates-proxy json", $output, $return_var);
+	check_error($return_var);
 	$proxy_templates = json_decode(implode("", $output), true) ?? [];
 	unset($output);
 }

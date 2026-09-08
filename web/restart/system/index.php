@@ -25,6 +25,7 @@ if (isset($_GET["system_reset_token"]) && is_numeric($_GET["system_reset_token"]
 			touch($reset_token_file);
 			$_SESSION["error_msg"] = _("The system is going down for reboot NOW!");
 			exec(HESTIA_CMD . "h-restart-system yes", $output, $return_var);
+			check_return_code($return_var, $output);
 		}
 		unset($output);
 	}

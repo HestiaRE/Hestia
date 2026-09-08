@@ -114,8 +114,12 @@ wcv() {
 	local conf="$HESTIA/conf/hestia.conf" line
 	line="$1='$2'"
 	if grep -q "^$1=" "$conf" 2> /dev/null; then
+		# the replacement inode takes the file's mode and owner, not the installer's umask: the seed sets 660
+		# and this mv handed out 644 on every fresh install (#963)
 		awk -v k="$1" -v repl="$line" '$0 ~ "^" k "=" { if (!seen) { print repl; seen = 1 } next } { print }' \
-			"$conf" > "$conf.tmp" && mv -f "$conf.tmp" "$conf"
+			"$conf" > "$conf.tmp" && chmod --reference="$conf" "$conf.tmp" \
+			&& { [ "$(stat -c %u:%g "$conf")" = "$(stat -c %u:%g "$conf.tmp")" ] || chown --reference="$conf" "$conf.tmp"; } \
+			&& mv -f "$conf.tmp" "$conf"
 	else
 		printf '%s\n' "$line" >> "$conf"
 	fi

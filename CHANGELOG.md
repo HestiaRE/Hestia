@@ -36,6 +36,27 @@ opens above it.
 
 ### Fixed
 
+- **The installer's own key writer no longer hands `hestia.conf` the umask's mode** (#963). The first
+  v0.18.1 install showed the #961 check red: the seed sets 660, and `wcv` in `h-install-hestia` rewrote
+  an existing key through a temp file and `mv`, so the new inode took the installer's umask and every
+  fresh box ended at 644. The `/tmp/updconf` path fixed in #959 was one of two writers with that shape,
+  not the only one. `wcv` now keeps the file's mode and owner across the rename, as the sort does.
+- **A webmail add no longer narrows the operator's webmail choice in `install.conf`** (#965).
+  `h-add-sys-roundcube` and `h-add-sys-tachyon` rebuilt `COMPONENT_MAIL_WEBMAILER` from what the status
+  already listed. In a fresh install Roundcube runs first, so the recipe briefly read `ROUNDCUBE` alone;
+  a Tachyon success wrote the pair back, a failure left the choice lost - the case #928 had removed from
+  the installer, alive one layer down. Measured with a blocked Tachyon source on a fresh mailonly box.
+  The set is now the recipe's current tokens plus the caller's own, read from `install.conf`.
+- **The panel reads the exit code of every command it writes with** (#957). 94 of the 420 `exec()`
+  sites never looked at it: the whitelabel form answered 200 to a value the command refused, a bulk
+  suspend of ten domains reported nothing when all ten failed, a firewall list whose command died
+  rendered as empty, and a 2FA reset showed its success page before the key was gone. Now a single
+  form notes the command's error (`check_return_code`), a list page whose command failed goes to the
+  error page instead of an empty list, a bulk action names what failed ("2 of 2 failed: a, b"), and the
+  audit writers (`h-log-*`) drop the code on purpose through `cli_log()`, so the next sweep can tell a
+  decision from an omission. Two real bugs on the way: `h-delete-backup-host-restic` was checked through
+  a variable it never wrote, and the password-reset mail went out even when the key was not stored.
+
 - **`hestia.conf` values are written verbatim, and a value that cannot be stored is refused before
   the file is touched** (#955). `change_sys_value` rewrote the line with `sed`, whose replacement
   treats `&` as the whole match and `\` as an escape: "Foo & Bar" landed as

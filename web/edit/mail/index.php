@@ -384,6 +384,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 			}
 			if (empty($_SESSION["error_msg"]) && $new_spam_score !== $v_spam_score) {
 				if ($new_spam_score === "") {
+					$output = [];
 					exec(
 						HESTIA_CMD .
 							"h-delete-mail-domain-spam-score " .
@@ -393,6 +394,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 						$output,
 						$return_var,
 					);
+					check_return_code($return_var, $output);
 				} else {
 					exec(
 						HESTIA_CMD .
@@ -440,6 +442,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 			}
 			if (empty($_SESSION["error_msg"]) && $new_reject_score !== $v_spam_reject_score) {
 				if ($new_reject_score === "") {
+					$output = [];
 					exec(
 						HESTIA_CMD .
 							"h-delete-mail-domain-spam-reject-score " .
@@ -449,6 +452,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 						$output,
 						$return_var,
 					);
+					check_return_code($return_var, $output);
 				} else {
 					exec(
 						HESTIA_CMD .
@@ -483,6 +487,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 			}
 			if (empty($_SESSION["error_msg"]) && $new_subject_tag !== $v_spam_subject_tag) {
 				if ($new_subject_tag === "") {
+					$output = [];
 					exec(
 						HESTIA_CMD .
 							"h-delete-mail-domain-spam-subject-tag " .
@@ -492,6 +497,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 						$output,
 						$return_var,
 					);
+					check_return_code($return_var, $output);
 				} else {
 					exec(
 						HESTIA_CMD .

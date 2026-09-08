@@ -25,6 +25,7 @@ if ($_SESSION["userContext"] === "admin") {
 	switch ($action) {
 		case "reread IP":
 			exec(HESTIA_CMD . "h-update-sys-ip", $output, $return_var);
+			check_return_code($return_var, $output);
 			header("Location: /list/ip/");
 			exit();
 			break;
@@ -40,9 +41,13 @@ if ($_SESSION["userContext"] === "admin") {
 	exit();
 }
 
+$failed = [];
 foreach ($ip as $value) {
-	$value = quoteshellarg($value);
-	exec(HESTIA_CMD . $cmd . " " . $value, $output, $return_var);
+	exec(HESTIA_CMD . $cmd . " " . quoteshellarg($value), $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $value;
+	}
 }
+bulk_note_failures($failed, count($ip));
 
 header("Location: /list/ip/");

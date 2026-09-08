@@ -41,6 +41,7 @@ if (empty($_GET["snapshot"])) {
 		$folder = quoteshellarg($_GET["folder"]);
 		$snapshot = quoteshellarg($_GET["snapshot"]);
 		exec(HESTIA_CMD . "h-list-user-files-restic $user $snapshot $folder", $output, $return_var);
+		check_error($return_var);
 		$info = json_decode($output[0], true);
 		unset($output[0]);
 		$files = [];

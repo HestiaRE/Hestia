@@ -62,16 +62,27 @@ if ($_SESSION["userContext"] === "admin") {
 	}
 }
 
+$failed = [];
 foreach ($domain as $value) {
-	$value = quoteshellarg($value);
-	exec(HESTIA_CMD . $cmd . " " . $user . " " . $value . " no", $output, $return_var);
+	exec(HESTIA_CMD . $cmd . " " . $user . " " . quoteshellarg($value) . " no", $output, $return_var);
+	if ($return_var != 0) {
+		$failed[] = $value;
+	}
 	$restart = "yes";
 }
+bulk_note_failures($failed, count($domain));
 
 if (isset($restart)) {
+	// exec() appends: the loop's lines must not land in a restart's error message
+	$output = [];
 	exec(HESTIA_CMD . "h-restart-web", $output, $return_var);
+	check_return_code($return_var, $output);
+	$output = [];
 	exec(HESTIA_CMD . "h-restart-proxy", $output, $return_var);
+	check_return_code($return_var, $output);
+	$output = [];
 	exec(HESTIA_CMD . "h-restart-web-backend", $output, $return_var);
+	check_return_code($return_var, $output);
 }
 
 header("Location: /list/web/");

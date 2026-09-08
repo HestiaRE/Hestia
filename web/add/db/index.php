@@ -229,7 +229,9 @@ if (empty($v_dbuser)) {
 $db_types = array_values(array_filter(explode(",", $_SESSION["DB_SYSTEM"] ?? "")));
 
 // List available database servers
+$output = [];
 exec(HESTIA_CMD . "h-list-database-hosts json", $output, $return_var);
+check_error($return_var);
 $db_hosts_tmp1 = json_decode(implode("", $output), true);
 $db_hosts_tmp2 = array_map(function ($host) {
 	return $host["HOST"];

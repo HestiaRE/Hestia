@@ -817,7 +817,11 @@ init_hestia_structure() {
 	mkdir -p "$HESTIA/conf" "$HESTIA_SSL" \
 		"$CONF_DIR/ips" "$CONF_DIR/queue" \
 		"$CONF_DIR/users" "$CONF_DIR/firewall" "$CONF_DIR/packages" \
-		"$CONF_DIR/hooks" "$HESTIA/.sessions"
+		"$CONF_DIR/hooks"
+	# The panel session store lives OUTSIDE the install root (#974): an update tars $HESTIA to roll
+	# back the overlay, and live sessions have no place in that snapshot; keeping it here also means
+	# check_install_root_owner never has to except a group-writable dir under the tree.
+	mkdir -p /var/lib/hestia/sessions
 	# The LE hook mechanism already exists in h-add-letsencrypt-domain (#4925); create the directory
 	# and drop its README so the hooks are discoverable rather than a secret handshake.
 	[ -e "$CONF_DIR/hooks/README.md" ] || cp -f "$HESTIA/share/hestia/hooks/README.md" "$CONF_DIR/hooks/README.md"
@@ -834,7 +838,7 @@ init_hestia_structure() {
 		"$CONF_DIR/firewall" "$CONF_DIR/packages" "$CONF_DIR/hooks"
 	chmod -R 750 "$CONF_DIR/queue"
 	chmod 660 /var/log/hestia/* 2> /dev/null || true
-	chmod 770 "$HESTIA/.sessions"
+	chmod 770 /var/lib/hestia/sessions
 	echo "[ OK ] structure ready"
 }
 
@@ -1117,7 +1121,7 @@ finalize_install() {
 	echo "[ * ] Restarting panel services (Caddy + hestia-php)..."
 	# restart both so configure-stage changes (SSL cert, panel port) take effect
 	systemctl restart caddy hestia-php 2> /dev/null || true
-	chown hestia:hestia "$HESTIA/.sessions"
+	chown hestia:hestia /var/lib/hestia/sessions
 	mkdir -p /backup && chmod 711 /backup
 	# Now, with the cron only as fallback: @reboot alone meant a box that is never rebooted never got
 	# a certificate. The web domain exists and the web server is up by here, so ACME can answer.

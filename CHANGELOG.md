@@ -36,6 +36,15 @@ opens above it.
 
 ### Changed
 
+- **Panel session store moved out of the install root** (#974). `session.save_path` was
+  `/usr/local/hestia/.sessions`; it is now `/var/lib/hestia/sessions` (770 `hestia:hestia`, created by
+  the installer, next to the web-model switch state already there). Two reasons: an update tars the whole
+  install root to make the overlay reversible, and live login sessions do not belong in that snapshot;
+  and `check_install_root_owner` no longer meets a group-writable directory inside the tree (it reads the
+  pool runtime dirs from the FPM config, so a path that moves out simply drops off the scan). Note for
+  the update path (Phase 5, #949): the directory lives outside the overlay, so the executor has to create
+  it before restarting hestia-php on a box updated from a release that still used `.sessions`.
+
 - **Every component has a status key** (#943, Phase 1b of the update chapter; this entry grows with the
   phase). The registry gains eleven system keys for the components that had none: `PHP_SOURCE` (the
   source, `os` or `sury`; not `PHP_MODE`, which is the recipe's wizard answer with its own vocabulary), `PHP_VERSIONS` (the installed versions as tokens), `DB_MARIADB_SYSTEM` and

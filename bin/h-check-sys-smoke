@@ -1622,7 +1622,8 @@ check_record_only_protected() {
 # seed gives it. Both expectations are read from the tree (include/wizard.sh, include/helper.sh), so a
 # changed seed cannot leave a stale number here; a pattern that finds nothing fails. The old /tmp sort
 # path handed out the umask's 644 on every box (#960) - #959 keeps the mode, this check says whether the
-# drift is really gone. Not covered: the other files under conf/, each has its own writer.
+# drift is really gone. A box installed before a change of the seeded mode reads red here until it is
+# reinstalled - the check follows the tree, not the box. Not covered: the other files under conf/.
 check_hestia_conf_mode() {
 	local conf="$CONF_DIR/conf/hestia.conf" want_dir want_file live_dir live_file
 	want_dir=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$(dirname "\$INSTALL_CONF")".*/\1/p' "$HESTIA/include/wizard.sh" | head -n1)
@@ -2061,6 +2062,68 @@ check_record_grammar() {
 	fi
 }
 
+# check_sys_key_registry - the system key registry (share/hestia/sys-keys.json, #932), three guards:
+# (1) the schema, through the same sysreg_check the CI runs; (2) every key the tree writes into
+# hestia.conf is registered - the write sites are extracted from the shipped code (the six mechanisms:
+# wcv/_wcv, change_sys_value/clear_sys_value, h-change-sys-config-value with a literal key, repair_key,
+# a direct echo/sed on hestia.conf, the web-model key set), never listed here; (3) an empty registry
+# or an empty extraction is red. A key written through a variable name cannot be extracted and is
+# not covered; the emitter and the repair read the registry, so such a key would surface there.
+check_sys_key_registry() {
+	local out written unknown='' n k
+	if ! out=$(sysreg_check 2>&1); then
+		no "system key registry: schema" "$(echo "$out" | head -n3 | tr '\n' ';')"
+		return
+	fi
+	written=$({
+		grep -rhoE "(_wcv|wcv|change_sys_value|clear_sys_value|repair_key) +['\"]?[A-Z][A-Z0-9_]+" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null
+		grep -rhoE "h-change-sys-config-value +['\"]?[A-Z][A-Z0-9_]+" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" "$HESTIA/web" 2> /dev/null
+		grep -rhE "hestia\.conf" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null | grep -oE "(echo \"|s[|/]\^?)[A-Z][A-Z0-9_]+="
+		grep -hoE '^WEB_MODEL_KEYS="[A-Z_ ]+"' "$HESTIA/include/web-model.sh" 2> /dev/null | tr ' ' '\n'
+	} | grep -oE '[A-Z][A-Z0-9_]{2,}' | grep -vx 'WEB_MODEL_KEYS' | sort -u)
+	# The one exclusion is the variable's own name, picked up from the line the key set is read from; it
+	# is not a key. Nothing else is excluded - a written key that is not registered is the finding.
+	n=$(echo "$written" | grep -c .)
+	if [ "$n" -lt 20 ]; then
+		no "system key registry: write-site extraction found only $n key(s)" "the grep patterns no longer match the code"
+		return
+	fi
+	for k in $written; do
+		sysreg_class "$k" > /dev/null 2>&1 || unknown="$unknown $k"
+	done
+	if [ -n "$unknown" ]; then
+		no "system key registry: written but unregistered key(s)" "$unknown"
+	else
+		ok "system key registry: schema holds, all $n written keys registered ($(sysreg_keys | wc -l) entries)"
+	fi
+}
+
+# check_system_keys_agree - the system keys the repair never fills, held against the box (#932): a
+# lost one stays lost until something says so. ROOT_USER must name an admin record; every DB_SYSTEM
+# token must have its host registration under conf/; every BACKUP_SYSTEM token except local its
+# backup host file. VERSION is Phase 4, the component keys are the service gates below and the
+# artefact fields of 1c.
+check_system_keys_agree() {
+	local bad='' t
+	if [ -z "$ROOT_USER" ]; then
+		bad="$bad ROOT_USER(empty)"
+	elif [ ! -f "$CONF_DIR/users/$ROOT_USER/user.conf" ] || ! grep -q "^ROLE='admin'" "$CONF_DIR/users/$ROOT_USER/user.conf"; then
+		bad="$bad ROOT_USER($ROOT_USER:no-admin-record)"
+	fi
+	for t in ${DB_SYSTEM//,/ }; do
+		[ -f "$HESTIA/conf/$t.conf" ] || bad="$bad DB_SYSTEM($t:no-host-file)"
+	done
+	for t in ${BACKUP_SYSTEM//,/ }; do
+		[ "$t" = local ] && continue
+		[ -f "$HESTIA/conf/$t.backup.conf" ] || bad="$bad BACKUP_SYSTEM($t:no-host-file)"
+	done
+	if [ -n "$bad" ]; then
+		no "system keys disagree with the box" "$bad"
+	else
+		ok "system keys agree with the box (ROOT_USER=$ROOT_USER, DB_SYSTEM='${DB_SYSTEM}', BACKUP_SYSTEM='${BACKUP_SYSTEM}')"
+	fi
+}
+
 # check_key_registries - conf/defaults/*.conf must exist and match the key sets compiled into
 # include/syshealth.sh. A registry that is missing, stale or duplicated makes the repair functions
 # skip exactly the keys they exist to add, and does it silently (#559) - which is the whole reason
@@ -2072,7 +2135,8 @@ check_key_registries() {
 		return
 	fi
 	local unknown=''
-	for sys in web mail mail_accounts user cron db ip system; do
+	# system is not here: its registry is share/hestia/sys-keys.json, checked by check_sys_key_registry (#932).
+	for sys in web mail mail_accounts user cron db ip; do
 		# An empty reference must not pass as agreement: the writer feeds from the same function, so
 		# a subsystem with no branch would write an empty registry that then matches its own empty
 		# source. Caught here rather than reported as PASS on eight empty files.
@@ -2093,7 +2157,7 @@ check_key_registries() {
 		no "key registries out of sync" \
 			"missing:${missing:- none} drift:${drift:- none} duplicates:${dupes:- none} no-key-set:${unknown:- none}"
 	else
-		ok "key registries match the compiled key sets"
+		ok "key registries match the compiled key sets (7 object registries)"
 	fi
 }
 
@@ -2450,6 +2514,8 @@ check_ip_object_shape
 check_release_mirror
 check_record_grammar
 check_key_registries
+check_sys_key_registry
+check_system_keys_agree
 check_identity_band
 # a cap written for a companion that is gone would be inherited by whoever gets the uid next.
 check_slice_dropins_owned

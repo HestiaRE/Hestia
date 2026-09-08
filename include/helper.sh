@@ -305,7 +305,9 @@ seed_hestia_etc() {
 	# SEED, not rewrite: install.sh runs this on every start, and truncating left a resumed install
 	# with only the keys of the stages that had NOT completed - an empty WEB_SYSTEM on a web box.
 	[ -f "$conf_dir/hestia.conf" ] || : > "$conf_dir/hestia.conf"
-	chmod 660 "$conf_dir/hestia.conf"
+	# 600: nobody but root reads it (the panel goes through sudo, /etc/hestia is 700), and 600 holds even if
+	# the directory ever drifts. The 660 before it was inherited, with group root - effectively 600 (#963).
+	chmod 600 "$conf_dir/hestia.conf"
 	_wcv() { grep -q "^$1=" "$conf_dir/hestia.conf" || echo "$1='$2'" >> "$conf_dir/hestia.conf"; }
 	_wcv "BACKEND_PORT" "$port"
 	_wcv "CRON_SYSTEM" "cron"

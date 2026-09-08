@@ -1617,6 +1617,66 @@ check_record_only_protected() {
 		ok "record-only names appear in no record ($n names, $reads record file(s) read)"
 	fi
 }
+# check_install_root_owner - the invariant measured for #974: nothing under the install root belongs
+# to anyone but root, nothing is group- or world-writable. The runtime directories a panel pool needs
+# (session.save_path, upload_tmp_dir, sys_temp_dir) are read from the FPM configuration, never written
+# here as a literal, so the check heals itself when such a directory moves out of the tree. Symlinks
+# are skipped, their targets live elsewhere. A scan that saw almost nothing is red, not green.
+check_install_root_owner() {
+	local allowed p hits n bad
+	allowed=$(grep -hoE '^ *(php_(admin_)?value\[)?(session\.save_path|upload_tmp_dir|sys_temp_dir)\]? *= *"?[^" ]+' \
+		/etc/php/hestia/fpm/php.ini /etc/php/hestia/fpm/pool.d/*.conf 2> /dev/null | sed 's/.*= *"\?//' | sort -u)
+	n=$(find "$HESTIA" -xdev ! -type l 2> /dev/null | wc -l)
+	if [ "${n:-0}" -lt 100 ]; then
+		no "install root: the scan saw only $n entries under $HESTIA"
+		return
+	fi
+	hits=$(find "$HESTIA" -xdev ! -type l \( ! -user root -o -perm /022 \) -printf '%p\n' 2> /dev/null)
+	for p in $allowed; do
+		case "$p" in "$HESTIA"/*) hits=$(printf '%s\n' "$hits" | grep -vE "^$p(/|$)") ;; esac
+	done
+	bad=$(printf '%s\n' "$hits" | grep -c .)
+	if [ "$bad" -gt 0 ]; then
+		no "install root: $bad path(s) not root-owned or group/world-writable" "$(printf '%s\n' "$hits" | grep . | head -n3 | tr '\n' ' ')"
+	else
+		ok "install root: $n entries, nothing writable by anyone but root (pool runtime dirs from the FPM config:$(printf ' %s' $allowed))"
+	fi
+}
+
+# check_secret_file_modes - the files whose mode means something (#974): the sudoers rule (440 root:root,
+# what deploy_hestia_sudoers installs), and every private key the panel or a customer holds - the panel
+# certificate under /etc/ssl/hestia, the mail SNI links under /etc/exim4/ssl (resolved), the customers'
+# keys under /etc/hestia/users/*/ssl and /home/*/conf/{web,mail}/*/ssl. Rule for keys: no world bit at
+# all; group access is by design (root:mail 660, exim reads them). The set is found, not listed; a box
+# without a single key says so as a skip with the count, never as a pass.
+check_secret_file_modes() {
+	local bad='' sudoers=/etc/sudoers.d/hestia keys k m n
+	if [ -f "$sudoers" ]; then
+		m=$(stat -c '%a %U:%G' "$sudoers")
+		[ "$m" = "440 root:root" ] || bad="$bad sudoers($m)"
+	else
+		bad="$bad sudoers(missing)"
+	fi
+	keys=$(find /etc/ssl/hestia /etc/exim4/ssl /etc/hestia/users/*/ssl /home/*/conf/web/*/ssl /home/*/conf/mail/*/ssl \
+		-maxdepth 1 \( -name '*.key' -o -name '*.pem' \) 2> /dev/null | sort -u)
+	n=$(printf '%s\n' "$keys" | grep -c .)
+	for k in $keys; do
+		[ -e "$k" ] || {
+			bad="$bad $k(dangling)"
+			continue
+		}
+		m=$(stat -L -c '%a' "$k")
+		case "$m" in *[1-7]) bad="$bad $k(world:$m)" ;; esac
+	done
+	if [ -n "$bad" ]; then
+		no "secret file modes" "$bad"
+	elif [ "$n" -eq 0 ]; then
+		skip "secret file modes: sudoers 440 root:root, and no private key or pem on this box to check (0 found)"
+	else
+		ok "secret file modes: sudoers 440 root:root, $n key/pem file(s) without a world bit"
+	fi
+}
+
 # check_hestia_conf_mode - the chain that keeps hestia.conf to root: /etc/hestia at the mode the wizard
 # gives it (700, so the panel pool and every customer stop at the directory), and the file at the mode the
 # seed gives it. Both expectations are read from the tree (include/wizard.sh, include/helper.sh), so a
@@ -2502,6 +2562,8 @@ check_protected_names
 check_protected_names_effective
 # 644 from the old /tmp sort path was silent on every box (#960).
 check_hestia_conf_mode
+check_install_root_owner
+check_secret_file_modes
 check_record_only_protected
 check_eval_sites
 check_yescrypt_hashing

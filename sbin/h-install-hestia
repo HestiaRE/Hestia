@@ -1095,19 +1095,9 @@ install_tools() {
 				;;
 		esac
 	fi
-	echo "[ * ] Installing wp-cli (system-wide, pinned)..."
-	# pinned + verified phar; no `wp cli update` - a re-run converges to the manifest pin
-	if ! command -v wp > /dev/null 2>&1; then
-		fetch_wp_cli_phar /usr/local/bin/wp \
-			|| {
-				echo "ERROR: could not fetch/verify the pinned wp-cli phar"
-				exit 1
-			}
-		echo "  wp-cli installed"
-	else
-		echo "  wp-cli already present — re-pinning"
-		fetch_wp_cli_phar /usr/local/bin/wp || echo "  WARN: could not refresh wp-cli, keeping the present one"
-	fi
+	# the status keys of this stage (#939, #942); composer's is unconditional, "not chosen" is an empty key
+	composer_status_record
+	install_wp_cli_pinned
 	echo "[ OK ] tools complete"
 }
 

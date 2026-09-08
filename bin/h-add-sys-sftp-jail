@@ -47,7 +47,7 @@ mkdir -p "$nsdir"
 cp -f "$HESTIA/share/security/hestia-jail.init" "$nsinit"
 chmod 755 "$nsinit"
 
-# namespace.conf (field 4 blank — the PAM stack already scopes to the group)
+# namespace.conf (field 4 blank, the PAM stack already scopes to the group)
 nsline="/run/hestia/jail   /run/hestia/jail-inst/   tmpfs:mntopts=size=1M,nosuid,nodev,noexec:iscript=hestia-jail.init"
 if ! grep -q '^/run/hestia/jail[[:space:]]' "$nsconf" 2> /dev/null; then
 	echo "$nsline" >> "$nsconf"
@@ -64,13 +64,9 @@ if ! grep -q 'pam_namespace.so' "$pam" 2> /dev/null; then
 	} >> "$pam"
 fi
 
-# internal-sftp (required for ChrootDirectory)
-sftp_n=$(grep -n "Subsystem.*sftp" $config | grep -v internal | grep -v /usr/lib/sftp-server | grep -v ":#")
-if [ -n "$sftp_n" ]; then
-	fline=$(echo $sftp_n | cut -f 1 -d :)
-	sed -i "${fline}s/Subsystem.*sftp.*/Subsystem sftp internal-sftp/" $config
-	restart='yes'
-fi
+# The status token first, then the Subsystem line follows the token set (one decider, #941)
+sys_key_token_set JAIL_SYSTEM add sftp > /dev/null || check_result "$E_UPDATE" "JAIL_SYSTEM: could not record sftp"
+[ "$(jail_sshd_subsystem_apply)" = changed ] && restart='yes'
 
 # Replace any existing "# Hestia SFTP Chroot" block (marker + following Match/indented
 # lines) with the single static Match Group block
@@ -101,7 +97,8 @@ if ! /usr/sbin/sshd -t > /dev/null 2>&1; then
 	mail_text="OpenSSH can not be restarted. Please check config:
             \n\n$(/usr/sbin/sshd -t 2>&1)"
 	[ -n "$email" ] && echo -e "$mail_text" | $SENDMAIL -s "$subj" $email
-	echo "ERROR: sshd config invalid after SFTP jail setup — not restarting."
+	echo "ERROR: sshd config invalid after SFTP jail setup, not restarting."
+	sys_key_token_set JAIL_SYSTEM remove sftp > /dev/null 2>&1
 	log_event "$E_INVALID" "$ARGUMENTS"
 	exit "$E_INVALID"
 fi

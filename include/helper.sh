@@ -51,6 +51,25 @@ hestia_apt() {
 	return $_rc
 }
 
+# wp-cli system-wide from the manifest pin (#942), one code path for the installer and a later re-pin:
+# a re-run converges to the pin (no `wp cli update`, the phar is sha256-verified), then the status key
+# records what the installed phar reports.
+install_wp_cli_pinned() {
+	echo "[ * ] Installing wp-cli (system-wide, pinned)..."
+	if ! command -v wp > /dev/null 2>&1; then
+		fetch_wp_cli_phar /usr/local/bin/wp \
+			|| {
+				echo "ERROR: could not fetch/verify the pinned wp-cli phar"
+				exit 1
+			}
+		echo "  wp-cli installed"
+	else
+		echo "  wp-cli already present, re-pinning"
+		fetch_wp_cli_phar /usr/local/bin/wp || echo "  WARN: could not refresh wp-cli, keeping the present one"
+	fi
+	wpcli_status_record
+}
+
 # Install packages that are OPTIONAL for the install to succeed - components, tools, addons.
 # A failure must not abort the installer, but it must not vanish either: #480 had two fleet VMs come
 # up with COMPONENT_ADDON_CROWDSEC=true and no crowdsec package, because the apt lock was held and the

@@ -41,16 +41,17 @@ if [ "x$(id -u)" != 'x0' ]; then
 fi
 
 # Guard on the package, not COMPONENT_*: a timed-out install leaves the flag true with a half-wired engine.
+source "$HESTIA/include/crowdsec.sh"
+
 if ! dpkg -l crowdsec 2> /dev/null | grep -q '^ii' && [ "$FORCE" != 'yes' ]; then
 	echo "ERROR: CrowdSec is not installed. Use FORCE=yes to clean up anyway."
+	crowdsec_status_record
 	exit "$E_NOTEXIST"
 fi
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
-
-source "$HESTIA/include/crowdsec.sh"
 
 # crowdsec_remove_nginx rewrites and reloads nginx config, so a concurrent web switch must not race it.
 # Reentrant, so h-delete-sys-nginx's teardown passes straight through.
@@ -80,6 +81,7 @@ if [ "${PURGE_DATA:-}" = "yes" ]; then
 	echo "[ * ] PURGE_DATA=yes - /etc/crowdsec removed."
 fi
 
+crowdsec_status_record
 set_install_component ADDON_CROWDSEC false
 
 # CrowdSec no longer owns L7, so fail2ban's web jails come back on and that model regains its coverage.

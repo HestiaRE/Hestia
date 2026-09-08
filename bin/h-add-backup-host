@@ -195,17 +195,9 @@ fi
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Update hestia.conf
-if [ -z "$(grep BACKUP_SYSTEM $HESTIA/conf/hestia.conf)" ]; then
-	echo "BACKUP_SYSTEM='$type'" >> $HESTIA/conf/hestia.conf
-else
-	bckp=$(echo "$BACKUP_SYSTEM,$type" \
-		| sed "s/,/\n/g" \
-		| sort -r -u \
-		| sed "/^$/d" \
-		| sed ':a;N;$!ba;s/\n/,/g')
-	sed -i "s/BACKUP_SYSTEM=.*/BACKUP_SYSTEM='$bckp'/g" $HESTIA/conf/hestia.conf
-fi
+# Update hestia.conf through the token function: an unanchored sed on the key name is the class that
+# rewrote DB_MARIADB_SYSTEM through DB_SYSTEM (#978), so no key is edited by a bare pattern any more.
+sys_key_token_set BACKUP_SYSTEM add "$type" > /dev/null || check_result "$E_UPDATE" "BACKUP_SYSTEM: could not record $type"
 
 # Logging
 log_event "$OK" "$ARGUMENTS"

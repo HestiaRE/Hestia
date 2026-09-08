@@ -44,13 +44,8 @@ rm -f $HESTIA/conf/$type.backup.conf
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Updating hestia.conf
-bckp=$(echo "$BACKUP_SYSTEM" \
-	| sed "s/,/\n/g" \
-	| sed "s/^$type$//" \
-	| sed "/^$/d" \
-	| sed ':a;N;$!ba;s/\n/,/g')
-sed -i "s/BACKUP_SYSTEM=.*/BACKUP_SYSTEM='$bckp'/g" $HESTIA/conf/hestia.conf
+# Updating hestia.conf through the token function (anchored; the bare-sed class, #978)
+sys_key_token_set BACKUP_SYSTEM remove "$type" > /dev/null || check_result "$E_UPDATE" "BACKUP_SYSTEM: could not drop $type"
 
 # Logging
 $BIN/h-log-action "system" "Info" "Backup" "Removed remote backup host (Host: $host, Type: $type)."

@@ -47,6 +47,19 @@ opens above it.
   does with that is #976. In the manifest the sftp/ssh jails and wp-cli become fixed components with a
   key, `WEB_REPO_SOURCE` goes (never read), and the two things that get no key on purpose - the
   utilities and the mail DNSBL list - say why: nothing about them is state (E5).
+  Writers, slice 3: `h-add-sys-mariadb`, `h-upgrade-sys-mariadb` and `h-delete-sys-mariadb` record
+  `DB_MARIADB_SYSTEM` and `DB_MARIADB_VERSION` from the installed package (the source is read off the
+  dpkg version, `mariadb` for a MariaDB.org build, `os` for the distro's; the version is major.minor);
+  `h-add-sys-postgresql`/`h-delete-sys-postgresql` write `DB_POSTGRESQL_SYSTEM`, the redis pair
+  `REDIS_SYSTEM`, the restic pair `RESTIC_SYSTEM`. Every writer sits before the "already installed" and
+  "not installed" exits, so a box that has the component but not the key gets it on the next run and a
+  stale key is cleared. Found on the first measurement: `h-add-database-host` edited `DB_SYSTEM` with an
+  unanchored sed that also rewrote `DB_MARIADB_SYSTEM`, whose name nests it. The four host-register
+  writers (`h-add-database-host`, `h-delete-database-host`, `h-add-backup-host`, `h-delete-backup-host`)
+  now go through `sys_key_token_set`, `h-change-sys-release` through `change_sys_value`, two unanchored
+  reads got their `^`, the write-site extraction of the registry guard knows `sys_key_token_set`, and a
+  new smoke check refuses any grep/sed on hestia.conf that names a key without an anchor. Token order
+  now follows insertion (`mysql,pgsql`) where the old `sort -r` gave `pgsql,mysql`; nothing reads the order.
 
 - **One registry for the system keys of `hestia.conf`** (#932, Phase 1a of the update chapter). Three
   hand-kept lists described the same 82 keys - the compiled key set, the repair table with its defaults,

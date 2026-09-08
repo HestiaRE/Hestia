@@ -129,7 +129,7 @@ chmod 750 "$PMA_CONFIG/conf.d"
 chown root:caddy "$PMA_CONFIG/conf.d"
 
 # Set panel alias
-if [ -z "$(grep DB_PMA_ALIAS "$HESTIA/conf/hestia.conf")" ]; then
+if ! grep -q "^DB_PMA_ALIAS=" "$HESTIA/conf/hestia.conf"; then
 	$BIN/h-change-sys-config-value 'DB_PMA_ALIAS' 'phpmyadmin'
 fi
 

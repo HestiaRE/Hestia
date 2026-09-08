@@ -28,7 +28,9 @@ syshealth_refresh_registry() {
 		user | cron) syshealth_update_user_config_format ;;
 		db) syshealth_update_db_config_format ;;
 		ip) syshealth_update_ip_config_format ;;
-		system) syshealth_update_system_config_format ;;
+		# system: no registry file on the box any more - the key set is share/hestia/sys-keys.json in
+		# the tree, guarded by sysreg_check (#932). A box copy is exactly what drifted.
+		system) return 0 ;;
 		# Same reason syshealth_known_keys refuses one: without this an unknown subsystem fell
 		# through silently, the registry was never written, and the cat below failed into an empty
 		# key list - the vacuous agreement the comment there argues against, reached from here.
@@ -110,7 +112,9 @@ syshealth_known_keys() {
 		cron) echo "JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE" ;;
 		backup_excludes) echo "WEB MAIL DB CRON USER" ;;
 		db) echo "DB DBUSER MD5 HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE" ;;
-		system) echo "ANTISPAM_SYSTEM ANTIVIRUS_SYSTEM APP_NAME BACKEND_PORT BACKUP_EXPORT_LIMIT BACKUP_GZIP BACKUP_INCREMENTAL BACKUP_MODE BACKUP_SYSTEM BLOCKLIST_INTERVAL CRON_SYSTEM DB_ADMINER_ALIAS DB_PMA_ALIAS DB_SYSTEM DEBUG_MODE DISABLE_IP_CHECK DOCKER_SYSTEM DOMAINDIR_WRITABLE ENFORCE_SUBDOMAIN_OWNERSHIP FILE_MANAGER FILE_MANAGER_PORT FIREWALL_EXTENSION FIREWALL_SYSTEM FROM_EMAIL FROM_NAME FTP_SYSTEM HIDE_DOCS IMAP_SYSTEM INACTIVE_SESSION_TIMEOUT LANGUAGE LOGIN_STYLE MAIL_SYSTEM PHPMYADMIN_KEY POLICY_BACKUP_SUSPENDED_USERS POLICY_CSRF_STRICTNESS POLICY_SPAM_CUSTOMER_TUNING POLICY_SPAM_REJECT_SCORE_MAX POLICY_SPAM_REJECT_SCORE_MIN POLICY_SPAM_SCORE_MAX POLICY_SPAM_SCORE_MIN POLICY_SYNC_ERROR_DOCUMENTS POLICY_SYNC_SKELETON POLICY_SYSTEM_ENABLE_BACON POLICY_SYSTEM_HIDE_SERVICES POLICY_SYSTEM_PASSWORD_RESET POLICY_SYSTEM_PROTECTED_ADMIN POLICY_USER_CHANGE_THEME POLICY_USER_DELETE_LOGS POLICY_USER_EDIT_DETAILS POLICY_USER_EDIT_WEB_TEMPLATES POLICY_USER_VIEW_LOGS POLICY_USER_VIEW_SUSPENDED PROJECT_QUOTA PROXY_PORT PROXY_SSL_PORT PROXY_SYSTEM RELEASE_BRANCH ROOT_USER SERVER_SMTP_ADDR SERVER_SMTP_HOST SERVER_SMTP_PASSWD SERVER_SMTP_PORT SERVER_SMTP_SECURITY SERVER_SMTP_USER SIEVE_SYSTEM STATS_SYSTEM SUBJECT_EMAIL THEME TITLE UPDATE_HOSTNAME_SSL UPGRADE_SEND_EMAIL UPGRADE_SEND_EMAIL_LOG USE_SERVER_SMTP VERSION WEB_BACKEND WEBMAIL_ALIAS WEBMAIL_SYSTEM WEB_PORT WEB_RGROUPS WEB_SSL WEB_SSL_PORT WEB_SYSTEM" ;;
+		# The system keys live in share/hestia/sys-keys.json since #932; this branch stays for the callers
+		# that iterate every subsystem, and answers from the registry so no second list exists.
+		system) sysreg_keys | tr '\n' ' ' ;;
 		ip) echo "OWNER STATUS NAME U_SYS_USERS U_WEB_DOMAINS INTERFACE NETMASK NAT TIME DATE" ;;
 		*) return 1 ;;
 	esac
@@ -346,19 +350,6 @@ function syshealth_repair_mail_account_config() {
 	done
 }
 
-# The list had drifted 43 keys behind what the panel and the addons actually write (every POLICY_*, the
-# SMTP settings, ROOT_USER), so the defaults file it generates described a configuration the
-# product stopped having. Keep it in step with the keys written via wcv / h-change-sys-config-value.
-function syshealth_update_system_config_format() {
-	# SYSTEM CONFIGURATION
-	# Create array of known keys in configuration file
-	system="system"
-	known_keys=$(syshealth_known_keys system)
-	write_kv_config_file
-	unset system
-	unset known_keys
-}
-
 function check_key_exists() {
 	grep -e "^$1=" $HESTIA/conf/hestia.conf
 }
@@ -380,13 +371,12 @@ function check_key_exists() {
 # The decision, separate from the write: a block that needs its own command (LANGUAGE) asks the same
 # question rather than carrying a second copy of the rule.
 function key_needs_default() {
-	local key="$1" default="$2" mode="${3:-}" line value
+	local key="$1" default="$2" line value
 	# Not `| head -1`: that SIGPIPEs the grep, which is inert today and stops being inert the moment
 	# a sourcing script runs under `set -o pipefail`. The first line is taken with an expansion.
 	line=$(check_key_exists "$key")
 	line="${line%%$'\n'*}"
 	[ -z "$line" ] && return 0
-	[ "$mode" = "keyonly" ] && return 1
 	[ -z "$default" ] && return 1
 	value="${line#*=}"
 	value="${value#\'}"
@@ -395,8 +385,8 @@ function key_needs_default() {
 }
 
 function repair_key() {
-	local key="$1" default="$2" mode="${3:-}"
-	key_needs_default "$key" "$default" "$mode" || return 0
+	local key="$1" default="$2"
+	key_needs_default "$key" "$default" || return 0
 	if [ -z "$(check_key_exists "$key")" ]; then
 		echo "[ ! ] Adding missing variable to hestia.conf: $key ('$default')"
 	else
@@ -411,179 +401,20 @@ function syshealth_repair_system_config() {
 	# Counted, then returned: a sub-command that failed must not end in a logged "Executed repair".
 	# The LANGUAGE call below once passed the key name as the language and nobody noticed (#929).
 	syshealth_repair_failed=0
-	# Release branch
-	repair_key 'RELEASE_BRANCH' 'release'
-	# Webmail alias
-	if [ -n "$IMAP_SYSTEM" ]; then
-		repair_key 'WEBMAIL_ALIAS' 'webmail'
+	# Every betreiber key gets its default when absent or empty; a system key is never filled here -
+	# what the box has is decided by the commands that install things, and the smoke says whether the
+	# key agrees with the box (#932). The old hand table carried three absent-vs-empty special cases
+	# (DB_PMA_ALIAS keyonly, WEBMAIL_SYSTEM by artefact) - both are system keys now, so they went.
+	local _key _keys
+	if ! _keys=$(sysreg_keys betreiber); then
+		echo "[ !! ] system key registry unusable - no config repair" >&2
+		syshealth_repair_failed=1
+		return 1
 	fi
+	for _key in $_keys; do
+		repair_key "$_key" "$(sysreg_default "$_key")"
+	done
 
-	# phpMyAdmin alias (PostgreSQL uses Adminer, wired up by h-add-sys-adminer).
-	#
-	# Decided by what is on disk, not by a default. keyonly covers the DELETED case - the key is
-	# empty and must stay empty - but an ABSENT key is repaired, and on a box that never installed
-	# phpMyAdmin that wrote an alias for something that is not there. Same damage as re-registering
-	# a removed component, only entered from the other end. The marker is the one
-	# h-delete-sys-phpmyadmin uses to decide the same question.
-	if [ -n "$DB_SYSTEM" ] && echo "$DB_SYSTEM" | grep -qw 'mysql'; then
-		if [ -f "/usr/share/phpmyadmin/index.php" ] || [ -f "/etc/phpmyadmin/config-db.php" ]; then
-			repair_key 'DB_PMA_ALIAS' 'phpmyadmin' 'keyonly'
-		else
-			repair_key 'DB_PMA_ALIAS' '' 'keyonly'
-		fi
-	fi
-
-	# Backup compression level
-	repair_key 'BACKUP_GZIP' '3'
-
-	# Theme
-	repair_key 'THEME' 'dark'
-
-	# Default language
-	# Its own command, so it asks the shared question instead of repeating the rule.
-	if key_needs_default 'LANGUAGE' 'en'; then
-		echo "[ ! ] Setting missing value in hestia.conf: LANGUAGE ('en')"
-		$BIN/h-change-sys-language 'en' || syshealth_repair_failed=$((syshealth_repair_failed + 1))
-	fi
-
-	# Disk Quota
-	# never a guessed capability: the repaired key must not claim what nobody measured (#211)
-	repair_key 'PROJECT_QUOTA' 'none:unprobed'
-
-	# CRON daemon
-	repair_key 'CRON_SYSTEM' 'cron'
-
-	# BACKEND_PORT has no repair here on purpose. It used to scrape the port out of
-	# $HESTIA/nginx/conf/nginx.conf - the hestia-nginx that Caddy replaced, so that file does not
-	# exist and the sed produced nothing; h-add-firewall-chain hit the same dead path once. The
-	# value is written at install time (include/helper.sh, _wcv BACKEND_PORT), and every consumer
-	# already falls back to 8083. Left in, the block would go from never firing to writing an empty
-	# value the moment the key turns up empty.
-
-	# Upgrade: Send email notification
-	# Was in the key registry with no repair behind it, so absent everywhere - and both readers gate
-	# on == "yes", so the panel never took over its own LE certificate.
-	repair_key 'UPDATE_HOSTNAME_SSL' 'yes'
-
-	repair_key 'UPGRADE_SEND_EMAIL' 'true'
-
-	# Upgrade: Send email notification
-	repair_key 'UPGRADE_SEND_EMAIL_LOG' 'false'
-
-	# Support for ZSTD / GZIP Change
-	repair_key 'BACKUP_MODE' 'zstd'
-
-	# Login style switcher
-	repair_key 'LOGIN_STYLE' 'default'
-
-	# Webmail clients
-	# Presence only, and not repair_key: the delete commands empty this key deliberately, so a repair
-	# keyed on emptiness would advertise a webmail that is no longer installed. When the key is
-	# genuinely absent the value is assembled from what is on disk - both clients, not just
-	# roundcube: a tachyon box with no key was answered with '' and lost its webmail that way.
-	# Markers taken from the delete commands, which decide the same question.
-	if [[ -z $(check_key_exists 'WEBMAIL_SYSTEM') ]]; then
-		found=""
-		[ -d "/var/lib/roundcube" ] && found="roundcube"
-		[ -f "/var/lib/tachyon/data/VERSION" ] && found="${found:+$found,}tachyon"
-		echo "[ ! ] Adding missing variable to hestia.conf: WEBMAIL_SYSTEM ('$found')"
-		$BIN/h-change-sys-config-value "WEBMAIL_SYSTEM" "$found" || syshealth_repair_failed=$((syshealth_repair_failed + 1))
-		unset found
-	fi
-
-	# Inactive session timeout
-	repair_key 'INACTIVE_SESSION_TIMEOUT' '60'
-
-	# Enforce subdomain ownership
-	repair_key 'ENFORCE_SUBDOMAIN_OWNERSHIP' 'yes'
-
-	# Debug mode
-	repair_key 'DEBUG_MODE' 'false'
-	# Enable preview mode
-	repair_key 'POLICY_SYSTEM_ENABLE_BACON' 'false'
-	# Hide system services
-	repair_key 'POLICY_SYSTEM_HIDE_SERVICES' 'no'
-	# Password reset
-	repair_key 'POLICY_SYSTEM_PASSWORD_RESET' 'no'
-
-	# Theme editor. Was the one key with a hand-written emptiness check and an installer seed beside
-	# it; both are the general rule now, so the seed is gone and this reads like its 48 neighbours.
-	repair_key 'POLICY_USER_CHANGE_THEME' 'yes'
-	# Per-domain spam tuning for customers (#318): feature toggle and the
-	# allowed threshold ranges (points) for non-admin users
-	repair_key 'POLICY_SPAM_CUSTOMER_TUNING' 'yes'
-	repair_key 'POLICY_SPAM_SCORE_MIN' '3.0'
-	repair_key 'POLICY_SPAM_SCORE_MAX' '10.0'
-	repair_key 'POLICY_SPAM_REJECT_SCORE_MIN' '8.0'
-	repair_key 'POLICY_SPAM_REJECT_SCORE_MAX' '20.0'
-	# Protect admin user. 'yes' here, not the inherited 'no': the installer has always written 'yes'
-	# and this was the one key with two homes that disagreed. Harmless while the repair only fired on
-	# an absent key - the installer had already set it - but repairing an EMPTY value to 'no' would
-	# have switched the protection off. Where the two disagree, the closed side wins.
-	repair_key 'POLICY_SYSTEM_PROTECTED_ADMIN' 'yes'
-	# Allow user delete logs
-	repair_key 'POLICY_USER_DELETE_LOGS' 'yes'
-	# Allow users to delete details
-	repair_key 'POLICY_USER_EDIT_DETAILS' 'yes'
-	# Allow users to edit web templates
-	repair_key 'POLICY_USER_EDIT_WEB_TEMPLATES' 'no'
-	# View user logs
-	repair_key 'POLICY_USER_VIEW_LOGS' 'yes'
-	# Allow users to login (read only) when suspended
-	repair_key 'POLICY_USER_VIEW_SUSPENDED' 'no'
-	# PHPMyadmin SSO key
-	repair_key 'PHPMYADMIN_KEY' ''
-	# Use SMTP server for hestia internal mail
-	repair_key 'USE_SERVER_SMTP' 'false'
-
-	repair_key 'SERVER_SMTP_PORT' ''
-
-	repair_key 'SERVER_SMTP_HOST' ''
-
-	repair_key 'SERVER_SMTP_SECURITY' ''
-
-	repair_key 'SERVER_SMTP_USER' ''
-
-	repair_key 'SERVER_SMTP_PASSWD' ''
-
-	repair_key 'SERVER_SMTP_ADDR' ''
-	repair_key 'POLICY_CSRF_STRICTNESS' '1'
-
-	repair_key 'DISABLE_IP_CHECK' 'no'
-	repair_key 'APP_NAME' 'Hestia Control Panel'
-	# Empty default on purpose: FROM_NAME falls back to APP_NAME and FROM_EMAIL to noreply@hostname
-	# where they are read. repair_key only fills an empty value when the default is not empty, so
-	# these two are added when absent and then left alone.
-	repair_key 'FROM_NAME' ''
-	repair_key 'FROM_EMAIL' ''
-	repair_key 'SUBJECT_EMAIL' '{{subject}}'
-
-	repair_key 'BACKUP_INCREMENTAL' 'no'
-
-	repair_key 'TITLE' '{{page}} - {{hostname}} - {{appname}}'
-
-	repair_key 'HIDE_DOCS' 'no'
-
-	repair_key 'POLICY_SYNC_ERROR_DOCUMENTS' 'yes'
-
-	repair_key 'POLICY_SYNC_SKELETON' 'yes'
-	repair_key 'POLICY_BACKUP_SUSPENDED_USERS' 'no'
-	repair_key 'ROOT_USER' 'admin'
-	repair_key 'DOMAINDIR_WRITABLE' 'no'
-
-	# Deduplicate by key, keeping the LAST occurrence - which is what the sed here used to do.
-	#
-	# The value is carried across VERBATIM. The previous loop rebuilt each line from a parsed value
-	# and cut everything after the first '#' to strip an inline comment, which silently truncated any
-	# value that legitimately contains one: SERVER_SMTP_PASSWD, PHPMYADMIN_KEY, every generated
-	# secret. cmp then found a difference by construction and copied the truncated file over the
-	# real one. Reproduced: 'p4ss#w0rd!x' came out as 'p4ss'. It also fed the value through a sed
-	# replacement, where a '|' or '&' in a password rewrites the expression. An inline comment can
-	# only be recognised after the closing quote, never at the first '#', so this no longer tries.
-	#
-	# TRUNCATE, and remove unconditionally below: with `touch` plus `>>`, a .new file left behind by a
-	# run that found nothing to fix was appended to on the next one - so a key deleted in the meantime
-	# came back from the stale copy. Reproduced: delete a key, run twice, the key returns.
 	local -A conf_last=()
 	local -a conf_order=()
 	local conf_line conf_key

@@ -386,6 +386,20 @@ hosting packages are instance state (panel-created, restore-writable), so they l
 `/etc/hestia/packages/`, and the shipped `default`/`system.pkg` seed there from
 `share/hestia/packages/` at install.
 
+### The system key registry is read from `share/` at runtime, on purpose (#932)
+
+`share/` ships templates and assets that are copied or rendered at install time; nothing under it
+is an include path for running code - except `share/hestia/sys-keys.json`. It is the one registry of
+every `hestia.conf` key with its class (`system` | `betreiber`) and default, and the repair
+(`include/syshealth.sh`), the panel's config emitter (`bin/h-list-sys-config`, feeding `$_SESSION` at
+every login) and the smoke read it in place through `include/sysreg.sh`. Deliberately no copy on the
+box: the copy is what drifted (`conf/defaults/system.conf` described a configuration the product had
+stopped having, 43 keys behind). The condition under which a file with login-wide effect may live in
+the tree is the gate: `sysreg_check` runs in the smoke and, through `.gitea/tools/check-sys-registry.sh`,
+in CI on every PR - one implementation, twice called - and every reader fails loudly on a registry it
+cannot use, so the login refuses (503) instead of gating on an empty set. Do not copy this pattern
+for other `share/` files without the same gate.
+
 ### The model is the install scope (#639)
 
 `WEB_SYSTEM`/`PROXY_SYSTEM` decide who serves **and** what is installed. apache-only means no

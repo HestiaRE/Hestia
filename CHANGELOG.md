@@ -34,7 +34,30 @@ opens above it.
   and fails when a pattern finds nothing, so a fresh install after the release proves the drift gone.
   No repair for existing boxes: there are none outside the test fleet, which is reset.
 
-### Fixed
+### Changed
+
+- **One registry for the system keys of `hestia.conf`** (#932, Phase 1a of the update chapter). Three
+  hand-kept lists described the same 82 keys - the compiled key set, the repair table with its defaults,
+  and the JSON emitter the panel session is fed from - and none was derived from another: seven written
+  keys were in no list, two listed keys had no writer, five spam policies never reached the panel, and
+  the repair filled `ROOT_USER` with `admin` on any box. `share/hestia/sys-keys.json` now carries every
+  key with its class and default: a *betreiber* key is set by a human and the repair fills it when absent
+  or empty; a *system* key is the consequence of a command and is never filled, the smoke says whether it
+  agrees with the box (`ROOT_USER` names an admin record, every `DB_SYSTEM`/`BACKUP_SYSTEM` token has its
+  host file). The emitter loops over the registry, so `h-list-sys-config` hands the panel all 88 keys plus
+  the two computed capabilities; a registry the reader cannot use ends the emitter non-zero and the login
+  refuses instead of gating on nothing. Three guards, one implementation in `include/sysreg.sh` run by
+  the smoke and by CI: the schema (name, class, default, an existing token function), every key the tree
+  writes is registered (the write sites are extracted from the code, not listed), and an empty registry or
+  an empty extraction is red. `conf/defaults/system.conf` is no longer written - the tree is the copy.
+  The seed sets `hestia.conf` to 600: nobody but root reads it and 600 holds if the directory ever drifts.
+  Read at runtime from `share/` on purpose, see STRUCTURE.md.
+
+- **The password-reset and 2FA-reset pages work when opened directly** (#968). The CSRF token was
+  minted only for a logged-in session or by the login page itself, so a session that opened `/reset/`
+  from a bookmark or after its session had expired rendered the form with an empty token, and every
+  submit bounced to `/login/` without a word. Every session now gets a token in `inc/main.php`; the
+  login page keeps rotating its own on each render.
 
 - **The installer's own key writer no longer hands `hestia.conf` the umask's mode** (#963). The first
   v0.18.1 install showed the #961 check red: the seed sets 660, and `wcv` in `h-install-hestia` rewrote

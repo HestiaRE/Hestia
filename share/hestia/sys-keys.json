@@ -1,0 +1,364 @@
+{
+ "$comment": "The system key registry: one entry per hestia.conf key, class and default. Read at runtime from the tree (deliberately, see STRUCTURE.md); never copied to the box. betreiber = a human sets it, the repair fills an absent or empty key with the default, an update never touches it. system = the consequence of an action, written by commands; the repair never fills it (a verification in the smoke says whether it agrees with the box), an update may set it by manifest entry. tokens = a comma-separated token set; token_fn names the function that adds or removes one token (Phase 2 calls it, 1a only checks it exists). Guarded by sysreg_check (include/sysreg.sh), run by the smoke and by CI.",
+ "version": 1,
+ "keys": {
+  "ANTISPAM_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "ANTIVIRUS_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "APP_NAME": {
+   "class": "betreiber",
+   "default": "Hestia Control Panel"
+  },
+  "BACKEND_PORT": {
+   "class": "betreiber",
+   "default": "8083"
+  },
+  "BACKUP": {
+   "class": "betreiber",
+   "default": "/backup"
+  },
+  "BACKUP_GZIP": {
+   "class": "betreiber",
+   "default": "3"
+  },
+  "BACKUP_INCREMENTAL": {
+   "class": "system",
+   "default": ""
+  },
+  "BACKUP_MODE": {
+   "class": "betreiber",
+   "default": "zstd"
+  },
+  "BACKUP_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "tokens": true,
+   "token_fn": "sys_key_token_set"
+  },
+  "BLOCKLIST_INTERVAL": {
+   "class": "betreiber",
+   "default": "1d"
+  },
+  "CRON_SYSTEM": {
+   "class": "betreiber",
+   "default": "cron"
+  },
+  "DB_ADMINER_ALIAS": {
+   "class": "system",
+   "default": ""
+  },
+  "DB_PMA_ALIAS": {
+   "class": "system",
+   "default": ""
+  },
+  "DB_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "tokens": true,
+   "token_fn": "sys_key_token_set"
+  },
+  "DEBUG_MODE": {
+   "class": "betreiber",
+   "default": "false"
+  },
+  "DISABLE_IP_CHECK": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "DOCKER_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "DOMAINDIR_WRITABLE": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "ENFORCE_SUBDOMAIN_OWNERSHIP": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "FILE_MANAGER_PORT": {
+   "class": "system",
+   "default": ""
+  },
+  "FIREWALL_EXTENSION": {
+   "class": "system",
+   "default": ""
+  },
+  "FIREWALL_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "FROM_EMAIL": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "FROM_NAME": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "FTP_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "HIDE_DOCS": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "IMAP_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "INACTIVE_SESSION_TIMEOUT": {
+   "class": "betreiber",
+   "default": "60"
+  },
+  "LANGUAGE": {
+   "class": "betreiber",
+   "default": "en"
+  },
+  "LOGIN_STYLE": {
+   "class": "betreiber",
+   "default": "default"
+  },
+  "MAIL_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "PHPMYADMIN_KEY": {
+   "class": "system",
+   "default": ""
+  },
+  "POLICY_BACKUP_SUSPENDED_USERS": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "POLICY_CSRF_STRICTNESS": {
+   "class": "betreiber",
+   "default": "1"
+  },
+  "POLICY_SPAM_CUSTOMER_TUNING": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_SPAM_REJECT_SCORE_MAX": {
+   "class": "betreiber",
+   "default": "20.0"
+  },
+  "POLICY_SPAM_REJECT_SCORE_MIN": {
+   "class": "betreiber",
+   "default": "8.0"
+  },
+  "POLICY_SPAM_SCORE_MAX": {
+   "class": "betreiber",
+   "default": "10.0"
+  },
+  "POLICY_SPAM_SCORE_MIN": {
+   "class": "betreiber",
+   "default": "3.0"
+  },
+  "POLICY_SYNC_ERROR_DOCUMENTS": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_SYNC_SKELETON": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_SYSTEM_ENABLE_BACON": {
+   "class": "betreiber",
+   "default": "false"
+  },
+  "POLICY_SYSTEM_HIDE_ADMIN": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "POLICY_SYSTEM_HIDE_SERVICES": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "POLICY_SYSTEM_PASSWORD_RESET": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "POLICY_SYSTEM_PROTECTED_ADMIN": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_USER_CHANGE_THEME": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_USER_DELETE_LOGS": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_USER_EDIT_DETAILS": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_USER_EDIT_WEB_TEMPLATES": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "POLICY_USER_VIEW_LOGS": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "POLICY_USER_VIEW_SUSPENDED": {
+   "class": "betreiber",
+   "default": "no"
+  },
+  "PROJECT_QUOTA": {
+   "class": "system",
+   "default": ""
+  },
+  "PROXY_PORT": {
+   "class": "system",
+   "default": ""
+  },
+  "PROXY_SSL_PORT": {
+   "class": "system",
+   "default": ""
+  },
+  "PROXY_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "RELEASE_BRANCH": {
+   "class": "betreiber",
+   "default": "release"
+  },
+  "ROOT_USER": {
+   "class": "system",
+   "default": ""
+  },
+  "SERVER_SMTP_ADDR": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SERVER_SMTP_HOST": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SERVER_SMTP_PASSWD": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SERVER_SMTP_PORT": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SERVER_SMTP_SECURITY": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SERVER_SMTP_USER": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SIEVE_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "SMTP_RELAY": {
+   "class": "betreiber",
+   "default": "false"
+  },
+  "SMTP_RELAY_HOST": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SMTP_RELAY_PORT": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "SMTP_RELAY_USER": {
+   "class": "betreiber",
+   "default": ""
+  },
+  "STATS_SYSTEM": {
+   "class": "system",
+   "default": ""
+  },
+  "SUBJECT_EMAIL": {
+   "class": "betreiber",
+   "default": "{{subject}}"
+  },
+  "THEME": {
+   "class": "betreiber",
+   "default": "dark"
+  },
+  "TITLE": {
+   "class": "betreiber",
+   "default": "{{page}} - {{hostname}} - {{appname}}"
+  },
+  "UPDATE_AVAILABLE": {
+   "class": "system",
+   "default": ""
+  },
+  "UPDATE_HOSTNAME_SSL": {
+   "class": "betreiber",
+   "default": "yes"
+  },
+  "UPGRADE_SEND_EMAIL": {
+   "class": "betreiber",
+   "default": "true"
+  },
+  "UPGRADE_SEND_EMAIL_LOG": {
+   "class": "betreiber",
+   "default": "false"
+  },
+  "USE_SERVER_SMTP": {
+   "class": "betreiber",
+   "default": "false"
+  },
+  "VERSION": {
+   "class": "system",
+   "default": ""
+  },
+  "WEBMAIL_ALIAS": {
+   "class": "betreiber",
+   "default": "webmail"
+  },
+  "WEBMAIL_FRONT": {
+   "class": "system",
+   "default": ""
+  },
+  "WEBMAIL_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "tokens": true,
+   "token_fn": "sys_key_token_set"
+  },
+  "WEB_BACKEND": {
+   "class": "system",
+   "default": ""
+  },
+  "WEB_PORT": {
+   "class": "system",
+   "default": ""
+  },
+  "WEB_RGROUPS": {
+   "class": "system",
+   "default": ""
+  },
+  "WEB_SSL": {
+   "class": "system",
+   "default": ""
+  },
+  "WEB_SSL_PORT": {
+   "class": "system",
+   "default": ""
+  },
+  "WEB_SYSTEM": {
+   "class": "system",
+   "default": ""
+  }
+ }
+}

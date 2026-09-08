@@ -31,10 +31,14 @@ source_conf "$HESTIA/conf/hestia.conf"
 # enumeration called syshealth_update_dns_config_format, which stopped existing when DNS was
 # removed, and left mail_accounts, ip and system with no registry at all until some repair
 # happened to create one lazily.
-if [ -n "$system" ]; then
+# system is not in the list: its registry is share/hestia/sys-keys.json in the tree, never a file
+# on the box (#932). Asked for explicitly it is a no-op with a word, not an error.
+if [ "$system" = "system" ]; then
+	echo "system keys come from share/hestia/sys-keys.json - nothing to write"
+elif [ -n "$system" ]; then
 	syshealth_refresh_registry "$system"
 else
-	for _sys in web mail mail_accounts user cron db ip system; do
+	for _sys in web mail mail_accounts user cron db ip; do
 		syshealth_refresh_registry "$_sys"
 	done
 fi

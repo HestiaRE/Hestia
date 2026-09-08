@@ -63,6 +63,12 @@ copy_record_filtered() {
 	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
 }
 
+# The system key registry readers (share/hestia/sys-keys.json): class and default per hestia.conf key,
+# the schema guard, nothing else. Loaded here because the panel's config emitter and the repair both
+# sit behind main.sh (#932).
+# shellcheck source=/usr/local/hestia/include/sysreg.sh
+source "$HESTIA/include/sysreg.sh"
+
 source_conf() {
 	while IFS='= ' read -r lhs rhs; do
 		if [[ ! $lhs =~ ^\ *# && -n $lhs ]]; then
@@ -2364,6 +2370,40 @@ change_sys_value() {
 # byte-identical to a fresh install of that model, not carrying a present-but-empty line.
 clear_sys_value() {
 	sed -i "/^$1=/d" "$HESTIA/conf/hestia.conf"
+}
+
+# sys_key_token_set KEY add|remove TOKEN - one token in a comma-separated hestia.conf key (DB_SYSTEM,
+# BACKUP_SYSTEM, WEBMAIL_SYSTEM), the order kept as found, a token never doubled. Named as token_fn in
+# the registry; 1a only guards that it exists, the callers come with Phase 2 (#946).
+sys_key_token_set() {
+	local key="$1" op="$2" tok="$3" cur out=() t
+	[ -n "$key" ] && [ -n "$tok" ] || return 1
+	cur=$(grep -m1 "^$key=" "$HESTIA/conf/hestia.conf" 2> /dev/null)
+	cur=${cur#*=}
+	cur=${cur#[\"\']}
+	cur=${cur%[\"\']}
+	IFS=',' read -r -a out <<< "$cur"
+	case "$op" in
+		add)
+			for t in "${out[@]}"; do [ "$t" = "$tok" ] && {
+				printf '%s\n' "$cur"
+				return 0
+			}; done
+			out+=("$tok")
+			;;
+		remove)
+			local keep=()
+			for t in "${out[@]}"; do [ "$t" = "$tok" ] || [ -z "$t" ] || keep+=("$t"); done
+			out=("${keep[@]}")
+			;;
+		*) return 1 ;;
+	esac
+	cur=$(
+		IFS=','
+		echo "${out[*]}"
+	)
+	cur=${cur#,}
+	change_sys_value "$key" "$cur" && printf '%s\n' "$cur"
 }
 
 # ── Web-model maintenance freeze (#120) ──────────────────────────────────────

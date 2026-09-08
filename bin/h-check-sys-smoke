@@ -2080,7 +2080,9 @@ check_sys_key_registry() {
 		grep -rhoE "h-change-sys-config-value +['\"]?[A-Z][A-Z0-9_]+" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" "$HESTIA/web" 2> /dev/null
 		grep -rhE "hestia\.conf" "$HESTIA/bin" "$HESTIA/include" "$HESTIA/sbin" 2> /dev/null | grep -oE "(echo \"|s[|/]\^?)[A-Z][A-Z0-9_]+="
 		grep -hoE '^WEB_MODEL_KEYS="[A-Z_ ]+"' "$HESTIA/include/web-model.sh" 2> /dev/null | tr ' ' '\n'
-	} | grep -oE '[A-Z][A-Z0-9_]{2,}' | grep -vE '^(WEB_MODEL_KEYS|VERSION)$' | sort -u)
+	} | grep -oE '[A-Z][A-Z0-9_]{2,}' | grep -vx 'WEB_MODEL_KEYS' | sort -u)
+	# The one exclusion is the variable's own name, picked up from the line the key set is read from; it
+	# is not a key. Nothing else is excluded - a written key that is not registered is the finding.
 	n=$(echo "$written" | grep -c .)
 	if [ "$n" -lt 20 ]; then
 		no "system key registry: write-site extraction found only $n key(s)" "the grep patterns no longer match the code"

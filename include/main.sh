@@ -2409,8 +2409,10 @@ sys_key_token_set() {
 # The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
 # holds (epoch stripped, major.minor), the source is read off the version string - MariaDB.org builds
 # carry "maria" in it, distro builds do not - and named in the recipe's own words (the source field of the
-# DB_MARIADB_VERSION options), so recipe and status never disagree on a value. Called by add, upgrade
-# and delete (#978, #935).
+# DB_MARIADB_VERSION options), so recipe and status never disagree on a value. The version string on
+# purpose and not apt-cache policy (Origin/Label): policy describes the repository configured NOW, the
+# string travels with the package; remove the repo or upgrade the box and policy changes its answer
+# while the package did not. Called by add, upgrade and delete (#978, #935).
 mariadb_status_record() {
 	local v src
 	v=$(dpkg-query -W -f='${Version}' mariadb-server 2> /dev/null) || v=''

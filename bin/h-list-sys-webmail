@@ -22,12 +22,17 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
+# The installed clients in the order of WEBMAIL_KNOWN_CLIENTS, never in the order of the key: the panel's
+# select and h-add-mail-domain-webmail take the first entry as the default, and the token writers append.
+# A token outside the known list is not offered (it has no template either).
+clients=$(for c in $WEBMAIL_KNOWN_CLIENTS; do grep -qwF -- "$c" <<< "$WEBMAIL_SYSTEM" && echo "$c"; done)
+
 # JSON list function
 json_list() {
 	i=1
-	objects=$(echo -e "${WEBMAIL_SYSTEM//,/\\n}" | wc -l)
+	objects=$(printf '%s\n' "$clients" | grep -c .)
 	echo '['
-	for client in ${WEBMAIL_SYSTEM//,/ }; do
+	for client in $clients; do
 		json_escape client
 		if [ "$i" -ne "$objects" ]; then
 			printf '\t"%s",\n' "$client"
@@ -43,14 +48,14 @@ json_list() {
 shell_list() {
 	echo "Webmail Client"
 	echo "--------"
-	for client in ${WEBMAIL_SYSTEM//,/ }; do
+	for client in $clients; do
 		echo "$client"
 	done
 }
 
 # PLAIN list function
 plain_list() {
-	for client in ${WEBMAIL_SYSTEM//,/ }; do
+	for client in $clients; do
 		echo "$client"
 	done
 }

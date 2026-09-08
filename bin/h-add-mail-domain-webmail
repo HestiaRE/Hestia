@@ -56,13 +56,15 @@ format_domain_idn
 #----------------------------------------------------------#
 
 if [ -z "$webmail" ]; then
-	# Default mirrors the panel (web/add/mail): Roundcube when installed, else the first client.
-	# The old loop took the LAST token, which contradicted the panel's preselect on a two-client box.
-	if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube'; then
-		webmail="roundcube"
-	else
-		webmail="${WEBMAIL_SYSTEM%%,*}"
-	fi
+	# Default mirrors the panel (web/add/mail): the first INSTALLED client in the order of
+	# WEBMAIL_KNOWN_CLIENTS (roundcube first), never the position in WEBMAIL_SYSTEM - the token
+	# writers append, so a position would make the default depend on install order.
+	for c in $WEBMAIL_KNOWN_CLIENTS; do
+		if grep -qwF -- "$c" <<< "$WEBMAIL_SYSTEM"; then
+			webmail="$c"
+			break
+		fi
+	done
 fi
 
 # The WEBMAIL record's value domain (#584): '' (resolved above), 'disabled', or a client from

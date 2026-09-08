@@ -246,19 +246,8 @@ if [ "$UPDATE" == "no" ]; then
 	cp -f "$HESTIA/share/panel-caddy/webmail-tachyon.conf" /etc/caddy/webmail-tachyon.conf
 	systemctl try-restart caddy > /dev/null 2>&1 || true
 
-	# Updating hestia.conf
-	# anchored: an unanchored grep also matches keys that merely start so
-	if ! grep -q '^WEBMAIL_SYSTEM=' "$HESTIA/conf/hestia.conf"; then
-		$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' 'tachyon'
-	else
-		if [ -z "$(echo "$WEBMAIL_SYSTEM" | grep -w 'tachyon')" ]; then
-			if [ -n "$WEBMAIL_SYSTEM" ]; then
-				$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' "tachyon,$WEBMAIL_SYSTEM"
-			else
-				$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' "tachyon"
-			fi
-		fi
-	fi
+	# Updating hestia.conf through the token function; the position carries no meaning, so no prepend
+	sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
 
 else
 	if [ ! -s "${TX_INSTALL_DIR}/${TX_FILE}" ] && ! tx_fetch "${TX_INSTALL_DIR}/${TX_FILE}"; then

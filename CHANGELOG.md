@@ -36,6 +36,16 @@ opens above it.
 
 ### Changed
 
+- **`WEBMAIL_SYSTEM` goes through its token function, and its order means nothing** (#943, from the
+  review of #982). The four webmail commands composed the list by hand (`'tachyon,$WEBMAIL_SYSTEM'`, a
+  sed filter on delete), prepending the client just installed, and `h-add-mail-domain-webmail` took the
+  first token as the default client when roundcube was absent - the file order was a contract nobody
+  had written down. Decision, written at the registry entry: the order is not a contract. The default
+  client is chosen by name, roundcube when installed, else the first installed client in the order of
+  `WEBMAIL_KNOWN_CLIENTS` (the one list, smoke-guarded against the shipped templates); `h-list-sys-webmail`
+  emits the clients in that order, so the panel's select preselects the same client as the CLI. The six
+  write sites use `sys_key_token_set add|remove`; a token outside the known list is no longer offered.
+
 - **Panel session store moved out of the install root** (#974). `session.save_path` was
   `/usr/local/hestia/.sessions`; it is now `/var/lib/hestia/sessions` (770 `hestia:hestia`, created by
   the installer, next to the web-model switch state already there). Two reasons: an update tars the whole

@@ -86,12 +86,7 @@ rm -f /etc/php/hestia/fpm/pool.d/roundcube.conf
 systemctl reload hestia-php 2> /dev/null || systemctl restart hestia-php 2> /dev/null || true
 
 # Update hestia.conf - remove roundcube from WEBMAIL_SYSTEM
-new_webmail=$(echo "$WEBMAIL_SYSTEM" | sed 's/roundcube,\?//g; s/,$//')
-if [ -z "$new_webmail" ]; then
-	$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' ''
-else
-	$BIN/h-change-sys-config-value 'WEBMAIL_SYSTEM' "$new_webmail"
-fi
+sys_key_token_set WEBMAIL_SYSTEM remove roundcube > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not drop roundcube"
 
 # re-render mail domains so vhosts stop proxying to the removed listener
 # (fall back to the remaining client, or the safe 'disabled' vhost)

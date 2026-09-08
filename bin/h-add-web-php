@@ -96,6 +96,9 @@ if ! apt-get -qq -s install "php$version-fpm" > /dev/null 2>&1; then
 	)
 	echo "php$version is not available from the configured repos - adding the Sury repo"
 	add_sury_repo "$codename" || check_result "$E_CONNECT" "Sury repo setup failed"
+	# From here the box IS a Sury box, whatever the recipe promised: the repo also carries the OS version
+	# and takes it over on the next apt run. So the status follows the retrofit, not the install result.
+	change_sys_value "PHP_SOURCE" "sury"
 
 	apt-get -qq update || check_result "$E_CONNECT" "apt-get update failed after adding the Sury repo"
 fi

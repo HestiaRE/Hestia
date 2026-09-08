@@ -36,6 +36,18 @@ opens above it.
 
 ### Changed
 
+- **Every component has a status key** (#943, Phase 1b of the update chapter; this entry grows with the
+  phase). The registry gains eleven system keys for the components that had none: `PHP_SOURCE` (the
+  source, `os` or `sury`; not `PHP_MODE`, which is the recipe's wizard answer with its own vocabulary), `PHP_VERSIONS` (the installed versions as tokens), `DB_MARIADB_SYSTEM` and
+  `DB_POSTGRESQL_SYSTEM` (a local package is installed, value = source in the recipe's words: `os_default`/`mariadb_repo`, `os`), `DB_MARIADB_VERSION`,
+  `REDIS_SYSTEM`, `RESTIC_SYSTEM`, `CROWDSEC_SYSTEM` (the model), `COMPOSER_SYSTEM` (the channel),
+  `JAIL_SYSTEM` (tokens) and `WPCLI_SYSTEM` (the pin). `DB_SYSTEM` stays what it is, the host register:
+  a registered host, local or remote, never a package statement (#980). The registry marks
+  `SERVER_SMTP_PASSWD` and `PHPMYADMIN_KEY` as secrets, checked by the schema guard; what the emitter
+  does with that is #976. In the manifest the sftp/ssh jails and wp-cli become fixed components with a
+  key, `WEB_REPO_SOURCE` goes (never read), and the two things that get no key on purpose - the
+  utilities and the mail DNSBL list - say why: nothing about them is state (E5).
+
 - **One registry for the system keys of `hestia.conf`** (#932, Phase 1a of the update chapter). Three
   hand-kept lists described the same 82 keys - the compiled key set, the repair table with its defaults,
   and the JSON emitter the panel session is fed from - and none was derived from another: seven written

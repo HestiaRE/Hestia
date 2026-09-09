@@ -2377,7 +2377,7 @@ clear_sys_value() {
 # doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
 # a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM, #978).
 # The rc, in both directions: on a success path (package installed, purge done) the caller fails the
-# whole command when this write fails - the status is part of the job, a silent gap is worse than a
+# whole command when this write fails: the status is part of the job, a silent gap is worse than a
 # loud exit, the packages stay and a re-run records them. On an exit path ("not installed", drift
 # repair on the way out) the caller drops the rc on purpose: a write problem must not turn a clear
 # "not installed" into a different error.
@@ -2413,8 +2413,8 @@ sys_key_token_set() {
 }
 
 # The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
-# holds (epoch stripped, major.minor), the source is read off the version string - MariaDB.org builds
-# carry "maria" in it, distro builds do not - and named in the recipe's own words (the source field of the
+# holds (epoch stripped, major.minor), the source is read off the version string (MariaDB.org builds
+# carry "maria" in it, distro builds do not) and named in the recipe's own words (the source field of the
 # DB_MARIADB_VERSION options), so recipe and status never disagree on a value. The version string on
 # purpose and not apt-cache policy (Origin/Label): policy describes the repository configured NOW, the
 # string travels with the package; remove the repo or upgrade the box and policy changes its answer

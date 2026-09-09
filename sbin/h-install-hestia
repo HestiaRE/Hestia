@@ -831,7 +831,7 @@ init_hestia_structure() {
 	# back the overlay, and live sessions have no place in that snapshot; keeping it here also means
 	# check_install_root_owner never has to except a group-writable dir under the tree.
 	# Expired files are collected by the pool's own PHP GC (compiled defaults, 1/100 per session start,
-	# 1440 s); no distro routine looks here - Debian's phpsessionclean covers only the packaged versions'
+	# 1440 s); no distro routine looks here, Debian's phpsessionclean covers only the packaged versions'
 	# save_path, and the installer's cron.daily/php-session-cleanup covers the customers' /home/*/tmp.
 	mkdir -p /var/lib/hestia/sessions
 	# The LE hook mechanism already exists in h-add-letsencrypt-domain (#4925); create the directory
@@ -936,7 +936,7 @@ configure_hestia() {
 	echo "[ * ] Creating admin user..."
 	"$BIN/h-add-user" "$HESTIA_ADMIN" "$HESTIA_PASS" "$HESTIA_EMAIL" "default" "System Administrator"
 	# Decided, not inherited (2026-09-09): admin is the panel account. nologin is wanted, and so is what the
-	# shell rule adds to it, membership in sftp-jailed - jailed sftp access, no shell.
+	# shell rule adds to it, membership in sftp-jailed: jailed sftp access, no shell.
 	"$BIN/h-change-user-shell" "$HESTIA_ADMIN" nologin
 	"$BIN/h-change-user-role" "$HESTIA_ADMIN" admin
 	"$BIN/h-change-user-language" "$HESTIA_ADMIN" en

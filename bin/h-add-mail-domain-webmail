@@ -57,7 +57,7 @@ format_domain_idn
 
 if [ -z "$webmail" ]; then
 	# Default mirrors the panel (web/add/mail): the first INSTALLED client in the order of
-	# WEBMAIL_KNOWN_CLIENTS (roundcube first), never the position in WEBMAIL_SYSTEM - the token
+	# WEBMAIL_KNOWN_CLIENTS (roundcube first), never the position in WEBMAIL_SYSTEM; the token
 	# writers append, so a position would make the default depend on install order.
 	for c in $WEBMAIL_KNOWN_CLIENTS; do
 		# exact token, not a word boundary: grep -w would take roundcube from roundcube-next

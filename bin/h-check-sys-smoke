@@ -1629,7 +1629,7 @@ check_record_only_protected() {
 		ok "record-only names appear in no record ($n names, $reads record file(s) read)"
 	fi
 }
-# check_install_root_owner - the invariant measured for #974: nothing under the install root belongs
+# check_install_root_owner: the invariant measured for #974: nothing under the install root belongs
 # to anyone but root, nothing is group- or world-writable. The runtime directories a panel pool needs
 # (session.save_path, upload_tmp_dir, sys_temp_dir) are read from the FPM configuration, never written
 # here as a literal, so the check heals itself when such a directory moves out of the tree. Symlinks
@@ -1655,8 +1655,8 @@ check_install_root_owner() {
 	fi
 }
 
-# check_secret_file_modes - the files whose mode means something (#974): the sudoers rule (440 root:root,
-# what deploy_hestia_sudoers installs), and every private key the panel or a customer holds - the panel
+# check_secret_file_modes: the files whose mode means something (#974): the sudoers rule (440 root:root,
+# what deploy_hestia_sudoers installs), and every private key the panel or a customer holds: the panel
 # certificate under /etc/ssl/hestia, the mail SNI links under /etc/exim4/ssl (resolved), the customers'
 # keys under /etc/hestia/users/*/ssl and /home/*/conf/{web,mail}/*/ssl. Rule for keys: no world bit at
 # all; group access is by design (root:mail 660, exim reads them). The set is found, not listed; a box
@@ -2136,7 +2136,7 @@ check_record_grammar() {
 
 # check_sys_key_registry - the system key registry (share/hestia/sys-keys.json, #932), three guards:
 # (1) the schema, through the same sysreg_check the CI runs; (2) every key the tree writes into
-# hestia.conf is registered - the write sites are extracted from the shipped code (the seven mechanisms:
+# hestia.conf is registered; the write sites are extracted from the shipped code (the seven mechanisms:
 # wcv/_wcv, change_sys_value/clear_sys_value, sys_key_token_set, h-change-sys-config-value with a literal
 # key, repair_key, a direct echo/sed on hestia.conf, the web-model key set), never listed here; (3) an empty registry
 # or an empty extraction is red. A key written through a variable name cannot be extracted and is
@@ -2198,7 +2198,7 @@ check_system_keys_agree() {
 	fi
 }
 
-# _artefact_present TYPE VALUE - 0 present, 1 absent, 2 unknown type. Present, never running (E2, 1c halt):
+# _artefact_present TYPE VALUE: 0 present, 1 absent, 2 unknown type. Present, never running (E2, 1c halt):
 # a unit file on disk, a socket path, a file, a command on PATH. Running is what check_service is for.
 _artefact_present() {
 	case "$1" in
@@ -2210,7 +2210,7 @@ _artefact_present() {
 	esac
 }
 
-# check_manifest_status_link - the manifest names, for every component that is neither always_installed
+# check_manifest_status_link: the manifest names, for every component that is neither always_installed
 # nor no_status_key, the hestia.conf key it writes (status_key, 1c #944); every named key must be in the
 # registry; a status_token is a plain status word (empty only where the option means "off"). Both
 # reference sets are read from the files, never listed here; an empty component set is red. Names keys,
@@ -2243,7 +2243,7 @@ check_manifest_status_link() {
 	fi
 }
 
-# check_manifest_artefacts - for every component with a status_artefact: key set <=> artefact present,
+# check_manifest_artefacts: for every component with a status_artefact: key set <=> artefact present,
 # both directions (a set key without its artefact is the swallowed-install class, an artefact without its
 # key is a hand install or a lost record). An unknown type is red, never skipped; zero components with an
 # artefact is red. Names keys and artefacts, never key values.
@@ -2272,7 +2272,7 @@ check_manifest_artefacts() {
 	fi
 }
 
-# check_hestia_conf_key_patterns - a grep/sed on $HESTIA/conf/hestia.conf that names a key must anchor it
+# check_hestia_conf_key_patterns: a grep/sed on $HESTIA/conf/hestia.conf that names a key must anchor it
 # (^KEY, or grep -x): key names nest (DB_SYSTEM inside DB_MARIADB_SYSTEM, VERSION inside PHP_VERSIONS), and
 # an unanchored "s/DB_SYSTEM=.*/" rewrote the nested key on the first h-add-sys-mariadb (#978). Judged on
 # the first key-like token after the command with its flags stripped; a $VAR there is a path, not a key.

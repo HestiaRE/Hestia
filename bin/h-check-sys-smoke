@@ -2212,9 +2212,10 @@ _artefact_present() {
 
 # check_manifest_status_link: the manifest names, for every component that is neither always_installed
 # nor no_status_key, the hestia.conf key it writes (status_key, 1c #944); every named key must be in the
-# registry; a status_token is a plain status word (empty only where the option means "off"). Both
-# reference sets are read from the files, never listed here; an empty component set is red. Names keys,
-# never values.
+# registry; a status_token is a plain status word, and empty only on an option whose value means off
+# (false, no, off, disabled), so a forgotten token is told apart from a deliberate one. The token is
+# recorded here, not compared with the box; recipe against status is 1d. Both reference sets are read
+# from the files, never listed here; an empty component set is red. Names keys, never values.
 check_manifest_status_link() {
 	local m="$HESTIA/share/manifest.json" reg n=0 missing='' unknown='' badtok='' cid key tok
 	reg=$(sysreg_keys 2> /dev/null) || reg=''
@@ -2231,9 +2232,13 @@ check_manifest_status_link() {
 			unknown="$unknown $cid:$key"
 		fi
 	done < <(jq -r '.components | to_entries[] | select((.value.always_installed // false) | not) | select(.value.no_status_key == null) | [.key, (.value.status_key // "")] | @tsv' "$m" 2> /dev/null)
-	while IFS=$'\t' read -r cid tok; do
-		[[ "$tok" =~ ^[a-z0-9_.]*$ ]] || badtok="$badtok $cid"
-	done < <(jq -r '.components | to_entries[] | .key as $c | (.value.options // [])[]? | select(type == "object" and has("status_token")) | [$c, .status_token] | @tsv' "$m" 2> /dev/null)
+	while IFS=$'\t' read -r cid val tok; do
+		if [ -z "$tok" ]; then
+			case "$val" in false | no | off | disabled) ;; *) badtok="$badtok $cid($val:empty)" ;; esac
+		else
+			[[ "$tok" =~ ^[a-z0-9_.]+$ ]] || badtok="$badtok $cid($val)"
+		fi
+	done < <(jq -r '.components | to_entries[] | .key as $c | (.value.options // [])[]? | select(type == "object" and has("status_token")) | [$c, (.value | tostring), .status_token] | @tsv' "$m" 2> /dev/null)
 	if [ "$n" -eq 0 ]; then
 		no "manifest status link: no component examined" "share/manifest.json unreadable or without components"
 	elif [ -n "$missing$unknown$badtok" ]; then

@@ -1,5 +1,5 @@
 {
-  "$comment": "HestiaRE installer manifest - version 1 target architecture. This is a specification (target state), not necessarily the current implementation status. Read by install.sh to drive the interactive question catalog. Re-check against actually available repo versions on every release refresh (see the 'dynamic' fields). Hand-formatted on purpose (one line per option, a blank line between components): tooling validates it (jq), never rewrites it, so a diff stays readable.",
+  "$comment": "HestiaRE installer manifest - version 1 target architecture. This is a specification (target state), not necessarily the current implementation status. Read by install.sh to drive the interactive question catalog. Re-check against actually available repo versions on every release refresh (see the 'dynamic' fields). Hand-formatted on purpose (one line per option, a blank line between components): tooling validates it (jq), never rewrites it, so a diff stays readable. Since 1c (#944) a component names its hestia.conf status key (status_key), an option its status word where recipe and status vocabularies differ (status_token, both directions exist on purpose), and a component may name what exists on the box when the key is set (status_artefact, typed service/socket/file/command, present not running); the smoke holds all three against the registry and the box.",
   "$parser": "jq (not python3 - too heavyweight just for JSON parsing). install.sh must check/install jq as the very first dependency, before the whiptail check, since the manifest must be read before every question. jq is ~113 KB installed size + libjq1/libonig5, much leaner than a python3 dependency.",
   "manifest_version": 1,
 
@@ -80,11 +80,13 @@
     "WEB_SERVER": {
       "group": "web",
       "type": "radio",
+      "status_key": "WEB_SYSTEM",
+      "status_note": "the option maps to a key SET (WEB_SYSTEM, PROXY_SYSTEM, WEBMAIL_FRONT, web_model_keyset in web-model.sh); the guard sees WEB_SYSTEM only, which is why APACHE and BOTH carry the same token (W16)",
       "question": "Web server:",
       "options": [
-        { "value": "APACHE", "label": "apache2 only", "description": "Apache httpd (OS package)" },
-        { "value": "NGINX",  "label": "nginx only",   "description": "Single web server" },
-        { "value": "BOTH",   "label": "nginx + apache2", "description": "nginx reverse-proxies apache2" }
+        { "value": "APACHE", "status_token": "apache2", "label": "apache2 only", "description": "Apache httpd (OS package)" },
+        { "value": "NGINX", "status_token": "nginx",  "label": "nginx only",   "description": "Single web server" },
+        { "value": "BOTH", "status_token": "apache2",   "label": "nginx + apache2", "description": "nginx reverse-proxies apache2" }
       ],
       "default": {
         "standard":  "BOTH",
@@ -103,11 +105,12 @@
     "PHP_MODE": {
       "group": "web",
       "type": "implicit",
+      "status_key": "PHP_SOURCE",
       "question": "PHP mode:",
       "description": "Architecture pre-question: Single-PHP (OS package, no Sury) vs. MultiPHP (Sury repo). Not asked when fixed by the preset (singlephp, mailonly); otherwise derived from the preset.",
       "options": [
-        { "value": "os_single",  "label": "Single PHP", "description": "OS PHP, no Sury repo" },
-        { "value": "sury_multi", "label": "MultiPHP",   "description": "Sury repo, multiple versions" }
+        { "value": "os_single", "status_token": "os",  "label": "Single PHP", "description": "OS PHP, no Sury repo" },
+        { "value": "sury_multi", "status_token": "sury", "label": "MultiPHP",   "description": "Sury repo, multiple versions" }
       ],
       "default": {
         "standard":  "sury_multi",
@@ -126,6 +129,7 @@
     "PHP_MULTIPHP_VERSIONS": {
       "group": "web",
       "type": "checklist",
+      "status_key": "PHP_VERSIONS",
       "question": "Which PHP versions to install?",
       "visible_if": "PHP_MODE == sury_multi",
       "options": "__dynamic__",
@@ -142,6 +146,7 @@
     "DB_MARIADB": {
       "group": "db",
       "type": "checkbox",
+      "status_key": "DB_MARIADB_SYSTEM",
       "fixed_no_prompt": { "mailonly": false },
       "label": "MariaDB",
       "description": "MySQL-compatible DB server (incl. phpMyAdmin)",
@@ -160,6 +165,7 @@
     "DB_POSTGRESQL": {
       "group": "db",
       "type": "checkbox",
+      "status_key": "DB_POSTGRESQL_SYSTEM",
       "fixed_no_prompt": { "mailonly": false },
       "label": "PostgreSQL",
       "description": "Object-relational DB server (web UI via Adminer addon)",
@@ -170,6 +176,8 @@
     "DB_REDIS": {
       "group": "db",
       "type": "checkbox",
+      "status_key": "REDIS_SYSTEM",
+      "status_note": "no status_artefact on purpose: the package is also rspamd's capped Bayes companion, so its presence says nothing about the general service the key means (E2, 1c halt)",
       "fixed_no_prompt": { "mailonly": false },
       "label": "Redis",
       "description": "In-memory cache / key-value store (not a DB server)",
@@ -181,6 +189,8 @@
     "DB_MARIADB_VERSION": {
       "group": "db",
       "type": "version_select",
+      "status_key": "DB_MARIADB_VERSION",
+      "status_note": "the concrete versions are their own status token; __os__ is resolved at install time, so the guard compares only when the recipe names a version (W16)",
       "question": "Which MariaDB version to install?",
       "visible_if": "DB_MARIADB == true",
       "fixed_no_prompt": { "compact": "__os__", "mailonly": "__os__" },
@@ -204,6 +214,7 @@
     "DB_PHPMYADMIN": {
       "group": "db",
       "type": "derived",
+      "status_key": "DB_PMA_ALIAS",
       "derived_from": "DB_MARIADB",
       "fixed_no_prompt": { "mailonly": false },
       "note": "Installed without its own question as soon as MariaDB is chosen. Not on mailonly: the database there belongs to the webmailer, so a DB admin UI is surface without a purpose - and it was how apt dragged apache2 onto a box that must not have one (#656)."
@@ -212,10 +223,11 @@
     "MAIL_BLOCK_PRESENT": {
       "group": "mail",
       "type": "implicit",
+      "status_key": "MAIL_SYSTEM",
       "question": "Install mail block (Dovecot mailboxes)?",
       "options": [
-        { "value": "true",  "label": "Yes", "description": "Dovecot mailboxes + full mail stack" },
-        { "value": "false", "label": "No",  "description": "Exim send-only, no mailboxes" }
+        { "value": "true", "status_token": "exim",  "label": "Yes", "description": "Dovecot mailboxes + full mail stack" },
+        { "value": "false", "status_token": "", "label": "No",  "description": "Exim send-only, no mailboxes" }
       ],
       "description": "Determines whether a mail block exists at all. Normally not a user question - follows directly from the preset.",
       "default": {
@@ -232,11 +244,12 @@
     "MAIL_WEBMAILER": {
       "group": "mail",
       "type": "checklist",
+      "status_key": "WEBMAIL_SYSTEM",
       "question": "Webmail clients (any, all, or none - selectable per mail domain):",
       "visible_if": "MAIL_BLOCK_PRESENT == true",
       "options": [
-        { "value": "ROUNDCUBE",  "label": "Roundcube",  "description": "Full-featured webmail" },
-        { "value": "TACHYON", "label": "Tachyon", "description": "Lightweight webmail (SnappyMail fork)" }
+        { "value": "ROUNDCUBE", "status_token": "roundcube",  "label": "Roundcube",  "description": "Full-featured webmail" },
+        { "value": "TACHYON", "status_token": "tachyon", "label": "Tachyon", "description": "Lightweight webmail (SnappyMail fork)" }
       ],
       "value_join": ",",
       "default": {
@@ -282,12 +295,15 @@
     "JAIL": {
       "group": "panel",
       "type": "fixed",
+      "status_key": "JAIL_SYSTEM",
+      "status_note": "no status_artefact: the key is on its way out (see the registry note), 1c builds nothing on it",
       "note": "The sftp and ssh jails are installed unconditionally (h-add-sys-sftp-jail, h-add-sys-ssh-jail); which ones the box has is the status key JAIL_SYSTEM (#941). Not always_installed: unlike PANEL_*, a jail can be removed and the key says so."
     },
 
     "ADDON_ADMINER": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "DB_ADMINER_ALIAS",
       "label": "Adminer",
       "description": "Web DB UI for PostgreSQL (vendored single-file). MySQL keeps phpMyAdmin.",
       "visible_if": "DB_POSTGRESQL == true",
@@ -298,6 +314,7 @@
     "ADDON_COMPOSER": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "COMPOSER_SYSTEM",
       "label": "Composer",
       "description": "PHP dependency manager (system-wide)",
       "fixed_no_prompt": { "mailonly": false },
@@ -312,12 +329,14 @@
     "WPCLI": {
       "group": "tools",
       "type": "fixed",
+      "status_key": "WPCLI_SYSTEM",
       "note": "wp-cli is installed system-wide and pinned (software_versions.wp_cli); the installed pin is the status key WPCLI_SYSTEM (#942). This is the only patch channel wp-cli has."
     },
 
     "ADDON_CROWDSEC": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "CROWDSEC_SYSTEM",
       "label": "CrowdSec",
       "description": "Collaborative intrusion prevention (nginx web protection)",
       "visible_if": "WEB_SERVER != APACHE",
@@ -329,6 +348,8 @@
     "CROWDSEC_MODE": {
       "group": "addons",
       "type": "radio",
+      "status_key": "CROWDSEC_SYSTEM",
+      "status_note": "same key as ADDON_CROWDSEC: the mode is the value of CROWDSEC_SYSTEM, same words on both sides (W16)",
       "question": "CrowdSec model (where ban decisions come from)?",
       "visible_if": "ADDON_CROWDSEC == true",
       "options": [
@@ -343,6 +364,7 @@
     "ADDON_FAIL2BAN": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "FIREWALL_EXTENSION",
       "label": "Fail2Ban",
       "description": "Brute-force protection (log-based)",
       "default": { "standard": true, "compact": true, "latest": true, "singlephp": true, "nomail": true, "mailonly": true }
@@ -351,6 +373,8 @@
     "ADDON_PROFTPD": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "FTP_SYSTEM",
+      "status_artefact": { "service": "proftpd" },
       "label": "ProFTPD",
       "description": "FTP server",
       "default": { "standard": true, "compact": false, "latest": true, "singlephp": true, "nomail": true, "mailonly": false },
@@ -361,6 +385,8 @@
     "ADDON_RESTIC": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "RESTIC_SYSTEM",
+      "status_artefact": { "command": "restic" },
       "label": "restic",
       "description": "Incremental backup mode (per-customer repository). Without it a customer package cannot select BACKUPS_MODE='restic'.",
       "default": { "standard": true, "compact": false, "latest": false, "singlephp": false, "nomail": false, "mailonly": false },
@@ -370,6 +396,8 @@
     "ADDON_RSPAMD": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "ANTISPAM_SYSTEM",
+      "status_artefact": { "service": "rspamd" },
       "label": "rspamd",
       "description": "Spam filter incl. Bayes learning (mail block only; brings a small capped Redis)",
       "visible_if": "MAIL_BLOCK_PRESENT == true",
@@ -380,6 +408,8 @@
     "ADDON_SIEVE": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "SIEVE_SYSTEM",
+      "status_artefact": { "file": "/usr/lib/dovecot/managesieve" },
       "label": "Sieve",
       "description": "Server-side mail filters (mail block only)",
       "visible_if": "MAIL_BLOCK_PRESENT == true",
@@ -390,6 +420,8 @@
     "ADDON_CLAMAV": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "ANTIVIRUS_SYSTEM",
+      "status_artefact": { "service": "clamav-daemon" },
       "label": "ClamAV",
       "description": "Mail antivirus (mail block only; resource-heavy)",
       "visible_if": "MAIL_BLOCK_PRESENT == true",
@@ -400,6 +432,8 @@
     "ADDON_DOCKER": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "DOCKER_SYSTEM",
+      "status_artefact": { "command": "dockerd" },
       "label": "Docker",
       "description": "Rootless containers per customer",
       "fixed_no_prompt": { "mailonly": false },
@@ -410,6 +444,8 @@
     "ADDON_FILEMANAGER": {
       "group": "addons",
       "type": "checkbox",
+      "status_key": "FILE_MANAGER_PORT",
+      "status_artefact": { "file": "/etc/caddy/apps/filemanager.conf" },
       "label": "FileManager",
       "description": "Web file manager",
       "fixed_no_prompt": { "mailonly": false },

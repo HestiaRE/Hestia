@@ -206,7 +206,7 @@
       }
     },
     "sys_key_registry": {
-      "description": "The system key registry (#932, Phase 1a of the update chapter): one entry per hestia.conf key with class and default. betreiber = a human sets it, the repair fills an absent/empty key with the default, an update never touches it. system = the consequence of a command, never filled by the repair; the smoke says whether it agrees with the box. Read at runtime from the tree on purpose (STRUCTURE.md, section 8).",
+      "description": "The system key registry (#932, Phase 1a of the update chapter): one entry per hestia.conf key with class and default. Since 1c (#944) share/manifest.json links every component to its key (status_key, status_token, status_artefact) and h-check-sys-smoke holds the link against the registry and the box. betreiber = a human sets it, the repair fills an absent/empty key with the default, an update never touches it. system = the consequence of a command, never filled by the repair; the smoke says whether it agrees with the box. Read at runtime from the tree on purpose (STRUCTURE.md, section 8).",
       "entry_points": [
         "share/hestia/sys-keys.json",
         "include/sysreg.sh",

@@ -36,6 +36,20 @@ opens above it.
 
 ### Changed
 
+- **The manifest links every component to its status key** (#944, Phase 1c of the update chapter, no
+  release: shipped data and guards only). Each component that is neither `always_installed` nor
+  `no_status_key` names the `hestia.conf` key it writes (`status_key`); an option names its status word
+  where recipe and status vocabularies differ (`status_token`: `os_single` -> `os`, `ROUNDCUBE` ->
+  `roundcube`, `APACHE`/`BOTH` -> `apache2`, `true` -> `exim`; both directions exist on purpose, see the
+  registry notes); the seven addons whose installer errors are swallowed name what exists on the box when
+  the key is set (`status_artefact`, typed `service`/`socket`/`file`/`command`, present, not running).
+  Redis and the token keys carry none, and the file says why. Three smoke guards hold it together:
+  every such component names a key and every named key is registered (`check_manifest_status_link`),
+  key and artefact agree in both directions (`check_manifest_artefacts`), and the addon recount
+  (`check_addons_swallowed`) reads key and artefact from the manifest and the stage from the installer
+  instead of a hand table. A guard names keys, never values. `JAIL_SYSTEM` stays as it is, without an
+  artefact; the key is on its way out (#941).
+
 - **`COMPOSER_SYSTEM` carries the recipe's words** (#939, from the 1c halt): `os_package` or
   `upstream_installer` instead of `os`/`upstream`. The recipe's `source_default` is exactly the channel, so
   the status takes those words, the rule set at #981 for `DB_MARIADB_SYSTEM`; `PHP_SOURCE` keeps its own

@@ -149,7 +149,7 @@
    "default": "",
    "tokens": true,
    "token_fn": "sys_key_token_set",
-   "note": "installed jails as tokens: sftp, ssh (#941)"
+   "note": "installed jails as tokens: sftp, ssh (#941). ON ITS WAY OUT: both jails are installed on every preset and model (the configure stage calls both unconditionally, bubblewrap is in the base set; measured 2026-09-09, sftp,ssh on all four boxes) and the choice is per customer (shell, sftp-jailed group), not per system. JAIL becomes always_installed and this key falls with 1d (#945); nothing in 1c or Phase 2 may build on it"
   },
   "LANGUAGE": {
    "class": "betreiber",

@@ -2436,7 +2436,7 @@ mariadb_status_record() {
 # The composer channel from the box (#939): the upstream phar in /usr/local/bin shadows the OS package on
 # PATH, so it decides when both exist (a switch in h-update-sys-composer removes the other afterwards).
 # The recipe's own words (source_default: os_package | upstream_installer), because that field IS the
-# channel - the same rule as DB_MARIADB_SYSTEM, the opposite of PHP_SOURCE. A vocabulary is contract from 1d.
+# channel; the same rule as DB_MARIADB_SYSTEM, the opposite of PHP_SOURCE. A vocabulary is contract from 1d.
 composer_status_record() {
 	local src=''
 	if [ -x /usr/local/bin/composer ]; then

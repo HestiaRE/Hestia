@@ -36,6 +36,11 @@ opens above it.
 
 ### Changed
 
+- **`COMPOSER_SYSTEM` carries the recipe's words** (#939, from the 1c halt): `os_package` or
+  `upstream_installer` instead of `os`/`upstream`. The recipe's `source_default` is exactly the channel, so
+  the status takes those words, the rule set at #981 for `DB_MARIADB_SYSTEM`; `PHP_SOURCE` keeps its own
+  words for the opposite reason. Vocabularies are contract from the 1d release on (the update lower bound).
+
 - **`WEBMAIL_SYSTEM` goes through its token function, and its order means nothing** (#943, from the
   review of #982). The four webmail commands composed the list by hand (`'tachyon,$WEBMAIL_SYSTEM'`, a
   sed filter on delete), prepending the client just installed, and `h-add-mail-domain-webmail` took the

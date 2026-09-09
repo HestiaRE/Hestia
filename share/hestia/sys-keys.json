@@ -47,7 +47,7 @@
   "COMPOSER_SYSTEM": {
    "class": "system",
    "default": "",
-   "note": "the composer channel: os or upstream (#939)"
+   "note": "the composer channel in the recipe's own words, os_package or upstream_installer (the source_default of ADDON_COMPOSER, which IS the channel; same rule as DB_MARIADB_SYSTEM). Empty when composer is absent; written unconditionally by the installer's tools stage and at every exit of h-update-sys-composer (#939)"
   },
   "CRON_SYSTEM": {
    "class": "betreiber",

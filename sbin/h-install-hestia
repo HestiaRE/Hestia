@@ -935,6 +935,8 @@ configure_hestia() {
 
 	echo "[ * ] Creating admin user..."
 	"$BIN/h-add-user" "$HESTIA_ADMIN" "$HESTIA_PASS" "$HESTIA_EMAIL" "default" "System Administrator"
+	# Decided, not inherited (2026-09-09): admin is the panel account. nologin is wanted, and so is what the
+	# shell rule adds to it, membership in sftp-jailed - jailed sftp access, no shell.
 	"$BIN/h-change-user-shell" "$HESTIA_ADMIN" nologin
 	"$BIN/h-change-user-role" "$HESTIA_ADMIN" admin
 	"$BIN/h-change-user-language" "$HESTIA_ADMIN" en

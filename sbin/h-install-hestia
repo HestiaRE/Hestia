@@ -940,7 +940,17 @@ configure_hestia() {
 	"$BIN/h-add-sys-ssh-jail" > /dev/null 2>&1 || true
 
 	echo "[ * ] Creating admin user..."
-	"$BIN/h-add-user" "$HESTIA_ADMIN" "$HESTIA_PASS" "$HESTIA_EMAIL" "default" "System Administrator"
+	# The stage can legitimately run a second time: a marker is the sha256 of the recipe, so rewriting the
+	# recipe (hestia configure --force) makes every stage due again. h-add-user then refuses with E_EXISTS
+	# and, under set -e, ends the whole installation. Measured on .13: the run died right here (#945).
+	# The account is box state, not recipe, so it is kept, and the password this run generated is taken
+	# back rather than printed: it was never set on the existing account. Same predicate h-add-user uses.
+	if getent passwd "$HESTIA_ADMIN" > /dev/null 2>&1 || [ -e "$CONF_DIR/users/$HESTIA_ADMIN" ]; then
+		echo "  admin user $HESTIA_ADMIN already exists, keeping it and its password"
+		rm -f "$CONF_DIR/.admin_pass.tmp"
+	else
+		"$BIN/h-add-user" "$HESTIA_ADMIN" "$HESTIA_PASS" "$HESTIA_EMAIL" "default" "System Administrator"
+	fi
 	# Decided, not inherited (2026-09-09): admin is the panel account. nologin is wanted, and so is what the
 	# shell rule adds to it, membership in sftp-jailed: jailed sftp access, no shell.
 	"$BIN/h-change-user-shell" "$HESTIA_ADMIN" nologin

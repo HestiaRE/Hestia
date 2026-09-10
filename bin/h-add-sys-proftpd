@@ -40,7 +40,7 @@ if [ -z "$HESTIA" ]; then HESTIA="/usr/local/hestia"; fi
 # config is not an installation, and the installer must still get through on a half-built box.
 if dpkg -l proftpd-core 2> /dev/null | grep -q '^ii' && [ "$FTP_SYSTEM" = 'proftpd' ]; then
 	echo "INFO: ProFTPD is already installed."
-	exit
+	exit 0
 fi
 
 # don't hijack a foreign FTP backend (symmetric to the delete side)

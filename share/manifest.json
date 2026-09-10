@@ -287,9 +287,9 @@
     "PANEL_EXIM": {
       "group": "panel",
       "type": "fixed",
-      "always_installed": true,
-      "note": "Always installed, and read since #872 - before that the key was written here and consulted by nothing, so the send-only branch only CONFIGURED exim and presumed the package: a nomail box had an MTA only where the base image shipped one (Debian does, Ubuntu does not). The operating mode derives from MAIL_BLOCK_PRESENT, no separate question: with a mail block exim4-daemon-heavy plus the HestiaRE template, without one exim4-daemon-light plus Debian's own update-exim4.conf in send-only shape. Set to false only when notification mail goes through an external SMTP relay (USE_SERVER_SMTP). DKIM signing is done granularly per domain via OpenSSL (existing HestiaCP mechanism), independent of rspamd.",
-      "no_status_key": "part of the panel itself, always installed; presence is the panel running (E5)"
+      "recipe_line": true,
+      "note": "NOT always_installed, and that is measured, not declared (#945): sbin/h-install-hestia reads COMPONENT_PANEL_EXIM and skips the local MTA entirely when it is false. The operating case is a box whose notification mail leaves through an external SMTP relay (USE_SERVER_SMTP plus SERVER_SMTP_HOST); without a relay the installer says the mail is lost. The wizard does not ask, so the case is reachable only through a hand-written recipe, exactly like the remote-database case (#980). Its recipe line therefore STAYS while the other fixed components lose theirs. Read since #872 - before that the key was written here and consulted by nothing, so the send-only branch only CONFIGURED exim and presumed the package: a nomail box had an MTA only where the base image shipped one (Debian does, Ubuntu does not). The operating mode derives from MAIL_BLOCK_PRESENT, no separate question: with a mail block exim4-daemon-heavy plus the HestiaRE template, without one exim4-daemon-light plus Debian's own update-exim4.conf in send-only shape. Set to false only when notification mail goes through an external SMTP relay (USE_SERVER_SMTP). DKIM signing is done granularly per domain via OpenSSL (existing HestiaCP mechanism), independent of rspamd.",
+      "no_status_key": "no key of its own on purpose (#945): a switchable component would normally carry one, but adding a key before the update lower bound makes it a migration entry forever. The MTA it installs is visible as the exim4 package; MAIL_SYSTEM is the mail block, a different question."
     },
 
     "JAIL": {

@@ -111,8 +111,15 @@ fi
 if [ -f "/var/lib/tachyon/data/VERSION" ]; then
 	version=$(cat $TX_INSTALL_DIR/data/VERSION)
 	if [ "$version" == "$tx_v" ]; then
-		echo "Error: Installed version ($version) is equal to the available version ($tx_v)"
-		exit 2
+		# The one component whose target state is more than presence: the pin. Standing on it is success,
+		# not failure (E13, #945). rc 2 here also meant "no pin", "download failed" and "no sqlite driver",
+		# so the installer read a box that was exactly right as a failed install and said so on every re-run.
+		# The key writer sits further down, past this exit, so it is done here: a box that has Tachyon and
+		# not the token gets it now (the 1b build rule).
+		echo "INFO: Tachyon $version is already installed and matches the pinned version."
+		sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null \
+			|| check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
+		exit 0
 	else
 		UPDATE="yes"
 	fi

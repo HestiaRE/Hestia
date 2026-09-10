@@ -68,7 +68,7 @@ fi
 # config is not an installation, and the installer must still get through on a half-built box.
 if dpkg -l docker-ce 2> /dev/null | grep -q '^ii' && [ "$DOCKER_SYSTEM" = 'docker' ]; then
 	echo "INFO: Docker is already installed."
-	exit
+	exit 0
 fi
 
 # The old inline addon installed the OS docker.io, which is the rootful daemon this

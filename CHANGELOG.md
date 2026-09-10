@@ -14,6 +14,62 @@ opens above it.
 
 ### Changed
 
+- **One rule for what an add command says when there is nothing to do** (#945, phase 1d-2, E13). The
+  nineteen component installers now answer in four shapes: freshly installed, already at the target
+  state (rc 0, an INFO line, status key written), the slot is taken by something else (rc != 0, only
+  `h-add-sys-proftpd` when `FTP_SYSTEM` names another backend), and not installable (rc != 0, the key
+  stays empty). `h-add-sys-rspamd` and `-sieve` ended with `E_EXISTS` on "already there" and now return
+  0; `h-add-sys-docker` and `-proftpd` had a bare `exit` inheriting the previous command's status and
+  now say `exit 0`. The ten object and configuration commands (`-ip`, `-mail-dnsbl`, `-smtp`,
+  `-smtp-relay`, the crowdsec pairing pair, `-crowdsec-mesh`, `-firewall`, `-apache2`, `-nginx`) are
+  untouched: a second object of the same name is a real `E_EXISTS` there.
+
+- **`h-add-sys-pma-sso` carried three answers on two exit codes** (#945). "Key already set", "file there
+  but no key" and "phpMyAdmin not configured" shared `exit 1`/`exit 2`, and the last two were
+  indistinguishable. Now: the key being set is the target state (rc 0), a file without a key is a
+  half-finished install and stays an error, but a named one with the way out (`E_EXISTS`), and the
+  missing prerequisite gets its own code (`E_NOTEXIST`).
+
+- **`h-add-sys-tachyon` treats standing on the pinned version as success** (#945). It is the one
+  component whose target state is more than presence, and `exit 2` there meant the same as "no pin",
+  "download failed" and "no sqlite driver", so the installer reported a box that was exactly right as a
+  failed install on every re-run. It now returns 0 and records the `WEBMAIL_SYSTEM` token, which used to
+  be written past that exit.
+
+- **A soft addon install says so** (#945). The seven `|| true` call sites became the helper
+  `addon_install`, which still never aborts the run but writes a `[ ! ]` line and an entry in the
+  closing summary. The CrowdSec branch, which had no `else` at all and skipped silently on apache-only
+  and mailfront, says it too; Tachyon's existing loud line now also reaches the summary.
+
+- **The addon recount runs only during an install** (#945). Its question is "the wizard asked for it and
+  it did not appear", which has no answer after a deliberate `h-delete-sys-*`: the recipe still says
+  true and the box is right to disagree. Armed by `HESTIA_INSTALL_RUN`, which only the installer sets;
+  elsewhere it skips and says why. What the box HAS is watched continuously by `check_manifest_artefacts`.
+
+- **`PANEL_EXIM` is no longer declared `always_installed`** (#945). The manifest claimed it while the
+  same entry described when to set it to false; the installer really does read the key and skips the
+  local MTA for a relay-only box. It keeps its recipe line, marked `recipe_line` in the manifest, while
+  the other fixed components lose theirs: `COMPONENT_PANEL_CADDY`, `_PANEL_PHP`, `_PANEL_IPTABLES`,
+  `_JAIL` and `_WPCLI` are gone from freshly written recipes and have no reader anywhere in the tree.
+  Existing boxes keep their lines, because `install.conf` is never migrated.
+
+### Fixed
+
+- **A second installer run no longer costs the box port 443** (#994). The web stage wipes
+  `/etc/nginx/conf.d/*.conf` and restores only the static files from `share/`; the per-IP listener is
+  rendered by `rebuild_ip_web_config`, which runs from `h-add-sys-ip` and the model switch and therefore
+  never on a re-run. The configure stage now re-renders the listeners of the registered IP objects.
+
+- **A successful install no longer prints four error lines that mean nothing** (#997). Four places built
+  random strings as `tr -dc … < /dev/urandom | head -c N`, where the endless stream meets a reader that
+  closes early; they now use `openssl rand` or plain arithmetic. The smoke's eval scan piped every file
+  through `sed … | grep -q` and is now a single `awk` with the same early exit. And on mailonly the
+  configure stage attempted a default web domain on a box with no customer web and caught the refusal
+  with `|| true`; it no longer attempts it.
+
+
+### Changed
+
 - **The recipe freezes: after the wizard, nothing writes `install.conf` any more** (#945, phase 1d-1 of
   the update chapter). `set_install_component` and `webmail_component_set` are gone, and with them 34 call
   sites across 26 commands plus the four webmail blocks. Those commands kept two competing books: the

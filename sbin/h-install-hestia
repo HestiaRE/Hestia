@@ -806,6 +806,10 @@ install_security() {
 			# it (#945, E13). CrowdSec is nginx-only, and on apache-only or the mailfront model there is no
 			# nginx front to protect. CROWDSEC_SYSTEM is never written here, which under "absent == empty" is
 			# the correct empty answer.
+			# Deliberately NOT routed through addon_install, so it does not appear in the addon recount: that
+			# check asks "was it attempted and did it fail". Here nothing was attempted, and nothing could
+			# have been. The model rules CrowdSec out before any install begins, so the recount would report
+			# a failure that never happened. The line and the summary entry carry it instead (#945).
 			echo "[ ! ] CrowdSec was selected but the public web front is '${cs_pub:-none}', not nginx - not installed"
 			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon crowdsec: nginx-only, web front is '${cs_pub:-none}'"$'\n'
 		fi

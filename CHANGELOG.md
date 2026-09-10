@@ -58,6 +58,15 @@ opens above it.
   No update rewrites the recipe, so a box keeps the key set it was installed with: a reader has to tolerate
   both an unknown key and an expected key that is absent.
 
+### Fixed
+
+- **The installer no longer dies on an existing admin user** (#945). A stage marker is the sha256 of the
+  recipe, so rewriting the recipe makes every stage due again; `configure` then reached `h-add-user`,
+  which refuses with `E_EXISTS`, and under `set -e` the whole installation ended there. Measured while
+  proving the marker fix. That is exactly the path `hestia configure --force` plus `hestia install` is
+  meant to be. The account is box state, not recipe: an existing one is kept together with its password,
+  and the password this run generated is discarded rather than printed, because it was never set.
+
 ### Removed
 
 - **The synthetic emitter key `CROWDSEC`** (#945). It was computed from the L3 marker file at every login;

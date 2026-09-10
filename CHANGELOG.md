@@ -12,7 +12,57 @@ opens above it.
 
 ## Unreleased
 
+### Changed
+
+- **The recipe freezes: after the wizard, nothing writes `install.conf` any more** (#945, phase 1d-1 of
+  the update chapter). `set_install_component` and `webmail_component_set` are gone, and with them 34 call
+  sites across 26 commands plus the four webmail blocks. Those commands kept two competing books: the
+  status key in `hestia.conf` and, beside it, a line in the recipe that drifted apart on every failure.
+  One book is left. The runtime readers move with it: `h-add-sys-crowdsec` (armed state and mode),
+  `h-delete-sys-nginx`, `h-add/delete-sys-rspamd` (the Redis decision), `h-upgrade-sys-mariadb` and five
+  smoke gates now read status keys. `crowdsec_apply` takes the mode as an argument instead of being the
+  one shared function in the tree that sourced the recipe itself. Only `h-add-sys-mariadb` still reads two
+  recipe values, and both are install-time answers rather than box state.
+
+- **A finished install finally has eight valid stage markers** (#945). A marker is the sha256 of
+  `install.conf`, and the installer appended `INSTALL_DATE`/`INSTALL_VERSION` at the very end of its run,
+  after all eight `stage_mark` calls. Measured on all four presets: 0 of 8 markers matched, so re-running
+  the installer repeated every stage. The wizard now writes both lines with the rest of the file.
+
+- **`h-upgrade-sys-mariadb` compared against the recipe and announced upgrades that never happened**
+  (#945). The target check read `COMPONENT_DB_MARIADB_VERSION`: on an `__os__` box it could never match,
+  and where it did match it said "already on" about a version that was not running. It now compares
+  against `DB_MARIADB_VERSION`, which carries the version of the package on the box. The header line shows
+  the pin and the source from their own two keys instead of one line labelled "source" showing a version.
+
+- **The two database service checks no longer expect a local daemon from the host register** (#980).
+  `DB_SYSTEM` names the database types with a registered host, and that host may be remote. The smoke now
+  keys off `DB_MARIADB_SYSTEM` and `DB_POSTGRESQL_SYSTEM`, which mean a local installation.
+
+- **`h-list-sys-install` shows two columns** (#945): on the left the wizard's answer, on the right the
+  status key from `hestia.conf` and its value. The mapping comes from `share/manifest.json` (#944) rather
+  than a second hand-kept table. The two stood as one before, although a component removed afterwards
+  still reads `true` on the left.
+
+- **`hestia configure` refuses on an installed box without `--force`** (#945, E22) and says what that
+  means: the wizard REPLACES the recipe and never reads the old one, so every answer not given again is
+  lost, and the stage markers stop matching, which makes the next install re-run every stage.
+
+- **The rule "no reader may read meaning into a missing recipe key" now lives in the code** (#945), in the
+  generated `install.conf` header so it travels with every box, and at the installer's read of that file.
+  No update rewrites the recipe, so a box keeps the key set it was installed with: a reader has to tolerate
+  both an unknown key and an expected key that is absent.
+
+### Removed
+
+- **The synthetic emitter key `CROWDSEC`** (#945). It was computed from the L3 marker file at every login;
+  `CROWDSEC_SYSTEM` has been a real registry key since #938 and travels in the emitter loop. The two panel
+  gates read it. This is a different predicate, not a rename: an engine without L3 wiring now counts, a
+  marker without an engine no longer does. **It takes effect only after a re-login**, because the panel
+  session is filled at login.
+
 ### Security
+
 
 - **Eleven commands stopped executing `hestia.conf` as shell** (#955). They read the file with a
   plain `source` before (or instead of) the sanitized `source_conf`. A value that reaches the file

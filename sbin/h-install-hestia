@@ -1021,6 +1021,9 @@ configure_hestia() {
 	MIN=$(tr -dc '012345' < /dev/urandom | head -c 2 || true)
 	HOUR=$(tr -dc '1234567' < /dev/urandom | head -c 1 || true)
 	mkdir -p /var/spool/cron/crontabs
+	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is not
+	# a valid user name), but they would accumulate silently.
+	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
 	_ct_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
 		echo "MAILTO=\"\""

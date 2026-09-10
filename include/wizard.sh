@@ -1031,7 +1031,8 @@ ERROR: this box is already installed (VERSION='$ver' in $conf).
        The wizard REPLACES $INSTALL_CONF; it never reads the existing one, so every
        answer you do not give again is lost, and all stage markers stop matching the file.
        The next \`hestia install\` then re-runs every stage against the new recipe.
-       Run \`hestia configure --force\` if that is what you want.
+       Add --force if that is what you want: \`hestia configure --force\`, or
+       \`bash install.sh --force\` when you are re-installing.
 EOF
 	exit 1
 }

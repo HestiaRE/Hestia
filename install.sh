@@ -22,6 +22,8 @@
 #   bash install.sh <preset> -a --port=9443   # unattended on a non-default panel port
 #   bash install.sh --dev            # configure private source first
 #   bash install.sh --profile=<p>    # same as positional preset arg
+#   bash install.sh --force          # re-run on a box that is already installed
+#                                    #   (the wizard REPLACES install.conf, see below)
 #
 # Supported OS:
 #   Debian 12 (bookworm), Debian 13 (trixie),
@@ -53,6 +55,7 @@ FASTTRACK_PRESET=""
 PANEL_PORT=""
 DEV_MODE=false
 AUTO_MODE=false
+FORCE_MODE=false
 
 # ── Error surfacing ────────────────────────────────────────
 # With set -e the script aborts on the first failed command. Because prerequisite
@@ -76,6 +79,7 @@ for _arg in "$@"; do
 		--profile=*) FASTTRACK_PRESET="${_arg#*=}" ;;
 		--port=*) PANEL_PORT="${_arg#*=}" ;;
 		-a | --auto) AUTO_MODE=true ;;
+		--force) FORCE_MODE=true ;;
 		-*) ;;
 		*) [ -z "$FASTTRACK_PRESET" ] && FASTTRACK_PRESET="$_arg" ;;
 	esac
@@ -242,10 +246,14 @@ main() {
 	echo ""
 
 	# Wizard: manifest-driven Q&A -> /etc/hestia/install.conf (separate process)
+	# --force is handed through, not re-implemented: the wizard owns the refusal, because it owns the
+	# rewrite. Without this an installed box could not be re-installed at all, since the wizard would
+	# refuse and point at a flag install.sh had no way to give it (#945, E22).
 	bash "${INSTALL_DIR}/include/wizard.sh" --os="${OS}" \
 		${FASTTRACK_PRESET:+--preset="${FASTTRACK_PRESET}"} \
 		${PANEL_PORT:+--port="${PANEL_PORT}"} \
-		$([ "$AUTO_MODE" = true ] && echo --auto)
+		$([ "$AUTO_MODE" = true ] && echo --auto) \
+		$([ "$FORCE_MODE" = true ] && echo --force)
 
 	# Seed /etc/hestia (env + hestia.conf) before any h-* command runs, so the
 	# bootstrap-trap (include/main.sh sourcing hestia.env/hestia.conf at load) is a

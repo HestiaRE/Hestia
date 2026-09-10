@@ -21,8 +21,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 EXIM_USER="Debian-exim"
 CLAMD_USER="clamav"
@@ -150,8 +148,6 @@ else
 	echo "         downloading). Antivirus is NOT active. Re-run 'h-add-sys-clamav'"
 	echo "         once the DB is ready to activate scanning."
 fi
-
-set_install_component ADDON_CLAMAV true
 
 #----------------------------------------------------------#
 #                       Hestia                             #

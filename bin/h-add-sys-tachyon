@@ -277,12 +277,6 @@ $BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# The component is a token set: a second add widens it, never overwrites. The set comes from the recipe
-# plus this client, not from the status, which does not know the client that is still to come (#965).
-if wm_set=$(webmail_component_set add TACHYON); then
-	set_install_component MAIL_WEBMAILER "$wm_set"
-fi
-
 if [ "$UPDATE" = "yes" ]; then
 	$BIN/h-log-action "system" "Info" "Plugins" "Tachyon updated (Version: $version)."
 else

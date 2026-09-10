@@ -24,10 +24,9 @@ source_conf "$HESTIA/conf/hestia.conf"
 # moving the model off nginx would strand it. Refuse until the addon is torn down first
 # (h-delete-sys-crowdsec, #123) - a deliberate two-step teardown (#186), never automatic:
 # the removal must be the operator's explicit act, because it discards state.
-# Artefact- and flag-based, so a half-install trips.
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
-if [ -f /etc/nginx/conf.d/crowdsec_init.conf ] \
-	|| [ "${COMPONENT_ADDON_CROWDSEC:-}" = "true" ] || [ "${COMPONENT_ADDON_CROWDSEC:-}" = "yes" ]; then
+# Artefact- and status-based, so a half-install trips: the nginx glue file OR the status key, which the
+# engine writes and a delete clears. Not the recipe, which says what was chosen, not what is there (#945).
+if [ -f /etc/nginx/conf.d/crowdsec_init.conf ] || [ -n "$CROWDSEC_SYSTEM" ]; then
 	# One message, not a series of echoes: check_result writes the first line itself, and
 	# separate echoes interleave with it in the terminal
 	msg="CrowdSec is active and only supports nginx; apache-only cannot run it."

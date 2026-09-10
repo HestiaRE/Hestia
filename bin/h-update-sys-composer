@@ -56,7 +56,6 @@ if [ "$source_arg" = 'os' ]; then
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y install composer \
 		|| check_result "$E_UPDATE" "composer OS package install failed"
 	rm -f "$UPSTREAM_BIN"
-	set_install_component ADDON_COMPOSER_SOURCE os_package
 	new_source="OS package ($(dpkg-query -W -f '${Version}' composer 2> /dev/null))"
 else
 	if [ -f "$UPSTREAM_BIN" ] && ! dpkg -s composer > /dev/null 2>&1; then
@@ -83,7 +82,6 @@ else
 	# on failure the phar already serves. No autoremove - it is not scoped to composer.
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y purge composer > /dev/null 2>&1 \
 		|| check_result "$E_UPDATE" "composer OS package purge failed - the upstream phar is installed and shadows it; fix the apt state and re-run"
-	set_install_component ADDON_COMPOSER_SOURCE upstream_installer
 	new_source="upstream installer ($("$UPSTREAM_BIN" --no-plugins --version 2> /dev/null | awk '{print $3}'))"
 fi
 

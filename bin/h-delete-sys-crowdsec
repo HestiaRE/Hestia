@@ -20,8 +20,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 # Trap-restore, so an aborted purge cannot strand /etc/crowdsec under .saved where a re-add never looks.
 restore_cs_state() {
@@ -82,7 +80,6 @@ if [ "${PURGE_DATA:-}" = "yes" ]; then
 fi
 
 crowdsec_status_record
-set_install_component ADDON_CROWDSEC false
 
 # CrowdSec no longer owns L7, so fail2ban's web jails come back on and that model regains its coverage.
 if [ "$FIREWALL_EXTENSION" = 'fail2ban' ] && [ -f /etc/fail2ban/jail.d/hestia.local ]; then

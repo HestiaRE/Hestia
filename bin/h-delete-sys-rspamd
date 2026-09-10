@@ -20,8 +20,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -68,15 +66,14 @@ apt-get -y -qq purge rspamd > /dev/null 2>&1
 # the controller-socket group is rspamd-only — drop it with the package
 groupdel _rspamd-ctrl 2> /dev/null || true
 
-# Redis: the Bayes companion goes with rspamd; a general service (DB_REDIS) stays
-if [ "${COMPONENT_DB_REDIS:-}" != "true" ]; then
+# Redis: the Bayes companion goes with rspamd; a general service stays. Same truth as the add side.
+if [ -z "$REDIS_SYSTEM" ]; then
 	systemctl disable --now redis-server > /dev/null 2>&1
 	apt-get -y -qq purge redis-server > /dev/null 2>&1
 fi
 # no autoremove: it would rip out shared-stack siblings
 
 $BIN/h-change-sys-config-value 'ANTISPAM_SYSTEM' ''
-set_install_component ADDON_RSPAMD false
 
 echo "rspamd has been removed (mail is delivered unscanned)."
 

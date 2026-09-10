@@ -78,6 +78,10 @@ source "$HESTIA/include/limits.sh" # customer_php_limit_apply (#212)
 source "$HESTIA/include/fail2ban.sh" # fail2ban_apply
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source "$HESTIA/include/web-model.sh" # configure_apache2, web_model_keyset, apache_remoteip_* (#120)
+# The recipe, and nothing an update ever rewrites: a box keeps the key set it was installed with. So no
+# reader here may treat an ABSENT key as a statement, neither "not chosen" nor "this box is new enough".
+# An old recipe carries keys we have dropped, a new one omits keys we once wrote; both must pass. What the
+# box HAS is hestia.conf, never this file. Decided at Halt 1d (#945), same words in the generated header.
 # shellcheck source=/etc/hestia/install.conf
 source "$INSTALL_CONF" # HESTIA_*, INSTALL_OS/PROFILE, COMPONENT_*, TOOLS_SELECTION
 set -e
@@ -767,7 +771,9 @@ install_security() {
 			fi
 			# detection + nginx Layer-A/B wiring (collections, bouncer, http glue)
 			source "$HESTIA/include/crowdsec.sh"
-			crowdsec_apply || echo "[ ! ] CrowdSec wiring reported an issue (non-fatal)"
+			# The wizard answer is the truth at install time, and it is handed over rather than looked up:
+			# the library no longer reads install.conf itself (#945).
+			crowdsec_apply "${COMPONENT_CROWDSEC_MODE:-capi}" || echo "[ ! ] CrowdSec wiring reported an issue (non-fatal)"
 			# 'mesh' model: arm the mechanism (publish + import timer). Inert until peers are paired,
 			# which is a two-admin step done afterwards in the panel or via the pairing commands.
 			if [ "${COMPONENT_CROWDSEC_MODE:-}" = "mesh" ]; then
@@ -934,7 +940,20 @@ configure_hestia() {
 	"$BIN/h-add-sys-ssh-jail" > /dev/null 2>&1 || true
 
 	echo "[ * ] Creating admin user..."
-	"$BIN/h-add-user" "$HESTIA_ADMIN" "$HESTIA_PASS" "$HESTIA_EMAIL" "default" "System Administrator"
+	# The stage can legitimately run a second time: a marker is the sha256 of the recipe, so rewriting the
+	# recipe (hestia configure --force) makes every stage due again. h-add-user then refuses with E_EXISTS
+	# and, under set -e, ends the whole installation. Measured on .13: the run died right here (#945).
+	# The account is box state, not recipe, so it is kept, and the password this run generated is taken
+	# back rather than printed: it was never set on the existing account.
+	# Keyed on the HESTIA RECORD alone, deliberately narrower than h-add-user's own check: a passwd entry
+	# without a record is not our admin but a name collision from the base image, and that has to stay
+	# loud. It falls through to h-add-user, which refuses it exactly as before.
+	if [ -e "$CONF_DIR/users/$HESTIA_ADMIN" ]; then
+		echo "  admin user $HESTIA_ADMIN already exists, keeping it and its password"
+		rm -f "$CONF_DIR/.admin_pass.tmp"
+	else
+		"$BIN/h-add-user" "$HESTIA_ADMIN" "$HESTIA_PASS" "$HESTIA_EMAIL" "default" "System Administrator"
+	fi
 	# Decided, not inherited (2026-09-09): admin is the panel account. nologin is wanted, and so is what the
 	# shell rule adds to it, membership in sftp-jailed: jailed sftp access, no shell.
 	"$BIN/h-change-user-shell" "$HESTIA_ADMIN" nologin
@@ -988,13 +1007,24 @@ configure_hestia() {
 	fi
 
 	echo "[ * ] Adding default domain..."
-	"$BIN/h-add-web-domain" "$HESTIA_ADMIN" "$HESTIA_HOSTNAME" "$IP" || true
+	# Said, not swallowed. The `|| true` alone printed a bare "Error: Web domain ... exists" on every
+	# re-run of this stage, which reads like a failure in a log that ends fine (#945).
+	if [ -s "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" ] \
+		&& grep -q "^DOMAIN='$HESTIA_HOSTNAME'" "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" 2> /dev/null; then
+		echo "  $HESTIA_HOSTNAME is already a web domain of $HESTIA_ADMIN, keeping it"
+	else
+		"$BIN/h-add-web-domain" "$HESTIA_ADMIN" "$HESTIA_HOSTNAME" "$IP" || true
+	fi
 
 	echo "[ * ] Creating hestia crontab..."
-	local MIN HOUR
+	local MIN HOUR _ct_tmp
 	MIN=$(tr -dc '012345' < /dev/urandom | head -c 2 || true)
 	HOUR=$(tr -dc '1234567' < /dev/urandom | head -c 1 || true)
 	mkdir -p /var/spool/cron/crontabs
+	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is not
+	# a valid user name), but they would accumulate silently.
+	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
+	_ct_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
 		echo "MAILTO=\"\""
 		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
@@ -1008,9 +1038,15 @@ configure_hestia() {
 		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
 		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
 		echo "$MIN $HOUR * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
-	} > /var/spool/cron/crontabs/hestia
-	chmod 600 /var/spool/cron/crontabs/hestia
-	chown hestia:hestia /var/spool/cron/crontabs/hestia
+	} > "$_ct_tmp"
+	chmod 600 "$_ct_tmp"
+	chown hestia:hestia "$_ct_tmp"
+	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all four
+	# targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to hestia:
+	# under those three, opening it for writing is EACCES even for root. A fresh install never met it,
+	# the file does not exist yet; the first re-run of this stage died right here. rename() is not
+	# subject to that check, and root owns the directory, so the sticky bit permits it (#945).
+	mv -f "$_ct_tmp" /var/spool/cron/crontabs/hestia
 	# no auto-update cron: HestiaRE updates via the release tarball, not apt/git
 	# Not swallowed (#730): a port that silently does not take leaves the firewall open.
 	if ! _port_out=$("$BIN/h-change-sys-port" "${HESTIA_PANEL_PORT:-8083}" 2>&1); then
@@ -1120,16 +1156,6 @@ finalize_install() {
 		rm -f "$CONF_DIR/.admin_pass.tmp"
 	else
 		HESTIA_PASS="(not found — use h-change-user-password $HESTIA_ADMIN <newpass>)"
-	fi
-
-	# stamp install.conf with install metadata (date + version)
-	local _ver
-	_ver=$(cat "$HESTIA/VERSION" 2> /dev/null || echo "dev")
-	grep -q '^INSTALL_DATE=' "$INSTALL_CONF" 2> /dev/null || echo "INSTALL_DATE=\"$(date +%F)\"" >> "$INSTALL_CONF"
-	if grep -q '^INSTALL_VERSION=' "$INSTALL_CONF" 2> /dev/null; then
-		sed -i "s|^INSTALL_VERSION=.*|INSTALL_VERSION=\"${_ver}\"|" "$INSTALL_CONF"
-	else
-		echo "INSTALL_VERSION=\"${_ver}\"" >> "$INSTALL_CONF"
 	fi
 
 	echo "[ * ] Restarting panel services (Caddy + hestia-php)..."

@@ -19,8 +19,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 limit_marker='HestiaRE rspamd-bayes limit'
 
@@ -67,7 +65,6 @@ else
 	echo "Redis has been uninstalled."
 fi
 
-set_install_component DB_REDIS false
 change_sys_value "REDIS_SYSTEM" ""
 
 #----------------------------------------------------------#

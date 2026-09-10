@@ -18,8 +18,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -69,8 +67,6 @@ if ! systemctl is-active --quiet fail2ban 2> /dev/null; then
 	echo "ERROR: fail2ban did not start; check 'fail2ban-client -d'."
 	exit "$E_INVALID"
 fi
-
-set_install_component ADDON_FAIL2BAN true
 
 # fail2ban now owns the auth families, and the feeder's denylist keys off FIREWALL_EXTENSION, just set.
 # Refresh here rather than waiting up to 45s, so the direct path hands over as promptly as the model switch.

@@ -22,7 +22,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -85,7 +84,6 @@ fi
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-set_install_component DB_POSTGRESQL false
 change_sys_value "DB_POSTGRESQL_SYSTEM" ""
 
 echo "[ OK ] PostgreSQL removed.$([ "${PURGE_DATA:-}" = "yes" ] && echo '' || echo ' (datadir kept — PURGE_DATA=yes to drop)')"

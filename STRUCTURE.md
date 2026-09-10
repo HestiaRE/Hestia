@@ -373,7 +373,7 @@ updates. `CONF_DIR="${CONF_DIR:-/etc/hestia}"` (`include/main.sh:48`), exported 
 | `/etc/hestia/local.conf` | operator overrides, survive upgrades |
 | `/etc/hestia/limits.conf` | `CUSTOMER_PHP_CPU_PERCENT`, seeded once and never rewritten (#212) |
 | `/etc/hestia/source.conf` | update-channel config (repo/token/channel) |
-| `/etc/hestia/install.conf` | wizard recipe **and** live `COMPONENT_*` state (#103) |
+| `/etc/hestia/install.conf` | wizard recipe only, frozen after the wizard writes it (#945); live state is `hestia.conf` |
 | `/etc/hestia/conf/` | panel config; `$HESTIA/conf` is now a **symlink** here (#129) |
 | `/etc/hestia/{firewall,ips,queue,users}/` | moved out of `$HESTIA/data/` (#148/#154/#156) |
 | `/etc/hestia/packages/` | hosting packages: instance state, panel-created; seeded from `share/hestia/packages/` at install (#663) |

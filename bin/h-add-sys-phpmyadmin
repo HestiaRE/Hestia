@@ -142,7 +142,5 @@ $BIN/h-change-sys-db-alias pma "${DB_PMA_ALIAS:-phpmyadmin}" > /dev/null 2>&1 ||
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-set_install_component DB_PHPMYADMIN true
-
 $BIN/h-log-action "system" "Info" "Plugins" "phpMyAdmin installed (OS package)."
 log_event "$OK" "$ARGUMENTS"

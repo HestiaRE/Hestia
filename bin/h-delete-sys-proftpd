@@ -20,8 +20,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# COMPONENT_* state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -76,8 +74,6 @@ if is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM' > /dev/null 2>&1 \
 		$BIN/h-delete-firewall-rule "$ftp_rule" > /dev/null 2>&1 || true
 	fi
 fi
-
-set_install_component ADDON_PROFTPD false
 
 echo "ProFTPD has been removed."
 

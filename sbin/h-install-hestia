@@ -1007,13 +1007,21 @@ configure_hestia() {
 	fi
 
 	echo "[ * ] Adding default domain..."
-	"$BIN/h-add-web-domain" "$HESTIA_ADMIN" "$HESTIA_HOSTNAME" "$IP" || true
+	# Said, not swallowed. The `|| true` alone printed a bare "Error: Web domain ... exists" on every
+	# re-run of this stage, which reads like a failure in a log that ends fine (#945).
+	if [ -s "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" ] \
+		&& grep -q "^DOMAIN='$HESTIA_HOSTNAME'" "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" 2> /dev/null; then
+		echo "  $HESTIA_HOSTNAME is already a web domain of $HESTIA_ADMIN, keeping it"
+	else
+		"$BIN/h-add-web-domain" "$HESTIA_ADMIN" "$HESTIA_HOSTNAME" "$IP" || true
+	fi
 
 	echo "[ * ] Creating hestia crontab..."
-	local MIN HOUR
+	local MIN HOUR _ct_tmp
 	MIN=$(tr -dc '012345' < /dev/urandom | head -c 2 || true)
 	HOUR=$(tr -dc '1234567' < /dev/urandom | head -c 1 || true)
 	mkdir -p /var/spool/cron/crontabs
+	_ct_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
 		echo "MAILTO=\"\""
 		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
@@ -1027,9 +1035,15 @@ configure_hestia() {
 		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
 		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
 		echo "$MIN $HOUR * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
-	} > /var/spool/cron/crontabs/hestia
-	chmod 600 /var/spool/cron/crontabs/hestia
-	chown hestia:hestia /var/spool/cron/crontabs/hestia
+	} > "$_ct_tmp"
+	chmod 600 "$_ct_tmp"
+	chown hestia:hestia "$_ct_tmp"
+	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all four
+	# targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to hestia:
+	# under those three, opening it for writing is EACCES even for root. A fresh install never met it,
+	# the file does not exist yet; the first re-run of this stage died right here. rename() is not
+	# subject to that check, and root owns the directory, so the sticky bit permits it (#945).
+	mv -f "$_ct_tmp" /var/spool/cron/crontabs/hestia
 	# no auto-update cron: HestiaRE updates via the release tarball, not apt/git
 	# Not swallowed (#730): a port that silently does not take leaves the firewall open.
 	if ! _port_out=$("$BIN/h-change-sys-port" "${HESTIA_PANEL_PORT:-8083}" 2>&1); then

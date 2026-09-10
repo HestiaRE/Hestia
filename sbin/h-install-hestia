@@ -944,8 +944,11 @@ configure_hestia() {
 	# recipe (hestia configure --force) makes every stage due again. h-add-user then refuses with E_EXISTS
 	# and, under set -e, ends the whole installation. Measured on .13: the run died right here (#945).
 	# The account is box state, not recipe, so it is kept, and the password this run generated is taken
-	# back rather than printed: it was never set on the existing account. Same predicate h-add-user uses.
-	if getent passwd "$HESTIA_ADMIN" > /dev/null 2>&1 || [ -e "$CONF_DIR/users/$HESTIA_ADMIN" ]; then
+	# back rather than printed: it was never set on the existing account.
+	# Keyed on the HESTIA RECORD alone, deliberately narrower than h-add-user's own check: a passwd entry
+	# without a record is not our admin but a name collision from the base image, and that has to stay
+	# loud. It falls through to h-add-user, which refuses it exactly as before.
+	if [ -e "$CONF_DIR/users/$HESTIA_ADMIN" ]; then
 		echo "  admin user $HESTIA_ADMIN already exists, keeping it and its password"
 		rm -f "$CONF_DIR/.admin_pass.tmp"
 	else

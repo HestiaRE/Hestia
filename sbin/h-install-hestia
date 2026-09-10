@@ -152,6 +152,21 @@ stage_fingerprint() {
 	sha256sum "$CONF_DIR/install.conf" 2> /dev/null | cut -f 1 -d ' '
 }
 
+# addon_install <name>: run h-add-sys-<name> for a component the wizard asked for. An addon that will
+# not install must never end the installation, because a network hiccup would leave a half-built box whose
+# only repair is a re-run. But it must not vanish either: before this helper the seven call sites ended in a
+# bare `|| true` and a failure was invisible until someone read the log (#480, #843). Now the box says it
+# on the console, in the closing summary, and the recount names the component at the end.
+# The helper name is also what the smoke reads to learn WHICH addons are soft; keep the call shape
+# `addon_install <name>` on one line, or update check_addons_swallowed with it (#945).
+addon_install() {
+	local a="$1"
+	"$BIN/h-add-sys-$a" >> "$LOG" 2>&1 && return 0
+	echo "[ ! ] $a was selected but did not install - see $LOG"
+	HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon ${a}: h-add-sys-${a} failed"$'\n'
+	return 0
+}
+
 # ════════════════════════════════════════════════════════════════════════════
 # Stage: base — APT repos, OS packages, system users, SSH, NTP, /proc
 # ════════════════════════════════════════════════════════════════════════════
@@ -664,17 +679,17 @@ install_mail() {
 	# || true (like proftpd/clamav): a flaky addon install must not abort install_mail
 	if is_on "${COMPONENT_ADDON_RSPAMD:-}"; then
 		echo "[ * ] Installing & configuring rspamd (with Bayes Redis)..."
-		"$BIN/h-add-sys-rspamd" >> "$LOG" 2>&1 || true
+		addon_install rspamd
 	fi
 	if is_on "${COMPONENT_ADDON_SIEVE:-}"; then
 		echo "[ * ] Installing & configuring sieve..."
-		"$BIN/h-add-sys-sieve" >> "$LOG" 2>&1 || true
+		addon_install sieve
 	fi
 	if is_on "${COMPONENT_ADDON_CLAMAV:-}"; then
 		echo "[ * ] Installing & configuring ClamAV (mail antivirus)..."
 		# || true (like proftpd): a flaky first install (freshclam's blocking initial
 		# download timing out under IO load) must not abort install_mail under set -e
-		"$BIN/h-add-sys-clamav" >> "$LOG" 2>&1 || true
+		addon_install clamav
 	fi
 
 	# Webmailer choice: COMPONENT_MAIL_WEBMAILER is a token set (ROUNDCUBE and/or TACHYON;
@@ -708,6 +723,9 @@ install_mail() {
 			# install.conf is the operator's choice and stays as chosen; the status key
 			# WEBMAIL_SYSTEM, written only on success, says what the box has (#928).
 			echo "[ !! ] Tachyon install FAILED - $([ "$wm_rc" = yes ] && echo "Roundcube stays the only webmail" || echo "no webmail configured") (see $LOG)"
+			# Into the closing summary too, like every other soft path: the console line scrolls away
+			# during a long install, the summary is what the operator still sees at the end (#945).
+			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon tachyon: h-add-sys-tachyon failed"$'\n'
 		fi
 	fi
 	if [ "$wm_rc" = no ] && [ "$wm_tx" = no ]; then
@@ -780,6 +798,14 @@ install_security() {
 				echo "[ * ] Enabling CrowdSec fleet-mesh..."
 				"$BIN/h-add-sys-crowdsec-mesh" > /dev/null 2>&1 || echo "[ ! ] fleet-mesh enable reported an issue (non-fatal)"
 			fi
+		else
+			# The same soft path as the addons above, only it used to be silent: no else branch at all, so a
+			# box that had asked for CrowdSec and could not have it said nothing and left the recipe claiming
+			# it (#945, E13). CrowdSec is nginx-only, and on apache-only or the mailfront model there is no
+			# nginx front to protect. CROWDSEC_SYSTEM is never written here, which under "absent == empty" is
+			# the correct empty answer.
+			echo "[ ! ] CrowdSec was selected but the public web front is '${cs_pub:-none}', not nginx - not installed"
+			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon crowdsec: nginx-only, web front is '${cs_pub:-none}'"$'\n'
 		fi
 	fi
 
@@ -800,19 +826,19 @@ install_addons() {
 	}
 	if is_on "${COMPONENT_ADDON_PROFTPD:-}"; then
 		echo "[ * ] Installing ProFTPD..."
-		"$BIN/h-add-sys-proftpd" >> "$LOG" 2>&1 || true
+		addon_install proftpd
 	fi
 	if is_on "${COMPONENT_ADDON_DOCKER:-}"; then
 		echo "[ * ] Installing Docker (rootless, per-user)..."
-		"$BIN/h-add-sys-docker" >> "$LOG" 2>&1 || true
+		addon_install docker
 	fi
 	if is_on "${COMPONENT_ADDON_FILEMANAGER:-}"; then
 		echo "[ * ] Installing File Manager..."
-		"$BIN/h-add-sys-filemanager" >> "$LOG" 2>&1 || true
+		addon_install filemanager
 	fi
 	if is_on "${COMPONENT_ADDON_RESTIC:-}"; then
 		echo "[ * ] Installing restic (incremental backup mode)..."
-		"$BIN/h-add-sys-restic" >> "$LOG" 2>&1 || true
+		addon_install restic
 	fi
 	stage_mark addons
 	# stage-level only: each || true above swallows a flaky addon failure, and the closing
@@ -1344,7 +1370,10 @@ finalize_install
 # log so a transient failure keeps its NAME: a checker that occasionally goes red without saying
 # which check is the one everybody learns to ignore.
 echo ""
-"$BIN/h-check-sys-smoke" 2>&1 | tee -a "$LOG" || echo "[ ! ] Smoke test reported failures — see above (kept in $LOG)."
+# HESTIA_INSTALL_RUN arms the one check that only makes sense right now: the addon recount, which asks
+# whether the wizard's choice appeared. Everywhere else it skips, because a later h-delete-sys-* makes
+# the recipe and the box disagree on purpose (#945).
+HESTIA_INSTALL_RUN=1 "$BIN/h-check-sys-smoke" 2>&1 | tee -a "$LOG" || echo "[ ! ] Smoke test reported failures — see above (kept in $LOG)."
 
 log_event "$OK" "$ARGUMENTS"
 exit 0

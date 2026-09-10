@@ -524,24 +524,35 @@ check_backup_container_meta() {
 	no "container member(s) neither meta nor handled:$missing" "add them to BACKUP_CONTAINER_META in include/backup.sh"
 }
 
-# Seven addon installs in h-install-hestia swallow their errors (|| true, deliberately: a flaky
-# addon must not abort the install), and nothing recounted afterwards - a failed one left a green
-# install with the wizard's choice silently unmet (#843). This recounts every requested one by its
-# artefact. Nothing here is a list: the addon set and its stage come out of the installer file (the
-# mail-tier addons are only attempted inside install_mail), key and artefact out of the manifest
-# (status_key, status_artefact, 1c #944); an addon without a manifest mapping fails instead of
-# shipping unverified, an empty derivation fails too. NOT covered: addons installed without || true -
-# their failure aborts the install and needs no recount.
+# Seven addon installs in h-install-hestia are soft (a flaky addon must not abort the install), and
+# nothing recounted afterwards: a failed one left a green install with the wizard's choice silently
+# unmet (#843). This recounts every requested one by its artefact. Nothing here is a list: the addon
+# set and its stage come out of the installer file (the mail-tier addons are only attempted inside
+# install_mail), key and artefact out of the manifest (status_key, status_artefact, 1c #944); an addon
+# without a manifest mapping fails instead of shipping unverified, an empty derivation fails too.
+# The anchor is the helper `addon_install <name>`; before #945 the seven call sites ended in a bare
+# `|| true` and that literal was the anchor. NOT covered: addons installed outside the helper, whose
+# failure aborts the install and needs no recount.
+#
+# INSTALLER-ONLY (#945). Its question is "the wizard asked for it and it did not appear", and that only
+# has an answer while the wizard's answer is the newest thing that happened. After a deliberate
+# h-delete-sys-* the recipe still says true and the box is right to disagree, so a permanent check here
+# would go red forever on a correct box. What the box HAS is watched all the time by
+# check_manifest_artefacts, which compares key against artefact in both directions.
 # Reads a recipe value, so it lives with its one caller: it stood among the service gates until those
 # moved to status keys (#945), and would have read as dead code there.
 is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
 check_addons_swallowed() {
 	local m="$HESTIA/share/manifest.json" stage a cid gate key type val n=0
 	local pairs
-	pairs=$(awk '/^[a-z_]+\(\) \{/ { fn = $1 } /h-add-sys-[a-z]+" >> "\$LOG" 2>&1 \|\| true/ { match($0, /h-add-sys-[a-z]+/); print fn, substr($0, RSTART + 10, RLENGTH - 10) }' \
+	if [ -z "${HESTIA_INSTALL_RUN:-}" ]; then
+		skip "addon recount (installer-only: after a deliberate delete the recipe and the box disagree on purpose)"
+		return
+	fi
+	pairs=$(awk '/^[a-z_]+\(\) \{/ { fn = $1 } /^[[:space:]]*addon_install [a-z0-9-]+[[:space:]]*$/ { print fn, $2 }' \
 		"$HESTIA/sbin/h-install-hestia" 2> /dev/null | sort -u)
 	if [ -z "$pairs" ]; then
-		no "addon recount derived an empty set from h-install-hestia" "the || true call pattern moved - update the derivation"
+		no "addon recount derived an empty set from h-install-hestia" "the addon_install call shape moved - update the derivation"
 		return
 	fi
 	while read -r stage a; do

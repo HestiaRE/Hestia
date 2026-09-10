@@ -1009,6 +1009,10 @@ fn_write_install_conf() {
 		# at the very END of its run, after all eight stage markers were written, and since a marker IS the
 		# sha256 of this file, appending to it invalidated every one of them. Measured on all four presets:
 		# 0 of 8 markers matched a finished install, so a re-run repeated every stage (#945).
+		# The date shifts meaning with the move and that is the honest reading: it is the date these ANSWERS
+		# were given, not the date of the first install. The installer kept the older date on a re-stamp;
+		# keeping it here would mean reading the file we are replacing, which is the one thing the wizard
+		# must not do. Nothing in the tree reads either key.
 		echo "# Written by the wizard, with the answers above: this file is complete when it is written."
 		echo "INSTALL_DATE=\"$(date +%F)\""
 		echo "INSTALL_VERSION=\"$(cat "${INSTALL_DIR}/VERSION" 2> /dev/null || echo dev)\""

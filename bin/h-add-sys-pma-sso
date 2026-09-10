@@ -37,19 +37,28 @@ if [ "$(id -u)" != '0' ]; then
 	exit 10
 fi
 
-if [ -n "$PHPMYADMIN_KEY" ] && [ "$PHPMYADMIN_KEY" != "" ]; then
-	echo "Error: SSO has been installed before. To re-enable it run h-delete-sys-pma-sso first"
-	exit 1
+# Three different answers used to share two exit codes, and the middle one was indistinguishable from
+# the last (both bare `exit 2`), so a caller could not tell "already there" from "cannot install here".
+# Separated one by one, deliberately not by a blanket rule (E13, #945).
+
+# Already at the target state: the key IS the installation, so nothing is left to do and nothing to write.
+if [ -n "$PHPMYADMIN_KEY" ]; then
+	echo "INFO: phpMyAdmin SSO is already installed."
+	exit 0
 fi
 
+# Not installable as things stand: our record says no SSO, yet the file is there. That is debris from an
+# interrupted install, and overwriting it silently would hide how the box got here. Named, with the way out.
 if [ -f "$PMA_INSTALL/hestia-sso.php" ]; then
-	echo "Error: hestia-sso.php is already installed"
-	exit 2
+	echo "ERROR: $PMA_INSTALL/hestia-sso.php exists, but PHPMYADMIN_KEY is empty: a half-finished install."
+	echo "       Clear it with h-delete-sys-pma-sso, then run this again."
+	exit "$E_EXISTS"
 fi
 
+# Not installable: a precondition is missing. Its own code, so it cannot be mistaken for the case above.
 if [ ! -f "$PMA_CONFIG/config-db.php" ]; then
-	echo "Error: phpMyAdmin not configured. Run h-add-sys-phpmyadmin first"
-	exit 2
+	echo "ERROR: phpMyAdmin not configured. Run h-add-sys-phpmyadmin first"
+	exit "$E_NOTEXIST"
 fi
 
 #----------------------------------------------------------#

@@ -33,9 +33,11 @@ fi
 
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 
+# Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
+# The status key is part of the condition, so nothing needs writing here: it already says rspamd.
 if [ "$ANTISPAM_SYSTEM" = 'rspamd' ] && dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
-	echo "ERROR: rspamd is already installed."
-	exit "$E_EXISTS"
+	echo "INFO: rspamd is already installed."
+	exit 0
 fi
 
 #----------------------------------------------------------#

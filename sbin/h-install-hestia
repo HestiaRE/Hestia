@@ -152,6 +152,21 @@ stage_fingerprint() {
 	sha256sum "$CONF_DIR/install.conf" 2> /dev/null | cut -f 1 -d ' '
 }
 
+# addon_install <name>: run h-add-sys-<name> for a component the wizard asked for. An addon that will
+# not install must never end the installation, because a network hiccup would leave a half-built box whose
+# only repair is a re-run. But it must not vanish either: before this helper the seven call sites ended in a
+# bare `|| true` and a failure was invisible until someone read the log (#480, #843). Now the box says it
+# on the console, in the closing summary, and the recount names the component at the end.
+# The helper name is also what the smoke reads to learn WHICH addons are soft; keep the call shape
+# `addon_install <name>` on one line, or update check_addons_swallowed with it (#945).
+addon_install() {
+	local a="$1"
+	"$BIN/h-add-sys-$a" >> "$LOG" 2>&1 && return 0
+	echo "[ ! ] $a was selected but did not install - see $LOG"
+	HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon ${a}: h-add-sys-${a} failed"$'\n'
+	return 0
+}
+
 # ════════════════════════════════════════════════════════════════════════════
 # Stage: base — APT repos, OS packages, system users, SSH, NTP, /proc
 # ════════════════════════════════════════════════════════════════════════════
@@ -613,7 +628,10 @@ install_mail() {
 	cp -f "$HESTIA/share/exim/system.filter" /etc/exim4/
 	touch /etc/exim4/white-blocks.conf
 	local SRS
-	SRS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32 || true)
+	# openssl instead of `tr < /dev/urandom | head -c`: that pipeline reads an endless stream, head closes
+	# after 32 bytes, and tr reports the broken pipe on every install. Four such sites printed error lines
+	# into a run that ends fine (#997). 16 hex bytes are the same 32 characters, in one command.
+	SRS=$(openssl rand -hex 16)
 	echo "$SRS" > /etc/exim4/srs.conf
 	chmod 640 /etc/exim4/srs.conf /etc/exim4/exim4.conf.template
 	chown root:"$EXIM_USR" /etc/exim4/srs.conf
@@ -664,17 +682,17 @@ install_mail() {
 	# || true (like proftpd/clamav): a flaky addon install must not abort install_mail
 	if is_on "${COMPONENT_ADDON_RSPAMD:-}"; then
 		echo "[ * ] Installing & configuring rspamd (with Bayes Redis)..."
-		"$BIN/h-add-sys-rspamd" >> "$LOG" 2>&1 || true
+		addon_install rspamd
 	fi
 	if is_on "${COMPONENT_ADDON_SIEVE:-}"; then
 		echo "[ * ] Installing & configuring sieve..."
-		"$BIN/h-add-sys-sieve" >> "$LOG" 2>&1 || true
+		addon_install sieve
 	fi
 	if is_on "${COMPONENT_ADDON_CLAMAV:-}"; then
 		echo "[ * ] Installing & configuring ClamAV (mail antivirus)..."
 		# || true (like proftpd): a flaky first install (freshclam's blocking initial
 		# download timing out under IO load) must not abort install_mail under set -e
-		"$BIN/h-add-sys-clamav" >> "$LOG" 2>&1 || true
+		addon_install clamav
 	fi
 
 	# Webmailer choice: COMPONENT_MAIL_WEBMAILER is a token set (ROUNDCUBE and/or TACHYON;
@@ -698,16 +716,18 @@ install_mail() {
 		# claim a webmail that a failed download had never unpacked (#573). Non-fatal like
 		# the addons above, but loud - the box stays usable, the gap stays visible.
 		# Roundcube above is NOT caught: an OS package apt cannot install is a broken box, a
-		# network fetch that fails is a gap. Note the else branch also fires when the pin is
-		# already installed (h-add-sys-tachyon exits 2 on "equal version"), so it ran on every
-		# re-run of this stage. Whether ONE rule should cover every soft path is decided at
-		# 1d (#945, E13); this block only names the asymmetry.
+		# network fetch that fails is a gap (E23). The else branch used to fire on a box that stood
+		# exactly on the pin, because the command ended with rc 2 there; since E13 that is rc 0 and
+		# this branch means what it says (#945).
 		if "$BIN/h-add-sys-tachyon" >> "$LOG" 2>&1; then
 			wcv "WEBMAIL_ALIAS" "webmail"
 		else
 			# install.conf is the operator's choice and stays as chosen; the status key
 			# WEBMAIL_SYSTEM, written only on success, says what the box has (#928).
 			echo "[ !! ] Tachyon install FAILED - $([ "$wm_rc" = yes ] && echo "Roundcube stays the only webmail" || echo "no webmail configured") (see $LOG)"
+			# Into the closing summary too, like every other soft path: the console line scrolls away
+			# during a long install, the summary is what the operator still sees at the end (#945).
+			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon tachyon: h-add-sys-tachyon failed"$'\n'
 		fi
 	fi
 	if [ "$wm_rc" = no ] && [ "$wm_tx" = no ]; then
@@ -780,6 +800,18 @@ install_security() {
 				echo "[ * ] Enabling CrowdSec fleet-mesh..."
 				"$BIN/h-add-sys-crowdsec-mesh" > /dev/null 2>&1 || echo "[ ! ] fleet-mesh enable reported an issue (non-fatal)"
 			fi
+		else
+			# The same soft path as the addons above, only it used to be silent: no else branch at all, so a
+			# box that had asked for CrowdSec and could not have it said nothing and left the recipe claiming
+			# it (#945, E13). CrowdSec is nginx-only, and on apache-only or the mailfront model there is no
+			# nginx front to protect. CROWDSEC_SYSTEM is never written here, which under "absent == empty" is
+			# the correct empty answer.
+			# Deliberately NOT routed through addon_install, so it does not appear in the addon recount: that
+			# check asks "was it attempted and did it fail". Here nothing was attempted, and nothing could
+			# have been. The model rules CrowdSec out before any install begins, so the recount would report
+			# a failure that never happened. The line and the summary entry carry it instead (#945).
+			echo "[ ! ] CrowdSec was selected but the public web front is '${cs_pub:-none}', not nginx - not installed"
+			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon crowdsec: nginx-only, web front is '${cs_pub:-none}'"$'\n'
 		fi
 	fi
 
@@ -800,19 +832,19 @@ install_addons() {
 	}
 	if is_on "${COMPONENT_ADDON_PROFTPD:-}"; then
 		echo "[ * ] Installing ProFTPD..."
-		"$BIN/h-add-sys-proftpd" >> "$LOG" 2>&1 || true
+		addon_install proftpd
 	fi
 	if is_on "${COMPONENT_ADDON_DOCKER:-}"; then
 		echo "[ * ] Installing Docker (rootless, per-user)..."
-		"$BIN/h-add-sys-docker" >> "$LOG" 2>&1 || true
+		addon_install docker
 	fi
 	if is_on "${COMPONENT_ADDON_FILEMANAGER:-}"; then
 		echo "[ * ] Installing File Manager..."
-		"$BIN/h-add-sys-filemanager" >> "$LOG" 2>&1 || true
+		addon_install filemanager
 	fi
 	if is_on "${COMPONENT_ADDON_RESTIC:-}"; then
 		echo "[ * ] Installing restic (incremental backup mode)..."
-		"$BIN/h-add-sys-restic" >> "$LOG" 2>&1 || true
+		addon_install restic
 	fi
 	stage_mark addons
 	# stage-level only: each || true above swallows a flaky addon failure, and the closing
@@ -884,7 +916,9 @@ configure_hestia() {
 
 	# Generate admin password — never stored in install.conf
 	local HESTIA_PASS
-	HESTIA_PASS=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 16)
+	# Same reason as the SRS secret above: the head closes early and tr may complain. -base64 keeps the
+	# alphabet mixed-case, so the two padding characters are dropped rather than filtered through tr.
+	HESTIA_PASS=$(openssl rand -base64 48 | tr -d '+/=' | cut -c1-16)
 	printf '%s' "$HESTIA_PASS" > "$CONF_DIR/.admin_pass.tmp"
 	chmod 600 "$CONF_DIR/.admin_pass.tmp"
 
@@ -998,6 +1032,23 @@ configure_hestia() {
 	fi
 	"$BIN/h-update-firewall" || true
 
+	# The web stage wipes /etc/nginx/conf.d/*.conf and puts only the static files from share/ back. The
+	# listener PER IP is not among them: it is rendered by rebuild_ip_web_config, which runs from
+	# h-add-sys-ip and from the model switch, and neither of those happens on a re-run. A second
+	# installer run therefore left the box with :80 and no :443 (#994, measured on .13). On a fresh
+	# install this loop is empty at the first pass and renders the one object h-update-sys-ip just
+	# created; either way it is idempotent, and it is the same function the IP add uses.
+	# Read the model keys again first: this shell loaded hestia.conf before the web stage wrote them.
+	source_conf "$CONF_DIR/conf/hestia.conf"
+	# rebuild_ip_web_config calls process_http2_directive, which lives in domain.sh and is not in this
+	# shell: the installer sources web-model.sh but not domain.sh. Sourcing it only defines functions.
+	# shellcheck source=/usr/local/hestia/include/domain.sh
+	declare -F process_http2_directive > /dev/null 2>&1 || source "$HESTIA/include/domain.sh"
+	for _ipf in "$CONF_DIR"/ips/*; do
+		[ -f "$_ipf" ] || continue
+		rebuild_ip_web_config "$(basename "$_ipf")" || echo "[ ! ] could not render the web listener for $(basename "$_ipf")"
+	done
+
 	# BOTH: apache2 behind nginx must see the real client IP via mod_remoteip (X-Real-IP).
 	# Same toggle the model switch uses (include/web-model.sh); it does not reload, so we do.
 	if [ "${COMPONENT_WEB_SERVER:-NGINX}" = "BOTH" ]; then
@@ -1009,7 +1060,16 @@ configure_hestia() {
 	echo "[ * ] Adding default domain..."
 	# Said, not swallowed. The `|| true` alone printed a bare "Error: Web domain ... exists" on every
 	# re-run of this stage, which reads like a failure in a log that ends fine (#945).
-	if [ -s "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" ] \
+	# Read from the file, not from this shell: whether WEB_SYSTEM happens to be loaded here depends on
+	# where the nearest source_conf sits, and an unset variable would silently skip the domain on a box
+	# that has web. Anchored, like every other key read (#983).
+	_web_sys=$(sed -n "s/^WEB_SYSTEM='\([^']*\)'.*/\1/p" "$CONF_DIR/conf/hestia.conf" 2> /dev/null | head -1)
+	if [ -z "$_web_sys" ]; then
+		# No customer web on this model (mailonly serves webmail through WEBMAIL_FRONT, #193), so
+		# h-add-web-domain refuses through its is_system_enabled guard and printed a bare "Error:" into
+		# a run that ends fine. Not attempted rather than attempted and caught (#997).
+		echo "  no customer web on this model, no default domain"
+	elif [ -s "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" ] \
 		&& grep -q "^DOMAIN='$HESTIA_HOSTNAME'" "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" 2> /dev/null; then
 		echo "  $HESTIA_HOSTNAME is already a web domain of $HESTIA_ADMIN, keeping it"
 	else
@@ -1018,8 +1078,11 @@ configure_hestia() {
 
 	echo "[ * ] Creating hestia crontab..."
 	local MIN HOUR _ct_tmp
-	MIN=$(tr -dc '012345' < /dev/urandom | head -c 2 || true)
-	HOUR=$(tr -dc '1234567' < /dev/urandom | head -c 1 || true)
+	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The old
+	# form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning hour; the
+	# range is the same intent and better spread.
+	MIN=$((RANDOM % 60))
+	HOUR=$((RANDOM % 7 + 1))
 	mkdir -p /var/spool/cron/crontabs
 	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is not
 	# a valid user name), but they would accumulate silently.
@@ -1344,7 +1407,10 @@ finalize_install
 # log so a transient failure keeps its NAME: a checker that occasionally goes red without saying
 # which check is the one everybody learns to ignore.
 echo ""
-"$BIN/h-check-sys-smoke" 2>&1 | tee -a "$LOG" || echo "[ ! ] Smoke test reported failures — see above (kept in $LOG)."
+# HESTIA_INSTALL_RUN arms the one check that only makes sense right now: the addon recount, which asks
+# whether the wizard's choice appeared. Everywhere else it skips, because a later h-delete-sys-* makes
+# the recipe and the box disagree on purpose (#945).
+HESTIA_INSTALL_RUN=1 "$BIN/h-check-sys-smoke" 2>&1 | tee -a "$LOG" || echo "[ ! ] Smoke test reported failures — see above (kept in $LOG)."
 
 log_event "$OK" "$ARGUMENTS"
 exit 0

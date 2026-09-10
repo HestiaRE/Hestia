@@ -517,7 +517,7 @@
         "file_count": 0,
         "issues": []
       },
-      "stage_markers": "$CONF_DIR/.done.<stage> carries the sha256 of the install.conf it ran with (#636). Same answers skip, changed answers re-run - a marker keyed on the stage name alone skipped the db stage after the wizard was re-answered, and the failure surfaced two stages later as 'MySQL not available'. An empty legacy marker does not count as done.",
+      "stage_markers": "$CONF_DIR/.done.<stage> carries the sha256 of the install.conf it ran with (#636). Valid on a finished install since #945 (the stamps moved into the wizard); measured 0 of 8 before, 8 of 8 after, on all four presets. Same answers skip, changed answers re-run - a marker keyed on the stage name alone skipped the db stage after the wizard was re-answered, and the failure surfaced two stages later as 'MySQL not available'. An empty legacy marker does not count as done.",
       "install_scope": "The web model decides which web server is installed, not just who serves (#639): apache-only installs no nginx at all. Mail-only needs one and gets it through the model - share/manifest.json fixes that preset to WEB_SERVER=NGINX. Gate is web_model_uses_nginx() from include/web-model.sh, which also governs the whole nginx configuration block in install_web."
     },
     "panel_caddy_service": {
@@ -679,7 +679,7 @@
         "github": "https://github.com/HestiaRE/Hestia (default)",
         "gitea": "Configurable via /etc/hestia/source.conf"
       },
-      "install_conf": "/etc/hestia/install.conf — the RECIPE, written by include/wizard.sh and by nothing else afterwards (#945): HESTIA_* params, COMPONENT_* selections and the INSTALL_DATE/INSTALL_VERSION stamps, all in one write. Sourced by h-install-hestia. No update ever rewrites it, so a box keeps the key set it was installed with and no reader may treat an absent key as a statement; what the box HAS is hestia.conf. hestia configure refuses on an installed box without --force (E22). Until 1d the h-add-*/h-delete-* commands kept COMPONENT_* current via set_install_component; that function and its 34 call sites are gone.",
+      "install_conf": "/etc/hestia/install.conf — the RECIPE, written by include/wizard.sh and by nothing else afterwards (#945): HESTIA_* params, COMPONENT_* selections and the INSTALL_DATE/INSTALL_VERSION stamps, all in one write. A `type: fixed` component writes NO line (it is not a choice); the one exception marks itself with `recipe_line` in the manifest, and today that is only PANEL_EXIM, whose key the installer reads to skip the local MTA for a relay-only box. Sourced by h-install-hestia. No update ever rewrites it, so a box keeps the key set it was installed with and no reader may treat an absent key as a statement; what the box HAS is hestia.conf. hestia configure refuses on an installed box without --force (E22). Until 1d the h-add-*/h-delete-* commands kept COMPONENT_* current via set_install_component; that function and its 34 call sites are gone.",
       "upstream_ref": "hestiare-native — the whole installer (install.sh, include/wizard.sh, sbin/h-install-hestia, include/helper.sh) was rebuilt from scratch (Makefile→just→bash, #106/#112/#114); upstream's install/hst-install-*.sh were removed (#26). No upstream counterpart.",
       "dependencies": [
         "installer"

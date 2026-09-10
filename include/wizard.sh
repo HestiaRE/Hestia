@@ -988,7 +988,16 @@ fn_write_install_conf() {
 		echo "PHP_REFERENCE_VERSION=\"${REFERENCE_PHP}\""
 		echo ""
 		echo "# Components"
-		for id in "${ids[@]}"; do echo "COMPONENT_${id}=\"${COMP_VALUES[$id]:-}\""; done
+		# A `fixed` component is not a choice, so writing a line for it only invited a reader to gate on
+		# something that is always the same (#945). They lose their line; PANEL_EXIM is the exception and
+		# says so itself with `recipe_line`, because the installer really does read it to skip the local
+		# MTA for a relay-only box. The exception lives in the manifest, not in a second list here.
+		local _fixed
+		for id in "${ids[@]}"; do
+			_fixed=$(mq --arg id "$id" '.components[$id] | select(.type == "fixed") | select((.recipe_line // false) | not) | "skip"')
+			[ "$_fixed" = "skip" ] && continue
+			echo "COMPONENT_${id}=\"${COMP_VALUES[$id]:-}\""
+		done
 		# source channel where the manifest declares one (source_default, keyed by preset);
 		# no entry for this preset = no line = the installer's own default
 		local src

@@ -42,9 +42,11 @@ fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 
+# Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
+# The status key is part of the condition, so it already says yes.
 if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii'; then
-	echo "ERROR: sieve is already installed."
-	exit "$E_EXISTS"
+	echo "INFO: sieve is already installed."
+	exit 0
 fi
 
 #----------------------------------------------------------#

@@ -7,7 +7,8 @@
 # Verifies that a fresh install came up: the services implied by the active
 # configuration are running, the expected ports listen, the panel answers, and no
 # critical markers are in the key logs. Preset-independent, it derives what to
-# expect from hestia.conf's *_SYSTEM vars and install.conf's COMPONENT_* flags.
+# expect from hestia.conf: the status says what the box HAS. The recipe is read for
+# exactly one check, the addon recount, whose whole question is "chosen but absent".
 # Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise. No v-* symlink.
 
 # Includes
@@ -34,7 +35,7 @@ source $HESTIA/include/ports.sh
 source $HESTIA/include/backup.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state (COMPONENT_* flags), if present
+# The recipe, for the addon recount alone (chosen-but-absent). Every other gate reads the status (#945).
 [ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
@@ -2529,12 +2530,12 @@ check_family_lage
 [ -n "$FTP_SYSTEM" ] && [ "$FTP_SYSTEM" != 'remote' ] && check_service "$FTP_SYSTEM" "ftp"
 [ -n "$CRON_SYSTEM" ] && check_service "$CRON_SYSTEM" "cron"
 is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
-if echo "$DB_SYSTEM" | grep -qw 'mysql'; then check_service mariadb "database (mysql)"; fi
-# postgres flag does NOT write 'pgsql' into DB_SYSTEM → key off the component flag too
-if echo "$DB_SYSTEM" | grep -qw 'pgsql' || is_on "${COMPONENT_DB_POSTGRESQL:-}"; then
-	check_service postgresql "database (pgsql)"
-fi
-if is_on "${COMPONENT_ADDON_FAIL2BAN:-}"; then
+# A LOCAL engine is the presence key, never DB_SYSTEM: that one is the host register and a token there can
+# name a remote server, on which no local service is expected to run (#980). The recipe is gone from here
+# for the same reason it is gone everywhere else, it says what was chosen (#945).
+[ -n "$DB_MARIADB_SYSTEM" ] && check_service mariadb "database (mysql)"
+[ -n "$DB_POSTGRESQL_SYSTEM" ] && check_service postgresql "database (pgsql)"
+if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
 	check_service fail2ban "fail2ban"
 	# The service being up says nothing about whether any jail is: these four are what make a green run
 	# mean working brute-force protection.
@@ -2547,7 +2548,7 @@ if is_on "${COMPONENT_ADDON_FAIL2BAN:-}"; then
 fi
 # clamav's service check moved into the addon recount, which also verifies the other six
 check_addons_swallowed
-is_on "${COMPONENT_ADDON_CROWDSEC:-}" && check_service crowdsec "crowdsec"
+[ -n "$CROWDSEC_SYSTEM" ] && check_service crowdsec "crowdsec"
 # Layer separation runs whenever either system is present (marker or extension), not gated on a component.
 { [ -f "$CONF_DIR/firewall/crowdsec.conf" ] || [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; } && check_firewall_layer_separation
 # L3 feeder timer only where CrowdSec L3 is wired (the marker) - keyed off the artefact,
@@ -2559,7 +2560,7 @@ if [ -f "$CONF_DIR/crowdsec/mesh.conf" ]; then
 	check_mesh_serve_staged
 fi
 # adminer/webmail: no own daemon, served by a caddy FPM pool, so check the socket
-is_on "${COMPONENT_ADDON_ADMINER:-}" && check_socket /run/hestia-adminer.sock "adminer FPM"
+[ -n "$DB_ADMINER_ALIAS" ] && check_socket /run/hestia-adminer.sock "adminer FPM"
 check_webmail_value_domain
 check_webmail_tokens_known
 check_backup_container_meta
@@ -2578,8 +2579,8 @@ if echo "$WEBMAIL_SYSTEM" | grep -qw 'tachyon'; then
 	grep -A10 '^\[contacts\]' /etc/tachyon/data/_data_/_default_/configs/application.ini 2> /dev/null \
 		| grep -q 'type = "sqlite"' && check_webmail_sqlite_driver tachyon
 fi
-# redis: user's DB choice or rspamd's always-present Bayes companion
-if is_on "${COMPONENT_DB_REDIS:-}" || [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
+# redis: the general service or rspamd's always-present Bayes companion
+if [ -n "$REDIS_SYSTEM" ] || [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
 	check_service redis-server "redis"
 fi
 

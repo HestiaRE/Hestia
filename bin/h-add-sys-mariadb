@@ -22,7 +22,9 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state (COMPONENT_*, INSTALL_OS)
+# The recipe, and one of the few places it is still right to read one (#945): both values below are
+# install-time ANSWERS, not box state. The version is only a default for the argument, and whether
+# phpMyAdmin follows MariaDB is a wizard decision the manifest ties to this component.
 [ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 # OS-profile helper (load_os_profile). Sourcing only defines functions.
 # shellcheck source=/usr/local/hestia/include/helper.sh
@@ -167,9 +169,6 @@ mariadb -e "FLUSH PRIVILEGES;"
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-set_install_component DB_MARIADB true
-# record the actually-installed version (h-delete-sys-mariadb clears it)
-set_install_component DB_MARIADB_VERSION "$MARIADB_VER"
 # status: source and version from the package that is on the box now (#978, #935)
 mariadb_status_record
 

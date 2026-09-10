@@ -27,7 +27,10 @@ opens above it.
 - **A finished install finally has eight valid stage markers** (#945). A marker is the sha256 of
   `install.conf`, and the installer appended `INSTALL_DATE`/`INSTALL_VERSION` at the very end of its run,
   after all eight `stage_mark` calls. Measured on all four presets: 0 of 8 markers matched, so re-running
-  the installer repeated every stage. The wizard now writes both lines with the rest of the file.
+  the installer repeated every stage. The wizard now writes both lines with the rest of the file. One
+  meaning shifts with the move: `INSTALL_DATE` is the date the answers were given, not the date of the
+  first install. The installer preserved the older date on a re-stamp; the wizard cannot, because that
+  would mean reading the file it is replacing. Nothing in the tree reads either key.
 
 - **`h-upgrade-sys-mariadb` compared against the recipe and announced upgrades that never happened**
   (#945). The target check read `COMPONENT_DB_MARIADB_VERSION`: on an `__os__` box it could never match,

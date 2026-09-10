@@ -28,8 +28,6 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/sieve.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -96,7 +94,6 @@ if ! systemctl is-active --quiet exim4; then
 fi
 
 $BIN/h-change-sys-config-value 'SIEVE_SYSTEM' 'yes'
-set_install_component ADDON_SIEVE true
 
 # Without this the only way in is a client that speaks ManageSieve itself - the panel has no screen.
 webmail_sieve_apply

@@ -19,8 +19,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 limit_marker='HestiaRE rspamd-bayes limit'
 
@@ -71,7 +69,6 @@ if ! systemctl is-active --quiet redis-server; then
 	exit "$E_RESTART"
 fi
 
-set_install_component DB_REDIS true
 # status: Redis as a general service; rspamd's capped companion leaves this empty (#936)
 change_sys_value "REDIS_SYSTEM" "redis"
 

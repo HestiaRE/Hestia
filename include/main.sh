@@ -151,55 +151,6 @@ HESTIA_THEMES_CUSTOM="$HESTIA/web/css/src/themes/custom"
 SCRIPT="$(basename $0)"
 CHECK_RESULT_CALLBACK=""
 
-# mark a component installed/removed in install.conf (COMPONENT_<id>="<value>").
-# Called by h-add/delete-sys-* after (un)install. Idempotent; no-op if file absent.
-set_install_component() {
-	local id="$1" value="$2"
-	local conf="$CONF_DIR/install.conf"
-	[ -n "$id" ] || return 0
-	[ -f "$conf" ] || return 0
-	local key="COMPONENT_${id}"
-	if grep -q "^${key}=" "$conf" 2> /dev/null; then
-		sed -i "s|^${key}=.*|${key}=\"${value}\"|" "$conf"
-	else
-		echo "${key}=\"${value}\"" >> "$conf"
-	fi
-	return 0
-}
-
-# The recipe's webmail token set after one client is added or removed: the CURRENT recipe tokens plus
-# or minus the caller's own, canonical order RC,TX. Never derived from WEBMAIL_SYSTEM, which lists what is
-# installed at this moment, not what the operator chose: during a fresh install Roundcube runs first and
-# the recipe lost the TACHYON token (#965). Reads the line set_install_component writes, and accepts the
-# value in double quotes, single quotes or bare, so a changed quote form cannot silently read as "no
-# tokens" and bring the narrowing back. An unknown token is rc 1 with no output, and the callers write
-# nothing then. install.conf is read with grep, never sourced. Goes with set_install_component in 1d.
-webmail_component_set() {
-	local op="$1" own="$2" cur rc=no tx=no
-	cur=$(grep -m1 '^COMPONENT_MAIL_WEBMAILER=' "$CONF_DIR/install.conf" 2> /dev/null)
-	cur=${cur#*=}
-	cur=${cur#[\"\']}
-	cur=${cur%[\"\']}
-	case ",$cur," in *,ROUNDCUBE,*) rc=yes ;; esac
-	case ",$cur," in *,TACHYON,*) tx=yes ;; esac
-	case "$op:$own" in
-		add:ROUNDCUBE) rc=yes ;;
-		add:TACHYON) tx=yes ;;
-		remove:ROUNDCUBE) rc=no ;;
-		remove:TACHYON) tx=no ;;
-		*) return 1 ;;
-	esac
-	if [ "$rc" = yes ] && [ "$tx" = yes ]; then
-		echo "ROUNDCUBE,TACHYON"
-	elif [ "$rc" = yes ]; then
-		echo "ROUNDCUBE"
-	elif [ "$tx" = yes ]; then
-		echo "TACHYON"
-	else
-		echo ""
-	fi
-}
-
 # Return codes
 OK=0
 E_ARGS=1

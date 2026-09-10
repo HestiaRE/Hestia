@@ -67,6 +67,15 @@ opens above it.
   meant to be. The account is box state, not recipe: an existing one is kept together with its password,
   and the password this run generated is discarded rather than printed, because it was never set.
 
+- **The hestia crontab is renamed into place instead of truncated** (#945). Three things meet: systemd
+  ships `fs.protected_regular=2` (`/usr/lib/sysctl.d/50-default.conf`, on all four targets),
+  `/var/spool/cron/crontabs` is sticky and group-writable, and the file belongs to `hestia`. Under those
+  three the kernel refuses to open it for writing even for root. A fresh install never meets it, because
+  the file does not exist yet; the first run that enters the stage a second time dies there. Reproduced
+  on Debian 13. The key is base-system policy, not our hardening, so the writer changed, not the key.
+  A temp file plus `rename()` sidesteps the check and makes the write atomic. In the same stage, adding
+  the default domain no longer prints a bare `Error: ... exists` on a re-run.
+
 ### Removed
 
 - **The synthetic emitter key `CROWDSEC`** (#945). It was computed from the L3 marker file at every login;

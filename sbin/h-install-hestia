@@ -628,7 +628,10 @@ install_mail() {
 	cp -f "$HESTIA/share/exim/system.filter" /etc/exim4/
 	touch /etc/exim4/white-blocks.conf
 	local SRS
-	SRS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32 || true)
+	# openssl instead of `tr < /dev/urandom | head -c`: that pipeline reads an endless stream, head closes
+	# after 32 bytes, and tr reports the broken pipe on every install. Four such sites printed error lines
+	# into a run that ends fine (#997). 16 hex bytes are the same 32 characters, in one command.
+	SRS=$(openssl rand -hex 16)
 	echo "$SRS" > /etc/exim4/srs.conf
 	chmod 640 /etc/exim4/srs.conf /etc/exim4/exim4.conf.template
 	chown root:"$EXIM_USR" /etc/exim4/srs.conf
@@ -910,7 +913,9 @@ configure_hestia() {
 
 	# Generate admin password — never stored in install.conf
 	local HESTIA_PASS
-	HESTIA_PASS=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 16)
+	# Same reason as the SRS secret above: the head closes early and tr may complain. -base64 keeps the
+	# alphabet mixed-case, so the two padding characters are dropped rather than filtered through tr.
+	HESTIA_PASS=$(openssl rand -base64 48 | tr -d '+/=' | cut -c1-16)
 	printf '%s' "$HESTIA_PASS" > "$CONF_DIR/.admin_pass.tmp"
 	chmod 600 "$CONF_DIR/.admin_pass.tmp"
 
@@ -1024,6 +1029,23 @@ configure_hestia() {
 	fi
 	"$BIN/h-update-firewall" || true
 
+	# The web stage wipes /etc/nginx/conf.d/*.conf and puts only the static files from share/ back. The
+	# listener PER IP is not among them: it is rendered by rebuild_ip_web_config, which runs from
+	# h-add-sys-ip and from the model switch, and neither of those happens on a re-run. A second
+	# installer run therefore left the box with :80 and no :443 (#994, measured on .13). On a fresh
+	# install this loop is empty at the first pass and renders the one object h-update-sys-ip just
+	# created; either way it is idempotent, and it is the same function the IP add uses.
+	# Read the model keys again first: this shell loaded hestia.conf before the web stage wrote them.
+	source_conf "$CONF_DIR/conf/hestia.conf"
+	# rebuild_ip_web_config calls process_http2_directive, which lives in domain.sh and is not in this
+	# shell: the installer sources web-model.sh but not domain.sh. Sourcing it only defines functions.
+	# shellcheck source=/usr/local/hestia/include/domain.sh
+	declare -F process_http2_directive > /dev/null 2>&1 || source "$HESTIA/include/domain.sh"
+	for _ipf in "$CONF_DIR"/ips/*; do
+		[ -f "$_ipf" ] || continue
+		rebuild_ip_web_config "$(basename "$_ipf")" || echo "[ ! ] could not render the web listener for $(basename "$_ipf")"
+	done
+
 	# BOTH: apache2 behind nginx must see the real client IP via mod_remoteip (X-Real-IP).
 	# Same toggle the model switch uses (include/web-model.sh); it does not reload, so we do.
 	if [ "${COMPONENT_WEB_SERVER:-NGINX}" = "BOTH" ]; then
@@ -1035,7 +1057,16 @@ configure_hestia() {
 	echo "[ * ] Adding default domain..."
 	# Said, not swallowed. The `|| true` alone printed a bare "Error: Web domain ... exists" on every
 	# re-run of this stage, which reads like a failure in a log that ends fine (#945).
-	if [ -s "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" ] \
+	# Read from the file, not from this shell: whether WEB_SYSTEM happens to be loaded here depends on
+	# where the nearest source_conf sits, and an unset variable would silently skip the domain on a box
+	# that has web. Anchored, like every other key read (#983).
+	_web_sys=$(sed -n "s/^WEB_SYSTEM='\([^']*\)'.*/\1/p" "$CONF_DIR/conf/hestia.conf" 2> /dev/null | head -1)
+	if [ -z "$_web_sys" ]; then
+		# No customer web on this model (mailonly serves webmail through WEBMAIL_FRONT, #193), so
+		# h-add-web-domain refuses through its is_system_enabled guard and printed a bare "Error:" into
+		# a run that ends fine. Not attempted rather than attempted and caught (#997).
+		echo "  no customer web on this model, no default domain"
+	elif [ -s "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" ] \
 		&& grep -q "^DOMAIN='$HESTIA_HOSTNAME'" "$CONF_DIR/users/$HESTIA_ADMIN/web.conf" 2> /dev/null; then
 		echo "  $HESTIA_HOSTNAME is already a web domain of $HESTIA_ADMIN, keeping it"
 	else
@@ -1044,8 +1075,11 @@ configure_hestia() {
 
 	echo "[ * ] Creating hestia crontab..."
 	local MIN HOUR _ct_tmp
-	MIN=$(tr -dc '012345' < /dev/urandom | head -c 2 || true)
-	HOUR=$(tr -dc '1234567' < /dev/urandom | head -c 1 || true)
+	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The old
+	# form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning hour; the
+	# range is the same intent and better spread.
+	MIN=$((RANDOM % 60))
+	HOUR=$((RANDOM % 7 + 1))
 	mkdir -p /var/spool/cron/crontabs
 	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is not
 	# a valid user name), but they would accumulate silently.

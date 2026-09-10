@@ -1490,7 +1490,11 @@ check_eval_sites() {
 	for f in "$HESTIA/bin"/h-* "$HESTIA/include"/*.sh; do
 		[ -f "$f" ] || continue
 		scanned=$((scanned + 1))
-		sed '/^[[:space:]]*#/d' "$f" | grep -qE '(^|[^[:alnum:]_])eval[[:space:]]' || continue
+		# One awk instead of `sed … | grep -q`: grep -q leaves on the first match, and sed then reports the
+		# broken pipe for everything it still had to write. On 555 files that printed a stray
+		# "sed: couldn't write 56 items to stdout" into an otherwise clean smoke run (#997). Same two
+		# conditions, same early exit, no pipe.
+		awk '!/^[[:space:]]*#/ && /(^|[^[:alnum:]_])eval[[:space:]]/ { found = 1; exit } END { exit !found }' "$f" || continue
 		carry=$((carry + 1))
 		base=$(basename "$f")
 		hit="$hit $base"

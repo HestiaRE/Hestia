@@ -50,7 +50,7 @@ fi
 # Not installable as things stand: our record says no SSO, yet the file is there. That is debris from an
 # interrupted install, and overwriting it silently would hide how the box got here. Named, with the way out.
 if [ -f "$PMA_INSTALL/hestia-sso.php" ]; then
-	echo "ERROR: $PMA_INSTALL/hestia-sso.php exists, but PHPMYADMIN_KEY is empty - a half-finished install."
+	echo "ERROR: $PMA_INSTALL/hestia-sso.php exists, but PHPMYADMIN_KEY is empty: a half-finished install."
 	echo "       Clear it with h-delete-sys-pma-sso, then run this again."
 	exit "$E_EXISTS"
 fi

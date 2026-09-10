@@ -46,7 +46,9 @@ opens above it.
 
 - **`hestia configure` refuses on an installed box without `--force`** (#945, E22) and says what that
   means: the wizard REPLACES the recipe and never reads the old one, so every answer not given again is
-  lost, and the stage markers stop matching, which makes the next install re-run every stage.
+  lost, and the stage markers stop matching, which makes the next install re-run every stage. `install.sh`
+  gained `--force` and hands it through, because it runs the same wizard: without that, re-installing an
+  existing box would have hit a refusal pointing at a flag `install.sh` could not pass on.
 
 - **The rule "no reader may read meaning into a missing recipe key" now lives in the code** (#945), in the
   generated `install.conf` header so it travels with every box, and at the installer's read of that file.

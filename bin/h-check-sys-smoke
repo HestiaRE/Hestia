@@ -2533,6 +2533,14 @@ is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
 # A LOCAL engine is the presence key, never DB_SYSTEM: that one is the host register and a token there can
 # name a remote server, on which no local service is expected to run (#980). The recipe is gone from here
 # for the same reason it is gone everywhere else, it says what was chosen (#945).
+#
+# What these gates do NOT cover, said out loud because the reference set got narrower: they now believe the
+# status key. An empty key where the service IS installed makes the check below skip in silence, and only
+# the seven components with a status_artefact are watched from the other side (check_manifest_artefacts).
+# MariaDB, PostgreSQL, Redis, CrowdSec and Adminer are not among them, so for those five the pairing rests
+# on their writers, which set the key on the success path AND on the already-installed path (the 1b build
+# rule). Redis has no artefact on purpose: the package is there in both states, and only the cap marker
+# tells the general service from rspamd's companion.
 [ -n "$DB_MARIADB_SYSTEM" ] && check_service mariadb "database (mysql)"
 [ -n "$DB_POSTGRESQL_SYSTEM" ] && check_service postgresql "database (pgsql)"
 if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then

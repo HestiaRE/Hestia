@@ -7,8 +7,11 @@
 # wizard was asked for, and what the box actually carries.
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
-[ -f $CONF_DIR/hestia.env ] && . $CONF_DIR/hestia.env 2> /dev/null || true
-CONF_DIR="/etc/hestia"
+# CONF_DIR before the read that uses it: the two lines were the other way round, so the env was looked
+# for at /hestia.env and never sourced. Harmless only because HESTIA has the same default here.
+CONF_DIR="${CONF_DIR:-/etc/hestia}"
+# shellcheck source=/etc/hestia/hestia.env
+[ -f "$CONF_DIR/hestia.env" ] && . "$CONF_DIR/hestia.env" 2> /dev/null || true
 INSTALL_CONF="$CONF_DIR/install.conf"
 SOURCE_CONF="$CONF_DIR/source.conf"
 VERSION="$(cat "$HESTIA/VERSION" 2> /dev/null || echo dev)"

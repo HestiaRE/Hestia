@@ -716,10 +716,9 @@ install_mail() {
 		# claim a webmail that a failed download had never unpacked (#573). Non-fatal like
 		# the addons above, but loud - the box stays usable, the gap stays visible.
 		# Roundcube above is NOT caught: an OS package apt cannot install is a broken box, a
-		# network fetch that fails is a gap. Note the else branch also fires when the pin is
-		# already installed (h-add-sys-tachyon exits 2 on "equal version"), so it ran on every
-		# re-run of this stage. Whether ONE rule should cover every soft path is decided at
-		# 1d (#945, E13); this block only names the asymmetry.
+		# network fetch that fails is a gap (E23). The else branch used to fire on a box that stood
+		# exactly on the pin, because the command ended with rc 2 there; since E13 that is rc 0 and
+		# this branch means what it says (#945).
 		if "$BIN/h-add-sys-tachyon" >> "$LOG" 2>&1; then
 			wcv "WEBMAIL_ALIAS" "webmail"
 		else

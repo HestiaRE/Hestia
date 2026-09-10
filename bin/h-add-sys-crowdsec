@@ -80,9 +80,11 @@ fi
 
 # detection + L7 nginx wiring + L3 feeder (the one shared path)
 # The mode of a re-add is the one the box is already in; a first install gets the default. Changing it is
-# h-change-sys-crowdsec-mode, not this command. mesh+capi is a mesh box, so it must not re-enrol.
+# h-change-sys-crowdsec-mode, not this command. mesh+capi maps to capi, which leaves the enrolment exactly
+# as it is: the pair is arguably a drift state (a mesh box should not enrol), but repairing it here would
+# be a CrowdSec decision riding along in a refactor. A re-add changes nothing it was not asked to change.
 cs_mode="${CROWDSEC_SYSTEM:-capi}"
-[ "$cs_mode" = 'mesh+capi' ] && cs_mode='mesh'
+[ "$cs_mode" = 'mesh+capi' ] && cs_mode='capi'
 crowdsec_apply "$cs_mode" || {
 	echo "ERROR: CrowdSec wiring failed."
 	exit "$E_INVALID"

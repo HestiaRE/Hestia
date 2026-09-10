@@ -78,6 +78,10 @@ source "$HESTIA/include/limits.sh" # customer_php_limit_apply (#212)
 source "$HESTIA/include/fail2ban.sh" # fail2ban_apply
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source "$HESTIA/include/web-model.sh" # configure_apache2, web_model_keyset, apache_remoteip_* (#120)
+# The recipe, and nothing an update ever rewrites: a box keeps the key set it was installed with. So no
+# reader here may treat an ABSENT key as a statement, neither "not chosen" nor "this box is new enough".
+# An old recipe carries keys we have dropped, a new one omits keys we once wrote; both must pass. What the
+# box HAS is hestia.conf, never this file. Decided at Halt 1d (#945), same words in the generated header.
 # shellcheck source=/etc/hestia/install.conf
 source "$INSTALL_CONF" # HESTIA_*, INSTALL_OS/PROFILE, COMPONENT_*, TOOLS_SELECTION
 set -e

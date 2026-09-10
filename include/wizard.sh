@@ -968,6 +968,14 @@ fn_write_install_conf() {
 		echo "# HestiaRE install.conf"
 		echo "# Written by include/wizard.sh - do not edit manually."
 		echo "# Re-run the wizard to change parameters."
+		echo "#"
+		# The rule below is a promise to every future reader and it has to travel with the box, because
+		# the box is the only place it can be checked. Decided at Halt 1d (#945).
+		echo "# No update ever rewrites this file: it is the recipe, the answers given at install time."
+		echo "# So a box keeps the exact key set it was installed with, forever. A reader must therefore"
+		echo "# tolerate BOTH directions: a key it does not know (an older recipe carried keys we have"
+		echo "# since dropped), and a key it expects being absent (a newer recipe stopped writing it)."
+		echo "# Never make the ABSENCE of a key mean something. Ask hestia.conf for what the box HAS."
 		echo ""
 		# Same list the questions came from, so the two cannot drift apart.
 		for _pq in "${pq_ids[@]}"; do echo "${_pq}=\"${!_pq}\""; done

@@ -91,8 +91,6 @@ chown root:caddy "$ROUTE"
 chmod 640 "$ROUTE"
 $BIN/h-restart-service caddy > /dev/null 2>&1 || true
 
-set_install_component ADDON_FILEMANAGER true
-
 # 7. Saved state: reactivate customers that had it enabled before a prior uninstall.
 # Batch the pools with no per-user webserver restart, then reload the front once.
 for uconf in "$CONF_DIR"/users/*/user.conf; do

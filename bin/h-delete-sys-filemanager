@@ -61,8 +61,6 @@ rm -rf "$CODE_DIR"
 rm -f "$SECRET_FILE" "$TMPFILES"
 $BIN/h-change-sys-config-value 'FILE_MANAGER_PORT' ''
 
-set_install_component ADDON_FILEMANAGER false
-
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#

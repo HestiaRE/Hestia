@@ -55,7 +55,6 @@ rm -rf "$TMPDIR"
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-set_install_component ADDON_ADMINER false
 # clear the panel marker so the DB list drops the Adminer button
 $BIN/h-change-sys-config-value 'DB_ADMINER_ALIAS' ''
 

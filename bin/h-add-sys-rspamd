@@ -20,8 +20,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -51,8 +49,9 @@ if ! dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
 	exit "$E_INVALID"
 fi
 
-# Redis: hard-capped Bayes companion unless it is the user's general service
-if [ "${COMPONENT_DB_REDIS:-}" != "true" ] \
+# Redis: hard-capped Bayes companion unless it is the box's general service. REDIS_SYSTEM, not the
+# recipe: the delete side has read the same truth since #983, and a Redis added later must count (#945).
+if [ -z "$REDIS_SYSTEM" ] \
 	&& ! grep -q 'HestiaRE rspamd-bayes limit' /etc/redis/redis.conf; then
 	cat "$HESTIA/share/rspamd/redis-rspamd-limit.conf" >> /etc/redis/redis.conf
 fi
@@ -118,7 +117,6 @@ if ! systemctl is-active --quiet exim4; then
 fi
 
 $BIN/h-change-sys-config-value 'ANTISPAM_SYSTEM' 'rspamd'
-set_install_component ADDON_RSPAMD true
 
 echo "rspamd is now active (antispam system)."
 

@@ -95,7 +95,6 @@ $BIN/h-restart-service caddy > /dev/null 2>&1 || true
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-set_install_component ADDON_ADMINER true
 # panel marker: presence adds the Adminer "manage" button to the DB list (fixed /adminer/)
 $BIN/h-change-sys-config-value 'DB_ADMINER_ALIAS' 'adminer'
 

@@ -29,8 +29,6 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/helper.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# COMPONENT_* state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 DOCKER_KEYRING='/usr/share/keyrings/docker-keyring.gpg'
 DOCKER_LIST='/etc/apt/sources.list.d/docker.list'
@@ -171,7 +169,6 @@ fi
 # The panel only learns about an addon through hestia.conf (FILE_MANAGER_PORT precedent):
 # without it the per-customer switch in edit-user has nothing to gate on.
 $BIN/h-change-sys-config-value 'DOCKER_SYSTEM' 'docker'
-set_install_component ADDON_DOCKER true
 
 echo "Docker is now installed. Enable it per customer to create their companion."
 

@@ -127,8 +127,12 @@ crowdsec_gate_bruteforce() {
 }
 
 # Install + wire CrowdSec detection and the nginx Layer-A bouncer. Safe to re-run.
+# Usage: crowdsec_apply [MODE]   MODE = capi (default) | local | mesh
+# The mode is an argument, not a lookup: this library used to source install.conf itself, which made it
+# the only place in the tree where a shared function read the recipe. The caller knows which truth applies
+# (the installer the wizard answer, a command the box), so the caller says it (#945).
 crowdsec_apply() {
-	local share="$HESTIA/share/crowdsec"
+	local share="$HESTIA/share/crowdsec" mode="${1:-capi}"
 
 	if [ "$(crowdsec_public_web)" != "nginx" ]; then
 		echo "CrowdSec: nginx is not the public front - nothing to apply."
@@ -191,8 +195,7 @@ crowdsec_apply() {
 	# Layer B (bot rate limiting) is include/botpolicy.sh, wired at web install. CrowdSec owns Layer A only.
 
 	# Only 'capi' keeps the central blocklist. mesh is local plus peer exchange, so it must not enrol either.
-	[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf" 2> /dev/null
-	[ "${COMPONENT_CROWDSEC_MODE:-capi}" = "capi" ] || crowdsec_disable_capi
+	[ "$mode" = "capi" ] || crowdsec_disable_capi
 
 	crowdsec_secure_credentials
 

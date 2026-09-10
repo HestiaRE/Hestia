@@ -77,9 +77,16 @@ If the problem is a wrong choice in the recipe (`/etc/hestia/install.conf`),
 re-run the wizard, then the installer:
 
 ```bash
-bash /usr/local/hestia/include/wizard.sh     # or:  hestia configure
-h-install-hestia                          # or:  hestia install
+hestia configure --force      # on an installed box, --force is required
+hestia install                # or:  h-install-hestia
 ```
+
+`--force` is not a formality. The wizard **replaces** `install.conf` and never reads
+the existing one, so every answer you do not give again is lost. And because each
+`.done.*` stage marker is the sha256 of that file, a rewrite invalidates all of them:
+the next `hestia install` runs every stage again, not just the one you wanted to fix.
+Without `--force` the wizard refuses and says the same thing. When you are
+re-installing from scratch instead, `bash install.sh --force` carries the flag through.
 
 ## Common causes
 

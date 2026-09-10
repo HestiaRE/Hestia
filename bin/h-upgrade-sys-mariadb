@@ -35,7 +35,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 REPO_LIST="/etc/apt/sources.list.d/mariadb.list"
 
@@ -66,7 +65,10 @@ if [ -z "$target" ]; then
 		exit "$E_NOTEXIST"
 	fi
 	current=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
-	echo "Running:  MariaDB ${current:-unknown}  (source: ${COMPONENT_DB_MARIADB_VERSION:-?})"
+	# Both halves from the status, and each from its own key: DB_MARIADB_SYSTEM is the channel,
+	# DB_MARIADB_VERSION the major.minor on the box. The recipe stood here and could say neither
+	# (it carries __os__ unresolved, and it is the answer given at install time) (#945, #935).
+	echo "Running:  MariaDB ${current:-unknown}  (pin: ${DB_MARIADB_VERSION:-?}, source: ${DB_MARIADB_SYSTEM:-?})"
 	echo ""
 	echo "Available upgrade targets:"
 	_os_id="$(
@@ -134,7 +136,10 @@ current=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0
 	exit "$E_INVALID"
 }
 
-if [ "$target" = "${COMPONENT_DB_MARIADB_VERSION:-}" ]; then
+# Against the package on the box, not the recipe. The recipe answer never changes, and on an __os__ box
+# it never equalled a concrete target at all: the guard could not fire, and where it did it announced an
+# upgrade that had not happened (#945). DB_MARIADB_VERSION is major.minor, the same shape as $target.
+if [ "$target" = "${DB_MARIADB_VERSION:-}" ]; then
 	echo "INFO: MariaDB is already on '$target', nothing to do."
 	exit 0
 fi
@@ -249,7 +254,6 @@ new_version=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-set_install_component DB_MARIADB_VERSION "$target"
 mariadb_status_record
 
 echo "[ OK ] MariaDB upgraded: $current -> $new_version (source: $target)"

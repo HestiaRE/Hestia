@@ -22,8 +22,6 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/sieve.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -97,7 +95,6 @@ if ! systemctl is-active --quiet dovecot; then
 fi
 
 $BIN/h-change-sys-config-value 'SIEVE_SYSTEM' ''
-set_install_component ADDON_SIEVE false
 
 # Take the filter screens away with the service. A UI whose backend stopped answering is worse
 # than no UI: it fails at the first save, with an error nobody can act on.

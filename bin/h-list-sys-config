@@ -21,17 +21,12 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# CrowdSec presence, artefact-derived (the L3 marker), exposed so the panel can gate on it - the banlist
-# button must appear in the crowdsec-only model where FIREWALL_EXTENSION is empty (#527).
-CROWDSEC=''
-[ -f "$CONF_DIR/firewall/crowdsec.conf" ] && CROWDSEC='yes'
-
 # nginx HTTP/3 build capability, exposed so the panel only offers the per-domain http3 switch where
 # it works (#613) - the deb12/ub24 OS nginx has no http_v3 and a quic listen would fail nginx -t.
 WEB_HTTP3=''
 command -v nginx > /dev/null 2>&1 && nginx -V 2>&1 | grep -q -- '--with-http_v3_module' && WEB_HTTP3='yes'
 
-# JSON list function: every registry key, in the registry's order, plus the two computed capabilities.
+# JSON list function: every registry key, in the registry's order, plus the one computed capability.
 # One registry, not a second list here - the panel session is fed from this output at every login, and
 # a key the list forgot (five POLICY_SPAM_* did) never reached a policy gate. A registry the reader
 # cannot use ends this command non-zero, and the login refuses rather than gates on nothing.
@@ -41,9 +36,10 @@ json_list() {
 	_last=$(printf '%s\n' "$_keys" | tail -n1)
 	echo '{'
 	echo '		"config": {'
-	# The computed pair first, where the old fixed list had them; not registry keys, never in hestia.conf.
-	json_escape CROWDSEC WEB_HTTP3
-	printf '			"CROWDSEC": "%s",\n' "$CROWDSEC"
+	# The computed capability first, where the old fixed list had it; not a registry key, never in
+	# hestia.conf. The synthetic CROWDSEC that stood beside it is gone: CROWDSEC_SYSTEM is a real
+	# registry key since #938 and travels with the loop below (#945).
+	json_escape WEB_HTTP3
 	printf '			"WEB_HTTP3": "%s",\n' "$WEB_HTTP3"
 	for _k in $_keys; do
 		json_escape "$_k"

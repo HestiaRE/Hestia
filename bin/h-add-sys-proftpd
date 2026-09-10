@@ -24,8 +24,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# COMPONENT_* state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -119,8 +117,6 @@ if ! systemctl is-active --quiet proftpd; then
 	echo "ERROR: proftpd failed to start."
 	exit "$E_RESTART"
 fi
-
-set_install_component ADDON_PROFTPD true
 
 # fail2ban's proftpd jail is pruned at install time (proftpd is not installed until this addon stage, after
 # fail2ban), so re-arm it now the daemon and its log exist. Ensure the file first, or the jail's reload

@@ -10,7 +10,7 @@ sysreg_file() {
 	echo "${SYSREG_FILE:-${HESTIA:-.}/share/hestia/sys-keys.json}"
 }
 
-# sysreg_check [file] - the schema: name, class, default per class, token_fn exists, secret is a boolean.
+# sysreg_check [file]: the schema: name, class, default per class, token_fn exists, secret is a boolean.
 # Prints one line per defect, returns 1 on any. Duplicate names are
 # caught textually, since a JSON parser keeps the last of two and says nothing.
 sysreg_check() {

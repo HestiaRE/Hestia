@@ -7,7 +7,8 @@
 # Verifies that a fresh install came up: the services implied by the active
 # configuration are running, the expected ports listen, the panel answers, and no
 # critical markers are in the key logs. Preset-independent, it derives what to
-# expect from hestia.conf's *_SYSTEM vars and install.conf's COMPONENT_* flags.
+# expect from hestia.conf: the status says what the box HAS. The recipe is read for
+# exactly one check, the addon recount, whose whole question is "chosen but absent".
 # Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise. No v-* symlink.
 
 # Includes
@@ -34,7 +35,7 @@ source $HESTIA/include/ports.sh
 source $HESTIA/include/backup.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state (COMPONENT_* flags), if present
+# The recipe, for the addon recount alone (chosen-but-absent). Every other gate reads the status (#945).
 [ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
@@ -526,44 +527,43 @@ check_backup_container_meta() {
 # Seven addon installs in h-install-hestia swallow their errors (|| true, deliberately: a flaky
 # addon must not abort the install), and nothing recounted afterwards - a failed one left a green
 # install with the wizard's choice silently unmet (#843). This recounts every requested one by its
-# artefact. The set comes out of the installer file itself, so a new swallowed addon without a
-# mapping here fails instead of shipping unverified; an empty derivation fails too. NOT covered:
-# addons installed without || true - their failure aborts the install and needs no recount.
+# artefact. Nothing here is a list: the addon set and its stage come out of the installer file (the
+# mail-tier addons are only attempted inside install_mail), key and artefact out of the manifest
+# (status_key, status_artefact, 1c #944); an addon without a manifest mapping fails instead of
+# shipping unverified, an empty derivation fails too. NOT covered: addons installed without || true -
+# their failure aborts the install and needs no recount.
+# Reads a recipe value, so it lives with its one caller: it stood among the service gates until those
+# moved to status keys (#945), and would have read as dead code there.
+is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
 check_addons_swallowed() {
-	local addons a gate key svc mail_only n=0
-	addons=$(grep -oE 'h-add-sys-[a-z]+" >> "\$LOG" 2>&1 \|\| true' "$HESTIA/sbin/h-install-hestia" 2> /dev/null \
-		| grep -oE 'h-add-sys-[a-z]+' | sed 's/^h-add-sys-//' | sort -u)
-	if [ -z "$addons" ]; then
+	local m="$HESTIA/share/manifest.json" stage a cid gate key type val n=0
+	local pairs
+	pairs=$(awk '/^[a-z_]+\(\) \{/ { fn = $1 } /h-add-sys-[a-z]+" >> "\$LOG" 2>&1 \|\| true/ { match($0, /h-add-sys-[a-z]+/); print fn, substr($0, RSTART + 10, RLENGTH - 10) }' \
+		"$HESTIA/sbin/h-install-hestia" 2> /dev/null | sort -u)
+	if [ -z "$pairs" ]; then
 		no "addon recount derived an empty set from h-install-hestia" "the || true call pattern moved - update the derivation"
 		return
 	fi
-	for a in $addons; do
-		key='' svc='' mail_only=''
-		case $a in
-			rspamd) key="${ANTISPAM_SYSTEM:-}" svc=rspamd mail_only=yes ;;
-			sieve) key="${SIEVE_SYSTEM:-}" mail_only=yes ;; # managesieve runs inside dovecot, no own daemon
-			clamav) key="${ANTIVIRUS_SYSTEM:-}" svc=clamav-daemon mail_only=yes ;;
-			proftpd) key="${FTP_SYSTEM:-}" svc=proftpd ;;
-			docker) key="${DOCKER_SYSTEM:-}" ;; # rootless per-user, no system daemon
-			filemanager) key="${FILE_MANAGER_PORT:-}" ;;
-			restic) key=$(command -v restic || true) ;;
-			*)
-				no "addon $a: the installer swallows its errors, this recount has no artefact mapping" "add one here"
-				continue
-				;;
-		esac
-		gate="COMPONENT_ADDON_${a^^}"
-		is_on "${!gate:-}" || continue
-		# the installer only attempts mail-tier addons inside install_mail
-		[ -n "$mail_only" ] && ! is_on "${COMPONENT_MAIL_BLOCK_PRESENT:-}" && continue
-		n=$((n + 1))
-		if [ -n "$key" ]; then
-			ok "addon $a installed (artefact present)"
-			[ -n "$svc" ] && check_service "$svc" "$a"
-		else
-			no "addon $a requested but its artefact is missing" "the installer swallowed the failure - see the install log"
+	while read -r stage a; do
+		cid="ADDON_${a^^}"
+		key=$(jq -r --arg c "$cid" '.components[$c].status_key // empty' "$m" 2> /dev/null)
+		type=$(jq -r --arg c "$cid" '.components[$c].status_artefact // {} | keys[0] // empty' "$m" 2> /dev/null)
+		val=$(jq -r --arg c "$cid" --arg t "$type" '.components[$c].status_artefact[$t] // empty' "$m" 2> /dev/null)
+		if [ -z "$key" ] || [ -z "$type" ]; then
+			no "addon $a: the installer swallows its errors, the manifest has no status_key/status_artefact for $cid" "add them there"
+			continue
 		fi
-	done
+		gate="COMPONENT_$cid"
+		is_on "${!gate:-}" || continue
+		[ "$stage" = 'install_mail()' ] && ! is_on "${COMPONENT_MAIL_BLOCK_PRESENT:-}" && continue
+		n=$((n + 1))
+		if _artefact_present "$type" "$val"; then
+			ok "addon $a installed ($type present)"
+			[ "$type" = 'service' ] && check_service "$val" "$a"
+		else
+			no "addon $a requested but its artefact is missing ($type $val)" "the installer swallowed the failure - see the install log"
+		fi
+	done <<< "$pairs"
 	if [ "$n" -eq 0 ]; then
 		skip "addon recount (none of the swallowed addons requested)"
 	fi
@@ -1633,7 +1633,7 @@ check_record_only_protected() {
 		ok "record-only names appear in no record ($n names, $reads record file(s) read)"
 	fi
 }
-# check_install_root_owner - the invariant measured for #974: nothing under the install root belongs
+# check_install_root_owner: the invariant measured for #974: nothing under the install root belongs
 # to anyone but root, nothing is group- or world-writable. The runtime directories a panel pool needs
 # (session.save_path, upload_tmp_dir, sys_temp_dir) are read from the FPM configuration, never written
 # here as a literal, so the check heals itself when such a directory moves out of the tree. Symlinks
@@ -1659,8 +1659,8 @@ check_install_root_owner() {
 	fi
 }
 
-# check_secret_file_modes - the files whose mode means something (#974): the sudoers rule (440 root:root,
-# what deploy_hestia_sudoers installs), and every private key the panel or a customer holds - the panel
+# check_secret_file_modes: the files whose mode means something (#974): the sudoers rule (440 root:root,
+# what deploy_hestia_sudoers installs), and every private key the panel or a customer holds: the panel
 # certificate under /etc/ssl/hestia, the mail SNI links under /etc/exim4/ssl (resolved), the customers'
 # keys under /etc/hestia/users/*/ssl and /home/*/conf/{web,mail}/*/ssl. Rule for keys: no world bit at
 # all; group access is by design (root:mail 660, exim reads them). The set is found, not listed; a box
@@ -2140,7 +2140,7 @@ check_record_grammar() {
 
 # check_sys_key_registry - the system key registry (share/hestia/sys-keys.json, #932), three guards:
 # (1) the schema, through the same sysreg_check the CI runs; (2) every key the tree writes into
-# hestia.conf is registered - the write sites are extracted from the shipped code (the seven mechanisms:
+# hestia.conf is registered; the write sites are extracted from the shipped code (the seven mechanisms:
 # wcv/_wcv, change_sys_value/clear_sys_value, sys_key_token_set, h-change-sys-config-value with a literal
 # key, repair_key, a direct echo/sed on hestia.conf, the web-model key set), never listed here; (3) an empty registry
 # or an empty extraction is red. A key written through a variable name cannot be extracted and is
@@ -2202,7 +2202,86 @@ check_system_keys_agree() {
 	fi
 }
 
-# check_hestia_conf_key_patterns - a grep/sed on $HESTIA/conf/hestia.conf that names a key must anchor it
+# _artefact_present TYPE VALUE: 0 present, 1 absent, 2 unknown type. Present, never running (E2, 1c halt):
+# a unit file on disk, a socket path, a file, a command on PATH. Running is what check_service is for.
+_artefact_present() {
+	case "$1" in
+		service) [ -n "$(systemctl list-unit-files --no-legend "$2.service" 2> /dev/null)" ] ;;
+		socket) [ -S "$2" ] ;;
+		file) [ -e "$2" ] ;;
+		command) command -v "$2" > /dev/null 2>&1 ;;
+		*) return 2 ;;
+	esac
+}
+
+# check_manifest_status_link: the manifest names, for every component that is neither always_installed
+# nor no_status_key, the hestia.conf key it writes (status_key, 1c #944); every named key must be in the
+# registry; a status_token is a plain status word, and empty only on an option whose value means off
+# (false, no, off, disabled), so a forgotten token is told apart from a deliberate one. The token is
+# recorded here, not compared with the box; recipe against status is 1d. Both reference sets are read
+# from the files, never listed here; an empty component set is red. Names keys, never values.
+check_manifest_status_link() {
+	local m="$HESTIA/share/manifest.json" reg n=0 missing='' unknown='' badtok='' cid key tok
+	reg=$(sysreg_keys 2> /dev/null) || reg=''
+	if [ -z "$reg" ]; then
+		no "manifest status link: the registry read no keys" "share/hestia/sys-keys.json unreadable"
+		return
+	fi
+	while IFS=$'\t' read -r cid key; do
+		[ -n "$cid" ] || continue
+		n=$((n + 1))
+		if [ -z "$key" ]; then
+			missing="$missing $cid"
+		elif ! grep -qx -- "$key" <<< "$reg"; then
+			unknown="$unknown $cid:$key"
+		fi
+	done < <(jq -r '.components | to_entries[] | select((.value.always_installed // false) | not) | select(.value.no_status_key == null) | [.key, (.value.status_key // "")] | @tsv' "$m" 2> /dev/null)
+	while IFS=$'\t' read -r cid val tok; do
+		if [ -z "$tok" ]; then
+			case "$val" in false | no | off | disabled) ;; *) badtok="$badtok $cid($val:empty)" ;; esac
+		else
+			[[ "$tok" =~ ^[a-z0-9_.]+$ ]] || badtok="$badtok $cid($val)"
+		fi
+	done < <(jq -r '.components | to_entries[] | .key as $c | (.value.options // [])[]? | select(type == "object" and has("status_token")) | [$c, (.value | tostring), .status_token] | @tsv' "$m" 2> /dev/null)
+	if [ "$n" -eq 0 ]; then
+		no "manifest status link: no component examined" "share/manifest.json unreadable or without components"
+	elif [ -n "$missing$unknown$badtok" ]; then
+		no "manifest status link:${missing:+ no status_key:$missing}${unknown:+ key not in registry:$unknown}${badtok:+ bad status_token:$badtok}" "every component names a registered key (1c)"
+	else
+		ok "manifest status link: $n components name a registered status key"
+	fi
+}
+
+# check_manifest_artefacts: for every component with a status_artefact: key set <=> artefact present,
+# both directions (a set key without its artefact is the swallowed-install class, an artefact without its
+# key is a hand install or a lost record). An unknown type is red, never skipped; zero components with an
+# artefact is red. Names keys and artefacts, never key values.
+check_manifest_artefacts() {
+	local m="$HESTIA/share/manifest.json" n=0 bad='' cid key type val v rc
+	while IFS=$'\t' read -r cid key type val; do
+		[ -n "$cid" ] || continue
+		n=$((n + 1))
+		v=$(grep -m1 "^$key=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d"'" -f2)
+		_artefact_present "$type" "$val"
+		rc=$?
+		if [ "$rc" -eq 2 ]; then
+			bad="$bad $cid(unknown artefact type $type)"
+		elif [ -n "$v" ] && [ "$rc" -ne 0 ]; then
+			bad="$bad $cid($key set, $type $val absent)"
+		elif [ -z "$v" ] && [ "$rc" -eq 0 ]; then
+			bad="$bad $cid($key empty, $type $val present)"
+		fi
+	done < <(jq -r '.components | to_entries[] | select(.value.status_artefact) | .value.status_artefact as $a | ($a | keys[0]) as $t | [.key, (.value.status_key // ""), $t, ($a[$t] | tostring)] | @tsv' "$m" 2> /dev/null)
+	if [ "$n" -eq 0 ]; then
+		no "manifest artefacts: no component carries a status_artefact" "the seven swallowed addons must (1c)"
+	elif [ -n "$bad" ]; then
+		no "manifest artefacts disagree with the box:$bad" "key and artefact must agree in both directions"
+	else
+		ok "manifest artefacts agree with the box ($n components)"
+	fi
+}
+
+# check_hestia_conf_key_patterns: a grep/sed on $HESTIA/conf/hestia.conf that names a key must anchor it
 # (^KEY, or grep -x): key names nest (DB_SYSTEM inside DB_MARIADB_SYSTEM, VERSION inside PHP_VERSIONS), and
 # an unanchored "s/DB_SYSTEM=.*/" rewrote the nested key on the first h-add-sys-mariadb (#978). Judged on
 # the first key-like token after the command with its flags stripped; a $VAR there is a path, not a key.
@@ -2453,13 +2532,20 @@ check_family_lage
 [ -n "$ANTISPAM_SYSTEM" ] && [ "$ANTISPAM_SYSTEM" != 'remote' ] && check_service "$ANTISPAM_SYSTEM" "antispam"
 [ -n "$FTP_SYSTEM" ] && [ "$FTP_SYSTEM" != 'remote' ] && check_service "$FTP_SYSTEM" "ftp"
 [ -n "$CRON_SYSTEM" ] && check_service "$CRON_SYSTEM" "cron"
-is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
-if echo "$DB_SYSTEM" | grep -qw 'mysql'; then check_service mariadb "database (mysql)"; fi
-# postgres flag does NOT write 'pgsql' into DB_SYSTEM → key off the component flag too
-if echo "$DB_SYSTEM" | grep -qw 'pgsql' || is_on "${COMPONENT_DB_POSTGRESQL:-}"; then
-	check_service postgresql "database (pgsql)"
-fi
-if is_on "${COMPONENT_ADDON_FAIL2BAN:-}"; then
+# A LOCAL engine is the presence key, never DB_SYSTEM: that one is the host register and a token there can
+# name a remote server, on which no local service is expected to run (#980). The recipe is gone from here
+# for the same reason it is gone everywhere else, it says what was chosen (#945).
+#
+# What these gates do NOT cover, said out loud because the reference set got narrower: they now believe the
+# status key. An empty key where the service IS installed makes the check below skip in silence, and only
+# the seven components with a status_artefact are watched from the other side (check_manifest_artefacts).
+# MariaDB, PostgreSQL, Redis, CrowdSec and Adminer are not among them, so for those five the pairing rests
+# on their writers, which set the key on the success path AND on the already-installed path (the 1b build
+# rule). Redis has no artefact on purpose: the package is there in both states, and only the cap marker
+# tells the general service from rspamd's companion.
+[ -n "$DB_MARIADB_SYSTEM" ] && check_service mariadb "database (mysql)"
+[ -n "$DB_POSTGRESQL_SYSTEM" ] && check_service postgresql "database (pgsql)"
+if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
 	check_service fail2ban "fail2ban"
 	# The service being up says nothing about whether any jail is: these four are what make a green run
 	# mean working brute-force protection.
@@ -2472,7 +2558,7 @@ if is_on "${COMPONENT_ADDON_FAIL2BAN:-}"; then
 fi
 # clamav's service check moved into the addon recount, which also verifies the other six
 check_addons_swallowed
-is_on "${COMPONENT_ADDON_CROWDSEC:-}" && check_service crowdsec "crowdsec"
+[ -n "$CROWDSEC_SYSTEM" ] && check_service crowdsec "crowdsec"
 # Layer separation runs whenever either system is present (marker or extension), not gated on a component.
 { [ -f "$CONF_DIR/firewall/crowdsec.conf" ] || [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; } && check_firewall_layer_separation
 # L3 feeder timer only where CrowdSec L3 is wired (the marker) - keyed off the artefact,
@@ -2484,7 +2570,7 @@ if [ -f "$CONF_DIR/crowdsec/mesh.conf" ]; then
 	check_mesh_serve_staged
 fi
 # adminer/webmail: no own daemon, served by a caddy FPM pool, so check the socket
-is_on "${COMPONENT_ADDON_ADMINER:-}" && check_socket /run/hestia-adminer.sock "adminer FPM"
+[ -n "$DB_ADMINER_ALIAS" ] && check_socket /run/hestia-adminer.sock "adminer FPM"
 check_webmail_value_domain
 check_webmail_tokens_known
 check_backup_container_meta
@@ -2503,8 +2589,8 @@ if echo "$WEBMAIL_SYSTEM" | grep -qw 'tachyon'; then
 	grep -A10 '^\[contacts\]' /etc/tachyon/data/_data_/_default_/configs/application.ini 2> /dev/null \
 		| grep -q 'type = "sqlite"' && check_webmail_sqlite_driver tachyon
 fi
-# redis: user's DB choice or rspamd's always-present Bayes companion
-if is_on "${COMPONENT_DB_REDIS:-}" || [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
+# redis: the general service or rspamd's always-present Bayes companion
+if [ -n "$REDIS_SYSTEM" ] || [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
 	check_service redis-server "redis"
 fi
 
@@ -2631,6 +2717,8 @@ check_record_grammar
 check_key_registries
 check_sys_key_registry
 check_system_keys_agree
+check_manifest_status_link
+check_manifest_artefacts
 check_hestia_conf_key_patterns
 check_identity_band
 # a cap written for a companion that is gone would be inherited by whoever gets the uid next.

@@ -49,6 +49,7 @@ PHP_VERSIONS_AVAILABLE=""
 REFERENCE_PHP=""
 OS_MARIADB_VERSION=""
 TOOLS_SELECTION=""
+FORCE=false
 declare -A COMP_VALUES
 
 # ── Argument parsing ───────────────────────────────────────
@@ -58,6 +59,7 @@ for _arg in "$@"; do
 		--preset=*) FASTTRACK_PRESET="${_arg#*=}" ;;
 		--port=*) PANEL_PORT_ARG="${_arg#*=}" ;;
 		--auto) AUTO_MODE=true ;;
+		--force) FORCE=true ;;
 		-*) ;;
 		*) [ -z "$FASTTRACK_PRESET" ] && FASTTRACK_PRESET="$_arg" ;;
 	esac
@@ -968,6 +970,14 @@ fn_write_install_conf() {
 		echo "# HestiaRE install.conf"
 		echo "# Written by include/wizard.sh - do not edit manually."
 		echo "# Re-run the wizard to change parameters."
+		echo "#"
+		# The rule below is a promise to every future reader and it has to travel with the box, because
+		# the box is the only place it can be checked. Decided at Halt 1d (#945).
+		echo "# No update ever rewrites this file: it is the recipe, the answers given at install time."
+		echo "# So a box keeps the exact key set it was installed with, forever. A reader must therefore"
+		echo "# tolerate BOTH directions: a key it does not know (an older recipe carried keys we have"
+		echo "# since dropped), and a key it expects being absent (a newer recipe stopped writing it)."
+		echo "# Never make the ABSENCE of a key mean something. Ask hestia.conf for what the box HAS."
 		echo ""
 		# Same list the questions came from, so the two cannot drift apart.
 		for _pq in "${pq_ids[@]}"; do echo "${_pq}=\"${!_pq}\""; done
@@ -994,8 +1004,41 @@ fn_write_install_conf() {
 		local pkgs
 		pkgs=$(mq '.always_installed_packages | join(" ")')
 		echo "ALWAYS_INSTALLED_PACKAGES=\"${pkgs}\""
+		echo ""
+		# Stamped here, with the rest of the file, and nowhere else. The installer used to append these two
+		# at the very END of its run, after all eight stage markers were written, and since a marker IS the
+		# sha256 of this file, appending to it invalidated every one of them. Measured on all four presets:
+		# 0 of 8 markers matched a finished install, so a re-run repeated every stage (#945).
+		# The date shifts meaning with the move and that is the honest reading: it is the date these ANSWERS
+		# were given, not the date of the first install. The installer kept the older date on a re-stamp;
+		# keeping it here would mean reading the file we are replacing, which is the one thing the wizard
+		# must not do. Nothing in the tree reads either key.
+		echo "# Written by the wizard, with the answers above: this file is complete when it is written."
+		echo "INSTALL_DATE=\"$(date +%F)\""
+		echo "INSTALL_VERSION=\"$(cat "${INSTALL_DIR}/VERSION" 2> /dev/null || echo dev)\""
 	} > "$INSTALL_CONF"
 	chmod 600 "$INSTALL_CONF"
+}
+
+# An installed box is not the wizard's normal ground. fn_write_install_conf REPLACES the recipe and never
+# reads the old one, so every answer not given again is gone; and because the stage markers are the sha256
+# of that file, a rewrite invalidates all eight and the next `hestia install` re-runs every stage. Keyed on
+# the STATUS version, not on the recipe: install.conf exists from the first wizard run onwards, while
+# VERSION in hestia.conf appears only once an install has actually finished (#945, E22).
+fn_refuse_on_installed_box() {
+	[ "$FORCE" = true ] && return 0
+	local conf="$CONF_DIR/conf/hestia.conf" ver=''
+	[ -f "$conf" ] && ver=$(sed -n "s/^VERSION='\([^']*\)'.*/\1/p" "$conf" 2> /dev/null | head -1)
+	[ -n "$ver" ] || return 0
+	cat >&2 << EOF
+ERROR: this box is already installed (VERSION='$ver' in $conf).
+       The wizard REPLACES $INSTALL_CONF; it never reads the existing one, so every
+       answer you do not give again is lost, and all stage markers stop matching the file.
+       The next \`hestia install\` then re-runs every stage against the new recipe.
+       Add --force if that is what you want: \`hestia configure --force\`, or
+       \`bash install.sh --force\` when you are re-installing.
+EOF
+	exit 1
 }
 
 # ════════════════════════════════════════════════════════════
@@ -1011,6 +1054,7 @@ wizard_main() {
 		echo "ERROR: jq is required." >&2
 		exit 1
 	}
+	fn_refuse_on_installed_box
 	mkdir -p "$LOG_DIR"
 	fn_detect_os
 

@@ -20,8 +20,6 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -57,8 +55,6 @@ if [ "${PURGE_DATA:-}" = "yes" ]; then
 	rm -rf /etc/fail2ban
 	echo "[ * ] PURGE_DATA=yes - /etc/fail2ban removed."
 fi
-
-set_install_component ADDON_FAIL2BAN false
 
 # Nothing enforces the auth families now unless CrowdSec takes them to L3, and its denylist keys off the
 # key just cleared - so refresh, or a crowdsec-only box detects SSH brute force and enforces nothing for 45s.

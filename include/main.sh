@@ -151,55 +151,6 @@ HESTIA_THEMES_CUSTOM="$HESTIA/web/css/src/themes/custom"
 SCRIPT="$(basename $0)"
 CHECK_RESULT_CALLBACK=""
 
-# mark a component installed/removed in install.conf (COMPONENT_<id>="<value>").
-# Called by h-add/delete-sys-* after (un)install. Idempotent; no-op if file absent.
-set_install_component() {
-	local id="$1" value="$2"
-	local conf="$CONF_DIR/install.conf"
-	[ -n "$id" ] || return 0
-	[ -f "$conf" ] || return 0
-	local key="COMPONENT_${id}"
-	if grep -q "^${key}=" "$conf" 2> /dev/null; then
-		sed -i "s|^${key}=.*|${key}=\"${value}\"|" "$conf"
-	else
-		echo "${key}=\"${value}\"" >> "$conf"
-	fi
-	return 0
-}
-
-# The recipe's webmail token set after one client is added or removed: the CURRENT recipe tokens plus
-# or minus the caller's own, canonical order RC,TX. Never derived from WEBMAIL_SYSTEM, which lists what is
-# installed at this moment, not what the operator chose: during a fresh install Roundcube runs first and
-# the recipe lost the TACHYON token (#965). Reads the line set_install_component writes, and accepts the
-# value in double quotes, single quotes or bare, so a changed quote form cannot silently read as "no
-# tokens" and bring the narrowing back. An unknown token is rc 1 with no output, and the callers write
-# nothing then. install.conf is read with grep, never sourced. Goes with set_install_component in 1d.
-webmail_component_set() {
-	local op="$1" own="$2" cur rc=no tx=no
-	cur=$(grep -m1 '^COMPONENT_MAIL_WEBMAILER=' "$CONF_DIR/install.conf" 2> /dev/null)
-	cur=${cur#*=}
-	cur=${cur#[\"\']}
-	cur=${cur%[\"\']}
-	case ",$cur," in *,ROUNDCUBE,*) rc=yes ;; esac
-	case ",$cur," in *,TACHYON,*) tx=yes ;; esac
-	case "$op:$own" in
-		add:ROUNDCUBE) rc=yes ;;
-		add:TACHYON) tx=yes ;;
-		remove:ROUNDCUBE) rc=no ;;
-		remove:TACHYON) tx=no ;;
-		*) return 1 ;;
-	esac
-	if [ "$rc" = yes ] && [ "$tx" = yes ]; then
-		echo "ROUNDCUBE,TACHYON"
-	elif [ "$rc" = yes ]; then
-		echo "ROUNDCUBE"
-	elif [ "$tx" = yes ]; then
-		echo "TACHYON"
-	else
-		echo ""
-	fi
-}
-
 # Return codes
 OK=0
 E_ARGS=1
@@ -2377,7 +2328,7 @@ clear_sys_value() {
 # doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
 # a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM, #978).
 # The rc, in both directions: on a success path (package installed, purge done) the caller fails the
-# whole command when this write fails - the status is part of the job, a silent gap is worse than a
+# whole command when this write fails: the status is part of the job, a silent gap is worse than a
 # loud exit, the packages stay and a re-run records them. On an exit path ("not installed", drift
 # repair on the way out) the caller drops the rc on purpose: a write problem must not turn a clear
 # "not installed" into a different error.
@@ -2413,8 +2364,8 @@ sys_key_token_set() {
 }
 
 # The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
-# holds (epoch stripped, major.minor), the source is read off the version string - MariaDB.org builds
-# carry "maria" in it, distro builds do not - and named in the recipe's own words (the source field of the
+# holds (epoch stripped, major.minor), the source is read off the version string (MariaDB.org builds
+# carry "maria" in it, distro builds do not) and named in the recipe's own words (the source field of the
 # DB_MARIADB_VERSION options), so recipe and status never disagree on a value. The version string on
 # purpose and not apt-cache policy (Origin/Label): policy describes the repository configured NOW, the
 # string travels with the package; remove the repo or upgrade the box and policy changes its answer
@@ -2435,12 +2386,14 @@ mariadb_status_record() {
 
 # The composer channel from the box (#939): the upstream phar in /usr/local/bin shadows the OS package on
 # PATH, so it decides when both exist (a switch in h-update-sys-composer removes the other afterwards).
+# The recipe's own words (source_default: os_package | upstream_installer), because that field IS the
+# channel; the same rule as DB_MARIADB_SYSTEM, the opposite of PHP_SOURCE. A vocabulary is contract from 1d.
 composer_status_record() {
 	local src=''
 	if [ -x /usr/local/bin/composer ]; then
-		src='upstream'
+		src='upstream_installer'
 	elif dpkg -s composer > /dev/null 2>&1; then
-		src='os'
+		src='os_package'
 	fi
 	change_sys_value "COMPOSER_SYSTEM" "$src"
 }

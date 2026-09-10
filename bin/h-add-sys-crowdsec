@@ -19,16 +19,10 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 source "$HESTIA/include/crowdsec.sh"
-# live component state
-[ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
 
 # public-facing web server ('both' fronts with nginx); CrowdSec is offered only for nginx.
 cs_pub="$PROXY_SYSTEM"
 [ -z "$cs_pub" ] && cs_pub="$WEB_SYSTEM"
-
-# COMPONENT_* is 'true'/'yes' - is_on is smoke-local, so test inline here.
-cs_armed='no'
-case "${COMPONENT_ADDON_CROWDSEC:-}" in true | yes) cs_armed='yes' ;; esac
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -45,6 +39,10 @@ web_lock_acquire || exit "$E_INUSE"
 source_conf "$HESTIA/conf/hestia.conf"
 cs_pub="$PROXY_SYSTEM"
 [ -z "$cs_pub" ] && cs_pub="$WEB_SYSTEM"
+# What the box HAS, not what the wizard was told (#945): the key carries the model and is empty without an
+# engine, so it answers "armed" and "in which mode" at once. Derived from the locked read, like the front.
+cs_armed='no'
+[ -n "$CROWDSEC_SYSTEM" ] && cs_armed='yes'
 
 if [ "$cs_pub" != 'nginx' ]; then
 	echo "ERROR: CrowdSec is an nginx-only addon; the public web front is '${cs_pub:-none}'."
@@ -81,12 +79,16 @@ if [ -f /etc/crowdsec/config.yaml ]; then
 fi
 
 # detection + L7 nginx wiring + L3 feeder (the one shared path)
-crowdsec_apply || {
+# The mode of a re-add is the one the box is already in; a first install gets the default. Changing it is
+# h-change-sys-crowdsec-mode, not this command. mesh+capi maps to capi, which leaves the enrolment exactly
+# as it is: the pair is arguably a drift state (a mesh box should not enrol), but repairing it here would
+# be a CrowdSec decision riding along in a refactor. A re-add changes nothing it was not asked to change.
+cs_mode="${CROWDSEC_SYSTEM:-capi}"
+[ "$cs_mode" = 'mesh+capi' ] && cs_mode='capi'
+crowdsec_apply "$cs_mode" || {
 	echo "ERROR: CrowdSec wiring failed."
 	exit "$E_INVALID"
 }
-
-set_install_component ADDON_CROWDSEC true
 
 #----------------------------------------------------------#
 #                       Hestia                             #

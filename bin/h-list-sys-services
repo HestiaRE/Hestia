@@ -179,6 +179,18 @@ if [ -n "$PROXY_SYSTEM" ] && [ "$PROXY_SYSTEM" != 'remote' ]; then
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
+# Checking WEBMAIL front
+# In the mailfront model there is no customer web, so WEB_SYSTEM and PROXY_SYSTEM are empty and this
+# nginx would be listed nowhere (#1003) although it serves webmail and terminates ACME. The two
+# guards above it keep it from appearing twice where the same daemon is already a row. Label reused
+# on purpose: a new SYSTEM string would need its own .pot entry (web/locale/hst_scan_i18n.sh).
+if [ -n "$WEBMAIL_FRONT" ] && [ "$WEBMAIL_FRONT" != 'remote' ] \
+	&& [ "$WEBMAIL_FRONT" != "$WEB_SYSTEM" ] && [ "$WEBMAIL_FRONT" != "$PROXY_SYSTEM" ]; then
+	get_srv_state "$WEBMAIL_FRONT"
+	data="$data\nNAME='$WEBMAIL_FRONT' SYSTEM='reverse proxy' STATE='$state'"
+	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
+fi
+
 # Checking MAIL system
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ]; then
 	get_srv_state "$MAIL_SYSTEM"

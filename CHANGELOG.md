@@ -36,6 +36,21 @@ opens above it.
   was wrong. Measured with `BACKUP='/mnt/probe-backup'`: writer and lister now meet, and the `LOCAL`
   column follows, the same archive reading `yes` there and `no` after switching back.
 
+- **The installer started its services instead of restarting them** (#1001). `systemctl start` on a
+  running unit does nothing, and apt had already started the daemon long before the installer wrote
+  its configuration, so the daemon kept serving what the package brought. Measured on dovecot with the
+  `compact` preset on Debian 13: delivery worked, because dovecot-lda reads the files per message,
+  while every IMAP login failed and the running auth process fell back to the stock PAM chain, where
+  a mail account is unknown and a system account is not. Boxes with the Sieve addon were saved by its
+  own restart, and Sieve is preselected only on `standard` and `mailonly` while `compact`, `latest`
+  and `singlephp` have mail too. Four sites carried the same shape and all four now restart:
+  `hestia-php`, the customer PHP-FPM master per version, `exim4` and `dovecot`. On a stopped unit
+  restart behaves like start, so a first run is unchanged. A new smoke check comes with it, because
+  the liveness check is blind here, a dovecot that never read its auth chain is active and answers on
+  143 with a banner: `check_config_loaded` compares a unit's start against the newest configuration
+  file HestiaRE ships for it, fails on an empty file set, and says in its comment what it does not
+  cover.
+
 ### Changed
 
 - **Two operator defaults leave `include/main.sh`** (#992). `BACKUP` and `BACKUP_GZIP` are operator

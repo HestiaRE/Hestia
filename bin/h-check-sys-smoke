@@ -166,6 +166,39 @@ check_service() {
 	fi
 }
 
+# check_config_loaded <unit> <label> <shipped config file>...
+# `systemctl start` on a running unit is a no-op, so a service can serve a configuration it never
+# read (#1001). Compares the unit's start against the newest file HestiaRE ships for it; an empty
+# file set is a failure, never a pass. Two things it deliberately does not cover, so nobody mistakes
+# it for a whole guard: everything written per object (dovecot conf.d/domains, exim's domain files,
+# customer FPM pools) changes without a restart by design and would make this red on every new
+# domain; and a unit that is RELOADED keeps its start timestamp, so services HestiaRE reloads rather
+# than restarts (hestia-php, see the addon installers) cannot be judged this way at all.
+check_config_loaded() {
+	local unit="$1" label="$2" started newest=0 n=0 f t
+	shift 2
+	systemctl is-active --quiet "$unit" || return 0
+	started=$(date -d "$(systemctl show "$unit" -p ActiveEnterTimestamp --value 2> /dev/null)" +%s 2> /dev/null)
+	if [ -z "$started" ]; then
+		no "config load $label: no start timestamp for $unit" "systemctl show gave nothing to compare against"
+		return
+	fi
+	for f in "$@"; do
+		[ -f "$f" ] || continue
+		n=$((n + 1))
+		t=$(stat -c %Y "$f" 2> /dev/null) || continue
+		[ "$t" -gt "$newest" ] && newest=$t
+	done
+	if [ "$n" -eq 0 ]; then
+		no "config load $label: no shipped config found" "nothing was compared, so this check proves nothing"
+	elif [ "$newest" -gt "$started" ]; then
+		no "config load $label: $unit started $((newest - started))s before its newest config file" \
+			"$n file(s) examined - the running daemon never read what is on disk, restart it"
+	else
+		ok "config load $label: $unit started after its newest config ($n file(s) examined)"
+	fi
+}
+
 # check_port <port> <label>
 check_port() {
 	if ss -H -tln 2> /dev/null | awk '{print $4}' | grep -qE "[:.]$1\$"; then
@@ -2570,6 +2603,10 @@ check_family_lage
 [ -n "$MAIL_SYSTEM" ] && check_exim_macro_names
 [ -n "$MAIL_SYSTEM" ] && check_exim_interface_expansion
 [ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ] && check_service "$IMAP_SYSTEM" "imap"
+# The one measured case of #1001: a dovecot that never read its own auth chain still answers on 143
+# with a banner, so the liveness check above cannot see it.
+[ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ] \
+	&& check_config_loaded dovecot "imap" /etc/dovecot/dovecot.conf /etc/dovecot/conf.d/*.conf
 [ -n "$ANTISPAM_SYSTEM" ] && [ "$ANTISPAM_SYSTEM" != 'remote' ] && check_service "$ANTISPAM_SYSTEM" "antispam"
 [ -n "$FTP_SYSTEM" ] && [ "$FTP_SYSTEM" != 'remote' ] && check_service "$FTP_SYSTEM" "ftp"
 [ -n "$CRON_SYSTEM" ] && check_service "$CRON_SYSTEM" "cron"

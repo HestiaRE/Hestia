@@ -53,7 +53,20 @@ fi
 
 # The Subsystem line, from the one place that decides it: the ssh jail needs the sftp-server binary so a
 # jailbash user's sftp runs inside bwrap (#941). No status token any more, see h-add-sys-sftp-jail (#945).
-[ "$(jail_sshd_subsystem_apply)" = changed ] && service ssh restart > /dev/null 2>&1
+# Validated before the restart, the way the sftp jail does it: this command used to change sshd_config
+# and restart the daemon without ever asking whether the result parses (#1017). The write itself is
+# atomic, so a failure here means something else in the file is wrong, and then not restarting is the
+# safe answer: the running sshd keeps the configuration it already has.
+if [ "$(jail_sshd_subsystem_apply)" = changed ]; then
+	if /usr/sbin/sshd -t > /dev/null 2>&1; then
+		service ssh restart > /dev/null 2>&1
+	else
+		echo "ERROR: sshd config invalid after the SSH jail setup, not restarting."
+		/usr/sbin/sshd -t 2>&1 | head -3
+		log_event "$E_INVALID" "$ARGUMENTS"
+		exit "$E_INVALID"
+	fi
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #

@@ -88,7 +88,7 @@ fi
 parse_object_kv_list "$cron_line"
 
 # %quote% is the storage encoding for ' (the record delimiter); every format needs it decoded.
-CMD_RAW="${CMD//%quote%/\'}"
+CMD_RAW=$(record_value_decode "$CMD")
 # The " escaping belongs to JSON alone. It stays here for shell and plain, which have always
 # printed the value this way, while json_list takes CMD_RAW and lets json_escape do the whole
 # encoding - in front of json_escape this line doubled every escape it had already made.

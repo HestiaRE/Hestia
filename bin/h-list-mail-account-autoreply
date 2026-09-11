@@ -27,9 +27,11 @@ source_conf "$HESTIA/conf/hestia.conf"
 # JSON list function
 json_list() {
 	# json_escape replaces the hand-rolled sed chain and works on the RAW message: it covers the
-	# backslash, the quote and the newline encoding in one place. %quote% is a storage encoding, so
-	# it is decoded first and then escaped like any other character.
-	local msg="${msg_raw//%quote%/\'}"
+	# backslash, the quote and the newline encoding in one place. No storage decode here: the message
+	# lives in its own .msg file that no writer ever encodes, here or in the upstream this came from,
+	# so decoding %quote% only rewrote a customer's literal text, and the shell branch below never
+	# did it either (#1002).
+	local msg="$msg_raw"
 	echo '{'
 	json_escape account msg
 	printf '\t"%s": {\n' "$account"

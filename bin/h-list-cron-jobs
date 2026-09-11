@@ -32,7 +32,7 @@ json_list() {
 		parse_object_kv_list "$str"
 		# %quote% is the storage encoding for ' (the record delimiter), so it is decoded for every
 		# format; the " escaping that used to sit here is json_escape's job and doubled up with it.
-		CMD="${CMD//%quote%/\'}"
+		CMD=$(record_value_decode "$CMD")
 		json_escape JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$JOB"
 		printf '        "MIN": "%s",\n' "$MIN"
@@ -63,7 +63,7 @@ shell_list() {
 	echo "---^---^----^---^-----^----^-------"
 	while read str; do
 		parse_object_kv_list "$str"
-		CMD=$(echo "$CMD" | sed -e 's/"/\\"/g' -e "s/%quote%/'/g")
+		CMD=$(record_value_decode "$CMD")
 		echo "$JOB^$MIN^$HOUR^$DAY^$MONTH^$WDAY^$CMD"
 	done < <(cat $USER_DATA/cron.conf)
 }
@@ -73,7 +73,7 @@ plain_list() {
 	IFS=$'\n'
 	while read str; do
 		parse_object_kv_list "$str"
-		CMD=$(echo "$CMD" | sed -e 's/"/\\"/g' -e "s/%quote%/'/g")
+		CMD=$(record_value_decode "$CMD")
 		echo -ne "$JOB\t$MIN\t$HOUR\t$DAY\t$MONTH\t$WDAY\t$CMD\t"
 		echo -e "$SUSPENDED\t$TIME\t$DATE"
 	done < <(cat $USER_DATA/cron.conf)

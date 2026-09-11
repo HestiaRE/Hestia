@@ -10,7 +10,7 @@
 
 # Argument definition
 user=$1
-topic=$(echo "$2" | sed "s/'/%quote%/g")
+topic=$(record_value_encode "$2")
 type=$4
 priority=$5
 
@@ -23,7 +23,7 @@ source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 # NOTICE renders via x-html, so sanitize before storing (allow-list; drops script/on*/js:).
-notice=$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$3" | sed "s/'/%quote%/g")
+notice=$(record_value_encode "$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$3")")
 
 #----------------------------------------------------------#
 #                    Verifications                         #

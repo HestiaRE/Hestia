@@ -472,14 +472,16 @@ add_web_config() {
 		if [ -z "$(get_user_value '$DOCKER_IP')" ]; then
 			echo "Error: $domain is a docker domain but $user has no DOCKER_IP - $1 vhost not written" >&2
 			web_config_skipped=$((${web_config_skipped:-0} + 1))
-			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf" \
-				"/etc/$1/conf.d/domains/$domain.conf" "/etc/$1/conf.d/domains/$domain.ssl.conf"
+			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.conf" "$user"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.ssl.conf" "$user"
 			return "$E_NOTEXIST"
 		fi
 		if [ -n "$PROXY_SYSTEM" ] && [ "$1" = "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != "$PROXY_SYSTEM" ]; then
 			# reconcile away a stale backend vhost from the pre-docker life of the domain
-			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf" \
-				"/etc/$1/conf.d/domains/$domain.conf" "/etc/$1/conf.d/domains/$domain.ssl.conf"
+			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.conf" "$user"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.ssl.conf" "$user"
 			return 0
 		fi
 		# Per-system dir: after a model switch a custom template may have no variant here. Render
@@ -571,7 +573,11 @@ add_web_config() {
 		# One vhost file holds both server blocks, so a separate .ssl.conf symlink is stale. The
 		# custom-config migration the pair branches run is skipped: it predates the per-domain
 		# conf dir, which a box carrying a merged template already has.
-		rm -f /etc/$1/conf.d/domains/$domain.ssl.conf
+		# Through the guard, not a bare rm: stale describes the FORM, not the owner. A merged
+		# template has no .ssl.conf source file, so the guarded removal in h-rebuild-web-domain
+		# never runs for it, and this line was the one place where a live link of another customer
+		# could still be deleted without a word (measured on the default template, which is merged).
+		conf_link_drop "/etc/$1/conf.d/domains/$domain.ssl.conf" "$user"
 		conf_link_set "$conf" "/etc/$1/conf.d/domains/$domain.conf"
 	elif [[ "$2" =~ stpl$ ]]; then
 		conf_link_set "$conf" "/etc/$1/conf.d/domains/$domain.ssl.conf"
@@ -686,10 +692,10 @@ del_web_config() {
 	local cn
 	for cn in $confnames; do
 		if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" = "$1" ]; then
-			rm -f "/etc/$WEB_SYSTEM/conf.d/domains/$cn"
+			conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$cn" "$user"
 		fi
 		if [ -n "$PROXY_SYSTEM" ] && [ "$PROXY_SYSTEM" = "$1" ]; then
-			rm -f "/etc/$PROXY_SYSTEM/conf.d/domains/$cn"
+			conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$cn" "$user"
 		fi
 	done
 }
@@ -968,8 +974,8 @@ del_mail_ssl_config() {
 
 	# Remove SSL vhost configuration
 	rm -f $HOMEDIR/$user/conf/mail/$domain/*.*ssl.conf
-	rm -f /etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
-	rm -f /etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
+	conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
+	conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
 
 	# Remove SSL certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*

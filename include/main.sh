@@ -28,6 +28,33 @@ HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTE
 # record key in three files per box, these three in none.
 RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
 
+# Storage encoding for record VALUES. record_line_valid (include/backup.sh) refuses four characters
+# inside a value: the delimiter ' and, for the sinks behind it (#661), " ` and \. Until #1002 only
+# the delimiter was encoded, by four call sites each carrying their own sed, and thirteen readers
+# each carrying their own decode. A value with any of the other three was written anyway and the box
+# then held a record its own checker rejects, reachable with a cron command as ordinary as
+# `echo "hallo"`, measured. One encoder and one decoder, so a fifth writer cannot know half the set.
+#
+# Known limit, inherited with %quote% and deliberately not given a second escape layer: a value that
+# literally contains a placeholder decodes to the character it stands for.
+record_value_encode() {
+	local _v="$1"
+	_v="${_v//\\/%backslash%}"
+	_v="${_v//\'/%quote%}"
+	_v="${_v//\"/%dquote%}"
+	_v="${_v//\`/%backtick%}"
+	printf '%s' "$_v"
+}
+
+record_value_decode() {
+	local _v="$1"
+	_v="${_v//%quote%/\'}"
+	_v="${_v//%dquote%/\"}"
+	_v="${_v//%backtick%/\`}"
+	_v="${_v//%backslash%/\\}"
+	printf '%s' "$_v"
+}
+
 is_protected_key() {
 	case " ${SOURCE_CONF_PROTECTED//$'\n'/ } " in *" $1 "*) return 0 ;; esac
 	return 1
@@ -1110,8 +1137,8 @@ send_notice() {
 	if [ "$notify" = 'yes' ]; then
 		# Second writer of notifications.conf besides h-add-user-notification: sanitize NOTICE
 		# (rendered via x-html) here too or it's an XSS bypass. %quote% keeps the record intact.
-		topic=$(echo "$topic" | sed "s/'/%quote%/g")
-		notice=$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$notice" | sed "s/'/%quote%/g")
+		topic=$(record_value_encode "$topic")
+		notice=$(record_value_encode "$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$notice")")
 
 		touch $USER_DATA/notifications.conf
 		chmod 660 $USER_DATA/notifications.conf
@@ -1241,9 +1268,13 @@ sync_cron_jobs() {
 	while read -r line; do
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
-			echo "$MIN $HOUR $DAY $MONTH $WDAY $CMD" \
-				| sed -e "s/%quote%/'/g" -e "s/%dots%/:/g" \
-					>> $crontab
+			# Decode the command alone: a schedule field cannot carry a storage placeholder, and the
+			# sed that used to run over the whole assembled line also rewrote %dots% into a colon.
+			# %dots% has no encoder, here or in the upstream this was inherited from, so a literal
+			# %dots% in a customer command was silently turned into ":" and nothing ever produced
+			# one (#1002).
+			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
+				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
 	done < $USER_DATA/cron.conf
 	chown $user:$user $crontab

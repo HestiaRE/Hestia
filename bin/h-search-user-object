@@ -40,7 +40,7 @@ json_list_search() {
 			# %quote% is the storage encoding for ' (the record delimiter) and is decoded here; the
 			# " escaping that used to sit alongside it is json_escape's job below, and in front of
 			# json_escape the two doubled each other.
-			value="${value//%quote%/\'}"
+			value=$(record_value_decode "$value")
 			if [ $i -eq 1 ]; then
 				((++i))
 				json_escape value
@@ -80,7 +80,7 @@ shell_list_search() {
 			fname=${field#\$}
 			out=${out//$field/${!fname}}
 		done
-		echo "$out" | sed "s/%quote%/'/g"
+		printf '%s\n' "$(record_value_decode "$out")"
 	done < $conf
 }
 

@@ -18,7 +18,7 @@ hour=$3
 day=$4
 month=$5
 wday=$6
-cron_command=$(echo "$7" | sed "s/'/%quote%/g")
+cron_command=$7
 job=$8
 restart=$9
 
@@ -29,6 +29,10 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+
+# After the includes, not in the argument block: the encoder is a shell function, and a command
+# substitution that calls it before main.sh is sourced silently yields an empty command (#1002).
+cron_command=$(record_value_encode "$cron_command")
 
 HIDE=7
 

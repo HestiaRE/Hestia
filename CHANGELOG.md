@@ -12,6 +12,24 @@ opens above it.
 
 ## Unreleased
 
+### Fixed
+
+- **One encoder and one decoder for record values** (#1002). The record grammar refuses four
+  characters inside a value: the delimiter `'` and, for the sinks behind it, `"`, a backtick and a
+  backslash. Exactly one of them was encoded, by four writers each carrying their own `sed`, and
+  decoded again by thirteen readers each carrying their own copy. The reported case, a restore
+  writing a notification the box's own checker rejects, was the visible end of it: measured on a
+  fresh box, an ordinary cron job `echo "hallo"` or one with a backslash is accepted with rc 0, lands
+  raw in the record and turns the smoke red. `record_value_encode` and `record_value_decode` now
+  handle all four, through parameter substitution rather than `sed`, and every writer and reader goes
+  through them; a smoke check keeps the placeholders out of every file but the one that defines them,
+  reading the set out of the helpers instead of repeating it. Two inherited dead halves went with it:
+  `%dots%` was decoded when writing the crontab but has no encoder anywhere, here or upstream, so a
+  literal `%dots%` in a customer's command silently became a colon; and the autoreply reader decoded
+  `%quote%` out of a plain `.msg` file that no writer ever encodes, in the JSON branch only while the
+  shell branch did not. Records written before this stay as they are and keep the smoke red until
+  something rewrites them.
+
 ### Added
 
 - **A conf.d link is never taken away from another customer** (#956). The damage in #925 became

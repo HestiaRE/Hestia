@@ -2255,6 +2255,36 @@ check_operator_keys_present() {
 	fi
 }
 
+# One encoder and one decoder for record values (#1002). A call site that spells a placeholder
+# itself is a second home for the mapping: that is how the set stayed at one character while the
+# grammar refused four, and how thirteen readers each ended up with their own copy. The set is read
+# OUT of the helpers rather than repeated here, so this check cannot drift from them and its own
+# file carries no literal. Comment lines may name a placeholder; code may not. An empty set or an
+# empty scan fails rather than passes.
+check_record_encoding_central() {
+	local src="$HESTIA/include/main.sh" ph f rel n=0 bad=''
+	ph=$(grep -oE '%[a-z]+%' "$src" 2> /dev/null | sort -u | paste -sd'|')
+	if [ -z "$ph" ]; then
+		no "record encoding: no placeholder found in include/main.sh" "nothing to compare against"
+		return
+	fi
+	while read -r f; do
+		[ -n "$f" ] || continue
+		n=$((n + 1))
+		rel=${f#"$HESTIA/"}
+		[ "$rel" = 'include/main.sh' ] && continue
+		bad="$bad $rel"
+	done <<< "$(grep -rlE "^[^#]*($ph)" "$HESTIA/bin" "$HESTIA/include" 2> /dev/null)"
+	if [ "$n" -eq 0 ]; then
+		no "record encoding: nothing scanned" "not even include/main.sh matched, so this proves nothing"
+	elif [ -n "$bad" ]; then
+		no "record encoding spelled outside the helpers:$bad" \
+			"$n file(s) carry one in code - use record_value_encode/record_value_decode"
+	else
+		ok "record encoding: placeholders appear in code only in include/main.sh ($n file(s) scanned)"
+	fi
+}
+
 check_system_keys_agree() {
 	local bad='' t
 	if [ -z "$ROOT_USER" ]; then
@@ -2794,6 +2824,7 @@ check_release_mirror
 check_record_grammar
 check_key_registries
 check_operator_keys_present
+check_record_encoding_central
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

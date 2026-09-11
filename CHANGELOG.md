@@ -361,7 +361,12 @@ opens above it.
   marker comment counts as the start of the block, because `h-add-sys-sftp-jail` finds its own block
   by the marker and the lines that follow it. One inherited side finding went with it: removing the
   old block left the blank line in front of the marker, so the file grew by a line on every run;
-  three runs now leave it byte-identical.
+  three runs now leave it byte-identical. The review added two more: the new file was written with
+  `cat > "$config"`, which truncates the live `sshd_config` and refills it, so a kill in that window
+  leaves a box nobody logs into. It follows the pattern from #959/#964 now, temp file next to the
+  target plus mode, owner and rename, measured with 40 kills mid-write. And `h-add-sys-ssh-jail`
+  restarted sshd without ever asking whether the result parses; it validates first and refuses the
+  restart otherwise, which is what the sftp jail already did.
 
 - **One source for the hestia crontab, and a repair that someone calls** (#972). The list lived twice,
   in the installer and in `syshealth_repair_system_cronjobs`, and had already drifted in four ways:

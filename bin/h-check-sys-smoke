@@ -199,6 +199,32 @@ check_config_loaded() {
 	fi
 }
 
+# check_jail_sshd - both jails are installed on every box and have no delete command any more (#945,
+# 1d-3), so what their system layer put into sshd_config has to be there. REPORTED, never repaired:
+# the line from 1a holds here too, a guard verifies an artefact and does not fill it, and sshd_config
+# is operator surface. The message names the add command that puts each piece back.
+# Not covered, on purpose: whether a customer is actually jailed. That is the per-customer layer
+# (group membership and login shell), it changes with every h-change-user-shell, and a box with no
+# jailed customer is a legitimate state.
+check_jail_sshd() {
+	local cfg='/etc/ssh/sshd_config' bad=''
+	if [ ! -f "$cfg" ]; then
+		no "jail sshd: $cfg missing" "nothing to check against"
+		return
+	fi
+	grep -qE '^Subsystem[[:space:]]+sftp[[:space:]]+/usr/lib/sftp-server[[:space:]]*$' "$cfg" \
+		|| bad="$bad Subsystem-line(h-add-sys-ssh-jail)"
+	grep -qE '^Match[[:space:]]+Group[[:space:]]+sftp-jailed[[:space:]]*$' "$cfg" \
+		|| bad="$bad Match-Group-sftp-jailed(h-add-sys-sftp-jail)"
+	[ -x /usr/sbin/jailbash ] || bad="$bad jailbash(h-add-sys-ssh-jail)"
+	getent group sftp-jailed > /dev/null 2>&1 || bad="$bad group-sftp-jailed(h-add-sys-sftp-jail)"
+	if [ -n "$bad" ]; then
+		no "jail system layer incomplete:$bad" "re-run the command named in brackets; nothing here writes sshd_config"
+	else
+		ok "jail system layer complete (Subsystem line, Match block, jailbash, group)"
+	fi
+}
+
 # check_port <port> <label>
 check_port() {
 	if ss -H -tln 2> /dev/null | awk '{print $4}' | grep -qE "[:.]$1\$"; then
@@ -2824,6 +2850,7 @@ check_release_mirror
 check_record_grammar
 check_key_registries
 check_operator_keys_present
+check_jail_sshd
 check_record_encoding_central
 check_sys_key_registry
 check_system_keys_agree

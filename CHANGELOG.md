@@ -12,37 +12,6 @@ opens above it.
 
 ## Unreleased
 
-### Fixed
-
-- **Consent for a restore comes through the argument, and the message says which one** (#1004). The
-  refusal advised `CONSENT='...'`, the spelling of an environment prefix, which is deliberately inert:
-  the consent word is an argument because of GHSA-2xw3, and a second control channel through the
-  environment reopens what that closed. Following the advice literally produced the same refusal with
-  no hint. The message now names the argument position and says a prefix is ignored on purpose. The
-  rule also only held for one of three ways in: `RESTORE_ASSUME_YES` and `RESTORE_PHP_FALLBACK` were
-  read out of the environment here, the first with the effect of `all`, the second with the one `all`
-  deliberately withholds, and neither granted anything the argument cannot. Both reads are gone, and
-  the php-fallback flag is now assigned in both directions, because it doubles as the internal flag
-  the renderer reads and would otherwise have answered for a consent that was just refused. The restic
-  commands keep their environment switch: they have no consent argument, so there it is the only
-  channel rather than a second one.
-
-- **One encoder and one decoder for record values** (#1002). The record grammar refuses four
-  characters inside a value: the delimiter `'` and, for the sinks behind it, `"`, a backtick and a
-  backslash. Exactly one of them was encoded, by four writers each carrying their own `sed`, and
-  decoded again by thirteen readers each carrying their own copy. The reported case, a restore
-  writing a notification the box's own checker rejects, was the visible end of it: measured on a
-  fresh box, an ordinary cron job `echo "hallo"` or one with a backslash is accepted with rc 0, lands
-  raw in the record and turns the smoke red. `record_value_encode` and `record_value_decode` now
-  handle all four, through parameter substitution rather than `sed`, and every writer and reader goes
-  through them; a smoke check keeps the placeholders out of every file but the one that defines them,
-  reading the set out of the helpers instead of repeating it. Two inherited dead halves went with it:
-  `%dots%` was decoded when writing the crontab but has no encoder anywhere, here or upstream, so a
-  literal `%dots%` in a customer's command silently became a colon; and the autoreply reader decoded
-  `%quote%` out of a plain `.msg` file that no writer ever encodes, in the JSON branch only while the
-  shell branch did not. Records written before this stay as they are and keep the smoke red until
-  something rewrites them.
-
 ### Added
 
 - **A conf.d link is never taken away from another customer** (#956). The damage in #925 became
@@ -58,44 +27,25 @@ opens above it.
   hand: rc 10, link untouched, while rebuild, suspend, unsuspend, template and backend change, a full
   user rebuild and an ordinary domain delete all stay rc 0.
 
-### Fixed
+- **The smoke measures the chain that keeps `hestia.conf` to root** (#960). Every v0.18.0 box carried
+  the file as 644 root:root: the seed sets 660, and the old sort through `/tmp/updconf` handed out the
+  umask's mode on the first config write of the install. Nothing said so. The chain held anyway -
+  `/etc/hestia` is 700 root:root, and the panel pool, a customer and `nobody` all stop at the directory
+  (measured) - so this was drift, not a leak. The writer fix above keeps the mode; the new check reads
+  the directory's and the file's expected mode from the tree (`include/wizard.sh`, `include/helper.sh`)
+  and fails when a pattern finds nothing, so a fresh install after the release proves the drift gone.
+  No repair for existing boxes: there are none outside the test fleet, which is reset.
 
-- **The webmail front was a service nobody could see** (#1003). In the mailfront model `WEB_SYSTEM` and
-  `PROXY_SYSTEM` are deliberately empty and `WEBMAIL_FRONT` carries the nginx that serves webmail and
-  terminates ACME, but `h-list-sys-services` only ever asked the first two. On a mail-only box the
-  running daemon appeared neither in the list nor on the panel's server page, so there was no way to
-  restart it from the panel; the smoke had it covered, the operator did not. It is now listed once, and
-  only where it is not already a row under another key. Measured on all three models: mailfront gains
-  the row, both and apache-only are unchanged.
+### Security
 
-- **A comparison that read like an assignment** (#993). The phpMyAdmin SSO branch in the panel's server
-  page ended with `$_SESSION["PHPMYADMIN_KEY"] != "";`, a statement that computes a boolean and throws
-  it away. It had no effect either way: the config re-read at the end of the same POST block reloads
-  every key from the record, and the add side cannot know the new value anyway because it is a
-  generated secret. Both session writes in that branch are gone, with the reason written down where
-  they stood.
-
-- **The backup lister read a constant, the writer read the operator** (#992). On a box with its own
-  backup directory `h-backup-user` wrote there while `h-list-user-backups` listed `/backup`: the
-  lister snapshotted `BACKUP` eight lines before it loaded its configuration. The snapshot itself is
-  right and stays, because the record field shares its name with the directory global; only the order
-  was wrong. Measured with `BACKUP='/mnt/probe-backup'`: writer and lister now meet, and the `LOCAL`
-  column follows, the same archive reading `yes` there and `no` after switching back.
-
-- **The installer started its services instead of restarting them** (#1001). `systemctl start` on a
-  running unit does nothing, and apt had already started the daemon long before the installer wrote
-  its configuration, so the daemon kept serving what the package brought. Measured on dovecot with the
-  `compact` preset on Debian 13: delivery worked, because dovecot-lda reads the files per message,
-  while every IMAP login failed and the running auth process fell back to the stock PAM chain, where
-  a mail account is unknown and a system account is not. Boxes with the Sieve addon were saved by its
-  own restart, and Sieve is preselected only on `standard` and `mailonly` while `compact`, `latest`
-  and `singlephp` have mail too. Four sites carried the same shape and all four now restart:
-  `hestia-php`, the customer PHP-FPM master per version, `exim4` and `dovecot`. On a stopped unit
-  restart behaves like start, so a first run is unchanged. A new smoke check comes with it, because
-  the liveness check is blind here, a dovecot that never read its auth chain is active and answers on
-  143 with a banner: `check_config_loaded` compares a unit's start against the newest configuration
-  file HestiaRE ships for it, fails on an empty file set, and says in its comment what it does not
-  cover.
+- **Eleven commands stopped executing `hestia.conf` as shell** (#955). They read the file with a
+  plain `source` before (or instead of) the sanitized `source_conf`. A value that reaches the file
+  with unbalanced quotes - the sed writer produced one from a plain `&` - is then parsed as an
+  assignment followed by a command, and bash runs a word taken from the operator's value. The
+  plain reads are gone: eight commands already re-read through `source_conf` on the next line,
+  three (`h-change-user-shell`, `h-update-sys-rrd-ftp`, the quota re-read in `h-change-user-package`)
+  now use it in place of `source`. `source_conf` binds every key as data and refuses the protected
+  shell names; nothing the eleven read comes from `hestia.conf` under a name it withholds.
 
 ### Changed
 
@@ -148,23 +98,6 @@ opens above it.
   `_JAIL` and `_WPCLI` are gone from freshly written recipes and have no reader anywhere in the tree.
   Existing boxes keep their lines, because `install.conf` is never migrated.
 
-### Fixed
-
-- **A second installer run no longer costs the box port 443** (#994). The web stage wipes
-  `/etc/nginx/conf.d/*.conf` and restores only the static files from `share/`; the per-IP listener is
-  rendered by `rebuild_ip_web_config`, which runs from `h-add-sys-ip` and the model switch and therefore
-  never on a re-run. The configure stage now re-renders the listeners of the registered IP objects.
-
-- **A successful install no longer prints four error lines that mean nothing** (#997). Four places built
-  random strings as `tr -dc … < /dev/urandom | head -c N`, where the endless stream meets a reader that
-  closes early; they now use `openssl rand` or plain arithmetic. The smoke's eval scan piped every file
-  through `sed … | grep -q` and is now a single `awk` with the same early exit. And on mailonly the
-  configure stage attempted a default web domain on a box with no customer web and caught the refusal
-  with `|| true`; it no longer attempts it.
-
-
-### Changed
-
 - **The recipe freezes: after the wizard, nothing writes `install.conf` any more** (#945, phase 1d-1 of
   the update chapter). `set_install_component` and `webmail_component_set` are gone, and with them 34 call
   sites across 26 commands plus the four webmail blocks. Those commands kept two competing books: the
@@ -208,57 +141,6 @@ opens above it.
   generated `install.conf` header so it travels with every box, and at the installer's read of that file.
   No update rewrites the recipe, so a box keeps the key set it was installed with: a reader has to tolerate
   both an unknown key and an expected key that is absent.
-
-### Fixed
-
-- **The installer no longer dies on an existing admin user** (#945). A stage marker is the sha256 of the
-  recipe, so rewriting the recipe makes every stage due again; `configure` then reached `h-add-user`,
-  which refuses with `E_EXISTS`, and under `set -e` the whole installation ended there. Measured while
-  proving the marker fix. That is exactly the path `hestia configure --force` plus `hestia install` is
-  meant to be. The account is box state, not recipe: an existing one is kept together with its password,
-  and the password this run generated is discarded rather than printed, because it was never set.
-
-- **The hestia crontab is renamed into place instead of truncated** (#945). Three things meet: systemd
-  ships `fs.protected_regular=2` (`/usr/lib/sysctl.d/50-default.conf`, on all four targets),
-  `/var/spool/cron/crontabs` is sticky and group-writable, and the file belongs to `hestia`. Under those
-  three the kernel refuses to open it for writing even for root. A fresh install never meets it, because
-  the file does not exist yet; the first run that enters the stage a second time dies there. Reproduced
-  on Debian 13. The key is base-system policy, not our hardening, so the writer changed, not the key.
-  A temp file plus `rename()` sidesteps the check and makes the write atomic. In the same stage, adding
-  the default domain no longer prints a bare `Error: ... exists` on a re-run.
-
-### Removed
-
-- **The synthetic emitter key `CROWDSEC`** (#945). It was computed from the L3 marker file at every login;
-  `CROWDSEC_SYSTEM` has been a real registry key since #938 and travels in the emitter loop. The two panel
-  gates read it. This is a different predicate, not a rename: an engine without L3 wiring now counts, a
-  marker without an engine no longer does. **It takes effect only after a re-login**, because the panel
-  session is filled at login.
-
-### Security
-
-
-- **Eleven commands stopped executing `hestia.conf` as shell** (#955). They read the file with a
-  plain `source` before (or instead of) the sanitized `source_conf`. A value that reaches the file
-  with unbalanced quotes - the sed writer produced one from a plain `&` - is then parsed as an
-  assignment followed by a command, and bash runs a word taken from the operator's value. The
-  plain reads are gone: eight commands already re-read through `source_conf` on the next line,
-  three (`h-change-user-shell`, `h-update-sys-rrd-ftp`, the quota re-read in `h-change-user-package`)
-  now use it in place of `source`. `source_conf` binds every key as data and refuses the protected
-  shell names; nothing the eleven read comes from `hestia.conf` under a name it withholds.
-
-### Added
-
-- **The smoke measures the chain that keeps `hestia.conf` to root** (#960). Every v0.18.0 box carried
-  the file as 644 root:root: the seed sets 660, and the old sort through `/tmp/updconf` handed out the
-  umask's mode on the first config write of the install. Nothing said so. The chain held anyway -
-  `/etc/hestia` is 700 root:root, and the panel pool, a customer and `nobody` all stop at the directory
-  (measured) - so this was drift, not a leak. The writer fix above keeps the mode; the new check reads
-  the directory's and the file's expected mode from the tree (`include/wizard.sh`, `include/helper.sh`)
-  and fails when a pattern finds nothing, so a fresh install after the release proves the drift gone.
-  No repair for existing boxes: there are none outside the test fleet, which is reset.
-
-### Changed
 
 - **The manifest links every component to its status key** (#944, Phase 1c of the update chapter, no
   release: shipped data and guards only). Each component that is neither `always_installed` nor
@@ -368,12 +250,14 @@ opens above it.
   an existing key through a temp file and `mv`, so the new inode took the installer's umask and every
   fresh box ended at 644. The `/tmp/updconf` path fixed in #959 was one of two writers with that shape,
   not the only one. `wcv` now keeps the file's mode and owner across the rename, as the sort does.
+
 - **A webmail add no longer narrows the operator's webmail choice in `install.conf`** (#965).
   `h-add-sys-roundcube` and `h-add-sys-tachyon` rebuilt `COMPONENT_MAIL_WEBMAILER` from what the status
   already listed. In a fresh install Roundcube runs first, so the recipe briefly read `ROUNDCUBE` alone;
   a Tachyon success wrote the pair back, a failure left the choice lost - the case #928 had removed from
   the installer, alive one layer down. Measured with a blocked Tachyon source on a fresh mailonly box.
   The set is now the recipe's current tokens plus the caller's own, read from `install.conf`.
+
 - **The panel reads the exit code of every command it writes with** (#957). 94 of the 420 `exec()`
   sites never looked at it: the whitelabel form answered 200 to a value the command refused, a bulk
   suspend of ten domains reported nothing when all ten failed, a firewall list whose command died
@@ -402,6 +286,7 @@ opens above it.
   install.conf is the recorded choice, not a status file; the status key `WEBMAIL_SYSTEM` (written
   only on success) says what the box has. The failure line stays. The composer gate also drops its
   `:-true` default: an absent `COMPONENT_ADDON_COMPOSER` now means "not chosen", as for every other addon.
+
 - **`www.<domain>` no longer takes over another customer's vhost** (#925, inherited). Every
   `h-add-*` command bound `domain_idn` from the raw argument before `format_domain` stripped the
   `www.`, and `format_domain_idn` only seeded an empty value - so both duplicate guards checked a
@@ -413,6 +298,7 @@ opens above it.
   did not answer the empty result raised a shell error and the address passed with rc 0 - the
   validator did the opposite of its job exactly when it could not work. It now compares the result
   as a string and refuses on anything but a clean yes (measured with `HESTIA_PHP=/bin/false`).
+
 - **The LANGUAGE repair never worked, and the repair command reported success anyway** (#929,
   inherited). `syshealth_repair_system_config` called `h-change-sys-language` with the key name as
   the language, the command refused, and `h-repair-sys-config` logged "Executed repair" with rc 0.
@@ -424,9 +310,111 @@ opens above it.
 
 ### Removed
 
+- **The synthetic emitter key `CROWDSEC`** (#945). It was computed from the L3 marker file at every login;
+  `CROWDSEC_SYSTEM` has been a real registry key since #938 and travels in the emitter loop. The two panel
+  gates read it. This is a different predicate, not a rename: an engine without L3 wiring now counts, a
+  marker without an engine no longer does. **It takes effect only after a re-login**, because the panel
+  session is filled at login.
+
 - **`h-repair-sys-config restore`** (#930). The mode replaced `hestia.conf` with
   `conf/defaults/hestia.conf`, a file nothing in the tree ever writes, so it aborted on every box
   and nothing called it. Not a lost capability: it never was one.
+
+### Fixed
+
+- **Consent for a restore comes through the argument, and the message says which one** (#1004). The
+  refusal advised `CONSENT='...'`, the spelling of an environment prefix, which is deliberately inert:
+  the consent word is an argument because of GHSA-2xw3, and a second control channel through the
+  environment reopens what that closed. Following the advice literally produced the same refusal with
+  no hint. The message now names the argument position and says a prefix is ignored on purpose. The
+  rule also only held for one of three ways in: `RESTORE_ASSUME_YES` and `RESTORE_PHP_FALLBACK` were
+  read out of the environment here, the first with the effect of `all`, the second with the one `all`
+  deliberately withholds, and neither granted anything the argument cannot. Both reads are gone, and
+  the php-fallback flag is now assigned in both directions, because it doubles as the internal flag
+  the renderer reads and would otherwise have answered for a consent that was just refused. The restic
+  commands keep their environment switch: they have no consent argument, so there it is the only
+  channel rather than a second one.
+
+- **One encoder and one decoder for record values** (#1002). The record grammar refuses four
+  characters inside a value: the delimiter `'` and, for the sinks behind it, `"`, a backtick and a
+  backslash. Exactly one of them was encoded, by four writers each carrying their own `sed`, and
+  decoded again by thirteen readers each carrying their own copy. The reported case, a restore
+  writing a notification the box's own checker rejects, was the visible end of it: measured on a
+  fresh box, an ordinary cron job `echo "hallo"` or one with a backslash is accepted with rc 0, lands
+  raw in the record and turns the smoke red. `record_value_encode` and `record_value_decode` now
+  handle all four, through parameter substitution rather than `sed`, and every writer and reader goes
+  through them; a smoke check keeps the placeholders out of every file but the one that defines them,
+  reading the set out of the helpers instead of repeating it. Two inherited dead halves went with it:
+  `%dots%` was decoded when writing the crontab but has no encoder anywhere, here or upstream, so a
+  literal `%dots%` in a customer's command silently became a colon; and the autoreply reader decoded
+  `%quote%` out of a plain `.msg` file that no writer ever encodes, in the JSON branch only while the
+  shell branch did not. Records written before this stay as they are and keep the smoke red until
+  something rewrites them.
+
+- **The webmail front was a service nobody could see** (#1003). In the mailfront model `WEB_SYSTEM` and
+  `PROXY_SYSTEM` are deliberately empty and `WEBMAIL_FRONT` carries the nginx that serves webmail and
+  terminates ACME, but `h-list-sys-services` only ever asked the first two. On a mail-only box the
+  running daemon appeared neither in the list nor on the panel's server page, so there was no way to
+  restart it from the panel; the smoke had it covered, the operator did not. It is now listed once, and
+  only where it is not already a row under another key. Measured on all three models: mailfront gains
+  the row, both and apache-only are unchanged.
+
+- **A comparison that read like an assignment** (#993). The phpMyAdmin SSO branch in the panel's server
+  page ended with `$_SESSION["PHPMYADMIN_KEY"] != "";`, a statement that computes a boolean and throws
+  it away. It had no effect either way: the config re-read at the end of the same POST block reloads
+  every key from the record, and the add side cannot know the new value anyway because it is a
+  generated secret. Both session writes in that branch are gone, with the reason written down where
+  they stood.
+
+- **The backup lister read a constant, the writer read the operator** (#992). On a box with its own
+  backup directory `h-backup-user` wrote there while `h-list-user-backups` listed `/backup`: the
+  lister snapshotted `BACKUP` eight lines before it loaded its configuration. The snapshot itself is
+  right and stays, because the record field shares its name with the directory global; only the order
+  was wrong. Measured with `BACKUP='/mnt/probe-backup'`: writer and lister now meet, and the `LOCAL`
+  column follows, the same archive reading `yes` there and `no` after switching back.
+
+- **The installer started its services instead of restarting them** (#1001). `systemctl start` on a
+  running unit does nothing, and apt had already started the daemon long before the installer wrote
+  its configuration, so the daemon kept serving what the package brought. Measured on dovecot with the
+  `compact` preset on Debian 13: delivery worked, because dovecot-lda reads the files per message,
+  while every IMAP login failed and the running auth process fell back to the stock PAM chain, where
+  a mail account is unknown and a system account is not. Boxes with the Sieve addon were saved by its
+  own restart, and Sieve is preselected only on `standard` and `mailonly` while `compact`, `latest`
+  and `singlephp` have mail too. Four sites carried the same shape and all four now restart:
+  `hestia-php`, the customer PHP-FPM master per version, `exim4` and `dovecot`. On a stopped unit
+  restart behaves like start, so a first run is unchanged. A new smoke check comes with it, because
+  the liveness check is blind here, a dovecot that never read its auth chain is active and answers on
+  143 with a banner: `check_config_loaded` compares a unit's start against the newest configuration
+  file HestiaRE ships for it, fails on an empty file set, and says in its comment what it does not
+  cover.
+
+- **A second installer run no longer costs the box port 443** (#994). The web stage wipes
+  `/etc/nginx/conf.d/*.conf` and restores only the static files from `share/`; the per-IP listener is
+  rendered by `rebuild_ip_web_config`, which runs from `h-add-sys-ip` and the model switch and therefore
+  never on a re-run. The configure stage now re-renders the listeners of the registered IP objects.
+
+- **A successful install no longer prints four error lines that mean nothing** (#997). Four places built
+  random strings as `tr -dc … < /dev/urandom | head -c N`, where the endless stream meets a reader that
+  closes early; they now use `openssl rand` or plain arithmetic. The smoke's eval scan piped every file
+  through `sed … | grep -q` and is now a single `awk` with the same early exit. And on mailonly the
+  configure stage attempted a default web domain on a box with no customer web and caught the refusal
+  with `|| true`; it no longer attempts it.
+
+- **The installer no longer dies on an existing admin user** (#945). A stage marker is the sha256 of the
+  recipe, so rewriting the recipe makes every stage due again; `configure` then reached `h-add-user`,
+  which refuses with `E_EXISTS`, and under `set -e` the whole installation ended there. Measured while
+  proving the marker fix. That is exactly the path `hestia configure --force` plus `hestia install` is
+  meant to be. The account is box state, not recipe: an existing one is kept together with its password,
+  and the password this run generated is discarded rather than printed, because it was never set.
+
+- **The hestia crontab is renamed into place instead of truncated** (#945). Three things meet: systemd
+  ships `fs.protected_regular=2` (`/usr/lib/sysctl.d/50-default.conf`, on all four targets),
+  `/var/spool/cron/crontabs` is sticky and group-writable, and the file belongs to `hestia`. Under those
+  three the kernel refuses to open it for writing even for root. A fresh install never meets it, because
+  the file does not exist yet; the first run that enters the stage a second time dies there. Reproduced
+  on Debian 13. The key is base-system policy, not our hardening, so the writer changed, not the key.
+  A temp file plus `rename()` sidesteps the check and makes the write atomic. In the same stage, adding
+  the default domain no longer prints a bare `Error: ... exists` on a re-run.
 
 ## v0.18.0 (2026-09-01)
 

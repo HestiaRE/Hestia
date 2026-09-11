@@ -52,7 +52,7 @@
   "CRON_SYSTEM": {
    "class": "betreiber",
    "default": "cron",
-   "note": "Vocabulary settled with the lower-bound release (#945, 1d-3, #971): 'cron', plus 'remote' which two readers ask for (h-list-sys-services, h-restart-cron). The key STAYS although no command sets it and cron is always installed: it names the implementation the way WEB_SYSTEM does, and the gate it feeds is harmless now that the daily repair writes the default back when someone empties it by hand (#1006)."
+   "note": "Vocabulary settled with the lower-bound release (#945, 1d-3, #971): 'cron', plus 'remote' which two readers ask for (h-list-sys-services, h-restart-cron) although no writer anywhere sets it, here or upstream (#1015, ten keys share that). The key STAYS although no command sets it and cron is always installed: it names the implementation the way WEB_SYSTEM does, and the gate it feeds is harmless now that the daily repair writes the default back when someone empties it by hand (#1006)."
   },
   "CROWDSEC_SYSTEM": {
    "class": "system",

@@ -322,6 +322,19 @@ opens above it.
 
 ### Fixed
 
+- **One source for the hestia crontab, and a repair that someone calls** (#972). The list lived twice,
+  in the installer and in `syshealth_repair_system_cronjobs`, and had already drifted in four ways:
+  `MAILTO`, a hard-wired install root, line-by-line appends instead of temp+rename, and a different
+  random source. The second copy was also unrunnable, calling a `gen_pass` that exists nowhere in this
+  tree, so it would have written a crontab with an empty minute and hour. `system_crontab_write` in
+  `include/main.sh` is the only renderer now; the installer uses it and so does
+  `h-repair-sys-config`, which had no crontab repair at all. The repair writes only when the file is
+  MISSING and never touches one that is there, because the hestia crontab is operator surface: the
+  panel edits it, two commands append to it, and one removes a baseline line on purpose. Measured
+  both ways, including that a deleted crontab comes back byte-identical apart from the renewal time
+  it draws, that cron accepts it, and that an unwritable directory ends the repair with rc 19 and a
+  named line.
+
 - **Consent for a restore comes through the argument, and the message says which one** (#1004). The
   refusal advised `CONSENT='...'`, the spelling of an environment prefix, which is deliberately inert:
   the consent word is an argument because of GHSA-2xw3, and a second control channel through the

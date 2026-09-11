@@ -32,7 +32,7 @@ json_list() {
 		parse_object_kv_list "$str"
 		# %quote% is the storage encoding for ' (the record delimiter), so it is decoded for every
 		# format; the " escaping that used to sit here is json_escape's job and doubled up with it.
-		CMD="${CMD//%quote%/\'}"
+		CMD=$(record_value_decode "$CMD")
 		json_escape JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$JOB"
 		printf '        "MIN": "%s",\n' "$MIN"
@@ -63,7 +63,10 @@ shell_list() {
 	echo "---^---^----^---^-----^----^-------"
 	while read str; do
 		parse_object_kv_list "$str"
-		CMD=$(echo "$CMD" | sed -e 's/"/\\"/g' -e "s/%quote%/'/g")
+		# Decode first, then the " escaping shell and plain have always applied (same order and same
+		# reason as bin/h-list-cron-job); json_escape owns that job in the JSON branch above.
+		CMD=$(record_value_decode "$CMD")
+		CMD=${CMD//\"/\\\"}
 		echo "$JOB^$MIN^$HOUR^$DAY^$MONTH^$WDAY^$CMD"
 	done < <(cat $USER_DATA/cron.conf)
 }
@@ -73,9 +76,12 @@ plain_list() {
 	IFS=$'\n'
 	while read str; do
 		parse_object_kv_list "$str"
-		CMD=$(echo "$CMD" | sed -e 's/"/\\"/g' -e "s/%quote%/'/g")
-		echo -ne "$JOB\t$MIN\t$HOUR\t$DAY\t$MONTH\t$WDAY\t$CMD\t"
-		echo -e "$SUSPENDED\t$TIME\t$DATE"
+		CMD=$(record_value_decode "$CMD")
+		CMD=${CMD//\"/\\\"}
+		# printf, not echo -e: a command may now carry a backslash, and echo -e turned `echo a\b`
+		# into a literal backspace in the output (#1002).
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+			"$JOB" "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" "$CMD" "$SUSPENDED" "$TIME" "$DATE"
 	done < <(cat $USER_DATA/cron.conf)
 }
 

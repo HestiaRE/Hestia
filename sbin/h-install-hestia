@@ -327,7 +327,9 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 	cp -f "$HESTIA/share/panel-php/hestia-php.service" /etc/systemd/system/
 	systemctl daemon-reload
 	systemctl enable hestia-php
-	systemctl start hestia-php
+	# restart, not start: on a stage re-run the master is already up and `start` is a no-op, so the
+	# pool and ini written three lines above would never be read (#1001).
+	systemctl restart hestia-php
 
 	# panel cert must exist before caddy starts; LE replaces it later
 	echo "[ * ] Generating panel SSL certificate..."
@@ -532,7 +534,8 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 	cp -f "$HESTIA/share/php-fpm/dummy.conf" /etc/php/${PHP_VER}/fpm/pool.d/dummy.conf
 	sed -i "s/%backend_version%/${PHP_VER}/g" /etc/php/${PHP_VER}/fpm/pool.d/dummy.conf
 	update-rc.d php${PHP_VER}-fpm defaults > /dev/null 2>&1
-	systemctl start php${PHP_VER}-fpm
+	# apt already started the master, so `start` would leave the dummy pool above unread (#1001).
+	systemctl restart php${PHP_VER}-fpm
 	update-alternatives --set php /usr/bin/php${PHP_VER} > /dev/null 2>&1 || true
 
 	# After every version exists: the cap covers the masters together, so a version
@@ -644,7 +647,9 @@ install_mail() {
 	update-rc.d -f sendmail remove > /dev/null 2>&1 || true
 	update-rc.d -f postfix remove > /dev/null 2>&1 || true
 	update-rc.d exim4 defaults
-	systemctl start exim4
+	# see the dovecot note below: apt starts the daemon before we write its configuration (#1001).
+	# exim survived only because update-exim4.conf restarts it on its own.
+	systemctl restart exim4
 
 	echo "[ * ] Configuring Dovecot..."
 	gpasswd -a dovecot mail > /dev/null 2>&1 || true
@@ -674,7 +679,11 @@ install_mail() {
 	chown dovecot:mail /var/log/dovecot.log
 	chmod 660 /var/log/dovecot.log
 	update-rc.d dovecot defaults
-	systemctl start dovecot
+	# The package start happens long before this block writes /etc/dovecot, and `systemctl start` on a
+	# running unit does nothing: the daemon then keeps the stock auth chain, dovecot-lda still delivers
+	# because it reads the files per message, and every IMAP login fails until something restarts it
+	# (#1001, measured on deb13 + compact; boxes with the Sieve addon were saved by its own restart).
+	systemctl restart dovecot
 
 	wcv "MAIL_SYSTEM" "exim4"
 	wcv "IMAP_SYSTEM" "dovecot"
@@ -1077,39 +1086,10 @@ configure_hestia() {
 	fi
 
 	echo "[ * ] Creating hestia crontab..."
-	local MIN HOUR _ct_tmp
-	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The old
-	# form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning hour; the
-	# range is the same intent and better spread.
-	MIN=$((RANDOM % 60))
-	HOUR=$((RANDOM % 7 + 1))
-	mkdir -p /var/spool/cron/crontabs
-	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is not
-	# a valid user name), but they would accumulate silently.
-	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
-	_ct_tmp="/var/spool/cron/crontabs/.hestia.$$"
-	{
-		echo "MAILTO=\"\""
-		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
-		echo "*/2 * * * * sudo $HESTIA/bin/h-update-sys-queue restart"
-		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue daily"
-		echo "15 02 * * * sudo $HESTIA/bin/h-update-sys-queue disk"
-		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue traffic"
-		echo "30 03 * * * sudo $HESTIA/bin/h-update-sys-queue webstats"
-		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-queue backup"
-		echo "10 05 * * * sudo $HESTIA/bin/h-backup-users"
-		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
-		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
-		echo "$MIN $HOUR * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
-	} > "$_ct_tmp"
-	chmod 600 "$_ct_tmp"
-	chown hestia:hestia "$_ct_tmp"
-	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all four
-	# targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to hestia:
-	# under those three, opening it for writing is EACCES even for root. A fresh install never met it,
-	# the file does not exist yet; the first re-run of this stage died right here. rename() is not
-	# subject to that check, and root owns the directory, so the sticky bit permits it (#945).
-	mv -f "$_ct_tmp" /var/spool/cron/crontabs/hestia
+	# One renderer for both homes (#972): include/main.sh owns the list, the repair uses the same one.
+	system_crontab_write
+	# Outside the crontab on purpose, so a deleted crontab does not take its own repair with it (#1006).
+	system_repair_cron_write
 	# no auto-update cron: HestiaRE updates via the release tarball, not apt/git
 	# Not swallowed (#730): a port that silently does not take leaves the firewall open.
 	if ! _port_out=$("$BIN/h-change-sys-port" "${HESTIA_PANEL_PORT:-8083}" 2>&1); then

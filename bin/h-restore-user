@@ -265,10 +265,13 @@ if ! restore_consent_parse "$consent"; then
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_INVALID" "unknown consent token in '$consent' - allowed: ${RESTORE_CONSENT_TOKENS// /, }"
 fi
-# CLI convenience only. RESTORE_ASSUME_YES maps to 'all' and deliberately NOT to php-fallback -
-# that one moves domains onto another PHP version and has its own switch.
-[ "$RESTORE_ASSUME_YES" = 'yes' ] && RESTORE_CONSENT="$RESTORE_CONSENT""all "
-[ "$RESTORE_PHP_FALLBACK" = 'yes' ] && RESTORE_CONSENT="$RESTORE_CONSENT""php-fallback "
+# No env channel for consent. The rule is written twice in this tree (include/backup.sh and
+# bin/h-backup-user:15): the consent word is an ARGUMENT because of GHSA-2xw3, and a second control
+# channel through the environment reopens what that closed. RESTORE_ASSUME_YES and
+# RESTORE_PHP_FALLBACK used to be read here and were exactly that, while granting nothing the
+# argument cannot: 'all' and 'php-fallback' are both tokens of CONSENT (#1004). The restic commands
+# are the one place where the environment stays the way in, and for a reason that is not the same:
+# they have no consent argument at all, so it is the only channel there, not a second one.
 
 restore_refused=''
 # Per section: off, selected (which IS the consent), or asked. ONE list, read twice - a sixth
@@ -309,7 +312,13 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && [ -n "$domains" ]; then
 			|| restore_refused="$restore_refused php-fallback"
 	fi
 fi
-restore_consent_has 'php-fallback' && RESTORE_PHP_FALLBACK='yes'
+# Assigned in both directions, not only on a hit: the variable is also the internal flag :580 reads,
+# so leaving it alone on a miss would let the environment answer for the consent it was just refused.
+if restore_consent_has 'php-fallback'; then
+	RESTORE_PHP_FALLBACK='yes'
+else
+	RESTORE_PHP_FALLBACK=''
+fi
 
 # Handover writes customer data into the home, so it is a section and asks like one. Whole-archive
 # runs only - a run that names objects was not asked for the rest, and the h-restore-* wrappers
@@ -332,7 +341,7 @@ if [ -n "$restore_refused" ]; then
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	# The tokens actually refused: 'all' covers the sections and deliberately not php-fallback.
 	restore_suggest=$(tr ' ' ',' <<< "${restore_refused# }")
-	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Pass CONSENT='$restore_suggest', select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version."
+	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version."
 fi
 
 # Restoring user account

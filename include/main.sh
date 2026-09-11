@@ -28,6 +28,33 @@ HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTE
 # record key in three files per box, these three in none.
 RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
 
+# Storage encoding for record VALUES. record_line_valid (include/backup.sh) refuses four characters
+# inside a value: the delimiter ' and, for the sinks behind it (#661), " ` and \. Until #1002 only
+# the delimiter was encoded, by four call sites each carrying their own sed, and thirteen readers
+# each carrying their own decode. A value with any of the other three was written anyway and the box
+# then held a record its own checker rejects, reachable with a cron command as ordinary as
+# `echo "hallo"`, measured. One encoder and one decoder, so a fifth writer cannot know half the set.
+#
+# Known limit, inherited with %quote% and deliberately not given a second escape layer: a value that
+# literally contains a placeholder decodes to the character it stands for.
+record_value_encode() {
+	local _v="$1"
+	_v="${_v//\\/%backslash%}"
+	_v="${_v//\'/%quote%}"
+	_v="${_v//\"/%dquote%}"
+	_v="${_v//\`/%backtick%}"
+	printf '%s' "$_v"
+}
+
+record_value_decode() {
+	local _v="$1"
+	_v="${_v//%quote%/\'}"
+	_v="${_v//%dquote%/\"}"
+	_v="${_v//%backtick%/\`}"
+	_v="${_v//%backslash%/\\}"
+	printf '%s' "$_v"
+}
+
 is_protected_key() {
 	case " ${SOURCE_CONF_PROTECTED//$'\n'/ } " in *" $1 "*) return 0 ;; esac
 	return 1
@@ -110,14 +137,15 @@ if [ -z "$user" ]; then
 fi
 
 # Internal variables
-HOMEDIR='/home'
-BACKUP='/backup'
-# Same value the installer writes and syshealth repairs to. Measured: the knee is between 3 and 6,
-# 9 buys 3 percentage points for triple the time (#776).
-BACKUP_GZIP=3
+# BACKUP and BACKUP_GZIP used to sit here as defaults. They are operator keys: the registry carries
+# their default and the repair writes it, so a copy here is a second home that drifts the moment the
+# registry changes, and it silently answered for the operator on every box (#992). HOMEDIR is the
+# opposite case and moved down to the constants: no registry entry, no writer, never in hestia.conf,
+# and source_conf refuses to bind it (SOURCE_CONF_PROTECTED).
 BACKUP_DISK_LIMIT=95
 BACKUP_LA_LIMIT=$(grep -c '^processor' /proc/cpuinfo)
 RRD_STEP=300
+HOMEDIR='/home'
 BIN=$HESTIA/bin
 # sbin holds what the sudo wildcard on bin/* must NOT reach: the panel-PHP wrappers and the
 # lifecycle commands (#209). Its own anchor so a caller cannot silently keep pointing at bin/.
@@ -1109,8 +1137,8 @@ send_notice() {
 	if [ "$notify" = 'yes' ]; then
 		# Second writer of notifications.conf besides h-add-user-notification: sanitize NOTICE
 		# (rendered via x-html) here too or it's an XSS bypass. %quote% keeps the record intact.
-		topic=$(echo "$topic" | sed "s/'/%quote%/g")
-		notice=$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$notice" | sed "s/'/%quote%/g")
+		topic=$(record_value_encode "$topic")
+		notice=$(record_value_encode "$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$notice")")
 
 		touch $USER_DATA/notifications.conf
 		chmod 660 $USER_DATA/notifications.conf
@@ -1240,13 +1268,93 @@ sync_cron_jobs() {
 	while read -r line; do
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
-			echo "$MIN $HOUR $DAY $MONTH $WDAY $CMD" \
-				| sed -e "s/%quote%/'/g" -e "s/%dots%/:/g" \
-					>> $crontab
+			# Decode the command alone: a schedule field cannot carry a storage placeholder, and the
+			# sed that used to run over the whole assembled line also rewrote %dots% into a colon.
+			# %dots% has no encoder, here or in the upstream this was inherited from, so a literal
+			# %dots% in a customer command was silently turned into ":" and nothing ever produced
+			# one (#1002).
+			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
+				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
 	done < $USER_DATA/cron.conf
 	chown $user:$user $crontab
 	chmod 600 $crontab
+}
+
+# The one hestia crontab. Two copies of this list existed, one in the installer and one in
+# syshealth.sh, and they had already drifted in four ways: MAILTO, a hard-wired install root,
+# line-by-line appends instead of temp+rename, and a different random source (#972). Rendering it
+# here makes the drift impossible rather than merely comparable.
+#
+# The Let's Encrypt renewal time is drawn per write. That is sound because a write only happens where
+# there is no file to preserve it from: the installer on a fresh box, and the repair only when the
+# file is gone.
+system_crontab_write() {
+	local _dst='/var/spool/cron/crontabs/hestia' _tmp _min _hour
+	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The
+	# old form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning
+	# hour; the range is the same intent and better spread.
+	_min=$((RANDOM % 60))
+	_hour=$((RANDOM % 7 + 1))
+	mkdir -p /var/spool/cron/crontabs || return 1
+	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is
+	# not a valid user name), but they would accumulate silently.
+	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
+	_tmp="/var/spool/cron/crontabs/.hestia.$$"
+	{
+		echo "MAILTO=\"\""
+		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
+		echo "*/2 * * * * sudo $HESTIA/bin/h-update-sys-queue restart"
+		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue daily"
+		echo "15 02 * * * sudo $HESTIA/bin/h-update-sys-queue disk"
+		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue traffic"
+		echo "30 03 * * * sudo $HESTIA/bin/h-update-sys-queue webstats"
+		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-queue backup"
+		echo "10 05 * * * sudo $HESTIA/bin/h-backup-users"
+		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
+		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
+		echo "$_min $_hour * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
+	} > "$_tmp" || return 1
+	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all
+	# four targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to
+	# hestia: under those three, opening it for writing is EACCES even for root. A fresh install never
+	# met it, the file does not exist yet; the first re-run of the installer stage died right here.
+	# rename() is not subject to that check, and root owns the directory, so the sticky bit permits
+	# it (#945).
+	mv -f "$_tmp" "$_dst"
+}
+
+# The periodic repair, in /etc/cron.d and deliberately NOT in the hestia crontab (#1006). It would
+# fit in the list above, but then it could not do half its job: a deleted crontab takes the line that
+# restores it with it. Outside that file the circle is broken, so a missing crontab really does come
+# back on its own.
+#
+# Daily, and 04:40 because nothing in the crontab runs at 04. What it heals is rare and operator- or
+# damage-induced (an absent or emptied operator key, a missing crontab), a run costs 0.8 s, and it
+# writes one line to system.log like h-update-user-stats already does. Hourly would multiply that by
+# 24 for a value that changes almost never; weekly would leave a box without a crontab, and therefore
+# without any queue processing, for up to seven days.
+#
+# Root directly, no sudo: cron.d entries name their user, and this one is not reachable from the
+# panel the way a bin/* command under the hestia sudo wildcard is.
+system_repair_cron_write() {
+	local _dst='/etc/cron.d/hestia-repair' _tmp
+	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
+	echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair" > "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	# cron REFUSES a group- or world-writable file in /etc/cron.d and says so only in its log
+	# ("INSECURE MODE"), which is how the hestia-ssl fallback once never ran anywhere.
+	chmod 644 "$_tmp" && chown root:root "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	mv -f "$_tmp" "$_dst"
 }
 
 # Validates Local part email and mail alias

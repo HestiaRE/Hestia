@@ -473,23 +473,19 @@ if (!empty($_POST["save"])) {
 		}
 	}
 
-	// Set phpMyAdmin SSO key
+	// Set phpMyAdmin SSO key. Neither branch writes the session: the config re-read at the end of
+	// this POST block reloads every key from the record, and the add side cannot know the new value
+	// anyway (it is a generated secret). The old `!= ""` here looked like an assignment and was none.
 	if (empty($_SESSION["error_msg"])) {
 		if (!empty($_POST["v_phpmyadmin_key"])) {
 			if ($_POST["v_phpmyadmin_key"] == "yes" && $_SESSION["PHPMYADMIN_KEY"] == "") {
 				exec(HESTIA_CMD . "h-add-sys-pma-sso quiet", $output, $return_var);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$_SESSION["PHPMYADMIN_KEY"] != "";
-				}
 			} elseif ($_POST["v_phpmyadmin_key"] == "no" && $_SESSION["PHPMYADMIN_KEY"] != "") {
 				exec(HESTIA_CMD . "h-delete-sys-pma-sso quiet", $output, $return_var);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$_SESSION["PHPMYADMIN_KEY"] = "";
-				}
 			}
 		}
 	}

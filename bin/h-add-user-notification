@@ -10,7 +10,7 @@
 
 # Argument definition
 user=$1
-topic=$(record_value_encode "$2")
+topic=$2
 type=$4
 priority=$5
 
@@ -22,7 +22,11 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# NOTICE renders via x-html, so sanitize before storing (allow-list; drops script/on*/js:).
+# After the includes, not in the argument block: the encoder is a shell function, and calling it
+# before main.sh is sourced silently yields an empty value (#1002).
+topic=$(record_value_encode "$topic")
+# NOTICE renders via x-html, so sanitize before storing (allow-list; drops script/on*/js:). Encoded
+# after the sanitizer, because the sanitizer is what re-serialises attributes with a double quote.
 notice=$(record_value_encode "$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$3")")
 
 #----------------------------------------------------------#

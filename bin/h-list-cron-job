@@ -59,7 +59,10 @@ shell_list() {
 
 # PLAIN list function
 plain_list() {
-	echo -e "$MIN\t$HOUR\t$DAY\t$MONTH\t$WDAY\t$CMD\t$SUSPENDED\t$TIME\t$DATE"
+	# printf, not echo -e: a command may now carry a backslash, and echo -e turned `echo a\b` into
+	# a literal backspace in the output (#1002).
+	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+		"$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" "$CMD" "$SUSPENDED" "$TIME" "$DATE"
 }
 
 #----------------------------------------------------------#

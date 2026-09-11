@@ -63,7 +63,10 @@ shell_list() {
 	echo "---^---^----^---^-----^----^-------"
 	while read str; do
 		parse_object_kv_list "$str"
+		# Decode first, then the " escaping shell and plain have always applied (same order and same
+		# reason as bin/h-list-cron-job); json_escape owns that job in the JSON branch above.
 		CMD=$(record_value_decode "$CMD")
+		CMD=${CMD//\"/\\\"}
 		echo "$JOB^$MIN^$HOUR^$DAY^$MONTH^$WDAY^$CMD"
 	done < <(cat $USER_DATA/cron.conf)
 }
@@ -74,8 +77,11 @@ plain_list() {
 	while read str; do
 		parse_object_kv_list "$str"
 		CMD=$(record_value_decode "$CMD")
-		echo -ne "$JOB\t$MIN\t$HOUR\t$DAY\t$MONTH\t$WDAY\t$CMD\t"
-		echo -e "$SUSPENDED\t$TIME\t$DATE"
+		CMD=${CMD//\"/\\\"}
+		# printf, not echo -e: a command may now carry a backslash, and echo -e turned `echo a\b`
+		# into a literal backspace in the output (#1002).
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+			"$JOB" "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" "$CMD" "$SUSPENDED" "$TIME" "$DATE"
 	done < <(cat $USER_DATA/cron.conf)
 }
 

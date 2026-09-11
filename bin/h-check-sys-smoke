@@ -212,8 +212,15 @@ check_jail_sshd() {
 		no "jail sshd: $cfg missing" "nothing to check against"
 		return
 	fi
-	grep -qE '^Subsystem[[:space:]]+sftp[[:space:]]+/usr/lib/sftp-server[[:space:]]*$' "$cfg" \
-		|| bad="$bad Subsystem-line(h-add-sys-ssh-jail)"
+	# Effective, not merely present. sshd -T prints the GLOBAL section, so a Subsystem line that
+	# landed inside a Match block does not appear here - and that is the state the old grep-the-file
+	# form called healthy while sftp was dead for everyone (#1017).
+	if ! sshd -T > /dev/null 2>&1; then
+		no "jail sshd: sshd -T does not run" "$(sshd -t 2>&1 | head -1)"
+		return
+	fi
+	sshd -T 2> /dev/null | grep -qiE '^subsystem[[:space:]]+sftp[[:space:]]+/usr/lib/sftp-server' \
+		|| bad="$bad Subsystem-line-not-in-effect(h-add-sys-ssh-jail)"
 	grep -qE '^Match[[:space:]]+Group[[:space:]]+sftp-jailed[[:space:]]*$' "$cfg" \
 		|| bad="$bad Match-Group-sftp-jailed(h-add-sys-sftp-jail)"
 	[ -x /usr/sbin/jailbash ] || bad="$bad jailbash(h-add-sys-ssh-jail)"

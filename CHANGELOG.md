@@ -14,6 +14,17 @@ opens above it.
 
 ### Added
 
+- **The repair runs on a schedule, from outside the file it repairs** (#1006). Nothing called
+  `h-repair-sys-config` at all: the registry carries a default for every operator key and the repair
+  writes it back, but without a caller that path was reachable only by hand, and an emptied
+  `CRON_SYSTEM` was invisible to the smoke while it disabled the customer cron feature and HestiaRE's
+  own job commands. A daily entry at 04:40, where nothing else in the crontab runs. It lives in
+  `/etc/cron.d/hestia-repair` and deliberately not in the hestia crontab: the first draft put it
+  there and the measurement killed it, because a deleted crontab takes the line that would restore it
+  with it. Outside that file the circle is broken and a missing crontab really does come back on its
+  own. The crontab runs independently of `CRON_SYSTEM`, measured, so the entry does not depend on the
+  state it heals.
+
 - **A conf.d link is never taken away from another customer** (#956). The damage in #925 became
   visible where `ln -sf` silently bent a customer's vhost link onto another customer's file. The
   cause is fixed (#951/#952); this is the tripwire behind it, at the bottleneck every web-config
@@ -321,6 +332,19 @@ opens above it.
   and nothing called it. Not a lost capability: it never was one.
 
 ### Fixed
+
+- **One source for the hestia crontab, and a repair that someone calls** (#972). The list lived twice,
+  in the installer and in `syshealth_repair_system_cronjobs`, and had already drifted in four ways:
+  `MAILTO`, a hard-wired install root, line-by-line appends instead of temp+rename, and a different
+  random source. The second copy was also unrunnable, calling a `gen_pass` that exists nowhere in this
+  tree, so it would have written a crontab with an empty minute and hour. `system_crontab_write` in
+  `include/main.sh` is the only renderer now; the installer uses it and so does
+  `h-repair-sys-config`, which had no crontab repair at all. The repair writes only when the file is
+  MISSING and never touches one that is there, because the hestia crontab is operator surface: the
+  panel edits it, two commands append to it, and one removes a baseline line on purpose. Measured
+  both ways, including that a deleted crontab comes back byte-identical apart from the renewal time
+  it draws, that cron accepts it, and that an unwritable directory ends the repair with rc 19 and a
+  named line.
 
 - **Consent for a restore comes through the argument, and the message says which one** (#1004). The
   refusal advised `CONSENT='...'`, the spelling of an environment prefix, which is deliberately inert:

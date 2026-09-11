@@ -1281,6 +1281,82 @@ sync_cron_jobs() {
 	chmod 600 $crontab
 }
 
+# The one hestia crontab. Two copies of this list existed, one in the installer and one in
+# syshealth.sh, and they had already drifted in four ways: MAILTO, a hard-wired install root,
+# line-by-line appends instead of temp+rename, and a different random source (#972). Rendering it
+# here makes the drift impossible rather than merely comparable.
+#
+# The Let's Encrypt renewal time is drawn per write. That is sound because a write only happens where
+# there is no file to preserve it from: the installer on a fresh box, and the repair only when the
+# file is gone.
+system_crontab_write() {
+	local _dst='/var/spool/cron/crontabs/hestia' _tmp _min _hour
+	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The
+	# old form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning
+	# hour; the range is the same intent and better spread.
+	_min=$((RANDOM % 60))
+	_hour=$((RANDOM % 7 + 1))
+	mkdir -p /var/spool/cron/crontabs || return 1
+	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is
+	# not a valid user name), but they would accumulate silently.
+	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
+	_tmp="/var/spool/cron/crontabs/.hestia.$$"
+	{
+		echo "MAILTO=\"\""
+		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
+		echo "*/2 * * * * sudo $HESTIA/bin/h-update-sys-queue restart"
+		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue daily"
+		echo "15 02 * * * sudo $HESTIA/bin/h-update-sys-queue disk"
+		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue traffic"
+		echo "30 03 * * * sudo $HESTIA/bin/h-update-sys-queue webstats"
+		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-queue backup"
+		echo "10 05 * * * sudo $HESTIA/bin/h-backup-users"
+		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
+		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
+		echo "$_min $_hour * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
+	} > "$_tmp" || return 1
+	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all
+	# four targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to
+	# hestia: under those three, opening it for writing is EACCES even for root. A fresh install never
+	# met it, the file does not exist yet; the first re-run of the installer stage died right here.
+	# rename() is not subject to that check, and root owns the directory, so the sticky bit permits
+	# it (#945).
+	mv -f "$_tmp" "$_dst"
+}
+
+# The periodic repair, in /etc/cron.d and deliberately NOT in the hestia crontab (#1006). It would
+# fit in the list above, but then it could not do half its job: a deleted crontab takes the line that
+# restores it with it. Outside that file the circle is broken, so a missing crontab really does come
+# back on its own.
+#
+# Daily, and 04:40 because nothing in the crontab runs at 04. What it heals is rare and operator- or
+# damage-induced (an absent or emptied operator key, a missing crontab), a run costs 0.8 s, and it
+# writes one line to system.log like h-update-user-stats already does. Hourly would multiply that by
+# 24 for a value that changes almost never; weekly would leave a box without a crontab, and therefore
+# without any queue processing, for up to seven days.
+#
+# Root directly, no sudo: cron.d entries name their user, and this one is not reachable from the
+# panel the way a bin/* command under the hestia sudo wildcard is.
+system_repair_cron_write() {
+	local _dst='/etc/cron.d/hestia-repair' _tmp
+	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
+	echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair" > "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	# cron REFUSES a group- or world-writable file in /etc/cron.d and says so only in its log
+	# ("INSECURE MODE"), which is how the hestia-ssl fallback once never ran anywhere.
+	chmod 644 "$_tmp" && chown root:root "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	mv -f "$_tmp" "$_dst"
+}
+
 # Validates Local part email and mail alias
 is_localpart_format_valid() {
 	if [ ${#1} -eq 1 ]; then

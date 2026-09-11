@@ -20,8 +20,12 @@ opens above it.
   writer passes through. Building it showed the bottleneck was not one: `h-rebuild-web-domain`
   deletes the four conf.d links before it renders, so a guard at the setter sees nothing at all.
   Both sides are guarded now, the setter and the remover, and the refusal names both customers.
-  Measured on all four models with a link bent by hand: rc 10, link untouched, while rebuild,
-  suspend, unsuspend, template and backend change and a full user rebuild all stay rc 0.
+  The review found the same shape once more: the merged-template branch removed a stale `.ssl.conf`
+  link with a bare `rm`, and a merged template has no `.ssl.conf` source file, so the guarded removal
+  never ran for it. Since both shipped default templates are merged, that was the normal path, and it
+  deleted another customer's live link without a word. Measured on all four models with a link bent by
+  hand: rc 10, link untouched, while rebuild, suspend, unsuspend, template and backend change, a full
+  user rebuild and an ordinary domain delete all stay rc 0.
 
 ### Fixed
 

@@ -2196,6 +2196,32 @@ check_sys_key_registry() {
 # token must have its host registration under conf/; every BACKUP_SYSTEM token except local its
 # backup host file. VERSION is Phase 4, the component keys are the service gates below and the
 # artefact fields of 1c.
+# Every operator key the registry declares has to be IN hestia.conf. Its default is reachable only
+# through h-repair-sys-config, and no cron runs that (#992), so an absent key is a state nothing
+# else notices: the reader then gets an empty string, and the ad-hoc `[ -z "$X" ] && X=...` copies
+# that used to paper over it are a second home for the default. Registry keys are [A-Z0-9_], so the
+# anchored grep needs no escaping. An empty key set fails, it never passes.
+check_operator_keys_present() {
+	local reg="$HESTIA/share/hestia/sys-keys.json" conf="$HESTIA/conf/hestia.conf" k n=0 miss=''
+	if [ ! -f "$reg" ] || [ ! -f "$conf" ]; then
+		no "operator keys not checkable" "missing $([ -f "$reg" ] || echo "$reg") $([ -f "$conf" ] || echo "$conf")"
+		return
+	fi
+	while read -r k; do
+		[ -n "$k" ] || continue
+		n=$((n + 1))
+		grep -q "^$k=" "$conf" || miss="$miss $k"
+	done < <(jq -r '.keys | to_entries[] | select(.value.class == "betreiber") | .key' "$reg" 2> /dev/null)
+	if [ "$n" -eq 0 ]; then
+		no "operator keys: the registry named none" "nothing was compared, so this check proves nothing"
+	elif [ -n "$miss" ]; then
+		no "operator keys missing from hestia.conf:$miss" \
+			"$n declared - h-repair-sys-config repair writes the registry default back"
+	else
+		ok "operator keys: all $n declared keys present in hestia.conf"
+	fi
+}
+
 check_system_keys_agree() {
 	local bad='' t
 	if [ -z "$ROOT_USER" ]; then
@@ -2730,6 +2756,7 @@ check_ip_object_shape
 check_release_mirror
 check_record_grammar
 check_key_registries
+check_operator_keys_present
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

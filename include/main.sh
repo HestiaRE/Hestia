@@ -110,14 +110,15 @@ if [ -z "$user" ]; then
 fi
 
 # Internal variables
-HOMEDIR='/home'
-BACKUP='/backup'
-# Same value the installer writes and syshealth repairs to. Measured: the knee is between 3 and 6,
-# 9 buys 3 percentage points for triple the time (#776).
-BACKUP_GZIP=3
+# BACKUP and BACKUP_GZIP used to sit here as defaults. They are operator keys: the registry carries
+# their default and the repair writes it, so a copy here is a second home that drifts the moment the
+# registry changes, and it silently answered for the operator on every box (#992). HOMEDIR is the
+# opposite case and moved down to the constants: no registry entry, no writer, never in hestia.conf,
+# and source_conf refuses to bind it (SOURCE_CONF_PROTECTED).
 BACKUP_DISK_LIMIT=95
 BACKUP_LA_LIMIT=$(grep -c '^processor' /proc/cpuinfo)
 RRD_STEP=300
+HOMEDIR='/home'
 BIN=$HESTIA/bin
 # sbin holds what the sudo wildcard on bin/* must NOT reach: the panel-PHP wrappers and the
 # lifecycle commands (#209). Its own anchor so a caller cannot silently keep pointing at bin/.

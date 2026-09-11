@@ -29,7 +29,24 @@ opens above it.
   generated secret. Both session writes in that branch are gone, with the reason written down where
   they stood.
 
+- **The backup lister read a constant, the writer read the operator** (#992). On a box with its own
+  backup directory `h-backup-user` wrote there while `h-list-user-backups` listed `/backup`: the
+  lister snapshotted `BACKUP` eight lines before it loaded its configuration. The snapshot itself is
+  right and stays, because the record field shares its name with the directory global; only the order
+  was wrong. Measured with `BACKUP='/mnt/probe-backup'`: writer and lister now meet, and the `LOCAL`
+  column follows, the same archive reading `yes` there and `no` after switching back.
+
 ### Changed
+
+- **Two operator defaults leave `include/main.sh`** (#992). `BACKUP` and `BACKUP_GZIP` are operator
+  keys whose default the registry carries; a copy in code is a second home that drifts the moment the
+  registry changes. `HOMEDIR` moves the other way, down to the constants: no registry entry, no writer,
+  never in `hestia.conf`, and `source_conf` refuses to bind the name. A new smoke check comes with it,
+  because the measurement found the gap that made those copies look harmless: a missing operator key
+  was invisible, the smoke stayed green and no cron runs `h-repair-sys-config`, so an absent
+  `BACKUP_GZIP` would have turned the next backup into an rc 13 about a half-written archive.
+  `check_operator_keys_present` holds every operator key in the registry against `hestia.conf`, names
+  the missing ones and the repair that writes them back; an empty key set fails rather than passes.
 
 - **One rule for what an add command says when there is nothing to do** (#945, phase 1d-2, E13). The
   nineteen component installers now answer in four shapes: freshly installed, already at the target

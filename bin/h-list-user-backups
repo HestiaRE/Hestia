@@ -25,7 +25,8 @@ source $HESTIA/include/backup.sh
 # parse_object_kv_list overwrites BACKUP: the record FIELD shares its name with the directory
 # GLOBAL the resolver reads (measured: every row said LOCAL=no because the resolver searched
 # inside the archive name). Juggled here so the resolver always sees the directory.
-backup_root="$BACKUP"
+# The snapshot is taken AFTER source_conf below, not before: main.sh seeds a constant, and taking it
+# here listed /backup on every box whose operator configured something else (#992).
 local_of() {
 	local _n="$1" _keep="$BACKUP"
 	BACKUP="$backup_root"
@@ -34,6 +35,7 @@ local_of() {
 }
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+backup_root="$BACKUP"
 
 # JSON list function
 json_list() {

@@ -12,6 +12,23 @@ opens above it.
 
 ## Unreleased
 
+### Fixed
+
+- **The webmail front was a service nobody could see** (#1003). In the mailfront model `WEB_SYSTEM` and
+  `PROXY_SYSTEM` are deliberately empty and `WEBMAIL_FRONT` carries the nginx that serves webmail and
+  terminates ACME, but `h-list-sys-services` only ever asked the first two. On a mail-only box the
+  running daemon appeared neither in the list nor on the panel's server page, so there was no way to
+  restart it from the panel; the smoke had it covered, the operator did not. It is now listed once, and
+  only where it is not already a row under another key. Measured on all three models: mailfront gains
+  the row, both and apache-only are unchanged.
+
+- **A comparison that read like an assignment** (#993). The phpMyAdmin SSO branch in the panel's server
+  page ended with `$_SESSION["PHPMYADMIN_KEY"] != "";`, a statement that computes a boolean and throws
+  it away. It had no effect either way: the config re-read at the end of the same POST block reloads
+  every key from the record, and the add side cannot know the new value anyway because it is a
+  generated secret. Both session writes in that branch are gone, with the reason written down where
+  they stood.
+
 ### Changed
 
 - **One rule for what an add command says when there is nothing to do** (#945, phase 1d-2, E13). The

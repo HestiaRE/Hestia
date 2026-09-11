@@ -1,5 +1,5 @@
 {
- "$comment": "The system key registry: one entry per hestia.conf key, class and default. Read at runtime from the tree (deliberately, see STRUCTURE.md); never copied to the box. betreiber = a human sets it, the repair fills an absent or empty key with the default, an update never touches it. system = the consequence of an action, written by commands; the repair never fills it (a verification in the smoke says whether it agrees with the box), an update may set it by manifest entry. tokens = a comma-separated token set; token_fn names the function that adds or removes one token (Phase 2 calls it, 1a only checks it exists). Guarded by sysreg_check (include/sysreg.sh), run by the smoke and by CI. secret = the value is a credential; the emitter still hands it to the panel session today (#976 decides what changes). note = free text for the reader, not data.",
+ "$comment": "The system key registry: one entry per hestia.conf key, class and default. Read at runtime from the tree (deliberately, see STRUCTURE.md); never copied to the box. betreiber = a human sets it, the repair fills an absent or empty key with the default, an update never touches it. system = the consequence of an action, written by commands; the repair never fills it (a verification in the smoke says whether it agrees with the box), an update may set it by manifest entry. tokens = a comma-separated token set; token_fn names the function that adds or removes one token (Phase 2 calls it, 1a only checks it exists). Guarded by sysreg_check (include/sysreg.sh), run by the smoke and by CI. secret = the value is a credential; the emitter still hands it to the panel session today (#976 decides what changes). note = free text for the reader, not data. Two contracts become binding with the lower-bound release (#945, phase 1d-3). ONE, the words: every vocabulary a status key may carry is settled now, so a later change is a migration entry in share/updates/, never a rename. TWO, the WRITE FORM of a SYSTEM key is deliberately NOT a contract: absent and empty mean the same thing there, and the tree writes both. (A betreiber key is the other case and has to be present, because its default lives here and the repair writes it back; check_operator_keys_present in the smoke says so.) A stage writer lays the line down empty, a command writer leaves it out, and a delete command empties the key instead of removing the line (measured on all three: COMPOSER_SYSTEM='' after a stage, CROWDSEC_SYSTEM missing on mailonly, DOCKER_SYSTEM='' after h-delete-sys-docker). Nothing may ever tell the two apart, and no guard may demand one of them.",
  "version": 1,
  "keys": {
   "ANTISPAM_SYSTEM": {
@@ -51,7 +51,8 @@
   },
   "CRON_SYSTEM": {
    "class": "betreiber",
-   "default": "cron"
+   "default": "cron",
+   "note": "Vocabulary settled with the lower-bound release (#945, 1d-3, #971): 'cron', plus 'remote' which two readers ask for (h-list-sys-services, h-restart-cron) although no writer anywhere sets it, here or upstream (#1015, ten keys share that). The key STAYS although no command sets it and cron is always installed: it names the implementation the way WEB_SYSTEM does, and the gate it feeds is harmless now that the daily repair writes the default back when someone empties it by hand (#1006)."
   },
   "CROWDSEC_SYSTEM": {
    "class": "system",
@@ -143,13 +144,6 @@
   "INACTIVE_SESSION_TIMEOUT": {
    "class": "betreiber",
    "default": "60"
-  },
-  "JAIL_SYSTEM": {
-   "class": "system",
-   "default": "",
-   "tokens": true,
-   "token_fn": "sys_key_token_set",
-   "note": "installed jails as tokens: sftp, ssh (#941). ON ITS WAY OUT: both jails are installed on every preset and model (the configure stage calls both unconditionally, bubblewrap is in the base set; measured 2026-09-09, sftp,ssh on all four boxes) and the choice is per customer (shell, sftp-jailed group), not per system. JAIL becomes always_installed and this key falls with 1d (#945); nothing in 1c or Phase 2 may build on it"
   },
   "LANGUAGE": {
    "class": "betreiber",

@@ -64,8 +64,8 @@ if ! grep -q 'pam_namespace.so' "$pam" 2> /dev/null; then
 	} >> "$pam"
 fi
 
-# The status token first, then the Subsystem line follows the token set (one decider, #941)
-sys_key_token_set JAIL_SYSTEM add sftp > /dev/null || check_result "$E_UPDATE" "JAIL_SYSTEM: could not record sftp"
+# The Subsystem line, from the one place that decides it (#941). No status token any more: both jails
+# are always installed and cannot be removed, so JAIL_SYSTEM could only ever say one thing (#945, 1d-3).
 [ "$(jail_sshd_subsystem_apply)" = changed ] && restart='yes'
 
 # Replace any existing "# Hestia SFTP Chroot" block (marker + following Match/indented
@@ -98,16 +98,9 @@ if ! /usr/sbin/sshd -t > /dev/null 2>&1; then
             \n\n$(/usr/sbin/sshd -t 2>&1)"
 	[ -n "$email" ] && echo -e "$mail_text" | $SENDMAIL -s "$subj" $email
 	echo "ERROR: sshd config invalid after SFTP jail setup, not restarting."
-	sys_key_token_set JAIL_SYSTEM remove sftp > /dev/null 2>&1
 	log_event "$E_INVALID" "$ARGUMENTS"
 	exit "$E_INVALID"
 fi
-
-# Migrate existing jailed users (nologin/rssh shells) into the group
-shells="rssh|nologin"
-for user in $(grep "$HOMEDIR" /etc/passwd | egrep "$shells" | cut -f 1 -d:); do
-	usermod -aG sftp-jailed "$user" > /dev/null 2>&1
-done
 
 # Restart ssh (unless explicitly told not to)
 if [ "$restart" != 'no' ]; then

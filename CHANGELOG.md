@@ -14,6 +14,12 @@ opens above it.
 
 ### Added
 
+- **The jail system layer is watched, not repaired** (#945, phase 1d-3). `check_jail_sshd` holds the
+  sshd `Subsystem` line, the `Match Group sftp-jailed` block, `jailbash` and the group against the box
+  and names, per missing piece, the add command that puts it back. Nothing here writes `sshd_config`:
+  the rule from phase 1a holds, a guard verifies an artefact and does not fill it, and that file is
+  operator surface. What it deliberately does not cover is in its comment.
+
 - **The repair runs on a schedule, from outside the file it repairs** (#1006). Nothing called
   `h-repair-sys-config` at all: the registry carries a default for every operator key and the repair
   writes it back, but without a caller that path was reachable only by hand, and an emptied
@@ -320,6 +326,17 @@ opens above it.
   artefact-driven fill is inherited behaviour and goes with the key registry (UPDATES 1a), not a promise.
 
 ### Removed
+
+- **The two jail delete commands, their `v-*` symlinks and `JAIL_SYSTEM`** (#945, phase 1d-3). Both
+  jail machineries are installed on every box and the choice is per customer, through the login shell,
+  so a key that can only ever say one thing is not status and a command that removes the system layer
+  is a supported way into a state the design excludes. Measured in both directions beforehand: after
+  either delete the affected customer is locked out, never let in unjailed, and `admin` sits in
+  `sftp-jailed` on every box, so there is no harmless normal case. The way back is re-running the add
+  command. `h-delete-sys-sftp-jail` took its `rm -rf` on `/run/hestia/jail` with it, which used to
+  clear the session roots of live customers. The migration loop in `h-add-sys-sftp-jail` goes too: it
+  came from the one-off HestiaCP migration, and every path that creates or restores a user today runs
+  through `h-add-user-sftp-jail`, which checks the shell itself.
 
 - **The synthetic emitter key `CROWDSEC`** (#945). It was computed from the L3 marker file at every login;
   `CROWDSEC_SYSTEM` has been a real registry key since #938 and travels in the emitter loop. The two panel

@@ -2432,7 +2432,7 @@ clear_sys_value() {
 }
 
 # sys_key_token_set KEY add|remove TOKEN - one token in a comma-separated hestia.conf key (DB_SYSTEM,
-# BACKUP_SYSTEM, WEBMAIL_SYSTEM, PHP_VERSIONS, JAIL_SYSTEM), the order kept as found, a token never
+# BACKUP_SYSTEM, WEBMAIL_SYSTEM, PHP_VERSIONS), the order kept as found, a token never
 # doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
 # a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM, #978).
 # The rc, in both directions: on a success path (package installed, purge done) the caller fails the
@@ -2581,23 +2581,18 @@ delete_chroot_jail() {
 	gpasswd -d "$1" sftp-jailed > /dev/null 2>&1 || true
 }
 
-# The one sshd "Subsystem sftp" line, decided from JAIL_SYSTEM in one place (#941): with the ssh jail it
-# is the sftp-server binary, so a jailbash user's sftp runs inside bwrap; the sftp jail alone takes
-# internal-sftp (its Match block forces that for the group anyway); no jail restores the distro path.
+# The one sshd "Subsystem sftp" line, in one place (#941). It is the sftp-server binary, so a jailbash
+# user's sftp runs inside bwrap. No longer a decision: both jails are installed on every box and there
+# is no supported way to remove them, so the two other branches (internal-sftp for the sftp jail alone,
+# the distro path for no jail) described states that cannot exist any more (#945, 1d-3).
 # /usr/lib/sftp-server is not a typo: openssh-sftp-server ships it as the compat symlink to
 # /usr/lib/openssh/sftp-server on all four targets (HestiaCP used the same line), and jailbash binds
 # /usr read-only, so the path resolves inside the jail too (measured: sftp as a jailbash user lists
 # its home, a bogus path closes the connection). Kept distinct from the distro line so the file says
-# which jail set it. The key is read from the file because the caller has just changed it. Prints
-# "changed" when the line was rewritten, so the caller restarts sshd; validating stays with the caller.
+# which jail set it. Prints "changed" when the line was rewritten, so the caller restarts sshd;
+# validating stays with the caller.
 jail_sshd_subsystem_apply() {
-	local config='/etc/ssh/sshd_config' jails want
-	jails=$(grep -m1 "^JAIL_SYSTEM=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d"'" -f2)
-	case ",$jails," in
-		*,ssh,*) want='/usr/lib/sftp-server' ;;
-		*,sftp,*) want='internal-sftp' ;;
-		*) want='/usr/lib/openssh/sftp-server' ;;
-	esac
+	local config='/etc/ssh/sshd_config' want='/usr/lib/sftp-server'
 	grep -qE "^Subsystem[[:space:]]+sftp[[:space:]]+${want}[[:space:]]*$" "$config" && return 0
 	if grep -qE '^Subsystem[[:space:]]+sftp[[:space:]]' "$config"; then
 		sed -i -E "0,/^Subsystem[[:space:]]+sftp[[:space:]]/s|^Subsystem[[:space:]]+sftp[[:space:]].*|Subsystem sftp ${want}|" "$config"

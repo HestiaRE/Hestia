@@ -350,6 +350,19 @@ opens above it.
 
 ### Fixed
 
+- **An sshd `Subsystem` line after a `Match` block is inert, and the guard called it healthy** (#1017).
+  sshd reads everything after the first `Match` as part of that block, so a `Subsystem` line there is
+  ignored, `sshd -t` says nothing about it and sftp is dead for every user. Measured side by side on
+  one box: before the block `sshd -T` prints the line, after it prints nothing.
+  `jail_sshd_subsystem_apply` appended the line when it was missing, which is exactly the repair path
+  the new jail guard recommends, and its own "already correct" grep then found the dead line and did
+  nothing on a second run. It now places the line in front of the first `Match` and leaves a healthy
+  file alone, and the guard measures the effect through `sshd -T` instead of grepping the file. The
+  marker comment counts as the start of the block, because `h-add-sys-sftp-jail` finds its own block
+  by the marker and the lines that follow it. One inherited side finding went with it: removing the
+  old block left the blank line in front of the marker, so the file grew by a line on every run;
+  three runs now leave it byte-identical.
+
 - **One source for the hestia crontab, and a repair that someone calls** (#972). The list lived twice,
   in the installer and in `syshealth_repair_system_cronjobs`, and had already drifted in four ways:
   `MAILTO`, a hard-wired install root, line-by-line appends instead of temp+rename, and a different

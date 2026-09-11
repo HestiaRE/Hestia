@@ -3496,22 +3496,6 @@
       "note": ""
     },
     {
-      "path": "h-delete-sys-sftp-jail",
-      "source_type": "derived",
-      "upstream_path": "bin/v-delete-sys-sftp-jail",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
-      "divergence": {
-        "upstream_lines": 82,
-        "our_lines": 91,
-        "added": 46,
-        "removed": 37,
-        "pct": 47,
-        "measured_at": "2026-09-01"
-      },
-      "note": ""
-    },
-    {
       "path": "h-delete-sys-sieve",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -3548,22 +3532,6 @@
         "added": 6,
         "removed": 9,
         "pct": 16,
-        "measured_at": "2026-09-01"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-delete-sys-ssh-jail",
-      "source_type": "derived",
-      "upstream_path": "bin/v-delete-sys-ssh-jail",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
-      "divergence": {
-        "upstream_lines": 58,
-        "our_lines": 55,
-        "added": 6,
-        "removed": 9,
-        "pct": 13,
         "measured_at": "2026-09-01"
       },
       "note": ""

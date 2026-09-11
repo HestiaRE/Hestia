@@ -295,9 +295,8 @@
     "JAIL": {
       "group": "panel",
       "type": "fixed",
-      "status_key": "JAIL_SYSTEM",
-      "status_note": "no status_artefact: the key is on its way out (see the registry note), 1c builds nothing on it",
-      "note": "The sftp and ssh jails are installed unconditionally (h-add-sys-sftp-jail, h-add-sys-ssh-jail); which ones the box has is the status key JAIL_SYSTEM (#941). Not always_installed: unlike PANEL_*, a jail can be removed and the key says so."
+      "always_installed": true,
+      "note": "Both jails are installed unconditionally (h-add-sys-sftp-jail, h-add-sys-ssh-jail) and there is no supported way to remove them: the two delete commands went with #945 phase 1d-3, because removing the system layer locks out every customer who already sits behind it (measured both directions) and admin is in sftp-jailed on every box. The choice is per customer, through the login shell. JAIL_SYSTEM fell with the same slice: a key that can only ever say one thing is not status. A lost sshd Subsystem line or Match block is reported by the smoke, not repaired, and the way back is re-running the add command."
     },
 
     "ADDON_ADMINER": {

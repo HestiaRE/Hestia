@@ -397,6 +397,59 @@ web_render_template() {
 		-e "s|%ssl_ca%|$ssl_ca|g"
 }
 
+# conf_link_owner <path>: the customer a generated config belongs to, empty when the path is not
+# under a customer home. Read from the path deliberately. The generated files are root-owned and
+# carry no per-customer bit, while $HOMEDIR/<user>/conf/... is a contract HestiaCP compatibility
+# keeps permanent, and it is the same segment the backup and the delete path key on.
+conf_link_owner() {
+	local _p="${1#"$HOMEDIR/"}"
+	[ "$_p" = "$1" ] && return 0
+	echo "${_p%%/*}"
+}
+
+# conf_link_drop <conf.d link> <customer>: the same rule for the removal side. Measured while
+# building the setter guard: h-rebuild-web-domain deletes the conf.d links BEFORE it renders, so a
+# guard that only sits at the setter sees no link at all and waves the hijack through. Guarding the
+# removal is what makes the bottleneck real (#956).
+conf_link_drop() {
+	local _link="$1" _user="$2" _cur _own_cur
+	if [ -L "$_link" ]; then
+		_cur=$(readlink "$_link")
+		if [ -n "$_cur" ] && [ -e "$_cur" ]; then
+			_own_cur=$(conf_link_owner "$_cur")
+			if [ -n "$_own_cur" ] && [ -n "$_user" ] && [ "$_own_cur" != "$_user" ]; then
+				check_result "$E_FORBIDEN" \
+					"$_link serves $_own_cur ($_cur), refusing to remove it on behalf of $_user"
+			fi
+		fi
+	fi
+	rm -f "$_link"
+}
+
+# conf_link_set <generated conf> <conf.d link>: never take a link away from another customer.
+# Every web-config writer funnels through add_web_config, so this is the last place a domain that
+# belongs to someone else can still be caught after is_domain_new refused it at the front (#956,
+# the damage this produced is #925). A missing link, a dangling one, or one already pointing into
+# the same home is replaced exactly as before; only a live link into a DIFFERENT home refuses, and
+# the message names both customers. No supported command moves a domain between customers, so there
+# is no legitimate path that needs a way around this.
+conf_link_set() {
+	local _conf="$1" _link="$2" _cur _own_new _own_cur
+	if [ -L "$_link" ]; then
+		_cur=$(readlink "$_link")
+		if [ -n "$_cur" ] && [ -e "$_cur" ]; then
+			_own_new=$(conf_link_owner "$_conf")
+			_own_cur=$(conf_link_owner "$_cur")
+			if [ -n "$_own_cur" ] && [ -n "$_own_new" ] && [ "$_own_cur" != "$_own_new" ]; then
+				check_result "$E_FORBIDEN" \
+					"$_link already serves $_own_cur ($_cur), refusing to point it at $_own_new"
+			fi
+		fi
+	fi
+	rm -f "$_link"
+	ln -s "$_conf" "$_link"
+}
+
 add_web_config() {
 	if [ ! -d "$HOMEDIR/$user/conf/web/$domain" ]; then
 		mkdir -p "$HOMEDIR/$user/conf/web/$domain/"
@@ -419,14 +472,16 @@ add_web_config() {
 		if [ -z "$(get_user_value '$DOCKER_IP')" ]; then
 			echo "Error: $domain is a docker domain but $user has no DOCKER_IP - $1 vhost not written" >&2
 			web_config_skipped=$((${web_config_skipped:-0} + 1))
-			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf" \
-				"/etc/$1/conf.d/domains/$domain.conf" "/etc/$1/conf.d/domains/$domain.ssl.conf"
+			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.conf" "$user"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.ssl.conf" "$user"
 			return "$E_NOTEXIST"
 		fi
 		if [ -n "$PROXY_SYSTEM" ] && [ "$1" = "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != "$PROXY_SYSTEM" ]; then
 			# reconcile away a stale backend vhost from the pre-docker life of the domain
-			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf" \
-				"/etc/$1/conf.d/domains/$domain.conf" "/etc/$1/conf.d/domains/$domain.ssl.conf"
+			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.conf" "$user"
+			conf_link_drop "/etc/$1/conf.d/domains/$domain.ssl.conf" "$user"
 			return 0
 		fi
 		# Per-system dir: after a model switch a custom template may have no variant here. Render
@@ -518,11 +573,14 @@ add_web_config() {
 		# One vhost file holds both server blocks, so a separate .ssl.conf symlink is stale. The
 		# custom-config migration the pair branches run is skipped: it predates the per-domain
 		# conf dir, which a box carrying a merged template already has.
-		rm -f /etc/$1/conf.d/domains/$domain.conf /etc/$1/conf.d/domains/$domain.ssl.conf
-		ln -s $conf /etc/$1/conf.d/domains/$domain.conf
+		# Through the guard, not a bare rm: stale describes the FORM, not the owner. A merged
+		# template has no .ssl.conf source file, so the guarded removal in h-rebuild-web-domain
+		# never runs for it, and this line was the one place where a live link of another customer
+		# could still be deleted without a word (measured on the default template, which is merged).
+		conf_link_drop "/etc/$1/conf.d/domains/$domain.ssl.conf" "$user"
+		conf_link_set "$conf" "/etc/$1/conf.d/domains/$domain.conf"
 	elif [[ "$2" =~ stpl$ ]]; then
-		rm -f /etc/$1/conf.d/domains/$domain.ssl.conf
-		ln -s $conf /etc/$1/conf.d/domains/$domain.ssl.conf
+		conf_link_set "$conf" "/etc/$1/conf.d/domains/$domain.ssl.conf"
 
 		# Rename/Move extra SSL config files
 		find=$(find $HOMEDIR/$user/conf/web/*.$domain.org* 2> /dev/null)
@@ -538,8 +596,7 @@ add_web_config() {
 			fi
 		done
 	else
-		rm -f /etc/$1/conf.d/domains/$domain.conf
-		ln -s $conf /etc/$1/conf.d/domains/$domain.conf
+		conf_link_set "$conf" "/etc/$1/conf.d/domains/$domain.conf"
 		# Rename/Move extra config files
 		find=$(find $HOMEDIR/$user/conf/web/*.$domain.org* 2> /dev/null)
 		for f in $find; do
@@ -635,10 +692,10 @@ del_web_config() {
 	local cn
 	for cn in $confnames; do
 		if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" = "$1" ]; then
-			rm -f "/etc/$WEB_SYSTEM/conf.d/domains/$cn"
+			conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$cn" "$user"
 		fi
 		if [ -n "$PROXY_SYSTEM" ] && [ "$PROXY_SYSTEM" = "$1" ]; then
-			rm -f "/etc/$PROXY_SYSTEM/conf.d/domains/$cn"
+			conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$cn" "$user"
 		fi
 	done
 }
@@ -917,8 +974,8 @@ del_mail_ssl_config() {
 
 	# Remove SSL vhost configuration
 	rm -f $HOMEDIR/$user/conf/mail/$domain/*.*ssl.conf
-	rm -f /etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
-	rm -f /etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
+	conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
+	conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
 
 	# Remove SSL certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*
@@ -1014,8 +1071,7 @@ add_webmail_config() {
 		# today they coincide in every model that reaches this line, but that is a
 		# coincidence, not a meaning
 		if [ -n "$1" ]; then
-			rm -f /etc/$1/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
-			ln -s $conf /etc/$1/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
+			conf_link_set "$conf" "/etc/$1/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf"
 		fi
 		# no proxy link block here: it re-linked the same path, and the proxy side gets
 		# its own add_webmail_config call with $1=$PROXY_SYSTEM at every call site
@@ -1038,8 +1094,7 @@ add_webmail_config() {
 		find $HOMEDIR/$user/conf/mail/ -maxdepth 1 -type f \( -name "$domain.*" -o -name "ssl.$domain.*" -o -name "*nginx.$domain.*" \) -exec rm {} \;
 	else
 		if [ -n "$1" ]; then
-			rm -f /etc/$1/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf
-			ln -s $conf /etc/$1/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf
+			conf_link_set "$conf" "/etc/$1/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf"
 		fi
 		# See the ssl branch: the former proxy block linked the same path twice.
 		# Clear old configurations
@@ -1054,12 +1109,12 @@ del_webmail_config() {
 	front=$(webmail_front)
 	if [ -n "$front" ]; then
 		rm -f $HOMEDIR/$user/conf/mail/$domain/$front.conf
-		rm -f /etc/$front/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf
+		conf_link_drop "/etc/$front/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf" "$user"
 	fi
 
 	if [ -n "$PROXY_SYSTEM" ]; then
 		rm -f $HOMEDIR/$user/conf/mail/$domain/$PROXY_SYSTEM.*conf
-		rm -f /etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf
+		conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.conf" "$user"
 	fi
 }
 
@@ -1068,12 +1123,12 @@ del_webmail_ssl_config() {
 	front=$(webmail_front)
 	if [ -n "$front" ]; then
 		rm -f $HOMEDIR/$user/conf/mail/$domain/$front.*ssl.conf
-		rm -f /etc/$front/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
+		conf_link_drop "/etc/$front/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
 	fi
 
 	if [ -n "$PROXY_SYSTEM" ]; then
 		rm -f $HOMEDIR/$user/conf/mail/$domain/$PROXY_SYSTEM.*ssl.conf
-		rm -f /etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf
+		conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
 	fi
 }
 

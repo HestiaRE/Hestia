@@ -12,6 +12,21 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **A conf.d link is never taken away from another customer** (#956). The damage in #925 became
+  visible where `ln -sf` silently bent a customer's vhost link onto another customer's file. The
+  cause is fixed (#951/#952); this is the tripwire behind it, at the bottleneck every web-config
+  writer passes through. Building it showed the bottleneck was not one: `h-rebuild-web-domain`
+  deletes the four conf.d links before it renders, so a guard at the setter sees nothing at all.
+  Both sides are guarded now, the setter and the remover, and the refusal names both customers.
+  The review found the same shape once more: the merged-template branch removed a stale `.ssl.conf`
+  link with a bare `rm`, and a merged template has no `.ssl.conf` source file, so the guarded removal
+  never ran for it. Since both shipped default templates are merged, that was the normal path, and it
+  deleted another customer's live link without a word. Measured on all four models with a link bent by
+  hand: rc 10, link untouched, while rebuild, suspend, unsuspend, template and backend change, a full
+  user rebuild and an ordinary domain delete all stay rc 0.
+
 ### Fixed
 
 - **The webmail front was a service nobody could see** (#1003). In the mailfront model `WEB_SYSTEM` and

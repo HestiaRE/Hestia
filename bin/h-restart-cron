@@ -44,7 +44,7 @@ is_format_valid 'restart'
 #----------------------------------------------------------#
 
 # Exit
-if [ -z "$CRON_SYSTEM" ] || [ "$CRON_SYSTEM" = 'remote' ]; then
+if [ -z "$CRON_SYSTEM" ]; then
 	exit
 fi
 

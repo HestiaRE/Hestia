@@ -49,9 +49,6 @@ check_user=$(is_object_unsuspended 'user' 'USER' "$user")
 if [ -n "$check_user" ]; then
 	exit
 fi
-if [ "$MAIL_SYSTEM" = 'remote' ]; then
-	exit
-fi
 
 #----------------------------------------------------------#
 #                       Action                             #

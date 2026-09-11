@@ -154,14 +154,14 @@ ps -eo pid,pcpu,size > $tmp_file
 ctime=$(date +%s)
 
 # Checking WEB system
-if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'remote' ]; then
+if [ -n "$WEB_SYSTEM" ]; then
 	get_srv_state $WEB_SYSTEM
 	data="NAME='$WEB_SYSTEM' SYSTEM='web server' STATE='$state' CPU='$cpu'"
 	data="$data MEM='$mem' RTIME='$rtime'"
 fi
 
 # Checking PHP intepreter
-if [ -n "$WEB_BACKEND" ] && [ "$WEB_BACKEND" != 'remote' ]; then
+if [ -n "$WEB_BACKEND" ]; then
 	php_versions=$(ls /usr/sbin/php*fpm* | cut -d'/' -f4 | sed 's|php-fpm||')
 	for version in $php_versions; do
 		proc_name="php-fpm${version}"
@@ -173,7 +173,7 @@ if [ -n "$WEB_BACKEND" ] && [ "$WEB_BACKEND" != 'remote' ]; then
 fi
 
 # Checking WEB Proxy
-if [ -n "$PROXY_SYSTEM" ] && [ "$PROXY_SYSTEM" != 'remote' ]; then
+if [ -n "$PROXY_SYSTEM" ]; then
 	get_srv_state "$PROXY_SYSTEM"
 	data="$data\nNAME='$PROXY_SYSTEM' SYSTEM='reverse proxy' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
@@ -184,7 +184,7 @@ fi
 # nginx would be listed nowhere (#1003) although it serves webmail and terminates ACME. The two
 # guards above it keep it from appearing twice where the same daemon is already a row. Label reused
 # on purpose: a new SYSTEM string would need its own .pot entry (web/locale/hst_scan_i18n.sh).
-if [ -n "$WEBMAIL_FRONT" ] && [ "$WEBMAIL_FRONT" != 'remote' ] \
+if [ -n "$WEBMAIL_FRONT" ] \
 	&& [ "$WEBMAIL_FRONT" != "$WEB_SYSTEM" ] && [ "$WEBMAIL_FRONT" != "$PROXY_SYSTEM" ]; then
 	get_srv_state "$WEBMAIL_FRONT"
 	data="$data\nNAME='$WEBMAIL_FRONT' SYSTEM='reverse proxy' STATE='$state'"
@@ -192,21 +192,21 @@ if [ -n "$WEBMAIL_FRONT" ] && [ "$WEBMAIL_FRONT" != 'remote' ] \
 fi
 
 # Checking MAIL system
-if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ]; then
+if [ -n "$MAIL_SYSTEM" ]; then
 	get_srv_state "$MAIL_SYSTEM"
 	data="$data\nNAME='$MAIL_SYSTEM' SYSTEM='mail server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
 # Checking MAIL IMAP
-if [ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ]; then
+if [ -n "$IMAP_SYSTEM" ]; then
 	get_srv_state "$IMAP_SYSTEM"
 	data="$data\nNAME='$IMAP_SYSTEM' SYSTEM='imap/pop3 server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
 # Checking MAIL ANTIVIRUS
-if [ -n "$ANTIVIRUS_SYSTEM" ] && [ "$ANTIVIRUS_SYSTEM" != 'remote' ]; then
+if [ -n "$ANTIVIRUS_SYSTEM" ]; then
 	if [ -d "/etc/sysconfig" ]; then
 		if [ "$ANTIVIRUS_SYSTEM" == 'clamav' ]; then
 			ANTIVIRUS_SYSTEM='clamd'
@@ -224,7 +224,7 @@ if [ -n "$ANTIVIRUS_SYSTEM" ] && [ "$ANTIVIRUS_SYSTEM" != 'remote' ]; then
 fi
 
 # Checking MAIL ANTISPAM
-if [ -n "$ANTISPAM_SYSTEM" ] && [ "$ANTISPAM_SYSTEM" != 'remote' ]; then
+if [ -n "$ANTISPAM_SYSTEM" ]; then
 	# Proc name = service name (rspamd). The old hardcoded "spamd" only worked
 	# because pgrep matches it as an unanchored regex inside "rspamd".
 	get_srv_state "$ANTISPAM_SYSTEM"
@@ -233,7 +233,7 @@ if [ -n "$ANTISPAM_SYSTEM" ] && [ "$ANTISPAM_SYSTEM" != 'remote' ]; then
 fi
 
 # Checking DB system
-if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'remote' ]; then
+if [ -n "$DB_SYSTEM" ]; then
 	for db in ${DB_SYSTEM//,/ }; do
 		service="$db"
 		proc_name=''
@@ -291,14 +291,14 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'remote' ]; then
 fi
 
 # Checking FTP system
-if [ -n "$FTP_SYSTEM" ] && [ "$FTP_SYSTEM" != 'remote' ]; then
+if [ -n "$FTP_SYSTEM" ]; then
 	get_srv_state "$FTP_SYSTEM"
 	data="$data\nNAME='$FTP_SYSTEM' SYSTEM='ftp server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
 # Checking CRON system
-if [ -n "$CRON_SYSTEM" ] && [ "$CRON_SYSTEM" != 'remote' ]; then
+if [ -n "$CRON_SYSTEM" ]; then
 	get_srv_state "$CRON_SYSTEM"
 	data="$data\nNAME='$CRON_SYSTEM' SYSTEM='job scheduler' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
@@ -312,7 +312,7 @@ if [ -e "/etc/ssh/sshd_config" ]; then
 fi
 
 # Checking FIREWALL system
-if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != 'remote' ]; then
+if [ -n "$FIREWALL_SYSTEM" ]; then
 	state="stopped"
 	if [ "$(fw_policy_get INPUT)" = 'DROP' ]; then
 		state="running"

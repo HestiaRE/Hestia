@@ -55,7 +55,7 @@ $BIN/h-change-sys-config-value "FIREWALL_EXTENSION" "fail2ban"
 
 # Gate the mail/ftp jails on the actual model (an enabled jail on a missing log aborts the daemon).
 mail='no'
-[ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && mail='yes'
+[ -n "$MAIL_SYSTEM" ] && mail='yes'
 ftp='no'
 [ -n "$FTP_SYSTEM" ] && ftp='yes'
 

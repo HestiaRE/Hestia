@@ -2592,12 +2592,61 @@ delete_chroot_jail() {
 # which jail set it. Prints "changed" when the line was rewritten, so the caller restarts sshd;
 # validating stays with the caller.
 jail_sshd_subsystem_apply() {
-	local config='/etc/ssh/sshd_config' want='/usr/lib/sftp-server'
-	grep -qE "^Subsystem[[:space:]]+sftp[[:space:]]+${want}[[:space:]]*$" "$config" && return 0
-	if grep -qE '^Subsystem[[:space:]]+sftp[[:space:]]' "$config"; then
-		sed -i -E "0,/^Subsystem[[:space:]]+sftp[[:space:]]/s|^Subsystem[[:space:]]+sftp[[:space:]].*|Subsystem sftp ${want}|" "$config"
+	local config='/etc/ssh/sshd_config' want='/usr/lib/sftp-server' _tmp _prev_trap
+	# Already right? The value has to be there AND the line has to stand in the GLOBAL section. Checked
+	# before anything is written, so a file that is fine is left untouched: rebuilding it anyway moved
+	# the distro line to the bottom on every run and cost an sshd restart each time (measured).
+	awk -v w="Subsystem sftp $want" '
+		/^Match[[:space:]]/ || /^# Hestia SFTP Chroot$/ { exit (ok ? 0 : 1) }
+		$0 == w { ok = 1 }
+		END { exit (ok ? 0 : 1) }
+	' "$config" && return 0
+	# Same shape as change_sys_value (#959/#964), and for the same two reasons at once: the temp file
+	# is created NEXT TO the target so the rename is atomic on one filesystem, and mode and owner are
+	# taken from the target because sshd refuses a config whose permissions are wrong. A `cat >` onto
+	# the live file would keep the permissions and lose the atomicity, which is the one thing this
+	# file cannot afford: a truncated sshd_config is a box nobody logs into.
+	# Leftovers from a run that was killed between writing and renaming: sshd ignores them (no Include
+	# matches the name), but they would accumulate in /etc/ssh silently. Same reasoning and same shape
+	# as the hestia crontab above.
+	rm -f "$config".?????? 2> /dev/null || true
+	_tmp=$(mktemp "$config.XXXXXX") || return 1
+	_prev_trap=$(trap -p EXIT)
+	# shellcheck disable=SC2064  # expand now on purpose: _tmp is local and gone when the trap fires
+	trap "rm -f '$_tmp'" EXIT
+	# The line has to stand in the GLOBAL section. Appending was not enough: once a Match block exists
+	# (h-add-sys-sftp-jail writes one at the end), everything after it belongs to that block, sshd
+	# ignores a Subsystem there, `sshd -t` stays quiet about it and sftp is dead for every user. The
+	# old form appended whenever the line was missing, which is exactly the repair path, and its
+	# "already correct" grep then saw the dead line and returned "nothing to do" (#1017, measured).
+	# So: drop every Subsystem sftp line and write exactly one in front of the first Match.
+	# The marker comment belongs to the block it introduces: h-add-sys-sftp-jail finds its own block by
+	# "# Hestia SFTP Chroot" and the Match lines that FOLLOW it, so inserting between the two makes the
+	# block unfindable and the next run appends a second one (measured). Insert before whichever comes
+	# first, the marker or the Match.
+	awk -v line="Subsystem sftp $want" '
+		/^Subsystem[[:space:]]+sftp[[:space:]]/ { next }
+		!placed && (/^Match[[:space:]]/ || /^# Hestia SFTP Chroot$/) { print line; placed = 1 }
+		{ print }
+		END { if (!placed) print line }
+	' "$config" > "$_tmp" || {
+		rm -f "$_tmp"
+		eval "${_prev_trap:-trap - EXIT}"
+		return 1
+	}
+	if cmp -s "$_tmp" "$config"; then
+		rm -f "$_tmp"
+		eval "${_prev_trap:-trap - EXIT}"
+		return 0
+	fi
+	if chmod --reference="$config" "$_tmp" \
+		&& { [ "$(stat -c %u:%g "$config")" = "$(stat -c %u:%g "$_tmp")" ] || chown --reference="$config" "$_tmp"; } \
+		&& mv -f "$_tmp" "$config"; then
+		eval "${_prev_trap:-trap - EXIT}"
 	else
-		echo "Subsystem sftp ${want}" >> "$config"
+		rm -f "$_tmp"
+		eval "${_prev_trap:-trap - EXIT}"
+		return 1
 	fi
 	echo changed
 }

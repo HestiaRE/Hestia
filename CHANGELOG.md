@@ -327,6 +327,20 @@ opens above it.
 
 ### Removed
 
+- **The status value `remote`, which no writer has ever set** (#1015). Twelve status keys carried a
+  branch for it - `MAIL_SYSTEM`, `WEB_SYSTEM`, `IMAP_SYSTEM`, `PROXY_SYSTEM`, `FTP_SYSTEM`,
+  `WEB_BACKEND`, `ANTISPAM_SYSTEM`, `FIREWALL_SYSTEM`, `CRON_SYSTEM`, `ANTIVIRUS_SYSTEM`,
+  `DB_SYSTEM` and `WEBMAIL_FRONT` - across 35 sites. Nothing writes the value: a sweep over every
+  writing mechanism finds none here, and none in the upstream snapshot either, where the word is
+  read 26 times and written zero. It was never a capability that decayed; it never had one. What it
+  describes already exists as the empty value, which is why 33 of the 35 sites spelled the two
+  conditions side by side; the remaining two sit behind `is_system_enabled`, so an empty key never
+  reached them and their branch was unreachable. Same shape as `%dots%` (#1002) and the `restore`
+  mode (#930). Real remote services would be a feature, and it belongs with the host register
+  (#980), where `remote` means something. Removed now because the vocabulary is part of the
+  lower-bound contract: later it would cost a migration entry. A hand-set `remote` used to behave
+  like an empty key and now fails loudly instead - measured, and no box in the fleet carries it.
+
 - **The two jail delete commands, their `v-*` symlinks and `JAIL_SYSTEM`** (#945, phase 1d-3). Both
   jail machineries are installed on every box and the choice is per customer, through the login shell,
   so a key that can only ever say one thing is not status and a command that removes the system layer
@@ -349,6 +363,24 @@ opens above it.
   and nothing called it. Not a lost capability: it never was one.
 
 ### Fixed
+
+- **An sshd `Subsystem` line after a `Match` block is inert, and the guard called it healthy** (#1017).
+  sshd reads everything after the first `Match` as part of that block, so a `Subsystem` line there is
+  ignored, `sshd -t` says nothing about it and sftp is dead for every user. Measured side by side on
+  one box: before the block `sshd -T` prints the line, after it prints nothing.
+  `jail_sshd_subsystem_apply` appended the line when it was missing, which is exactly the repair path
+  the new jail guard recommends, and its own "already correct" grep then found the dead line and did
+  nothing on a second run. It now places the line in front of the first `Match` and leaves a healthy
+  file alone, and the guard measures the effect through `sshd -T` instead of grepping the file. The
+  marker comment counts as the start of the block, because `h-add-sys-sftp-jail` finds its own block
+  by the marker and the lines that follow it. One inherited side finding went with it: removing the
+  old block left the blank line in front of the marker, so the file grew by a line on every run;
+  three runs now leave it byte-identical. The review added two more: the new file was written with
+  `cat > "$config"`, which truncates the live `sshd_config` and refills it, so a kill in that window
+  leaves a box nobody logs into. It follows the pattern from #959/#964 now, temp file next to the
+  target plus mode, owner and rename, measured with 40 kills mid-write. And `h-add-sys-ssh-jail`
+  restarted sshd without ever asking whether the result parses; it validates first and refuses the
+  restart otherwise, which is what the sftp jail already did.
 
 - **One source for the hestia crontab, and a repair that someone calls** (#972). The list lived twice,
   in the installer and in `syshealth_repair_system_cronjobs`, and had already drifted in four ways:

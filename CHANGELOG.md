@@ -14,6 +14,19 @@ opens above it.
 
 ### Fixed
 
+- **Consent for a restore comes through the argument, and the message says which one** (#1004). The
+  refusal advised `CONSENT='...'`, the spelling of an environment prefix, which is deliberately inert:
+  the consent word is an argument because of GHSA-2xw3, and a second control channel through the
+  environment reopens what that closed. Following the advice literally produced the same refusal with
+  no hint. The message now names the argument position and says a prefix is ignored on purpose. The
+  rule also only held for one of three ways in: `RESTORE_ASSUME_YES` and `RESTORE_PHP_FALLBACK` were
+  read out of the environment here, the first with the effect of `all`, the second with the one `all`
+  deliberately withholds, and neither granted anything the argument cannot. Both reads are gone, and
+  the php-fallback flag is now assigned in both directions, because it doubles as the internal flag
+  the renderer reads and would otherwise have answered for a consent that was just refused. The restic
+  commands keep their environment switch: they have no consent argument, so there it is the only
+  channel rather than a second one.
+
 - **One encoder and one decoder for record values** (#1002). The record grammar refuses four
   characters inside a value: the delimiter `'` and, for the sinks behind it, `"`, a backtick and a
   backslash. Exactly one of them was encoded, by four writers each carrying their own `sed`, and

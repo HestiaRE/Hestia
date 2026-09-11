@@ -57,7 +57,7 @@ is_format_valid 'restart'
 if web_freeze_held; then exit 0; fi
 
 # Exit
-if [ -z "$PROXY_SYSTEM" ] || [ "$PROXY_SYSTEM" = 'remote' ]; then
+if [ -z "$PROXY_SYSTEM" ]; then
 	exit
 fi
 

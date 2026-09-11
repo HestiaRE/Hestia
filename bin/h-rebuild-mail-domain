@@ -53,10 +53,6 @@ if [ -n "$check_user" ]; then
 fi
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
-if [ "$MAIL_SYSTEM" = 'remote' ]; then
-	exit
-fi
-
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#

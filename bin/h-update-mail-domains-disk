@@ -29,7 +29,7 @@ check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
-if [ -z "$MAIL_SYSTEM" ] || [ "$MAIL_SYSTEM" = 'remote' ]; then
+if [ -z "$MAIL_SYSTEM" ]; then
 	exit
 fi
 

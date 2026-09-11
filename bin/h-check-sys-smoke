@@ -2656,22 +2656,22 @@ check_customer_php_slice
 # --- Configured subsystems (derived from *_SYSTEM) ---
 echo "-- services --"
 [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'nginx' ] && check_service "$WEB_SYSTEM" "web"
-[ -n "$PROXY_SYSTEM" ] && [ "$PROXY_SYSTEM" != 'remote' ] && check_service "$PROXY_SYSTEM" "reverse proxy"
+[ -n "$PROXY_SYSTEM" ] && check_service "$PROXY_SYSTEM" "reverse proxy"
 # mailfront (#193): customer web absent by design, but the webmail/ACME front must run
 [ -z "$WEB_SYSTEM" ] && [ -n "${WEBMAIL_FRONT:-}" ] && check_service "$WEBMAIL_FRONT" "webmail front"
-[ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && check_service "$MAIL_SYSTEM" "mail"
+[ -n "$MAIL_SYSTEM" ] && check_service "$MAIL_SYSTEM" "mail"
 check_notification_mta
 check_exim_sendonly
 check_family_lage
 [ -n "$MAIL_SYSTEM" ] && check_exim_macro_names
 [ -n "$MAIL_SYSTEM" ] && check_exim_interface_expansion
-[ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ] && check_service "$IMAP_SYSTEM" "imap"
+[ -n "$IMAP_SYSTEM" ] && check_service "$IMAP_SYSTEM" "imap"
 # The one measured case of #1001: a dovecot that never read its own auth chain still answers on 143
 # with a banner, so the liveness check above cannot see it.
-[ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ] \
+[ -n "$IMAP_SYSTEM" ] \
 	&& check_config_loaded dovecot "imap" /etc/dovecot/dovecot.conf /etc/dovecot/conf.d/*.conf
-[ -n "$ANTISPAM_SYSTEM" ] && [ "$ANTISPAM_SYSTEM" != 'remote' ] && check_service "$ANTISPAM_SYSTEM" "antispam"
-[ -n "$FTP_SYSTEM" ] && [ "$FTP_SYSTEM" != 'remote' ] && check_service "$FTP_SYSTEM" "ftp"
+[ -n "$ANTISPAM_SYSTEM" ] && check_service "$ANTISPAM_SYSTEM" "antispam"
+[ -n "$FTP_SYSTEM" ] && check_service "$FTP_SYSTEM" "ftp"
 [ -n "$CRON_SYSTEM" ] && check_service "$CRON_SYSTEM" "cron"
 # A LOCAL engine is the presence key, never DB_SYSTEM: that one is the host register and a token there can
 # name a remote server, on which no local service is expected to run (#980). The recipe is gone from here
@@ -2739,7 +2739,7 @@ fi
 # The two invariants a green service check cannot see. Both keyed off FIREWALL_SYSTEM, since an
 # ACCEPT policy is correct when the firewall is deliberately off. The invariants outlive the
 # iptables renderer (#495 re-expresses them against nft), the mechanism below does not.
-if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != 'remote' ]; then
+if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
 	check_firewall_backend
 	check_firewall_closed
@@ -2757,12 +2757,12 @@ if [ -n "$PROXY_SYSTEM" ] || [ -n "$(webmail_front)" ]; then
 	check_port 443 "https"
 fi
 echo "$DB_SYSTEM" | grep -qw 'mysql' && check_port 3306 "mysql"
-[ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && check_port 25 "smtp"
+[ -n "$MAIL_SYSTEM" ] && check_port 25 "smtp"
 # banner, not just port: IMAP/SMTP must actually answer (a hung login still listens)
-if [ -n "$IMAP_SYSTEM" ] && [ "$IMAP_SYSTEM" != 'remote' ]; then
+if [ -n "$IMAP_SYSTEM" ]; then
 	check_banner 143 "imap"
 fi
-[ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && check_banner 25 "smtp"
+[ -n "$MAIL_SYSTEM" ] && check_banner 25 "smtp"
 if [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
 	# group-restricted unix sockets, rspamd has no TCP ports
 	check_socket /run/rspamd/normal.sock "rspamd scan worker"
@@ -2780,7 +2780,7 @@ if [ -n "$PROXY_SYSTEM" ] || [ -n "${WEBMAIL_FRONT:-}" ]; then
 fi
 [ "$WEB_SYSTEM" = 'apache2' ] && check_log_clean "/var/log/apache2/error.log" "\[.*:emerg\]|\[.*:alert\]" "apache2"
 # exim writes serious problems to a dedicated paniclog, non-empty means trouble
-[ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'remote' ] && check_file_empty "/var/log/exim4/paniclog" "exim paniclog"
+[ -n "$MAIL_SYSTEM" ] && check_file_empty "/var/log/exim4/paniclog" "exim paniclog"
 
 # --- Security invariants (static source gates) ---
 echo "-- security invariants --"

@@ -327,6 +327,20 @@ opens above it.
 
 ### Removed
 
+- **The status value `remote`, which no writer has ever set** (#1015). Twelve status keys carried a
+  branch for it - `MAIL_SYSTEM`, `WEB_SYSTEM`, `IMAP_SYSTEM`, `PROXY_SYSTEM`, `FTP_SYSTEM`,
+  `WEB_BACKEND`, `ANTISPAM_SYSTEM`, `FIREWALL_SYSTEM`, `CRON_SYSTEM`, `ANTIVIRUS_SYSTEM`,
+  `DB_SYSTEM` and `WEBMAIL_FRONT` - across 35 sites. Nothing writes the value: a sweep over every
+  writing mechanism finds none here, and none in the upstream snapshot either, where the word is
+  read 26 times and written zero. It was never a capability that decayed; it never had one. What it
+  describes already exists as the empty value, which is why 33 of the 35 sites spelled the two
+  conditions side by side; the remaining two sit behind `is_system_enabled`, so an empty key never
+  reached them and their branch was unreachable. Same shape as `%dots%` (#1002) and the `restore`
+  mode (#930). Real remote services would be a feature, and it belongs with the host register
+  (#980), where `remote` means something. Removed now because the vocabulary is part of the
+  lower-bound contract: later it would cost a migration entry. A hand-set `remote` used to behave
+  like an empty key and now fails loudly instead - measured, and no box in the fleet carries it.
+
 - **The two jail delete commands, their `v-*` symlinks and `JAIL_SYSTEM`** (#945, phase 1d-3). Both
   jail machineries are installed on every box and the choice is per customer, through the login shell,
   so a key that can only ever say one thing is not status and a command that removes the system layer

@@ -696,7 +696,7 @@ web_model_verify_up() {
 		fi
 		# php-fpm pools: deterministic (exactly what h-restart-web-backend just restarted),
 		# so no false-negative surface - the unfragile version of a chain probe.
-		if [ -n "$WEB_BACKEND" ] && [ "$WEB_BACKEND" != "remote" ]; then
+		if [ -n "$WEB_BACKEND" ]; then
 			local v
 			while IFS= read -r v; do
 				[ -n "$v" ] || continue

@@ -43,7 +43,7 @@ is_format_valid 'restart'
 #----------------------------------------------------------#
 
 # Exit
-if [ -z "$MAIL_SYSTEM" ] || [ "$MAIL_SYSTEM" = 'remote' ]; then
+if [ -z "$MAIL_SYSTEM" ]; then
 	exit
 fi
 

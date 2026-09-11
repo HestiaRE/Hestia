@@ -14,6 +14,17 @@ opens above it.
 
 ### Added
 
+- **The repair runs on a schedule, from outside the file it repairs** (#1006). Nothing called
+  `h-repair-sys-config` at all: the registry carries a default for every operator key and the repair
+  writes it back, but without a caller that path was reachable only by hand, and an emptied
+  `CRON_SYSTEM` was invisible to the smoke while it disabled the customer cron feature and HestiaRE's
+  own job commands. A daily entry at 04:40, where nothing else in the crontab runs. It lives in
+  `/etc/cron.d/hestia-repair` and deliberately not in the hestia crontab: the first draft put it
+  there and the measurement killed it, because a deleted crontab takes the line that would restore it
+  with it. Outside that file the circle is broken and a missing crontab really does come back on its
+  own. The crontab runs independently of `CRON_SYSTEM`, measured, so the entry does not depend on the
+  state it heals.
+
 - **A conf.d link is never taken away from another customer** (#956). The damage in #925 became
   visible where `ln -sf` silently bent a customer's vhost link onto another customer's file. The
   cause is fixed (#951/#952); this is the tripwire behind it, at the bottleneck every web-config

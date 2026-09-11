@@ -442,22 +442,20 @@ function syshealth_repair_system_config() {
 	source_conf "$HESTIA/conf/hestia.conf"
 	return "$syshealth_repair_failed"
 }
-
-# Repair System Cron Jobs
-# Add default cron jobs to "hestia" user account's cron tab
-function syshealth_repair_system_cronjobs() {
-	min=$(gen_pass '012345' '2')
-	hour=$(gen_pass '1234567' '1')
-	echo "MAILTO=$email" > /var/spool/cron/crontabs/hestia
-	echo "CONTENT_TYPE=\"text/plain; charset=utf-8\"" >> /var/spool/cron/crontabs/hestia
-	echo "*/2 * * * * sudo /usr/local/hestia/bin/h-update-sys-queue restart" >> /var/spool/cron/crontabs/hestia
-	echo "10 00 * * * sudo /usr/local/hestia/bin/h-update-sys-queue daily" >> /var/spool/cron/crontabs/hestia
-	echo "15 02 * * * sudo /usr/local/hestia/bin/h-update-sys-queue disk" >> /var/spool/cron/crontabs/hestia
-	echo "10 00 * * * sudo /usr/local/hestia/bin/h-update-sys-queue traffic" >> /var/spool/cron/crontabs/hestia
-	echo "30 03 * * * sudo /usr/local/hestia/bin/h-update-sys-queue webstats" >> /var/spool/cron/crontabs/hestia
-	echo "*/5 * * * * sudo /usr/local/hestia/bin/h-update-sys-queue backup" >> /var/spool/cron/crontabs/hestia
-	echo "10 05 * * * sudo /usr/local/hestia/bin/h-backup-users" >> /var/spool/cron/crontabs/hestia
-	echo "20 00 * * * sudo /usr/local/hestia/bin/h-update-user-stats" >> /var/spool/cron/crontabs/hestia
-	echo "*/5 * * * * sudo /usr/local/hestia/bin/h-update-sys-rrd" >> /var/spool/cron/crontabs/hestia
-	echo "$min $hour * * * sudo /usr/local/hestia/bin/h-update-letsencrypt-ssl" >> /var/spool/cron/crontabs/hestia
+# The hestia crontab is OPERATOR SURFACE, so the repair restores a MISSING file and never touches a
+# present one. The panel edits it (web/edit/server/hestia -> h-change-sys-service-config hestia,
+# measured: a hand-added line survives a save), h-add-cron-letsencrypt-job and h-add-letsencrypt-domain
+# append to it, and h-delete-cron-restart-job removes a baseline line on purpose. A repair that
+# rewrote a file that is there would undo all four (#972).
+#
+# The list itself is not here any more. It lived twice and had already drifted; system_crontab_write
+# in include/main.sh is now the only renderer, and the installer uses the same one.
+syshealth_repair_system_crontab() {
+	local _f='/var/spool/cron/crontabs/hestia'
+	[ -s "$_f" ] && return 0
+	echo "Restoring the hestia crontab: $_f was missing"
+	if ! system_crontab_write; then
+		echo "Error: could not write $_f" >&2
+		return 1
+	fi
 }

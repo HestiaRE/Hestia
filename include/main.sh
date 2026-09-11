@@ -1281,6 +1281,53 @@ sync_cron_jobs() {
 	chmod 600 $crontab
 }
 
+# The one hestia crontab. Two copies of this list existed, one in the installer and one in
+# syshealth.sh, and they had already drifted in four ways: MAILTO, a hard-wired install root,
+# line-by-line appends instead of temp+rename, and a different random source (#972). Rendering it
+# here makes the drift impossible rather than merely comparable.
+#
+# The Let's Encrypt renewal time is drawn per write. That is sound because a write only happens where
+# there is no file to preserve it from: the installer on a fresh box, and the repair only when the
+# file is gone.
+system_crontab_write() {
+	local _dst='/var/spool/cron/crontabs/hestia' _tmp _min _hour
+	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The
+	# old form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning
+	# hour; the range is the same intent and better spread.
+	_min=$((RANDOM % 60))
+	_hour=$((RANDOM % 7 + 1))
+	mkdir -p /var/spool/cron/crontabs || return 1
+	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is
+	# not a valid user name), but they would accumulate silently.
+	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
+	_tmp="/var/spool/cron/crontabs/.hestia.$$"
+	{
+		echo "MAILTO=\"\""
+		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
+		echo "*/2 * * * * sudo $HESTIA/bin/h-update-sys-queue restart"
+		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue daily"
+		echo "15 02 * * * sudo $HESTIA/bin/h-update-sys-queue disk"
+		echo "10 00 * * * sudo $HESTIA/bin/h-update-sys-queue traffic"
+		echo "30 03 * * * sudo $HESTIA/bin/h-update-sys-queue webstats"
+		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-queue backup"
+		echo "10 05 * * * sudo $HESTIA/bin/h-backup-users"
+		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
+		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
+		echo "$_min $_hour * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
+	} > "$_tmp" || return 1
+	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all
+	# four targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to
+	# hestia: under those three, opening it for writing is EACCES even for root. A fresh install never
+	# met it, the file does not exist yet; the first re-run of the installer stage died right here.
+	# rename() is not subject to that check, and root owns the directory, so the sticky bit permits
+	# it (#945).
+	mv -f "$_tmp" "$_dst"
+}
+
 # Validates Local part email and mail alias
 is_localpart_format_valid() {
 	if [ ${#1} -eq 1 ]; then

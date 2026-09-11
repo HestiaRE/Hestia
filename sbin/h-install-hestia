@@ -1088,6 +1088,8 @@ configure_hestia() {
 	echo "[ * ] Creating hestia crontab..."
 	# One renderer for both homes (#972): include/main.sh owns the list, the repair uses the same one.
 	system_crontab_write
+	# Outside the crontab on purpose, so a deleted crontab does not take its own repair with it (#1006).
+	system_repair_cron_write
 	# no auto-update cron: HestiaRE updates via the release tarball, not apt/git
 	# Not swallowed (#730): a port that silently does not take leaves the firewall open.
 	if ! _port_out=$("$BIN/h-change-sys-port" "${HESTIA_PANEL_PORT:-8083}" 2>&1); then

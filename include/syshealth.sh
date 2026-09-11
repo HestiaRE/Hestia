@@ -450,12 +450,25 @@ function syshealth_repair_system_config() {
 #
 # The list itself is not here any more. It lived twice and had already drifted; system_crontab_write
 # in include/main.sh is now the only renderer, and the installer uses the same one.
-syshealth_repair_system_crontab() {
-	local _f='/var/spool/cron/crontabs/hestia'
-	[ -s "$_f" ] && return 0
-	echo "Restoring the hestia crontab: $_f was missing"
-	if ! system_crontab_write; then
-		echo "Error: could not write $_f" >&2
-		return 1
+#
+# /etc/cron.d/hestia-repair is the other half: it is what calls this repair on a schedule, it is not
+# operator surface, and it is restored the same way. Only a manual or installer run can bring it back
+# when it is gone, which is precisely why it does not live inside the crontab it repairs (#1006).
+syshealth_repair_system_cron() {
+	local _ct='/var/spool/cron/crontabs/hestia' _cd='/etc/cron.d/hestia-repair' _rc=0
+	if [ ! -s "$_ct" ]; then
+		echo "Restoring the hestia crontab: $_ct was missing"
+		system_crontab_write || {
+			echo "Error: could not write $_ct" >&2
+			_rc=1
+		}
 	fi
+	if [ ! -s "$_cd" ]; then
+		echo "Restoring the repair schedule: $_cd was missing"
+		system_repair_cron_write || {
+			echo "Error: could not write $_cd" >&2
+			_rc=1
+		}
+	fi
+	return "$_rc"
 }

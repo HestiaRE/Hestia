@@ -1328,6 +1328,35 @@ system_crontab_write() {
 	mv -f "$_tmp" "$_dst"
 }
 
+# The periodic repair, in /etc/cron.d and deliberately NOT in the hestia crontab (#1006). It would
+# fit in the list above, but then it could not do half its job: a deleted crontab takes the line that
+# restores it with it. Outside that file the circle is broken, so a missing crontab really does come
+# back on its own.
+#
+# Daily, and 04:40 because nothing in the crontab runs at 04. What it heals is rare and operator- or
+# damage-induced (an absent or emptied operator key, a missing crontab), a run costs 0.8 s, and it
+# writes one line to system.log like h-update-user-stats already does. Hourly would multiply that by
+# 24 for a value that changes almost never; weekly would leave a box without a crontab, and therefore
+# without any queue processing, for up to seven days.
+#
+# Root directly, no sudo: cron.d entries name their user, and this one is not reachable from the
+# panel the way a bin/* command under the hestia sudo wildcard is.
+system_repair_cron_write() {
+	local _dst='/etc/cron.d/hestia-repair' _tmp
+	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
+	echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair" > "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	# cron REFUSES a group- or world-writable file in /etc/cron.d and says so only in its log
+	# ("INSECURE MODE"), which is how the hestia-ssl fallback once never ran anywhere.
+	chmod 644 "$_tmp" && chown root:root "$_tmp" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	mv -f "$_tmp" "$_dst"
+}
+
 # Validates Local part email and mail alias
 is_localpart_format_valid() {
 	if [ ${#1} -eq 1 ]; then

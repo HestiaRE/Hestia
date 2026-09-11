@@ -32,9 +32,9 @@ case "$mode" in
 		# Both repairs run, then the verdict: a failed crontab must not hide behind a green config.
 		repair_failed=0
 		syshealth_repair_system_config || repair_failed=$((repair_failed + syshealth_repair_failed))
-		# Its own repair because the file has its own failure mode: gone means every queue stops, and
-		# nothing else notices (#972).
-		syshealth_repair_system_crontab || repair_failed=$((repair_failed + 1))
+		# Its own repair because these two files have their own failure mode: a gone crontab stops
+		# every queue and a gone cron.d entry stops this repair, and nothing else notices (#972, #1006).
+		syshealth_repair_system_cron || repair_failed=$((repair_failed + 1))
 		if [ "$repair_failed" -ne 0 ]; then
 			check_result "$E_UPDATE" "$repair_failed config repair(s) failed - see the lines above"
 		fi

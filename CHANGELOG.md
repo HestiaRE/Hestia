@@ -27,8 +27,6 @@ opens above it.
   commands keep their environment switch: they have no consent argument, so there it is the only
   channel rather than a second one.
 
-### Fixed
-
 - **One encoder and one decoder for record values** (#1002). The record grammar refuses four
   characters inside a value: the delimiter `'` and, for the sinks behind it, `"`, a backtick and a
   backslash. Exactly one of them was encoded, by four writers each carrying their own `sed`, and

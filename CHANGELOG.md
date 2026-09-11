@@ -12,6 +12,17 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **A conf.d link is never taken away from another customer** (#956). The damage in #925 became
+  visible where `ln -sf` silently bent a customer's vhost link onto another customer's file. The
+  cause is fixed (#951/#952); this is the tripwire behind it, at the bottleneck every web-config
+  writer passes through. Building it showed the bottleneck was not one: `h-rebuild-web-domain`
+  deletes the four conf.d links before it renders, so a guard at the setter sees nothing at all.
+  Both sides are guarded now, the setter and the remover, and the refusal names both customers.
+  Measured on all four models with a link bent by hand: rc 10, link untouched, while rebuild,
+  suspend, unsuspend, template and backend change and a full user rebuild all stay rc 0.
+
 ### Fixed
 
 - **The webmail front was a service nobody could see** (#1003). In the mailfront model `WEB_SYSTEM` and

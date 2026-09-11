@@ -32,7 +32,7 @@ RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
 # inside a value: the delimiter ' and, for the sinks behind it (#661), " ` and \. Until #1002 only
 # the delimiter was encoded, by four call sites each carrying their own sed, and thirteen readers
 # each carrying their own decode. A value with any of the other three was written anyway and the box
-# then held a record its own checker rejects - reachable with a cron command as ordinary as
+# then held a record its own checker rejects, reachable with a cron command as ordinary as
 # `echo "hallo"`, measured. One encoder and one decoder, so a fifth writer cannot know half the set.
 #
 # Known limit, inherited with %quote% and deliberately not given a second escape layer: a value that

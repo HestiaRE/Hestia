@@ -2389,6 +2389,12 @@ change_sys_value() {
 			return "$E_INVALID"
 			;;
 	esac
+	# Leftovers of a run that was killed between mktemp and mv: the trap cannot fire on SIGKILL, so they
+	# accumulate in the instance directory where someone later has to sort them out. Only ones older than
+	# five minutes, so a concurrent writer's live temp is never taken away from it (#946).
+	# -H because $HESTIA/conf is a symlink to the instance directory and find does not follow one in its
+	# argument: without it the sweep silently looked at nothing (measured - 0 hits against 1 real leftover).
+	find -H "$(dirname "$_conf")" -maxdepth 1 -name "$(basename "$_conf").??????" -mmin +5 -delete 2> /dev/null
 	_tmp=$(mktemp "$_conf.XXXXXX") || {
 		check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
 		return "$E_UPDATE"

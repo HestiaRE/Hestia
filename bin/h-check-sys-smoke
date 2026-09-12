@@ -199,6 +199,8 @@ check_config_loaded() {
 	fi
 }
 
+# THE BOUNDARY: a guard verifies an artefact, it never fills one - the write side of this same subject
+# lives in include/update.sh, whose header carries the rule. Nothing here may call an upd_act_*.
 # check_jail_sshd - both jails are installed on every box and have no delete command any more (#945,
 # 1d-3), so what their system layer put into sshd_config has to be there. REPORTED, never repaired:
 # the line from 1a holds here too, a guard verifies an artefact and does not fill it, and sshd_config
@@ -2294,6 +2296,35 @@ check_operator_keys_present() {
 # OUT of the helpers rather than repeated here, so this check cannot drift from them and its own
 # file carries no literal. Comment lines may name a placeholder; code may not. An empty set or an
 # empty scan fails rather than passes.
+# The update dispatcher may not accept a name nothing defines, and may not define one it refuses: an
+# entry whose type is a typo would otherwise be skipped, and a skipped entry looks exactly like one whose
+# condition was false - it vanishes without a word. Both sets are derived from the code, never listed here.
+# THE BOUNDARY: this check verifies, it never repairs - see the paragraph at the top of include/update.sh,
+# which is the first place in the tree that deliberately does the opposite.
+check_update_dispatcher() {
+	local lib="$HESTIA/include/update.sh" defined accepted missing extra
+	if [ ! -f "$lib" ]; then
+		no "update dispatcher: include/update.sh is missing" "the update building blocks are part of the tree"
+		return
+	fi
+	defined=$(grep -oE '^upd_(cond|act)_[a-z_]+\(\)' "$lib" | sed -E 's/^upd_(cond|act)_//; s/\(\)$//' | sort -u)
+	accepted=$(sed -n '/^upd_condition() {/,/^}/p;/^upd_action() {/,/^}/p' "$lib" \
+		| grep -oE '^[[:space:]]*[a-z_]+( \| [a-z_]+)*\)' | tr -d '\t )' | tr '|' '\n' \
+		| sed 's/^ *//; s/ *$//' | grep -vE '^(\*|key_missing)$' | sort -u)
+	if [ -z "$defined" ] || [ -z "$accepted" ]; then
+		no "update dispatcher: derived an empty set" "the function or case shape moved - update the derivation"
+		return
+	fi
+	missing=$(comm -13 <(echo "$defined") <(echo "$accepted") | tr '\n' ' ')
+	extra=$(comm -23 <(echo "$defined") <(echo "$accepted") | tr '\n' ' ')
+	if [ -n "$missing" ] || [ -n "$extra" ]; then
+		no "update dispatcher disagrees with its functions" \
+			"accepted but undefined:${missing:- -} | defined but unreachable:${extra:- -}"
+	else
+		ok "update dispatcher: $(echo "$defined" | wc -l) type(s), every accepted name is defined and reachable"
+	fi
+}
+
 check_record_encoding_central() {
 	local src="$HESTIA/include/main.sh" ph f rel n=0 bad=''
 	ph=$(grep -oE '%[a-z]+%' "$src" 2> /dev/null | sort -u | paste -sd'|')
@@ -2318,6 +2349,8 @@ check_record_encoding_central() {
 	fi
 }
 
+# THE BOUNDARY: a guard verifies an artefact, it never fills one - the write side of this same subject
+# lives in include/update.sh, whose header carries the rule. Nothing here may call an upd_act_*.
 check_system_keys_agree() {
 	local bad='' t
 	if [ -z "$ROOT_USER" ]; then
@@ -2351,6 +2384,8 @@ _artefact_present() {
 	esac
 }
 
+# THE BOUNDARY: a guard verifies an artefact, it never fills one - the write side of this same subject
+# lives in include/update.sh, whose header carries the rule. Nothing here may call an upd_act_*.
 # check_manifest_status_link: the manifest names, for every component that is neither always_installed
 # nor no_status_key, the hestia.conf key it writes (status_key, 1c #944); every named key must be in the
 # registry; a status_token is a plain status word, and empty only on an option whose value means off
@@ -2389,6 +2424,8 @@ check_manifest_status_link() {
 	fi
 }
 
+# THE BOUNDARY: a guard verifies an artefact, it never fills one - the write side of this same subject
+# lives in include/update.sh, whose header carries the rule. Nothing here may call an upd_act_*.
 # check_manifest_artefacts: for every component with a status_artefact: key set <=> artefact present,
 # both directions (a set key without its artefact is the swallowed-install class, an artefact without its
 # key is a hand install or a lost record). An unknown type is red, never skipped; zero components with an
@@ -2859,6 +2896,7 @@ check_key_registries
 check_operator_keys_present
 check_jail_sshd
 check_record_encoding_central
+check_update_dispatcher
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

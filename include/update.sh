@@ -12,29 +12,19 @@
 # either changes the box or says why it did not. Every guard that verifies an artefact from phase 1c
 # or 1d carries a pointer back to this paragraph in its comment.
 #
-# TWO ROOTS. $HESTIA keeps its usual meaning everywhere here - the box's install root, and that is the
-# right root for every write: "$HESTIA/conf/..." reaches the instance data wherever it lives.
-# What needs a second name is this code's OWN location. Every h-* bootstraps through
-# `source /etc/hestia/hestia.env`, which pins HESTIA to /usr/local/hestia, so a command started from an
-# extracted tarball would load the INSTALLED library, not its own - the wrong way round for the one job
-# this library has. UPDATE_TREE is that second name, derived from the file's own path rather than from a
-# caller who could get it wrong. The two roots are the same after the overlay and differ before it:
-# phase 3 derives the entry list from the extracted tree while the box is still untouched, and that run
-# must read the NEW registry and the NEW templates while writing nothing at all.
-UPDATE_TREE="${UPDATE_TREE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-
-# SOURCING - the list below is the whole of it, and a smoke check holds the code against it. A library
-# that runs from a foreign tree against an unknown box is exactly where an accidental `source` of
-# something box-local would go unnoticed, so the set is small, named, and measured rather than trusted.
-UPDATE_SOURCE_ALLOW="include/main.sh include/sysreg.sh"
+# ONE ROOT. $HESTIA, as in every other file here. An update unpacks the new release OVER the install
+# tree and only then plays the manifest, so by the time anything in this library runs, the tree it was
+# read from and the box's install root are the same directory. Nothing here may introduce a second one:
+# a library that can be pointed at a foreign tree is a library that can be pointed at the wrong tree,
+# and the ordering that would have required it (deriving the entry list before the overlay) is gone.
+#
+# SOURCING - two files, and deliberately not more. What a manifest may CALL lives elsewhere in
+# include/, and function_call finds the defining file rather than making this header grow.
 
 # shellcheck source=/usr/local/hestia/include/main.sh
-source "$UPDATE_TREE/include/main.sh"
+source "${HESTIA:-/usr/local/hestia}/include/main.sh"
 # shellcheck source=/usr/local/hestia/include/sysreg.sh
-source "$UPDATE_TREE/include/sysreg.sh"
-# The registry travels with the tree, never with the box: the names a manifest may reference are the
-# ones its own release knows.
-SYSREG_FILE="${SYSREG_FILE:-$UPDATE_TREE/share/hestia/sys-keys.json}"
+source "${HESTIA:-/usr/local/hestia}/include/sysreg.sh"
 
 #----------------------------------------------------------#
 #                       Conditions                         #
@@ -135,15 +125,250 @@ upd_cond_package_installed() {
 # the re-applications that reapply_outside_tree used to do unconditionally). An absent target counts
 # as different: that is the case the copy action exists for.
 upd_cond_file_differs() {
-	local src="$UPDATE_TREE/$1"
+	local src="${HESTIA:-/usr/local/hestia}/$1"
 	[ -n "$1" ] && [ -n "$2" ] || {
 		echo "update: file_differs needs a tree-relative source and a target" >&2
 		return 2
 	}
 	[ -f "$src" ] || {
-		echo "update: $1 is not a file in $UPDATE_TREE" >&2
+		echo "update: $1 is not a file in this tree" >&2
 		return 2
 	}
 	[ -f "$2" ] || return 0
 	! cmp -s "$src" "$2"
+}
+
+#----------------------------------------------------------#
+#                        Actions                           #
+#----------------------------------------------------------#
+# An action does one thing and says whether it did it: rc 0 changed or already so, rc 1 it could not.
+# It does NOT validate its own arguments - upd_action does that once for the whole entry, so there is
+# one place to read the rules instead of ten. And it is not clever on failure: it stops, and the
+# executor names the entry and the two ways out. Recovery is a human with the run directory, not a
+# state machine in here.
+#
+# ALREADY RIGHT MEANS DO NOT WRITE. Rewriting a file that is already correct costs a service restart
+# every run, and it moves the file's mtime - which is what check_config_loaded compares a unit's start
+# time against (#1007), so a needless write can turn a healthy guard red. Every action checks first.
+#
+# SURVIVING AN ABORT (E14) is not a guard either, it is the simpler shape: a file writer works through
+# a temp file next to the target and renames, so a kill leaves the old file or the new one and never a
+# half of either; a package action runs `dpkg --configure -a` first, so an interrupted dpkg from a
+# previous run is finished rather than tripped over. Repeating a run converges. Measured per type.
+
+# upd_action_reversible TYPE - one word, and its only job is to answer the question a human asks after
+# an abort: can this be taken back by putting files back, or not. "no" is not a refusal, it is the line
+# after which rollback means restoring the run's tarball instead of undoing entries.
+upd_action_reversible() {
+	case "$1" in
+		key_set | key_clear | token_add | token_remove | file_copy | package_install) echo yes ;;
+		path_delete | package_remove | service_restart | function_call) echo no ;;
+		*) return 1 ;;
+	esac
+}
+
+# The functions a manifest may call. Small on purpose: this is the difference between a vocabulary and
+# arbitrary code, and the entries that need it are known (the re-applications E15 moves out of
+# reapply_outside_tree).
+UPDATE_CALLABLE="deploy_hestia_sudoers proc_hardening_apply customer_php_limit_apply login_defs_guard"
+
+upd_act_key_set() {
+	[ "$(upd_key_value "$1")" = "$2" ] && return 0
+	change_sys_value "$1" "$2"
+}
+
+upd_act_key_clear() {
+	[ -z "$(upd_key_value "$1")" ] && return 0
+	clear_sys_value "$1"
+}
+
+upd_act_token_add() {
+	upd_cond_key_has_token "$1" "$2" && return 0
+	"$(sysreg_token_fn "$1")" "$1" add "$2" > /dev/null
+}
+
+upd_act_token_remove() {
+	upd_cond_key_has_token "$1" "$2" || return 0
+	"$(sysreg_token_fn "$1")" "$1" remove "$2" > /dev/null
+}
+
+# file_copy REL TARGET [MODE] - a file from this tree onto the box. Temp file next to the target, mode
+# and owner set before the rename, so the target is never briefly world-readable and never half.
+upd_act_file_copy() {
+	local src="${HESTIA:-/usr/local/hestia}/$1" dst="$2" mode="${3:-}" tmp prev
+	cmp -s "$src" "$dst" 2> /dev/null && return 0
+	# A kill cannot run the trap, so a killed run leaves its temp file behind - measured, 114 of them in
+	# 40 runs. Older than five minutes means "not a run that is happening right now", which is the whole
+	# distinction needed here: a live writer keeps its file for a fraction of a second.
+	find -H "$(dirname "$dst")" -maxdepth 1 -name "$(basename "$dst").??????" -mmin +5 -delete 2> /dev/null
+	tmp=$(mktemp "$dst.XXXXXX") || return 1
+	prev=$(trap -p EXIT)
+	# shellcheck disable=SC2064  # expand now: tmp is local and gone when the trap fires
+	trap "rm -f '$tmp'" EXIT
+	if cat "$src" > "$tmp" \
+		&& { [ -z "$mode" ] || chmod "$mode" "$tmp"; } \
+		&& { [ -n "$mode" ] || ! [ -f "$dst" ] || chmod --reference="$dst" "$tmp"; } \
+		&& { ! [ -f "$dst" ] || chown --reference="$dst" "$tmp"; } \
+		&& mv -f "$tmp" "$dst"; then
+		eval "${prev:-trap - EXIT}"
+		return 0
+	fi
+	rm -f "$tmp"
+	eval "${prev:-trap - EXIT}"
+	return 1
+}
+
+upd_act_path_delete() {
+	[ -e "$1" ] || [ -L "$1" ] || return 0
+	rm -rf -- "$1"
+}
+
+# The callable functions live in include/ files this library does not source - and it should not start
+# sourcing half the tree for them. So the defining file is FOUND, the same way sysreg_check already
+# locates a token_fn: one grep over include/, no second list that says where each function lives.
+upd_act_function_call() {
+	local fn="$1" src
+	shift
+	if ! declare -F "$fn" > /dev/null 2>&1; then
+		src=$(grep -lE "^${fn}\(\) \{" "${HESTIA:-/usr/local/hestia}"/include/*.sh 2> /dev/null | head -1)
+		[ -n "$src" ] || return 1
+		# shellcheck disable=SC1090  # the file is the one that defines the allow-listed name
+		source "$src" || return 1
+		declare -F "$fn" > /dev/null 2>&1 || return 1
+	fi
+	"$fn" "$@"
+}
+
+# dpkg --configure -a first: an apt run killed halfway leaves the box in a state where the next apt
+# refuses, and an update that stops there for a reason two runs old is the worst kind of puzzle.
+upd_act_package_install() {
+	upd_cond_package_installed "$1" && return 0
+	dpkg --configure -a > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install "$1" > /dev/null 2>&1
+}
+
+upd_act_package_remove() {
+	upd_cond_package_installed "$1" || return 0
+	dpkg --configure -a > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -y purge "$1" > /dev/null 2>&1
+}
+
+upd_act_service_restart() {
+	systemctl restart "$1" > /dev/null 2>&1
+}
+
+#----------------------------------------------------------#
+#                       Dispatcher                         #
+#----------------------------------------------------------#
+# Type name -> function, and an unknown type is an ERROR, never a skip. A skipped entry looks exactly
+# like an entry whose condition was false, so a typo in a type name would make the entry vanish without
+# a word - the same silent failure the key and value checks remove one level down.
+
+# upd_condition TYPE ARGS... - rc 0 true, rc 1 false, rc 2 the entry is wrong.
+upd_condition() {
+	local t="$1"
+	shift
+	case "$t" in
+		key_missing)
+			echo "update: there is no condition 'key_missing' - absent and empty are one state, use key_empty" >&2
+			return 2
+			;;
+		key_empty | key_is | key_has_token | path_exists | command_exists | package_installed | file_differs)
+			"upd_cond_$t" "$@"
+			;;
+		*)
+			echo "update: unknown condition type '$t'" >&2
+			return 2
+			;;
+	esac
+}
+
+# upd_action TYPE ARGS... - the ONE place an entry is validated. The actions behind it are plain
+# writers; every rule a manifest author can break is stated here and nowhere else.
+# rc 0 done, rc 1 the action failed, rc 2 the entry is wrong.
+upd_action() {
+	local t="$1" fn
+	shift
+	case "$t" in
+		key_set)
+			[ $# -eq 2 ] || {
+				echo "update: key_set needs a key and a value" >&2
+				return 2
+			}
+			upd_key_known "$1" || return 2
+			# Only a system key. Not tidiness: since #1006 the daily repair writes every operator key's
+			# registry default back, so a value an update put there is gone by 04:40 the next morning.
+			[ "$(sysreg_class "$1")" = system ] || {
+				echo "update: $1 is an operator key - an update may not set it (the daily repair owns it)" >&2
+				return 2
+			}
+			sysreg_value_ok "$1" "$2" || {
+				echo "update: '$2' is not a value $1 may carry" >&2
+				return 2
+			}
+			;;
+		key_clear)
+			[ $# -eq 1 ] || {
+				echo "update: key_clear needs a key" >&2
+				return 2
+			}
+			upd_key_known "$1" || return 2
+			[ "$(sysreg_class "$1")" = system ] || {
+				echo "update: $1 is an operator key - an update may not clear it" >&2
+				return 2
+			}
+			;;
+		token_add | token_remove)
+			[ $# -eq 2 ] || {
+				echo "update: $t needs a key and a token" >&2
+				return 2
+			}
+			upd_key_known "$1" || return 2
+			[ "$(sysreg_tokens "$1")" = yes ] || {
+				echo "update: $1 is not a token list" >&2
+				return 2
+			}
+			;;
+		file_copy)
+			[ $# -ge 2 ] && [ -n "$1" ] && [ -n "$2" ] || {
+				echo "update: file_copy needs a tree-relative source and a target" >&2
+				return 2
+			}
+			[ -f "${HESTIA:-/usr/local/hestia}/$1" ] || {
+				echo "update: $1 is not a file in this tree" >&2
+				return 2
+			}
+			;;
+		path_delete)
+			# Not a policy, just not shooting ourselves: an empty argument would delete the working
+			# directory's contents and "/" needs no explanation.
+			case "${1:-}" in "" | / | /*/..*)
+				echo "update: path_delete needs a real path" >&2
+				return 2
+				;;
+			esac
+			;;
+		function_call)
+			[ -n "${1:-}" ] || {
+				echo "update: function_call needs a name" >&2
+				return 2
+			}
+			for fn in $UPDATE_CALLABLE; do [ "$fn" = "$1" ] && break; done
+			[ "$fn" = "$1" ] || {
+				echo "update: '$1' is not a function a manifest may call" >&2
+				return 2
+			}
+			;;
+		package_install | package_remove | service_restart)
+			[ -n "${1:-}" ] || {
+				echo "update: $t needs a name" >&2
+				return 2
+			}
+			;;
+		*)
+			echo "update: unknown action type '$t'" >&2
+			return 2
+			;;
+	esac
+	"upd_act_$t" "$@"
 }

@@ -14,6 +14,25 @@ opens above it.
 
 ### Added
 
+- **The update building blocks, with no caller yet** (#946, phase 2). `include/update.sh` carries seven
+  condition types and ten action types behind one dispatcher, so a later manifest entry is a line of
+  data instead of a line of code. An unknown type is an **error**, never a skip: a skipped entry looks
+  exactly like one whose condition was false, so a typo in a type name would make the entry vanish
+  without a word. Conditions answer in three values - true, false, and "this entry is wrong" - and the
+  first two are silent, because in a merged manifest most conditions are legitimately false for a given
+  box and a probe that logs every false turns the log into noise. The scope is deliberately small: no
+  clever recovery, no gate that a human then has to argue with. What an abort leaves behind is meant to
+  be repaired by hand, from one directory, with a readable script.
+- **The system key registry says which values a key may carry** (#946, E24). Until now that contract
+  existed only as prose in the registry header, and for fifteen keys not even that - `WEB_SYSTEM`,
+  `MAIL_SYSTEM`, `FIREWALL_SYSTEM` and twelve more carried an implementation name with an equally closed
+  set and no written vocabulary at all. 23 keys now carry `values` as data, each derived from a named
+  writing site rather than from a text search: a mechanical sweep would have given `ANTIVIRUS_SYSTEM`
+  two values, because `clamd` stands next to the key name in the service lister - as a local
+  reassignment looking up a service name, not as a writer. The schema holds four new rules, one of which
+  found a real defect on its first run: `WEB_SSL` listed neither its own default nor the empty value,
+  which would have made an ordinary box illegal.
+
 - **The jail system layer is watched, not repaired** (#945, phase 1d-3). `check_jail_sshd` holds the
   sshd `Subsystem` line, the `Match Group sftp-jailed` block, `jailbash` and the group against the box
   and names, per missing piece, the add command that puts it back. Nothing here writes `sshd_config`:
@@ -363,6 +382,16 @@ opens above it.
   and nothing called it. Not a lost capability: it never was one.
 
 ### Fixed
+
+- **A killed writer left its temp file behind, and the sweep for those looked at nothing** (#946, found
+  while measuring the new actions). `change_sys_value` creates its temp file next to `hestia.conf` and
+  removes it through an EXIT trap - which a `kill -9` never runs, so a run that dies in that window
+  leaves debris in the instance directory for someone to sort out later. Both writers now remove
+  leftovers older than five minutes, which separates "remains of a dead run" from "the temp file of a
+  writer working right now" without taking a live one away. The first version of that sweep found
+  nothing at all: `$HESTIA/conf` is a symlink to the instance directory and `find` does not follow one
+  given as its argument - 0 hits against a leftover that was demonstrably there. Only the positive
+  control showed it. Measured over 40 killed runs: 0 broken states.
 
 - **An sshd `Subsystem` line after a `Match` block is inert, and the guard called it healthy** (#1017).
   sshd reads everything after the first `Match` as part of that block, so a `Subsystem` line there is

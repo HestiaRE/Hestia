@@ -1,42 +1,29 @@
 #!/usr/bin/env bash
 
 #===========================================================================#
-#                                                                           #
-# Hestia Control Panel - Core Function Library                              #
-#                                                                           #
+# #
+# Hestia Control Panel - Core Function Library #
+# #
 #===========================================================================#
 
 # Source conf function for correct variable initialisation
-# Names a record must never bind. The value is validated everywhere; the NAME was not, so a
-# restored user.conf carrying a line PATH=/tmp/x rebound PATH in the root shell that reads it and
-# the next relative chown/grep ran from the attacker's directory. Measured, #807.
-#
-# Deliberately NOT here, because each is a legitimate key in some conf and would be locked out:
-# ROOT_USER (hestia.conf), REPO (restic.conf), BACKUP (backup records), BACKUP_TEMP (an optional
-# hestia.conf knob - the backup and restore commands read it and fall back to $BACKUP). The floor
-# cannot protect a name that also has honest work.
+# Names a record must never bind: the value is validated everywhere, the NAME was not, so a restored
+# user.conf with PATH=/tmp/x rebound PATH in the root shell reading it.
+# NOT here, because each is a legitimate key somewhere: ROOT_USER, REPO, BACKUP, BACKUP_TEMP.
 SOURCE_CONF_PROTECTED="PATH IFS ENV BASH_ENV BASHOPTS SHELLOPTS CDPATH GLOBIGNORE PROMPT_COMMAND
 PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCNAME
 HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
 
-# Two sinks, two floors. source_conf reads CONFIGS, where these three are honest keys, so it must
-# keep accepting them. parse_object_kv_list reads RECORDS, where they are not fields at all - only
-# BACKUP is one (the archive name), which is why BACKUP is absent here. Taking BACKUP_TEMP off the
-# floor for hestia.conf's sake would otherwise have dropped it on the record side too, where an
-# archived backup.conf reaches the parser (h-restore-{web-domain,mail-domain,database}-restic) and
-# could rebind the directory a later mktemp writes into. Measured: on all four targets BACKUP is a
-# record key in three files per box, these three in none.
+# Two sinks, two floors: source_conf reads CONFIGS where these three are honest keys,
+# parse_object_kv_list reads RECORDS where they are not fields at all. BACKUP is absent because it IS
+# a record field (the archive name).
 RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
 
-# Storage encoding for record VALUES. record_line_valid (include/backup.sh) refuses four characters
-# inside a value: the delimiter ' and, for the sinks behind it (#661), " ` and \. Until #1002 only
-# the delimiter was encoded, by four call sites each carrying their own sed, and thirteen readers
-# each carrying their own decode. A value with any of the other three was written anyway and the box
-# then held a record its own checker rejects, reachable with a cron command as ordinary as
-# `echo "hallo"`, measured. One encoder and one decoder, so a fifth writer cannot know half the set.
-#
-# Known limit, inherited with %quote% and deliberately not given a second escape layer: a value that
-# literally contains a placeholder decodes to the character it stands for.
+# Storage encoding for record VALUES: record_line_valid refuses ' " ` and \ inside a value. One
+# encoder and one decoder, so a fifth writer cannot know half the set. Before, four writers and
+# thirteen readers each carried their own, and a record its own checker rejects was reachable with a
+# cron command as ordinary as `echo "hallo"`.
+# Known limit: a value literally containing a placeholder decodes to the character it stands for.
 record_value_encode() {
 	local _v="$1"
 	_v="${_v//\\/%backslash%}"
@@ -92,7 +79,7 @@ copy_record_filtered() {
 
 # The system key registry readers (share/hestia/sys-keys.json): class and default per hestia.conf key,
 # the schema guard, nothing else. Loaded here because the panel's config emitter and the repair both
-# sit behind main.sh (#932).
+# sit behind main.sh.
 # shellcheck source=/usr/local/hestia/include/sysreg.sh
 source "$HESTIA/include/sysreg.sh"
 
@@ -105,7 +92,7 @@ source_conf() {
 			# not just the one command that reads an attacker-supplied file.
 			[[ $lhs =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
 			# The identifier check above accepts PATH and BIN: those are valid identifiers, just
-			# not valid config keys (#807). Loud, because a record carrying one is an attack.
+			# not valid config keys. Loud, because a record carrying one is an attack.
 			if is_protected_key "$lhs"; then
 				echo "Warning: $1 tries to bind the protected name $lhs - ignored" >&2
 				continue
@@ -139,7 +126,7 @@ fi
 # Internal variables
 # BACKUP and BACKUP_GZIP used to sit here as defaults. They are operator keys: the registry carries
 # their default and the repair writes it, so a copy here is a second home that drifts the moment the
-# registry changes, and it silently answered for the operator on every box (#992). HOMEDIR is the
+# registry changes, and it silently answered for the operator on every box. HOMEDIR is the
 # opposite case and moved down to the constants: no registry entry, no writer, never in hestia.conf,
 # and source_conf refuses to bind it (SOURCE_CONF_PROTECTED).
 BACKUP_DISK_LIMIT=95
@@ -148,16 +135,16 @@ RRD_STEP=300
 HOMEDIR='/home'
 BIN=$HESTIA/bin
 # sbin holds what the sudo wildcard on bin/* must NOT reach: the panel-PHP wrappers and the
-# lifecycle commands (#209). Its own anchor so a caller cannot silently keep pointing at bin/.
+# lifecycle commands. Its own anchor so a caller cannot silently keep pointing at bin/.
 SBIN=$HESTIA/sbin
 # instance config root; fallback covers installs whose hestia.env predates the var
 CONF_DIR="${CONF_DIR:-/etc/hestia}"
 # Panel certificate: out of the install root, which h-update-hestia replaces wholesale. Not under
-# CONF_DIR either - that is 0700 and caddy, exim and proftpd all read this as non-root (#564).
+# CONF_DIR either: that is 0700 and caddy, exim and proftpd all read this as non-root.
 HESTIA_SSL="/etc/ssl/hestia"
 # Exim looks a certificate up by interpolating the SNI name into a path, so it needs a directory
 # whose filenames ARE the SNI names. Kept flat and exact rather than stripping a "mail." prefix:
-# a domain literally called mail.kunde.de would strip to another customer's domain (#564).
+# a domain literally called mail.kunde.de would strip to another customer's domain.
 MAIL_SNI_DIR="/etc/exim4/ssl"
 HESTIA_BACKUP="/root/hst_backups/$(date +%d%m%Y%H%M)"
 # CLI helpers run through the hestia-php wrapper (panel PHP version indirection)
@@ -339,7 +326,7 @@ is_system_enabled() {
 	fi
 }
 
-# Customer web and the webmail front are separate concepts (#193): on a mailfront
+# Customer web and the webmail front are separate concepts: on a mailfront
 # box WEB_SYSTEM is empty - customer web absent, every web command's
 # is_system_enabled guard keys on exactly that - while nginx still fronts the
 # webmail vhosts, carried by WEBMAIL_FRONT. Everywhere the webmail chain used
@@ -458,7 +445,7 @@ fetch_wp_cli_phar() {
 }
 
 # The webmail sqlite backend needs its driver in the PANEL pool. Heals the one known ordering
-# gap (package landed after hestia-php-confd built the conf.d, #684) by rebuilding once and
+# gap (package landed after hestia-php-confd built the conf.d) by rebuilding once and
 # reloading; a genuinely missing package stays the caller's hard failure.
 ensure_panel_sqlite_driver() {
 	ls /etc/php/hestia/fpm/conf.d/*-pdo_sqlite.ini > /dev/null 2>&1 && return 0
@@ -467,7 +454,7 @@ ensure_panel_sqlite_driver() {
 	ls /etc/php/hestia/fpm/conf.d/*-pdo_sqlite.ini > /dev/null 2>&1
 }
 
-# The webmail clients this codebase ships (#584). ONE list on purpose: the write-path value
+# The webmail clients this codebase ships. ONE list on purpose: the write-path value
 # domain (h-add-mail-domain-webmail) reads it, and h-check-sys-smoke asserts every shipped
 # webmail template's client appears here - a third client added by template alone would
 # otherwise have its records normalized to 'disabled' while everything else works.
@@ -586,7 +573,7 @@ is_backup_scheduled() {
 	fi
 }
 
-# resolve an object's .conf path: absolute (global objects) as-is, else under $USER_DATA
+# resolve an object's.conf path: absolute (global objects) as-is, else under $USER_DATA
 _object_conf() {
 	case "$1" in
 		/*) printf '%s' "$1.conf" ;;
@@ -634,24 +621,10 @@ parse_object_kv_list_non_eval() {
 
 	str=${*//$'\n'/ }
 
-	# Extract and loop trough each key-value pair. (Regex test: https://regex101.com/r/eiMufk/5)
-	#
-	# mapfile, not `for objkv in $(...)`: that word splitting also GLOBS, so a record value holding
-	# a * was matched against the working directory and the parsed value came back as a FILENAME.
-	# Reachable where the caller's directory is one a customer writes to.
-	#
-	# The " and $ escaping that used to sit here is gone. It protected nothing - the data reaches
-	# perl through a quoted echo and is assigned through a quoted expansion, so neither character
-	# is ever re-expanded - and it was never undone, so every consumer got a value with backslashes
-	# baked in: the search listers emitted \" where the record holds " (#719).
-	#
-	# Captured first and the status checked, rather than read straight through a process
-	# substitution, whose exit status is not observable. Measured: with perl off the PATH the
-	# substitution form returned 0 and set NOTHING - the caller then read whatever was in those
-	# variables before. The sibling parser is loud in the same situation (its check_result on the
-	# php exit status fires), and two parsers that disagree about failure is the asymmetry worth
-	# removing. Not reachable on a supported target - perl-base is priority required on all four -
-	# but "unreachable" is the reason it would never have been noticed.
+	# mapfile, not `for x in $(...)`: word splitting also globs, so a value holding a * came back as
+	# a filename.
+	# Captured first, status checked: a process substitution's exit status is not observable, and with
+	# perl missing it returned 0 having set nothing.
 	out=$(printf '%s\n' "$str" | perl -n -e "while(/\b([a-zA-Z]+[\w]*)='(.*?)'(\s|\$)/g) {print \$1.'='.\$2 . \"\n\" }")
 	rc=$?
 	if [ "$rc" -ne 0 ]; then
@@ -836,11 +809,11 @@ EOPHP
 	eval "$validated_output"
 }
 
-# QUOTE THE ARGUMENT. Both parsers are safe on what they receive, but an unquoted `$(grep ...)` is
+# QUOTE THE ARGUMENT. Both parsers are safe on what they receive, but an unquoted `$(grep...)` is
 # split and GLOBBED by the shell before either of them sees a character: a record holding MIN='*'
 # picks up any file named MIN='...' in the working directory and the parsed value becomes that
 # filename. Reachable wherever a customer chooses the directory a h-* runs in. Unquoted also
-# collapses runs of whitespace inside a value, so TPL='two  spaces' comes back with one.
+# collapses runs of whitespace inside a value, so TPL='two spaces' comes back with one.
 parse_object_kv_list() {
 	_parse_object_kv_list_php "$@"
 }
@@ -925,22 +898,11 @@ is_dir_symlink() {
 	fi
 }
 
-# Escape the named variables IN PLACE for splicing into a JSON string literal. The h-list-*
-# emitters build their JSON by concatenation, so a record value carrying a " or a backslash
-# produces a document the panel cannot json_decode - the same class as upstream #5585 at the
-# certificate listers. Escaping belongs here, at the one definition, not in each emitter.
-#
-# In place and by name because the alternative is a subshell per field: a 300-domain listing
-# would fork twelve thousand times. Pure parameter expansion, no external process.
-#
-# Only the emitters may call this - it destroys the raw value, so never call it before a
-# shell_list or before a value is used for anything but the JSON output.
-#
-# EMIT WITH printf AND %s, never by splicing into an echo argument (#728). `echo '"K": "'$V'"'`
-# leaves the escaped value unquoted, so the shell splits and globs it AFTER this function ran:
-# whitespace runs collapse, and a value holding a * is replaced by filenames from the working
-# directory - text that never passed through here at all, so a filename with a " in it opens a
-# second JSON key. printf takes the value as an argument and none of that applies.
+# Escape named variables IN PLACE for a JSON string literal. In place and by name to avoid a subshell
+# per field: a 300-domain listing would fork twelve thousand times.
+# Emitters only, and only last: it destroys the raw value.
+# Emit with printf %s, never spliced into an echo argument: the shell would split and glob the
+# escaped value afterwards.
 json_escape() {
 	local _n _v _c _out
 	for _n in "$@"; do
@@ -1032,7 +994,7 @@ remove_pool_zone() {
 }
 
 # Literal line removal for the account-keyed mail files: any widening of the localpart
-# charset would silently under-escape a sed pattern. index()==1 anchors at line start.
+# charset would silently under-escape a sed pattern. index==1 anchors at line start.
 # Owner/mode are copied onto the rewrite - passwd is dovecot:mail, and a root:root rewrite
 # would cut dovecot off from auth.
 remove_line_by_prefix() {
@@ -1090,7 +1052,7 @@ update_user_value() {
 		# Rewrite the line in place with 'c' (change). The old delete+insert lost a
 		# key that sat on the LAST line: after deleting line $lnr the file was
 		# $lnr-1 long, so "insert before $lnr" addressed past EOF and silently wrote
-		# nothing - the value just vanished (#433). 'c' rewrites any line, last
+		# nothing: the value just vanished. 'c' rewrites any line, last
 		# included, and (unlike 's') has no delimiter that a value could contain.
 		sed -i "${lnr}c\\$key='${3}'" $CONF_DIR/users/$1/user.conf
 	fi
@@ -1268,11 +1230,8 @@ sync_cron_jobs() {
 	while read -r line; do
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
-			# Decode the command alone: a schedule field cannot carry a storage placeholder, and the
-			# sed that used to run over the whole assembled line also rewrote %dots% into a colon.
-			# %dots% has no encoder, here or in the upstream this was inherited from, so a literal
-			# %dots% in a customer command was silently turned into ":" and nothing ever produced
-			# one (#1002).
+			# Decode the command alone: a schedule field cannot carry a storage placeholder, and
+			# decoding the assembled line rewrote parts of the command that were never encoded.
 			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
 				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
@@ -1281,24 +1240,16 @@ sync_cron_jobs() {
 	chmod 600 $crontab
 }
 
-# The one hestia crontab. Two copies of this list existed, one in the installer and one in
-# syshealth.sh, and they had already drifted in four ways: MAILTO, a hard-wired install root,
-# line-by-line appends instead of temp+rename, and a different random source (#972). Rendering it
-# here makes the drift impossible rather than merely comparable.
-#
-# The Let's Encrypt renewal time is drawn per write. That is sound because a write only happens where
-# there is no file to preserve it from: the installer on a fresh box, and the repair only when the
-# file is gone.
+# The one hestia crontab: two copies existed and had drifted in four ways, so rendering it here makes
+# drift impossible rather than merely comparable.
+# The renewal time is drawn per write, which only happens where there is no file to preserve it from.
 system_crontab_write() {
 	local _dst='/var/spool/cron/crontabs/hestia' _tmp _min _hour
-	# Arithmetic instead of a pipeline into `head`, for the reason given at the SRS secret (#997). The
-	# old form drew two digits from 0-5 and one from 1-7, so a minute of 00-55 and an early-morning
-	# hour; the range is the same intent and better spread.
+	# Arithmetic, not a pipeline into `head`: the old form could only produce a minute of 00-55.
 	_min=$((RANDOM % 60))
 	_hour=$((RANDOM % 7 + 1))
 	mkdir -p /var/spool/cron/crontabs || return 1
-	# Leftovers from a run that died between writing and renaming. cron itself ignores them (a dot is
-	# not a valid user name), but they would accumulate silently.
+	# A killed run leaves its temp; cron ignores it, but it would pile up unseen.
 	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
 	_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
@@ -1319,28 +1270,17 @@ system_crontab_write() {
 		rm -f "$_tmp"
 		return 1
 	}
-	# Rename, never truncate the target. systemd ships fs.protected_regular=2 (50-default.conf, all
-	# four targets), /var/spool/cron/crontabs is sticky AND group-writable, and the file belongs to
-	# hestia: under those three, opening it for writing is EACCES even for root. A fresh install never
-	# met it, the file does not exist yet; the first re-run of the installer stage died right here.
-	# rename() is not subject to that check, and root owns the directory, so the sticky bit permits
-	# it (#945).
+	# Rename, never truncate: with fs.protected_regular=2 and a sticky, group-writable crontabs
+	# directory owned by hestia, opening the file for writing is EACCES even for root. rename is not
+	# subject to that check and root owns the directory.
 	mv -f "$_tmp" "$_dst"
 }
 
-# The periodic repair, in /etc/cron.d and deliberately NOT in the hestia crontab (#1006). It would
-# fit in the list above, but then it could not do half its job: a deleted crontab takes the line that
-# restores it with it. Outside that file the circle is broken, so a missing crontab really does come
-# back on its own.
-#
-# Daily, and 04:40 because nothing in the crontab runs at 04. What it heals is rare and operator- or
-# damage-induced (an absent or emptied operator key, a missing crontab), a run costs 0.8 s, and it
-# writes one line to system.log like h-update-user-stats already does. Hourly would multiply that by
-# 24 for a value that changes almost never; weekly would leave a box without a crontab, and therefore
-# without any queue processing, for up to seven days.
-#
-# Root directly, no sudo: cron.d entries name their user, and this one is not reachable from the
-# panel the way a bin/* command under the hestia sudo wildcard is.
+# The periodic repair, in /etc/cron.d and NOT in the hestia crontab: a deleted crontab would take the
+# line that restores it with it.
+# Daily at 04:40, where nothing else runs. What it heals changes almost never, and a week without a
+# crontab is a week without queue processing.
+# Root directly: cron.d entries name their user, and this one is not reachable from the panel.
 system_repair_cron_write() {
 	local _dst='/etc/cron.d/hestia-repair' _tmp
 	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
@@ -1511,7 +1451,7 @@ is_ipv6_format_valid() {
 }
 
 # Silent predicate: exit status only, never check_result. The validator below refuses AND logs, so
-# using it as a probe in a subshell wrote an [Error 2] line on every successful domain add (#925).
+# using it as a probe in a subshell wrote an [Error 2] line on every successful domain add.
 # Named far from is_ip46_format_valid on purpose: one asks, the other refuses.
 looks_like_ip46() {
 	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
@@ -1563,7 +1503,7 @@ is_netmask_format_valid() {
 
 # Proxy extention format validator
 is_extention_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|@|<|>|?|/|\|\"|'|;|%|\`| ]"
 	if [[ "$1" =~ $exclude ]]; then
 		check_result "$E_INVALID" "invalid proxy extention format :: $1"
@@ -1600,7 +1540,7 @@ is_refresh_ipset_format_valid() {
 	fi
 }
 
-# Addresses and networks, both families (#894): the common deny list rejects colon and slash, so
+# Addresses and networks, both families: the common deny list rejects colon and slash, so
 # nothing v6 could ever be stored. An empty list is legal - switching the feature off writes one.
 is_ip_list_format_valid() {
 	local list="$1" name="${2-ip list}" entry
@@ -1620,7 +1560,7 @@ is_ip_list_format_valid() {
 
 # Common format validator
 is_common_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|<|>|?|/|\|\"|'|;|%|\`| ]"
 	if [[ "$1" =~ $exclude ]]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
@@ -1657,7 +1597,7 @@ is_common_format_valid() {
 # Common format validator for fields that need spaces
 is_common_format_spaces_valid() {
 	# Block injection chars but allow spaces
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|<|>|?|/|\|\"|'|;|%|\`]"
 
 	# Block tabs, newlines, carriage returns
@@ -1742,13 +1682,9 @@ is_no_quote_format() {
 
 # A restore selector: empty, '*', 'no'/'yes', or a comma list of object names.
 #
-# CLOSED character set, not a deny list. The value is spliced into the queue line that
-# h-update-sys-queue runs through bash as root, and a deny list holds only as long as the quoting
-# around it does - it was a too-wide allowed set that let a pipe reach that line once.
-#
-# A literal space is in, because a home entry can be called "my documents". A TAB is not, although
-# it is just as legal in a filename: tar prints it escaped in the member listing the restore matches
-# against, so such a selector is accepted and then silently selects nothing. Refusing it says so.
+# CLOSED character set, not a deny list: the value is spliced into a queue line bash runs as root.
+# Space is in, a home entry can be "my documents". TAB is not: tar prints it escaped in the listing
+# the restore matches against, so such a selector would silently select nothing.
 is_selector_format_valid() {
 	# In a variable: an unquoted space inside [[ =~ ]] would split the pattern into two words.
 	local _re='^[-._,* [:alnum:]]+$'
@@ -1758,7 +1694,7 @@ is_selector_format_valid() {
 }
 
 is_string_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|<|>|?|/|\|\"|'|;|%|\`]"
 	if [[ "$1" =~ $exclude ]]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
@@ -1796,7 +1732,7 @@ is_cron_command_valid_format() {
 }
 # Database format validator
 is_database_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|@|#|$|^|&|*|(|)|+|=|{|}|:|,|<|>|?|/|\|\"|'|;|%|\`| ]"
 	if [[ "$1" =~ $exclude ]] || [ 64 -le ${#1} ]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
@@ -1813,7 +1749,7 @@ is_date_format_valid() {
 
 # Database user validator
 is_dbuser_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|@|#|$|^|&|*|(|)|+|=|{|}|:|,|<|>|?|/|\|\"|'|;|%|\`| ]"
 	if [ 33 -le ${#1} ]; then
 		check_result "$E_INVALID" "mysql username can be up to 32 characters long"
@@ -1966,7 +1902,7 @@ is_object_name_format_valid() {
 }
 # Name validator
 is_name_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="['|\"|<|>]"
 	if [[ "$1" =~ $exclude ]]; then
 		check_result "$E_INVALID" "Invalid $2 contains qoutes (\" or ') :: $1"
@@ -1981,7 +1917,7 @@ is_object_format_valid() {
 	fi
 }
 
-# A remote host: a name OR a bare address - the name form has no colon (#893).
+# A remote host: a name OR a bare address, the name form has no colon.
 is_host46_format_valid() {
 	case "$1" in
 		*:*) is_ipv6_format_valid "$1" "${2-host}" ;;
@@ -2011,7 +1947,7 @@ is_password_format_valid() {
 		check_result "$E_INVALID" "invalid password format :: $1"
 	fi
 }
-# Curated login-shell allowlist (#412): one source for the panel (h-list-sys-shells)
+# Curated login-shell allowlist: one source for the panel (h-list-sys-shells)
 # and the validator (is_format_valid_shell). Dropped rssh - gone from Debian since
 # bullseye, it selects a missing binary and silently acts like nologin. screen/tmux/
 # dash/rbash dropped too. Existing off-list shells are kept (rebuild.sh), not offered.
@@ -2031,7 +1967,7 @@ list_allowed_shells() {
 	done
 }
 
-# shell must be one of the curated, /etc/shells-backed login shells (#412)
+# shell must be one of the curated, /etc/shells-backed login shells
 is_format_valid_shell() {
 	local shell
 	shell=$(basename -- "$1")
@@ -2055,16 +1991,10 @@ is_hash_format_valid() {
 	fi
 }
 
-# Format validation controller
-# Validates by VARIABLE NAME: each name is both the type to check and the variable to read via ${!name}.
-# That coupling is the trap - a name with no matching variable expands to empty, and empty used to mean
-# "nothing to check, so valid". So renaming an argument, or typoing a type, silently disabled the check
-# instead of failing. It has cost us twice. An UNSET variable is therefore a hard error now: it can only be
-# a programming mistake, since a caller with a genuinely optional argument still has the variable declared
-# and empty, which stays a legitimate skip.
-# The dispatch key IS the caller's variable name: is_format_valid reads ${!name} and picks the
-# validator from the name, so renaming a variable (ip -> ip46) changes which check runs AND what
-# every sourced helper reading that global sees. The name is part of the interface.
+# Format validation controller. Validates by VARIABLE NAME: the name is both the type and the variable
+# read via ${!name}, so renaming one changes which check runs. The name is part of the interface.
+# An UNSET variable is a hard error: empty used to mean "nothing to check", which silently disabled a
+# check twice. A declared-but-empty variable stays a legitimate skip.
 is_format_valid() {
 	for arg_name in $*; do
 		if ! declare -p "$arg_name" > /dev/null 2>&1; then
@@ -2202,7 +2132,7 @@ format_domain() {
 
 # Always the twin of $domain as format_domain left it. Seeding only when empty let a caller's raw
 # argument survive: with `www.other.com` every duplicate guard then checked a name no record carries,
-# while record and vhost were created under the stripped name - another customer's (#925).
+# while record and vhost were created under the stripped name, another customer's.
 format_domain_idn() {
 	domain_idn=$domain
 	if [[ "$domain_idn" = *[![:ascii:]]* ]]; then
@@ -2226,7 +2156,7 @@ is_restart_format_valid() {
 	# 'now' is the restart.pipe's own grammar: every h-restart-* queues itself as
 	# "$SCRIPT now" under SCHEDULED_RESTART, and the queue runs the pipe with all
 	# errors swallowed - the inherited list rejected the one value the family
-	# writes, so every queued restart died silently (#855). now = run immediately,
+	# writes, so every queued restart died silently. now = run immediately,
 	# do not requeue (it falls through the scheduling branch by design).
 	if [ -n "$1" ]; then
 		if [ "$1" != 'yes' ] && [ "$1" != 'no' ] && [ "$1" != 'ssl' ] && [ "$1" != 'reload' ] && [ "$1" != 'updatessl' ] && [ "$1" != "scheduled" ] && [ "$1" != 'now' ]; then
@@ -2360,7 +2290,7 @@ no_symlink_chmod() {
 }
 
 format_no_quotes() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too (#661).
+	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="['|\"]"
 	if [[ "$1" =~ $exclude ]]; then
 		check_result "$E_INVALID" "Invalid $2 contains qoutes (\" or ' or | ) :: $1"
@@ -2377,7 +2307,7 @@ is_username_format_valid() {
 
 # The line is built and checked BEFORE the file is touched, then written whole through a temp file
 # and rename: the sed it replaces expanded & and \ inside the value (a plain "Foo & Bar" glued the
-# old value into the new one and left the quotes unbalanced, #955). A value that cannot form a
+# old value into the new one and left the quotes unbalanced). A value that cannot form a
 # KEY='VALUE' line is refused, not written. Every matching line is replaced, as before; the
 # duplicate collapse stays with syshealth.
 change_sys_value() {
@@ -2389,17 +2319,21 @@ change_sys_value() {
 			return "$E_INVALID"
 			;;
 	esac
+	# SIGKILL never runs the trap, so a killed run leaves its temp in the instance directory. Only ones
+	# older than five minutes, so a concurrent writer keeps its own. -H because $HESTIA/conf is a
+	# symlink and find does not follow one given as its argument.
+	find -H "$(dirname "$_conf")" -maxdepth 1 -name "$(basename "$_conf").??????" -mmin +5 -delete 2> /dev/null
 	_tmp=$(mktemp "$_conf.XXXXXX") || {
 		check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
 		return "$E_UPDATE"
 	}
 	# the temp file has one owner, this trap, until the rename; the caller's EXIT trap is kept and put back
 	_prev_trap=$(trap -p EXIT)
-	# shellcheck disable=SC2064  # expand now on purpose: _tmp is local and gone when the trap fires
+	# shellcheck disable=SC2064 # expand now on purpose: _tmp is local and gone when the trap fires
 	trap "rm -f '$_tmp'" EXIT
 	# one subshell behind one redirect: a failed write (full disk) is rc 1 here, not a truncated file later.
 	# Every line of the key is replaced, quoted or not; collapsing duplicates stays with syshealth.
-	# Mode and owner come from the file, not the umask: the seed sets 660, the old /tmp sort path handed out 644.
+	# Mode and owner from the file, not the umask: the seed sets 660.
 	if (
 		found=no
 		while IFS= read -r line || [ -n "$line" ]; do
@@ -2425,21 +2359,16 @@ change_sys_value() {
 }
 
 # Delete a hestia.conf key line entirely (vs change_sys_value which sets it empty).
-# Used by the web-model switch (#120) so a target model that never sets a key ends up
+# Used by the web-model switch so a target model that never sets a key ends up
 # byte-identical to a fresh install of that model, not carrying a present-but-empty line.
 clear_sys_value() {
 	sed -i "/^$1=/d" "$HESTIA/conf/hestia.conf"
 }
 
-# sys_key_token_set KEY add|remove TOKEN - one token in a comma-separated hestia.conf key (DB_SYSTEM,
-# BACKUP_SYSTEM, WEBMAIL_SYSTEM, PHP_VERSIONS), the order kept as found, a token never
-# doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
-# a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM, #978).
-# The rc, in both directions: on a success path (package installed, purge done) the caller fails the
-# whole command when this write fails: the status is part of the job, a silent gap is worse than a
-# loud exit, the packages stay and a re-run records them. On an exit path ("not installed", drift
-# repair on the way out) the caller drops the rc on purpose: a write problem must not turn a clear
-# "not installed" into a different error.
+# One token in a comma-separated hestia.conf key, order kept, never doubled. Named as token_fn in the
+# registry; never a bare sed, an unanchored one once rewrote DB_MARIADB_SYSTEM.
+# rc: on a success path the caller fails the command with it, the status is part of the job. On an
+# exit path it is dropped, so a write problem does not turn "not installed" into a different error.
 sys_key_token_set() {
 	local key="$1" op="$2" tok="$3" cur out=() t
 	[ -n "$key" ] && [ -n "$tok" ] || return 1
@@ -2471,13 +2400,10 @@ sys_key_token_set() {
 	change_sys_value "$key" "$cur" && printf '%s\n' "$cur"
 }
 
-# The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
-# holds (epoch stripped, major.minor), the source is read off the version string (MariaDB.org builds
-# carry "maria" in it, distro builds do not) and named in the recipe's own words (the source field of the
-# DB_MARIADB_VERSION options), so recipe and status never disagree on a value. The version string on
-# purpose and not apt-cache policy (Origin/Label): policy describes the repository configured NOW, the
-# string travels with the package; remove the repo or upgrade the box and policy changes its answer
-# while the package did not. Called by add, upgrade and delete (#978, #935).
+# MariaDB status keys from the installed package, not from an argument: version from dpkg, source read
+# off the version string and named in the recipe's own words, so recipe and status agree.
+# The version string and not apt-cache policy: policy describes the repo configured NOW, the string
+# travels with the package.
 mariadb_status_record() {
 	local v src
 	v=$(dpkg-query -W -f='${Version}' mariadb-server 2> /dev/null) || v=''
@@ -2492,7 +2418,7 @@ mariadb_status_record() {
 	change_sys_value "DB_MARIADB_SYSTEM" "$src" && change_sys_value "DB_MARIADB_VERSION" "$v"
 }
 
-# The composer channel from the box (#939): the upstream phar in /usr/local/bin shadows the OS package on
+# The composer channel from the box: the upstream phar in /usr/local/bin shadows the OS package on
 # PATH, so it decides when both exist (a switch in h-update-sys-composer removes the other afterwards).
 # The recipe's own words (source_default: os_package | upstream_installer), because that field IS the
 # channel; the same rule as DB_MARIADB_SYSTEM, the opposite of PHP_SOURCE. A vocabulary is contract from 1d.
@@ -2506,7 +2432,7 @@ composer_status_record() {
 	change_sys_value "COMPOSER_SYSTEM" "$src"
 }
 
-# The wp-cli version as the installed phar reports it, not the manifest pin (#942): the pin is intent,
+# The wp-cli version as the installed phar reports it, not the manifest pin: the pin is intent,
 # the key is status. wp-cli refuses root without --allow-root; no phar or no answer is an empty key.
 wpcli_status_record() {
 	local v=''
@@ -2514,7 +2440,7 @@ wpcli_status_record() {
 	change_sys_value "WPCLI_SYSTEM" "$v"
 }
 
-# ── Web-model maintenance freeze (#120) ──────────────────────────────────────
+# ── Web-model maintenance freeze ──────────────────────────────────────
 # A live web-model switch (h-add-sys-nginx/-apache2, h-delete-sys-nginx/-apache2)
 # holds an exclusive lock for the whole operation. Domain-config mutators acquire it
 # (bounded wait) so nothing changes web/mail state mid-flip; reload chokepoints
@@ -2556,11 +2482,8 @@ web_lock_acquire() {
 
 # Release the freeze early (otherwise it drops on process exit).
 #
-# Only the process that acquired it may release it. A child command inherits the lock as
-# held (that is the point of the reentrancy) and would otherwise be able to unlock the
-# parent mid-operation - the parent then finishes writing records and restarting services
-# unprotected. This used to hold only because WEB_LOCK_FD happens not to be exported,
-# which is a guard nobody would recognise as one and an unrelated cleanup could remove.
+# Only the acquiring process may release it: a child inherits the lock as held and would otherwise
+# unlock the parent mid-operation. Used to hold only because WEB_LOCK_FD is not exported.
 web_lock_release() {
 	[ "${HESTIA_WEB_LOCK_PID:-}" = "$$" ] || return 0
 	[ -n "${WEB_LOCK_FD:-}" ] || return 0
@@ -2569,7 +2492,7 @@ web_lock_release() {
 	unset WEB_LOCK_FD HESTIA_WEB_LOCK_HELD HESTIA_WEB_LOCK_PID
 }
 
-# SFTP jail membership (#413): the sftp-jailed group is the sshd chroot selector and
+# SFTP jail membership: the sftp-jailed group is the sshd chroot selector and
 # the pam_namespace scope; the jail is built per session (h-add-sys-sftp-jail).
 add_chroot_jail() {
 	local user=$1
@@ -2581,49 +2504,32 @@ delete_chroot_jail() {
 	gpasswd -d "$1" sftp-jailed > /dev/null 2>&1 || true
 }
 
-# The one sshd "Subsystem sftp" line, in one place (#941). It is the sftp-server binary, so a jailbash
-# user's sftp runs inside bwrap. No longer a decision: both jails are installed on every box and there
-# is no supported way to remove them, so the two other branches (internal-sftp for the sftp jail alone,
-# the distro path for no jail) described states that cannot exist any more (#945, 1d-3).
-# /usr/lib/sftp-server is not a typo: openssh-sftp-server ships it as the compat symlink to
-# /usr/lib/openssh/sftp-server on all four targets (HestiaCP used the same line), and jailbash binds
-# /usr read-only, so the path resolves inside the jail too (measured: sftp as a jailbash user lists
-# its home, a bogus path closes the connection). Kept distinct from the distro line so the file says
-# which jail set it. Prints "changed" when the line was rewritten, so the caller restarts sshd;
-# validating stays with the caller.
+# The one sshd "Subsystem sftp" line. The sftp-server binary, so a jailbash user's sftp runs in bwrap;
+# no longer a decision, both jails are on every box and cannot be removed.
+# /usr/lib/sftp-server is the compat symlink shipped on all four targets, and jailbash binds /usr
+# read-only, so it resolves inside the jail too. Kept distinct from the distro line.
+# Prints "changed" so the caller restarts; validating stays with the caller.
 jail_sshd_subsystem_apply() {
 	local config='/etc/ssh/sshd_config' want='/usr/lib/sftp-server' _tmp _prev_trap
-	# Already right? The value has to be there AND the line has to stand in the GLOBAL section. Checked
-	# before anything is written, so a file that is fine is left untouched: rebuilding it anyway moved
-	# the distro line to the bottom on every run and cost an sshd restart each time (measured).
+	# Checked before anything is written: rebuilding a file that is already right moved the distro line
+	# to the bottom every run and cost an sshd restart each time.
 	awk -v w="Subsystem sftp $want" '
 		/^Match[[:space:]]/ || /^# Hestia SFTP Chroot$/ { exit (ok ? 0 : 1) }
 		$0 == w { ok = 1 }
 		END { exit (ok ? 0 : 1) }
 	' "$config" && return 0
-	# Same shape as change_sys_value (#959/#964), and for the same two reasons at once: the temp file
-	# is created NEXT TO the target so the rename is atomic on one filesystem, and mode and owner are
-	# taken from the target because sshd refuses a config whose permissions are wrong. A `cat >` onto
-	# the live file would keep the permissions and lose the atomicity, which is the one thing this
-	# file cannot afford: a truncated sshd_config is a box nobody logs into.
-	# Leftovers from a run that was killed between writing and renaming: sshd ignores them (no Include
-	# matches the name), but they would accumulate in /etc/ssh silently. Same reasoning and same shape
-	# as the hestia crontab above.
+	# Temp file NEXT TO the target so the rename is atomic, mode and owner from the target because sshd
+	# refuses a config with wrong permissions. A truncated sshd_config is a box nobody logs into.
+	# A killed run leaves its temp behind; sshd ignores it, but it would pile up in /etc/ssh unseen.
 	rm -f "$config".?????? 2> /dev/null || true
 	_tmp=$(mktemp "$config.XXXXXX") || return 1
 	_prev_trap=$(trap -p EXIT)
-	# shellcheck disable=SC2064  # expand now on purpose: _tmp is local and gone when the trap fires
+	# shellcheck disable=SC2064 # expand now on purpose: _tmp is local and gone when the trap fires
 	trap "rm -f '$_tmp'" EXIT
-	# The line has to stand in the GLOBAL section. Appending was not enough: once a Match block exists
-	# (h-add-sys-sftp-jail writes one at the end), everything after it belongs to that block, sshd
-	# ignores a Subsystem there, `sshd -t` stays quiet about it and sftp is dead for every user. The
-	# old form appended whenever the line was missing, which is exactly the repair path, and its
-	# "already correct" grep then saw the dead line and returned "nothing to do" (#1017, measured).
-	# So: drop every Subsystem sftp line and write exactly one in front of the first Match.
-	# The marker comment belongs to the block it introduces: h-add-sys-sftp-jail finds its own block by
-	# "# Hestia SFTP Chroot" and the Match lines that FOLLOW it, so inserting between the two makes the
-	# block unfindable and the next run appends a second one (measured). Insert before whichever comes
-	# first, the marker or the Match.
+	# The line must stand in the GLOBAL section: everything after the first Match belongs to that block,
+	# where sshd ignores a Subsystem and `sshd -t` stays quiet about it. So drop every such line and
+	# write one before the first Match, or before the marker comment, which belongs to the block it
+	# introduces and whose own finder looks for the Match lines that FOLLOW it.
 	awk -v line="Subsystem sftp $want" '
 		/^Subsystem[[:space:]]+sftp[[:space:]]/ { next }
 		!placed && (/^Match[[:space:]]/ || /^# Hestia SFTP Chroot$/) { print line; placed = 1 }
@@ -2651,7 +2557,7 @@ jail_sshd_subsystem_apply() {
 	echo changed
 }
 
-# Co-maintain the SSH AllowUsers allowlist (#412). Opt-in: acts only if a line exists
+# Co-maintain the SSH AllowUsers allowlist. Opt-in: acts only if a line exists
 # (installer seeds one commented). Touches only the $user token (base before @), so
 # operator entries + the commented/active state survive. add=append, del=drop; sshd -t
 # rollback, reload only when active, re-comments rather than leave an active line empty.
@@ -2663,7 +2569,7 @@ manage_sshd_allowusers() {
 	# First managed AllowUsers line (commented or active); none -> nothing to maintain.
 	# The '#' must sit DIRECTLY on the keyword (#AllowUsers) - that is sshd's own
 	# commented-directive form. We must NOT match a prose line like "# AllowUsers is a
-	# login allowlist ..." (space after the #), or we would tokenise the sentence and
+	# login allowlist..." (space after the #), or we would tokenise the sentence and
 	# append the user to it, mangling the comment and never touching the real directive.
 	local lineno
 	lineno=$(grep -niE '^[[:space:]]*#?AllowUsers([[:space:]]|$)' "$config" \

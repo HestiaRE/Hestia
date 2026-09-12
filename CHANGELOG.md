@@ -383,6 +383,21 @@ opens above it.
 
 ### Fixed
 
+- **"Securing MariaDB" ran unchecked, so a box could finish an install unsecured** (#998). Six statements,
+  no return value read, no `set -e` in the file. The first one sets the root password, and every one after
+  it needs exactly that password - which the client finds only through `$HOME`. When that lookup failed,
+  the remaining five were refused one after another while the stage marked itself done and the installer
+  carried on. What was left behind was a MariaDB without its socket fallback and with a live root password
+  no command could use. A missing `$HOME` is only one way to get there; a socket that is not ready yet or a
+  restart race would do the same, and neither is far-fetched. Each statement is checked now and names the
+  step it failed at. Two things came with it: the password in `/root/.my.cnf` stays a working one, because
+  that file is where an operator looks for it - socket auth is an alternative now, not a replacement that
+  threw the password away one statement after setting it; and `include/main.sh` fills in `HOME` when it is
+  absent, from the running user's passwd entry rather than a hard-wired `/root`. Measured on a fresh
+  install started from a systemd unit with no `HOME`: before, it died in the mail stage at 4/8 markers with
+  `Access denied ... (using password: NO)`; after, 8/8 and smoke 125/0, with the socket, the stored
+  password and the refusal of a wrong one all verified in the same run.
+
 - **A killed writer left its temp file behind, and the sweep for those looked at nothing** (#946, found
   while measuring the new actions). `change_sys_value` creates its temp file next to `hestia.conf` and
   removes it through an EXIT trap - which a `kill -9` never runs, so a run that dies in that window

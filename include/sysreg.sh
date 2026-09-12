@@ -1,20 +1,18 @@
 #!/bin/bash
 # The system key registry (share/hestia/sys-keys.json): readers and the schema guard. jq only, no other
-# include, no /etc/hestia - the same functions run in the smoke on a box and in CI on a checkout, so
-# the guard is one implementation called twice (E21). Every reader fails loudly: a missing, broken or
-# empty registry returns non-zero with a line on stderr and prints nothing, never an empty set that a
-# caller could mistake for "no keys" (the login reads through h-list-sys-config, #575 class).
+# include, so the smoke on a box and CI on a checkout run the same code. A broken registry fails loudly,
+# never as an empty set: the login feeds its session from here.
 
-# The file: $HESTIA on a box, the checkout otherwise; SYSREG_FILE overrides for tests and CI.
+# $HESTIA on a box, the checkout otherwise; SYSREG_FILE overrides.
 sysreg_file() {
 	echo "${SYSREG_FILE:-${HESTIA:-.}/share/hestia/sys-keys.json}"
 }
 
-# sysreg_check [file]: the schema: name, class, default per class, token_fn exists, secret is a boolean.
-# Prints one line per defect, returns 1 on any. Duplicate names are
-# caught textually, since a JSON parser keeps the last of two and says nothing.
+# Schema: name, class, default per class, token_fn wherever tokens is true, secret boolean, values
+# holding its own default. One line per defect, rc 1 on any. Duplicates textually, because a JSON
+# parser keeps the last of two silently.
 sysreg_check() {
-	local f="${1:-$(sysreg_file)}" bad=0 n names dups k class def fn
+	local f="${1:-$(sysreg_file)}" bad=0 n names dups k class def fn sec tok vals _v _def _has_def _has_empty
 	[ -f "$f" ] || {
 		echo "sysreg: $f is missing" >&2
 		return 1
@@ -38,9 +36,8 @@ sysreg_check() {
 		echo "sysreg: duplicate key(s): $(echo "$dups" | tr '\n' ' ')" >&2
 		bad=1
 	}
-	# \x1f as the separator, not a tab: read collapses consecutive whitespace separators, and an empty
-	# default would shift the columns one to the left
-	while IFS=$'\x1f' read -r k class def fn sec; do
+	# \x1f, not a tab: read collapses whitespace and an empty default would shift the columns.
+	while IFS=$'\x1f' read -r k class def fn sec tok vals; do
 		case "$k" in [A-Z]*) ;; *)
 			echo "sysreg: $k is not a key name" >&2
 			bad=1
@@ -71,13 +68,42 @@ sysreg_check() {
 				bad=1
 			}
 		fi
-	done < <(jq -r '.keys | to_entries[] | [.key, (.value.class // "__absent__"), (.value.default // "__absent__"), (.value.token_fn // "__absent__"), (if .value | has("secret") then (.value.secret | tostring) else "__absent__" end)] | join("\u001f")' "$f")
+		# A token list without its function is a half nothing can use.
+		if [ "$tok" = true ] && [ "$fn" = "__absent__" ]; then
+			echo "sysreg: $k is tokens:true without a token_fn" >&2
+			bad=1
+		fi
+		# The vocabulary as data. Default must be a member, or the repair writes a value the key may not
+		# carry; a system key must list the empty value, since absent == empty there.
+		if [ "$vals" != "__absent__" ]; then
+			_def="$def"
+			[ "$_def" = "__absent__" ] && _def=""
+			# An empty array and a set of only the empty value join alike; neither is a vocabulary.
+			if [ -z "$vals" ]; then
+				echo "sysreg: $k has an empty values set" >&2
+				bad=1
+			else
+				_has_def=no _has_empty=no
+				while IFS= read -r _v; do
+					[ "$_v" = "$_def" ] && _has_def=yes
+					[ -z "$_v" ] && _has_empty=yes
+				done < <(printf '%s\n' "$vals" | tr '\036' '\n')
+				[ "$_has_def" = yes ] || {
+					echo "sysreg: $k has values without its own default '$_def'" >&2
+					bad=1
+				}
+				if [ "$class" = system ] && [ "$_has_empty" != yes ]; then
+					echo "sysreg: $k is system and its values omit the empty value (absent == empty)" >&2
+					bad=1
+				fi
+			fi
+		fi
+	done < <(jq -r '.keys | to_entries[] | [.key, (.value.class // "__absent__"), (.value.default // "__absent__"), (.value.token_fn // "__absent__"), (if .value | has("secret") then (.value.secret | tostring) else "__absent__" end), (if .value.tokens == true then "true" else "false" end), (if .value | has("values") then (.value.values | join("\u001e")) else "__absent__" end)] | join("\u001f")' "$f")
 	return $bad
 }
 
-# The readers below refuse a file that is missing, does not parse or has no keys - the loud part, in
-# one jq call. The full schema is sysreg_check's job, run by the smoke and CI, not on every login:
-# the emitter feeds the panel session at each login, and the schema costs a handful of processes.
+# One jq call for missing, unparsable or empty. The full schema stays in sysreg_check: it costs
+# several processes and the emitter runs on every login.
 _sysreg_ok() {
 	local f
 	[ -n "${_SYSREG_CHECKED:-}" ] && return 0
@@ -93,7 +119,7 @@ _sysreg_ok() {
 	_SYSREG_CHECKED=yes
 }
 
-# sysreg_keys [betreiber|system] - key names, file order
+# [betreiber|system]; file order
 sysreg_keys() {
 	_sysreg_ok || return 1
 	if [ -n "${1:-}" ]; then
@@ -103,7 +129,7 @@ sysreg_keys() {
 	fi
 }
 
-# sysreg_class KEY / sysreg_default KEY / sysreg_tokens KEY (prints yes|no); an unknown key is rc 1
+# class / default / tokens (yes|no); unknown key is rc 1
 sysreg_class() {
 	_sysreg_ok || return 1
 	jq -er --arg k "$1" '.keys[$k].class // empty' "$(sysreg_file)"
@@ -117,4 +143,30 @@ sysreg_tokens() {
 	_sysreg_ok || return 1
 	jq -e --arg k "$1" '.keys | has($k)' "$(sysreg_file)" > /dev/null || return 1
 	jq -r --arg k "$1" 'if .keys[$k].tokens == true then "yes" else "no" end' "$(sysreg_file)"
+}
+
+# One per line; an allowed empty value is an empty line, so read with mapfile.
+# rc 1 unknown key, rc 2 deliberately open set: a caller that cannot tell them apart reads
+# "no contract" as "no such key".
+sysreg_values() {
+	_sysreg_ok || return 1
+	jq -e --arg k "$1" '.keys | has($k)' "$(sysreg_file)" > /dev/null || return 1
+	jq -e --arg k "$1" '.keys[$k] | has("values")' "$(sysreg_file)" > /dev/null || return 2
+	jq -r --arg k "$1" '.keys[$k].values[]' "$(sysreg_file)"
+}
+
+# Silent: a probe that logs writes into every legitimate run. rc 0 allowed or no closed set, rc 1 not
+# in it, rc 2 unknown key. jq against the array, never joined text: a value may contain the separators.
+sysreg_value_ok() {
+	local k="$1" v="$2"
+	_sysreg_ok || return 2
+	jq -e --arg k "$k" '.keys | has($k)' "$(sysreg_file)" > /dev/null 2>&1 || return 2
+	jq -e --arg k "$k" '.keys[$k] | has("values")' "$(sysreg_file)" > /dev/null 2>&1 || return 0
+	jq -e --arg k "$k" --arg v "$v" '.keys[$k].values | index($v) != null' "$(sysreg_file)" > /dev/null 2>&1
+}
+
+# From the registry, never a table in a caller: a second list goes stale.
+sysreg_token_fn() {
+	_sysreg_ok || return 1
+	jq -er --arg k "$1" '.keys[$k].token_fn // empty' "$(sysreg_file)"
 }

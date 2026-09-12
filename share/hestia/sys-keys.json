@@ -4,11 +4,13 @@
  "keys": {
   "ANTISPAM_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["rspamd", ""]
   },
   "ANTIVIRUS_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["clamav", ""]
   },
   "APP_NAME": {
    "class": "betreiber",
@@ -47,16 +49,19 @@
   "COMPOSER_SYSTEM": {
    "class": "system",
    "default": "",
+   "values": ["os_package", "upstream_installer", ""],
    "note": "the composer channel in the recipe's own words, os_package or upstream_installer (the source_default of ADDON_COMPOSER, which IS the channel; same rule as DB_MARIADB_SYSTEM). Empty when composer is absent; written unconditionally by the installer's tools stage and at every exit of h-update-sys-composer (#939)"
   },
   "CRON_SYSTEM": {
    "class": "betreiber",
    "default": "cron",
+   "values": ["cron", ""],
    "note": "Vocabulary settled with the lower-bound release (#945, 1d-3, #971): 'cron', and nothing else - 'remote' was dropped in #1015 together with the other eleven keys that read it, because no writer anywhere ever set it, here or upstream, and the empty value already carries 'not on this box'. The key STAYS although no command sets it and cron is always installed: it names the implementation the way WEB_SYSTEM does, and the gate it feeds is harmless now that the daily repair writes the default back when someone empties it by hand (#1006)."
   },
   "CROWDSEC_SYSTEM": {
    "class": "system",
    "default": "",
+   "values": ["capi", "local", "mesh", ""],
    "note": "the CrowdSec model: capi, local or mesh; empty when absent (#938)"
   },
   "DB_ADMINER_ALIAS": {
@@ -66,6 +71,7 @@
   "DB_MARIADB_SYSTEM": {
    "class": "system",
    "default": "",
+   "values": ["os_default", "mariadb_repo", ""],
    "note": "a local MariaDB package is installed; value = its source in the recipe's own words, os_default or mariadb_repo (the source field of the DB_MARIADB_VERSION options). The recipe's words on purpose, because that field is exactly the source; PHP_SOURCE has its own words for the opposite reason. This ties the value set to the manifest: a source added or renamed there changes these values while installed boxes keep the old one, so in the update manifests (Phase 3, #947) that is a migration entry, never a rename. DB_SYSTEM stays the host register and says nothing about a local package (#978, #980)"
   },
   "DB_MARIADB_VERSION": {
@@ -80,6 +86,7 @@
   "DB_POSTGRESQL_SYSTEM": {
    "class": "system",
    "default": "",
+   "values": ["os", ""],
    "note": "a local PostgreSQL package is installed; value = source, os (#979)"
   },
   "DB_SYSTEM": {
@@ -99,7 +106,8 @@
   },
   "DOCKER_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["docker", ""]
   },
   "DOMAINDIR_WRITABLE": {
    "class": "betreiber",
@@ -115,11 +123,13 @@
   },
   "FIREWALL_EXTENSION": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["fail2ban", ""]
   },
   "FIREWALL_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["nftables", ""]
   },
   "FROM_EMAIL": {
    "class": "betreiber",
@@ -131,7 +141,8 @@
   },
   "FTP_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["proftpd", ""]
   },
   "HIDE_DOCS": {
    "class": "betreiber",
@@ -139,7 +150,8 @@
   },
   "IMAP_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["dovecot", ""]
   },
   "INACTIVE_SESSION_TIMEOUT": {
    "class": "betreiber",
@@ -155,7 +167,8 @@
   },
   "MAIL_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["exim4", ""]
   },
   "PHPMYADMIN_KEY": {
    "class": "system",
@@ -165,6 +178,7 @@
   "PHP_SOURCE": {
    "class": "system",
    "default": "",
+   "values": ["os", "sury", ""],
    "note": "the source of the customer PHP the box got, os or sury; the versions are PHP_VERSIONS. Deliberately not PHP_MODE: that is the recipe's wizard answer (COMPONENT_PHP_MODE, os_single or sury_multi), a different thing. Own vocabulary on purpose: the recipe value mixes source and multiplicity (sury_multi), so it is not the source. DB_MARIADB_SYSTEM does the opposite for the same reason, there the recipe field IS the source (#934)"
   },
   "PHP_VERSIONS": {
@@ -268,11 +282,13 @@
   },
   "PROXY_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["nginx", ""]
   },
   "REDIS_SYSTEM": {
    "class": "system",
    "default": "",
+   "values": ["redis", ""],
    "note": "redis when Redis runs as a general service; empty for rspamd's capped companion (#936)"
   },
   "RELEASE_BRANCH": {
@@ -282,6 +298,7 @@
   "RESTIC_SYSTEM": {
    "class": "system",
    "default": "",
+   "values": ["restic", ""],
    "note": "restic when the restic addon is installed; BACKUP_INCREMENTAL means a repository is configured (#937)"
   },
   "ROOT_USER": {
@@ -315,7 +332,8 @@
   },
   "SIEVE_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["yes", ""]
   },
   "SMTP_RELAY": {
    "class": "betreiber",
@@ -335,7 +353,8 @@
   },
   "STATS_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["awstats", ""]
   },
   "SUBJECT_EMAIL": {
    "class": "betreiber",
@@ -379,7 +398,8 @@
   },
   "WEBMAIL_FRONT": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["nginx", ""]
   },
   "WEBMAIL_SYSTEM": {
    "class": "system",
@@ -390,7 +410,8 @@
   },
   "WEB_BACKEND": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["php-fpm", ""]
   },
   "WEB_PORT": {
    "class": "system",
@@ -402,7 +423,8 @@
   },
   "WEB_SSL": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["mod_ssl", "openssl", ""]
   },
   "WEB_SSL_PORT": {
    "class": "system",
@@ -410,7 +432,8 @@
   },
   "WEB_SYSTEM": {
    "class": "system",
-   "default": ""
+   "default": "",
+   "values": ["apache2", "nginx", ""]
   },
   "WPCLI_SYSTEM": {
    "class": "system",

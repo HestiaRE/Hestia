@@ -582,7 +582,11 @@ install_db() {
 			exit 1
 		fi
 	else
-		echo "[ * ] MariaDB not selected — skipping"
+		# No local server, but the client stays: a box can legitimately run its database elsewhere, and
+		# h-add-database-host plus every backup dump reach that host through these binaries, not through
+		# PHP (which brings its own mysqlnd and needs nothing).
+		echo "[ * ] MariaDB not selected - installing the client for remote hosts"
+		apt_install_optional "database client" mariadb-client || true
 	fi
 
 	# PostgreSQL lifecycle in h-add-sys-postgresql. Fail-soft: optional, smoke-verified.
@@ -590,6 +594,9 @@ install_db() {
 		echo "[ * ] Installing PostgreSQL..."
 		"$BIN/h-add-sys-postgresql" >> "$LOG" 2>&1 \
 			|| echo "[ ! ] PostgreSQL install reported an issue (see $LOG)"
+	fi
+	if ! is_on "${COMPONENT_DB_POSTGRESQL:-}"; then
+		apt_install_optional "postgresql client" postgresql-client || true
 	fi
 	# Adminer: vendored web DB UI, the PostgreSQL front-end (phpMyAdmin stays MySQL default)
 	if is_on "${COMPONENT_ADDON_ADMINER:-}"; then

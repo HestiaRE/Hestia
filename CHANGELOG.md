@@ -14,6 +14,25 @@ opens above it.
 
 ### Added
 
+- **The update building blocks, with no caller yet** (#946, phase 2). `include/update.sh` carries seven
+  condition types and ten action types behind one dispatcher, so a later manifest entry is a line of
+  data instead of a line of code. An unknown type is an **error**, never a skip: a skipped entry looks
+  exactly like one whose condition was false, so a typo in a type name would make the entry vanish
+  without a word. Conditions answer in three values - true, false, and "this entry is wrong" - and the
+  first two are silent, because in a merged manifest most conditions are legitimately false for a given
+  box and a probe that logs every false turns the log into noise. The scope is deliberately small: no
+  clever recovery, no gate that a human then has to argue with. What an abort leaves behind is meant to
+  be repaired by hand, from one directory, with a readable script.
+- **The system key registry says which values a key may carry** (#946, E24). Until now that contract
+  existed only as prose in the registry header, and for fifteen keys not even that - `WEB_SYSTEM`,
+  `MAIL_SYSTEM`, `FIREWALL_SYSTEM` and twelve more carried an implementation name with an equally closed
+  set and no written vocabulary at all. 23 keys now carry `values` as data, each derived from a named
+  writing site rather than from a text search: a mechanical sweep would have given `ANTIVIRUS_SYSTEM`
+  two values, because `clamd` stands next to the key name in the service lister - as a local
+  reassignment looking up a service name, not as a writer. The schema holds four new rules, one of which
+  found a real defect on its first run: `WEB_SSL` listed neither its own default nor the empty value,
+  which would have made an ordinary box illegal.
+
 - **The jail system layer is watched, not repaired** (#945, phase 1d-3). `check_jail_sshd` holds the
   sshd `Subsystem` line, the `Match Group sftp-jailed` block, `jailbash` and the group against the box
   and names, per missing piece, the add command that puts it back. Nothing here writes `sshd_config`:
@@ -363,6 +382,58 @@ opens above it.
   and nothing called it. Not a lost capability: it never was one.
 
 ### Fixed
+
+- **A registered database host was read as a local service, and a box without a local server had no client
+  at all** (#980). The port check inferred a listener on 3306 from `DB_SYSTEM`, which is the host register
+  and may name a remote server; the service check had already moved to the local-engine key in phase 1c,
+  the port check had not. The state is reachable: `h-delete-database-host` only drops the token when the
+  LAST host of its type goes, so a box with a local MariaDB and an additional remote host keeps
+  `DB_SYSTEM='mysql'` with an empty `DB_MARIADB_SYSTEM` once the local server is removed, and then a
+  perfectly legitimate box reported red. The second half is bigger: on a box without a local server there
+  was no client binary at all, so not only every dump but the registration of the remote host itself
+  failed. PHP is unaffected, it brings mysqlnd and depends on no client library, but our own commands
+  shell out to `mariadb` and `mysqldump`. Running the database elsewhere is a legitimate arrangement and a
+  backup still has to contain a dump, so the client is installed when no local server is selected, and the
+  delete commands purge the server without taking the client with them, which used to strip it from
+  exactly the operator who gives up their local server on purpose. Measured end to end from a
+  database-less box: a connection to a real remote MariaDB, and a dump over the network carrying its marker.
+- **The Sury retrofit died on a package Sury itself wanted to replace** (#986). On an OS-PHP box,
+  `h-add-web-php 8.2` armed the Sury repository and then refused with "not installable - repos
+  unreachable or broken?", leaving the box armed and the version absent. The chain behind it is entirely
+  transitive: phpmyadmin pulls `php-tcpdf`, which pulls `php8.3-mcrypt`, which pulls the OS `php-mcrypt`
+  that Sury's `php-common` declares it breaks. Measured on the armed box, two of the three directions the
+  issue proposed do not work: probing the whole PHP set at once fails exactly like probing one package,
+  and naming all 252 installed `php-*` packages fails on candidates phpmyadmin brought in that have none.
+  Only naming the breaking package resolves it. It is not listed in the code: apt says which one it is,
+  and the probe reads it off that message, in up to three rounds because resolving one break can expose
+  the next. Proven by what a customer actually gets, not by dpkg: after the retrofit a domain switched to
+  8.2 is served by a pool under `/etc/php/8.2`, and a real request answers `8.2` - switching back answers
+  `8.3` again, so the measurement can tell them apart.
+
+- **"Securing MariaDB" ran unchecked, so a box could finish an install unsecured** (#998). Six statements,
+  no return value read, no `set -e` in the file. The first one sets the root password, and every one after
+  it needs exactly that password - which the client finds only through `$HOME`. When that lookup failed,
+  the remaining five were refused one after another while the stage marked itself done and the installer
+  carried on. What was left behind was a MariaDB without its socket fallback and with a live root password
+  no command could use. A missing `$HOME` is only one way to get there; a socket that is not ready yet or a
+  restart race would do the same, and neither is far-fetched. Each statement is checked now and names the
+  step it failed at. Two things came with it: the password in `/root/.my.cnf` stays a working one, because
+  that file is where an operator looks for it - socket auth is an alternative now, not a replacement that
+  threw the password away one statement after setting it; and `include/main.sh` fills in `HOME` when it is
+  absent, from the running user's passwd entry rather than a hard-wired `/root`. Measured on a fresh
+  install started from a systemd unit with no `HOME`: before, it died in the mail stage at 4/8 markers with
+  `Access denied ... (using password: NO)`; after, 8/8 and smoke 125/0, with the socket, the stored
+  password and the refusal of a wrong one all verified in the same run.
+
+- **A killed writer left its temp file behind, and the sweep for those looked at nothing** (#946, found
+  while measuring the new actions). `change_sys_value` creates its temp file next to `hestia.conf` and
+  removes it through an EXIT trap - which a `kill -9` never runs, so a run that dies in that window
+  leaves debris in the instance directory for someone to sort out later. Both writers now remove
+  leftovers older than five minutes, which separates "remains of a dead run" from "the temp file of a
+  writer working right now" without taking a live one away. The first version of that sweep found
+  nothing at all: `$HESTIA/conf` is a symlink to the instance directory and `find` does not follow one
+  given as its argument - 0 hits against a leftover that was demonstrably there. Only the positive
+  control showed it. Measured over 40 killed runs: 0 broken states.
 
 - **An sshd `Subsystem` line after a `Match` block is inert, and the guard called it healthy** (#1017).
   sshd reads everything after the first `Match` as part of that block, so a `Subsystem` line there is

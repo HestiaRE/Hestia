@@ -51,8 +51,24 @@ is_mysql_host_alive() {
 		mysql --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
 	fi
 	if [ "$?" -ne '0' ]; then
-		echo "Error: MySQL connection to $host failed"
-		rm $mycnf
+		# TLS is a prerequisite for a remote host, and the client has demanded it since MariaDB 11.4.
+		# Two different failures hide behind one error number and need two different answers, so they are
+		# told apart here rather than both being called "TLS".
+		case "$(tr 'A-Z' 'a-z' < "$mysql_out")" in
+			*'certificate'*)
+				echo "Error: MySQL connection to $host failed: the server's TLS certificate is not trusted"
+				echo "       Install a certificate from a CA this box trusts, or add that CA here."
+				;;
+			*ssl* | *tls*)
+				echo "Error: MySQL connection to $host failed: the server does not offer TLS"
+				echo "       A remote database host must speak TLS."
+				;;
+			*)
+				echo "Error: MySQL connection to $host failed"
+				;;
+		esac
+		sed 's/^/       /' "$mysql_out" | head -3
+		rm -f "$mycnf" "$mysql_out"
 		log_event "$E_CONNECT" "$ARGUMENTS"
 		exit "$E_CONNECT"
 	fi
@@ -82,13 +98,31 @@ is_mysql_host_alive() {
 }
 
 is_pgsql_host_alive() {
+	local pg_out
 	export PGPASSWORD="$dbpass"
-	psql -h $host -U $dbuser -p $port -c "SELECT VERSION()" > /dev/null 2>&1
+	pg_out=$(mktemp)
+	psql -h $host -U $dbuser -p $port -c "SELECT VERSION()" > "$pg_out" 2>&1
 	if [ "$?" -ne '0' ]; then
-		echo "Error: PostgreSQL connection to $host failed"
+		# Same rule as MySQL: TLS is a prerequisite, and the reason belongs in the message.
+		case "$(tr 'A-Z' 'a-z' < "$pg_out")" in
+			*'certificate'*)
+				echo "Error: PostgreSQL connection to $host failed: the server's TLS certificate is not trusted"
+				echo "       Install a certificate from a CA this box trusts, or add that CA here."
+				;;
+			*ssl* | *tls*)
+				echo "Error: PostgreSQL connection to $host failed: the server does not offer TLS"
+				echo "       A remote database host must speak TLS."
+				;;
+			*)
+				echo "Error: PostgreSQL connection to $host failed"
+				;;
+		esac
+		sed 's/^/       /' "$pg_out" | head -3
+		rm -f "$pg_out"
 		log_event "$E_CONNECT" "$ARGUMENTS"
 		exit "$E_CONNECT"
 	fi
+	rm -f "$pg_out"
 }
 
 #----------------------------------------------------------#

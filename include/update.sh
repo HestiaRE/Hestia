@@ -1,25 +1,11 @@
 #!/bin/bash
-# The update building blocks: conditions and actions as named functions, with a dispatcher over them.
-# Runs from the NEW tree against a box that may still be several releases old, so it must presuppose
-# nothing the box's own version brings: every helper it uses comes from this tarball, and the registry
-# it asks is the one shipped beside it.
+# Update building blocks: condition and action types behind one dispatcher, so a manifest entry is data.
 #
-# THE BOUNDARY - a guard reports, an action writes. Phase 1 set the first half: a guard verifies an
-# artefact and never fills it, because a repair hidden inside a check makes the check agree with
-# itself (#945, 1d-3). This library is the first place in the tree that does the opposite on purpose.
-# The two must not drift into each other: nothing in bin/h-check-sys-smoke may call an upd_act_*, and
-# nothing here may decide that something "looks healthy enough" and leave it alone quietly - an action
-# either changes the box or says why it did not. Every guard that verifies an artefact from phase 1c
-# or 1d carries a pointer back to this paragraph in its comment.
+# THE BOUNDARY: a guard reports, an action writes. Nothing in h-check-sys-smoke may call an upd_act_*,
+# and nothing here may quietly leave something alone because it looks healthy enough.
 #
-# ONE ROOT. $HESTIA, as in every other file here. An update unpacks the new release OVER the install
-# tree and only then plays the manifest, so by the time anything in this library runs, the tree it was
-# read from and the box's install root are the same directory. Nothing here may introduce a second one:
-# a library that can be pointed at a foreign tree is a library that can be pointed at the wrong tree,
-# and the ordering that would have required it (deriving the entry list before the overlay) is gone.
-#
-# SOURCING - two files, and deliberately not more. What a manifest may CALL lives elsewhere in
-# include/, and function_call finds the defining file rather than making this header grow.
+# ONE ROOT: $HESTIA. The release is unpacked OVER the install tree before any of this runs, so a second
+# tree cannot arise; one that can be pointed anywhere can be pointed at the wrong place.
 
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "${HESTIA:-/usr/local/hestia}/include/main.sh"
@@ -27,23 +13,17 @@ source "${HESTIA:-/usr/local/hestia}/include/main.sh"
 source "${HESTIA:-/usr/local/hestia}/include/sysreg.sh"
 
 #----------------------------------------------------------#
-#                       Conditions                         #
+# Conditions #
 #----------------------------------------------------------#
-# Every condition is a predicate: rc 0 true, rc 1 false, rc 2 the entry is wrong. Silent on rc 0 and
-# rc 1 - in a merged manifest most conditions are legitimately false for a given box, and a probe that
-# logs every false turns the log into noise nobody reads any more (the #925 class). rc 2 is loud,
-# because it is never the box's doing.
+# rc 0 true, rc 1 false, rc 2 the entry is wrong. True and false stay silent: most conditions in a
+# merged manifest are legitimately false, and a probe that logs those buries the log in noise.
 #
-# WHOSE ANSWER IS IT - the BOX decides the value, the TREE decides whether the name is a name at all.
-# A key absent from hestia.conf is an ordinary box fact and reads as empty; a key absent from the
-# registry shipped in this tarball cannot be a legitimate reference, because manifest and registry
-# travel together, so it is a misspelling and rc 2. Without that split a typo in an entry would make
-# its condition false for ever and the entry would simply never apply - the same silent failure E24
-# removed one level down, at the value instead of the name.
+# The BOX decides the value, the TREE decides whether the name is a name. An unknown key in
+# hestia.conf is an ordinary box fact; an unknown key in the registry is a misspelling, and without
+# that split a typo would make an entry false for ever instead of loud.
 
-# The box value of a hestia.conf key. Anchored grep, never `source`: a key name is a prefix of another
-# one often enough to matter (DB_SYSTEM in DB_MARIADB_SYSTEM, #983), and a config file must never be
-# executed (#955).
+# Anchored, never sourced: one key name is a prefix of another often enough to matter, and a config
+# file must not be executed.
 upd_key_value() {
 	local conf="${HESTIA:-/usr/local/hestia}/conf/hestia.conf"
 	[ -f "$conf" ] || return 1
@@ -57,15 +37,14 @@ upd_key_known() {
 	return 2
 }
 
-# key_empty KEY - absent and empty are the same state and have ONE name (E7); key_missing is refused
-# by the dispatcher with a pointer to this one rather than silently accepted as a synonym.
+# Absent and empty are one state, so they have one name.
 upd_cond_key_empty() {
 	upd_key_known "$1" || return 2
 	[ -z "$(upd_key_value "$1")" ]
 }
 
-# key_is KEY VALUE - the value must be one the key may carry, or the entry is wrong (E24). This is the
-# check that makes a misspelled value loud instead of for ever false.
+# A value outside the key's vocabulary is a wrong entry, not a false condition: otherwise a typo is
+# silently false for ever.
 upd_cond_key_is() {
 	upd_key_known "$1" || return 2
 	sysreg_value_ok "$1" "$2" || {
@@ -75,8 +54,7 @@ upd_cond_key_is() {
 	[ "$(upd_key_value "$1")" = "$2" ]
 }
 
-# key_has_token KEY TOKEN - only for a key the registry marks as a token list, and the membership is
-# decided by the same splitting the writer uses, never by a generic comma split here (E8).
+# Token lists only, and the registry says which keys those are.
 upd_cond_key_has_token() {
 	local cur tok
 	upd_key_known "$1" || return 2
@@ -89,8 +67,7 @@ upd_cond_key_has_token() {
 	return 1
 }
 
-# path_exists PATH - file, directory or symlink; the one type test a manifest author should not have
-# to spell out three ways.
+# File, directory or symlink: a manifest author should not have to spell that out three ways.
 upd_cond_path_exists() {
 	[ -n "$1" ] || {
 		echo "update: path_exists needs a path" >&2
@@ -108,9 +85,8 @@ upd_cond_command_exists() {
 	command -v "$1" > /dev/null 2>&1
 }
 
-# package_installed NAME - installed means dpkg says ok/installed, not "a file of that name is around":
-# a half-configured package (dpkg interrupted) is deliberately NOT installed here, so an action that
-# depends on it runs again rather than assuming the first run finished.
+# A half-configured package counts as NOT installed, so an action that needs it runs again instead of
+# assuming an interrupted run finished.
 upd_cond_package_installed() {
 	local st
 	[ -n "$1" ] || {
@@ -121,9 +97,7 @@ upd_cond_package_installed() {
 	case "$st" in ii*) return 0 ;; *) return 1 ;; esac
 }
 
-# file_differs REL TARGET - the box file against the one shipped in this tree (E9's eighth type, for
-# the re-applications that reapply_outside_tree used to do unconditionally). An absent target counts
-# as different: that is the case the copy action exists for.
+# An absent target counts as different: that is the case the copy action exists for.
 upd_cond_file_differs() {
 	local src="${HESTIA:-/usr/local/hestia}/$1"
 	[ -n "$1" ] && [ -n "$2" ] || {
@@ -139,26 +113,21 @@ upd_cond_file_differs() {
 }
 
 #----------------------------------------------------------#
-#                        Actions                           #
+# Actions #
 #----------------------------------------------------------#
-# An action does one thing and says whether it did it: rc 0 changed or already so, rc 1 it could not.
-# It does NOT validate its own arguments - upd_action does that once for the whole entry, so there is
-# one place to read the rules instead of ten. And it is not clever on failure: it stops, and the
-# executor names the entry and the two ways out. Recovery is a human with the run directory, not a
-# state machine in here.
+# rc 0 done or already so, rc 1 could not. Arguments are validated once by upd_action, so the rules
+# have one place instead of ten, and a failure stops rather than repairing itself: recovery is a human
+# with the run directory.
 #
-# ALREADY RIGHT MEANS DO NOT WRITE. Rewriting a file that is already correct costs a service restart
-# every run, and it moves the file's mtime - which is what check_config_loaded compares a unit's start
-# time against (#1007), so a needless write can turn a healthy guard red. Every action checks first.
+# ALREADY RIGHT MEANS DO NOT WRITE. A needless rewrite costs a service restart and moves the mtime that
+# check_config_loaded compares a unit's start against, turning a healthy guard red.
 #
-# SURVIVING AN ABORT (E14) is not a guard either, it is the simpler shape: a file writer works through
-# a temp file next to the target and renames, so a kill leaves the old file or the new one and never a
-# half of either; a package action runs `dpkg --configure -a` first, so an interrupted dpkg from a
-# previous run is finished rather than tripped over. Repeating a run converges. Measured per type.
+# SURVIVING AN ABORT is the simpler shape, not a guard: temp file beside the target then rename, so a
+# kill leaves one whole file or the other; `dpkg --configure -a` first, so an interrupted dpkg is
+# finished instead of tripped over.
 
-# upd_action_reversible TYPE - one word, and its only job is to answer the question a human asks after
-# an abort: can this be taken back by putting files back, or not. "no" is not a refusal, it is the line
-# after which rollback means restoring the run's tarball instead of undoing entries.
+# Answers one question after an abort: can this be taken back by putting files back. "no" is not a
+# refusal, it is where rollback becomes "restore the run's tarball".
 upd_action_reversible() {
 	case "$1" in
 		key_set | key_clear | token_add | token_remove | file_copy | package_install) echo yes ;;
@@ -167,9 +136,7 @@ upd_action_reversible() {
 	esac
 }
 
-# The functions a manifest may call. Small on purpose: this is the difference between a vocabulary and
-# arbitrary code, and the entries that need it are known (the re-applications E15 moves out of
-# reapply_outside_tree).
+# Small on purpose: this is the line between a vocabulary and arbitrary code.
 UPDATE_CALLABLE="deploy_hestia_sudoers proc_hardening_apply customer_php_limit_apply login_defs_guard"
 
 upd_act_key_set() {
@@ -192,18 +159,16 @@ upd_act_token_remove() {
 	"$(sysreg_token_fn "$1")" "$1" remove "$2" > /dev/null
 }
 
-# file_copy REL TARGET [MODE] - a file from this tree onto the box. Temp file next to the target, mode
-# and owner set before the rename, so the target is never briefly world-readable and never half.
+# Mode and owner are set before the rename, so the target is never briefly world-readable.
 upd_act_file_copy() {
 	local src="${HESTIA:-/usr/local/hestia}/$1" dst="$2" mode="${3:-}" tmp prev
 	cmp -s "$src" "$dst" 2> /dev/null && return 0
-	# A kill cannot run the trap, so a killed run leaves its temp file behind. Older than five minutes
-	# means "not a run that is happening right now", which is the whole distinction needed here: a live
-	# writer keeps its file for a fraction of a second.
+	# SIGKILL never runs the trap, so a killed run leaves its temp behind. Five minutes separates that
+	# from a writer working right now, whose file lives for a fraction of a second.
 	find -H "$(dirname "$dst")" -maxdepth 1 -name "$(basename "$dst").??????" -mmin +5 -delete 2> /dev/null
 	tmp=$(mktemp "$dst.XXXXXX") || return 1
 	prev=$(trap -p EXIT)
-	# shellcheck disable=SC2064  # expand now: tmp is local and gone when the trap fires
+	# shellcheck disable=SC2064 # expand now: tmp is local and gone when the trap fires
 	trap "rm -f '$tmp'" EXIT
 	if cat "$src" > "$tmp" \
 		&& { [ -z "$mode" ] || chmod "$mode" "$tmp"; } \
@@ -223,24 +188,22 @@ upd_act_path_delete() {
 	rm -rf -- "$1"
 }
 
-# The callable functions live in include/ files this library does not source - and it should not start
-# sourcing half the tree for them. So the defining file is FOUND, the same way sysreg_check already
-# locates a token_fn: one grep over include/, no second list that says where each function lives.
+# The defining file is found rather than listed: a second list saying where each function lives is the
+# one that goes stale.
 upd_act_function_call() {
 	local fn="$1" src
 	shift
 	if ! declare -F "$fn" > /dev/null 2>&1; then
 		src=$(grep -lE "^${fn}\(\) \{" "${HESTIA:-/usr/local/hestia}"/include/*.sh 2> /dev/null | head -1)
 		[ -n "$src" ] || return 1
-		# shellcheck disable=SC1090  # the file is the one that defines the allow-listed name
+		# shellcheck disable=SC1090 # the file is the one that defines the allow-listed name
 		source "$src" || return 1
 		declare -F "$fn" > /dev/null 2>&1 || return 1
 	fi
 	"$fn" "$@"
 }
 
-# dpkg --configure -a first: an apt run killed halfway leaves the box in a state where the next apt
-# refuses, and an update that stops there for a reason two runs old is the worst kind of puzzle.
+# An apt killed halfway makes the next apt refuse, for a reason two runs old.
 upd_act_package_install() {
 	upd_cond_package_installed "$1" && return 0
 	dpkg --configure -a > /dev/null 2>&1
@@ -258,13 +221,12 @@ upd_act_service_restart() {
 }
 
 #----------------------------------------------------------#
-#                       Dispatcher                         #
+# Dispatcher #
 #----------------------------------------------------------#
-# Type name -> function, and an unknown type is an ERROR, never a skip. A skipped entry looks exactly
-# like an entry whose condition was false, so a typo in a type name would make the entry vanish without
-# a word - the same silent failure the key and value checks remove one level down.
+# An unknown type is an ERROR, never a skip: a skipped entry looks exactly like one whose condition was
+# false, so a typo in the type name would make it vanish without a word.
 
-# upd_condition TYPE ARGS... - rc 0 true, rc 1 false, rc 2 the entry is wrong.
+# rc 0 true, rc 1 false, rc 2 the entry is wrong.
 upd_condition() {
 	local t="$1"
 	shift
@@ -283,8 +245,7 @@ upd_condition() {
 	esac
 }
 
-# upd_action TYPE ARGS... - the ONE place an entry is validated. The actions behind it are plain
-# writers; every rule a manifest author can break is stated here and nowhere else.
+# The ONE place an entry is validated: every rule a manifest author can break is stated here.
 # rc 0 done, rc 1 the action failed, rc 2 the entry is wrong.
 upd_action() {
 	local t="$1" fn _p
@@ -296,8 +257,8 @@ upd_action() {
 				return 2
 			}
 			upd_key_known "$1" || return 2
-			# Only a system key. Not tidiness: since #1006 the daily repair writes every operator key's
-			# registry default back, so a value an update put there is gone by 04:40 the next morning.
+			# System keys only: the daily repair writes an operator key's default back overnight, so a
+			# value an update put there would not survive the night.
 			[ "$(sysreg_class "$1")" = system ] || {
 				echo "update: $1 is an operator key - an update may not set it (the daily repair owns it)" >&2
 				return 2
@@ -340,12 +301,8 @@ upd_action() {
 			}
 			;;
 		path_delete)
-			# Not a policy, just not shooting ourselves. The first version compared against a glob and let
-			# three forms through, all of which resolve to "/" or to something the entry never named:
-			# "/.." (the glob wanted two slashes before the dots), "//" (not the single slash it tested
-			# for), and every relative path, whose target then depends on a working directory nobody sets.
-			# So: absolute, not just slashes, and ".." only as a path COMPONENT - "/etc/foo..bar" is an
-			# ordinary file name and must stay allowed.
+			# Absolute, not just slashes, and ".." as a path COMPONENT: a glob let "/..", "//" and every
+			# relative path through. "/etc/foo..bar" is an ordinary name and stays allowed.
 			_p="${1:-}"
 			case "$_p" in /*) ;; *)
 				echo "update: path_delete needs an absolute path, got '$_p'" >&2

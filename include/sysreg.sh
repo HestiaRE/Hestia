@@ -1,19 +1,17 @@
 #!/bin/bash
-# The system key registry (share/hestia/sys-keys.json): readers and the schema guard. jq only, no other
-# include, no /etc/hestia - the same functions run in the smoke on a box and in CI on a checkout, so
-# the guard is one implementation called twice (E21). Every reader fails loudly: a missing, broken or
-# empty registry returns non-zero with a line on stderr and prints nothing, never an empty set that a
-# caller could mistake for "no keys" (the login reads through h-list-sys-config, #575 class).
+# The system key registry (share/hestia/sys-keys.json): readers and the schema guard. jq only and no
+# other include, so the same code serves the smoke on a box and CI on a checkout. Every reader fails
+# loudly: a broken registry never returns an empty set a caller could read as "no keys"; the login
+# feeds its session from here.
 
 # The file: $HESTIA on a box, the checkout otherwise; SYSREG_FILE overrides for tests and CI.
 sysreg_file() {
 	echo "${SYSREG_FILE:-${HESTIA:-.}/share/hestia/sys-keys.json}"
 }
 
-# sysreg_check [file]: the schema: name, class, default per class, token_fn exists and is named wherever
-# tokens is true, secret is a boolean, and the closed value set (values) holds its own default.
-# Prints one line per defect, returns 1 on any. Duplicate names are
-# caught textually, since a JSON parser keeps the last of two and says nothing.
+# The schema: name, class, default per class, token_fn present wherever tokens is true, secret boolean,
+# and values holding its own default. One line per defect, rc 1 on any. Duplicates are caught textually
+# because a JSON parser keeps the last of two and says nothing.
 sysreg_check() {
 	local f="${1:-$(sysreg_file)}" bad=0 n names dups k class def fn sec tok vals _v _def _has_def _has_empty
 	[ -f "$f" ] || {
@@ -39,8 +37,7 @@ sysreg_check() {
 		echo "sysreg: duplicate key(s): $(echo "$dups" | tr '\n' ' ')" >&2
 		bad=1
 	}
-	# \x1f as the separator, not a tab: read collapses consecutive whitespace separators, and an empty
-	# default would shift the columns one to the left
+	# \x1f, not a tab: read collapses consecutive whitespace, so an empty default would shift the columns.
 	while IFS=$'\x1f' read -r k class def fn sec tok vals; do
 		case "$k" in [A-Z]*) ;; *)
 			echo "sysreg: $k is not a key name" >&2
@@ -72,23 +69,19 @@ sysreg_check() {
 				bad=1
 			}
 		fi
-		# A token list without its function is the half that cannot be used: phase 2's token actions
-		# find the function through this field, so tokens=true without token_fn is a silent dead end (E8).
+		# A token list whose function is unnamed is the half nothing can use.
 		if [ "$tok" = true ] && [ "$fn" = "__absent__" ]; then
 			echo "sysreg: $k is tokens:true without a token_fn" >&2
 			bad=1
 		fi
-		# The closed value set. It is the machine-readable half of the vocabulary contract in $comment,
-		# which until #946 existed only as prose - and prose is not something a guard can hold a manifest
-		# against (E24). Two rules, both with teeth:
-		#   the default must be a member, or the repair would write a value the key may not carry;
-		#   a system key must list the empty string, because absent and empty mean the same thing there
-		#   and the tree writes both - a set without it would make a legitimate box illegal.
+		# The vocabulary as data, so a guard can hold a manifest against it. The default must be a member,
+		# or the repair writes a value the key may not carry; a system key must list the empty value,
+		# because absent and empty are one state there and a set without it makes a legal box illegal.
 		if [ "$vals" != "__absent__" ]; then
 			_def="$def"
 			[ "$_def" = "__absent__" ] && _def=""
-			# join of an empty array is the empty string, and so is a set holding only the empty value -
-			# both are degenerate and must not pass as "a vocabulary"
+			# An empty array and a set holding only the empty value join to the same string; neither is a
+			# vocabulary.
 			if [ -z "$vals" ]; then
 				echo "sysreg: $k has an empty values set" >&2
 				bad=1
@@ -112,9 +105,8 @@ sysreg_check() {
 	return $bad
 }
 
-# The readers below refuse a file that is missing, does not parse or has no keys - the loud part, in
-# one jq call. The full schema is sysreg_check's job, run by the smoke and CI, not on every login:
-# the emitter feeds the panel session at each login, and the schema costs a handful of processes.
+# The readers refuse a missing, unparsable or empty file in one jq call. The full schema stays with
+# sysreg_check: it costs several processes and the emitter runs on every login.
 _sysreg_ok() {
 	local f
 	[ -n "${_SYSREG_CHECKED:-}" ] && return 0
@@ -156,10 +148,9 @@ sysreg_tokens() {
 	jq -r --arg k "$1" 'if .keys[$k].tokens == true then "yes" else "no" end' "$(sysreg_file)"
 }
 
-# sysreg_values KEY - the closed value set, one per line (an allowed empty value prints as an empty
-# line, so read it with mapfile, not with a bare $(...)). rc 1 for an unknown key, rc 2 for a key
-# whose set is deliberately open (a version pin, a token list): the two are different answers and a
-# caller that cannot tell them apart would treat "no contract" as "key does not exist".
+# One value per line; an allowed empty value prints as an empty line, so read with mapfile.
+# rc 1 unknown key, rc 2 deliberately open set: two different answers, and a caller that cannot tell
+# them apart reads "no contract" as "no such key".
 sysreg_values() {
 	_sysreg_ok || return 1
 	jq -e --arg k "$1" '.keys | has($k)' "$(sysreg_file)" > /dev/null || return 1
@@ -167,11 +158,9 @@ sysreg_values() {
 	jq -r --arg k "$1" '.keys[$k].values[]' "$(sysreg_file)"
 }
 
-# sysreg_value_ok KEY VALUE - the predicate behind it, silent on purpose: it is used as a probe, and a
-# probe that logs writes an error line into every legitimate run (the #925 class). rc 0 when the value
-# is allowed OR the key has no closed set, rc 1 when the key has one and the value is not in it, rc 2
-# for an unknown key. "Allowed" is decided by jq against the array, never by comparing joined text: a
-# value may contain anything a hestia.conf value may contain, including the separators used elsewhere.
+# Silent on purpose: a probe that logs writes a line into every legitimate run. rc 0 allowed or no
+# closed set, rc 1 not in the set, rc 2 unknown key. Membership is decided by jq against the array,
+# never against joined text, because a value may contain the separators used elsewhere.
 sysreg_value_ok() {
 	local k="$1" v="$2"
 	_sysreg_ok || return 2
@@ -180,8 +169,7 @@ sysreg_value_ok() {
 	jq -e --arg k "$k" --arg v "$v" '.keys[$k].values | index($v) != null' "$(sysreg_file)" > /dev/null 2>&1
 }
 
-# sysreg_token_fn KEY - the function that adds or removes one token of a token list (E8). The name
-# comes from the registry, never from a table in a caller: a second list is the one that goes stale.
+# The name comes from the registry, never from a table in a caller: a second list goes stale.
 sysreg_token_fn() {
 	_sysreg_ok || return 1
 	jq -er --arg k "$1" '.keys[$k].token_fn // empty' "$(sysreg_file)"

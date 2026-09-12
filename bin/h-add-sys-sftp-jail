@@ -4,12 +4,12 @@
 #
 # example: h-add-sys-sftp-jail yes
 #
-# Installs the pam_namespace SFTP jail (#413): tmpfiles mountpoint, iscript,
+# Installs the pam_namespace SFTP jail: tmpfiles mountpoint, iscript,
 # namespace.conf, PAM group-gate, and one static `Match Group sftp-jailed` block.
-# Idempotent; also called by the installer. Design: PR #417 / CHANGELOG.
+# Idempotent; also called by the installer. Design: PR / CHANGELOG.
 
 #----------------------------------------------------------#
-#                Variables & Functions                     #
+# Variables & Functions #
 #----------------------------------------------------------#
 
 # Includes
@@ -29,11 +29,11 @@ nsdir='/etc/security/namespace.d'
 nsinit="$nsdir/hestia-jail.init"
 
 #----------------------------------------------------------#
-#                    Verifications                         #
+# Verifications #
 #----------------------------------------------------------#
 
 #----------------------------------------------------------#
-#                       Action                             #
+# Action #
 #----------------------------------------------------------#
 
 getent group sftp-jailed > /dev/null 2>&1 || groupadd sftp-jailed
@@ -64,16 +64,14 @@ if ! grep -q 'pam_namespace.so' "$pam" 2> /dev/null; then
 	} >> "$pam"
 fi
 
-# The Subsystem line, from the one place that decides it (#941). No status token any more: both jails
-# are always installed and cannot be removed, so JAIL_SYSTEM could only ever say one thing (#945, 1d-3).
+# The Subsystem line, from the one place that decides it.
 [ "$(jail_sshd_subsystem_apply)" = changed ] && restart='yes'
 
 # Replace any existing "# Hestia SFTP Chroot" block (marker + following Match/indented
 # lines) with the single static Match Group block
 if grep -q "^# Hestia SFTP Chroot" $config; then
-	# One blank line is held back instead of printed at once: the append below writes a blank in front
-	# of the marker, and the removal used to take the marker and its block but leave that blank, so the
-	# file grew by a line on every run. Held means "print it unless the marker comes next" (#1017).
+	# A blank line is held back and printed only if the marker does not come next: the append below
+	# writes its own, and keeping both made the file grow by a line every run.
 	awk '
 		held && !/^# Hestia SFTP Chroot$/ { print ""; held=0 }
 		/^$/ && !held && !skip { held=1; next }
@@ -114,7 +112,7 @@ if [ "$restart" != 'no' ]; then
 fi
 
 #----------------------------------------------------------#
-#                       Hestia                             #
+# Hestia #
 #----------------------------------------------------------#
 
 # Logging

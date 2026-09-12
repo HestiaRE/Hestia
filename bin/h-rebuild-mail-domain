@@ -7,7 +7,7 @@
 # This function rebuilds configuration files for a single domain.
 
 #----------------------------------------------------------#
-#                Variables & Functions                     #
+# Variables & Functions #
 #----------------------------------------------------------#
 
 # Argument definition
@@ -40,7 +40,7 @@ else
 fi
 
 #----------------------------------------------------------#
-#                    Verifications                         #
+# Verifications #
 #----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
@@ -54,16 +54,15 @@ fi
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
 #----------------------------------------------------------#
-#                       Action                             #
+# Action #
 #----------------------------------------------------------#
 
 # Rebuild mail domain configuration
 rebuild_mail_domain_conf
 
-# Rebuild webmail configuration. 'mail', not 'web': the WEBMAIL key lives on the mail record -
-# reading the web object always returned '' and made this whole block dead code. Skipped while
-# suspended (add would refuse with E_SUSPENDED); unsuspend re-renders from the record instead.
-# front-based (#193): a mailfront box has an empty WEB_SYSTEM but still renders webmail
+# 'mail', not 'web': the WEBMAIL key lives on the mail record, and reading the web object returned ''
+# and made this block dead. Skipped while suspended; unsuspend re-renders from the record. A mailfront
+# box has an empty WEB_SYSTEM and still renders webmail.
 if [ -n "$(webmail_front)" ] || [ -n "$PROXY_SYSTEM" ]; then
 	if [ -n "$IMAP_SYSTEM" ] && [ "$(get_object_value 'mail' 'DOMAIN' "$domain" '$SUSPENDED')" != 'yes' ]; then
 		WEBMAIL=$(get_object_value 'mail' 'DOMAIN' "$domain" '$WEBMAIL')
@@ -75,7 +74,7 @@ if [ -n "$(webmail_front)" ] || [ -n "$PROXY_SYSTEM" ]; then
 fi
 
 #----------------------------------------------------------#
-#                       Hestia                             #
+# Hestia #
 #----------------------------------------------------------#
 
 # Update disk usage statistics

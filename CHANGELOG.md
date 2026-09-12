@@ -383,6 +383,20 @@ opens above it.
 
 ### Fixed
 
+- **A registered database host was read as a local service, and a box without a local server had no client
+  at all** (#980). The port check inferred a listener on 3306 from `DB_SYSTEM`, which is the host register
+  and may name a remote server; the service check had already moved to the local-engine key in phase 1c,
+  the port check had not. The state is reachable: `h-delete-database-host` only drops the token when the
+  LAST host of its type goes, so a box with a local MariaDB and an additional remote host keeps
+  `DB_SYSTEM='mysql'` with an empty `DB_MARIADB_SYSTEM` once the local server is removed, and then a
+  perfectly legitimate box reported red. The second half is bigger: on a box without a local server there
+  was no client binary at all, so not only every dump but the registration of the remote host itself
+  failed. PHP is unaffected, it brings mysqlnd and depends on no client library, but our own commands
+  shell out to `mariadb` and `mysqldump`. Running the database elsewhere is a legitimate arrangement and a
+  backup still has to contain a dump, so the client is installed when no local server is selected, and the
+  delete commands purge the server without taking the client with them, which used to strip it from
+  exactly the operator who gives up their local server on purpose. Measured end to end from a
+  database-less box: a connection to a real remote MariaDB, and a dump over the network carrying its marker.
 - **The Sury retrofit died on a package Sury itself wanted to replace** (#986). On an OS-PHP box,
   `h-add-web-php 8.2` armed the Sury repository and then refused with "not installable - repos
   unreachable or broken?", leaving the box armed and the version absent. The chain behind it is entirely

@@ -2787,7 +2787,10 @@ if [ -n "$PROXY_SYSTEM" ] || [ -n "$(webmail_front)" ]; then
 	check_port 80 "http"
 	check_port 443 "https"
 fi
-echo "$DB_SYSTEM" | grep -qw 'mysql' && check_port 3306 "mysql"
+# The LOCAL engine key, not the host register: a registered mysql host may be a remote one, and then no
+# local listener is expected. Reachable after h-delete-sys-mariadb on a box that also has a remote host,
+# because the token only goes when the LAST host of its type does (measured: red on exactly that state).
+[ -n "$DB_MARIADB_SYSTEM" ] && check_port 3306 "mysql"
 [ -n "$MAIL_SYSTEM" ] && check_port 25 "smtp"
 # banner, not just port: IMAP/SMTP must actually answer (a hung login still listens)
 if [ -n "$IMAP_SYSTEM" ]; then

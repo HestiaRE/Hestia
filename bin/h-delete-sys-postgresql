@@ -69,10 +69,12 @@ echo "[ * ] Removing PostgreSQL packages..."
 PG_MAJOR=$(pg_lsclusters -h 2> /dev/null | awk 'NR==1{print $1}')
 systemctl disable --now "postgresql@${PG_MAJOR}-main" > /dev/null 2>&1 || true
 systemctl disable --now postgresql > /dev/null 2>&1 || true
+# Same rule as MariaDB: the server goes, the client stays for a remote host and its dumps.
 _pkgs="postgresql postgresql-contrib"
-[ -n "$PG_MAJOR" ] && _pkgs="$_pkgs postgresql-$PG_MAJOR postgresql-client-$PG_MAJOR"
+[ -n "$PG_MAJOR" ] && _pkgs="$_pkgs postgresql-$PG_MAJOR"
 # shellcheck disable=SC2086
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq purge $_pkgs > /dev/null 2>&1 || true
+DEBIAN_FRONTEND=noninteractive apt-get -y -qq install postgresql-client > /dev/null 2>&1 || true
 
 # datadir/config kept by default (a re-add reuses the cluster); opt-in wipe
 if [ "${PURGE_DATA:-}" = "yes" ]; then

@@ -71,8 +71,11 @@ $BIN/h-delete-database-host mysql localhost > /dev/null 2>&1 || true
 # purge packages (no autoremove — it would rip out shared-stack siblings)
 echo "[ * ] Removing MariaDB packages..."
 systemctl disable --now mariadb > /dev/null 2>&1 || true
+# The client stays. A registered remote host survives this command, and h-add-database-host and every
+# backup dump reach it through these binaries.
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq purge \
-	mariadb-server mariadb-client mariadb-common > /dev/null 2>&1 || true
+	mariadb-server > /dev/null 2>&1 || true
+DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mariadb-client > /dev/null 2>&1 || true
 
 # external repo cleanup (harmless on an OS-package install)
 rm -f /etc/apt/sources.list.d/mariadb.list /usr/share/keyrings/mariadb-keyring.gpg

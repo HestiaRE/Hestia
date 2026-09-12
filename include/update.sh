@@ -197,9 +197,9 @@ upd_act_token_remove() {
 upd_act_file_copy() {
 	local src="${HESTIA:-/usr/local/hestia}/$1" dst="$2" mode="${3:-}" tmp prev
 	cmp -s "$src" "$dst" 2> /dev/null && return 0
-	# A kill cannot run the trap, so a killed run leaves its temp file behind - measured, 114 of them in
-	# 40 runs. Older than five minutes means "not a run that is happening right now", which is the whole
-	# distinction needed here: a live writer keeps its file for a fraction of a second.
+	# A kill cannot run the trap, so a killed run leaves its temp file behind. Older than five minutes
+	# means "not a run that is happening right now", which is the whole distinction needed here: a live
+	# writer keeps its file for a fraction of a second.
 	find -H "$(dirname "$dst")" -maxdepth 1 -name "$(basename "$dst").??????" -mmin +5 -delete 2> /dev/null
 	tmp=$(mktemp "$dst.XXXXXX") || return 1
 	prev=$(trap -p EXIT)
@@ -287,7 +287,7 @@ upd_condition() {
 # writers; every rule a manifest author can break is stated here and nowhere else.
 # rc 0 done, rc 1 the action failed, rc 2 the entry is wrong.
 upd_action() {
-	local t="$1" fn
+	local t="$1" fn _p
 	shift
 	case "$t" in
 		key_set)
@@ -340,10 +340,25 @@ upd_action() {
 			}
 			;;
 		path_delete)
-			# Not a policy, just not shooting ourselves: an empty argument would delete the working
-			# directory's contents and "/" needs no explanation.
-			case "${1:-}" in "" | / | /*/..*)
-				echo "update: path_delete needs a real path" >&2
+			# Not a policy, just not shooting ourselves. The first version compared against a glob and let
+			# three forms through, all of which resolve to "/" or to something the entry never named:
+			# "/.." (the glob wanted two slashes before the dots), "//" (not the single slash it tested
+			# for), and every relative path, whose target then depends on a working directory nobody sets.
+			# So: absolute, not just slashes, and ".." only as a path COMPONENT - "/etc/foo..bar" is an
+			# ordinary file name and must stay allowed.
+			_p="${1:-}"
+			case "$_p" in /*) ;; *)
+				echo "update: path_delete needs an absolute path, got '$_p'" >&2
+				return 2
+				;;
+			esac
+			while [ "${_p%/}" != "$_p" ]; do _p="${_p%/}"; done
+			[ -n "$_p" ] || {
+				echo "update: path_delete refuses '$1' - that is the root" >&2
+				return 2
+			}
+			case "/${_p#/}/" in */../*)
+				echo "update: path_delete refuses '$1' - '..' as a path component" >&2
 				return 2
 				;;
 			esac

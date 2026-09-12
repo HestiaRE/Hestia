@@ -154,16 +154,30 @@ if ! systemctl is-active --quiet mariadb; then
 fi
 
 echo "[ * ] Securing MariaDB..."
-# MPASS lands only in /root/.my.cnf (0600), never in install.conf (secrets stay out)
+# Every statement here is checked. Unchecked, a failure in the first one, which sets the very password
+# the rest need, left the remaining five refused one after another while the stage still marked itself
+# done: a box with a root MariaDB nobody had secured.
+secure_db() {
+	mariadb -e "$1" || {
+		echo "ERROR: securing MariaDB failed at: $2"
+		echo "       the root account is NOT in the state this installer guarantees."
+		exit "$E_DB"
+	}
+}
+
+# MPASS lands only in /root/.my.cnf (0600), never in install.conf (secrets stay out). It stays a WORKING
+# password on purpose: that file is where an operator looks for it, to paste into phpMyAdmin or a client.
 MPASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16 || true)
 printf '[client]\npassword='"'"'%s'"'"'\n' "$MPASS" > /root/.my.cnf
 chmod 600 /root/.my.cnf
-mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$MPASS'; FLUSH PRIVILEGES;"
-mariadb -e "UPDATE mysql.global_priv SET priv=json_set(priv, '\$.password_last_changed', UNIX_TIMESTAMP(), '\$.plugin', 'mysql_native_password', '\$.authentication_string', 'invalid', '\$.auth_or', json_array(json_object(), json_object('plugin', 'unix_socket'))) WHERE User='root';"
-mariadb -e "DELETE FROM mysql.global_priv WHERE User='';"
-mariadb -e "DROP DATABASE IF EXISTS test;"
-mariadb -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';"
-mariadb -e "FLUSH PRIVILEGES;"
+secure_db "ALTER USER 'root'@'localhost' IDENTIFIED BY '$MPASS'; FLUSH PRIVILEGES;" "setting the root password"
+# unix_socket as an ALTERNATIVE, not a replacement: local root works without the password (so a command
+# started without $HOME still reaches the socket), and the password in .my.cnf keeps working too.
+secure_db "UPDATE mysql.global_priv SET priv=json_set(priv, '\$.password_last_changed', UNIX_TIMESTAMP(), '\$.plugin', 'mysql_native_password', '\$.auth_or', json_array(json_object(), json_object('plugin', 'unix_socket'))) WHERE User='root';" "adding socket auth for root"
+secure_db "DELETE FROM mysql.global_priv WHERE User='';" "removing anonymous users"
+secure_db "DROP DATABASE IF EXISTS test;" "dropping the test database"
+secure_db "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';" "dropping test grants"
+secure_db "FLUSH PRIVILEGES;" "flushing privileges"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

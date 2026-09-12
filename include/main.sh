@@ -139,6 +139,12 @@ BIN=$HESTIA/bin
 SBIN=$HESTIA/sbin
 # instance config root; fallback covers installs whose hestia.env predates the var
 CONF_DIR="${CONF_DIR:-/etc/hestia}"
+# The MariaDB client finds /root/.my.cnf only through $HOME. A start without one (systemd unit, cron,
+# plain su) connects without a password and is refused three stages into an install.
+if [ -z "${HOME:-}" ]; then
+	HOME=$(getent passwd "$(id -u)" 2> /dev/null | cut -d: -f6)
+	export HOME
+fi
 # Panel certificate: out of the install root, which h-update-hestia replaces wholesale. Not under
 # CONF_DIR either: that is 0700 and caddy, exim and proftpd all read this as non-root.
 HESTIA_SSL="/etc/ssl/hestia"

@@ -162,11 +162,19 @@ os_default_php() {
 # failed probe is apt not answering, not a missing package: return 1 instead
 # of installing through it and surfacing as a broken panel later.
 filter_installable_php_pkgs() {
-	local tolerated="$1" p keep="" suffix pv entry ename emin hit
+	local tolerated="$1" p keep="" extra="" brk suffix pv entry ename emin hit
 	shift
 	for p in "$@"; do
 		if apt-get -qq -s install "$p" > /dev/null 2>&1; then
 			keep="$keep $p"
+			continue
+		fi
+		# Not installable ALONE is not not installable: Sury's php-common breaks an older OS php package,
+		# and only naming that one makes the transaction resolvable. apt names it, so nothing is listed here.
+		brk=$(apt-get -s install "$p" 2>&1 | grep -oE 'Breaks: [a-z0-9.+-]+' | awk '{print $2}' | sort -u | tr '\n' ' ')
+		if [ -n "$brk" ] && apt-get -qq -s install "$p" $brk > /dev/null 2>&1; then
+			keep="$keep $p"
+			extra="$extra $brk"
 			continue
 		fi
 		suffix="${p#php*.*-}"
@@ -189,6 +197,10 @@ filter_installable_php_pkgs() {
 			echo "ERROR: $p is not installable and its tolerated-drop entry does not cover this version - repos unreachable or broken?" >&2
 			return 1
 		fi
+	done
+	# Once each: these are upgrades of installed packages, so order does not matter.
+	for p in $extra; do
+		case " $keep " in *" $p "*) ;; *) keep="$keep $p" ;; esac
 	done
 	echo "${keep# }"
 }

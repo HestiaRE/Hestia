@@ -383,6 +383,19 @@ opens above it.
 
 ### Fixed
 
+- **The Sury retrofit died on a package Sury itself wanted to replace** (#986). On an OS-PHP box,
+  `h-add-web-php 8.2` armed the Sury repository and then refused with "not installable - repos
+  unreachable or broken?", leaving the box armed and the version absent. The chain behind it is entirely
+  transitive: phpmyadmin pulls `php-tcpdf`, which pulls `php8.3-mcrypt`, which pulls the OS `php-mcrypt`
+  that Sury's `php-common` declares it breaks. Measured on the armed box, two of the three directions the
+  issue proposed do not work: probing the whole PHP set at once fails exactly like probing one package,
+  and naming all 252 installed `php-*` packages fails on candidates phpmyadmin brought in that have none.
+  Only naming the breaking package resolves it. It is not listed in the code: apt says which one it is,
+  and the probe reads it off that message, in up to three rounds because resolving one break can expose
+  the next. Proven by what a customer actually gets, not by dpkg: after the retrofit a domain switched to
+  8.2 is served by a pool under `/etc/php/8.2`, and a real request answers `8.2` - switching back answers
+  `8.3` again, so the measurement can tell them apart.
+
 - **"Securing MariaDB" ran unchecked, so a box could finish an install unsecured** (#998). Six statements,
   no return value read, no `set -e` in the file. The first one sets the root password, and every one after
   it needs exactly that password - which the client finds only through `$HOME`. When that lookup failed,

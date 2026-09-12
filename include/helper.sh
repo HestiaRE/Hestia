@@ -162,7 +162,7 @@ os_default_php() {
 # failed probe is apt not answering, not a missing package: return 1 instead
 # of installing through it and surfacing as a broken panel later.
 filter_installable_php_pkgs() {
-	local tolerated="$1" p keep="" extra="" brk suffix pv entry ename emin hit
+	local tolerated="$1" p keep="" extra="" brk add had round suffix pv entry ename emin hit
 	shift
 	for p in "$@"; do
 		if apt-get -qq -s install "$p" > /dev/null 2>&1; then
@@ -171,7 +171,17 @@ filter_installable_php_pkgs() {
 		fi
 		# Not installable ALONE is not not installable: Sury's php-common breaks an older OS php package,
 		# and only naming that one makes the transaction resolvable. apt names it, so nothing is listed here.
-		brk=$(apt-get -s install "$p" 2>&1 | grep -oE 'Breaks: [a-z0-9.+-]+' | awk '{print $2}' | sort -u | tr '\n' ' ')
+		# Collected in rounds because resolving one break can expose the next; bounded, and it stops as soon
+		# as a round adds nothing, so an unresolvable case falls through to the loud exit below.
+		brk=""
+		for round in 1 2 3; do
+			had=$(printf '%s' "$brk" | wc -w)
+			for add in $(apt-get -s install "$p" $brk 2>&1 | grep -oE 'Breaks: [a-z0-9.+-]+' | awk '{print $2}' | sort -u); do
+				case " $brk " in *" $add "*) ;; *) brk="$brk $add" ;; esac
+			done
+			[ "$(printf '%s' "$brk" | wc -w)" -gt "$had" ] || break
+			apt-get -qq -s install "$p" $brk > /dev/null 2>&1 && break
+		done
 		if [ -n "$brk" ] && apt-get -qq -s install "$p" $brk > /dev/null 2>&1; then
 			keep="$keep $p"
 			extra="$extra $brk"

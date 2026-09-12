@@ -7,36 +7,23 @@
 #===========================================================================#
 
 # Source conf function for correct variable initialisation
-# Names a record must never bind. The value is validated everywhere; the NAME was not, so a
-# restored user.conf carrying a line PATH=/tmp/x rebound PATH in the root shell that reads it and
-# the next relative chown/grep ran from the attacker's directory. Measured,.
-#
-# Deliberately NOT here, because each is a legitimate key in some conf and would be locked out:
-# ROOT_USER (hestia.conf), REPO (restic.conf), BACKUP (backup records), BACKUP_TEMP (an optional
-# hestia.conf knob - the backup and restore commands read it and fall back to $BACKUP). The floor
-# cannot protect a name that also has honest work.
+# Names a record must never bind: the value is validated everywhere, the NAME was not, so a restored
+# user.conf with PATH=/tmp/x rebound PATH in the root shell reading it.
+# NOT here, because each is a legitimate key somewhere: ROOT_USER, REPO, BACKUP, BACKUP_TEMP.
 SOURCE_CONF_PROTECTED="PATH IFS ENV BASH_ENV BASHOPTS SHELLOPTS CDPATH GLOBIGNORE PROMPT_COMMAND
 PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCNAME
 HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
 
-# Two sinks, two floors. source_conf reads CONFIGS, where these three are honest keys, so it must
-# keep accepting them. parse_object_kv_list reads RECORDS, where they are not fields at all - only
-# BACKUP is one (the archive name), which is why BACKUP is absent here. Taking BACKUP_TEMP off the
-# floor for hestia.conf's sake would otherwise have dropped it on the record side too, where an
-# archived backup.conf reaches the parser (h-restore-{web-domain,mail-domain,database}-restic) and
-# could rebind the directory a later mktemp writes into. Measured: on all four targets BACKUP is a
-# record key in three files per box, these three in none.
+# Two sinks, two floors: source_conf reads CONFIGS where these three are honest keys,
+# parse_object_kv_list reads RECORDS where they are not fields at all. BACKUP is absent because it IS
+# a record field (the archive name).
 RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
 
-# Storage encoding for record VALUES. record_line_valid (include/backup.sh) refuses four characters
-# inside a value: the delimiter ' and, for the sinks behind it, " ` and \. Until only
-# the delimiter was encoded, by four call sites each carrying their own sed, and thirteen readers
-# each carrying their own decode. A value with any of the other three was written anyway and the box
-# then held a record its own checker rejects, reachable with a cron command as ordinary as
-# `echo "hallo"`, measured. One encoder and one decoder, so a fifth writer cannot know half the set.
-#
-# Known limit, inherited with %quote% and deliberately not given a second escape layer: a value that
-# literally contains a placeholder decodes to the character it stands for.
+# Storage encoding for record VALUES: record_line_valid refuses ' " ` and \ inside a value. One
+# encoder and one decoder, so a fifth writer cannot know half the set. Before, four writers and
+# thirteen readers each carried their own, and a record its own checker rejects was reachable with a
+# cron command as ordinary as `echo "hallo"`.
+# Known limit: a value literally containing a placeholder decodes to the character it stands for.
 record_value_encode() {
 	local _v="$1"
 	_v="${_v//\\/%backslash%}"
@@ -634,24 +621,10 @@ parse_object_kv_list_non_eval() {
 
 	str=${*//$'\n'/ }
 
-	# Extract and loop trough each key-value pair. (Regex test: https://regex101.com/r/eiMufk/5)
-	#
-	# mapfile, not `for objkv in $(...)`: that word splitting also GLOBS, so a record value holding
-	# a * was matched against the working directory and the parsed value came back as a FILENAME.
-	# Reachable where the caller's directory is one a customer writes to.
-	#
-	# The " and $ escaping that used to sit here is gone. It protected nothing - the data reaches
-	# perl through a quoted echo and is assigned through a quoted expansion, so neither character
-	# is ever re-expanded - and it was never undone, so every consumer got a value with backslashes
-	# baked in: the search listers emitted \" where the record holds ".
-	#
-	# Captured first and the status checked, rather than read straight through a process
-	# substitution, whose exit status is not observable. Measured: with perl off the PATH the
-	# substitution form returned 0 and set NOTHING - the caller then read whatever was in those
-	# variables before. The sibling parser is loud in the same situation (its check_result on the
-	# php exit status fires), and two parsers that disagree about failure is the asymmetry worth
-	# removing. Not reachable on a supported target - perl-base is priority required on all four -
-	# but "unreachable" is the reason it would never have been noticed.
+	# mapfile, not `for x in $(...)`: word splitting also globs, so a value holding a * came back as
+	# a filename.
+	# Captured first, status checked: a process substitution's exit status is not observable, and with
+	# perl missing it returned 0 having set nothing.
 	out=$(printf '%s\n' "$str" | perl -n -e "while(/\b([a-zA-Z]+[\w]*)='(.*?)'(\s|\$)/g) {print \$1.'='.\$2 . \"\n\" }")
 	rc=$?
 	if [ "$rc" -ne 0 ]; then
@@ -925,22 +898,11 @@ is_dir_symlink() {
 	fi
 }
 
-# Escape the named variables IN PLACE for splicing into a JSON string literal. The h-list-*
-# emitters build their JSON by concatenation, so a record value carrying a " or a backslash
-# produces a document the panel cannot json_decode, the same class as upstream at the
-# certificate listers. Escaping belongs here, at the one definition, not in each emitter.
-#
-# In place and by name because the alternative is a subshell per field: a 300-domain listing
-# would fork twelve thousand times. Pure parameter expansion, no external process.
-#
-# Only the emitters may call this - it destroys the raw value, so never call it before a
-# shell_list or before a value is used for anything but the JSON output.
-#
-# EMIT WITH printf AND %s, never by splicing into an echo argument. `echo '"K": "'$V'"'`
-# leaves the escaped value unquoted, so the shell splits and globs it AFTER this function ran:
-# whitespace runs collapse, and a value holding a * is replaced by filenames from the working
-# directory: text that never passed through here at all, so a filename with a " in it opens a
-# second JSON key. printf takes the value as an argument and none of that applies.
+# Escape named variables IN PLACE for a JSON string literal. In place and by name to avoid a subshell
+# per field: a 300-domain listing would fork twelve thousand times.
+# Emitters only, and only last: it destroys the raw value.
+# Emit with printf %s, never spliced into an echo argument: the shell would split and glob the
+# escaped value afterwards.
 json_escape() {
 	local _n _v _c _out
 	for _n in "$@"; do
@@ -1278,14 +1240,9 @@ sync_cron_jobs() {
 	chmod 600 $crontab
 }
 
-# The one hestia crontab. Two copies of this list existed, one in the installer and one in
-# syshealth.sh, and they had already drifted in four ways: MAILTO, a hard-wired install root,
-# line-by-line appends instead of temp+rename, and a different random source. Rendering it
-# here makes the drift impossible rather than merely comparable.
-#
-# The Let's Encrypt renewal time is drawn per write. That is sound because a write only happens where
-# there is no file to preserve it from: the installer on a fresh box, and the repair only when the
-# file is gone.
+# The one hestia crontab: two copies existed and had drifted in four ways, so rendering it here makes
+# drift impossible rather than merely comparable.
+# The renewal time is drawn per write, which only happens where there is no file to preserve it from.
 system_crontab_write() {
 	local _dst='/var/spool/cron/crontabs/hestia' _tmp _min _hour
 	# Arithmetic, not a pipeline into `head`: the old form could only produce a minute of 00-55.
@@ -1319,19 +1276,11 @@ system_crontab_write() {
 	mv -f "$_tmp" "$_dst"
 }
 
-# The periodic repair, in /etc/cron.d and deliberately NOT in the hestia crontab. It would
-# fit in the list above, but then it could not do half its job: a deleted crontab takes the line that
-# restores it with it. Outside that file the circle is broken, so a missing crontab really does come
-# back on its own.
-#
-# Daily, and 04:40 because nothing in the crontab runs at 04. What it heals is rare and operator- or
-# damage-induced (an absent or emptied operator key, a missing crontab), a run costs 0.8 s, and it
-# writes one line to system.log like h-update-user-stats already does. Hourly would multiply that by
-# 24 for a value that changes almost never; weekly would leave a box without a crontab, and therefore
-# without any queue processing, for up to seven days.
-#
-# Root directly, no sudo: cron.d entries name their user, and this one is not reachable from the
-# panel the way a bin/* command under the hestia sudo wildcard is.
+# The periodic repair, in /etc/cron.d and NOT in the hestia crontab: a deleted crontab would take the
+# line that restores it with it.
+# Daily at 04:40, where nothing else runs. What it heals changes almost never, and a week without a
+# crontab is a week without queue processing.
+# Root directly: cron.d entries name their user, and this one is not reachable from the panel.
 system_repair_cron_write() {
 	local _dst='/etc/cron.d/hestia-repair' _tmp
 	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
@@ -1733,13 +1682,9 @@ is_no_quote_format() {
 
 # A restore selector: empty, '*', 'no'/'yes', or a comma list of object names.
 #
-# CLOSED character set, not a deny list. The value is spliced into the queue line that
-# h-update-sys-queue runs through bash as root, and a deny list holds only as long as the quoting
-# around it does - it was a too-wide allowed set that let a pipe reach that line once.
-#
-# A literal space is in, because a home entry can be called "my documents". A TAB is not, although
-# it is just as legal in a filename: tar prints it escaped in the member listing the restore matches
-# against, so such a selector is accepted and then silently selects nothing. Refusing it says so.
+# CLOSED character set, not a deny list: the value is spliced into a queue line bash runs as root.
+# Space is in, a home entry can be "my documents". TAB is not: tar prints it escaped in the listing
+# the restore matches against, so such a selector would silently select nothing.
 is_selector_format_valid() {
 	# In a variable: an unquoted space inside [[ =~ ]] would split the pattern into two words.
 	local _re='^[-._,* [:alnum:]]+$'
@@ -2046,16 +1991,10 @@ is_hash_format_valid() {
 	fi
 }
 
-# Format validation controller
-# Validates by VARIABLE NAME: each name is both the type to check and the variable to read via ${!name}.
-# That coupling is the trap - a name with no matching variable expands to empty, and empty used to mean
-# "nothing to check, so valid". So renaming an argument, or typoing a type, silently disabled the check
-# instead of failing. It has cost us twice. An UNSET variable is therefore a hard error now: it can only be
-# a programming mistake, since a caller with a genuinely optional argument still has the variable declared
-# and empty, which stays a legitimate skip.
-# The dispatch key IS the caller's variable name: is_format_valid reads ${!name} and picks the
-# validator from the name, so renaming a variable (ip -> ip46) changes which check runs AND what
-# every sourced helper reading that global sees. The name is part of the interface.
+# Format validation controller. Validates by VARIABLE NAME: the name is both the type and the variable
+# read via ${!name}, so renaming one changes which check runs. The name is part of the interface.
+# An UNSET variable is a hard error: empty used to mean "nothing to check", which silently disabled a
+# check twice. A declared-but-empty variable stays a legitimate skip.
 is_format_valid() {
 	for arg_name in $*; do
 		if ! declare -p "$arg_name" > /dev/null 2>&1; then
@@ -2426,15 +2365,10 @@ clear_sys_value() {
 	sed -i "/^$1=/d" "$HESTIA/conf/hestia.conf"
 }
 
-# sys_key_token_set KEY add|remove TOKEN - one token in a comma-separated hestia.conf key (DB_SYSTEM,
-# BACKUP_SYSTEM, WEBMAIL_SYSTEM, PHP_VERSIONS), the order kept as found, a token never
-# doubled. Named as token_fn in the registry; every writer of a token key calls it, never a bare sed or
-# a hand-composed list (an unanchored "s/DB_SYSTEM=.*/" once rewrote DB_MARIADB_SYSTEM).
-# The rc, in both directions: on a success path (package installed, purge done) the caller fails the
-# whole command when this write fails: the status is part of the job, a silent gap is worse than a
-# loud exit, the packages stay and a re-run records them. On an exit path ("not installed", drift
-# repair on the way out) the caller drops the rc on purpose: a write problem must not turn a clear
-# "not installed" into a different error.
+# One token in a comma-separated hestia.conf key, order kept, never doubled. Named as token_fn in the
+# registry; never a bare sed, an unanchored one once rewrote DB_MARIADB_SYSTEM.
+# rc: on a success path the caller fails the command with it, the status is part of the job. On an
+# exit path it is dropped, so a write problem does not turn "not installed" into a different error.
 sys_key_token_set() {
 	local key="$1" op="$2" tok="$3" cur out=() t
 	[ -n "$key" ] && [ -n "$tok" ] || return 1
@@ -2466,13 +2400,10 @@ sys_key_token_set() {
 	change_sys_value "$key" "$cur" && printf '%s\n' "$cur"
 }
 
-# The MariaDB status keys from the installed package, not from an argument: the version is what dpkg
-# holds (epoch stripped, major.minor), the source is read off the version string (MariaDB.org builds
-# carry "maria" in it, distro builds do not) and named in the recipe's own words (the source field of the
-# DB_MARIADB_VERSION options), so recipe and status never disagree on a value. The version string on
-# purpose and not apt-cache policy (Origin/Label): policy describes the repository configured NOW, the
-# string travels with the package; remove the repo or upgrade the box and policy changes its answer
-# while the package did not. Called by add, upgrade and delete.
+# MariaDB status keys from the installed package, not from an argument: version from dpkg, source read
+# off the version string and named in the recipe's own words, so recipe and status agree.
+# The version string and not apt-cache policy: policy describes the repo configured NOW, the string
+# travels with the package.
 mariadb_status_record() {
 	local v src
 	v=$(dpkg-query -W -f='${Version}' mariadb-server 2> /dev/null) || v=''
@@ -2551,11 +2482,8 @@ web_lock_acquire() {
 
 # Release the freeze early (otherwise it drops on process exit).
 #
-# Only the process that acquired it may release it. A child command inherits the lock as
-# held (that is the point of the reentrancy) and would otherwise be able to unlock the
-# parent mid-operation - the parent then finishes writing records and restarting services
-# unprotected. This used to hold only because WEB_LOCK_FD happens not to be exported,
-# which is a guard nobody would recognise as one and an unrelated cleanup could remove.
+# Only the acquiring process may release it: a child inherits the lock as held and would otherwise
+# unlock the parent mid-operation. Used to hold only because WEB_LOCK_FD is not exported.
 web_lock_release() {
 	[ "${HESTIA_WEB_LOCK_PID:-}" = "$$" ] || return 0
 	[ -n "${WEB_LOCK_FD:-}" ] || return 0
@@ -2576,16 +2504,11 @@ delete_chroot_jail() {
 	gpasswd -d "$1" sftp-jailed > /dev/null 2>&1 || true
 }
 
-# The one sshd "Subsystem sftp" line, in one place. It is the sftp-server binary, so a jailbash
-# user's sftp runs inside bwrap. No longer a decision: both jails are installed on every box and there
-# is no supported way to remove them, so the two other branches (internal-sftp for the sftp jail alone,
-# the distro path for no jail) described states that cannot exist any more (1d-3).
-# /usr/lib/sftp-server is not a typo: openssh-sftp-server ships it as the compat symlink to
-# /usr/lib/openssh/sftp-server on all four targets (HestiaCP used the same line), and jailbash binds
-# /usr read-only, so the path resolves inside the jail too (measured: sftp as a jailbash user lists
-# its home, a bogus path closes the connection). Kept distinct from the distro line so the file says
-# which jail set it. Prints "changed" when the line was rewritten, so the caller restarts sshd;
-# validating stays with the caller.
+# The one sshd "Subsystem sftp" line. The sftp-server binary, so a jailbash user's sftp runs in bwrap;
+# no longer a decision, both jails are on every box and cannot be removed.
+# /usr/lib/sftp-server is the compat symlink shipped on all four targets, and jailbash binds /usr
+# read-only, so it resolves inside the jail too. Kept distinct from the distro line.
+# Prints "changed" so the caller restarts; validating stays with the caller.
 jail_sshd_subsystem_apply() {
 	local config='/etc/ssh/sshd_config' want='/usr/lib/sftp-server' _tmp _prev_trap
 	# Checked before anything is written: rebuilding a file that is already right moved the distro line

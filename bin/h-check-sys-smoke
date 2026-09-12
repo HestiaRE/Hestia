@@ -1554,7 +1554,7 @@ check_error_code_registry() {
 #
 # Does NOT cover: sbin/, web/, share/, and eval reached through a variable or an alias.
 check_eval_sites() {
-	local allowed="h-add-web-domain-ssl main.sh" f base extra='' hit='' miss='' scanned=0 carry=0
+	local allowed="h-add-web-domain-ssl main.sh update.sh" f base extra='' hit='' miss='' scanned=0 carry=0
 	for f in "$HESTIA/bin"/h-* "$HESTIA/include"/*.sh; do
 		[ -f "$f" ] || continue
 		scanned=$((scanned + 1))
@@ -1569,7 +1569,7 @@ check_eval_sites() {
 		case " $allowed " in *" $base "*) continue ;; esac
 		extra="$extra $base"
 	done
-	# Both known sites must still turn up. A sweep that looked at nothing, or one that lost sight of
+	# Every known site must still turn up. A sweep that looked at nothing, or one that lost sight of
 	# a site it used to see, shrank its reference set - which is worse than no guard, because green
 	# then means "looked at less" instead of "found nothing".
 	for base in $allowed; do
@@ -1578,11 +1578,11 @@ check_eval_sites() {
 	if [ "$scanned" -lt 400 ]; then
 		no "the eval-sweep scanned only $scanned file(s)" "expected all of $HESTIA/bin/h-* and $HESTIA/include/*.sh"
 	elif [ -n "$extra" ]; then
-		no "eval-use over record text outside the two known places" "$extra"
+		no "eval-use over record text outside the known places" "$extra"
 	elif [ -n "$miss" ]; then
 		no "a known eval-site stopped matching - sweep or file changed" "$miss"
 	else
-		ok "no new eval-sites ($carry of $scanned scanned file(s) carry one, both known)"
+		ok "no new eval-sites ($carry of $scanned scanned file(s) carry one, all known)"
 	fi
 }
 

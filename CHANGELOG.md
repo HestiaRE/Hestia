@@ -416,6 +416,16 @@ opens above it.
 
 ### Fixed
 
+- **A mail domain without a single account made every backup of that user fail** (#1033). The account
+  loop globs the domain's maildir, and with no account the pattern matches nothing, so bash leaves the
+  star itself standing. It passed the exclusion check, went into the account list as if it were a
+  name, and the member tar then failed on a file that does not exist. The run aborted with a disk
+  error on a box with 25 GB free, sent a mail about it and dropped its queue job. Getting there takes
+  nothing unusual: add a mail domain and do not create a mailbox yet, or delete the last one. The
+  functional rounds never hit it because they always created an account before backing up. Found while
+  measuring #1031 and measured against the version without it, so it is not a regression from that
+  change but was already in the release.
+
 - **A token list was split by something that also expanded it** (#1031). `for tok in ${VALUE//,/ }`
   does not only split on the comma, it also performs pathname expansion, so a `*` in the value was
   matched against the working directory and the loop saw tokens that do not exist. 22 sites in 15

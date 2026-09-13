@@ -96,6 +96,18 @@ opens above it.
 
 ### Changed
 
+- **`h-update-hestia` ist der Executor, und sonst nichts** (#948, phase 4). It takes the path to a run
+  directory's `update.conf` and works the entries off through the dispatcher; finding, downloading,
+  unpacking and securing a release is `update.sh` in the next phase. It **refuses** when the run
+  directory is missing, because that is where the backup and the rollback script live and a run
+  without them is the one thing that must never happen by accident. The log goes into the run
+  directory rather than to a central file: it is evidence, it is pruned with the run, and it needs no
+  logrotate rule that would change what a fresh install carries. The point-of-no-return marker is
+  written when the first irreversible entry is reached, not when the plan is read, so a run that
+  stops earlier stays rollback-able. After every entry its own condition is evaluated again: an entry
+  that does not negate itself gets a loud line, because it would otherwise run on every later plan
+  and the early exit would never be reachable for it.
+
 - **Two operator defaults leave `include/main.sh`** (#992). `BACKUP` and `BACKUP_GZIP` are operator
   keys whose default the registry carries; a copy in code is a second home that drifts the moment the
   registry changes. `HOMEDIR` moves the other way, down to the constants: no registry entry, no writer,
@@ -356,6 +368,16 @@ opens above it.
   artefact-driven fill is inherited behaviour and goes with the key registry (UPDATES 1a), not a promise.
 
 ### Removed
+
+- **`reapply_outside_tree`** (#948). The function re-applied seven things after every update. Measured
+  against the update lower bound, three were one-time migrations that no box can still need: the theme
+  renames, the stale theme CSS, and the `chmod 600` on `/etc/profile.d/hestia.sh`, which the installer
+  has written that way for a while. Two become entries of the release that actually changes the unit.
+  The remaining two have no tree counterpart to compare against - `/etc/sudoers.d/hestia` is the tree
+  file with one line prepended, and `login_defs_guard` edits a file that is nobody's copy - so no
+  condition could go false after them, and an entry whose condition survives its own action is exactly
+  what the model refuses. They are reported by the smoke instead, with the command that ends the
+  drift, the way `check_jail_sshd` has done since phase 1d-3.
 
 - **The status value `remote`, which no writer has ever set** (#1015). Twelve status keys carried a
   branch for it - `MAIL_SYSTEM`, `WEB_SYSTEM`, `IMAP_SYSTEM`, `PROXY_SYSTEM`, `FTP_SYSTEM`,

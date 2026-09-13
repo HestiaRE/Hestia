@@ -1,13 +1,12 @@
 #!/bin/bash
-# info: update HestiaRE from the latest release tarball
-# options: [--check]
+# info: work an update plan off, entry by entry
+# options: PLAN
 #
-# Updates the whole HestiaRE distribution from a GitHub/Gitea release tarball.
-# This is HestiaRE's only updater — there is no apt/git package-update path
-# (HestiaRE ships no hestia-* apt packages).
-# With --check it only reports installed vs available and exits.
-
-set -eo pipefail
+# example: h-update-hestia /root/hestiare-update/2026-09-13_v0.18.10_v0.19.0/update.conf
+#
+# The executor and nothing else: finding, downloading, unpacking and securing a release is update.sh.
+# The log is evidence, never control. What is to be done is decided by the entry's condition on every
+# run, so a repetition after an abort converges instead of replaying what is already done.
 
 # The admin's base install decides the ambient umask, and it is not the same everywhere: deb13 and
 # ub26 ship no UMASK line in login.defs, so every file created by a redirect or mkdir here came out
@@ -15,104 +14,137 @@ set -eo pipefail
 # group-writable file in /etc/cron.d, which is how the LE fallback silently never ran. Pin it, so
 # what we create does not depend on a setting we do not control. Anything needing other than this
 # is chmod'ed explicitly at its own site.
-umask 022
+umask 0022
 
-HESTIA="${HESTIA:-/usr/local/hestia}"
-CONF_DIR="/etc/hestia"
-SOURCE_CONF="$CONF_DIR/source.conf"
-VERSION="$(cat "$HESTIA/VERSION" 2> /dev/null || echo dev)"
-CHECK_ONLY=false
-[ "${1:-}" = "--check" ] && CHECK_ONLY=true
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/update.sh
+source "$HESTIA/include/update.sh"
 
-# shellcheck disable=SC1090
-[ -f "$SOURCE_CONF" ] && . "$SOURCE_CONF" 2> /dev/null || true
-HESTIARE_SOURCE="${HESTIARE_SOURCE:-github}"
-HESTIARE_REPO_URL="${HESTIARE_REPO_URL:-}"
-HESTIARE_TOKEN="${HESTIARE_TOKEN:-}"
-HESTIARE_CHANNEL="${HESTIARE_CHANNEL:-stable}"
-GITHUB_REPO="HestiaRE/Hestia"
-GITHUB_API="https://api.github.com/repos/$GITHUB_REPO"
-GITHUB_RAW="https://github.com/$GITHUB_REPO/releases/download"
-# github.com has no AAAA: the mirror serves the same repo unchanged. Twin literal in install.sh,
-# which runs before this tree exists; a private Gitea release never falls back to it.
-RELEASE_MIRROR="${HESTIARE_MIRROR-https://dl.hestiare.com}"
-[ "$HESTIARE_SOURCE" = "gitea" ] && RELEASE_MIRROR=""
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
 
-AUTH=()
-[ -n "$HESTIARE_TOKEN" ] && AUTH=(-H "Authorization: token $HESTIARE_TOKEN")
+PLAN="${1:-}"
+[ -n "$PLAN" ] || check_result "$E_ARGS" "usage: h-update-hestia PLAN (the update.conf of a run directory)"
+# Absolute, because the log and the marker land next to the plan: a bare name would scatter them
+# across whatever directory the caller happened to stand in. Nothing here creates a run directory;
+# one that does not exist means there is no backup to go back to, and that is update.sh's job.
+case "$PLAN" in
+	/*) ;;
+	*) check_result "$E_INVALID" "PLAN must be an absolute path - the log and the marker belong next to the backup" ;;
+esac
+[ -f "$PLAN" ] || check_result "$E_NOTEXIST" "no plan at $PLAN"
+RUNDIR=$(dirname "$PLAN")
+jq -e '.entries | type == "array"' "$PLAN" > /dev/null 2>&1 \
+	|| check_result "$E_PARSING" "$PLAN carries no entry list - derive it with h-list-sys-updates json"
 
-# $1 = api|raw, $2 = path below that root, rest = curl args. Bounded so an unroutable host
-# surfaces in seconds; the mirror never sees the Gitea token.
-release_get() {
-	local kind="$1" path="$2" primary mirror
-	shift 2
-	case "$kind" in
-		api) primary="$GITHUB_API" mirror="$RELEASE_MIRROR/api" ;;
-		raw) primary="$GITHUB_RAW" mirror="$RELEASE_MIRROR/raw" ;;
-	esac
-	curl -fsSL --connect-timeout 15 --max-time 600 "$@" "$primary$path" && return 0
-	[ -n "$RELEASE_MIRROR" ] || return 1
-	echo "Release source unreachable, retrying via $RELEASE_MIRROR" >&2
-	curl -fsSL --connect-timeout 15 --max-time 600 "$@" "$mirror$path"
-}
+LOG="$RUNDIR/update.log"
+# State, not log: the executor and the rollback script both decide by this file's existence.
+MARKER="$RUNDIR/point-of-no-return"
+# Named here, written in phase 5 next to the backup: this path is the contract between the two, and
+# the error path prints it as a way out. Phase 5 has to put a script of exactly this name there.
+ROLLBACK="$RUNDIR/rollback.sh"
+RUNID=$(date '+%Y-%m-%d %H:%M:%S')
 
-resolve_latest() {
-	if [ "$HESTIARE_SOURCE" = "gitea" ]; then
-		curl -fsSL "${AUTH[@]}" "$HESTIARE_REPO_URL/releases/latest" | jq -r '.tag_name'
-	elif [ "$HESTIARE_CHANNEL" = "prerelease" ]; then
-		release_get api "/releases" | jq -r '.[0].tag_name'
-	else
-		release_get api "/releases/latest" | jq -r '.tag_name'
-	fi
-}
+log() { printf '%s %s\n' "$RUNID" "$1" >> "$LOG"; }
 
-echo "Checking for updates..."
-LATEST="$(resolve_latest)"
-[ -n "$LATEST" ] && [ "$LATEST" != "null" ] || {
-	echo "ERROR: could not determine latest release." >&2
-	exit 1
-}
-echo "Installed: $VERSION"
-echo "Available: $LATEST"
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
 
-if [ "$LATEST" = "v$VERSION" ] || [ "$LATEST" = "$VERSION" ]; then
-	echo "Already up to date."
-	exit 0
-fi
-if [ "$CHECK_ONLY" = true ]; then
-	echo "Update available: $LATEST"
-	exit 0
-fi
-
-echo "Updating to $LATEST..."
-if [ "$HESTIARE_SOURCE" = "gitea" ]; then
-	curl -fsSL "${AUTH[@]}" "$HESTIARE_REPO_URL/releases/download/$LATEST/hestiare-$LATEST.tar.gz" \
-		-o /tmp/hestiare-update.tar.gz
+count=$(jq -r '.entries | length' "$PLAN")
+irreversible=$(jq -r '[.entries[] | select(.reversible != true) | .identity] | join(", ")' "$PLAN")
+echo "Plan: $count entry(s) from $(jq -r '.version_from' "$PLAN") to $(jq -r '.version_to' "$PLAN")"
+if [ -n "$irreversible" ]; then
+	echo "      past the point of no return: $irreversible"
 else
-	release_get raw "/$LATEST/hestiare-$LATEST.tar.gz" -o /tmp/hestiare-update.tar.gz
+	echo "      every entry can be taken back by putting files back"
 fi
-tar -xzf /tmp/hestiare-update.tar.gz -C /tmp
-rm -f /tmp/hestiare-update.tar.gz
-# Same bar as install.sh: a mirror can cache or hand back the wrong asset, and the tree that
-# is about to overwrite a running panel has to carry the version that was asked for.
-GOT=$(cat "/tmp/hestiare-$LATEST/VERSION" 2> /dev/null || echo "")
-if [ "${GOT#v}" != "${LATEST#v}" ]; then
-	echo "ERROR: fetched release is not $LATEST (tree says '${GOT:-nothing}'). Nothing was changed." >&2
-	rm -rf "/tmp/hestiare-$LATEST"
-	exit 1
+log "run starts, $count entry(s), plan $PLAN"
+
+failed=""
+while read -r entry; do
+	[ -n "$entry" ] || continue
+	ident=$(jq -r '.identity' <<< "$entry")
+	type=$(jq -r '.action.type' <<< "$entry")
+	mapfile -t argv < <(upd_argv "$entry" .action)
+
+	# The line is drawn when it is reached, not when the plan is read: a run that stops before the
+	# first irreversible entry must stay rollback-able, and the marker is what says so.
+	if [ "$(jq -r '.reversible' <<< "$entry")" != true ] && [ ! -f "$MARKER" ]; then
+		printf '%s\n' "$RUNID" > "$MARKER"
+		echo "--- point of no return: from here nothing is undone by putting files back ---"
+		log "marker written before $ident"
+	fi
+
+	echo "[ * ] $ident: $(jq -r '.description' <<< "$entry")"
+	log "start $ident ($type)"
+	upd_action "$type" "${argv[@]}"
+	rc=$?
+	log "end   $ident rc=$rc"
+	if [ "$rc" -ne 0 ]; then
+		failed="$ident"
+		break
+	fi
+	# Evidence, not control: an entry whose condition survives its own action would run again on
+	# every later plan, and the early exit would never be reachable for it.
+	if upd_entry_applies "$entry"; then
+		echo "[ ! ] $ident ran, but its condition is still true - it does not negate itself"
+		log "warn  $ident condition still true after a successful action"
+	fi
+done < <(jq -c '.entries[]' "$PLAN")
+
+if [ -n "$failed" ]; then
+	log "run stops at $failed"
+	echo
+	echo "h-update-hestia: stopped at $failed (rc $rc). Nothing after it ran."
+	if [ -f "$MARKER" ]; then
+		echo "  This run is PAST the point of no return, so writing files back is not offered."
+		echo "  forward: hestia update    (the plan is derived again, done entries fall out)"
+	else
+		echo "  back:    bash $ROLLBACK"
+		echo "  forward: hestia update    (the plan is derived again, done entries fall out)"
+	fi
+	echo "  log:     $LOG"
+	exit "$E_UPDATE"
 fi
-# Stop the panel around the copy so in-use files are not clobbered.
-systemctl stop caddy hestia-php 2> /dev/null || true
-cp -r "/tmp/hestiare-$LATEST/." "$HESTIA/"
-rm -rf "/tmp/hestiare-$LATEST"
-# No apt-package migration step: HestiaRE ships no hestia-* apt packages.
-# Migrate any legacy $HESTIA/data/* dirs to their $CONF_DIR targets (#148)
-# while the panel is stopped, so the new code never reads the old paths.
-# shellcheck disable=SC1090
-[ -f "$HESTIA/include/helper.sh" ] && . "$HESTIA/include/helper.sh" && reapply_outside_tree || true
-# The key registries under conf/defaults/ were written at install time. A release that adds or
-# drops a record key leaves them stale, and the repairs then work from yesterday's key list while
-# the smoke check reports drift on every updated box.
-"$HESTIA/bin/h-update-sys-defaults" > /dev/null 2>&1 || true
+
+#----------------------------------------------------------#
+#                       Epilogue                           #
+#----------------------------------------------------------#
+
+# Only when the list is done. Housekeeping, and none of it may keep the box in the unfinished state:
+# a failed repair is loud and repeatable by hand, it is not a reason to withhold the version.
+if ! "$BIN/h-repair-sys-config" repair > /dev/null 2>&1; then
+	echo "[ ! ] h-repair-sys-config repair ended non-zero - run it by hand and read what it says"
+	log "warn  repair ended non-zero"
+fi
+"$BIN/h-update-sys-defaults" > /dev/null 2>&1 || true
+
+# Already right means do not write, the same rule the actions follow: a needless rewrite moves an
+# mtime that guards read, and it would show up in the path measurement as a write nobody declared.
+tree_version=$(cat "$HESTIA/VERSION" 2> /dev/null)
+if [ -z "$tree_version" ]; then
+	echo "[ ! ] no VERSION in $HESTIA - the status version stays on the old value"
+	log "warn  tree carries no VERSION"
+elif [ "$(upd_key_value VERSION)" = "$tree_version" ]; then
+	log "status version already $tree_version"
+else
+	change_sys_value VERSION "$tree_version"
+	log "status version set to $tree_version"
+fi
+[ -z "$(upd_key_value UPDATE_AVAILABLE)" ] || clear_sys_value UPDATE_AVAILABLE
+# Unconditional on purpose, and there is no stop to match it: update.sh stops the panel around the
+# unpacking. Whatever the run found, it leaves the panel running.
 systemctl start caddy hestia-php 2> /dev/null || true
-echo "Update complete."
+
+log "run done"
+echo
+echo "Done: $count entry(s), status version $(cat "$HESTIA/VERSION" 2> /dev/null). Log: $LOG"
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+exit

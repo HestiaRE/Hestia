@@ -25,7 +25,7 @@ Usage: hestia <command> [args]
 
   install      run the installer (reads $CONF_DIR/install.conf)
   configure    (re)generate $CONF_DIR/install.conf via the wizard
-  update       update HestiaRE from the latest release tarball  [--check]
+  update       work an update plan off                          PLAN
   uninstall    remove HestiaRE panel config (keeps /home + DBs) [--purge]
   status       show installed version, OS, profile and components
 EOF

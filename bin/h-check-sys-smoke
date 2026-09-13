@@ -2347,7 +2347,9 @@ check_update_version() {
 	# A bound above the tree would mean this release refuses to carry itself onward. Unreadable is red,
 	# never green: without the literal nothing turns a too-old box away.
 	local bound
-	bound=$(sed -n "s/^UPDATE_MIN_VERSION='\(.*\)'\$/\1/p" "$HESTIA/update.sh" 2> /dev/null | head -1)
+	# Everything after the `=`, quotes stripped: the value decides, not how it is spelled. A commented
+	# out or renamed line matches nothing and is red below.
+	bound=$(sed -n 's/^UPDATE_MIN_VERSION=//p' "$HESTIA/update.sh" 2> /dev/null | head -1 | tr -d "\"'")
 	if [ -z "$bound" ]; then
 		no "update: no lower bound found in update.sh" "UPDATE_MIN_VERSION is what refuses a box below it"
 	elif version_ge "$tree" "$bound"; then

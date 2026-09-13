@@ -5,10 +5,8 @@
 # example: h-change-sys-release release
 # example: h-change-sys-release v0.19.0
 #
-# TARGET is either `release`, which follows the newest tag of the configured source, or a `vX.Y.Z`
-# pin on one tag. There are no channels: development happens against a private Gitea and a release
-# is pushed to the public repo, so there is no second stream to choose from. A pin is checked
-# against the source before it is written, because a tag nobody carries would stop updates silently.
+# TARGET is `release` for the newest tag, or a vX.Y.Z pin. There are no channels. A pin is checked
+# against the source before it is written: a tag nobody carries would stop updates silently.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

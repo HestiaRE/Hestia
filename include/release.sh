@@ -7,8 +7,12 @@
 # public repo, and RELEASE_BRANCH says which tag a box follows: `release` for the newest one, or a
 # `vX.Y.Z` pin. Nothing here knows about beta or nightly, because nothing produces them.
 
+# main.sh sources sysreg.sh through $HESTIA, so the variable has to exist before it is read, not only
+# inside the path here. Sourced without hestia.env, the old form loaded a main.sh that then looked for
+# /include/sysreg.sh and left every sysreg_* function undefined.
+HESTIA="${HESTIA:-/usr/local/hestia}"
 # shellcheck source=/usr/local/hestia/include/main.sh
-[ -n "${HESTIA_RELEASE_MIRROR:-}" ] || source "${HESTIA:-/usr/local/hestia}/include/main.sh"
+[ -n "${HESTIA_RELEASE_MIRROR:-}" ] || source "$HESTIA/include/main.sh"
 
 RELEASE_REPO="HestiaRE/Hestia"
 RELEASE_API="https://api.github.com/repos/$RELEASE_REPO"

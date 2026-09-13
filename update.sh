@@ -126,8 +126,18 @@ systemctl stop caddy hestia-php 2> /dev/null || true
 rm -rf "$HESTIA"
 tar xzf "\$RUN/install-root.tar.gz" -C "$(dirname "$HESTIA")"
 cp -a "\$RUN/hestia.conf" "$HESTIA/conf/hestia.conf"
+# The per-entry paths. An action may write outside $HESTIA (the systemd units of the proc hardening
+# and the PHP limit are the near cases), and the tree tarball does not know those files. Without
+# this an entry calling itself reversible would not be.
+if [ -d "\$RUN/paths" ] && [ -n "\$(ls -A "\$RUN/paths" 2> /dev/null)" ]; then
+	echo "Putting back \$(find "\$RUN/paths" -type f -o -type l | wc -l) saved path(s) outside the tree."
+	cp -a "\$RUN/paths/." /
+fi
 systemctl start caddy hestia-php 2> /dev/null || true
 echo "Restored from \$RUN. The status version is \$(sed -n "s/^VERSION='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1)."
+# Said out loud, because it is the one thing this cannot do: a path that did not exist before the run
+# has no copy here, so a file an entry created stays where it is.
+echo "A file an entry created did not exist before and is still there; only saved paths came back."
 ROLLBACK
 chmod 700 "$RUNDIR/rollback.sh"
 

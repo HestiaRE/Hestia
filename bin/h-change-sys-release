@@ -1,65 +1,68 @@
 #!/bin/bash
-# info: update web templates
-# options: [RESTART]
+# info: choose which release this box follows
+# options: TARGET
 #
-# This function for changing the release branch for the
-# Hestia Control Panel. This allows the user to switch between
-# stable and pre-release builds which will automaticlly update
-# based on the appropriate release schedule if auto-update is
-# turned on.
+# example: h-change-sys-release release
+# example: h-change-sys-release v0.19.0
+#
+# TARGET is either `release`, which follows the newest tag of the configured source, or a `vX.Y.Z`
+# pin on one tag. There are no channels: development happens against a private Gitea and a release
+# is pushed to the public repo, so there is no second stream to choose from. A pin is checked
+# against the source before it is written, because a tag nobody carries would stop updates silently.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
 #----------------------------------------------------------#
 
 # Argument definition
-branch=$1
+target=$1
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
-# shellcheck source=/usr/local/hestia/include/main.sh
-source $HESTIA/include/main.sh
-# load config file
-source_conf "$HESTIA/conf/hestia.conf"
+# shellcheck source=/usr/local/hestia/include/release.sh
+source $HESTIA/include/release.sh
 
 #----------------------------------------------------------#
 #                    Verifications                         #
 #----------------------------------------------------------#
 
+if [ -z "$target" ]; then
+	echo "Usage: h-change-sys-release TARGET"
+	echo ""
+	echo "  release    follow the newest release of the configured source"
+	echo "  vX.Y.Z     stay on exactly this tag"
+	echo ""
+	echo "Current: $(sed -n "s/^RELEASE_BRANCH='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1)"
+	exit
+fi
+
+case "$target" in
+	release) ;;
+	v[0-9]*)
+		echo "Checking whether the source carries $target..."
+		if ! release_tag_exists "$target"; then
+			check_result "$E_NOTEXIST" "the release source has no tag $target - nothing would be fetched"
+		fi
+		;;
+	*) check_result "$E_INVALID" "expected 'release' or a tag like v0.19.0, got '$target'" ;;
+esac
+
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
-if [ -z "$branch" ]; then
-	echo "Error: no release branch specified."
-	echo "Usage: h-change-sys-release branchname"
-	echo ""
-	echo "Release branches:"
-	echo "- release:            the latest stable release"
-	echo "- beta:               beta and release candidate test releases"
-	echo "- main:               work-in-progress code for the next release"
-	echo ""
-	echo "You can also specify another branch name from the"
-	echo "GitHub repository to install the code from that branch."
-	echo ""
-	exit
-else
-	# Check that requested branch exists
-	echo "Checking for existence of $branch branch..."
-	branch_check=$(curl -s --head -w %{http_code} "https://raw.githubusercontent.com/hestiacp/hestiacp/$branch/src/deb/hestia/control" -o /dev/null)
-	if [ "$branch_check" -ne "200" ]; then
-		echo "Error: invalid branch name specified."
-		exit 1
-	fi
 
-	# the one writer (temp+rename, verified) instead of an unanchored delete-and-append (#978)
-	change_sys_value "RELEASE_BRANCH" "$branch"
-	echo "Updated system to update from Git using branch: $branch"
+# The one writer (temp+rename, verified) instead of an unanchored delete-and-append (#978)
+change_sys_value "RELEASE_BRANCH" "$target"
+if [ "$target" = release ]; then
+	echo "This box now follows the newest release ($(release_latest_tag))."
+else
+	echo "This box is pinned to $target."
 fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-$BIN/h-log-action "system" "Info" "System" "Update branch changed (Value: $branch)."
+$BIN/h-log-action "system" "Info" "System" "Release target changed (Value: $target)."
 exit

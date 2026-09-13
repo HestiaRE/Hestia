@@ -206,9 +206,10 @@
       }
     },
     "update_engine": {
-      "description": "The update building blocks and the derivation (#946 Phase 2, #947 Phase 3 of the update chapter). Conditions and actions are named functions behind one dispatcher, so a manifest entry is data and never shell. The derivation reads share/updates/*.json plus the box status and emits the plan that a run writes as update.conf; it executes nothing. The executor (sbin/h-update-hestia) works that plan off. Since #948 nothing re-applies the outside-tree parts by itself: reapply_outside_tree is gone, the two unit re-applications belong to the release that changes the unit, and the two that have no tree counterpart (sudoers, login.defs) are reported by the smoke with the command that ends the drift. Boundary: a guard reports, an action writes.",
+      "description": "The update building blocks and the derivation (#946 Phase 2, #947 Phase 3 of the update chapter). Conditions and actions are named functions behind one dispatcher, so a manifest entry is data and never shell. The derivation reads share/updates/*.json plus the box status and emits the plan that a run writes as update.conf; it executes nothing. The executor (sbin/h-update-hestia) works that plan off. include/release.sh answers where a release comes from, for everything that runs on an installed box; install.sh cannot use it, because it resolves a release before this tree exists, and the smoke holds the two mirror literals against each other. There are no channels: RELEASE_BRANCH is either `release` (newest tag) or a `vX.Y.Z` pin, and h-change-sys-release refuses a pin the source does not carry. Since #948 nothing re-applies the outside-tree parts by itself: reapply_outside_tree is gone, the two unit re-applications belong to the release that changes the unit, and the two that have no tree counterpart (sudoers, login.defs) are reported by the smoke with the command that ends the drift. Boundary: a guard reports, an action writes.",
       "entry_points": [
         "include/update.sh",
+        "include/release.sh",
         "sbin/h-update-hestia",
         "bin/h-list-sys-updates",
         "share/updates/ (one JSON per release, README.md carries the author rules)",
@@ -216,6 +217,8 @@
       ],
       "key_files": [
         "include/update.sh",
+        "include/release.sh",
+        "bin/h-change-sys-release",
         "sbin/h-update-hestia",
         "bin/h-list-sys-updates",
         "share/updates/README.md",

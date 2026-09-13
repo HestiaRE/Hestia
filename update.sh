@@ -38,6 +38,21 @@ TARGET=$(release_target_tag) || die "update: cannot tell which release to follow
 TREE=$(tree_version)
 say "Installed: ${TREE:-unknown}   Target: $TARGET"
 
+# --check is also the writer of the panel flag, and it sits BEFORE the early exit: behind it the
+# "nothing to do" branch leaves, and a key set once would keep the banner up forever. It is the one
+# place that already knows the answer. Empty, not "no": absent and empty are one state everywhere.
+if [ "$CHECK_ONLY" = yes ]; then
+	if [ "$TARGET" = "$TREE" ]; then
+		[ -z "$(sed -n "s/^UPDATE_AVAILABLE='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1)" ] \
+			|| "$HESTIA/bin/h-change-sys-config-value" UPDATE_AVAILABLE "" > /dev/null 2>&1
+		say "--check: nothing newer than $TREE"
+	else
+		"$HESTIA/bin/h-change-sys-config-value" UPDATE_AVAILABLE yes > /dev/null 2>&1
+		say "--check: would update to $TARGET"
+	fi
+	exit 0
+fi
+
 #----------------------------------------------------------#
 #                      Is there work                       #
 #----------------------------------------------------------#
@@ -52,11 +67,6 @@ if [ "$TARGET" = "$TREE" ]; then
 	fi
 	say "[ ! ] tree is $TREE but the status says ${STATUS:-<empty>} - finishing that run instead of fetching"
 fi
-
-[ "$CHECK_ONLY" = yes ] && {
-	say "--check: would update to $TARGET"
-	exit 0
-}
 
 #----------------------------------------------------------#
 #                    Fetch and verify                      #

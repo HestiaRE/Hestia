@@ -205,6 +205,29 @@
         ]
       }
     },
+    "update_engine": {
+      "description": "The update building blocks and the derivation (#946 Phase 2, #947 Phase 3 of the update chapter). Conditions and actions are named functions behind one dispatcher, so a manifest entry is data and never shell. The derivation reads share/updates/*.json plus the box status and emits the plan that a run writes as update.conf; it executes nothing. The executor (sbin/h-update-hestia) works that plan off. Since #948 nothing re-applies the outside-tree parts by itself: reapply_outside_tree is gone, the two unit re-applications belong to the release that changes the unit, and the two that have no tree counterpart (sudoers, login.defs) are reported by the smoke with the command that ends the drift. Boundary: a guard reports, an action writes.",
+      "entry_points": [
+        "include/update.sh",
+        "sbin/h-update-hestia",
+        "bin/h-list-sys-updates",
+        "share/updates/ (one JSON per release, README.md carries the author rules)",
+        "bin/h-check-sys-smoke (check_update_dispatcher, check_update_manifests)"
+      ],
+      "key_files": [
+        "include/update.sh",
+        "sbin/h-update-hestia",
+        "bin/h-list-sys-updates",
+        "share/updates/README.md",
+        "share/hestia/sys-keys.json (the registry decides whether a key name is a name)"
+      ],
+      "language": "bash + json",
+      "guards": "Two in the smoke, both derived from the code: the dispatcher's accepted name set against the defined upd_cond_*/upd_act_* functions (an empty derivation is red), and the structure of every shipped manifest through upd_manifest_check (file name against the version field, ids unique per file, every condition and action type known, the after graph resolvable and free of cycles, reversible within its action's bound). The manifest guard prints how many entries it read, because zero manifests is the honest state until Phase 5 and a green line must not read as coverage.",
+      "quirks": "An entry carries exactly ONE action: its reversibility is its action's, nothing folds over a set, and a mixed pair (file_copy plus service_restart) stays two entries so the reversible half can still run in front of the point of no return. reversible may be declared more pessimistic than the action type, never more optimistic; only the upper bound is a lie the guard has to catch. Every rc 2 a condition can return comes from the tree (unknown key, value outside the vocabulary), never from the box, so evaluating a condition is a structural check the smoke may run. The list is derived once before the run: an entry whose condition only becomes true because another entry ran is not in it, and after does not add it.",
+      "dependencies": [
+        "jq (install prereq)"
+      ]
+    },
     "sys_key_registry": {
       "description": "The system key registry (#932, Phase 1a of the update chapter): one entry per hestia.conf key with class and default. Since 1c (#944) share/manifest.json links every component to its key (status_key, status_token, status_artefact) and h-check-sys-smoke holds the link against the registry and the box. betreiber = a human sets it, the repair fills an absent/empty key with the default, an update never touches it. system = the consequence of a command, never filled by the repair; the smoke says whether it agrees with the box. Read at runtime from the tree on purpose (STRUCTURE.md, section 8).",
       "entry_points": [
@@ -654,7 +677,7 @@
         "include/helper.sh": "hestia_apt (spinner + apt log split), load_os_profile (OS_ID/CODENAME/RELEASE/EXIM_USR/BASE_PKGS_EXTRA for deb12/deb13/ub24/ub26), seed_hestia_etc (hestia.env + profile.d + seed hestia.conf).",
         "sbin/h-install-hestia": "Non-interactive orchestrator: validates /etc/hestia, sources hestia.env+main.sh+helper.sh+install.conf, runs stages gated by COMPONENT_*. Idempotent via .done.* sentinels (exit→return).",
         "sbin/hestia": "Umbrella dispatcher: hestia install|configure|update|uninstall|status (no v-* alias).",
-        "sbin/h-update-hestia": "Update whole distribution from release tarball (+ --check); stops/starts hestia around copy. Does NOT use the legacy h-update-sys-hestia* apt/git updaters (removal tracked in #128).",
+        "sbin/h-update-hestia": "The executor (#948, phase 4 of the update chapter): takes the path to a run directory's update.conf and works the entries off through the dispatcher in include/update.sh. Finding, downloading, unpacking and securing a release is update.sh (phase 5), not this. Refuses when the run directory is missing, because that is where the backup and the rollback script live. The log goes into the run directory, never to a central file: it is evidence, and it is pruned with the run. Writes the point-of-no-return marker when it reaches the first irreversible entry, so a run that stops before it stays rollback-able. Epilogue only when the list is done: repair, object registries, status VERSION from the tree, UPDATE_AVAILABLE cleared, panel started.",
         "sbin/h-uninstall-hestia": "Conservative uninstall (keeps /home + DBs always; --purge removes packages + /usr/local/hestia + /etc/hestia).",
         "bin/h-list-sys-install": "Status report: version, source, OS, profile, .done.* phases, COMPONENT_*."
       },

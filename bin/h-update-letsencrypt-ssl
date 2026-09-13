@@ -78,7 +78,9 @@ for user in $("$BIN/h-list-users" list); do
 			f_aliases=''
 
 			# Loop through all crt aliases
-			for alias in ${aliases//,/ }; do
+			IFS=, read -ra _alias_list <<< "$aliases"
+			for alias in "${_alias_list[@]}"; do
+				[ -n "$alias" ] || continue
 				# Validate if the alias still exists in web.conf
 				if [[ ",$ALIAS," =~ ,$alias, ]]; then
 					f_aliases+="$alias,"

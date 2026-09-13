@@ -503,7 +503,10 @@ check_webmail_value_domain() {
 # A hand edit or a migration entry is how such a token gets there. An empty key is a box without webmail.
 check_webmail_tokens_known() {
 	local t unknown='' n=0
-	for t in ${WEBMAIL_SYSTEM//,/ }; do
+	local -a _t_list
+	IFS=, read -ra _t_list <<< "$WEBMAIL_SYSTEM"
+	for t in "${_t_list[@]}"; do
+		[ -n "$t" ] || continue
 		n=$((n + 1))
 		case " $WEBMAIL_KNOWN_CLIENTS " in *" $t "*) ;; *) unknown="$unknown $t" ;; esac
 	done
@@ -2067,16 +2070,17 @@ check_record_grammar() {
 # without this tree), so this measures them against each other. The DEFAULT only, and it never
 # asks whether the host answers - that is the fetch's job.
 check_release_mirror() {
-	local a b c
+	local a c
+	# Two homes since #948: the fetch left h-update-hestia, which now only works a plan off. Phase 5
+	# gives the third home back as update.sh, and this guard has to grow it back with it.
 	a=$(sed -n 's|^RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/install.sh" 2> /dev/null | head -n1)
-	b=$(sed -n 's|^RELEASE_MIRROR="${HESTIARE_MIRROR-\(https://[^"}]*\)}"$|\1|p' "$HESTIA/sbin/h-update-hestia" 2> /dev/null | head -n1)
 	c=$(sed -n 's|^HESTIA_RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/include/main.sh" 2> /dev/null | head -n1)
-	if [ -z "$a" ] || [ -z "$b" ] || [ -z "$c" ]; then
-		no "release mirror default unreadable" "install.sh='${a:-none}' h-update-hestia='${b:-none}' main.sh='${c:-none}' - a line moved and this guard now measures nothing"
-	elif [ "$a" != "$b" ] || [ "$a" != "$c" ]; then
-		no "release mirror default drifted" "install.sh=$a, h-update-hestia=$b, main.sh=$c - the bootstrap and the runtime fetches would use different hosts"
+	if [ -z "$a" ] || [ -z "$c" ]; then
+		no "release mirror default unreadable" "install.sh='${a:-none}' main.sh='${c:-none}' - a line moved and this guard now measures nothing"
+	elif [ "$a" != "$c" ]; then
+		no "release mirror default drifted" "install.sh=$a, main.sh=$c - the bootstrap and the runtime fetches would use different hosts"
 	else
-		ok "release mirror default identical in all three fetch paths ($a)"
+		ok "release mirror default identical in both fetch paths ($a)"
 	fi
 }
 
@@ -2298,6 +2302,81 @@ check_operator_keys_present() {
 # A type the dispatcher accepts but nothing defines would be skipped, and a skipped entry looks exactly
 # like one whose condition was false. Both sets come from the code, never from a list here.
 # THE BOUNDARY: this verifies, it never repairs. See the header of include/update.sh.
+# Structure of the update manifests, not their effect: types, ids, the `after` graph and the
+# reversibility claim. It says how many entries it read, because until the first release ships a
+# manifest the honest answer is zero and a green line must not read as coverage.
+check_update_manifests() {
+	local lib="$HESTIA/include/update.sh" out n
+	[ -f "$lib" ] || return
+	# In a subshell: the library re-sources main.sh, and the smoke keeps its own state.
+	if ! out=$(
+		# shellcheck source=/usr/local/hestia/include/update.sh
+		source "$lib" > /dev/null 2>&1
+		upd_manifest_check 2>&1
+	); then
+		no "update manifests are not sound" "$(echo "$out" | head -3 | tr '\n' '|')"
+		return
+	fi
+	n=$(echo "$out" | tail -1)
+	case "$n" in '' | *[!0-9]*) n=-1 ;; esac
+	if [ "$n" -lt 0 ]; then
+		no "update manifests: the check returned no count" "the derivation moved, so nothing was measured"
+	elif [ "$n" -eq 0 ]; then
+		ok "update manifests: none in share/updates yet, nothing to check"
+	else
+		ok "update manifests: $n entry(s) read, every type, id and dependency holds"
+	fi
+}
+
+# A release is unpacked before its plan runs, and the status version is written only when the plan is
+# done, so a difference is the wanted signal for an unfinished run and not cosmetic drift.
+check_update_version() {
+	local tree
+	tree=$(cat "$HESTIA/VERSION" 2> /dev/null)
+	if [ -z "$tree" ]; then
+		no "the install tree carries no VERSION" "every version comparison in the updater reads this file"
+		return
+	fi
+	if [ "$tree" = "$VERSION" ]; then
+		ok "update state: tree and status agree on $tree"
+	else
+		no "update did not finish: tree is $tree, status says ${VERSION:-<empty>}" \
+			"work the plan off, then the status follows: h-update-hestia <run directory>/update.conf"
+	fi
+}
+
+# Since #948 an update no longer re-applies this by itself, so the drift is reported with the command
+# that ends it. The deployed file is the tree file with one line possibly prepended (visudo decides),
+# so the tail is compared, not the whole file.
+check_sudoers_drift() {
+	local tree="$HESTIA/share/hestia/sudoers" live=/etc/sudoers.d/hestia tmp
+	local fix="source $HESTIA/include/helper.sh && deploy_hestia_sudoers"
+	local rtree="$HESTIA/share/hestia/rsyslog-sudo-nolog.conf" rlive=/etc/rsyslog.d/10-hestia-sudo-nolog.conf
+	if [ ! -f "$tree" ] || [ ! -f "$live" ]; then
+		skip "sudoers drift not checkable (tree file or /etc/sudoers.d/hestia absent)"
+		return
+	fi
+	tmp=$(mktemp) || return
+	if [ "$(head -1 "$live")" = 'Defaults:hestia !log_allowed' ]; then
+		tail -n +2 "$live" > "$tmp"
+	else
+		cat "$live" > "$tmp"
+	fi
+	if cmp -s "$tree" "$tmp"; then
+		ok "sudoers grant matches the tree"
+	else
+		no "sudoers grant differs from the tree" "an update does not re-apply it: $fix"
+	fi
+	rm -f "$tmp"
+	if [ -f "$rtree" ] && [ -d /etc/rsyslog.d ]; then
+		if cmp -s "$rtree" "$rlive"; then
+			ok "sudo log drop rule matches the tree"
+		else
+			no "sudo log drop rule differs from the tree" "an update does not re-apply it: $fix"
+		fi
+	fi
+}
+
 check_update_dispatcher() {
 	local lib="$HESTIA/include/update.sh" defined accepted missing extra
 	if [ ! -f "$lib" ]; then
@@ -2305,7 +2384,7 @@ check_update_dispatcher() {
 		return
 	fi
 	defined=$(grep -oE '^upd_(cond|act)_[a-z_]+\(\)' "$lib" | sed -E 's/^upd_(cond|act)_//; s/\(\)$//' | sort -u)
-	accepted=$(sed -n '/^upd_condition() {/,/^}/p;/^upd_action() {/,/^}/p' "$lib" \
+	accepted=$(sed -n '/^upd_condition() {/,/^}/p;/^upd_action_check() {/,/^}/p' "$lib" \
 		| grep -oE '^[[:space:]]*[a-z_]+( \| [a-z_]+)*\)' | tr -d '\t )' | tr '|' '\n' \
 		| sed 's/^ *//; s/ *$//' | grep -vE '^(\*|key_missing)$' | sort -u)
 	if [ -z "$defined" ] || [ -z "$accepted" ]; then
@@ -2354,10 +2433,16 @@ check_system_keys_agree() {
 	elif [ ! -f "$CONF_DIR/users/$ROOT_USER/user.conf" ] || ! grep -q "^ROLE='admin'" "$CONF_DIR/users/$ROOT_USER/user.conf"; then
 		bad="$bad ROOT_USER($ROOT_USER:no-admin-record)"
 	fi
-	for t in ${DB_SYSTEM//,/ }; do
+	local -a _t_list
+	IFS=, read -ra _t_list <<< "$DB_SYSTEM"
+	for t in "${_t_list[@]}"; do
+		[ -n "$t" ] || continue
 		[ -f "$HESTIA/conf/$t.conf" ] || bad="$bad DB_SYSTEM($t:no-host-file)"
 	done
-	for t in ${BACKUP_SYSTEM//,/ }; do
+	local -a _t_list
+	IFS=, read -ra _t_list <<< "$BACKUP_SYSTEM"
+	for t in "${_t_list[@]}"; do
+		[ -n "$t" ] || continue
 		[ "$t" = local ] && continue
 		[ -f "$HESTIA/conf/$t.backup.conf" ] || bad="$bad BACKUP_SYSTEM($t:no-host-file)"
 	done
@@ -2536,7 +2621,8 @@ check_identity_band() {
 		if [ -n "$v" ] && [ "$v" -lt "$band_start" ] 2> /dev/null; then
 			ok "$key caps below the panel band"
 		else
-			no "$key is ${v:-unset}, not below $band_start" "a bare useradd can land inside the band and collide with an allocation"
+			no "$key is ${v:-unset}, not below $band_start" \
+				"a bare useradd lands inside the band; source $HESTIA/include/helper.sh && login_defs_guard"
 		fi
 	done
 
@@ -2548,7 +2634,8 @@ check_identity_band() {
 		if [ -n "$v" ] && [ "$v" -ge 1048675999 ] 2> /dev/null; then
 			ok "$key covers the whole subordinate range"
 		else
-			no "$key is ${v:-unset}, below the highest computed range end" "companion subuid ranges would be rejected later (#389)"
+			no "$key is ${v:-unset}, below the highest computed range end" \
+				"companion subuid ranges get rejected later (#389); source $HESTIA/include/helper.sh && login_defs_guard"
 		fi
 	done
 
@@ -2894,6 +2981,9 @@ check_operator_keys_present
 check_jail_sshd
 check_record_encoding_central
 check_update_dispatcher
+check_update_manifests
+check_update_version
+check_sudoers_drift
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

@@ -454,7 +454,10 @@ rebuild_web_domain_conf() {
 	# refuses, so a restored suspended domain came back with FTP_USER empty and no account. Skipped
 	# here, the record keeps the account and the unsuspend rebuild creates it (the loop fires on
 	# absence from /etc/passwd, which is exactly the state it is in).
-	for ftp_user in ${FTP_USER//:/ }; do
+	local -a _ftp_user_list
+	IFS=: read -ra _ftp_user_list <<< "$FTP_USER"
+	for ftp_user in "${_ftp_user_list[@]}"; do
+		[ -n "$ftp_user" ] || continue
 		if [ "$SUSPENDED" != 'yes' ] && [ -z "$(grep ^$ftp_user: /etc/passwd)" ]; then
 			position=$(echo $FTP_USER | tr ':' '\n' | grep -n '' \
 				| grep ":$ftp_user$" | cut -f 1 -d:)
@@ -512,7 +515,10 @@ auth_basic_user_file    $htpasswd;"
 		# The record's accounts and only those: appending keeps one the panel cannot show.
 		htpasswd_want=''
 		auth_nohash=''
-		for auth_user in ${AUTH_USER//:/ }; do
+		local -a _auth_user_list
+		IFS=: read -ra _auth_user_list <<< "$AUTH_USER"
+		for auth_user in "${_auth_user_list[@]}"; do
+			[ -n "$auth_user" ] || continue
 			position=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' \
 				| grep ":$auth_user$" | cut -f 1 -d:)
 			auth_hash=$(echo $AUTH_HASH | tr ':' '\n' | grep -n '' \
@@ -778,7 +784,10 @@ rebuild_mail_domain_conf() {
 				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
 				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
 			fi
-			for malias in ${ALIAS//,/ }; do
+			local -a _malias_list
+			IFS=, read -ra _malias_list <<< "$ALIAS"
+			for malias in "${_malias_list[@]}"; do
+				[ -n "$malias" ] || continue
 				echo "$malias@$domain_idn:$account@$domain_idn" >> $dom_aliases
 			done
 			if [ -n "$FWD" ]; then

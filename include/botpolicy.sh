@@ -159,7 +159,10 @@ botpolicy_render_domain_fragment() {
 	if [ "$sys" = "nginx" ]; then
 		frag="$HOMEDIR/$user/conf/web/$domain/nginx.botlimit.conf"
 		# shellcheck disable=SC2086 # comma-split of the compact BOTLIMIT field is intentional
-		for entry in ${bl//,/ }; do
+		local -a _entry_list
+		IFS=, read -ra _entry_list <<< "$bl"
+		for entry in "${_entry_list[@]}"; do
+			[ -n "$entry" ] || continue
 			fam=${entry%%:*}
 			lvl=${entry#*:}
 			case "$lvl" in lenient | strict) ;; *) continue ;; esac
@@ -174,7 +177,10 @@ botpolicy_render_domain_fragment() {
 	elif [ "$sys" = "apache2" ]; then
 		frag="$HOMEDIR/$user/conf/web/$domain/botlimit.apache2.conf"
 		# shellcheck disable=SC2086 # comma-split of the compact BOTLIMIT field is intentional
-		for entry in ${bl//,/ }; do
+		local -a _entry_list
+		IFS=, read -ra _entry_list <<< "$bl"
+		for entry in "${_entry_list[@]}"; do
+			[ -n "$entry" ] || continue
 			fam=${entry%%:*}
 			lvl=${entry#*:}
 			case "$lvl" in lenient | strict) ;; *) continue ;; esac
@@ -227,7 +233,10 @@ botpolicy_purge_family() {
 			bl=$(get_object_value "$obj" 'DOMAIN' "$d" '$BOTLIMIT' 2> /dev/null)
 			new=''
 			# shellcheck disable=SC2086 # comma-split of the compact BOTLIMIT field is intentional
-			for e in ${bl//,/ }; do
+			local -a _e_list
+			IFS=, read -ra _e_list <<< "$bl"
+			for e in "${_e_list[@]}"; do
+				[ -n "$e" ] || continue
 				[ "${e%%:*}" = "$fam" ] && continue
 				new="${new:+$new,}$e"
 			done

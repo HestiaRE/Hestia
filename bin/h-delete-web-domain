@@ -63,7 +63,9 @@ fi
 
 # Deleting ftp users
 if [ -n "$FTP_USER" ]; then
-	for ftp_user in ${FTP_USER//:/ }; do
+	IFS=: read -ra _ftp_user_list <<< "$FTP_USER"
+	for ftp_user in "${_ftp_user_list[@]}"; do
+		[ -n "$ftp_user" ] || continue
 		$BIN/h-delete-web-domain-ftp "$user" "$domain" "$ftp_user"
 	done
 fi

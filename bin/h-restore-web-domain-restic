@@ -124,7 +124,9 @@ for domain in "${domains[@]}"; do
 			restore_parse_record prev_web_keys "$archived_record"
 
 			# Deleting conflicting aliases
-			for dom_alias in ${ALIAS//,/ }; do
+			IFS=, read -ra _dom_alias_list <<< "$ALIAS"
+			for dom_alias in "${_dom_alias_list[@]}"; do
+				[ -n "$dom_alias" ] || continue
 				check_new=$(is_domain_new 'web' $dom_alias)
 				if [ -n "$check_new" ]; then
 					ALIAS=$(echo "$ALIAS" \

@@ -14,6 +14,17 @@ opens above it.
 
 ### Added
 
+- **The derivation: what this box would have to catch up on** (#947, phase 3). `share/updates/` takes
+  one JSON file per release, `h-list-sys-updates` merges them, evaluates every condition against the
+  box and prints the list a run would work through. It executes nothing, and the proof of that is part
+  of the measurement rather than a claim. An entry carries exactly **one** action, so its reversibility
+  is its action's and nothing has to be folded over a set. That is not only simpler: a bundle would be
+  systematically too careful, because `file_copy` plus `service_restart` in one entry is irreversible
+  as a whole and lands behind the point of no return, although the copy could have run in front of it,
+  where a rollback still reaches. `reversible` may be declared more pessimistic than the action allows,
+  never more optimistic; only the second direction can lie about safety, and only that one is guarded.
+  Ordering is reversible first, then dependencies, then version, then id - and versions sort as
+  versions, because `0.10` after `0.9` is exactly the trap that looks right in a directory listing.
 - **The update building blocks, with no caller yet** (#946, phase 2). `include/update.sh` carries seven
   condition types and ten action types behind one dispatcher, so a later manifest entry is a line of
   data instead of a line of code. An unknown type is an **error**, never a skip: a skipped entry looks
@@ -84,6 +95,18 @@ opens above it.
   shell names; nothing the eleven read comes from `hestia.conf` under a name it withholds.
 
 ### Changed
+
+- **`h-update-hestia` ist der Executor, und sonst nichts** (#948, phase 4). It takes the path to a run
+  directory's `update.conf` and works the entries off through the dispatcher; finding, downloading,
+  unpacking and securing a release is `update.sh` in the next phase. It **refuses** when the run
+  directory is missing, because that is where the backup and the rollback script live and a run
+  without them is the one thing that must never happen by accident. The log goes into the run
+  directory rather than to a central file: it is evidence, it is pruned with the run, and it needs no
+  logrotate rule that would change what a fresh install carries. The point-of-no-return marker is
+  written when the first irreversible entry is reached, not when the plan is read, so a run that
+  stops earlier stays rollback-able. After every entry its own condition is evaluated again: an entry
+  that does not negate itself gets a loud line, because it would otherwise run on every later plan
+  and the early exit would never be reachable for it.
 
 - **Two operator defaults leave `include/main.sh`** (#992). `BACKUP` and `BACKUP_GZIP` are operator
   keys whose default the registry carries; a copy in code is a second home that drifts the moment the
@@ -346,6 +369,16 @@ opens above it.
 
 ### Removed
 
+- **`reapply_outside_tree`** (#948). The function re-applied seven things after every update. Measured
+  against the update lower bound, three were one-time migrations that no box can still need: the theme
+  renames, the stale theme CSS, and the `chmod 600` on `/etc/profile.d/hestia.sh`, which the installer
+  has written that way for a while. Two become entries of the release that actually changes the unit.
+  The remaining two have no tree counterpart to compare against - `/etc/sudoers.d/hestia` is the tree
+  file with one line prepended, and `login_defs_guard` edits a file that is nobody's copy - so no
+  condition could go false after them, and an entry whose condition survives its own action is exactly
+  what the model refuses. They are reported by the smoke instead, with the command that ends the
+  drift, the way `check_jail_sshd` has done since phase 1d-3.
+
 - **The status value `remote`, which no writer has ever set** (#1015). Twelve status keys carried a
   branch for it - `MAIL_SYSTEM`, `WEB_SYSTEM`, `IMAP_SYSTEM`, `PROXY_SYSTEM`, `FTP_SYSTEM`,
   `WEB_BACKEND`, `ANTISPAM_SYSTEM`, `FIREWALL_SYSTEM`, `CRON_SYSTEM`, `ANTIVIRUS_SYSTEM`,
@@ -382,6 +415,41 @@ opens above it.
   and nothing called it. Not a lost capability: it never was one.
 
 ### Fixed
+
+- **A mail domain without a single account made every backup of that user fail** (#1033). The account
+  loop globs the domain's maildir, and with no account the pattern matches nothing, so bash leaves the
+  star itself standing. It passed the exclusion check, went into the account list as if it were a
+  name, and the member tar then failed on a file that does not exist. The run aborted with a disk
+  error on a box with 25 GB free, sent a mail about it and dropped its queue job. Getting there takes
+  nothing unusual: add a mail domain and do not create a mailbox yet, or delete the last one. The
+  functional rounds never hit it because they always created an account before backing up. Found while
+  measuring #1031 and measured against the version without it, so it is not a regression from that
+  change but was already in the release.
+
+- **A token list was split by something that also expanded it** (#1031). `for tok in ${VALUE//,/ }`
+  does not only split on the comma, it also performs pathname expansion, so a `*` in the value was
+  matched against the working directory and the loop saw tokens that do not exist. 22 sites in 15
+  files carried the idiom, inherited and never questioned; the update building blocks had it too
+  until #1029. The interesting half is not the registry keys, whose vocabulary the schema constrains,
+  but the restore paths: `ALIAS` and `aliases` come out of an archive another box wrote, and
+  `components` is a command argument. The replacement splits on the separator and nothing else, and
+  it drops empty fields the way the word splitting did, so the two forms agree on every value shape
+  that occurs here - empty, one token, several, a doubled separator, a leading or trailing one - and
+  differ only where the old one invented tokens.
+
+- **The manifest reader answered a misspelled entry with a jq error instead of a sentence** (#1029, a
+  review pass over `include/update.sh` before the first manifest ever ships). `conditions` was only
+  measured by length, and jq answers that for a string and a number too, so a `conditions` that was not
+  a list survived the check and died at the first index with `Cannot index string with number`. Both
+  `conditions` and `action` are now checked for shape first. In the same pass: `function_call` accepted
+  arguments it then dropped, a path that looked like it could do something and could not, so it takes a
+  name and nothing else; the token split expanded a `*` in an operator value against the working
+  directory; `sort` ran under the box's locale, so two boxes could order the same plan differently; and
+  a duplicate-identity check could never fire, because the identity carries the file name and a
+  directory holds a name once. A check that cannot fire is worse than none, so it is gone rather than
+  commented. The trust boundary is now stated in the file header: a manifest ships in the release and is
+  reviewed like any other file, so an entry may name any path, and a deny list would read as protection
+  it cannot give.
 
 - **A registered database host was read as a local service, and a box without a local server had no client
   at all** (#980). The port check inferred a listener on 3306 from `DB_SYSTEM`, which is the host register

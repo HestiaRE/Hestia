@@ -420,49 +420,6 @@ deploy_hestia_sudoers() {
 	fi
 }
 
-reapply_outside_tree() {
-	local hestia_root="${HESTIA:-/usr/local/hestia}"
-
-	# theme renames: vestia removed, default->light, flat->light-flat; drop stale files
-	local theme_sed="s/^THEME='vestia'/THEME='light'/; s/^THEME='default'/THEME='light'/; s/^THEME='flat'/THEME='light-flat'/"
-	local conf
-	for conf in "$hestia_root/conf/hestia.conf" "$CONF_DIR/conf/hestia.conf"; do
-		[ -f "$conf" ] && sed -i "$theme_sed" "$conf"
-	done
-	for conf in "$CONF_DIR/users"/*/user.conf; do
-		[ -f "$conf" ] && sed -i "$theme_sed" "$conf"
-	done
-	rm -f "$hestia_root/web/css/src/themes/vestia.css" \
-		"$hestia_root/web/css/src/themes/default.css" \
-		"$hestia_root/web/css/src/themes/flat.css"
-
-	deploy_hestia_sudoers
-
-	# build the isolated panel conf.d - activates the isolation on existing installs
-	if [ -x "$hestia_root/sbin/hestia-php-confd" ] && [ -f /etc/php/hestia/php-version ]; then
-		"$hestia_root/sbin/hestia-php-confd" > /dev/null 2>&1 || true
-	fi
-
-	# restrict the shell-profile snippet to root on existing installs (was world-readable)
-	[ -f /etc/profile.d/hestia.sh ] && chmod 600 /etc/profile.d/hestia.sh
-
-	# move /proc hardening off the @reboot cron onto its systemd unit (proc_hardening_apply);
-	# idempotent, so a box already converted just gets its gid re-asserted
-	proc_hardening_apply || true
-
-	# The customer PHP cap on an existing box: the units and the drop-ins are ours, so an
-	# update installs what a fresh install would have (#212).
-	if declare -F customer_php_limit_apply > /dev/null 2>&1; then
-		customer_php_limit_apply || true
-	elif [ -f "$hestia_root/include/limits.sh" ]; then
-		# shellcheck source=/usr/local/hestia/include/limits.sh
-		source "$hestia_root/include/limits.sh" && customer_php_limit_apply || true
-	fi
-
-	# The band guard travels with the allocator (#388); existing accounts are left alone.
-	login_defs_guard || true
-}
-
 # ── /proc hardening (hidepid) ───────────────────────────────────────────────
 # Why a unit, why hidepid=invisible, why the gid= exemption and why the gid is resolved
 # at boot: see the header of share/security/systemd/hestia-proc-hardening.service.

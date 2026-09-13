@@ -2298,6 +2298,32 @@ check_operator_keys_present() {
 # A type the dispatcher accepts but nothing defines would be skipped, and a skipped entry looks exactly
 # like one whose condition was false. Both sets come from the code, never from a list here.
 # THE BOUNDARY: this verifies, it never repairs. See the header of include/update.sh.
+# Structure of the update manifests, not their effect: types, ids, the `after` graph and the
+# reversibility claim. It says how many entries it read, because until the first release ships a
+# manifest the honest answer is zero and a green line must not read as coverage.
+check_update_manifests() {
+	local lib="$HESTIA/include/update.sh" out n
+	[ -f "$lib" ] || return
+	# In a subshell: the library re-sources main.sh, and the smoke keeps its own state.
+	if ! out=$(
+		# shellcheck source=/usr/local/hestia/include/update.sh
+		source "$lib" > /dev/null 2>&1
+		upd_manifest_check 2>&1
+	); then
+		no "update manifests are not sound" "$(echo "$out" | head -3 | tr '\n' '|')"
+		return
+	fi
+	n=$(echo "$out" | tail -1)
+	case "$n" in '' | *[!0-9]*) n=-1 ;; esac
+	if [ "$n" -lt 0 ]; then
+		no "update manifests: the check returned no count" "the derivation moved, so nothing was measured"
+	elif [ "$n" -eq 0 ]; then
+		ok "update manifests: none in share/updates yet, nothing to check"
+	else
+		ok "update manifests: $n entry(s) read, every type, id and dependency holds"
+	fi
+}
+
 check_update_dispatcher() {
 	local lib="$HESTIA/include/update.sh" defined accepted missing extra
 	if [ ! -f "$lib" ]; then
@@ -2305,7 +2331,7 @@ check_update_dispatcher() {
 		return
 	fi
 	defined=$(grep -oE '^upd_(cond|act)_[a-z_]+\(\)' "$lib" | sed -E 's/^upd_(cond|act)_//; s/\(\)$//' | sort -u)
-	accepted=$(sed -n '/^upd_condition() {/,/^}/p;/^upd_action() {/,/^}/p' "$lib" \
+	accepted=$(sed -n '/^upd_condition() {/,/^}/p;/^upd_action_check() {/,/^}/p' "$lib" \
 		| grep -oE '^[[:space:]]*[a-z_]+( \| [a-z_]+)*\)' | tr -d '\t )' | tr '|' '\n' \
 		| sed 's/^ *//; s/ *$//' | grep -vE '^(\*|key_missing)$' | sort -u)
 	if [ -z "$defined" ] || [ -z "$accepted" ]; then
@@ -2894,6 +2920,7 @@ check_operator_keys_present
 check_jail_sshd
 check_record_encoding_central
 check_update_dispatcher
+check_update_manifests
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

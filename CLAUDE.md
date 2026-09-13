@@ -319,6 +319,10 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
 - **Check `php_supported` against Sury**: has a new PHP gone GA? The wizard offers only the
   intersection of Sury's packages and this list (#688) — a missing bump means the new version
   is silently never offered, an eager bump offers a beta to customers. Decide here, per release.
+- **Check `share/updates/` against the update lower bound**: a manifest whose version is at or below
+  the bound can never apply again, because no box below the bound is accepted; it may be deleted.
+  Deliberately a question on this list and not code — a cleaner with write access to the install tree
+  is the opposite of what the artefact guards are for. Ask it here, decide per release.
 
 ---
 

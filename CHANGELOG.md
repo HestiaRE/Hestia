@@ -14,6 +14,17 @@ opens above it.
 
 ### Added
 
+- **The derivation: what this box would have to catch up on** (#947, phase 3). `share/updates/` takes
+  one JSON file per release, `h-list-sys-updates` merges them, evaluates every condition against the
+  box and prints the list a run would work through. It executes nothing, and the proof of that is part
+  of the measurement rather than a claim. An entry carries exactly **one** action, so its reversibility
+  is its action's and nothing has to be folded over a set. That is not only simpler: a bundle would be
+  systematically too careful, because `file_copy` plus `service_restart` in one entry is irreversible
+  as a whole and lands behind the point of no return, although the copy could have run in front of it,
+  where a rollback still reaches. `reversible` may be declared more pessimistic than the action allows,
+  never more optimistic; only the second direction can lie about safety, and only that one is guarded.
+  Ordering is reversible first, then dependencies, then version, then id - and versions sort as
+  versions, because `0.10` after `0.9` is exactly the trap that looks right in a directory listing.
 - **The update building blocks, with no caller yet** (#946, phase 2). `include/update.sh` carries seven
   condition types and ten action types behind one dispatcher, so a later manifest entry is a line of
   data instead of a line of code. An unknown type is an **error**, never a skip: a skipped entry looks

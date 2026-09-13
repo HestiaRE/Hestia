@@ -1,8 +1,9 @@
 # BACKUP.md - backing up and restoring a customer
 
 > `PATHS.md` has the filesystem layout, `STRUCTURE.md` why it diverges from HestiaCP,
-> `CODEMAP.json` which file does what. **This file is the operator's view:** what the
-> backup subsystem promises, what it does not, and which command to reach for.
+> `CODEMAP.json` which file does what, `UPDATE.md` how a box gets a new release.
+> **This file is the operator's view:** what the backup subsystem promises, what it does
+> not, and which command to reach for.
 
 **Living doc.** A change to modes, retention, paths or the panel flow updates this file
 in the same PR.

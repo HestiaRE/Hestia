@@ -7,7 +7,7 @@
     "upstream_debt_legend": "Files/dirs still using HestiaCP-specific paths (/usr/local/hestia, /etc/hestiacp, hestia-nginx, hestia-php) that need migration to HestiaRE conventions.",
     "os_targets": "All four are first-class, equal-priority: debian-bookworm (12), debian-trixie (13), ubuntu-noble (24.04), ubuntu-26lts (26.04). load_os_profile (include/helper.sh) is the single source for OS_ID/CODENAME/RELEASE/EXIM_USR/BASE_PKGS_EXTRA. Every feature must work on all four; verify on the VM fleet before a PR.",
     "distro_quirks": "Cross-cutting gotchas that bite more than one service (grep these before assuming a service failure is your bug): (1) Ubuntu 26.04 ships ENFORCED AppArmor profiles that deny access other distros allow — proftpd can't read the panel cert under /usr/local/hestia/ssl (h-add-sys-proftpd drops share/proftpd/apparmor-local into the profile's local/ hook), and mariadbd's profile denies the dac_override the mariadb-install-db bootstrap needs (h-add-sys-mariadb unloads it for the init, reloads after). Suspect AppArmor on any 'Permission denied as root' on ub26. (2) Package names/splits differ by distro+version: proftpd-basic is bookworm-only (else proftpd-core), and modern proftpd (1.3.9 / 1.3.8 on trixie+ubuntu) moved mod_tls into proftpd-mod-crypto — omitting it silently disables FTPS. libzip is libzip4t64 on ub24 (t64 transition) but libzip5 on ub26. (3) apt-cache/apt-get output is localized — always LC_ALL=C before grepping for 'Candidate:' etc. (4) dovecot 2.3 (deb12) vs 2.4 (deb13/ub26) need version-split configs (share/dovecot/{2.3,2.4}/).",
-    "reference_docs": "CLAUDE.md (rules), this map (component->files), PATHS.md (filesystem layout), BACKUP.md (the operator's view of backup and restore: modes, retention, adoption, remote targets, restic, exports, what the subsystem does NOT promise), and STRUCTURE.md (why the structure diverges from HestiaCP and what each divergence forces - read it before assuming why a subsystem was rebuilt: panel Caddy/Sury, the system-user split, protected downloads, webmail loopback, the FileManager/SFTP-jail rebuilds, /etc/hestia, and the permanent removals). Keep STRUCTURE.md current in the same PR as any structural change. Per-folder PROVENANCE.json (bin/, include/, web/, share/ - sbin/ has none: every file there is HestiaRE-native) tracks per-file upstream heritage + RAW churn divergence (triage only); complements VENDORED.json (third-party) and STRUCTURE.md; recompute is a manual, occasional job."
+    "reference_docs": "CLAUDE.md (rules), this map (component->files), PATHS.md (filesystem layout), BACKUP.md (the operator's view of backup and restore: modes, retention, adoption, remote targets, restic, exports, what the subsystem does NOT promise), UPDATE.md (the operator's view of updating: what a run does in order, what the run directory holds, the point of no return, and what the backup does NOT cover), and STRUCTURE.md (why the structure diverges from HestiaCP and what each divergence forces - read it before assuming why a subsystem was rebuilt: panel Caddy/Sury, the system-user split, protected downloads, webmail loopback, the FileManager/SFTP-jail rebuilds, /etc/hestia, and the permanent removals). Keep STRUCTURE.md current in the same PR as any structural change. Per-folder PROVENANCE.json (bin/, include/, web/, share/ - sbin/ has none: every file there is HestiaRE-native) tracks per-file upstream heritage + RAW churn divergence (triage only); complements VENDORED.json (third-party) and STRUCTURE.md; recompute is a manual, occasional job."
   },
   "install_paths": {
     "install_root": "/usr/local/hestia",
@@ -213,8 +213,8 @@
         "include/release.sh",
         "sbin/h-update-hestia",
         "bin/h-list-sys-updates",
-        "share/updates/ (one JSON per release, README.md carries the author rules)",
-        "bin/h-check-sys-smoke (check_update_dispatcher, check_update_manifests)"
+        "share/updates/",
+        "bin/h-check-sys-smoke"
       ],
       "key_files": [
         "update.sh",
@@ -224,7 +224,7 @@
         "sbin/h-update-hestia",
         "bin/h-list-sys-updates",
         "share/updates/README.md",
-        "share/hestia/sys-keys.json (the registry decides whether a key name is a name)"
+        "share/hestia/sys-keys.json"
       ],
       "language": "bash + json",
       "guards": "Two in the smoke, both derived from the code: the dispatcher's accepted name set against the defined upd_cond_*/upd_act_* functions (an empty derivation is red), and the structure of every shipped manifest through upd_manifest_check (file name against the version field, ids unique per file, every condition and action type known, the after graph resolvable and free of cycles, reversible within its action's bound). The manifest guard prints how many entries it read, because zero manifests is the honest state until Phase 5 and a green line must not read as coverage.",
@@ -238,9 +238,9 @@
       "entry_points": [
         "share/hestia/sys-keys.json",
         "include/sysreg.sh",
-        "include/syshealth.sh (syshealth_repair_system_config, syshealth_known_keys system)",
-        "bin/h-list-sys-config (json_list)",
-        "bin/h-check-sys-smoke (check_sys_key_registry, check_system_keys_agree)",
+        "include/syshealth.sh",
+        "bin/h-list-sys-config",
+        "bin/h-check-sys-smoke",
         ".gitea/tools/check-sys-registry.sh"
       ],
       "key_files": [
@@ -250,7 +250,7 @@
         "bin/h-list-sys-config",
         "bin/h-update-sys-defaults",
         "bin/h-check-sys-smoke",
-        "include/helper.sh (seed_hestia_etc, chmod 600)"
+        "include/helper.sh"
       ],
       "language": "bash + json",
       "guards": "Three, one implementation twice called: (1) schema - unique names, class in {system, betreiber}, a default for betreiber and none for system, token_fn names a function that include/*.sh defines; (2) every key the tree writes into hestia.conf is registered - the write sites are extracted from the shipped code (wcv/_wcv, change_sys_value/clear_sys_value, h-change-sys-config-value with a literal key, direct echo/sed on hestia.conf, WEB_MODEL_KEYS), never listed; (3) an empty registry or an extraction under 20 keys is red. Not covered: a key written through a variable name.",

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Where a release comes from, for everything that runs on an installed box: update.sh and
-# h-change-sys-release. install.sh cannot use this - it resolves a release before this tree exists -
+# h-change-sys-release. install.sh cannot use this (it resolves a release before this tree exists),
 # so its copy stays, and the smoke holds the two mirror literals against each other.
 #
 # There are no channels. Development happens against a private Gitea, a release is pushed to the

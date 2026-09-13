@@ -120,15 +120,19 @@ if ! "$BIN/h-repair-sys-config" repair > /dev/null 2>&1; then
 fi
 "$BIN/h-update-sys-defaults" > /dev/null 2>&1 || true
 
+# Already right means do not write, the same rule the actions follow: a needless rewrite moves an
+# mtime that guards read, and it would show up in the path measurement as a write nobody declared.
 tree_version=$(cat "$HESTIA/VERSION" 2> /dev/null)
-if [ -n "$tree_version" ]; then
-	change_sys_value VERSION "$tree_version"
-	log "status version set to $tree_version"
-else
+if [ -z "$tree_version" ]; then
 	echo "[ ! ] no VERSION in $HESTIA - the status version stays on the old value"
 	log "warn  tree carries no VERSION"
+elif [ "$(upd_key_value VERSION)" = "$tree_version" ]; then
+	log "status version already $tree_version"
+else
+	change_sys_value VERSION "$tree_version"
+	log "status version set to $tree_version"
 fi
-clear_sys_value UPDATE_AVAILABLE
+[ -z "$(upd_key_value UPDATE_AVAILABLE)" ] || clear_sys_value UPDATE_AVAILABLE
 systemctl start caddy hestia-php 2> /dev/null || true
 
 log "run done"

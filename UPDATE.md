@@ -25,13 +25,24 @@ hestia update            # find, fetch, verify, secure, unpack, apply
 hestia update --check    # say what would happen, change nothing
 ```
 
-A box installed before this existed has no `update.sh` in its tree. There the updater is fetched
-once by hand, which is also how `install.sh` arrives:
+If the tree has no `update.sh` at all, it is fetched by hand the way `install.sh` arrives:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/HestiaRE/Hestia/<tag>/update.sh -o /root/update.sh
 bash /root/update.sh
 ```
+
+## The lower bound
+
+**v0.19.0.** A box below it is reinstalled, not updated, and the fetched updater above will say so
+rather than start. No release under v0.19.0 carried an updater, so there is no run one of them could
+be finishing and no state this one could reason about.
+
+The bound is a literal in `update.sh`, which means the copy that decides is the one in the release
+being installed: the old updater checks it, hands over to the new one, and the new one checks its own
+before a single file on the box is touched. A release can therefore raise the bound for itself, and
+the smoke refuses a bound above the tree it ships in - that would be a release unable to carry itself
+onward.
 
 ## Which release a box follows
 
@@ -44,13 +55,16 @@ h-change-sys-release v0.19.0      # stay on exactly this tag
 h-change-sys-release              # show the current setting
 ```
 
-A pin is checked against the source before it is written. A tag nobody carries would stop updates
-without a word, so the command refuses it rather than storing it.
+A pin is checked before it is written. A tag nobody carries would stop updates without a word, and a
+tag below the installed version could never apply, so the command refuses both rather than storing
+them. An update never goes backwards; `update.sh` refuses a downgrade as well, in case the value
+arrived some other way.
 
 ## What a run does, in order
 
 1. Ask the source which tag this box should run. No answer means no version is guessed and nothing
-   is touched.
+   is touched. A box below the lower bound, or a target older than the installed version, is refused
+   here - before anything is fetched.
 2. Nothing newer, last run finished, derived list empty: leave. Nothing else happens.
 3. Fetch the tarball into a fresh run directory and verify it. A missing checksum is not an error
    (older releases carry none), a wrong one refuses to unpack.

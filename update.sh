@@ -20,6 +20,11 @@ source "$HESTIA/include/release.sh"
 CHECK_ONLY=no
 [ "${1:-}" = "--check" ] && CHECK_ONLY=yes
 
+# A box below this is reinstalled, not updated: no release under it carried an updater, so there is
+# no run this one could be finishing. After the handover the target's own literal decides, which is
+# the second look at the question and the reason no manifest field repeats it.
+UPDATE_MIN_VERSION='v0.19.0'
+
 tree_version() { cat "$HESTIA/VERSION" 2> /dev/null; }
 status_version() { sed -n "s/^VERSION='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1; }
 
@@ -37,6 +42,13 @@ TARGET=$(release_target_tag) || die "update: cannot tell which release to follow
 [ -n "$TARGET" ] || die "update: the release source did not answer - no version was guessed, nothing was touched"
 TREE=$(tree_version)
 say "Installed: ${TREE:-unknown}   Target: $TARGET"
+
+# version_ge comes from main.sh through release.sh and carries the `v`, so the tag, the tree and this
+# literal are compared in the form they are all written in. An unreadable version loses.
+version_ge "$TREE" "$UPDATE_MIN_VERSION" \
+	|| die "update: this box says ${TREE:-nothing}, and the lower bound is $UPDATE_MIN_VERSION - it is reinstalled, not updated. Nothing was touched."
+version_ge "$TARGET" "$TREE" \
+	|| die "update: $TARGET is older than the installed $TREE - an update never goes backwards. Nothing was touched."
 
 # --check is also the writer of the panel flag, and it sits BEFORE the early exit: behind it the
 # "nothing to do" branch leaves, and a key set once would keep the banner up forever. It is the one

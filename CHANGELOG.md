@@ -31,6 +31,12 @@ became one described surface on the way.
   changes: `update.sh` ships inside the tarball, so the same query answers "is there a newer release"
   and "is there a newer updater". `UPDATE.md` is the operator's view, `share/updates/README.md` the
   manifest author's.
+- **The update has a lower bound, and never goes backwards** (#949). **v0.19.0** is the oldest box an
+  update accepts; below it there is no release that carried an updater, so such a box is reinstalled
+  rather than updated. A target older than the installed version is refused as well, both by
+  `update.sh` and by `h-change-sys-release`, where the pin is set. The bound is a literal in
+  `update.sh`, so the copy that decides is the one in the release being installed: the running
+  updater checks it, hands over, and the new one checks its own before a file on the box is touched.
 - **A release carries its checksum** (#949). `release.yml` writes `hestiare-<tag>.tar.gz.sha256`
   beside the tarball. A release without one stays installable; one that does not match will not.
 - **The panel says when a release is waiting** (#949). A daily `--check` sets `UPDATE_AVAILABLE`, the

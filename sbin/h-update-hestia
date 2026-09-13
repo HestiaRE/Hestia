@@ -42,6 +42,8 @@ jq -e '.entries | type == "array"' "$PLAN" > /dev/null 2>&1 \
 LOG="$RUNDIR/update.log"
 # State, not log: the executor and the rollback script both decide by this file's existence.
 MARKER="$RUNDIR/point-of-no-return"
+# Named here, written in phase 5 next to the backup: this path is the contract between the two, and
+# the error path prints it as a way out. Phase 5 has to put a script of exactly this name there.
 ROLLBACK="$RUNDIR/rollback.sh"
 RUNID=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -133,6 +135,8 @@ else
 	log "status version set to $tree_version"
 fi
 [ -z "$(upd_key_value UPDATE_AVAILABLE)" ] || clear_sys_value UPDATE_AVAILABLE
+# Unconditional on purpose, and there is no stop to match it: update.sh stops the panel around the
+# unpacking. Whatever the run found, it leaves the panel running.
 systemctl start caddy hestia-php 2> /dev/null || true
 
 log "run done"

@@ -394,6 +394,20 @@ opens above it.
 
 ### Fixed
 
+- **The manifest reader answered a misspelled entry with a jq error instead of a sentence** (#1029, a
+  review pass over `include/update.sh` before the first manifest ever ships). `conditions` was only
+  measured by length, and jq answers that for a string and a number too, so a `conditions` that was not
+  a list survived the check and died at the first index with `Cannot index string with number`. Both
+  `conditions` and `action` are now checked for shape first. In the same pass: `function_call` accepted
+  arguments it then dropped, a path that looked like it could do something and could not, so it takes a
+  name and nothing else; the token split expanded a `*` in an operator value against the working
+  directory; `sort` ran under the box's locale, so two boxes could order the same plan differently; and
+  a duplicate-identity check could never fire, because the identity carries the file name and a
+  directory holds a name once. A check that cannot fire is worse than none, so it is gone rather than
+  commented. The trust boundary is now stated in the file header: a manifest ships in the release and is
+  reviewed like any other file, so an entry may name any path, and a deny list would read as protection
+  it cannot give.
+
 - **A registered database host was read as a local service, and a box without a local server had no client
   at all** (#980). The port check inferred a listener on 3306 from `DB_SYSTEM`, which is the host register
   and may name a remote server; the service check had already moved to the local-engine key in phase 1c,

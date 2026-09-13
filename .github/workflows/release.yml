@@ -20,7 +20,7 @@ jobs:
 
       - name: Build tarball
         run: |
-          # VERSION aus dem Tag in die Datei schreiben
+          # The tag is the version; write it into the file the tree ships with.
           echo "${VERSION}" > VERSION
           mkdir -p dist/hestiare-${VERSION}
           # Dev-only trees never ship: the tarball is what lands on a customer box.
@@ -32,11 +32,16 @@ jobs:
             $(for e in $EXCLUDES; do echo "--exclude=$e"; done) \
             . dist/hestiare-${VERSION}/
           tar -czf dist/hestiare-${VERSION}.tar.gz -C dist hestiare-${VERSION}
+          # sha256sum is on every runner, so the checksum costs one line and no dependency. The
+          # bare file name is what `sha256sum -c` wants, hence the subshell.
+          ( cd dist && sha256sum hestiare-${VERSION}.tar.gz > hestiare-${VERSION}.tar.gz.sha256 )
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/hestiare-${{ env.VERSION }}.tar.gz
+          files: |
+            dist/hestiare-${{ env.VERSION }}.tar.gz
+            dist/hestiare-${{ env.VERSION }}.tar.gz.sha256
           generate_release_notes: false
           body: |
             HestiaRE ${{ env.VERSION }}

@@ -14,6 +14,20 @@ opens above it.
 
 ### Added
 
+- **Where a release comes from, for everything that runs on an installed box** (#949, phase 5a).
+  `include/release.sh` answers it once: the newest tag, whether a given tag exists, and what this box
+  is supposed to run. `install.sh` keeps its own copy because it resolves a release before this tree
+  exists, so the smoke holds the two mirror literals against each other; the runtime side adds no
+  third home, it uses the one in `include/main.sh`. **There are no channels**, so `RELEASE_BRANCH` is
+  either `release` or a `vX.Y.Z` pin, and the registry note says so where a reader looks.
+  `h-change-sys-release` was rewritten around that: it used to ask
+  `raw.githubusercontent.com/hestiacp/hestiacp` whether a branch existed, so it validated against a
+  foreign project and offered that project's branch names. It now refuses a pin the source does not
+  carry, before writing it, because a tag nobody has would stop updates without a word.
+- **The release carries its checksum** (#949, phase 5a). `release.yml` writes
+  `hestiare-<tag>.tar.gz.sha256` next to the tarball, with `sha256sum` and no added dependency. An
+  older release without one stays installable; a mismatch on a release that has one will not.
+
 - **The derivation: what this box would have to catch up on** (#947, phase 3). `share/updates/` takes
   one JSON file per release, `h-list-sys-updates` merges them, evaluates every condition against the
   box and prints the list a run would work through. It executes nothing, and the proof of that is part

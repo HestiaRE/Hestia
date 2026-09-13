@@ -2071,8 +2071,9 @@ check_record_grammar() {
 # asks whether the host answers - that is the fetch's job.
 check_release_mirror() {
 	local a c
-	# Two homes since #948: the fetch left h-update-hestia, which now only works a plan off. Phase 5
-	# gives the third home back as update.sh, and this guard has to grow it back with it.
+	# Two homes: install.sh keeps its own because it runs before this tree exists. Everything on an
+	# installed box reads the literal below through include/release.sh. Not covered: the fetch logic
+	# around the literal, which exists twice and can drift without anything noticing.
 	a=$(sed -n 's|^RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/install.sh" 2> /dev/null | head -n1)
 	c=$(sed -n 's|^HESTIA_RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/include/main.sh" 2> /dev/null | head -n1)
 	if [ -z "$a" ] || [ -z "$c" ]; then

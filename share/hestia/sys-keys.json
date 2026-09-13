@@ -293,7 +293,8 @@
   },
   "RELEASE_BRANCH": {
    "class": "betreiber",
-   "default": "release"
+   "default": "release",
+   "note": "which tag this box follows: 'release' for the newest, or a vX.Y.Z pin. Deliberately no values list, the tag set is open (#949)"
   },
   "RESTIC_SYSTEM": {
    "class": "system",

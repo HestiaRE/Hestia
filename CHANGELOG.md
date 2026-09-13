@@ -14,6 +14,19 @@ opens above it.
 
 ### Added
 
+- **`hestia update` does the whole run** (#949, phase 5b). `update.sh` finds the release this box
+  follows, fetches and verifies it, secures the install tree into a run directory under `/root`,
+  unpacks, derives the plan from the **new** tree and hands it to the executor. One root throughout,
+  so there is never a second tree to keep straight.
+  **The self-update is finished before anything on the box changes.** `update.sh` ships inside the
+  release tarball, so the tarball the run needs anyway carries the newer updater: one query answers
+  both questions, and the process `exec`s into it once, handing over the tarball and the run
+  directory so nothing is fetched twice. Until that point only the run directory has been written.
+  Retention is unlimited and nothing prunes; the operator decides when a run directory goes. The
+  same directory holds `rollback.sh`, which puts the tree and `hestia.conf` back and refuses once the
+  run reached its point of no return, because from there files are not the whole story. A missing
+  checksum is not an error, a wrong one refuses to unpack.
+
 - **Where a release comes from, for everything that runs on an installed box** (#949, phase 5a).
   `include/release.sh` answers it once: the newest tag, whether a given tag exists, and what this box
   is supposed to run. `install.sh` keeps its own copy because it resolves a release before this tree

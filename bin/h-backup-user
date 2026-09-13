@@ -607,6 +607,10 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		cd $HOMEDIR/$user/mail/$domain_idn
 		accounts=()
 		for account in *; do
+			# A mail domain without a single account leaves the glob unexpanded, and the star then
+			# travelled as an account name into the member tar, which failed on a file that does not
+			# exist (#1033). Same shape as #826 two blocks up.
+			[ -d "$account" ] || continue
 			exclusion=$(echo "$MAIL" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) > 0')
 			exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
 

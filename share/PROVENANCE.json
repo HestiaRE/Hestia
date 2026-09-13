@@ -3,9 +3,9 @@
     "folder": "share/",
     "description": "Per-file provenance vs HestiaCP. A file with no upstream_path is HestiaRE-native. Recompute is a manual, occasional job (when we reimplement against upstream or re-measure a snapshot); numbers are a snapshot at each file's upstream_ref + measured_at, not live. HestiaRE does not cherry-pick: every adoption is a reimplementation, compared per function against the upstream diff, so these numbers are orientation for that comparison - not a merge plan.",
     "upstream_branch": "upstream/hestiacp",
-    "upstream_ref": "3614eda7",
-    "upstream_ref_date": "2026-09-01",
-    "last_updated": "2026-09-01",
+    "upstream_ref": "c66ddeed",
+    "upstream_ref_date": "2026-09-13",
+    "last_updated": "2026-09-13",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 73,
-      "eigenbau_files": 141,
+      "eigenbau_files": 143,
       "weighted_pct": 9,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 214,
+      "files_total": 216,
       "files_mapped": 73
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -38,15 +38,15 @@
       "path": "apache2/apache2.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/apache2/apache2.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 96,
         "our_lines": 96,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -63,15 +63,15 @@
       "path": "apache2/hestia-event.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/apache2/hestia-event.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 5,
         "our_lines": 14,
         "added": 10,
         "removed": 1,
         "pct": 57,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -97,15 +97,15 @@
       "path": "apache2/status.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/apache2/status.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 7,
         "our_lines": 7,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -113,15 +113,15 @@
       "path": "apache2/unassigned.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/apache2/unassigned.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 18,
         "our_lines": 18,
         "added": 4,
         "removed": 4,
         "pct": 22,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -183,15 +183,15 @@
       "path": "bubblewrap/bwrap-userns-restrict",
       "source_type": "verbatim",
       "upstream_path": "install/common/bubblewrap/bwrap-userns-restrict",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 85,
         "our_lines": 85,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -199,15 +199,15 @@
       "path": "bubblewrap/jailbash",
       "source_type": "derived",
       "upstream_path": "install/common/bubblewrap/jailbash",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 50,
         "our_lines": 50,
         "added": 2,
         "removed": 2,
         "pct": 4,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -224,15 +224,15 @@
       "path": "clamav/clamd.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/clamav/clamd.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 88,
         "our_lines": 91,
         "added": 5,
         "removed": 2,
         "pct": 3,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -357,15 +357,15 @@
       "path": "dovecot/2.3/conf.d/10-auth.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-auth.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 5,
         "our_lines": 5,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -373,15 +373,15 @@
       "path": "dovecot/2.3/conf.d/10-logging.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-logging.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 1,
         "our_lines": 1,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -389,15 +389,15 @@
       "path": "dovecot/2.3/conf.d/10-mail.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-mail.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 8,
         "our_lines": 8,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -405,15 +405,15 @@
       "path": "dovecot/2.3/conf.d/10-master.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-master.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 39,
         "added": 8,
         "removed": 0,
         "pct": 11,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -421,15 +421,15 @@
       "path": "dovecot/2.3/conf.d/10-ssl.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-ssl.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 13,
         "our_lines": 13,
         "added": 2,
         "removed": 2,
         "pct": 15,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -446,15 +446,15 @@
       "path": "dovecot/2.3/conf.d/20-imap.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/20-imap.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -462,15 +462,15 @@
       "path": "dovecot/2.3/conf.d/20-pop3.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/20-pop3.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 92,
         "our_lines": 92,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -478,15 +478,15 @@
       "path": "dovecot/2.3/conf.d/90-quota.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/90-quota.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 84,
         "our_lines": 84,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -494,15 +494,15 @@
       "path": "dovecot/2.3/conf.d/auth-passwdfile.conf.ext",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/auth-passwdfile.conf.ext",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 9,
         "our_lines": 9,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -510,15 +510,15 @@
       "path": "dovecot/2.3/dovecot.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/dovecot.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 66,
         "our_lines": 66,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -535,15 +535,15 @@
       "path": "dovecot/2.3/sieve/20-managesieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/sieve/20-managesieve.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 88,
         "our_lines": 88,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -551,15 +551,15 @@
       "path": "dovecot/2.3/sieve/90-sieve-extprograms.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/sieve/90-sieve-extprograms.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 44,
         "our_lines": 44,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -567,15 +567,15 @@
       "path": "dovecot/2.3/sieve/90-sieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/sieve/90-sieve.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 211,
         "our_lines": 211,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -592,15 +592,15 @@
       "path": "dovecot/2.4/conf.d/10-auth.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-auth.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 141,
         "our_lines": 141,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -608,15 +608,15 @@
       "path": "dovecot/2.4/conf.d/10-logging.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-logging.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 101,
         "our_lines": 101,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -624,15 +624,15 @@
       "path": "dovecot/2.4/conf.d/10-mail.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-mail.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 439,
         "our_lines": 442,
         "added": 5,
         "removed": 2,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -640,15 +640,15 @@
       "path": "dovecot/2.4/conf.d/10-master.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-master.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 174,
         "our_lines": 182,
         "added": 8,
         "removed": 0,
         "pct": 2,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -656,15 +656,15 @@
       "path": "dovecot/2.4/conf.d/10-metrics.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-metrics.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 143,
         "our_lines": 143,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -672,15 +672,15 @@
       "path": "dovecot/2.4/conf.d/10-ssl.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-ssl.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 77,
         "our_lines": 77,
         "added": 2,
         "removed": 2,
         "pct": 2,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -688,15 +688,15 @@
       "path": "dovecot/2.4/conf.d/15-lda.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/15-lda.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 66,
         "our_lines": 66,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -704,15 +704,15 @@
       "path": "dovecot/2.4/conf.d/15-mailboxes.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/15-mailboxes.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 143,
         "our_lines": 143,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -720,15 +720,15 @@
       "path": "dovecot/2.4/conf.d/20-imap.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/20-imap.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 125,
         "our_lines": 125,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -736,15 +736,15 @@
       "path": "dovecot/2.4/conf.d/20-pop3.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/20-pop3.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 118,
         "our_lines": 118,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -752,15 +752,15 @@
       "path": "dovecot/2.4/conf.d/90-quota.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/90-quota.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 95,
         "our_lines": 95,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -768,15 +768,15 @@
       "path": "dovecot/2.4/conf.d/auth-passwdfile.conf.ext",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/auth-passwdfile.conf.ext",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 46,
         "our_lines": 46,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -784,15 +784,15 @@
       "path": "dovecot/2.4/dovecot.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.4/dovecot.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 117,
         "our_lines": 122,
         "added": 8,
         "removed": 3,
         "pct": 4,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -809,15 +809,15 @@
       "path": "dovecot/2.4/sieve/20-managesieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/sieve/20-managesieve.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 101,
         "our_lines": 105,
         "added": 4,
         "removed": 0,
         "pct": 1,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -825,15 +825,15 @@
       "path": "dovecot/2.4/sieve/90-sieve-extprograms.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/sieve/90-sieve-extprograms.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 41,
         "our_lines": 41,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -841,15 +841,15 @@
       "path": "dovecot/2.4/sieve/90-sieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/sieve/90-sieve.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 142,
         "our_lines": 144,
         "added": 4,
         "removed": 2,
         "pct": 2,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "ambiguous: 2 upstream basename candidates; confirm manually"
     },
@@ -902,15 +902,15 @@
       "path": "exim/dnsbl.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/exim/dnsbl.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 2,
         "our_lines": 2,
         "added": 1,
         "removed": 1,
         "pct": 50,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -918,15 +918,15 @@
       "path": "exim/exim4.conf.template",
       "source_type": "derived",
       "upstream_path": "install/deb/exim/exim4.conf.template",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 481,
         "our_lines": 689,
         "added": 286,
         "removed": 78,
         "pct": 31,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -934,15 +934,15 @@
       "path": "exim/limit.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/exim/limit.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 1,
         "our_lines": 1,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -950,15 +950,15 @@
       "path": "exim/spam-blocks.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/exim/spam-blocks.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 0,
         "our_lines": 0,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -966,15 +966,15 @@
       "path": "exim/system.filter",
       "source_type": "verbatim",
       "upstream_path": "install/deb/exim/system.filter",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 16,
         "our_lines": 16,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -982,15 +982,15 @@
       "path": "fail2ban/action.d/hestia.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/fail2ban/action.d/hestia.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 9,
         "our_lines": 9,
         "added": 5,
         "removed": 5,
         "pct": 55,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1052,15 +1052,15 @@
       "path": "fail2ban/filter.d/hestia.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/fail2ban/filter.d/hestia.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 10,
         "our_lines": 10,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1068,15 +1068,15 @@
       "path": "fail2ban/jail.local",
       "source_type": "derived",
       "upstream_path": "install/deb/fail2ban/jail.local",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 66,
         "our_lines": 122,
         "added": 73,
         "removed": 17,
         "pct": 47,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1192,15 +1192,15 @@
       "path": "firewall/rules.conf",
       "source_type": "derived",
       "upstream_path": "install/common/firewall/rules.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 10,
         "our_lines": 9,
         "added": 1,
         "removed": 2,
         "pct": 15,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -1235,15 +1235,15 @@
       "path": "hestia/dhparam.pem",
       "source_type": "verbatim",
       "upstream_path": "install/deb/ssl/dhparam.pem",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 13,
         "our_lines": 13,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path; moved under share/hestia/ by #564"
     },
@@ -1252,7 +1252,7 @@
       "source_type": "eigenbau",
       "upstream_path": null,
       "upstream_ref": null,
-      "last_reconciled": null,
+      "last_reconciled": "2026-08-14",
       "divergence": null,
       "note": "Let's Encrypt pre/post hook directory; upstream #4925 asked for the mechanism, ours already had it at $CONF_DIR/hooks - only the discoverability was missing."
     },
@@ -1269,15 +1269,15 @@
       "path": "hestia/packages/default.pkg",
       "source_type": "derived",
       "upstream_path": "install/common/packages/default.pkg",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 25,
         "our_lines": 18,
         "added": 2,
         "removed": 9,
         "pct": 25,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "hosting package default; DNS_* and NS dropped (bind9 excluded), DOCKER_LIMIT added (#389). Moved to $CONF_DIR/packages as instance state by #663."
     },
@@ -1285,15 +1285,15 @@
       "path": "hestia/packages/system.pkg",
       "source_type": "derived",
       "upstream_path": "install/common/packages/system.pkg",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 25,
         "our_lines": 18,
         "added": 2,
         "removed": 9,
         "pct": 25,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "see default.pkg"
     },
@@ -1302,7 +1302,7 @@
       "source_type": "eigenbau",
       "upstream_path": null,
       "upstream_ref": null,
-      "last_reconciled": null,
+      "last_reconciled": "2026-08-17",
       "divergence": null,
       "note": "sudo-rs (ub26) validates away every logging option, so the panel-password suppression rides on an rsyslog drop rule instead (#693)."
     },
@@ -1314,6 +1314,15 @@
       "last_reconciled": "2026-08-12",
       "divergence": null,
       "note": "moved under share/hestia/ by #209; upstream's nearest file is install/common/sudo/hestiaweb, but the panel-callable surface was separated and rewritten - kept eigenbau rather than pinning a mapping that does not hold"
+    },
+    {
+      "path": "hestia/sys-keys.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-13",
+      "divergence": null,
+      "note": ""
     },
     {
       "path": "limits/limits.conf",
@@ -1376,15 +1385,15 @@
       "path": "mysql/my-large.cnf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/mysql/my-large.cnf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 50,
         "our_lines": 50,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1392,15 +1401,15 @@
       "path": "mysql/my-medium.cnf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/mysql/my-medium.cnf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 49,
         "our_lines": 49,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1408,15 +1417,15 @@
       "path": "mysql/my-small.cnf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/mysql/my-small.cnf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 49,
         "our_lines": 49,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1424,15 +1433,15 @@
       "path": "nginx/0rtt-anti-replay.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/nginx/0rtt-anti-replay.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 30,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1440,15 +1449,15 @@
       "path": "nginx/agents.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/nginx/agents.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 15,
         "our_lines": 15,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1465,15 +1474,15 @@
       "path": "nginx/cloudflare.inc",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/cloudflare.inc",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 27,
         "our_lines": 28,
         "added": 4,
         "removed": 3,
         "pct": 12,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1490,15 +1499,15 @@
       "path": "nginx/nginx.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/nginx/nginx.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 129,
         "our_lines": 131,
         "added": 3,
         "removed": 1,
         "pct": 1,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1506,15 +1515,15 @@
       "path": "nginx/status.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/nginx/status.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 10,
         "our_lines": 10,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1522,15 +1531,15 @@
       "path": "nginx/unassigned.inc",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/unassigned.inc",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 51,
         "our_lines": 46,
         "added": 2,
         "removed": 7,
         "pct": 9,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1556,15 +1565,15 @@
       "path": "nginx/webmail/default_disabled.stpl",
       "source_type": "derived",
       "upstream_path": "install/deb/templates/mail/nginx/default_disabled.stpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 32,
         "our_lines": 33,
         "added": 2,
         "removed": 1,
         "pct": 4,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -1572,15 +1581,15 @@
       "path": "nginx/webmail/default_disabled.tpl",
       "source_type": "derived",
       "upstream_path": "install/deb/templates/mail/nginx/default_disabled.tpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 20,
         "our_lines": 21,
         "added": 2,
         "removed": 1,
         "pct": 7,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -1847,15 +1856,15 @@
       "path": "php-fpm/dummy.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/php-fpm/dummy.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 22,
         "our_lines": 22,
         "added": 4,
         "removed": 4,
         "pct": 18,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1863,15 +1872,15 @@
       "path": "php-fpm/multiphp.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/php-fpm/multiphp.tpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 31,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1879,15 +1888,15 @@
       "path": "php-fpm/php-fpm.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/php-fpm/php-fpm.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 145,
         "our_lines": 145,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1895,15 +1904,15 @@
       "path": "phpmyadmin/hestia-sso.php",
       "source_type": "derived",
       "upstream_path": "install/deb/phpmyadmin/hestia-sso.php",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 250,
         "our_lines": 79,
         "added": 58,
         "removed": 229,
         "pct": 87,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1920,15 +1929,15 @@
       "path": "proftpd/proftpd.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/proftpd/proftpd.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 48,
         "added": 15,
         "removed": 0,
         "pct": 18,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -1936,15 +1945,15 @@
       "path": "proftpd/tls.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/proftpd/tls.conf",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 65,
         "our_lines": 71,
         "added": 10,
         "removed": 4,
         "pct": 10,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "exact install/deb path"
     },
@@ -2016,15 +2025,15 @@
       "path": "roundcube/hestia.php",
       "source_type": "derived",
       "upstream_path": "install/common/roundcube/hestia.php",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 57,
         "our_lines": 59,
         "added": 4,
         "removed": 2,
         "pct": 5,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -2041,15 +2050,15 @@
       "path": "roundcube/plugins/config_newmail_notifier.inc.php",
       "source_type": "derived",
       "upstream_path": "install/common/roundcube/plugins/config_newmail_notifier.inc.php",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 15,
         "our_lines": 13,
         "added": 0,
         "removed": 2,
         "pct": 7,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -2057,15 +2066,15 @@
       "path": "roundcube/plugins/config_zipdownload.inc.php",
       "source_type": "derived",
       "upstream_path": "install/common/roundcube/plugins/config_zipdownload.inc.php",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 21,
         "our_lines": 19,
         "added": 0,
         "removed": 2,
         "pct": 5,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -2172,15 +2181,15 @@
       "path": "tachyon/install.php",
       "source_type": "derived",
       "upstream_path": "install/common/snappymail/install.php",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 74,
         "our_lines": 100,
         "added": 43,
         "removed": 17,
         "pct": 34,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": "basename-matched (path reorg by #119); confirm origin"
     },
@@ -2221,6 +2230,15 @@
       "note": ""
     },
     {
+      "path": "updates/README.md",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-13",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "upstream/sync-upstream.sh",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -2251,15 +2269,15 @@
       "path": "web/awstats/awstats.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/awstats/awstats.tpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 133,
         "our_lines": 133,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": ""
     },
@@ -2267,15 +2285,15 @@
       "path": "web/awstats/index.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/awstats/index.tpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 10,
         "our_lines": 10,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": ""
     },
@@ -2283,15 +2301,15 @@
       "path": "web/awstats/nav.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/awstats/nav.tpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 23,
         "our_lines": 23,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": ""
     },
@@ -2308,15 +2326,15 @@
       "path": "web/nginx/proxy_ip.tpl",
       "source_type": "derived",
       "upstream_path": "install/deb/templates/web/nginx/proxy_ip.tpl",
-      "upstream_ref": "3614eda7",
-      "last_reconciled": "2026-09-01",
+      "upstream_ref": "c66ddeed",
+      "last_reconciled": "2026-09-13",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 32,
         "added": 5,
         "removed": 3,
         "pct": 12,
-        "measured_at": "2026-09-01"
+        "measured_at": "2026-09-13"
       },
       "note": ""
     },

@@ -108,7 +108,6 @@ selected=''
 IFS=, read -ra _c_list <<< "$components"
 for c in "${_c_list[@]}"; do
 	[ -n "$c" ] || continue
-	[ -n "$c" ] || continue
 	is_object_format_valid "$c" 'component'
 	if ! grep -qxF "$c" <<< "$in_archive"; then
 		check_result "$E_NOTEXIST" "$archive holds no component $c - it has: $(tr '\n' ' ' <<< "$in_archive")"

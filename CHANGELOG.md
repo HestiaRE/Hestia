@@ -416,6 +416,17 @@ opens above it.
 
 ### Fixed
 
+- **A token list was split by something that also expanded it** (#1031). `for tok in ${VALUE//,/ }`
+  does not only split on the comma, it also performs pathname expansion, so a `*` in the value was
+  matched against the working directory and the loop saw tokens that do not exist. 22 sites in 15
+  files carried the idiom, inherited and never questioned; the update building blocks had it too
+  until #1029. The interesting half is not the registry keys, whose vocabulary the schema constrains,
+  but the restore paths: `ALIAS` and `aliases` come out of an archive another box wrote, and
+  `components` is a command argument. The replacement splits on the separator and nothing else, and
+  it drops empty fields the way the word splitting did, so the two forms agree on every value shape
+  that occurs here - empty, one token, several, a doubled separator, a leading or trailing one - and
+  differ only where the old one invented tokens.
+
 - **The manifest reader answered a misspelled entry with a jq error instead of a sentence** (#1029, a
   review pass over `include/update.sh` before the first manifest ever ships). `conditions` was only
   measured by length, and jq answers that for a string and a number too, so a `conditions` that was not

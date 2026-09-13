@@ -503,7 +503,10 @@ check_webmail_value_domain() {
 # A hand edit or a migration entry is how such a token gets there. An empty key is a box without webmail.
 check_webmail_tokens_known() {
 	local t unknown='' n=0
-	for t in ${WEBMAIL_SYSTEM//,/ }; do
+	local -a _t_list
+	IFS=, read -ra _t_list <<< "$WEBMAIL_SYSTEM"
+	for t in "${_t_list[@]}"; do
+		[ -n "$t" ] || continue
 		n=$((n + 1))
 		case " $WEBMAIL_KNOWN_CLIENTS " in *" $t "*) ;; *) unknown="$unknown $t" ;; esac
 	done
@@ -2430,10 +2433,16 @@ check_system_keys_agree() {
 	elif [ ! -f "$CONF_DIR/users/$ROOT_USER/user.conf" ] || ! grep -q "^ROLE='admin'" "$CONF_DIR/users/$ROOT_USER/user.conf"; then
 		bad="$bad ROOT_USER($ROOT_USER:no-admin-record)"
 	fi
-	for t in ${DB_SYSTEM//,/ }; do
+	local -a _t_list
+	IFS=, read -ra _t_list <<< "$DB_SYSTEM"
+	for t in "${_t_list[@]}"; do
+		[ -n "$t" ] || continue
 		[ -f "$HESTIA/conf/$t.conf" ] || bad="$bad DB_SYSTEM($t:no-host-file)"
 	done
-	for t in ${BACKUP_SYSTEM//,/ }; do
+	local -a _t_list
+	IFS=, read -ra _t_list <<< "$BACKUP_SYSTEM"
+	for t in "${_t_list[@]}"; do
+		[ -n "$t" ] || continue
 		[ "$t" = local ] && continue
 		[ -f "$HESTIA/conf/$t.backup.conf" ] || bad="$bad BACKUP_SYSTEM($t:no-host-file)"
 	done

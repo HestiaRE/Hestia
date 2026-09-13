@@ -171,7 +171,10 @@ is_web_alias_new() {
 		# read ALIAS directly: parse_object_kv_list would eval the whole record into the caller's
 		# scope, and the leading space keeps WEBMAIL_ALIAS out of the match
 		while IFS= read -r aliases; do
-			for a in ${aliases//,/ }; do
+			local -a _a_list
+			IFS=, read -ra _a_list <<< "$aliases"
+			for a in "${_a_list[@]}"; do
+				[ -n "$a" ] || continue
 				[ "$a" = "$alias_name" ] || continue
 				if [ "$alias_type" = 'web' ] || [ "$alias_user" != "$user" ]; then
 					check_result "$E_EXISTS" "Web alias $alias_name exists"

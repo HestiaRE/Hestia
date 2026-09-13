@@ -782,7 +782,10 @@ server_components() {
 
 	_items=''
 	# Only the webmail actually installed: WEBMAIL_SYSTEM is a comma list and either side may be off.
-	for _wm in ${WEBMAIL_SYSTEM//,/ }; do
+	local -a __wm_list
+	IFS=, read -ra __wm_list <<< "$WEBMAIL_SYSTEM"
+	for _wm in "${__wm_list[@]}"; do
+		[ -n "$_wm" ] || continue
 		case "$_wm" in
 			roundcube)
 				[ -d /etc/roundcube ] && _items="$_items dir:/etc/roundcube"

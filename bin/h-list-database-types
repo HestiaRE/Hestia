@@ -26,7 +26,10 @@ json_list() {
 	objects=$(echo "${DB_SYSTEM//,/ }" | wc -w)
 	i=1
 	echo '['
-	for type in ${DB_SYSTEM//,/ }; do
+	local -a _type_list
+	IFS=, read -ra _type_list <<< "$DB_SYSTEM"
+	for type in "${_type_list[@]}"; do
+		[ -n "$type" ] || continue
 		json_escape type
 		printf '    "%s"' "$type"
 		if [ "$i" -lt "$objects" ]; then
@@ -47,7 +50,10 @@ shell_list() {
 
 # PLAIN list function
 plain_list() {
-	for type in ${DB_SYSTEM//,/ }; do
+	local -a _type_list
+	IFS=, read -ra _type_list <<< "$DB_SYSTEM"
+	for type in "${_type_list[@]}"; do
+		[ -n "$type" ] || continue
 		echo "$type"
 	done
 }

@@ -16,7 +16,10 @@ export const projectManagers = [
 	{
 		avatar: 'https://www.github.com/jaapmarcus.png',
 		name: 'Jaap Marcus 🇳🇱',
-		links: [{ icon: 'github', link: 'https://github.com/jaapmarcus' }],
+		links: [
+			{ icon: 'github', link: 'https://github.com/jaapmarcus' },
+			{ icon: globeIcon, link: 'https://eris.nu' },
+		],
 	},
 	{
 		avatar: 'https://www.github.com/Lupul.png',
@@ -40,14 +43,7 @@ export const teamMembers = [
 			{ icon: globeIcon, link: 'https://imjuniper.fyi' },
 		],
 	},
-	{
-		avatar: 'https://www.github.com/imjuniper.png',
-		name: 'Juniper Bouchard 🇨🇦',
-		links: [
-			{ icon: 'github', link: 'https://github.com/imjuniper' },
-			{ icon: globeIcon, link: 'https://imjuniper.fyi' },
-		],
-	},
+
 	{
 		avatar:
 			'https://cdn.discordapp.com/avatars/737905427097845780/32452f630dd8684ed7c580806ccbee09.webp',
@@ -81,6 +77,14 @@ export const teamMembers = [
 		links: [
 			{ icon: 'github', link: 'https://github.com/ioannidesalex' },
 			{ icon: 'linkedin', link: 'https://www.linkedin.com/in/ioannidesa' },
+		],
+	},
+	{
+		avatar: 'https://www.github.com/krismkenn.png',
+		name: 'Kristan Kenney 🇨🇦',
+		links: [
+			{ icon: 'github', link: 'https://github.com/krismkenn' },
+			{ icon: globeIcon, link: 'https://www.secondcircuit.ca/' },
 		],
 	},
 ];

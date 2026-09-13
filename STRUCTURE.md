@@ -522,9 +522,10 @@ wrong - they just make a check look at less:
 
 Everything else is a plain path rewrite: `$HESTIA/include/*`, the `# shellcheck source=`
 directives, and `install.sh`'s bootstrap `${INSTALL_DIR}/include/`. `web/` never
-referenced the directory at all. No runtime migration exists or is needed - `h-update-hestia`
-copies the tree without removing, so an updated box would keep a stale `func/` that nothing
-sources; per the no-migration-before-v1 rule the answer is a reinstall, not a shim.
+referenced the directory at all. No runtime migration exists or is needed - an update
+unpacks the tree over the old one without removing, so an updated box would keep a stale `func/`
+that nothing sources; per the no-migration-before-v1 rule the answer is a reinstall, not a shim.
+Deleting is always an explicit manifest entry, never derived from a comparison with the tarball.
 
 ## 12. Backup storage: flat `/backup` (0755) -> per-customer folders (0711/0750)
 
@@ -612,7 +613,7 @@ ones at their next rebuild - deliberately, because a fleet-wide rewrite of live 
 than it risks. A box therefore carries a mixed state for a while, and that is the accepted cost.
 
 **Bootstrap is the one place a second host appears.** `github.com` has no AAAA, so a v6-only box
-cannot reach a release at all; `install.sh` and `h-update-hestia` retry through the release mirror
+cannot reach a release at all; `install.sh` and the updater retry through the release mirror
 (`dl.hestiare.com`), which serves the same repo. It is a retry of one source, not a second trust
 anchor: the extracted tree is checked against the tag that was asked for, and the two foreign
 assets that also travel that way (wp-cli, Tachyon) verify against their manifest sha256.

@@ -128,8 +128,10 @@ upd_action_reversible() {
 	esac
 }
 
-# The line between a vocabulary and arbitrary code.
-UPDATE_CALLABLE=(deploy_hestia_sudoers proc_hardening_apply customer_php_limit_apply login_defs_guard)
+# The line between a vocabulary and arbitrary code. deploy_hestia_sudoers and login_defs_guard are
+# deliberately absent (#948): their targets are not copies of a tree file, so no condition could go
+# false after them. The smoke reports their drift and names the command instead.
+UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -403,6 +405,9 @@ argv(.type // "")[]
 
 # Evaluating a condition is read-only, and every rc 2 in one comes from the tree (unknown key, value
 # outside the vocabulary), never from the box. So this one call serves the smoke and the derivation.
+# The argv a building block takes, one per line. $2 is a jq selector from our own code, never data.
+upd_argv() { jq -r "$2 | $UPD_ARGS_JQ" <<< "$1"; }
+
 upd_entry_check() {
 	local entry="$1" ident="$2" msg rc t n i _argv=()
 	ident="${ident:-<unnamed>}"
@@ -411,7 +416,7 @@ upd_entry_check() {
 		return 2
 	}
 	t=$(jq -r '.action.type // ""' <<< "$entry")
-	mapfile -t _argv < <(jq -r ".action | $UPD_ARGS_JQ" <<< "$entry")
+	mapfile -t _argv < <(upd_argv "$entry" .action)
 	msg=$(upd_action_check "$t" "${_argv[@]}" 2>&1)
 	rc=$?
 	[ "$rc" -eq 0 ] || {
@@ -443,7 +448,7 @@ upd_entry_check() {
 	}
 	for ((i = 0; i < n; i++)); do
 		t=$(jq -r ".conditions[$i].type // \"\"" <<< "$entry")
-		mapfile -t _argv < <(jq -r ".conditions[$i] | $UPD_ARGS_JQ" <<< "$entry")
+		mapfile -t _argv < <(upd_argv "$entry" ".conditions[$i]")
 		msg=$(upd_condition "$t" "${_argv[@]}" 2>&1)
 		rc=$?
 		[ "$rc" -eq 2 ] && {
@@ -563,7 +568,7 @@ upd_entry_applies() {
 	n=$(jq -r '.conditions | length' <<< "$entry")
 	for ((i = 0; i < n; i++)); do
 		t=$(jq -r ".conditions[$i].type // \"\"" <<< "$entry")
-		mapfile -t _argv < <(jq -r ".conditions[$i] | $UPD_ARGS_JQ" <<< "$entry")
+		mapfile -t _argv < <(upd_argv "$entry" ".conditions[$i]")
 		upd_condition "$t" "${_argv[@]}" > /dev/null 2>&1 || return 1
 	done
 	return 0

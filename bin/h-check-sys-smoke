@@ -2067,16 +2067,17 @@ check_record_grammar() {
 # without this tree), so this measures them against each other. The DEFAULT only, and it never
 # asks whether the host answers - that is the fetch's job.
 check_release_mirror() {
-	local a b c
+	local a c
+	# Two homes since #948: the fetch left h-update-hestia, which now only works a plan off. Phase 5
+	# gives the third home back as update.sh, and this guard has to grow it back with it.
 	a=$(sed -n 's|^RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/install.sh" 2> /dev/null | head -n1)
-	b=$(sed -n 's|^RELEASE_MIRROR="${HESTIARE_MIRROR-\(https://[^"}]*\)}"$|\1|p' "$HESTIA/sbin/h-update-hestia" 2> /dev/null | head -n1)
 	c=$(sed -n 's|^HESTIA_RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/include/main.sh" 2> /dev/null | head -n1)
-	if [ -z "$a" ] || [ -z "$b" ] || [ -z "$c" ]; then
-		no "release mirror default unreadable" "install.sh='${a:-none}' h-update-hestia='${b:-none}' main.sh='${c:-none}' - a line moved and this guard now measures nothing"
-	elif [ "$a" != "$b" ] || [ "$a" != "$c" ]; then
-		no "release mirror default drifted" "install.sh=$a, h-update-hestia=$b, main.sh=$c - the bootstrap and the runtime fetches would use different hosts"
+	if [ -z "$a" ] || [ -z "$c" ]; then
+		no "release mirror default unreadable" "install.sh='${a:-none}' main.sh='${c:-none}' - a line moved and this guard now measures nothing"
+	elif [ "$a" != "$c" ]; then
+		no "release mirror default drifted" "install.sh=$a, main.sh=$c - the bootstrap and the runtime fetches would use different hosts"
 	else
-		ok "release mirror default identical in all three fetch paths ($a)"
+		ok "release mirror default identical in both fetch paths ($a)"
 	fi
 }
 
@@ -2324,6 +2325,55 @@ check_update_manifests() {
 	fi
 }
 
+# A release is unpacked before its plan runs, and the status version is written only when the plan is
+# done, so a difference is the wanted signal for an unfinished run and not cosmetic drift.
+check_update_version() {
+	local tree
+	tree=$(cat "$HESTIA/VERSION" 2> /dev/null)
+	if [ -z "$tree" ]; then
+		no "the install tree carries no VERSION" "every version comparison in the updater reads this file"
+		return
+	fi
+	if [ "$tree" = "$VERSION" ]; then
+		ok "update state: tree and status agree on $tree"
+	else
+		no "update did not finish: tree is $tree, status says ${VERSION:-<empty>}" \
+			"work the plan off, then the status follows: h-update-hestia <run directory>/update.conf"
+	fi
+}
+
+# Since #948 an update no longer re-applies this by itself, so the drift is reported with the command
+# that ends it. The deployed file is the tree file with one line possibly prepended (visudo decides),
+# so the tail is compared, not the whole file.
+check_sudoers_drift() {
+	local tree="$HESTIA/share/hestia/sudoers" live=/etc/sudoers.d/hestia tmp
+	local fix="source $HESTIA/include/helper.sh && deploy_hestia_sudoers"
+	local rtree="$HESTIA/share/hestia/rsyslog-sudo-nolog.conf" rlive=/etc/rsyslog.d/10-hestia-sudo-nolog.conf
+	if [ ! -f "$tree" ] || [ ! -f "$live" ]; then
+		skip "sudoers drift not checkable (tree file or /etc/sudoers.d/hestia absent)"
+		return
+	fi
+	tmp=$(mktemp) || return
+	if [ "$(head -1 "$live")" = 'Defaults:hestia !log_allowed' ]; then
+		tail -n +2 "$live" > "$tmp"
+	else
+		cat "$live" > "$tmp"
+	fi
+	if cmp -s "$tree" "$tmp"; then
+		ok "sudoers grant matches the tree"
+	else
+		no "sudoers grant differs from the tree" "an update does not re-apply it: $fix"
+	fi
+	rm -f "$tmp"
+	if [ -f "$rtree" ] && [ -d /etc/rsyslog.d ]; then
+		if cmp -s "$rtree" "$rlive"; then
+			ok "sudo log drop rule matches the tree"
+		else
+			no "sudo log drop rule differs from the tree" "an update does not re-apply it: $fix"
+		fi
+	fi
+}
+
 check_update_dispatcher() {
 	local lib="$HESTIA/include/update.sh" defined accepted missing extra
 	if [ ! -f "$lib" ]; then
@@ -2562,7 +2612,8 @@ check_identity_band() {
 		if [ -n "$v" ] && [ "$v" -lt "$band_start" ] 2> /dev/null; then
 			ok "$key caps below the panel band"
 		else
-			no "$key is ${v:-unset}, not below $band_start" "a bare useradd can land inside the band and collide with an allocation"
+			no "$key is ${v:-unset}, not below $band_start" \
+				"a bare useradd lands inside the band; source $HESTIA/include/helper.sh && login_defs_guard"
 		fi
 	done
 
@@ -2574,7 +2625,8 @@ check_identity_band() {
 		if [ -n "$v" ] && [ "$v" -ge 1048675999 ] 2> /dev/null; then
 			ok "$key covers the whole subordinate range"
 		else
-			no "$key is ${v:-unset}, below the highest computed range end" "companion subuid ranges would be rejected later (#389)"
+			no "$key is ${v:-unset}, below the highest computed range end" \
+				"companion subuid ranges get rejected later (#389); source $HESTIA/include/helper.sh && login_defs_guard"
 		fi
 	done
 
@@ -2921,6 +2973,8 @@ check_jail_sshd
 check_record_encoding_central
 check_update_dispatcher
 check_update_manifests
+check_update_version
+check_sudoers_drift
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

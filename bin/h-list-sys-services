@@ -234,7 +234,9 @@ fi
 
 # Checking DB system
 if [ -n "$DB_SYSTEM" ]; then
-	for db in ${DB_SYSTEM//,/ }; do
+	IFS=, read -ra _db_list <<< "$DB_SYSTEM"
+	for db in "${_db_list[@]}"; do
+		[ -n "$db" ] || continue
 		service="$db"
 		proc_name=''
 		mysql="/usr/bin/mysql"

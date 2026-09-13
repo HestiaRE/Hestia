@@ -117,7 +117,9 @@ for period in $periods; do
 
 	# Updating db stats
 	if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
-		for type in ${DB_SYSTEM//,/ }; do
+		IFS=, read -ra _type_list <<< "$DB_SYSTEM"
+		for type in "${_type_list[@]}"; do
+			[ -n "$type" ] || continue
 			# Switching on db type
 			case $type in
 				mysql) $BIN/h-update-sys-rrd-mysql "$period" > /dev/null 2>&1 ;;

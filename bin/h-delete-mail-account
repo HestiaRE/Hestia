@@ -46,7 +46,9 @@ is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	aliases=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$ALIAS')
-	for al in ${aliases//,/ }; do
+	IFS=, read -ra _al_list <<< "$aliases"
+	for al in "${_al_list[@]}"; do
+		[ -n "$al" ] || continue
 		# Literal comparisons, not sed patterns - deleting john.doe must not take johnXdoe's lines
 		remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$al@$domain_idn:$account"
 	done

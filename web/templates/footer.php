@@ -9,7 +9,7 @@
 		?>
 	<p x-data="{ open: true }" x-cloak x-show="open" class="updates-banner">
 		<span class="u-text-bold">New updates are available!</span> To upgrade your server now, run
-		<code>apt update && apt upgrade</code> from a shell session.
+		<code>hestia update</code> from a shell session.
 		(<button type="button" class="u-text-bold" x-on:click="open = false">
 			hide
 		</button>)

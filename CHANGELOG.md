@@ -14,6 +14,15 @@ opens above it.
 
 ### Added
 
+- **The panel says when a release is waiting** (#949, phase 6). `update.sh --check` is the writer of
+  `UPDATE_AVAILABLE`: it is the one place that already knows the answer, so nothing derives it a
+  second time, and it writes the key empty rather than `no`, because absent and empty are one state
+  everywhere else. A daily line in the crontab asks, and the crontab has one writer since #972, so
+  the line has one home. The banner now names `hestia update` instead of `apt update && apt upgrade`,
+  which was never the way to update this panel. The executor already clears the key when a run
+  finishes. **The banner appears only after a re-login**, because the panel session is filled at
+  login; that is a property of the session snapshot, not of this change.
+
 - **`hestia update` does the whole run** (#949, phase 5b). `update.sh` finds the release this box
   follows, fetches and verifies it, secures the install tree into a run directory under `/root`,
   unpacks, derives the plan from the **new** tree and hands it to the executor. One root throughout,

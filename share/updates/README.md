@@ -88,7 +88,8 @@ Fields per type: `name` and `value` for the key types, `name` for a command, pac
 `path` for `path_exists` and `path_delete`, `source` (tree-relative) and `target` for `file_differs`
 and `file_copy` (`mode` optional), `function` for `function_call` (only names in `UPDATE_CALLABLE`).
 
-Field names, values and descriptions are English throughout, like every other name in this tree.
+Everything in a manifest is English: field names, type names and the description text, like the
+rest of this tree.
 
 New need means a new building block, never a shell snippet in the JSON.
 

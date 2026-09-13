@@ -34,8 +34,8 @@ plain_list() {
 
 # SHELL list function
 shell_list() {
-	echo "ENTRY   ACTION   ROLLBACK   DESCRIPTION"
-	echo "-----   ------   --------   -----------"
+	printf 'ENTRY\tACTION\tROLLBACK\tDESCRIPTION\n'
+	printf -- '-----\t------\t--------\t-----------\n'
 	plain_list
 }
 

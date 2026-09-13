@@ -5257,6 +5257,15 @@
       "note": ""
     },
     {
+      "path": "h-list-sys-updates",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-13",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "h-list-sys-users",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-users",

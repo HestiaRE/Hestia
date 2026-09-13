@@ -224,8 +224,17 @@ upd_condition() {
 	esac
 }
 
-# The one place an entry is validated. rc 0 done, rc 1 action failed, rc 2 entry is wrong.
+# rc 0 done, rc 1 action failed, rc 2 the entry is wrong.
 upd_action() {
+	local t="$1"
+	upd_action_check "$@" || return 2
+	shift
+	"upd_act_$t" "$@"
+}
+
+# The one place an entry is validated, and the only one that may run without writing: the derivation
+# checks a manifest it must not execute. rc 0 sound, rc 2 the entry is wrong.
+upd_action_check() {
 	local t="$1" fn _p
 	shift
 	case "$t" in
@@ -319,5 +328,288 @@ upd_action() {
 			return 2
 			;;
 	esac
-	"upd_act_$t" "$@"
+}
+
+#----------------------------------------------------------#
+# Manifests #
+#----------------------------------------------------------#
+# An entry carries exactly ONE action, so its reversibility IS its action's. "Erst A, dann B" are two
+# entries with `nach`; a bundle would drag a reversible part behind the line for its irreversible half.
+# An entry may declare itself less reversible than its action, never more: only the upper bound is a lie.
+# Identity is version/id. Nothing here writes: the derivation reads the tree and the box.
+
+UPDATE_DIR="${HESTIA:-/usr/local/hestia}/share/updates"
+
+# Entries of the last scan, one JSON object per line. Global so scan, check and plan share one read.
+UPD_ENTRIES=()
+
+# The tag carries the v, the manifest never does.
+upd_version_norm() { echo "${1#v}"; }
+
+# By version, never by string: 0.10 sorts before 0.9 alphabetically.
+upd_version_le() {
+	local a b
+	a=$(upd_version_norm "$1")
+	b=$(upd_version_norm "$2")
+	[ "$a" = "$b" ] && return 0
+	[ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -1)" = "$a" ]
+}
+
+# No directory means no manifests. That is the state until the first release ships one, not an error.
+upd_manifest_files() {
+	local target="$1" f v
+	[ -d "$UPDATE_DIR" ] || return 0
+	for f in "$UPDATE_DIR"/*.json; do
+		[ -f "$f" ] || continue
+		v=$(basename "$f" .json)
+		upd_version_le "$v" "$target" && printf '%s\t%s\n' "$v" "$f"
+	done | sort -V | cut -f2
+}
+
+# JSON fields to the argv each building block takes. One place, so a renamed field is one edit.
+# A missing field becomes an empty argument and the block itself names what it wanted.
+UPD_ARGS_JQ='
+def argv(t):
+  if t=="key_empty" or t=="command_exists" or t=="package_installed" or t=="key_clear"
+     or t=="package_install" or t=="package_remove" or t=="service_restart" then [.name // ""]
+  elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
+    then [.name // "", .wert // ""]
+  elif t=="path_exists" or t=="path_delete" then [.pfad // ""]
+  elif t=="file_differs" then [.quelle // "", .ziel // ""]
+  elif t=="file_copy" then [.quelle // "", .ziel // ""] + (if has("modus") then [.modus] else [] end)
+  elif t=="function_call" then [.funktion // ""]
+  else [] end;
+argv(.typ // "")[]
+'
+
+# Evaluating a condition is read-only, and every rc 2 in one comes from the tree (unknown key, value
+# outside the vocabulary), never from the box. So this one call serves the smoke and the derivation.
+upd_entry_check() {
+	local entry="$1" ident="$2" msg rc typ n i _argv=()
+	ident="${ident:-<unnamed>}"
+	typ=$(jq -r '.aktion.typ // ""' <<< "$entry")
+	mapfile -t _argv < <(jq -r ".aktion | $UPD_ARGS_JQ" <<< "$entry")
+	msg=$(upd_action_check "$typ" "${_argv[@]}" 2>&1)
+	rc=$?
+	[ "$rc" -eq 0 ] || {
+		echo "update: $ident: ${msg#update: }" >&2
+		return 2
+	}
+	case "$(jq -r '.umkehrbar | type' <<< "$entry")" in
+		boolean) ;;
+		*)
+			echo "update: $ident: umkehrbar must be true or false" >&2
+			return 2
+			;;
+	esac
+	# The upper bound. Claiming less than the action can do is an author's choice, claiming more is a lie.
+	if [ "$(jq -r '.umkehrbar' <<< "$entry")" = true ] && [ "$(upd_action_reversible "$typ")" != yes ]; then
+		echo "update: $ident: umkehrbar is true, but $typ can never be taken back by putting files back" >&2
+		return 2
+	fi
+	n=$(jq -r '.bedingungen | length' <<< "$entry")
+	[ "$n" -gt 0 ] 2> /dev/null || {
+		echo "update: $ident: needs at least one condition, so a second run can see it is done" >&2
+		return 2
+	}
+	for ((i = 0; i < n; i++)); do
+		typ=$(jq -r ".bedingungen[$i].typ // \"\"" <<< "$entry")
+		mapfile -t _argv < <(jq -r ".bedingungen[$i] | $UPD_ARGS_JQ" <<< "$entry")
+		msg=$(upd_condition "$typ" "${_argv[@]}" 2>&1)
+		rc=$?
+		[ "$rc" -eq 2 ] && {
+			echo "update: $ident: ${msg#update: }" >&2
+			return 2
+		}
+	done
+	return 0
+}
+
+# Reads every manifest up to the target into UPD_ENTRIES. A half-read set is not a plan, so a wrong
+# file aborts instead of being skipped.
+upd_scan() {
+	local target="$1" f v dup
+	UPD_ENTRIES=()
+	while read -r f; do
+		[ -n "$f" ] || continue
+		v=$(basename "$f" .json)
+		jq -e . "$f" > /dev/null 2>&1 || {
+			echo "update: $f is not valid JSON" >&2
+			return 2
+		}
+		[ "$(jq -r '.version // ""' "$f")" = "$v" ] || {
+			echo "update: $f and its version field '$(jq -r '.version // ""' "$f")' must agree" >&2
+			return 2
+		}
+		jq -e '.eintraege | type == "array"' "$f" > /dev/null 2>&1 || {
+			echo "update: $f has no 'eintraege' array" >&2
+			return 2
+		}
+		jq -e 'all(.eintraege[]; (.id? // "") | test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))' "$f" > /dev/null 2>&1 || {
+			echo "update: $f has an entry without a usable id (letters, digits, . _ -)" >&2
+			return 2
+		}
+		dup=$(jq -r '.eintraege[].id' "$f" | sort | uniq -d | tr '\n' ' ')
+		dup="${dup% }"
+		[ -z "$dup" ] || {
+			echo "update: $f uses an id twice: $dup" >&2
+			return 2
+		}
+		mapfile -t -O "${#UPD_ENTRIES[@]}" UPD_ENTRIES \
+			< <(jq -c --arg v "$v" '.eintraege[] | . + {version: $v, identitaet: ($v + "/" + .id)}' "$f")
+	done < <(upd_manifest_files "$target")
+	return 0
+}
+
+# Every entry once, then the graph. Identities are global, so an id may repeat across files only by a
+# rewrite the author cannot make: an entry never moves between files.
+upd_check_entries() {
+	local e ident dep bad seen=" " known=" " rc=0
+	for e in "${UPD_ENTRIES[@]}"; do
+		ident=$(jq -r '.identitaet' <<< "$e")
+		case "$seen" in *" $ident "*)
+			echo "update: $ident appears twice" >&2
+			return 2
+			;;
+		esac
+		seen="$seen$ident "
+		known="$known$ident "
+	done
+	for e in "${UPD_ENTRIES[@]}"; do
+		ident=$(jq -r '.identitaet' <<< "$e")
+		upd_entry_check "$e" "$ident" || rc=2
+		dep=$(jq -r '.nach // ""' <<< "$e")
+		[ -n "$dep" ] || continue
+		case "$known" in *" $dep "*) ;; *)
+			echo "update: $ident: 'nach' points at $dep, which no manifest defines" >&2
+			rc=2
+			continue
+			;;
+		esac
+		# A reversible entry behind an irreversible one would sit after the line and lose its rollback.
+		if [ "$(jq -r '.umkehrbar' <<< "$e")" = true ] \
+			&& [ "$(upd_entry_field "$dep" .umkehrbar)" != true ]; then
+			echo "update: $ident: is reversible but waits for $dep, which is not" >&2
+			rc=2
+		fi
+	done
+	[ "$rc" -eq 0 ] || return 2
+	bad=$(upd_cycle_find)
+	[ -z "$bad" ] || {
+		echo "update: 'nach' runs in a circle: $bad" >&2
+		return 2
+	}
+	return 0
+}
+
+upd_entry_field() {
+	local e
+	for e in "${UPD_ENTRIES[@]}"; do
+		[ "$(jq -r '.identitaet' <<< "$e")" = "$1" ] && jq -r "$2" <<< "$e" && return 0
+	done
+	return 1
+}
+
+# Peel off what has no unmet dependency; whatever is left is in a circle or waits on one.
+upd_cycle_find() {
+	local e ident dep left=() next=() done_=" " moved=1
+	for e in "${UPD_ENTRIES[@]}"; do left+=("$(jq -r '.identitaet + "\t" + (.nach // "")' <<< "$e")"); done
+	while [ "$moved" -eq 1 ] && [ "${#left[@]}" -gt 0 ]; do
+		moved=0
+		next=()
+		for e in "${left[@]}"; do
+			ident="${e%%$'\t'*}"
+			dep="${e#*$'\t'}"
+			if [ -z "$dep" ] || [[ "$done_" == *" $dep "* ]]; then
+				done_="$done_$ident "
+				moved=1
+			else
+				next+=("$e")
+			fi
+		done
+		left=("${next[@]}")
+	done
+	local out=""
+	for e in "${left[@]}"; do out="$out${e%%$'\t'*} "; done
+	echo "${out% }"
+}
+
+# True only when every condition holds. A false condition is the normal case: it says already done.
+upd_entry_applies() {
+	local entry="$1" n i typ _argv=()
+	n=$(jq -r '.bedingungen | length' <<< "$entry")
+	for ((i = 0; i < n; i++)); do
+		typ=$(jq -r ".bedingungen[$i].typ // \"\"" <<< "$entry")
+		mapfile -t _argv < <(jq -r ".bedingungen[$i] | $UPD_ARGS_JQ" <<< "$entry")
+		upd_condition "$typ" "${_argv[@]}" > /dev/null 2>&1 || return 1
+	done
+	return 0
+}
+
+# Reversible first so the line falls as late as it can, then dependencies, then version, then id.
+# A dependency outside this run counts as met: it either ran in an earlier update, or its condition
+# says it is unnecessary. The list is derived once, before the run, so an entry whose condition only
+# becomes true through another entry is not in it at all; that is an authoring error, see the README.
+upd_order() {
+	local pending=("$@") next=() open="" done_=" " pick e ident dep cand
+	while [ "${#pending[@]}" -gt 0 ]; do
+		open=" "
+		for e in "${pending[@]}"; do open="$open$(jq -r '.identitaet' <<< "$e") "; done
+		cand=""
+		for e in "${pending[@]}"; do
+			dep=$(jq -r '.nach // ""' <<< "$e")
+			# Still waiting only if the entry it waits for is in this run and has not been picked yet.
+			[ -n "$dep" ] && [[ "$done_" != *" $dep "* ]] && [[ "$open" == *" $dep "* ]] && continue
+			cand="$cand$(jq -r '(if .umkehrbar then "0" else "1" end) + "\t" + .version + "\t" + .id' <<< "$e")"$'\n'
+		done
+		[ -n "$cand" ] || {
+			echo "update: 'nach' cannot be satisfied for the remaining entries:${open% }" >&2
+			return 2
+		}
+		pick=$(printf '%s' "$cand" | sort -t$'\t' -k1,1 -k2,2V -k3,3 | head -1 | cut -f2,3 | tr '\t' '/')
+		next=()
+		for e in "${pending[@]}"; do
+			ident=$(jq -r '.identitaet' <<< "$e")
+			if [ "$ident" = "$pick" ]; then
+				printf '%s\n' "$e"
+				done_="$done_$ident "
+			else
+				next+=("$e")
+			fi
+		done
+		pending=("${next[@]}")
+	done
+	return 0
+}
+
+# The derivation: reads the tree, evaluates against the box, writes nothing.
+upd_plan() {
+	local target="$1" from e sel=() ordered
+	from=$(upd_version_norm "$(upd_key_value VERSION)")
+	target=$(upd_version_norm "$target")
+	upd_scan "$target" || return 2
+	upd_check_entries || return 2
+	for e in "${UPD_ENTRIES[@]}"; do
+		upd_entry_applies "$e" && sel+=("$e")
+	done
+	if [ "${#sel[@]}" -eq 0 ]; then
+		ordered=""
+	else
+		ordered=$(upd_order "${sel[@]}") || return 2
+	fi
+	printf '%s' "${ordered:+$ordered$'\n'}" | jq -s --arg von "$from" --arg bis "$target" '{
+		version_von: $von,
+		version_bis: $bis,
+		anzahl: length,
+		unumkehrbar: [.[] | select(.umkehrbar != true) | .identitaet],
+		eintraege: .
+	}'
+}
+
+# Structure of every manifest in the tree, whatever the box carries. rc 0 sound, rc 2 something is wrong.
+upd_manifest_check() {
+	upd_scan 99999 || return 2
+	upd_check_entries || return 2
+	echo "${#UPD_ENTRIES[@]}"
+	return 0
 }

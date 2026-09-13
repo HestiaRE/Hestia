@@ -28,8 +28,8 @@ fi
 
 # PLAIN list function
 plain_list() {
-	jq -r '.eintraege[] | [.identitaet, .aktion.typ, (if .umkehrbar then "reversible" else "final" end),
-		.beschreibung] | @tsv' <<< "$plan"
+	jq -r '.entries[] | [.identity, .action.type, (if .reversible then "reversible" else "final" end),
+		.description] | @tsv' <<< "$plan"
 }
 
 # SHELL list function
@@ -50,9 +50,9 @@ case $format in
 	json) echo "$plan" ;;
 	plain) plain_list ;;
 	shell)
-		jq -r '"from " + .version_von + " to " + .version_bis + ": " + (.anzahl | tostring) + " entry(s), "
-			+ (.unumkehrbar | length | tostring) + " past the point of no return"
-			+ (if (.unumkehrbar | length) > 0 then " (" + (.unumkehrbar | join(", ")) + ")" else "" end)' <<< "$plan"
+		jq -r '"from " + .version_from + " to " + .version_to + ": " + (.count | tostring) + " entry(s), "
+			+ (.irreversible | length | tostring) + " past the point of no return"
+			+ (if (.irreversible | length) > 0 then " (" + (.irreversible | join(", ")) + ")" else "" end)' <<< "$plan"
 		echo
 		shell_list | column -t -s $'\t'
 		;;

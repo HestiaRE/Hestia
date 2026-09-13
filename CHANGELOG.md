@@ -21,7 +21,7 @@ opens above it.
   is its action's and nothing has to be folded over a set. That is not only simpler: a bundle would be
   systematically too careful, because `file_copy` plus `service_restart` in one entry is irreversible
   as a whole and lands behind the point of no return, although the copy could have run in front of it,
-  where a rollback still reaches. `umkehrbar` may be declared more pessimistic than the action allows,
+  where a rollback still reaches. `reversible` may be declared more pessimistic than the action allows,
   never more optimistic; only the second direction can lie about safety, and only that one is guarded.
   Ordering is reversible first, then dependencies, then version, then id - and versions sort as
   versions, because `0.10` after `0.9` is exactly the trap that looks right in a directory listing.

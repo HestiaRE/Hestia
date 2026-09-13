@@ -334,7 +334,7 @@ upd_action_check() {
 # Manifests #
 #----------------------------------------------------------#
 # An entry carries exactly ONE action, so its reversibility IS its action's. "Erst A, dann B" are two
-# entries with `nach`; a bundle would drag a reversible part behind the line for its irreversible half.
+# entries with `after`; a bundle would drag a reversible part behind the line for its irreversible half.
 # An entry may declare itself less reversible than its action, never more: only the upper bound is a lie.
 # Identity is version/id. Nothing here writes: the derivation reads the tree and the box.
 
@@ -381,49 +381,49 @@ def argv(t):
   if t=="key_empty" or t=="command_exists" or t=="package_installed" or t=="key_clear"
      or t=="package_install" or t=="package_remove" or t=="service_restart" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
-    then [.name // "", .wert // ""]
-  elif t=="path_exists" or t=="path_delete" then [.pfad // ""]
-  elif t=="file_differs" then [.quelle // "", .ziel // ""]
-  elif t=="file_copy" then [.quelle // "", .ziel // ""] + (if has("modus") then [.modus] else [] end)
-  elif t=="function_call" then [.funktion // ""]
+    then [.name // "", .value // ""]
+  elif t=="path_exists" or t=="path_delete" then [.path // ""]
+  elif t=="file_differs" then [.source // "", .target // ""]
+  elif t=="file_copy" then [.source // "", .target // ""] + (if has("mode") then [.mode] else [] end)
+  elif t=="function_call" then [.function // ""]
   else [] end;
-argv(.typ // "")[]
+argv(.type // "")[]
 '
 
 # Evaluating a condition is read-only, and every rc 2 in one comes from the tree (unknown key, value
 # outside the vocabulary), never from the box. So this one call serves the smoke and the derivation.
 upd_entry_check() {
-	local entry="$1" ident="$2" msg rc typ n i _argv=()
+	local entry="$1" ident="$2" msg rc t n i _argv=()
 	ident="${ident:-<unnamed>}"
-	typ=$(jq -r '.aktion.typ // ""' <<< "$entry")
-	mapfile -t _argv < <(jq -r ".aktion | $UPD_ARGS_JQ" <<< "$entry")
-	msg=$(upd_action_check "$typ" "${_argv[@]}" 2>&1)
+	t=$(jq -r '.action.type // ""' <<< "$entry")
+	mapfile -t _argv < <(jq -r ".action | $UPD_ARGS_JQ" <<< "$entry")
+	msg=$(upd_action_check "$t" "${_argv[@]}" 2>&1)
 	rc=$?
 	[ "$rc" -eq 0 ] || {
 		echo "update: $ident: ${msg#update: }" >&2
 		return 2
 	}
-	case "$(jq -r '.umkehrbar | type' <<< "$entry")" in
+	case "$(jq -r '.reversible | type' <<< "$entry")" in
 		boolean) ;;
 		*)
-			echo "update: $ident: umkehrbar must be true or false" >&2
+			echo "update: $ident: reversible must be true or false" >&2
 			return 2
 			;;
 	esac
 	# The upper bound. Claiming less than the action can do is an author's choice, claiming more is a lie.
-	if [ "$(jq -r '.umkehrbar' <<< "$entry")" = true ] && [ "$(upd_action_reversible "$typ")" != yes ]; then
-		echo "update: $ident: umkehrbar is true, but $typ can never be taken back by putting files back" >&2
+	if [ "$(jq -r '.reversible' <<< "$entry")" = true ] && [ "$(upd_action_reversible "$t")" != yes ]; then
+		echo "update: $ident: reversible is true, but $t can never be taken back by putting files back" >&2
 		return 2
 	fi
-	n=$(jq -r '.bedingungen | length' <<< "$entry")
+	n=$(jq -r '.conditions | length' <<< "$entry")
 	[ "$n" -gt 0 ] 2> /dev/null || {
 		echo "update: $ident: needs at least one condition, so a second run can see it is done" >&2
 		return 2
 	}
 	for ((i = 0; i < n; i++)); do
-		typ=$(jq -r ".bedingungen[$i].typ // \"\"" <<< "$entry")
-		mapfile -t _argv < <(jq -r ".bedingungen[$i] | $UPD_ARGS_JQ" <<< "$entry")
-		msg=$(upd_condition "$typ" "${_argv[@]}" 2>&1)
+		t=$(jq -r ".conditions[$i].type // \"\"" <<< "$entry")
+		mapfile -t _argv < <(jq -r ".conditions[$i] | $UPD_ARGS_JQ" <<< "$entry")
+		msg=$(upd_condition "$t" "${_argv[@]}" 2>&1)
 		rc=$?
 		[ "$rc" -eq 2 ] && {
 			echo "update: $ident: ${msg#update: }" >&2
@@ -450,22 +450,22 @@ upd_scan() {
 			echo "update: $f and its version field '$(jq -r '.version // ""' "$f")' must agree" >&2
 			return 2
 		}
-		jq -e '.eintraege | type == "array"' "$f" > /dev/null 2>&1 || {
-			echo "update: $f has no 'eintraege' array" >&2
+		jq -e '.entries | type == "array"' "$f" > /dev/null 2>&1 || {
+			echo "update: $f has no 'entries' array" >&2
 			return 2
 		}
-		jq -e 'all(.eintraege[]; (.id? // "") | test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))' "$f" > /dev/null 2>&1 || {
+		jq -e 'all(.entries[]; (.id? // "") | test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))' "$f" > /dev/null 2>&1 || {
 			echo "update: $f has an entry without a usable id (letters, digits, . _ -)" >&2
 			return 2
 		}
-		dup=$(jq -r '.eintraege[].id' "$f" | sort | uniq -d | tr '\n' ' ')
+		dup=$(jq -r '.entries[].id' "$f" | sort | uniq -d | tr '\n' ' ')
 		dup="${dup% }"
 		[ -z "$dup" ] || {
 			echo "update: $f uses an id twice: $dup" >&2
 			return 2
 		}
 		mapfile -t -O "${#UPD_ENTRIES[@]}" UPD_ENTRIES \
-			< <(jq -c --arg v "$v" '.eintraege[] | . + {version: $v, identitaet: ($v + "/" + .id)}' "$f")
+			< <(jq -c --arg v "$v" '.entries[] | . + {version: $v, identity: ($v + "/" + .id)}' "$f")
 	done <<< "$files"
 	return 0
 }
@@ -475,7 +475,7 @@ upd_scan() {
 upd_check_entries() {
 	local e ident dep bad seen=" " known=" " rc=0
 	for e in "${UPD_ENTRIES[@]}"; do
-		ident=$(jq -r '.identitaet' <<< "$e")
+		ident=$(jq -r '.identity' <<< "$e")
 		case "$seen" in *" $ident "*)
 			echo "update: $ident appears twice" >&2
 			return 2
@@ -485,19 +485,19 @@ upd_check_entries() {
 		known="$known$ident "
 	done
 	for e in "${UPD_ENTRIES[@]}"; do
-		ident=$(jq -r '.identitaet' <<< "$e")
+		ident=$(jq -r '.identity' <<< "$e")
 		upd_entry_check "$e" "$ident" || rc=2
-		dep=$(jq -r '.nach // ""' <<< "$e")
+		dep=$(jq -r '.after // ""' <<< "$e")
 		[ -n "$dep" ] || continue
 		case "$known" in *" $dep "*) ;; *)
-			echo "update: $ident: 'nach' points at $dep, which no manifest defines" >&2
+			echo "update: $ident: 'after' points at $dep, which no manifest defines" >&2
 			rc=2
 			continue
 			;;
 		esac
 		# A reversible entry behind an irreversible one would sit after the line and lose its rollback.
-		if [ "$(jq -r '.umkehrbar' <<< "$e")" = true ] \
-			&& [ "$(upd_entry_field "$dep" .umkehrbar)" != true ]; then
+		if [ "$(jq -r '.reversible' <<< "$e")" = true ] \
+			&& [ "$(upd_entry_field "$dep" .reversible)" != true ]; then
 			echo "update: $ident: is reversible but waits for $dep, which is not" >&2
 			rc=2
 		fi
@@ -505,7 +505,7 @@ upd_check_entries() {
 	[ "$rc" -eq 0 ] || return 2
 	bad=$(upd_cycle_find)
 	[ -z "$bad" ] || {
-		echo "update: 'nach' runs in a circle: $bad" >&2
+		echo "update: 'after' runs in a circle: $bad" >&2
 		return 2
 	}
 	return 0
@@ -514,7 +514,7 @@ upd_check_entries() {
 upd_entry_field() {
 	local e
 	for e in "${UPD_ENTRIES[@]}"; do
-		[ "$(jq -r '.identitaet' <<< "$e")" = "$1" ] && jq -r "$2" <<< "$e" && return 0
+		[ "$(jq -r '.identity' <<< "$e")" = "$1" ] && jq -r "$2" <<< "$e" && return 0
 	done
 	return 1
 }
@@ -522,7 +522,7 @@ upd_entry_field() {
 # Peel off what has no unmet dependency; whatever is left is in a circle or waits on one.
 upd_cycle_find() {
 	local e ident dep left=() next=() done_=" " moved=1
-	for e in "${UPD_ENTRIES[@]}"; do left+=("$(jq -r '.identitaet + "\t" + (.nach // "")' <<< "$e")"); done
+	for e in "${UPD_ENTRIES[@]}"; do left+=("$(jq -r '.identity + "\t" + (.after // "")' <<< "$e")"); done
 	while [ "$moved" -eq 1 ] && [ "${#left[@]}" -gt 0 ]; do
 		moved=0
 		next=()
@@ -545,12 +545,12 @@ upd_cycle_find() {
 
 # True only when every condition holds. A false condition is the normal case: it says already done.
 upd_entry_applies() {
-	local entry="$1" n i typ _argv=()
-	n=$(jq -r '.bedingungen | length' <<< "$entry")
+	local entry="$1" n i t _argv=()
+	n=$(jq -r '.conditions | length' <<< "$entry")
 	for ((i = 0; i < n; i++)); do
-		typ=$(jq -r ".bedingungen[$i].typ // \"\"" <<< "$entry")
-		mapfile -t _argv < <(jq -r ".bedingungen[$i] | $UPD_ARGS_JQ" <<< "$entry")
-		upd_condition "$typ" "${_argv[@]}" > /dev/null 2>&1 || return 1
+		t=$(jq -r ".conditions[$i].type // \"\"" <<< "$entry")
+		mapfile -t _argv < <(jq -r ".conditions[$i] | $UPD_ARGS_JQ" <<< "$entry")
+		upd_condition "$t" "${_argv[@]}" > /dev/null 2>&1 || return 1
 	done
 	return 0
 }
@@ -563,22 +563,22 @@ upd_order() {
 	local pending=("$@") next=() open="" done_=" " pick e ident dep cand
 	while [ "${#pending[@]}" -gt 0 ]; do
 		open=" "
-		for e in "${pending[@]}"; do open="$open$(jq -r '.identitaet' <<< "$e") "; done
+		for e in "${pending[@]}"; do open="$open$(jq -r '.identity' <<< "$e") "; done
 		cand=""
 		for e in "${pending[@]}"; do
-			dep=$(jq -r '.nach // ""' <<< "$e")
+			dep=$(jq -r '.after // ""' <<< "$e")
 			# Still waiting only if the entry it waits for is in this run and has not been picked yet.
 			[ -n "$dep" ] && [[ "$done_" != *" $dep "* ]] && [[ "$open" == *" $dep "* ]] && continue
-			cand="$cand$(jq -r '(if .umkehrbar then "0" else "1" end) + "\t" + .version + "\t" + .id' <<< "$e")"$'\n'
+			cand="$cand$(jq -r '(if .reversible then "0" else "1" end) + "\t" + .version + "\t" + .id' <<< "$e")"$'\n'
 		done
 		[ -n "$cand" ] || {
-			echo "update: 'nach' cannot be satisfied for the remaining entries:${open% }" >&2
+			echo "update: 'after' cannot be satisfied for the remaining entries:${open% }" >&2
 			return 2
 		}
 		pick=$(printf '%s' "$cand" | sort -t$'\t' -k1,1 -k2,2V -k3,3 | head -1 | cut -f2,3 | tr '\t' '/')
 		next=()
 		for e in "${pending[@]}"; do
-			ident=$(jq -r '.identitaet' <<< "$e")
+			ident=$(jq -r '.identity' <<< "$e")
 			if [ "$ident" = "$pick" ]; then
 				printf '%s\n' "$e"
 				done_="$done_$ident "
@@ -607,11 +607,11 @@ upd_plan() {
 		ordered=$(upd_order "${sel[@]}") || return 2
 	fi
 	printf '%s' "${ordered:+$ordered$'\n'}" | jq -s --arg von "$from" --arg bis "$target" '{
-		version_von: $von,
-		version_bis: $bis,
-		anzahl: length,
-		unumkehrbar: [.[] | select(.umkehrbar != true) | .identitaet],
-		eintraege: .
+		version_from: $von,
+		version_to: $bis,
+		count: length,
+		irreversible: [.[] | select(.reversible != true) | .identity],
+		entries: .
 	}'
 }
 

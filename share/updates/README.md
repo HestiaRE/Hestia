@@ -22,7 +22,7 @@ never per file, and by version, never alphabetically (`0.10` after `0.9` is the 
 ```json
 {
   "id": "redis-key",
-  "description": "Redis hatte bisher keinen Schluessel; Zustand aus dem Artefakt nachtragen",
+  "description": "Redis had no key of its own; carry the state over from the artefact",
   "conditions": [
     { "type": "key_empty", "name": "REDIS_SYSTEM" },
     { "type": "package_installed", "name": "redis-server" }
@@ -39,7 +39,7 @@ reused, and an entry never moves between files: an identity is a promise, not a 
 | Field | |
 |---|---|
 | `id` | letters, digits, `.`, `_`, `-` |
-| `description` | one line, shown in the list and the log; free text, in whatever language you write |
+| `description` | one line, shown in the list and the log |
 | `conditions` | all of them must hold, at least one is required |
 | `action` | exactly one |
 | `paths` | what the action writes, the basis of the per-entry backup |
@@ -88,8 +88,7 @@ Fields per type: `name` and `value` for the key types, `name` for a command, pac
 `path` for `path_exists` and `path_delete`, `source` (tree-relative) and `target` for `file_differs`
 and `file_copy` (`mode` optional), `function` for `function_call` (only names in `UPDATE_CALLABLE`).
 
-The field names are the schema and are English, like the key names in `hestia.conf` and the type
-names above. `description` is the one free-text field and follows whoever writes it.
+Field names, values and descriptions are English throughout, like every other name in this tree.
 
 New need means a new building block, never a shell snippet in the JSON.
 

@@ -2298,7 +2298,7 @@ check_operator_keys_present() {
 # A type the dispatcher accepts but nothing defines would be skipped, and a skipped entry looks exactly
 # like one whose condition was false. Both sets come from the code, never from a list here.
 # THE BOUNDARY: this verifies, it never repairs. See the header of include/update.sh.
-# Structure of the update manifests, not their effect: types, ids, the `nach` graph and the
+# Structure of the update manifests, not their effect: types, ids, the `after` graph and the
 # reversibility claim. It says how many entries it read, because until the first release ships a
 # manifest the honest answer is zero and a green line must not read as coverage.
 check_update_manifests() {

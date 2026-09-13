@@ -27,11 +27,15 @@ source "$HESTIA/include/update.sh"
 
 PLAN="${1:-}"
 [ -n "$PLAN" ] || check_result "$E_ARGS" "usage: h-update-hestia PLAN (the update.conf of a run directory)"
+# Absolute, because the log and the marker land next to the plan: a bare name would scatter them
+# across whatever directory the caller happened to stand in. Nothing here creates a run directory;
+# one that does not exist means there is no backup to go back to, and that is update.sh's job.
+case "$PLAN" in
+	/*) ;;
+	*) check_result "$E_INVALID" "PLAN must be an absolute path - the log and the marker belong next to the backup" ;;
+esac
 [ -f "$PLAN" ] || check_result "$E_NOTEXIST" "no plan at $PLAN"
 RUNDIR=$(dirname "$PLAN")
-# Never created here: a run directory is where update.sh put the backup, and running without one
-# would mean running without anything to go back to.
-[ -d "$RUNDIR" ] || check_result "$E_NOTEXIST" "no run directory at $RUNDIR"
 jq -e '.entries | type == "array"' "$PLAN" > /dev/null 2>&1 \
 	|| check_result "$E_PARSING" "$PLAN carries no entry list - derive it with h-list-sys-updates json"
 

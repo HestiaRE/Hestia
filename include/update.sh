@@ -356,14 +356,22 @@ upd_version_le() {
 }
 
 # No directory means no manifests. That is the state until the first release ships one, not an error.
+# A name that is not a version is refused, never skipped: sort -V would quietly sort it out of range
+# and the file would be missing from every plan without a word.
 upd_manifest_files() {
-	local target="$1" f v
+	local target="$1" f v out=""
 	[ -d "$UPDATE_DIR" ] || return 0
 	for f in "$UPDATE_DIR"/*.json; do
 		[ -f "$f" ] || continue
 		v=$(basename "$f" .json)
-		upd_version_le "$v" "$target" && printf '%s\t%s\n' "$v" "$f"
-	done | sort -V | cut -f2
+		case "$v" in [0-9]*.[0-9]*) ;; *)
+			echo "update: $f is not named after a version" >&2
+			return 2
+			;;
+		esac
+		upd_version_le "$v" "$target" && out="$out$v	$f"$'\n'
+	done
+	printf '%s' "$out" | sort -V | cut -f2
 }
 
 # JSON fields to the argv each building block takes. One place, so a renamed field is one edit.
@@ -428,8 +436,9 @@ upd_entry_check() {
 # Reads every manifest up to the target into UPD_ENTRIES. A half-read set is not a plan, so a wrong
 # file aborts instead of being skipped.
 upd_scan() {
-	local target="$1" f v dup
+	local target="$1" f v dup files
 	UPD_ENTRIES=()
+	files=$(upd_manifest_files "$target") || return 2
 	while read -r f; do
 		[ -n "$f" ] || continue
 		v=$(basename "$f" .json)
@@ -457,7 +466,7 @@ upd_scan() {
 		}
 		mapfile -t -O "${#UPD_ENTRIES[@]}" UPD_ENTRIES \
 			< <(jq -c --arg v "$v" '.eintraege[] | . + {version: $v, identitaet: ($v + "/" + .id)}' "$f")
-	done < <(upd_manifest_files "$target")
+	done <<< "$files"
 	return 0
 }
 

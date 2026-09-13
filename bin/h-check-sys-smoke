@@ -2344,6 +2344,19 @@ check_update_version() {
 		no "update did not finish: tree is $tree, status says ${VERSION:-<empty>}" \
 			"work the plan off, then the status follows: h-update-hestia <run directory>/update.conf"
 	fi
+	# A bound above the tree would mean this release refuses to carry itself onward. Unreadable is red,
+	# never green: without the literal nothing turns a too-old box away.
+	local bound
+	# Everything after the `=`, quotes stripped: the value decides, not how it is spelled. A commented
+	# out or renamed line matches nothing and is red below.
+	bound=$(sed -n 's/^UPDATE_MIN_VERSION=//p' "$HESTIA/update.sh" 2> /dev/null | head -1 | tr -d "\"'")
+	if [ -z "$bound" ]; then
+		no "update: no lower bound found in update.sh" "UPDATE_MIN_VERSION is what refuses a box below it"
+	elif version_ge "$tree" "$bound"; then
+		ok "update: lower bound $bound, at or below this tree"
+	else
+		no "update: the tree $tree is below its own lower bound $bound" "this release could not update itself onward"
+	fi
 }
 
 # Since #948 an update no longer re-applies this by itself, so the drift is reported with the command

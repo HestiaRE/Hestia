@@ -372,7 +372,7 @@ updates. `CONF_DIR="${CONF_DIR:-/etc/hestia}"` (`include/main.sh:48`), exported 
 | `/etc/hestia/hestia.env` | bootstrap file (renamed from `hestia.conf`, #81) |
 | `/etc/hestia/local.conf` | operator overrides, survive upgrades |
 | `/etc/hestia/limits.conf` | `CUSTOMER_PHP_CPU_PERCENT`, seeded once and never rewritten (#212) |
-| `/etc/hestia/source.conf` | update-channel config (repo/token/channel) |
+| `/etc/hestia/source.conf` | written by `install.sh --dev` for a private release source; the runtime reads it nowhere since #949 |
 | `/etc/hestia/install.conf` | wizard recipe only, frozen after the wizard writes it (#945); live state is `hestia.conf` |
 | `/etc/hestia/conf/` | panel config; `$HESTIA/conf` is now a **symlink** here (#129) |
 | `/etc/hestia/{firewall,ips,queue,users}/` | moved out of `$HESTIA/data/` (#148/#154/#156) |
@@ -498,6 +498,10 @@ removed - pure bash).
 on deb package names does not apply. The panel and its PHP are OS/Sury packages + local
 wrappers (deltas 1-2), so there is no `hestia-nginx`/`hestia-php` deb to update.
 
+**Updating follows from that** (#949, delta 15 below): with no packages there is nothing for
+`apt upgrade` to do, so an update is the same tarball again, unpacked over the tree, plus a list of
+things a box has to catch up on beyond the files. `UPDATE.md` is the operator's view.
+
 ---
 
 ## 11. Shared bash libraries: `func/` -> `include/`
@@ -621,6 +625,44 @@ assets that also travel that way (wp-cli, Tachyon) verify against their manifest
 **Deliberately v4.** The per-user docker model lives in `127.20.0.0/16` on the loopback, as do the
 file manager, webmail and stub_status listeners. They work unchanged on a v6-only box, there is
 nothing to reach them from outside, and a second family would only add a surface to guard.
+
+---
+
+## 15. Updating: apt upgrade + package migrations -> tarball + a derived list (#949)
+
+**Upstream.** `apt update && apt upgrade` pulls new `hestia-*` packages; the packages' own
+maintainer scripts carry whatever has to be migrated, and a branch name (`release`, `beta`, `main`)
+selects which stream a box follows.
+
+**HestiaRE.** There are no packages and no streams. `hestia update` runs `update.sh`, which asks the
+source for the tag this box should run (`RELEASE_BRANCH`: the newest, or a `vX.Y.Z` pin), fetches the
+tarball, verifies it against the published sha256, secures the install tree into one run directory
+under `/root`, unpacks the release over the tree, **derives** the list from the new tree plus this
+box's state, and hands that list to `sbin/h-update-hestia`. What cannot be expressed as "the file is
+simply newer" lives in `share/updates/`, one JSON per release, where an entry is data and never
+shell.
+
+Three properties carry the whole design:
+
+- **The list is derived, not recorded.** Every run asks the conditions again, so a repetition after
+  a failed run converges instead of replaying what already happened. No state file says what is done.
+- **The point of no return is drawn when it is reached.** Reversible entries run first; the moment
+  the first irreversible one comes up, a marker lands in the run directory and the rollback script
+  refuses from there. Before it, tree, panel config and every declared path come back.
+- **A stopped run is visible by construction.** The tree carries the new version before the plan
+  runs, the status version only after it is done, so the difference is the signal and the smoke says
+  so.
+- **There is a floor and no reverse gear.** `UPDATE_MIN_VERSION` is `v0.19.0`: no release below it
+  carried an updater, so such a box is reinstalled rather than updated and the derivation never has
+  to reason about a state it cannot read. A target older than the installed tree is refused too. The
+  floor is compared against the tree version, never the status, because a run that unpacked but has
+  not finished carries an older status on purpose and has to stay able to finish.
+
+**Follow-on.** The self-update is part of the same question: `update.sh` ships inside the tarball, so
+"is there a newer updater" is answered by the same query as "is there a newer release", and the
+handover happens once, before anything on the box changes. Retention is unlimited on purpose; a
+cleaner with write access to the install tree would be the opposite of what the artefact guards are
+for.
 
 ---
 

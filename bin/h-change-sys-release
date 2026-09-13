@@ -6,7 +6,8 @@
 # example: h-change-sys-release v0.19.0
 #
 # TARGET is `release` for the newest tag, or a vX.Y.Z pin. There are no channels. A pin is checked
-# against the source before it is written: a tag nobody carries would stop updates silently.
+# before it is written: a tag nobody carries would stop updates silently, and one below the installed
+# version could never apply.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -41,6 +42,12 @@ case "$target" in
 		echo "Checking whether the source carries $target..."
 		if ! release_tag_exists "$target"; then
 			check_result "$E_NOTEXIST" "the release source has no tag $target - nothing would be fetched"
+		fi
+		# An update never goes backwards, so a pin below the installed version could never apply.
+		# Refused here as well as in update.sh, so the mistake is answered where it is made.
+		installed=$(cat "$HESTIA/VERSION" 2> /dev/null)
+		if ! version_ge "$target" "$installed"; then
+			check_result "$E_INVALID" "$target is older than the installed $installed - a pin below it would never apply"
 		fi
 		;;
 	*) check_result "$E_INVALID" "expected 'release' or a tag like v0.19.0, got '$target'" ;;

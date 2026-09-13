@@ -1271,6 +1271,9 @@ system_crontab_write() {
 		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
 		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
 		echo "$_min $_hour * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
+		# Asks once a day whether a newer release exists and sets UPDATE_AVAILABLE for the panel.
+		# --check downloads nothing and changes nothing else.
+		echo "$_min 04 * * * sudo bash $HESTIA/update.sh --check"
 	} > "$_tmp" || return 1
 	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
 		rm -f "$_tmp"

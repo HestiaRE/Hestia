@@ -88,6 +88,35 @@ the next `hestia install` runs every stage again, not just the one you wanted to
 Without `--force` the wizard refuses and says the same thing. When you are
 re-installing from scratch instead, `bash install.sh --force` carries the flag through.
 
+## When an update fails
+
+`hestia update` works in one run directory under `/root/hestiare-update/`, named after the time and
+the two versions. Nothing prunes it: what a run wrote stays until you remove it.
+
+The run directory holds the tarball it fetched, `install-root.tar.gz` (the whole install tree as it
+was), `hestia.conf`, the plan as `update.conf`, the log, and `rollback.sh`.
+
+**What the backup covers, and what it does not.** It covers the install tree and the panel config.
+It does **not** cover packages, system users, databases, `/home`, or anything under `/var`. An entry
+that installs a package or restarts a service is not undone by putting files back, which is why the
+run draws a line: the moment it reaches the first such entry it writes `point-of-no-return` into the
+run directory, and `rollback.sh` refuses from there.
+
+Before the line:
+
+    bash /root/hestiare-update/<run>/rollback.sh
+
+After it, the way out is forward:
+
+    hestia update
+
+The plan is derived again on every run, so entries that already took effect fall out through their
+own condition and only the rest is worked off.
+
+**A stopped run is visible.** The release is unpacked before the plan runs, and the status version is
+written only when the plan is done, so a tree that is newer than `VERSION` in `hestia.conf` means a
+run did not finish. `h-check-sys-smoke` says so, with the command that finishes it.
+
 ## Common causes
 
 - **APT mirror / network errors during "base packages".** Transient — re-run.

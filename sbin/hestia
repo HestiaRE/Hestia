@@ -14,7 +14,7 @@ cmd="${1:-help}"
 case "$cmd" in
 	install) exec "$SBIN/h-install-hestia" "$@" ;;
 	configure) exec bash "$HESTIA/include/wizard.sh" "$@" ;;
-	update) exec "$SBIN/h-update-hestia" "$@" ;;
+	update) exec bash "$HESTIA/update.sh" "$@" ;;
 	uninstall) exec "$SBIN/h-uninstall-hestia" "$@" ;;
 	status) exec "$BIN/h-list-sys-install" "$@" ;;
 	"" | help | -h | --help)
@@ -25,7 +25,7 @@ Usage: hestia <command> [args]
 
   install      run the installer (reads $CONF_DIR/install.conf)
   configure    (re)generate $CONF_DIR/install.conf via the wizard
-  update       work an update plan off                          PLAN
+  update       update this box to the release it follows        [--check]
   uninstall    remove HestiaRE panel config (keeps /home + DBs) [--purge]
   status       show installed version, OS, profile and components
 EOF

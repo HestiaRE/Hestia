@@ -14,6 +14,42 @@ opens above it.
 
 ### Added
 
+- **The panel says when a release is waiting** (#949, phase 6). `update.sh --check` is the writer of
+  `UPDATE_AVAILABLE`: it is the one place that already knows the answer, so nothing derives it a
+  second time, and it writes the key empty rather than `no`, because absent and empty are one state
+  everywhere else. A daily line in the crontab asks, and the crontab has one writer since #972, so
+  the line has one home. The banner now names `hestia update` instead of `apt update && apt upgrade`,
+  which was never the way to update this panel. The executor already clears the key when a run
+  finishes. **The banner appears only after a re-login**, because the panel session is filled at
+  login; that is a property of the session snapshot, not of this change.
+
+- **`hestia update` does the whole run** (#949, phase 5b). `update.sh` finds the release this box
+  follows, fetches and verifies it, secures the install tree into a run directory under `/root`,
+  unpacks, derives the plan from the **new** tree and hands it to the executor. One root throughout,
+  so there is never a second tree to keep straight.
+  **The self-update is finished before anything on the box changes.** `update.sh` ships inside the
+  release tarball, so the tarball the run needs anyway carries the newer updater: one query answers
+  both questions, and the process `exec`s into it once, handing over the tarball and the run
+  directory so nothing is fetched twice. Until that point only the run directory has been written.
+  Retention is unlimited and nothing prunes; the operator decides when a run directory goes. The
+  same directory holds `rollback.sh`, which puts the tree and `hestia.conf` back and refuses once the
+  run reached its point of no return, because from there files are not the whole story. A missing
+  checksum is not an error, a wrong one refuses to unpack.
+
+- **Where a release comes from, for everything that runs on an installed box** (#949, phase 5a).
+  `include/release.sh` answers it once: the newest tag, whether a given tag exists, and what this box
+  is supposed to run. `install.sh` keeps its own copy because it resolves a release before this tree
+  exists, so the smoke holds the two mirror literals against each other; the runtime side adds no
+  third home, it uses the one in `include/main.sh`. **There are no channels**, so `RELEASE_BRANCH` is
+  either `release` or a `vX.Y.Z` pin, and the registry note says so where a reader looks.
+  `h-change-sys-release` was rewritten around that: it used to ask
+  `raw.githubusercontent.com/hestiacp/hestiacp` whether a branch existed, so it validated against a
+  foreign project and offered that project's branch names. It now refuses a pin the source does not
+  carry, before writing it, because a tag nobody has would stop updates without a word.
+- **The release carries its checksum** (#949, phase 5a). `release.yml` writes
+  `hestiare-<tag>.tar.gz.sha256` next to the tarball, with `sha256sum` and no added dependency. An
+  older release without one stays installable; a mismatch on a release that has one will not.
+
 - **The derivation: what this box would have to catch up on** (#947, phase 3). `share/updates/` takes
   one JSON file per release, `h-list-sys-updates` merges them, evaluates every condition against the
   box and prints the list a run would work through. It executes nothing, and the proof of that is part

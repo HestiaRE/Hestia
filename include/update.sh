@@ -2,11 +2,19 @@
 # Update building blocks: conditions and actions behind one dispatcher, so a manifest entry is data.
 # Boundary: a guard reports, an action writes. No upd_act_* in the smoke.
 # One root, $HESTIA. The release is unpacked over the install tree before any of this runs.
+#
+# Trust: a manifest ships in the release tarball and is reviewed like any other file here, so an
+# entry may name any path. path_delete and file_copy are therefore checked for shape, never for
+# location. A deny list would read as protection it cannot give: the next path is one line away.
+
+UPDATE_ROOT="${HESTIA:-/usr/local/hestia}"
+# Higher than any version this project will carry: "every manifest, whatever the box runs".
+UPD_VERSION_MAX=99999
 
 # shellcheck source=/usr/local/hestia/include/main.sh
-source "${HESTIA:-/usr/local/hestia}/include/main.sh"
+source "$UPDATE_ROOT/include/main.sh"
 # shellcheck source=/usr/local/hestia/include/sysreg.sh
-source "${HESTIA:-/usr/local/hestia}/include/sysreg.sh"
+source "$UPDATE_ROOT/include/sysreg.sh"
 
 #----------------------------------------------------------#
 # Conditions #
@@ -16,8 +24,10 @@ source "${HESTIA:-/usr/local/hestia}/include/sysreg.sh"
 # registry is a typo.
 
 # Anchored, never sourced: key names are prefixes of each other, and a config is not a script.
+# $1 goes into the expression unquoted on purpose: every caller passes a name the registry validated,
+# or the literal VERSION. A name that is not in the registry never reaches here.
 upd_key_value() {
-	local conf="${HESTIA:-/usr/local/hestia}/conf/hestia.conf"
+	local conf="$UPDATE_ROOT/conf/hestia.conf"
 	[ -f "$conf" ] || return 1
 	sed -n "s/^$1='\\(.*\\)'\$/\\1/p" "$conf" | head -1
 }
@@ -47,14 +57,14 @@ upd_cond_key_is() {
 
 # Token lists only; the registry says which.
 upd_cond_key_has_token() {
-	local cur tok
+	local tok toks=()
 	upd_key_known "$1" || return 2
 	[ "$(sysreg_tokens "$1")" = yes ] || {
 		echo "update: $1 is not a token list - key_has_token does not apply" >&2
 		return 2
 	}
-	cur=$(upd_key_value "$1")
-	for tok in ${cur//,/ }; do [ "$tok" = "$2" ] && return 0; done
+	IFS=, read -ra toks <<< "$(upd_key_value "$1")"
+	for tok in "${toks[@]}"; do [ "$tok" = "$2" ] && return 0; done
 	return 1
 }
 
@@ -89,7 +99,7 @@ upd_cond_package_installed() {
 
 # Absent target counts as different: that is what the copy action is for.
 upd_cond_file_differs() {
-	local src="${HESTIA:-/usr/local/hestia}/$1"
+	local src="$UPDATE_ROOT/$1"
 	[ -n "$1" ] && [ -n "$2" ] || {
 		echo "update: file_differs needs a tree-relative source and a target" >&2
 		return 2
@@ -119,7 +129,7 @@ upd_action_reversible() {
 }
 
 # The line between a vocabulary and arbitrary code.
-UPDATE_CALLABLE="deploy_hestia_sudoers proc_hardening_apply customer_php_limit_apply login_defs_guard"
+UPDATE_CALLABLE=(deploy_hestia_sudoers proc_hardening_apply customer_php_limit_apply login_defs_guard)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -143,7 +153,7 @@ upd_act_token_remove() {
 
 # Mode and owner before the rename, never briefly world-readable.
 upd_act_file_copy() {
-	local src="${HESTIA:-/usr/local/hestia}/$1" dst="$2" mode="${3:-}" tmp prev
+	local src="$UPDATE_ROOT/$1" dst="$2" mode="${3:-}" tmp prev
 	cmp -s "$src" "$dst" 2> /dev/null && return 0
 	# SIGKILL skips the trap; five minutes separates a dead run's temp from a live writer's.
 	find -H "$(dirname "$dst")" -maxdepth 1 -name "$(basename "$dst").??????" -mmin +5 -delete 2> /dev/null
@@ -172,15 +182,14 @@ upd_act_path_delete() {
 # File found, not listed: a second list goes stale.
 upd_act_function_call() {
 	local fn="$1" src
-	shift
 	if ! declare -F "$fn" > /dev/null 2>&1; then
-		src=$(grep -lE "^${fn}\(\) \{" "${HESTIA:-/usr/local/hestia}"/include/*.sh 2> /dev/null | head -1)
+		src=$(grep -lE "^${fn}\(\) \{" "$UPDATE_ROOT"/include/*.sh 2> /dev/null | head -1)
 		[ -n "$src" ] || return 1
 		# shellcheck disable=SC1090 # the file is the one that defines the allow-listed name
 		source "$src" || return 1
 		declare -F "$fn" > /dev/null 2>&1 || return 1
 	fi
-	"$fn" "$@"
+	"$fn"
 }
 
 # A halfway-killed apt makes the next one refuse, for a reason two runs old.
@@ -281,7 +290,7 @@ upd_action_check() {
 				echo "update: file_copy needs a tree-relative source and a target" >&2
 				return 2
 			}
-			[ -f "${HESTIA:-/usr/local/hestia}/$1" ] || {
+			[ -f "$UPDATE_ROOT/$1" ] || {
 				echo "update: $1 is not a file in this tree" >&2
 				return 2
 			}
@@ -307,11 +316,13 @@ upd_action_check() {
 			esac
 			;;
 		function_call)
-			[ -n "${1:-}" ] || {
-				echo "update: function_call needs a name" >&2
+			# One name, no arguments: every callable takes none, and a path that looks like it
+			# could pass some is worse than one that says it cannot.
+			[ $# -eq 1 ] && [ -n "$1" ] || {
+				echo "update: function_call needs a name and nothing else" >&2
 				return 2
 			}
-			for fn in $UPDATE_CALLABLE; do [ "$fn" = "$1" ] && break; done
+			for fn in "${UPDATE_CALLABLE[@]}"; do [ "$fn" = "$1" ] && break; done
 			[ "$fn" = "$1" ] || {
 				echo "update: '$1' is not a function a manifest may call" >&2
 				return 2
@@ -338,13 +349,13 @@ upd_action_check() {
 # An entry may declare itself less reversible than its action, never more: only the upper bound is a lie.
 # Identity is version/id. Nothing here writes: the derivation reads the tree and the box.
 
-UPDATE_DIR="${HESTIA:-/usr/local/hestia}/share/updates"
+UPDATE_DIR="$UPDATE_ROOT/share/updates"
 
 # Entries of the last scan, one JSON object per line. Global so scan, check and plan share one read.
 UPD_ENTRIES=()
 
 # The tag carries the v, the manifest never does.
-upd_version_norm() { echo "${1#v}"; }
+upd_version_norm() { printf '%s\n' "${1#v}"; }
 
 # By version, never by string: 0.10 sorts before 0.9 alphabetically.
 upd_version_le() {
@@ -352,7 +363,7 @@ upd_version_le() {
 	a=$(upd_version_norm "$1")
 	b=$(upd_version_norm "$2")
 	[ "$a" = "$b" ] && return 0
-	[ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | head -1)" = "$a" ]
+	[ "$(printf '%s\n%s\n' "$a" "$b" | LC_ALL=C sort -V | head -1)" = "$a" ]
 }
 
 # No directory means no manifests. That is the state until the first release ships one, not an error.
@@ -371,7 +382,7 @@ upd_manifest_files() {
 		esac
 		upd_version_le "$v" "$target" && out="$out$v	$f"$'\n'
 	done
-	printf '%s' "$out" | sort -V | cut -f2
+	printf '%s' "$out" | LC_ALL=C sort -V | cut -f2
 }
 
 # JSON fields to the argv each building block takes. One place, so a renamed field is one edit.
@@ -395,6 +406,10 @@ argv(.type // "")[]
 upd_entry_check() {
 	local entry="$1" ident="$2" msg rc t n i _argv=()
 	ident="${ident:-<unnamed>}"
+	[ "$(jq -r '.action | type' <<< "$entry")" = object ] || {
+		echo "update: $ident: action must be one object with a type" >&2
+		return 2
+	}
 	t=$(jq -r '.action.type // ""' <<< "$entry")
 	mapfile -t _argv < <(jq -r ".action | $UPD_ARGS_JQ" <<< "$entry")
 	msg=$(upd_action_check "$t" "${_argv[@]}" 2>&1)
@@ -415,8 +430,14 @@ upd_entry_check() {
 		echo "update: $ident: reversible is true, but $t can never be taken back by putting files back" >&2
 		return 2
 	fi
+	# Shape before length: jq's length answers for a string and a number too, so a misspelled entry
+	# would pass here and die at the first index with a raw jq message instead of a sentence.
+	[ "$(jq -r '.conditions | type' <<< "$entry")" = array ] || {
+		echo "update: $ident: conditions must be a list" >&2
+		return 2
+	}
 	n=$(jq -r '.conditions | length' <<< "$entry")
-	[ "$n" -gt 0 ] 2> /dev/null || {
+	[ "$n" -gt 0 ] || {
 		echo "update: $ident: needs at least one condition, so a second run can see it is done" >&2
 		return 2
 	}
@@ -458,7 +479,7 @@ upd_scan() {
 			echo "update: $f has an entry without a usable id (letters, digits, . _ -)" >&2
 			return 2
 		}
-		dup=$(jq -r '.entries[].id' "$f" | sort | uniq -d | tr '\n' ' ')
+		dup=$(jq -r '.entries[].id' "$f" | LC_ALL=C sort | uniq -d | tr '\n' ' ')
 		dup="${dup% }"
 		[ -z "$dup" ] || {
 			echo "update: $f uses an id twice: $dup" >&2
@@ -473,17 +494,10 @@ upd_scan() {
 # Every entry once, then the graph. Identities are global, so an id may repeat across files only by a
 # rewrite the author cannot make: an entry never moves between files.
 upd_check_entries() {
-	local e ident dep bad seen=" " known=" " rc=0
-	for e in "${UPD_ENTRIES[@]}"; do
-		ident=$(jq -r '.identity' <<< "$e")
-		case "$seen" in *" $ident "*)
-			echo "update: $ident appears twice" >&2
-			return 2
-			;;
-		esac
-		seen="$seen$ident "
-		known="$known$ident "
-	done
+	local e ident dep bad known=" " rc=0
+	# No duplicate check here: the identity carries the version, which is the file name, and a
+	# directory holds a name once. Inside a file upd_scan already refuses a repeated id.
+	for e in "${UPD_ENTRIES[@]}"; do known="$known$(jq -r '.identity' <<< "$e") "; done
 	for e in "${UPD_ENTRIES[@]}"; do
 		ident=$(jq -r '.identity' <<< "$e")
 		upd_entry_check "$e" "$ident" || rc=2
@@ -540,7 +554,7 @@ upd_cycle_find() {
 	done
 	local out=""
 	for e in "${left[@]}"; do out="$out${e%%$'\t'*} "; done
-	echo "${out% }"
+	printf '%s\n' "${out% }"
 }
 
 # True only when every condition holds. A false condition is the normal case: it says already done.
@@ -575,7 +589,7 @@ upd_order() {
 			echo "update: 'after' cannot be satisfied for the remaining entries:${open% }" >&2
 			return 2
 		}
-		pick=$(printf '%s' "$cand" | sort -t$'\t' -k1,1 -k2,2V -k3,3 | head -1 | cut -f2,3 | tr '\t' '/')
+		pick=$(printf '%s' "$cand" | LC_ALL=C sort -t$'\t' -k1,1 -k2,2V -k3,3 | head -1 | cut -f2,3 | tr '\t' '/')
 		next=()
 		for e in "${pending[@]}"; do
 			ident=$(jq -r '.identity' <<< "$e")
@@ -617,8 +631,8 @@ upd_plan() {
 
 # Structure of every manifest in the tree, whatever the box carries. rc 0 sound, rc 2 something is wrong.
 upd_manifest_check() {
-	upd_scan 99999 || return 2
+	upd_scan "$UPD_VERSION_MAX" || return 2
 	upd_check_entries || return 2
-	echo "${#UPD_ENTRIES[@]}"
+	printf '%s\n' "${#UPD_ENTRIES[@]}"
 	return 0
 }

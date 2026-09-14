@@ -38,6 +38,17 @@ opens above it.
   job is the only thing between an internal tag and a public push. A `target_commitish` that
   does not resolve is a red run, never a silent skip.
 
+### Removed
+
+- **The private-source scaffolding is gone** (#1045). `install.sh --dev` wrote a `source.conf`
+  naming a Gitea repository, a token and a `stable`/`prerelease` channel, and the fetch carried a
+  second branch for it. Measured against a real Gitea instance, that branch could not have worked:
+  its `releases/latest` needs an API base while its download needs a web base, and one variable
+  cannot be both. The channel was the second name for a question `RELEASE_BRANCH` already answers,
+  and it reached the operator as a `Channel:` line in `h-list-sys-install` that meant nothing. What
+  replaces all of it is the fetch override, which touches the download and nothing else.
+  `source.conf` itself stays, hand-written, for the one key still read from it: `HESTIARE_MIRROR`.
+
 ### Fixed
 
 - **The install tree's permissions no longer follow the calling shell** (#1045). `install.sh`

@@ -372,7 +372,7 @@ updates. `CONF_DIR="${CONF_DIR:-/etc/hestia}"` (`include/main.sh:48`), exported 
 | `/etc/hestia/hestia.env` | bootstrap file (renamed from `hestia.conf`, #81) |
 | `/etc/hestia/local.conf` | operator overrides, survive upgrades |
 | `/etc/hestia/limits.conf` | `CUSTOMER_PHP_CPU_PERCENT`, seeded once and never rewritten (#212) |
-| `/etc/hestia/source.conf` | written by `install.sh --dev` for a private release source; the runtime reads it nowhere since #949 |
+| `/etc/hestia/source.conf` | hand-written and optional since #1045; the one key still read is `HESTIARE_MIRROR`, which switches the release mirror off. Nothing writes the file |
 | `/etc/hestia/install.conf` | wizard recipe only, frozen after the wizard writes it (#945); live state is `hestia.conf` |
 | `/etc/hestia/conf/` | panel config; `$HESTIA/conf` is now a **symlink** here (#129) |
 | `/etc/hestia/{firewall,ips,queue,users}/` | moved out of `$HESTIA/data/` (#148/#154/#156) |

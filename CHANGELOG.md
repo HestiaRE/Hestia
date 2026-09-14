@@ -12,6 +12,14 @@ opens above it.
 
 ## Unreleased
 
+### Changed
+
+- **Only a release cut from `main` reaches the public mirror** (#1045). Point releases tag `dev`
+  and stay inside Gitea. The mirror workflow still starts for them, because Gitea takes a
+  workflow from the ref of the event and `dev` carries the file too, so a gate at the top of the
+  job is the only thing between an internal tag and a public push. A `target_commitish` that
+  does not resolve is a red run, never a silent skip.
+
 ### Fixed
 
 - **The install tree's permissions no longer follow the calling shell** (#1045). `install.sh`

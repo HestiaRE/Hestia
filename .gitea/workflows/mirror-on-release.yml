@@ -14,9 +14,32 @@ jobs:
           SRC_REPO_PATH: ${{ secrets.SRC_REPO_PATH }}
           REPO_SLUG: ${{ github.repository }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TARGET: ${{ github.event.release.target_commitish }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
+          # Only a release cut from main is mirrored. A point release tags dev and has to stay
+          # internal, yet this workflow still starts, because Gitea takes the workflow from the ref
+          # of the event and dev carries this file too: the gate is the only thing between an
+          # internal tag and a public push. One field expression, never toJSON(github.event.release),
+          # which renders {} here while the fields beside it resolve (measured).
+          if [ "${EVENT_NAME:-}" = "release" ]; then
+            # Empty means the expression did not resolve, and a gate that then reads "not main" would
+            # fail open. Same shape as the RELEASE_TAG guard further down.
+            if [ -z "${RELEASE_TARGET:-}" ]; then
+              echo "Release event with an empty target_commitish - the expression did not resolve."
+              echo "Refusing to decide; fix it rather than trusting a gate that cannot see its subject."
+              exit 1
+            fi
+            if [ "$RELEASE_TARGET" != "main" ]; then
+              echo "target_commitish=$RELEASE_TARGET - an internal release, nothing is mirrored."
+              echo "Only a release cut from main reaches the public mirror."
+              exit 0
+            fi
+            echo "target_commitish=main - mirroring this release."
+          else
+            echo "Manual dispatch - mirroring whatever main and the tags are right now."
+          fi
           workdir="$(mktemp -d -p /tmp mirror.XXXXXX)"
           trap 'rm -rf "$workdir"' EXIT
           # Resolve the bare repo on this host. The configured path wins; if it is gone the

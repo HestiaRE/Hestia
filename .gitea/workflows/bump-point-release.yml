@@ -51,11 +51,15 @@ jobs:
           # workflow could do something nobody asked for.
           [ -n "${API_BASE:-}" ] || { echo "github.api_url did not resolve - refusing to guess the API host."; exit 1; }
           [ -n "${API_TOKEN:-}" ] || { echo "The RELEASE_TOKEN secret is not set; it needs write access to this repository."; exit 1; }
-          case "${WANT:-}" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            "") echo "No version given."; exit 1 ;;
-            *) echo "'$WANT' is not a version. Expected the form v0.19.1."; exit 1 ;;
-          esac
+          [ -n "${WANT:-}" ] || { echo "No version given."; exit 1; }
+          # A regex, not a glob. As a case pattern `v[0-9]*.[0-9]*.[0-9]*` also accepts
+          # "v0.19.1 && rm -rf /", because `*` is anything and `.` is literal (measured). Nothing
+          # here executes the value, it reaches jq through --arg and quoted expansions otherwise,
+          # but a gate answering "is this a version" has no business saying yes to that.
+          if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "'$WANT' is not a version. Expected the form v0.19.1."
+            exit 1
+          fi
           # Taken as Gitea hands it over rather than assembled from the host: measured, this is
           # https://<instance>/api/v1, so there is no second place that knows the path shape.
           API="${API_BASE}/repos/${REPO_SLUG}"
@@ -129,7 +133,20 @@ jobs:
             '{tag_name:$t, target_commitish:$b, name:$t, body:"Internal point release. Not mirrored.", draft:false, prerelease:true}')
           raw=$(api POST "/releases" "$payload")
           code=$(printf '%s' "$raw" | head -1)
-          [ "$code" = "201" ] || { echo "Release creation failed (HTTP $code): $(printf '%s' "$raw" | tail -n +2)"; echo "VERSION is already at $WANT on $BRANCH; run this again with the same version to finish."; exit 1; }
+          if [ "$code" != "201" ]; then
+            echo "Release creation failed (HTTP $code): $(printf '%s' "$raw" | tail -n +2)"
+            if [ "$code" = "409" ]; then
+              # The one thing the free-tag check above cannot cover: it asked, and the answer went
+              # stale. Gitea refuses the duplicate itself (measured), so nothing was created twice,
+              # but "run it again" would be wrong advice - the next run stops at that same check.
+              echo "$WANT exists now although it did not a moment ago, so somebody cut it in between."
+              echo "VERSION on $BRANCH is at $WANT. Decide whether that release is the one you wanted;"
+              echo "if it is not, delete it and its tag, then run this again."
+            else
+              echo "VERSION is already at $WANT on $BRANCH; run this again with the same version to finish."
+            fi
+            exit 1
+          fi
 
           echo "== Reading back"
           rel=$(api GET "/releases/tags/$WANT" | tail -n +2)

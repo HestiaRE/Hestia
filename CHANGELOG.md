@@ -12,7 +12,13 @@ opens above it.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **The install tree's permissions no longer follow the calling shell** (#1045). `install.sh`
+  set no umask, so the modes under `/usr/local/hestia` came from whatever umask the installer
+  was started with. It stayed invisible because the published tarball already carries 644/755,
+  but a tarball produced by `git archive` carries group-write and that would have landed on the
+  box. `h-install-hestia` has always set the same umask for its own stage.
 
 ## v0.19.0 (2026-09-13)
 

@@ -191,47 +191,75 @@ _fetch_release() {
 	# A private Gitea release is a different build - it never falls back to the public mirror.
 	[ "${HESTIARE_SOURCE:-github}" = "gitea" ] && RELEASE_MIRROR=""
 
-	echo "[ * ] Fetching latest release..."
-	local latest
+	local latest=""
 	local -a curl_auth=()
 	[ -n "$HESTIARE_TOKEN" ] && curl_auth=(-H "Authorization: token ${HESTIARE_TOKEN}")
 
-	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
-		latest=$(curl -fsSL "${curl_auth[@]}" "${HESTIARE_REPO_URL}/releases/latest" \
-			| jq -r '.tag_name') || latest=''
-	elif [ "${HESTIARE_CHANNEL}" = "prerelease" ]; then
-		latest=$(_release_get api "/releases" | jq -r '.[0].tag_name') || latest=''
-	else
-		latest=$(_release_get api "/releases/latest" | jq -r '.tag_name') || latest=''
-	fi
-
-	# the assignments above absorb their own failure, or set -e would abort before this message
-	{ [ -n "$latest" ] && [ "$latest" != "null" ]; } || {
-		echo "ERROR: Could not determine latest release." >&2
-		exit 1
-	}
-	echo "[ * ] Version: ${latest}"
-
-	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
-		curl -fsSL "${curl_auth[@]}" \
-			"${HESTIARE_REPO_URL}/releases/download/${latest}/hestiare-${latest}.tar.gz" \
+	# The test override: one URL, taken as given, instead of resolving a release. Own copy here for the
+	# same reason the fetch itself is duplicated: this runs before the tree exists. The tarball's own
+	# VERSION is then the only statement about what it is, and it is checked below like any other.
+	if [ -n "${HESTIA_RELEASE_URL:-}" ]; then
+		echo "[ * ] Fetching the tarball named by HESTIA_RELEASE_URL"
+		local -a ov_auth=()
+		[ -n "${HESTIA_RELEASE_TOKEN:-}" ] && ov_auth=(-H "Authorization: token ${HESTIA_RELEASE_TOKEN}")
+		curl -fsSL --connect-timeout 15 --max-time 600 "${ov_auth[@]}" "${HESTIA_RELEASE_URL}" \
 			-o /tmp/hestiare.tar.gz
 	else
-		_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
+		echo "[ * ] Fetching latest release..."
+		if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
+			latest=$(curl -fsSL "${curl_auth[@]}" "${HESTIARE_REPO_URL}/releases/latest" \
+				| jq -r '.tag_name') || latest=''
+		elif [ "${HESTIARE_CHANNEL}" = "prerelease" ]; then
+			latest=$(_release_get api "/releases" | jq -r '.[0].tag_name') || latest=''
+		else
+			latest=$(_release_get api "/releases/latest" | jq -r '.tag_name') || latest=''
+		fi
+
+		# the assignments above absorb their own failure, or set -e would abort before this message
+		{ [ -n "$latest" ] && [ "$latest" != "null" ]; } || {
+			echo "ERROR: Could not determine latest release." >&2
+			exit 1
+		}
+		echo "[ * ] Version: ${latest}"
+
+		if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
+			curl -fsSL "${curl_auth[@]}" \
+				"${HESTIARE_REPO_URL}/releases/download/${latest}/hestiare-${latest}.tar.gz" \
+				-o /tmp/hestiare.tar.gz
+		else
+			_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
+		fi
 	fi
-	tar -xzf /tmp/hestiare.tar.gz -C /tmp
+	# The root directory comes from the tarball itself, never from its name: the release asset carries
+	# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one
+	# entry, or this is not a release tarball. Unpacked into its own directory, so the name cannot
+	# collide with anything else that already sits in /tmp.
+	_root=$(tar -tzf /tmp/hestiare.tar.gz | cut -d/ -f1 | sort -u)
+	if [ -z "${_root}" ] || [ "$(printf '%s\n' "${_root}" | wc -l)" != 1 ]; then
+		echo "ERROR: the fetched tarball has no single root directory (holds: ${_root:-nothing})." >&2
+		rm -f /tmp/hestiare.tar.gz
+		exit 1
+	fi
+	_work=$(mktemp -d /tmp/hestiare.XXXXXX)
+	tar -xzf /tmp/hestiare.tar.gz -C "${_work}"
 	rm /tmp/hestiare.tar.gz
 	# A mirror can cache or hand back the wrong asset, and on a v6-only box there is no second
 	# opinion: the extracted tree has to carry the version that was asked for.
-	_got=$(cat "/tmp/hestiare-${latest}/VERSION" 2> /dev/null || echo "")
-	if [ "${_got#v}" != "${latest#v}" ]; then
-		echo "ERROR: fetched release is not ${latest} (tree says '${_got:-nothing}')." >&2
-		rm -rf "/tmp/hestiare-${latest}"
+	_got=$(cat "${_work}/${_root}/VERSION" 2> /dev/null || echo "")
+	if [ -z "${_got}" ]; then
+		echo "ERROR: the fetched tree carries no VERSION, so there is nothing to check it against." >&2
+		rm -rf "${_work}"
 		exit 1
 	fi
+	if [ -n "${latest}" ] && [ "${_got#v}" != "${latest#v}" ]; then
+		echo "ERROR: fetched release is not ${latest} (tree says '${_got}')." >&2
+		rm -rf "${_work}"
+		exit 1
+	fi
+	[ -n "${latest}" ] || echo "[ * ] Version: ${_got} (from the tarball)"
 	mkdir -p "${INSTALL_DIR}"
-	cp -r /tmp/hestiare-${latest}/. "${INSTALL_DIR}/"
-	rm -rf /tmp/hestiare-${latest}
+	cp -r "${_work}/${_root}/." "${INSTALL_DIR}/"
+	rm -rf "${_work}"
 	echo "[ * ] Extracted to ${INSTALL_DIR}"
 }
 

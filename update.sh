@@ -38,17 +38,34 @@ die() {
 #                   Find, and hand over                    #
 #----------------------------------------------------------#
 
-TARGET=$(release_target_tag) || die "update: cannot tell which release to follow"
-[ -n "$TARGET" ] || die "update: the release source did not answer - no version was guessed, nothing was touched"
+# HESTIA_RELEASE_URL hands this run a tarball instead of a tag. It is a test mechanism and stops at
+# the download: the resolver below, --check and the panel flag keep asking the real source, so a test
+# build can never leave a box claiming an update is waiting. What the tarball is gets read from its
+# own VERSION after unpacking, which is why the downgrade refusal sits further down in this mode.
+OVERRIDE=$(release_override_url)
 TREE=$(tree_version)
-say "Installed: ${TREE:-unknown}   Target: $TARGET"
+if [ -n "$OVERRIDE" ]; then
+	TARGET=""
+	say "Installed: ${TREE:-unknown}   Target: the tarball at $OVERRIDE"
+else
+	TARGET=$(release_target_tag) || die "update: cannot tell which release to follow"
+	[ -n "$TARGET" ] || die "update: the release source did not answer - no version was guessed, nothing was touched"
+	say "Installed: ${TREE:-unknown}   Target: $TARGET"
+fi
 
 # version_ge comes from main.sh through release.sh and carries the `v`, so the tag, the tree and this
 # literal are compared in the form they are all written in. An unreadable version loses.
 version_ge "$TREE" "$UPDATE_MIN_VERSION" \
 	|| die "update: this box says ${TREE:-nothing}, and the lower bound is $UPDATE_MIN_VERSION - it is reinstalled, not updated. Nothing was touched."
-version_ge "$TARGET" "$TREE" \
+[ -z "$TARGET" ] \
+	|| version_ge "$TARGET" "$TREE" \
 	|| die "update: $TARGET is older than the installed $TREE - an update never goes backwards. Nothing was touched."
+
+# --check answers "is something newer published", and an override was handed a fixed file instead of
+# an answer. Refused rather than quietly reporting on the real source: the flag it writes is read by
+# the panel, and a test run has no business touching it.
+[ -z "$OVERRIDE" ] || [ "$CHECK_ONLY" = no ] \
+	|| die "update: --check asks the release source, and this run was handed a fixed tarball. Nothing was touched."
 
 # --check is also the writer of the panel flag, and it sits BEFORE the early exit: behind it the
 # "nothing to do" branch leaves, and a key set once would keep the banner up forever. It is the one
@@ -70,7 +87,7 @@ fi
 #----------------------------------------------------------#
 
 STATUS=$(status_version)
-if [ "$TARGET" = "$TREE" ]; then
+if [ -n "$TARGET" ] && [ "$TARGET" = "$TREE" ]; then
 	# Leaving is only right when the last run also finished: a status behind the tree means a plan
 	# was never worked off.
 	if [ "$STATUS" = "$TREE" ] && [ "$("$HESTIA/bin/h-list-sys-updates" json "$TREE" 2> /dev/null | jq -r '.count // 0')" = 0 ]; then
@@ -84,34 +101,59 @@ fi
 #                    Fetch and verify                      #
 #----------------------------------------------------------#
 
-RUNDIR="${HESTIA_UPDATE_RUNDIR:-/root/hestiare-update/$(date '+%Y-%m-%d_%H-%M-%S')_${TREE:-unknown}_$TARGET}"
+RUNDIR="${HESTIA_UPDATE_RUNDIR:-/root/hestiare-update/$(date '+%Y-%m-%d_%H-%M-%S')_${TREE:-unknown}_${TARGET:-override}}"
 mkdir -p "$RUNDIR" || die "update: cannot create $RUNDIR"
 say "[ * ] Run directory: $RUNDIR"
 
-TARBALL="${HESTIA_UPDATE_TARBALL:-$RUNDIR/hestiare-$TARGET.tar.gz}"
+TARBALL="${HESTIA_UPDATE_TARBALL:-$RUNDIR/hestiare-${TARGET:-override}.tar.gz}"
 if [ ! -s "$TARBALL" ]; then
-	release_get dl "/$TARGET/hestiare-$TARGET.tar.gz" -o "$TARBALL" \
-		|| die "update: could not fetch hestiare-$TARGET.tar.gz"
+	release_fetch_asset "" "$TARBALL" "$TARGET" \
+		|| die "update: could not fetch the release tarball"
 	[ -s "$TARBALL" ] || die "update: the downloaded tarball is empty"
 fi
 
-# A missing checksum is not an error, a wrong one is.
-if release_get dl "/$TARGET/hestiare-$TARGET.tar.gz.sha256" -o "$RUNDIR/sha256" 2> /dev/null \
+# A missing checksum is not an error, a wrong one is. Compared by value rather than with
+# `sha256sum -c`, which also insists on the file name the publisher wrote: the same bytes fetched
+# through an override arrive under a different name. More than one entry is refused instead of
+# passing on the strength of whichever line happened to match.
+if release_fetch_asset .sha256 "$RUNDIR/sha256" "$TARGET" 2> /dev/null \
 	&& [ -s "$RUNDIR/sha256" ]; then
-	if (cd "$RUNDIR" && sha256sum -c --status sha256); then
+	_lines=$(awk 'NF{n++} END{print n+0}' "$RUNDIR/sha256")
+	[ "$_lines" = 1 ] || die "update: the published sha256 lists $_lines files - refusing to guess which one"
+	_want=$(awk 'NF{print $1; exit}' "$RUNDIR/sha256")
+	_have=$(sha256sum "$TARBALL" | awk '{print $1}')
+	if [ -n "$_want" ] && [ "$_want" = "$_have" ]; then
 		say "[ * ] Checksum verified"
 	else
 		die "update: the tarball does not match its published sha256 - refusing to unpack it"
 	fi
 else
-	say "[ ! ] $TARGET publishes no checksum - the tree version is the only check"
+	say "[ ! ] ${TARGET:-this tarball} publishes no checksum - the tree version is the only check"
 fi
 
+# The root directory comes from the tarball itself, never from its name: the release asset carries
+# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one entry,
+# or this is not a release tarball and nothing below it would be true.
+NEWROOT=$(tar tzf "$TARBALL" | cut -d/ -f1 | sort -u)
+if [ -z "$NEWROOT" ] || [ "$(printf '%s\n' "$NEWROOT" | wc -l)" != 1 ]; then
+	die "update: the tarball has no single root directory, it holds: ${NEWROOT:-nothing}"
+fi
 tar xzf "$TARBALL" -C "$RUNDIR" || die "update: could not unpack the tarball"
-NEWTREE="$RUNDIR/hestiare-$TARGET"
-[ -d "$NEWTREE" ] || die "update: the tarball holds no hestiare-$TARGET directory"
+NEWTREE="$RUNDIR/$NEWROOT"
+[ -d "$NEWTREE" ] || die "update: the tarball listed $NEWROOT but unpacked no such directory"
 GOT=$(cat "$NEWTREE/VERSION" 2> /dev/null)
-[ "$GOT" = "$TARGET" ] || die "update: asked for $TARGET, the tarball says '${GOT:-nothing}' - refusing"
+if [ -n "$TARGET" ]; then
+	[ "$GOT" = "$TARGET" ] || die "update: asked for $TARGET, the tarball says '${GOT:-nothing}' - refusing"
+else
+	# The override asked for no tag, so the tarball's own VERSION is what this run goes to. The
+	# downgrade refusal happens here for that reason, and it is still before the first change to the
+	# box: only this run directory has been written so far.
+	[ -n "$GOT" ] || die "update: the tarball carries no VERSION, so there is nothing to call this run - refusing"
+	version_ge "$GOT" "$TREE" \
+		|| die "update: the tarball is $GOT, older than the installed $TREE - an update never goes backwards. Nothing was touched."
+	TARGET="$GOT"
+	say "[ * ] The tarball says it is $TARGET"
+fi
 
 # The handover. Nothing on the box has changed yet: only this run directory was written. The mark
 # says this process already IS the newer updater, so it cannot hand over to itself again.

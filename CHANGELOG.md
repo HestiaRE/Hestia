@@ -14,6 +14,18 @@ opens above it.
 
 ### Changed
 
+- **The tarball's root directory is read from the tarball** (#1045). The installer and the updater
+  took it from the tag (`hestiare-<tag>/`), which is what the release asset happens to be called.
+  An archive built straight from the repository carries `hestiare/`, and both would have missed it.
+  Exactly one root entry is required, so a tarball that is not one refuses instead of unpacking
+  somewhere unexpected. The installer also unpacks into its own directory now rather than into
+  bare `/tmp` under a predictable name.
+
+- **A published checksum is compared by value, not with `sha256sum -c`** (#1045). The checksum file
+  also names the asset, and the same bytes fetched under another name failed a check that had
+  nothing to do with the bytes. A file listing more than one asset is refused rather than passing
+  on whichever line happened to match.
+
 - **The tree carries its own version** (#1045). `VERSION` was an empty placeholder that the release
   build stamped from the tag, so the source and the artefact were two independent statements about
   one number. It is committed before each tag now, and the build compares instead of writing: a

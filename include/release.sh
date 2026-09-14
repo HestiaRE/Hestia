@@ -7,8 +7,11 @@
 # main.sh reads sysreg.sh through $HESTIA, so the variable has to exist, not just a fallback inside
 # one path expression.
 HESTIA="${HESTIA:-/usr/local/hestia}"
+# Probed by function, not by variable: a variable arrives from the environment too, and an exported
+# HESTIA_RELEASE_MIRROR then skipped this source and left version_ge undefined - which made the
+# updater's lower-bound check refuse with "this box is too old" instead of saying what was missing.
 # shellcheck source=/usr/local/hestia/include/main.sh
-[ -n "${HESTIA_RELEASE_MIRROR:-}" ] || source "$HESTIA/include/main.sh"
+declare -F version_ge > /dev/null || source "$HESTIA/include/main.sh"
 
 RELEASE_REPO="HestiaRE/Hestia"
 RELEASE_API="https://api.github.com/repos/$RELEASE_REPO"

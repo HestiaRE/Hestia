@@ -14,6 +14,12 @@ opens above it.
 
 ### Changed
 
+- **The tree carries its own version** (#1045). `VERSION` was an empty placeholder that the release
+  build stamped from the tag, so the source and the artefact were two independent statements about
+  one number. It is committed before each tag now, and the build compares instead of writing: a
+  mismatch, or an empty file, ends the release rather than shipping a tarball that disagrees with
+  its own tag.
+
 - **Only a release cut from `main` reaches the public mirror** (#1045). Point releases tag `dev`
   and stay inside Gitea. The mirror workflow still starts for them, because Gitea takes a
   workflow from the ref of the event and `dev` carries the file too, so a gate at the top of the

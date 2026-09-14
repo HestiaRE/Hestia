@@ -18,10 +18,28 @@ jobs:
       - name: Set version
         run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
 
+      - name: VERSION comes from the tree and has to agree with the tag
+        run: |
+          # VERSION is committed before the tag, so the source says what it is and a tarball built by
+          # any other means says the same. Two sources for one number drift in silence, so this
+          # compares instead of writing.
+          tree=$(cat VERSION 2> /dev/null || true)
+          # Empty is red, never "equal". The file was a build-time placeholder for a long time, and
+          # two empty strings compare just fine.
+          if [ -z "$tree" ]; then
+            echo "VERSION is empty at ${GITHUB_REF_NAME}, so nothing was compared."
+            echo "Commit the bump onto the commit the tag points at, then cut the tag again."
+            exit 1
+          fi
+          if [ "$tree" != "${GITHUB_REF_NAME}" ]; then
+            echo "VERSION says '$tree', the tag says '${GITHUB_REF_NAME}'."
+            echo "Commit the bump onto the commit the tag points at, then cut the tag again."
+            exit 1
+          fi
+          echo "VERSION and tag agree on ${GITHUB_REF_NAME}."
+
       - name: Build tarball
         run: |
-          # The tag is the version; write it into the file the tree ships with.
-          echo "${VERSION}" > VERSION
           mkdir -p dist/hestiare-${VERSION}
           # Dev-only trees never ship: the tarball is what lands on a customer box.
           EXCLUDES=$(grep 'export-ignore' .gitattributes | awk '{print $1}')

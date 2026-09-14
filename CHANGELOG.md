@@ -12,6 +12,15 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **An internal point release is one manual action** (#1045). The `Bump point release` workflow
+  takes the version, writes it into `VERSION` on `dev` and cuts the release on that commit. Both
+  halves in one place, because a bump without a release, or a release without the bump, is exactly
+  the drift the public build guards against and the internal line has no build to guard it. It
+  refuses a version that is not one, one that does not go forward, and a tag that already exists;
+  a run that wrote the file but did not reach the release finishes when it is run again.
+
 ### Changed
 
 - **The tarball's root directory is read from the tarball** (#1045). The installer and the updater

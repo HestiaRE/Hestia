@@ -183,36 +183,6 @@ _release_get() {
 	curl -fsSL --connect-timeout 15 --max-time 600 "$@" "${mirror}${path}"
 }
 
-# The normal way in: ask the source which release is newest, then fetch it. Split out so the override
-# is a branch and not a second copy of this. It assigns the caller's `latest` and reads the caller's
-# `curl_auth`, which bash's dynamic scope allows and which is the reason this is not a subshell.
-_resolve_and_fetch() {
-	echo "[ * ] Fetching latest release..."
-	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
-		latest=$(curl -fsSL "${curl_auth[@]}" "${HESTIARE_REPO_URL}/releases/latest" \
-			| jq -r '.tag_name') || latest=''
-	elif [ "${HESTIARE_CHANNEL}" = "prerelease" ]; then
-		latest=$(_release_get api "/releases" | jq -r '.[0].tag_name') || latest=''
-	else
-		latest=$(_release_get api "/releases/latest" | jq -r '.tag_name') || latest=''
-	fi
-
-	# the assignments above absorb their own failure, or set -e would abort before this message
-	{ [ -n "$latest" ] && [ "$latest" != "null" ]; } || {
-		echo "ERROR: Could not determine latest release." >&2
-		exit 1
-	}
-	echo "[ * ] Version: ${latest}"
-
-	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
-		curl -fsSL "${curl_auth[@]}" \
-			"${HESTIARE_REPO_URL}/releases/download/${latest}/hestiare-${latest}.tar.gz" \
-			-o /tmp/hestiare.tar.gz
-	else
-		_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
-	fi
-}
-
 _fetch_release() {
 	HESTIARE_REPO_URL="${HESTIARE_REPO_URL:-}"
 	HESTIARE_TOKEN="${HESTIARE_TOKEN:-}"
@@ -221,7 +191,7 @@ _fetch_release() {
 	# A private Gitea release is a different build - it never falls back to the public mirror.
 	[ "${HESTIARE_SOURCE:-github}" = "gitea" ] && RELEASE_MIRROR=""
 
-	local latest
+	local latest=""
 	local -a curl_auth=()
 	[ -n "$HESTIARE_TOKEN" ] && curl_auth=(-H "Authorization: token ${HESTIARE_TOKEN}")
 
@@ -230,13 +200,35 @@ _fetch_release() {
 	# VERSION is then the only statement about what it is, and it is checked below like any other.
 	if [ -n "${HESTIA_RELEASE_URL:-}" ]; then
 		echo "[ * ] Fetching the tarball named by HESTIA_RELEASE_URL"
-		latest=""
 		local -a ov_auth=()
 		[ -n "${HESTIA_RELEASE_TOKEN:-}" ] && ov_auth=(-H "Authorization: token ${HESTIA_RELEASE_TOKEN}")
 		curl -fsSL --connect-timeout 15 --max-time 600 "${ov_auth[@]}" "${HESTIA_RELEASE_URL}" \
 			-o /tmp/hestiare.tar.gz
 	else
-		_resolve_and_fetch
+		echo "[ * ] Fetching latest release..."
+		if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
+			latest=$(curl -fsSL "${curl_auth[@]}" "${HESTIARE_REPO_URL}/releases/latest" \
+				| jq -r '.tag_name') || latest=''
+		elif [ "${HESTIARE_CHANNEL}" = "prerelease" ]; then
+			latest=$(_release_get api "/releases" | jq -r '.[0].tag_name') || latest=''
+		else
+			latest=$(_release_get api "/releases/latest" | jq -r '.tag_name') || latest=''
+		fi
+
+		# the assignments above absorb their own failure, or set -e would abort before this message
+		{ [ -n "$latest" ] && [ "$latest" != "null" ]; } || {
+			echo "ERROR: Could not determine latest release." >&2
+			exit 1
+		}
+		echo "[ * ] Version: ${latest}"
+
+		if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
+			curl -fsSL "${curl_auth[@]}" \
+				"${HESTIARE_REPO_URL}/releases/download/${latest}/hestiare-${latest}.tar.gz" \
+				-o /tmp/hestiare.tar.gz
+		else
+			_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
+		fi
 	fi
 	# The root directory comes from the tarball itself, never from its name: the release asset carries
 	# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one

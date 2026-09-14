@@ -32,6 +32,13 @@ curl -fsSL https://raw.githubusercontent.com/HestiaRE/Hestia/<tag>/update.sh -o 
 bash /root/update.sh
 ```
 
+For testing a build that is not a published release, `HESTIA_RELEASE_URL` names a tarball directly and
+`HESTIA_RELEASE_TOKEN` authenticates the fetch. It replaces the download and nothing else: which
+release a box follows is still answered by the source, `--check` refuses rather than report on one
+thing while fetching another, and the version comes from the tarball's own `VERSION`. It lives in the
+environment of a single run, is written nowhere and appears in no status output. It is a test
+mechanism, not a second channel and not something an operator configures.
+
 ## The lower bound
 
 **v0.19.0.** A box below it is reinstalled, not updated, and the fetched updater above will say so

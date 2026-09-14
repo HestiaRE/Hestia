@@ -107,9 +107,16 @@ else
 	say "[ ! ] $TARGET publishes no checksum - the tree version is the only check"
 fi
 
+# The root directory comes from the tarball itself, never from its name: the release asset carries
+# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one entry,
+# or this is not a release tarball and nothing below it would be true.
+NEWROOT=$(tar tzf "$TARBALL" | cut -d/ -f1 | sort -u)
+if [ -z "$NEWROOT" ] || [ "$(printf '%s\n' "$NEWROOT" | wc -l)" != 1 ]; then
+	die "update: the tarball has no single root directory, it holds: ${NEWROOT:-nothing}"
+fi
 tar xzf "$TARBALL" -C "$RUNDIR" || die "update: could not unpack the tarball"
-NEWTREE="$RUNDIR/hestiare-$TARGET"
-[ -d "$NEWTREE" ] || die "update: the tarball holds no hestiare-$TARGET directory"
+NEWTREE="$RUNDIR/$NEWROOT"
+[ -d "$NEWTREE" ] || die "update: the tarball listed $NEWROOT but unpacked no such directory"
 GOT=$(cat "$NEWTREE/VERSION" 2> /dev/null)
 [ "$GOT" = "$TARGET" ] || die "update: asked for $TARGET, the tarball says '${GOT:-nothing}' - refusing"
 

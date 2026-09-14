@@ -219,19 +219,30 @@ _fetch_release() {
 	else
 		_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
 	fi
-	tar -xzf /tmp/hestiare.tar.gz -C /tmp
+	# The root directory comes from the tarball itself, never from its name: the release asset carries
+	# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one
+	# entry, or this is not a release tarball. Unpacked into its own directory, so the name cannot
+	# collide with anything else that already sits in /tmp.
+	_root=$(tar -tzf /tmp/hestiare.tar.gz | cut -d/ -f1 | sort -u)
+	if [ -z "${_root}" ] || [ "$(printf '%s\n' "${_root}" | wc -l)" != 1 ]; then
+		echo "ERROR: the fetched tarball has no single root directory (holds: ${_root:-nothing})." >&2
+		rm -f /tmp/hestiare.tar.gz
+		exit 1
+	fi
+	_work=$(mktemp -d /tmp/hestiare.XXXXXX)
+	tar -xzf /tmp/hestiare.tar.gz -C "${_work}"
 	rm /tmp/hestiare.tar.gz
 	# A mirror can cache or hand back the wrong asset, and on a v6-only box there is no second
 	# opinion: the extracted tree has to carry the version that was asked for.
-	_got=$(cat "/tmp/hestiare-${latest}/VERSION" 2> /dev/null || echo "")
+	_got=$(cat "${_work}/${_root}/VERSION" 2> /dev/null || echo "")
 	if [ "${_got#v}" != "${latest#v}" ]; then
 		echo "ERROR: fetched release is not ${latest} (tree says '${_got:-nothing}')." >&2
-		rm -rf "/tmp/hestiare-${latest}"
+		rm -rf "${_work}"
 		exit 1
 	fi
 	mkdir -p "${INSTALL_DIR}"
-	cp -r /tmp/hestiare-${latest}/. "${INSTALL_DIR}/"
-	rm -rf /tmp/hestiare-${latest}
+	cp -r "${_work}/${_root}/." "${INSTALL_DIR}/"
+	rm -rf "${_work}"
 	echo "[ * ] Extracted to ${INSTALL_DIR}"
 }
 

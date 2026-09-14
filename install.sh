@@ -33,6 +33,11 @@
 
 set -euo pipefail
 
+# cp -r takes the source mode minus the umask, and a git-archive tarball carries group-write
+# (git's tar.umask defaults to 0002). Without this the install tree's modes would follow
+# whichever shell started the installer. h-install-hestia sets the same for its own stage.
+umask 0022
+
 # ── Constants ──────────────────────────────────────────────
 SOURCE_CONF="/etc/hestia/source.conf"
 INSTALL_DIR="/usr/local/hestia"

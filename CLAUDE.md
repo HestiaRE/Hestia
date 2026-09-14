@@ -161,7 +161,7 @@ include/wizard.sh    interactive wizard (manifest-driven) → writes /etc/hestia
 include/helper.sh    installer helpers: hestia_apt, load_os_profile, seed_hestia_etc
 sbin/h-install-hestia non-interactive installer (reads install.conf, COMPONENT_*-gated)
 sbin/hestia       umbrella: hestia install|configure|update|uninstall|status
-VERSION           empty placeholder, filled at build time — never edit
+VERSION           the version this tree is; committed before each tag, release.yml compares
 CODEMAP.json      component map — read before exploring the codebase
 CLAUDE.md         this file
 ```
@@ -303,6 +303,11 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   fix, and `v0.16.0` missed a security fix by twelve hours. Nothing that runs after the tag repairs
   it - the guard at the end of `.gitea/workflows/mirror-on-release.yml` only makes it loud. Say it
   out loud *before* the release, not in a PR footnote.
+- **Bump `VERSION` in a commit before the tag, onto the commit the tag will point at.** The tree
+  carries its own version instead of having one stamped at build time, so `release.yml` compares
+  the two and refuses a release whose `VERSION` disagrees with the tag; an empty file is refused
+  as well, because two empty strings compare just fine. On the internal Gitea line nothing checks
+  this yet, so a point release on `dev` needs the same bump commit by hand.
 - Consolidate the `CHANGELOG.md` Unreleased section into the new minor (point releases stay
   inside the cycle they belong to). Archive the uncondensed text on `docs` under
   `full-changes/CHANGELOG_v0-N.md` before condensing; target density is ~120 lines per section.

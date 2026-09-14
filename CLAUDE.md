@@ -306,8 +306,9 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
 - **Bump `VERSION` in a commit before the tag, onto the commit the tag will point at.** The tree
   carries its own version instead of having one stamped at build time, so `release.yml` compares
   the two and refuses a release whose `VERSION` disagrees with the tag; an empty file is refused
-  as well, because two empty strings compare just fine. On the internal Gitea line nothing checks
-  this yet, so a point release on `dev` needs the same bump commit by hand.
+  as well, because two empty strings compare just fine. For a minor this is a hand step, done before
+  the tag; an internal point release gets it from the `Bump point release` workflow, which writes the
+  file and cuts the release in one go so the two cannot come apart.
 - Consolidate the `CHANGELOG.md` Unreleased section into the new minor (point releases stay
   inside the cycle they belong to). Archive the uncondensed text on `docs` under
   `full-changes/CHANGELOG_v0-N.md` before condensing; target density is ~120 lines per section.

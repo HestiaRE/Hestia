@@ -1,22 +1,13 @@
 # .gitea/workflows/bump-point-release.yml
 name: Bump point release
 #
-# Cut an internal point release: write VERSION on dev, then tag that commit as a release. Manual
-# only, and the version is typed rather than derived - a point release is a decision, not a counter.
+# Write VERSION on dev, then tag that commit as a release. Both halves here, because a bump without
+# a release ships a tarball carrying the previous number and nothing on this line would notice.
 #
-# Why this exists at all: on the public line release.yml refuses a tag whose VERSION disagrees with
-# it. Nothing does that on the internal line, and a point release with a forgotten bump ships a
-# tarball carrying the previous number - which the fetch override then believes. Doing both steps in
-# one place is the answer, because then they cannot come apart.
-#
-# HOST DEPENDENCY, complete list: curl, jq, base64. No node, no clone, no push: the file is written
-# through the API, which is also what makes the branch protection and the audit trail apply.
-#
-# SECRET, complete list: RELEASE_TOKEN, a Gitea token with the single scope `write:repository` on
-# this repository. That covers all seven calls below, because contents and releases are one scope in
-# Gitea; nothing here needs admin, user, organization or package. Two things the scope does not give
-# and that have to be true of the token's OWNER: push permission on the repository, and permission
-# to push to the branch below if it is protected. The bump commit is authored by that user.
+# HOST DEPENDENCY, complete list: curl, jq, base64. Written through the API, so branch protection
+# and the audit trail apply.
+# SECRET, complete list: RELEASE_TOKEN, scope `write:repository`. Its owner needs push rights on the
+# branch below, which no scope grants, and authors the bump commit.
 on:
   workflow_dispatch:
     inputs:
@@ -46,26 +37,19 @@ jobs:
           fi
 
           BRANCH=dev
-          # Everything below refuses on an empty value rather than carrying on with a URL that is
-          # half a path or a version that is no version. An empty input is the likeliest way this
-          # workflow could do something nobody asked for.
           [ -n "${API_BASE:-}" ] || { echo "github.api_url did not resolve - refusing to guess the API host."; exit 1; }
           [ -n "${API_TOKEN:-}" ] || { echo "The RELEASE_TOKEN secret is not set; it needs write access to this repository."; exit 1; }
           [ -n "${WANT:-}" ] || { echo "No version given."; exit 1; }
-          # A regex, not a glob. As a case pattern `v[0-9]*.[0-9]*.[0-9]*` also accepts
-          # "v0.19.1 && rm -rf /", because `*` is anything and `.` is literal (measured). Nothing
-          # here executes the value, it reaches jq through --arg and quoted expansions otherwise,
-          # but a gate answering "is this a version" has no business saying yes to that.
+          # A regex, because the obvious glob also accepts "v0.19.1 && rm -rf /".
           if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "'$WANT' is not a version. Expected the form v0.19.1."
             exit 1
           fi
-          # Taken as Gitea hands it over rather than assembled from the host: measured, this is
-          # https://<instance>/api/v1, so there is no second place that knows the path shape.
+          # Gitea hands over the finished base, so nothing here knows the path shape.
           API="${API_BASE}/repos/${REPO_SLUG}"
 
-          # $1 = method, $2 = path, $3 = body or empty. Prints the status on the first line and the
-          # response below it, so a caller reads the code before it believes the body.
+          # $1 method, $2 path, $3 body. Status on the first line, response below: the code is read
+          # before the body is believed.
           api() {
             local out
             out=$(mktemp)
@@ -89,8 +73,7 @@ jobs:
           [ -n "$have" ] || { echo "VERSION on $BRANCH is empty. It has to carry a version before this can raise one."; exit 1; }
           echo "   VERSION on $BRANCH: $have, requested: $WANT"
 
-          # Never sideways and never backwards. Equal is not an error but a resume: a previous run
-          # wrote the file and did not get to the release.
+          # Equal is a resume, not an error: a previous run wrote the file and missed the release.
           RESUME=no
           if [ "$have" = "$WANT" ]; then
             RESUME=yes
@@ -109,8 +92,7 @@ jobs:
 
           if [ "$RESUME" = no ]; then
             echo "== Writing VERSION on $BRANCH"
-            # The blob sha is what makes this safe against a push that landed in between: the write
-            # is refused rather than applied to a file this run never read.
+            # The blob sha refuses the write if the file moved since it was read.
             payload=$(jq -n --arg c "$(printf '%s\n' "$WANT" | base64 -w0)" --arg s "$blob_sha" \
               --arg b "$BRANCH" --arg m "chore: bump VERSION to $WANT" \
               '{content:$c, sha:$s, branch:$b, message:$m}')
@@ -126,9 +108,8 @@ jobs:
           echo "   bump commit: $commit"
 
           echo "== Cutting the release"
-          # target_commitish is the BRANCH NAME, not the sha, because that is the word the mirror
-          # gate and the consolidation script both read. The read-back below is what catches a push
-          # that landed between the bump and this call.
+          # The branch NAME, not the sha: that is what the mirror gate and the consolidation script
+          # read. The read-back below covers what that costs in precision.
           payload=$(jq -n --arg t "$WANT" --arg b "$BRANCH" \
             '{tag_name:$t, target_commitish:$b, name:$t, body:"Internal point release. Not mirrored.", draft:false, prerelease:true}')
           raw=$(api POST "/releases" "$payload")
@@ -136,9 +117,8 @@ jobs:
           if [ "$code" != "201" ]; then
             echo "Release creation failed (HTTP $code): $(printf '%s' "$raw" | tail -n +2)"
             if [ "$code" = "409" ]; then
-              # The one thing the free-tag check above cannot cover: it asked, and the answer went
-              # stale. Gitea refuses the duplicate itself (measured), so nothing was created twice,
-              # but "run it again" would be wrong advice - the next run stops at that same check.
+              # The check above asked and the answer went stale. Gitea refused the duplicate, so
+              # "run it again" would be wrong: the next run stops at that same check.
               echo "$WANT exists now although it did not a moment ago, so somebody cut it in between."
               echo "VERSION on $BRANCH is at $WANT. Decide whether that release is the one you wanted;"
               echo "if it is not, delete it and its tag, then run this again."

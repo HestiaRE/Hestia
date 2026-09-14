@@ -183,19 +183,11 @@ _release_get() {
 	curl -fsSL --connect-timeout 15 --max-time 600 "$@" "${mirror}${path}"
 }
 
-_fetch_release() {
-	HESTIARE_REPO_URL="${HESTIARE_REPO_URL:-}"
-	HESTIARE_TOKEN="${HESTIARE_TOKEN:-}"
-	HESTIARE_CHANNEL="${HESTIARE_CHANNEL:-stable}"
-	RELEASE_MIRROR="${HESTIARE_MIRROR-$RELEASE_MIRROR}"
-	# A private Gitea release is a different build - it never falls back to the public mirror.
-	[ "${HESTIARE_SOURCE:-github}" = "gitea" ] && RELEASE_MIRROR=""
-
+# The normal way in: ask the source which release is newest, then fetch it. Split out so the override
+# is a branch and not a second copy of this. It assigns the caller's `latest` and reads the caller's
+# `curl_auth`, which bash's dynamic scope allows and which is the reason this is not a subshell.
+_resolve_and_fetch() {
 	echo "[ * ] Fetching latest release..."
-	local latest
-	local -a curl_auth=()
-	[ -n "$HESTIARE_TOKEN" ] && curl_auth=(-H "Authorization: token ${HESTIARE_TOKEN}")
-
 	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
 		latest=$(curl -fsSL "${curl_auth[@]}" "${HESTIARE_REPO_URL}/releases/latest" \
 			| jq -r '.tag_name') || latest=''
@@ -219,6 +211,33 @@ _fetch_release() {
 	else
 		_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
 	fi
+}
+
+_fetch_release() {
+	HESTIARE_REPO_URL="${HESTIARE_REPO_URL:-}"
+	HESTIARE_TOKEN="${HESTIARE_TOKEN:-}"
+	HESTIARE_CHANNEL="${HESTIARE_CHANNEL:-stable}"
+	RELEASE_MIRROR="${HESTIARE_MIRROR-$RELEASE_MIRROR}"
+	# A private Gitea release is a different build - it never falls back to the public mirror.
+	[ "${HESTIARE_SOURCE:-github}" = "gitea" ] && RELEASE_MIRROR=""
+
+	local latest
+	local -a curl_auth=()
+	[ -n "$HESTIARE_TOKEN" ] && curl_auth=(-H "Authorization: token ${HESTIARE_TOKEN}")
+
+	# The test override: one URL, taken as given, instead of resolving a release. Own copy here for the
+	# same reason the fetch itself is duplicated: this runs before the tree exists. The tarball's own
+	# VERSION is then the only statement about what it is, and it is checked below like any other.
+	if [ -n "${HESTIA_RELEASE_URL:-}" ]; then
+		echo "[ * ] Fetching the tarball named by HESTIA_RELEASE_URL"
+		latest=""
+		local -a ov_auth=()
+		[ -n "${HESTIA_RELEASE_TOKEN:-}" ] && ov_auth=(-H "Authorization: token ${HESTIA_RELEASE_TOKEN}")
+		curl -fsSL --connect-timeout 15 --max-time 600 "${ov_auth[@]}" "${HESTIA_RELEASE_URL}" \
+			-o /tmp/hestiare.tar.gz
+	else
+		_resolve_and_fetch
+	fi
 	# The root directory comes from the tarball itself, never from its name: the release asset carries
 	# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one
 	# entry, or this is not a release tarball. Unpacked into its own directory, so the name cannot
@@ -235,11 +254,17 @@ _fetch_release() {
 	# A mirror can cache or hand back the wrong asset, and on a v6-only box there is no second
 	# opinion: the extracted tree has to carry the version that was asked for.
 	_got=$(cat "${_work}/${_root}/VERSION" 2> /dev/null || echo "")
-	if [ "${_got#v}" != "${latest#v}" ]; then
-		echo "ERROR: fetched release is not ${latest} (tree says '${_got:-nothing}')." >&2
+	if [ -z "${_got}" ]; then
+		echo "ERROR: the fetched tree carries no VERSION, so there is nothing to check it against." >&2
 		rm -rf "${_work}"
 		exit 1
 	fi
+	if [ -n "${latest}" ] && [ "${_got#v}" != "${latest#v}" ]; then
+		echo "ERROR: fetched release is not ${latest} (tree says '${_got}')." >&2
+		rm -rf "${_work}"
+		exit 1
+	fi
+	[ -n "${latest}" ] || echo "[ * ] Version: ${_got} (from the tarball)"
 	mkdir -p "${INSTALL_DIR}"
 	cp -r "${_work}/${_root}/." "${INSTALL_DIR}/"
 	rm -rf "${_work}"

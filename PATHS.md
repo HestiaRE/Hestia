@@ -45,7 +45,7 @@ Current state and migration steps are documented in Section 5.
 │                      Do not edit directly, overwritten on upgrade
 ├── local.conf         User overrides — survives upgrades, outside git
 ├── limits.conf        CUSTOMER_PHP_CPU_PERCENT — seeded once, hand-edited, never rewritten
-├── source.conf        Update channel config (github/gitea, token, channel)
+├── source.conf        Optional, hand-written: HESTIARE_MIRROR='' turns the release mirror off
 ├── conf/              Panel instance config (moved from $HESTIA/conf/)
 │   ├── hestia.conf    Active panel config (key=value pairs, generated)
 │   └── defaults/      Known-good baseline

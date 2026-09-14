@@ -11,6 +11,12 @@ name: Bump point release
 #
 # HOST DEPENDENCY, complete list: curl, jq, base64. No node, no clone, no push: the file is written
 # through the API, which is also what makes the branch protection and the audit trail apply.
+#
+# SECRET, complete list: RELEASE_TOKEN, a Gitea token with the single scope `write:repository` on
+# this repository. That covers all seven calls below, because contents and releases are one scope in
+# Gitea; nothing here needs admin, user, organization or package. Two things the scope does not give
+# and that have to be true of the token's OWNER: push permission on the repository, and permission
+# to push to the branch below if it is protected. The bump commit is authored by that user.
 on:
   workflow_dispatch:
     inputs:

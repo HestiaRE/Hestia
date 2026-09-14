@@ -28,7 +28,7 @@ jobs:
           API_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           WANT: ${{ github.event.inputs.version }}
           REPO_SLUG: ${{ github.repository }}
-          SERVER: ${{ github.server_url }}
+          API_BASE: ${{ github.api_url }}
         run: |
           set -euo pipefail
           missing=""
@@ -43,14 +43,16 @@ jobs:
           # Everything below refuses on an empty value rather than carrying on with a URL that is
           # half a path or a version that is no version. An empty input is the likeliest way this
           # workflow could do something nobody asked for.
-          [ -n "${SERVER:-}" ] || { echo "github.server_url did not resolve - refusing to guess the API host."; exit 1; }
+          [ -n "${API_BASE:-}" ] || { echo "github.api_url did not resolve - refusing to guess the API host."; exit 1; }
           [ -n "${API_TOKEN:-}" ] || { echo "The RELEASE_TOKEN secret is not set; it needs write access to this repository."; exit 1; }
           case "${WANT:-}" in
             v[0-9]*.[0-9]*.[0-9]*) ;;
             "") echo "No version given."; exit 1 ;;
             *) echo "'$WANT' is not a version. Expected the form v0.19.1."; exit 1 ;;
           esac
-          API="${SERVER}/api/v1/repos/${REPO_SLUG}"
+          # Taken as Gitea hands it over rather than assembled from the host: measured, this is
+          # https://<instance>/api/v1, so there is no second place that knows the path shape.
+          API="${API_BASE}/repos/${REPO_SLUG}"
 
           # $1 = method, $2 = path, $3 = body or empty. Prints the status on the first line and the
           # response below it, so a caller reads the code before it believes the body.

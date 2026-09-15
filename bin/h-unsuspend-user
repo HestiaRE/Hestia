@@ -37,22 +37,22 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Do not restrict access to SFTP/FTP/SSH if POLICY_USER_VIEW_SUSPENDED is set to yes
-if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" = 'no' ]; then
-	# Deleting '!' in front of the password
-	/usr/sbin/usermod --unlock $user
+# Unconditional: POLICY_USER_VIEW_SUSPENDED governs a running suspension, and after this command there
+# is none. Every step is a no-op where the suspend side skipped it (#1055).
 
-	# Unsuspending ftp accounts
-	for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do
-		/usr/sbin/usermod --unlock $ftp 2> /dev/null
-	done
+# Deleting '!' in front of the password
+/usr/sbin/usermod --unlock $user
 
-	# Restore the file manager listener if the user had it enabled and the module is
-	# installed (mirror of the suspend teardown; the saved FILE_MANAGER='yes' drives
-	# it). restart='no' — the web/proxy restart below picks the vhost up.
-	if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$user/user.conf" 2> /dev/null; then
-		$BIN/h-add-user-filemanager "$user" no > /dev/null 2>&1 || true
-	fi
+# Unsuspending ftp accounts
+for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do
+	/usr/sbin/usermod --unlock $ftp 2> /dev/null
+done
+
+# Restore the file manager listener if the user had it enabled and the module is
+# installed (mirror of the suspend teardown; the saved FILE_MANAGER='yes' drives
+# it). restart='no' — the web/proxy restart below picks the vhost up.
+if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$user/user.conf" 2> /dev/null; then
+	$BIN/h-add-user-filemanager "$user" no > /dev/null 2>&1 || true
 fi
 
 # Changing suspend value

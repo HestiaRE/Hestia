@@ -31,6 +31,22 @@ check_args '2' "$#" 'KEY VALUE'
 is_common_format_valid "$key" 'key'
 format_no_quotes "$value" 'value'
 
+# A key with a closed set is normalised to the registry's spelling, case being the only leniency, and
+# anything outside the set is refused here rather than left for a reader to misjudge (#1055). Matched
+# against the list, not lowercased, so a token that is not lowercase stays correct. A key without a
+# list is untouched - most values are free text.
+# The sentinel keeps the trailing newline: the empty string is a legal member of most system sets and
+# is their last line, so a command substitution would drop it and h-delete-sys-* could not clear a key.
+if _set=$(sysreg_values "$key" 2> /dev/null && printf 'S'); then
+	_set="${_set%S}"
+	# The marker carries the hit, so a match on the empty member is not read as no match.
+	_hit=$(printf '%s' "$_set" | awk -v v="$value" 'tolower($0) == tolower(v) { print "=" $0; exit }')
+	if [ -z "$_hit" ]; then
+		check_result "$E_INVALID" "$key accepts $(printf '%s' "$_set" | sed 's/^$/(empty)/' | paste -sd'|') - not '$value'"
+	fi
+	value="${_hit#=}"
+fi
+
 # One key, two scales: gzip takes 1-9, zstd 1-19. Checked where the value is set, not in the
 # nightly run that would die at 3 a.m. An unset mode passes - during an install it may not exist
 # yet, and the mode's own check catches the pair once it does.

@@ -66,6 +66,16 @@ opens above it.
   but a tarball produced by `git archive` carries group-write and that would have landed on the
   box. `h-install-hestia` has always set the same umask for its own stage.
 
+- **A for-loop over a file pattern no longer runs once on the pattern itself** (#1035). With no
+  match the shell hands the body the pattern, and the body then works on a path that does not
+  exist: a restore whose archive carried no vhost config for a domain ran `grep` and `cp` against
+  a literal `*`. Eight loops are guarded now, and the shell gate derives the set from the code and
+  fails on an unguarded one rather than relying on the habit that had already lapsed three times.
+
+- **`is_format_valid` checked one argument that names two things** (#1035). `h-change-sys-hestia-ssl`
+  passed `'ssl_dir restart'` as a single word; unquoted splitting made it work by accident, and the
+  same call written correctly anywhere else would not have been noticed either.
+
 ## v0.19.0 (2026-09-13)
 
 Closes the update chapter: a box can fetch, verify and apply a release on its own, and `hestia.conf`

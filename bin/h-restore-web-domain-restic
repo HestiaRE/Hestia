@@ -275,7 +275,8 @@ for domain in "${domains[@]}"; do
 		if [ ! -d "$HOMEDIR/$user/conf/web/$domain/" ]; then
 			mkdir -p $HOMEDIR/$user/conf/web/$domain/
 		fi
-		for file in $tmpdir/web/$domain/conf/*; do
+		for file in "$tmpdir/web/$domain/conf"/*; do
+			[ -e "$file" ] || continue
 			if [[ "$file" == *.ca ]] || [[ "$file" == *.crt ]] || [[ "$file" == *.key ]] || [[ "$file" == *.pem ]] || [[ "$file" == *.conf ]]; then
 				continue
 			fi

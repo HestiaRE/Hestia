@@ -181,6 +181,75 @@ else
 	rc=1
 fi
 
+# A for-loop over a pathname pattern hands its body the PATTERN when nothing matches, and the body
+# then works on a path that does not exist. Three times now (#826, #1031, #1033), the last two
+# landing two lines apart in one file - so the house rule is a rule, not a habit: the first line of
+# such a loop is an existence test.
+#
+# Not nullglob: it is not function-local in bash, so a library that a command sources keeps it set,
+# and an abort path through check_result never restores it. It would also make #1031's form - the
+# pattern arriving inside a VALUE - vanish silently instead of being wrong.
+#
+# NOT covered, said out loud: a glob outside a for-loop (`arr=(dir/*)`, `cp dir/* .`), a pattern
+# borne by a value, and a guard sitting further down the body than its first line.
+glob_loop_scan() {
+	local f n line words stripped body
+	for f in "$@"; do
+		n=0
+		while IFS= read -r line; do
+			n=$((n + 1))
+			[[ $line =~ ^[[:space:]]*for[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]+in[[:space:]] ]] || continue
+			words=${line#*" in "}
+			words=${words%%;*}
+			# what the shell would really glob - not what a quote, a substitution or an expansion hides
+			stripped=$(printf '%s\n' "$words" \
+				| sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g' -e 's/\$([^)]*)//g' -e 's/\${[^}]*}//g' -e 's/\$[A-Za-z_][A-Za-z0-9_]*//g')
+			case "$stripped" in *'*'* | *'?'*) ;; *) continue ;; esac
+			# the body's first real line: on the head's own line for a one-liner, after the `do` for a
+			# head that runs over several lines
+			if [[ $line =~ \;[[:space:]]*do[[:space:]]+[^[:space:]] ]]; then
+				body=${line#*"; do "}
+			elif [[ $line =~ \;[[:space:]]*do[[:space:]]*$ ]]; then
+				body=$(awk -v s="$n" 'NR>s && NF && $0 !~ /^[[:space:]]*#/ {print; exit}' "$f")
+			else
+				body=$(awk -v s="$n" 'NR>s {if (seen && NF && $0 !~ /^[[:space:]]*#/) {print; exit} if ($0 ~ /do[[:space:]]*$/) seen=1}' "$f")
+			fi
+			if [[ $body =~ ^[[:space:]]*(if[[:space:]]+)?\[\[?[[:space:]]+!?[[:space:]]*-[edfsLrwx][[:space:]] ]]; then
+				echo "GUARDED $f:$n"
+			else
+				echo "OPEN $f:$n ${line#"${line%%[![:space:]]*}"}"
+			fi
+		done < "$f"
+	done
+}
+
+echo "== glob loops: every for-loop over a pathname pattern guards the no-match case =="
+# The detector is the thing that can quietly stop matching, and a tree with no findings reads exactly
+# like a regex that found nothing. So it is asked a question it MUST get wrong-free: one loop it has
+# to flag, one it has to clear.
+glob_probe=$(mktemp -t globscan-XXXXXX.sh)
+printf 'for a in /tmp/x/*; do\n\techo "$a"\ndone\nfor b in /tmp/y/*; do\n\t[ -e "$b" ] || continue\ndone\n' > "$glob_probe"
+probe=$(glob_loop_scan "$glob_probe")
+rm -f "$glob_probe"
+if [ "$(grep -c '^OPEN ' <<< "$probe")" != 1 ] || [ "$(grep -c '^GUARDED ' <<< "$probe")" != 1 ]; then
+	echo "   FAILED - the detector no longer tells a guarded loop from an open one, so this proves nothing."
+	rc=1
+else
+	scan=$(glob_loop_scan "${ALL_FILES[@]}")
+	glob_n=$(grep -c . <<< "$scan")
+	glob_open=$(grep '^OPEN ' <<< "$scan" || true)
+	if [ "$glob_n" -eq 0 ]; then
+		echo "   FAILED - no glob loop found in ${#ALL_FILES[@]} files, so the scan read nothing."
+		rc=1
+	elif [ -n "$glob_open" ]; then
+		sed 's/^OPEN /   /' <<< "$glob_open"
+		echo "   FAILED - $(grep -c . <<< "$glob_open") loop(s) without a guard. First body line: [ -e \"\$x\" ] || continue"
+		rc=1
+	else
+		echo "   OK - $glob_n loop(s) in ${#ALL_FILES[@]} files, every one guarded"
+	fi
+fi
+
 if [ ${#changed[@]} -eq 0 ]; then
 	echo "== tier 2: no changed shell files vs $BASE =="
 else

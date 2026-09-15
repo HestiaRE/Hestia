@@ -43,10 +43,10 @@ fi
 # Checking source path
 IFS=$'\n'
 i=1
-for src in $*; do
+for src in "$@"; do
 	if [ "$i" -gt 2 ]; then
 		rpath=$(readlink -f "$src")
-		if [ -z "$(echo $rpath | egrep "^/tmp|^$homedir")" ]; then
+		if [ -z "$(echo "$rpath" | grep -E "^/tmp|^$homedir")" ]; then
 			echo "Error: invalid source path $src"
 			exit 1
 		fi
@@ -55,13 +55,13 @@ for src in $*; do
 done
 
 i=1
-for src in $*; do
+for src in "$@"; do
 	if [ "$i" -gt 2 ]; then
 		# Deleting leading home path
 		src=$(echo "$src" | sed -e "s|/home/$user/||")
 
 		# Creating tar.gz archive
-		user_exec tar -rf "${archive/.gz/}" -C /home/$user $src > /dev/null 2>&1
+		user_exec tar -rf "${archive/.gz/}" -C "/home/$user" "$src" > /dev/null 2>&1
 		if [ "$?" -ne 0 ]; then
 			echo "Error: archive $archive was not created"
 			exit 3

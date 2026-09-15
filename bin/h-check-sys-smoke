@@ -482,6 +482,7 @@ check_webmail_sqlite_driver() {
 check_webmail_value_domain() {
 	local t c found=0 missing=''
 	for t in "$HESTIA"/share/*/webmail/*.tpl; do
+		[ -e "$t" ] || continue
 		c=$(basename "$t" .tpl)
 		case "$c" in default | web_system | disabled | default_*) continue ;; esac
 		found=$((found + 1))

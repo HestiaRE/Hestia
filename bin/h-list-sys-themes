@@ -30,6 +30,7 @@ get_themes() {
 	# Retrieve list of system themes
 	if [ -d "$HESTIA_THEMES" ]; then
 		for file in "$HESTIA_THEMES"/*.css; do
+			[ -f "$file" ] || continue
 			filename=$(basename "$file" .css)
 			available_themes+=("${filename%.*}")
 		done
@@ -38,6 +39,7 @@ get_themes() {
 	# Check for existence of custom themes folder and iterate through items
 	if [ -d "$HESTIA_THEMES_CUSTOM" ] && [ "$(ls -A "$HESTIA_THEMES_CUSTOM")" ]; then
 		for file in "$HESTIA_THEMES_CUSTOM"/*.css; do
+			[ -f "$file" ] || continue
 			filename=$(basename "$file" .css)
 			available_themes+=("${filename%.*}")
 		done

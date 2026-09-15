@@ -2005,7 +2005,7 @@ is_hash_format_valid() {
 # An UNSET variable is a hard error: empty used to mean "nothing to check", which silently disabled a
 # check twice. A declared-but-empty variable stays a legitimate skip.
 is_format_valid() {
-	for arg_name in $*; do
+	for arg_name in "$@"; do
 		if ! declare -p "$arg_name" > /dev/null 2>&1; then
 			check_result "$E_INVALID" "internal: is_format_valid '$arg_name' names no variable - check for a rename or typo"
 		fi

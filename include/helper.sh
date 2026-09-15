@@ -362,7 +362,12 @@ seed_hestia_etc() {
 	_wcv "THEME" "dark"
 	_wcv "INACTIVE_SESSION_TIMEOUT" "60"
 	_wcv "VERSION" "$version"
-	_wcv "RELEASE_BRANCH" "release"
+	# A tarball handed in by HESTIA_RELEASE_URL is not on the release source, so 'release' would resolve
+	# to an older public tag and every update check would read as a downgrade. Pin what was installed,
+	# and only when it names a tag - an unreadable VERSION must not pin the box to 'dev'.
+	local relbranch=release
+	case "${HESTIA_RELEASE_URL:+$version}" in v[0-9]*) relbranch="$version" ;; esac
+	_wcv "RELEASE_BRANCH" "$relbranch"
 	_wcv "UPGRADE_SEND_EMAIL" "true"
 	_wcv "UPGRADE_SEND_EMAIL_LOG" "false"
 	_wcv "ROOT_USER" "$admin"

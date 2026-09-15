@@ -2,23 +2,17 @@
 # info: install HestiaRE from a written $CONF_DIR/install.conf
 # options: (none)
 #
-# Non-interactive installer orchestrator. Reads $CONF_DIR/install.conf
-# (produced by include/wizard.sh via install.sh) and installs HestiaRE in stages,
-# gated by the COMPONENT_* values. Replaces the former `just install` flow.
-#
-# Pure bash: stages are functions in this file; shared helpers live in
-# include/helper.sh; component install logic reuses the existing h-add-sys-*
-# commands where they exist. Idempotent via $CONF_DIR/.done.* sentinels, each carrying the
-# fingerprint of the install.conf it ran with - re-answering the wizard re-runs the stages.
+# Non-interactive orchestrator: reads $CONF_DIR/install.conf (written by include/wizard.sh) and
+# installs in stages gated by COMPONENT_*. Stages are functions here, helpers in include/helper.sh,
+# component logic reuses the h-add-sys-* commands.
+# Idempotent via $CONF_DIR/.done.* sentinels, each carrying the fingerprint of the install.conf it
+# ran with, so re-answering the wizard re-runs the stages.
 
 set -eo pipefail
 
-# The admin's base install decides the ambient umask, and it is not the same everywhere: deb13 and
-# ub26 ship no UMASK line in login.defs, so every file created by a redirect or mkdir here came out
-# group-writable there and 0644/0755 on deb12/ub24. That is not a cosmetic split - cron REFUSES a
-# group-writable file in /etc/cron.d, which is how the LE fallback silently never ran. Pin it, so
-# what we create does not depend on a setting we do not control. Anything needing other than this
-# is chmod'ed explicitly at its own site.
+# Not cosmetic: deb13 and ub26 ship no UMASK line in login.defs, so a redirect or mkdir here came out
+# group-writable there - and cron REFUSES a group-writable file in /etc/cron.d, which is how the LE
+# fallback silently never ran. Anything needing another mode is chmod'ed at its own site.
 umask 022
 
 # inherited by all sub-commands so debconf uses the Noninteractive frontend
@@ -78,10 +72,8 @@ source "$HESTIA/include/limits.sh" # customer_php_limit_apply (#212)
 source "$HESTIA/include/fail2ban.sh" # fail2ban_apply
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source "$HESTIA/include/web-model.sh" # configure_apache2, web_model_keyset, apache_remoteip_* (#120)
-# The recipe, and nothing an update ever rewrites: a box keeps the key set it was installed with. So no
-# reader here may treat an ABSENT key as a statement, neither "not chosen" nor "this box is new enough".
-# An old recipe carries keys we have dropped, a new one omits keys we once wrote; both must pass. What the
-# box HAS is hestia.conf, never this file. Decided at Halt 1d (#945), same words in the generated header.
+# The recipe, never rewritten by an update, so an ABSENT key states nothing - not "not chosen", not "new
+# enough"; old and new recipes must both pass. What the box HAS is hestia.conf, never this file (#945).
 # shellcheck source=/etc/hestia/install.conf
 source "$INSTALL_CONF" # HESTIA_*, INSTALL_OS/PROFILE, COMPONENT_*, TOOLS_SELECTION
 set -e
@@ -99,10 +91,8 @@ trap 'apt_auto_units_restore' EXIT
 load_os_profile "$INSTALL_OS"
 
 # ── Install-time variables ──────────────────────────────────────────────────
-# Panel/reference PHP = the OS default (#191), derived by the wizard and carried
-# in install.conf. A hand-written install.conf may omit it - derive again via the
-# shared helper. Empty = hard fail: a hardcoded fallback would pin the panel to a
-# version this OS never shipped (in os_single mode there is no Sury to save it).
+# Panel PHP = the OS default (#191), from install.conf or the shared helper. Empty is a hard fail: a
+# hardcoded fallback would pin the panel to a version this OS never shipped, with no Sury to save it.
 PHP_VER="${PHP_REFERENCE_VERSION:-}"
 [ -n "$PHP_VER" ] || PHP_VER=$(os_default_php)
 if [ -z "$PHP_VER" ]; then
@@ -132,10 +122,9 @@ wcv() {
 # truthiness helper for COMPONENT_* values
 is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
 
-# A stage is only "done" for the answers it ran with. The wizard can be re-run - a mistyped screen
-# on a tablet is enough - and a marker keyed on the stage name alone then skips work whose
-# configuration has since changed. That box had MariaDB selected on the second pass and no
-# database at all, and the failure only surfaced two stages later as "MySQL not available".
+# A stage is done only for the answers it ran with: the wizard can be re-run, and a marker keyed on the
+# name alone skips work whose configuration has since changed - MariaDB selected on a second pass, no
+# database, and the failure surfacing two stages later.
 # Usage: stage_done <name>  ->  0 when the stage ran with THIS install.conf
 stage_done() {
 	local marker="$CONF_DIR/.done.$1"
@@ -152,13 +141,11 @@ stage_fingerprint() {
 	sha256sum "$CONF_DIR/install.conf" 2> /dev/null | cut -f 1 -d ' '
 }
 
-# addon_install <name>: run h-add-sys-<name> for a component the wizard asked for. An addon that will
-# not install must never end the installation, because a network hiccup would leave a half-built box whose
-# only repair is a re-run. But it must not vanish either: before this helper the seven call sites ended in a
-# bare `|| true` and a failure was invisible until someone read the log (#480, #843). Now the box says it
-# on the console, in the closing summary, and the recount names the component at the end.
-# The helper name is also what the smoke reads to learn WHICH addons are soft; keep the call shape
-# `addon_install <name>` on one line, or update check_addons_swallowed with it (#945).
+# addon_install <name>: run h-add-sys-<name> soft. A network hiccup must not end the installation and
+# leave a half-built box, but a failure must not vanish either - a bare `|| true` hid it until someone
+# read the log (#480, #843). It is now on the console, in the summary and in the recount.
+# The smoke reads this helper to learn WHICH addons are soft: keep the call shape on one line, or
+# update check_addons_swallowed with it (#945).
 addon_install() {
 	local a="$1"
 	"$BIN/h-add-sys-$a" >> "$LOG" 2>&1 && return 0
@@ -280,19 +267,15 @@ install_panel() {
 		return 0
 	}
 	echo "[ * ] Installing panel packages (Caddy, PHP $PHP_VER FPM)..."
-	# gd/bz2/pgsql (phpMyAdmin/Adminer) + intl/exif/sqlite3 (webmail) installed unconditionally
-	# so the panel PHP is self-contained; wired into the isolated conf.d by hestia-php-confd.
-	# sqlite3 must be IN this list: confd builds the conf.d right below, and the same package
-	# arriving later via h-add-web-php never re-runs confd - the no-MariaDB webmail backend
-	# then has no driver and the roundcube seed dies (#684).
+	# Unconditional so the panel PHP is self-contained; wired into the isolated conf.d by hestia-php-confd.
+	# sqlite3 must be IN this list: confd runs right below and the same package arriving later via
+	# h-add-web-php never re-runs it, leaving the no-MariaDB webmail backend without a driver (#684).
 	local panel_php_pkgs
 	panel_php_pkgs="php${PHP_VER}-cli php${PHP_VER}-fpm php${PHP_VER}-mysql php${PHP_VER}-curl \
 php${PHP_VER}-zip php${PHP_VER}-gmp php${PHP_VER}-mbstring php${PHP_VER}-opcache php${PHP_VER}-xml \
 php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${PHP_VER}-exif php${PHP_VER}-sqlite3"
-	# Unconditional, not os_single-only (#857): from 8.5 on NOBODY ships a separate
-	# -opcache (it moved into core), so the raw list killed every sury-mode install
-	# on a box whose OS default is 8.5. The filter keeps whatever the configured
-	# repos can answer, drops tolerated names loudly, and names any other absence.
+	# Unconditional, not os_single-only (#857): from 8.5 on nobody ships a separate -opcache, so the raw
+	# list killed every sury-mode install on a box defaulting to 8.5. The filter drops tolerated names loudly.
 	# shellcheck disable=SC2086
 	if ! panel_php_pkgs=$(filter_installable_php_pkgs "opcache:8.5 exif" $panel_php_pkgs); then
 		exit 1
@@ -491,11 +474,8 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 	wcv "STATS_SYSTEM" "awstats"
 	wcv "WEB_BACKEND" "php-fpm"
 
-	# Multi-PHP: only in sury_multi mode, driven by the wizard's version list.
-	# The panel/reference version ($PHP_VER) always goes through the same canonical
-	# installer (h-add-web-php) as customer versions, so it gets the full extension
-	# set even if the preset did not pre-select it (#196, #272). Deduped so a
-	# pre-selected reference version is not installed twice.
+	# sury_multi only. The reference version goes through the same h-add-web-php as customer versions, so it
+	# gets the full extension set even when the preset did not pre-select it; deduped (#196, #272).
 	if [ "${COMPONENT_PHP_MODE:-sury_multi}" = "sury_multi" ]; then
 		# The status says the source, not the count (#934); the versions come from h-add-web-php below.
 		wcv "PHP_SOURCE" "sury"
@@ -551,8 +531,14 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 		sed -i "s%;date.timezone =%date.timezone = $ZONE%g" "$pconf"
 		sed -i 's%_open_tag = Off%_open_tag = On%g' "$pconf"
 	done < <(find /etc/php -name php.ini 2> /dev/null)
-	printf '#!/bin/sh\nfind -O3 /home/*/tmp/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\nfind -O3 %s/.sessions/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\n' \
-		"$HESTIA" > /etc/cron.daily/php-session-cleanup
+	# Read from the pool's php.ini, never spelled again: it was, and #974's move left this sweeping a
+	# directory that no longer exists. check_panel_session_store holds the two together.
+	local _sess
+	_sess=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$HESTIA/share/panel-php/fpm/php.ini" | head -1)
+	# Never interpolate an empty path into the find below: it would sweep and DELETE from / downwards.
+	[ -n "$_sess" ] && [ "$_sess" != / ] || check_result "$E_NOTEXIST" "no session.save_path in share/panel-php/fpm/php.ini"
+	printf '#!/bin/sh\nfind -O3 /home/*/tmp/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\nfind -O3 %s/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\n' \
+		"$_sess" > /etc/cron.daily/php-session-cleanup
 	chmod 755 /etc/cron.daily/php-session-cleanup
 	mkdir -p /var/www/html /var/www/document_errors
 	cp -rf "$HESTIA/share/web/unassigned/index.html" /var/www/html/
@@ -728,13 +714,10 @@ install_mail() {
 	fi
 	if [ "$wm_tx" = yes ]; then
 		echo "[ * ] Installing Tachyon..."
-		# WEBMAIL_SYSTEM only after the command succeeds: setting it first made the panel
-		# claim a webmail that a failed download had never unpacked (#573). Non-fatal like
-		# the addons above, but loud - the box stays usable, the gap stays visible.
-		# Roundcube above is NOT caught: an OS package apt cannot install is a broken box, a
-		# network fetch that fails is a gap (E23). The else branch used to fire on a box that stood
-		# exactly on the pin, because the command ended with rc 2 there; since E13 that is rc 0 and
-		# this branch means what it says (#945).
+		# WEBMAIL_SYSTEM only after the command succeeds: setting it first made the panel claim a webmail
+		# a failed download had never unpacked (#573). Soft but loud, like the addons.
+		# Roundcube above is NOT caught: an OS package apt cannot install is a broken box, a failed network
+		# fetch is a gap (E23).
 		if "$BIN/h-add-sys-tachyon" >> "$LOG" 2>&1; then
 			wcv "WEBMAIL_ALIAS" "webmail"
 		else
@@ -762,12 +745,9 @@ install_security() {
 		echo "[ skip ] security already configured"
 		return 0
 	}
-	# nftables and nothing else: it IS the backend (include/firewall.sh renders one inet table and shells
-	# /usr/sbin/nft), and it used to arrive only as a Recommends of iptables - which Debian's base image
-	# happens to satisfy and Ubuntu's does not. iptables and ipset are gone with the old renderer: no code
-	# calls either binary any more. fw_legacy_teardown still retires an older box's iptables ruleset, but it
-	# is guarded on the binary, so on a fresh install it is simply a no-op. docker.io depends on iptables
-	# itself, so the addon still gets it.
+	# nftables and nothing else: it IS the backend, and it used to arrive only as a Recommends of iptables -
+	# which Debian's base image happens to satisfy and Ubuntu's does not. iptables and ipset went with the old
+	# renderer; fw_legacy_teardown is guarded on the binary, and docker.io pulls iptables itself.
 	echo "[ * ] Installing security packages (nftables)..."
 	hestia_apt -y install nftables
 	wcv "FIREWALL_SYSTEM" "nftables"
@@ -817,15 +797,9 @@ install_security() {
 				"$BIN/h-add-sys-crowdsec-mesh" > /dev/null 2>&1 || echo "[ ! ] fleet-mesh enable reported an issue (non-fatal)"
 			fi
 		else
-			# The same soft path as the addons above, only it used to be silent: no else branch at all, so a
-			# box that had asked for CrowdSec and could not have it said nothing and left the recipe claiming
-			# it (#945, E13). CrowdSec is nginx-only, and on apache-only or the mailfront model there is no
-			# nginx front to protect. CROWDSEC_SYSTEM is never written here, which under "absent == empty" is
-			# the correct empty answer.
-			# Deliberately NOT routed through addon_install, so it does not appear in the addon recount: that
-			# check asks "was it attempted and did it fail". Here nothing was attempted, and nothing could
-			# have been. The model rules CrowdSec out before any install begins, so the recount would report
-			# a failure that never happened. The line and the summary entry carry it instead (#945).
+			# CrowdSec is nginx-only, so apache-only and the mailfront model have no front to protect. This
+			# used to be silent and left the recipe claiming it (#945, E13). Deliberately NOT addon_install:
+			# the recount asks "attempted and failed", and here nothing was attempted.
 			echo "[ ! ] CrowdSec was selected but the public web front is '${cs_pub:-none}', not nginx - not installed"
 			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}addon crowdsec: nginx-only, web front is '${cs_pub:-none}'"$'\n'
 		fi
@@ -881,12 +855,9 @@ init_hestia_structure() {
 		"$CONF_DIR/ips" "$CONF_DIR/queue" \
 		"$CONF_DIR/users" "$CONF_DIR/firewall" "$CONF_DIR/packages" \
 		"$CONF_DIR/hooks"
-	# The panel session store lives OUTSIDE the install root (#974): an update tars $HESTIA to roll
-	# back the overlay, and live sessions have no place in that snapshot; keeping it here also means
-	# check_install_root_owner never has to except a group-writable dir under the tree.
-	# Expired files are collected by the pool's own PHP GC (compiled defaults, 1/100 per session start,
-	# 1440 s); no distro routine looks here, Debian's phpsessionclean covers only the packaged versions'
-	# save_path, and the installer's cron.daily/php-session-cleanup covers the customers' /home/*/tmp.
+	# Outside the install root (#974): an update tars $HESTIA to roll back the overlay, and live sessions
+	# have no place in that snapshot. Expired files go to the pool's own PHP GC plus the cron.daily sweep
+	# below - no distro routine looks here, phpsessionclean covers only the packaged versions' save_path.
 	mkdir -p /var/lib/hestia/sessions
 	# The LE hook mechanism already exists in h-add-letsencrypt-domain (#4925); create the directory
 	# and drop its README so the hooks are discoverable rather than a secret handshake.
@@ -949,11 +920,8 @@ configure_hestia() {
 	find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -xtype l -delete 2> /dev/null || true
 
 	echo "[ * ] Installing firewall data; seeding hosting packages..."
-	# Seed the shipped default/system.pkg into the instance dir (#663). Never clobber an
-	# admin-created package that a re-run might find: copy per file only when absent. There used to
-	# be a "s/domain.tld/<host>/" pass over the whole directory here - it only ever filled upstream's
-	# NS field, which went with bind9 (#619), so it rewrote nothing of ours while ranging over every
-	# admin package. Configure re-runs when install.conf changes, so that was reachable.
+	# Seed the shipped packages into the instance dir (#663), per file and only when absent: configure
+	# re-runs whenever install.conf changes, and an admin-created package must survive that.
 	for _pkg in "$HESTIA/share/hestia/packages/"*.pkg; do
 		[ -e "$_pkg" ] || continue
 		_dest="$CONF_DIR/packages/$(basename "$_pkg")"
@@ -990,14 +958,11 @@ configure_hestia() {
 	"$BIN/h-add-sys-ssh-jail" > /dev/null 2>&1 || true
 
 	echo "[ * ] Creating admin user..."
-	# The stage can legitimately run a second time: a marker is the sha256 of the recipe, so rewriting the
-	# recipe (hestia configure --force) makes every stage due again. h-add-user then refuses with E_EXISTS
-	# and, under set -e, ends the whole installation. Measured on .13: the run died right here (#945).
-	# The account is box state, not recipe, so it is kept, and the password this run generated is taken
-	# back rather than printed: it was never set on the existing account.
-	# Keyed on the HESTIA RECORD alone, deliberately narrower than h-add-user's own check: a passwd entry
-	# without a record is not our admin but a name collision from the base image, and that has to stay
-	# loud. It falls through to h-add-user, which refuses it exactly as before.
+	# The stage can legitimately run twice - rewriting the recipe makes every stage due again - and
+	# h-add-user then refuses with E_EXISTS and ends the installation under set -e (#945). The account is
+	# box state, so it is kept and this run's password is taken back rather than printed.
+	# Keyed on the HESTIA RECORD alone, narrower than h-add-user's check: a passwd entry without a record
+	# is a name collision from the base image, and that has to stay loud.
 	if [ -e "$CONF_DIR/users/$HESTIA_ADMIN" ]; then
 		echo "  admin user $HESTIA_ADMIN already exists, keeping it and its password"
 		rm -f "$CONF_DIR/.admin_pass.tmp"
@@ -1048,12 +1013,9 @@ configure_hestia() {
 	fi
 	"$BIN/h-update-firewall" || true
 
-	# The web stage wipes /etc/nginx/conf.d/*.conf and puts only the static files from share/ back. The
-	# listener PER IP is not among them: it is rendered by rebuild_ip_web_config, which runs from
-	# h-add-sys-ip and from the model switch, and neither of those happens on a re-run. A second
-	# installer run therefore left the box with :80 and no :443 (#994, measured on .13). On a fresh
-	# install this loop is empty at the first pass and renders the one object h-update-sys-ip just
-	# created; either way it is idempotent, and it is the same function the IP add uses.
+	# The web stage wipes /etc/nginx/conf.d/*.conf and restores only the static files, not the per-IP
+	# listener - that comes from rebuild_ip_web_config, which a re-run never reaches, so a second install
+	# left the box with :80 and no :443 (#994). Same function the IP add uses, so it is idempotent.
 	# Read the model keys again first: this shell loaded hestia.conf before the web stage wrote them.
 	source_conf "$CONF_DIR/conf/hestia.conf"
 	# rebuild_ip_web_config calls process_http2_directive, which lives in domain.sh and is not in this
@@ -1074,11 +1036,9 @@ configure_hestia() {
 	fi
 
 	echo "[ * ] Adding default domain..."
-	# Said, not swallowed. The `|| true` alone printed a bare "Error: Web domain ... exists" on every
-	# re-run of this stage, which reads like a failure in a log that ends fine (#945).
-	# Read from the file, not from this shell: whether WEB_SYSTEM happens to be loaded here depends on
-	# where the nearest source_conf sits, and an unset variable would silently skip the domain on a box
-	# that has web. Anchored, like every other key read (#983).
+	# Said, not swallowed: a bare `|| true` printed "Error: Web domain ... exists" on every re-run (#945).
+	# Read from the file, not this shell - whether WEB_SYSTEM is loaded here depends on the nearest
+	# source_conf, and an unset variable would silently skip the domain. Anchored, like every key read (#983).
 	_web_sys=$(sed -n "s/^WEB_SYSTEM='\([^']*\)'.*/\1/p" "$CONF_DIR/conf/hestia.conf" 2> /dev/null | head -1)
 	if [ -z "$_web_sys" ]; then
 		# No customer web on this model (mailonly serves webmail through WEBMAIL_FRONT, #193), so
@@ -1104,11 +1064,9 @@ configure_hestia() {
 		echo "[ ! ] The panel stays on $(sed -n 's|^[[:space:]]*https\?://:\([0-9]*\).*|\1|p' /etc/caddy/hestia.conf 2> /dev/null | head -n1). Fix the cause, then: h-change-sys-port ${HESTIA_PANEL_PORT:-8083}"
 	fi
 	"$BIN/h-update-sys-defaults" > /dev/null 2>&1 || true
-	# Seed every config key from its single home. The installer writes only the keys it knows about,
-	# and the repair holds the default for all of them - measured on a running box, 25 keys were
-	# absent, among them most of the POLICY_* set, which the panel then reads as "" and treats as the
-	# permissive side. Runs last, when hestia.conf is complete, and repairs rather than overwrites:
-	# every value written above is already non-empty and is left alone.
+	# Seed every config key from its single home: the installer writes only what it knows about, and 25
+	# keys stayed absent - most of the POLICY_* set, which the panel reads as "" and treats as permissive.
+	# Last, when hestia.conf is complete, and repairing rather than overwriting what is already set.
 	"$BIN/h-repair-sys-config" repair > /dev/null 2>&1 || true
 	[ -f /root/.bashrc ] && grep -q 'hestia.sh' /root/.bashrc \
 		|| printf 'if [ "${PATH#*/usr/local/hestia/bin*}" = "$PATH" ]; then\n    . /etc/profile.d/hestia.sh\nfi\n' >> /root/.bashrc
@@ -1280,17 +1238,11 @@ echo " Profile: ${INSTALL_PROFILE}"
 echo "========================================================================"
 echo ""
 
-# nomail: install the MTA, then configure it send-only (#872). Without a mail block nothing
-# used to install exim at all - it only LOOKED right on Debian, whose base image ships
-# exim4-daemon-light, while Ubuntu ships no MTA and every notification died in PHP's mail()
-# with "sh: /usr/sbin/sendmail: not found" and a return code of 0.
-#
-# light, not heavy: send-only needs no lookups or authenticators. A box that later gains a
-# mail block gets heavy from install_mail, which replaces light - the two conflict, and that
-# swap is the accepted cost of the leaner default.
-#
-# No stage marker on purpose: a re-run must repair a missing MTA, and apt is a no-op when the
-# package is already there.
+# nomail: install the MTA, then configure it send-only (#872). Without a mail block nothing installed
+# exim at all - it only LOOKED right on Debian, whose base image ships exim4-daemon-light, while Ubuntu
+# ships none and every notification died in PHP's mail() with rc 0.
+# light, not heavy: send-only needs no lookups or authenticators; a box that later gains a mail block
+# gets heavy from install_mail, which replaces it. No stage marker, so a re-run repairs a missing MTA.
 install_exim_sendonly() {
 	# Looked at, not asserted: saying "mail goes through a relay" without checking leaves the
 	# box in the state the smoke test flags as a FAIL one minute later.
@@ -1339,11 +1291,8 @@ configure_system_aliases() {
 	fi
 }
 
-# nomail (#192): exim stays as the outbound-only notification MTA, but Debian's
-# default config is local-delivery-only - panel mail to any remote admin address
-# was silently undeliverable ("Mailing to remote domains not supported"). internet
-# type with loopback-only listeners is exactly send-only: accept from localhost,
-# deliver anywhere out.
+# nomail (#192): Debian's default config is local-delivery-only, so panel mail to a remote admin address
+# was silently undeliverable. internet type with loopback-only listeners is exactly send-only.
 configure_exim_sendonly() {
 	local c=/etc/exim4/update-exim4.conf.conf
 	if [ ! -f "$c" ]; then

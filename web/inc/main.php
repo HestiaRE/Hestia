@@ -599,7 +599,10 @@ function send_email($to, $subject, $mailtext, $from, $from_name, $to_name = "")
 		$mail->Port = $_SESSION["SERVER_SMTP_PORT"];
 		$mail->Host = $_SESSION["SERVER_SMTP_HOST"];
 		$mail->Username = $_SESSION["SERVER_SMTP_USER"];
-		$mail->Password = $_SESSION["SERVER_SMTP_PASSWD"];
+		// Not from the session: PHP writes that to a file, one per login (#976).
+		$smtp_secret = [];
+		exec(HESTIA_CMD . "h-list-sys-config secret SERVER_SMTP_PASSWD", $smtp_secret, $smtp_rc);
+		$mail->Password = $smtp_rc === 0 ? implode("", $smtp_secret) : "";
 	}
 
 	$mail->isHTML(true);

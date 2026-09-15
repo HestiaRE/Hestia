@@ -66,6 +66,36 @@ opens above it.
   but a tarball produced by `git archive` carries group-write and that would have landed on the
   box. `h-install-hestia` has always set the same umask for its own stage.
 
+- **A for-loop over a file pattern no longer runs once on the pattern itself** (#1035). With no
+  match the shell hands the body the pattern, and the body then works on a path that does not
+  exist: a restore whose archive carried no vhost config for a domain ran `grep` and `cp` against
+  a literal `*`. Eight loops are guarded now, and the shell gate derives the set from the code and
+  fails on an unguarded one rather than relying on the habit that had already lapsed three times.
+
+- **`is_format_valid` checked one argument that names two things** (#1035). `h-change-sys-hestia-ssl`
+  passed `'ssl_dir restart'` as a single word; unquoted splitting made it work by accident, and the
+  same call written correctly anywhere else would not have been noticed either.
+
+- **Emptying `CRON_SYSTEM` no longer removes the cron check from the smoke** (#971). cron is in the
+  installer's base package list, so it is on every box whatever the key says, and no command sets
+  the key in the first place. The check was gated on it and therefore disappeared rather than
+  failing - a guard that goes green by looking at less.
+
+- **The panel's session files no longer carry a secret's value** (#976). Every registry key of
+  `h-list-sys-config json` goes into `$_SESSION`, and PHP writes the session to a file - so
+  `PHPMYADMIN_KEY` sat in cleartext in one file per login, and in every backup that took them along
+  (measured on the fleet: six files, the value byte-identical to `hestia.conf`). A key the registry
+  marks secret now travels as a mask; emptiness survives, because every panel reader of one only
+  asks whether it is set. The single reader that needs the value - the mailer - fetches it through
+  `h-list-sys-config secret KEY` at the moment it sends. This is about the secret lying around, not
+  about a compromised panel, which may call that command itself.
+
+- **The daily session cleanup swept a directory that no longer exists** (#976). Moving the panel's
+  session store to `/var/lib/hestia/sessions` left `/etc/cron.daily/php-session-cleanup` pointed at
+  the old `$HESTIA/.sessions`, so nothing but PHP's probabilistic GC collected those files. The
+  path is read from the pool's own `php.ini` now instead of being spelled a second time, and the
+  smoke holds the two together.
+
 ## v0.19.0 (2026-09-13)
 
 Closes the update chapter: a box can fetch, verify and apply a release on its own, and `hestia.conf`

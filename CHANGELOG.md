@@ -67,6 +67,15 @@ opens above it.
 
 ### Fixed
 
+- **A suspended customer kept SSH, SFTP and FTP when the view-suspended policy held anything but
+  `yes` or `no`** (#1055, upstream #5711). `h-suspend-user` tested `POLICY_USER_VIEW_SUSPENDED` against
+  the restricting literal, so a third value - `Yes` is enough - skipped the whole branch: no
+  `usermod --lock`, no FTP lock, and the file manager listener left standing, while the record read
+  `SUSPENDED=yes` and the panel treated the policy as closed. The key carries no value list, so a
+  third value is reachable. Both commands test the permissive literal now, and everything else falls
+  to the restricting side. Upstream fixed only the unsuspend half.
+
+
 - **The install tree's permissions no longer follow the calling shell** (#1045). `install.sh`
   set no umask, so the modes under `/usr/local/hestia` came from whatever umask the installer
   was started with. It stayed invisible because the published tarball already carries 644/755,

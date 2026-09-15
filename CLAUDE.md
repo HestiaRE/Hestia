@@ -39,6 +39,14 @@ These are absolute. Never deviate, never re-suggest rejected items.
 - Minimal explicit sudo rules per command
 - Conservative approach over clever approach
 
+**Every loop over a file pattern guards the empty case.** With no match the shell hands the body the
+PATTERN, and the body then works on a path that does not exist - three times already (#826, #1031,
+#1033). So `[ -e "$x" ] || continue` is the FIRST line of the body, and the word list is quoted up to
+the pattern itself (`"$dir"/*`, never `$dir/*`). `for x in $*` globs as well; write `"$@"`.
+`.gitea/tools/lint-shell.sh` derives the set from the code and fails on an unguarded loop. Not
+nullglob: it is not function-local, an abort through `check_result` never restores it, and it would
+make a pattern borne by a VALUE vanish silently instead of being wrong.
+
 ---
 
 ## COMMENT STYLE

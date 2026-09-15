@@ -23,6 +23,13 @@ opens above it.
 
 ### Changed
 
+- **An install from a handed-in tarball pins itself to that version** (#1052). `HESTIA_RELEASE_URL`
+  names a build the release source does not carry, so the default `release` resolved to an older
+  public tag and every update check read as a downgrade - the pin had to be set by hand afterwards,
+  going around the validator. It is now seeded with the tarball's own `VERSION`, and only when that
+  names a tag: an unreadable one falls back to `release` rather than pinning the box to `dev`. An
+  install without the override is untouched and never pins itself.
+
 - **The tarball's root directory is read from the tarball** (#1045). The installer and the updater
   took it from the tag (`hestiare-<tag>/`), which is what the release asset happens to be called.
   An archive built straight from the repository carries `hestiare/`, and both would have missed it.

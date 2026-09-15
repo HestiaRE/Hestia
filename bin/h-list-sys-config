@@ -48,8 +48,8 @@ json_list() {
 	printf '			"WEB_HTTP3": "%s",\n' "$WEB_HTTP3"
 	for _k in $_keys; do
 		# A secret travels as a mask, never as its value: the panel drops every key of this output into
-		# $_SESSION, and PHP writes the session to a FILE under $HESTIA/.sessions - one copy per login,
-		# and every backup of the install root keeps them. Emptiness survives, because the panel's
+		# $_SESSION, and PHP writes the session to a FILE under the pool's save_path - one per login,
+		# and every backup of that directory keeps them. Emptiness survives, because the panel's
 		# readers of a secret only ask whether it is set; the one reader that needs the value fetches
 		# it at the moment it sends (#976). This is about the secret lying around, not about a
 		# compromised panel - that one may call this command in any format sudo allows.

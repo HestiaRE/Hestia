@@ -599,10 +599,12 @@ function send_email($to, $subject, $mailtext, $from, $from_name, $to_name = "")
 		$mail->Port = $_SESSION["SERVER_SMTP_PORT"];
 		$mail->Host = $_SESSION["SERVER_SMTP_HOST"];
 		$mail->Username = $_SESSION["SERVER_SMTP_USER"];
-		// Not from the session: PHP writes the session to a file under $HESTIA/.sessions, so the
-		// password would lie there once per login and travel in every backup of the install root.
+		// Not from the session: PHP writes the session to a file under /var/lib/hestia/sessions, so
+		// the password would lie there once per login and travel in every backup of that directory.
 		// Fetched at the moment it is needed instead, and raw - cli_value() json_decodes, which
 		// would change the type of a password that happens to read as a JSON scalar (#976).
+		// implode() over exec()'s lines cannot lose a newline: both h-add-sys-smtp and
+		// h-change-sys-config-value refuse a value containing one, measured on both paths.
 		$smtp_secret = [];
 		exec(HESTIA_CMD . "h-list-sys-config secret SERVER_SMTP_PASSWD", $smtp_secret, $smtp_rc);
 		$mail->Password = $smtp_rc === 0 ? implode("", $smtp_secret) : "";

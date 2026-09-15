@@ -81,6 +81,21 @@ opens above it.
   the key in the first place. The check was gated on it and therefore disappeared rather than
   failing - a guard that goes green by looking at less.
 
+- **The panel's session files no longer carry a secret's value** (#976). Every registry key of
+  `h-list-sys-config json` goes into `$_SESSION`, and PHP writes the session to a file - so
+  `PHPMYADMIN_KEY` sat in cleartext in one file per login, and in every backup that took them along
+  (measured on the fleet: six files, the value byte-identical to `hestia.conf`). A key the registry
+  marks secret now travels as a mask; emptiness survives, because every panel reader of one only
+  asks whether it is set. The single reader that needs the value - the mailer - fetches it through
+  `h-list-sys-config secret KEY` at the moment it sends. This is about the secret lying around, not
+  about a compromised panel, which may call that command itself.
+
+- **The daily session cleanup swept a directory that no longer exists** (#976). Moving the panel's
+  session store to `/var/lib/hestia/sessions` left `/etc/cron.daily/php-session-cleanup` pointed at
+  the old `$HESTIA/.sessions`, so nothing but PHP's probabilistic GC collected those files. The
+  path is read from the pool's own `php.ini` now instead of being spelled a second time, and the
+  smoke holds the two together.
+
 ## v0.19.0 (2026-09-13)
 
 Closes the update chapter: a box can fetch, verify and apply a release on its own, and `hestia.conf`

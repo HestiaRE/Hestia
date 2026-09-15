@@ -551,8 +551,17 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 		sed -i "s%;date.timezone =%date.timezone = $ZONE%g" "$pconf"
 		sed -i 's%_open_tag = Off%_open_tag = On%g' "$pconf"
 	done < <(find /etc/php -name php.ini 2> /dev/null)
-	printf '#!/bin/sh\nfind -O3 /home/*/tmp/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\nfind -O3 %s/.sessions/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\n' \
-		"$HESTIA" > /etc/cron.daily/php-session-cleanup
+	# The panel path is read from the pool's own php.ini, never spelled again here: it WAS spelled
+	# again, and when #974 moved the store to /var/lib/hestia/sessions this line kept sweeping the
+	# old $HESTIA/.sessions - a directory that no longer exists, so nothing but PHP's probabilistic
+	# GC collected the panel's sessions (measured on the fleet). check_panel_session_store holds the
+	# two together now.
+	local _sess
+	_sess=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$HESTIA/share/panel-php/fpm/php.ini" | head -1)
+	# Never interpolate an empty path into the find below: it would sweep and DELETE from / downwards.
+	[ -n "$_sess" ] && [ "$_sess" != / ] || check_result "$E_NOTEXIST" "no session.save_path in share/panel-php/fpm/php.ini"
+	printf '#!/bin/sh\nfind -O3 /home/*/tmp/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\nfind -O3 %s/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\n' \
+		"$_sess" > /etc/cron.daily/php-session-cleanup
 	chmod 755 /etc/cron.daily/php-session-cleanup
 	mkdir -p /var/www/html /var/www/document_errors
 	cp -rf "$HESTIA/share/web/unassigned/index.html" /var/www/html/

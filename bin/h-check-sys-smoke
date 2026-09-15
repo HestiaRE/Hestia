@@ -1779,6 +1779,54 @@ check_secret_file_modes() {
 	fi
 }
 
+# The panel's session files are the one place a registry value lands on disk in a form nobody
+# curates: every key of h-list-sys-config json goes into $_SESSION and PHP serialises the lot. So
+# this asks the ARTEFACT, not the emitter - a secret flag quietly dropped from the registry would
+# make the emitter agree with itself and leak anyway (#976).
+# It also holds the store's three spellings together: the pool's php.ini, the daily cleanup and the
+# directory itself. #974 moved the store and left the cleanup sweeping a path that no longer exists.
+# Not covered: the customers' own sessions under /home/*/tmp, which carry no panel config.
+check_panel_session_store() {
+	local ini='/etc/php/hestia/fpm/php.ini' cron='/etc/cron.daily/php-session-cleanup'
+	local path secrets f k v n=0 seen=0 bad='' named=0
+	path=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$ini" 2> /dev/null | head -1)
+	if [ -z "$path" ] || [ ! -d "$path" ]; then
+		no "panel session store: no usable session.save_path" "$ini names '${path:-nothing}'"
+		return
+	fi
+	grep -qF -- "$path/" "$cron" 2> /dev/null || bad="$bad cleanup-sweeps-elsewhere"
+	secrets=$(sysreg_secret_keys 2> /dev/null) || secrets=''
+	if [ -z "$secrets" ]; then
+		no "panel session store: the registry marks no key secret" "there is nothing to look for, so a clean result would prove nothing"
+		return
+	fi
+	for f in "$path"/sess_*; do
+		[ -f "$f" ] || continue
+		n=$((n + 1))
+		for k in $secrets; do
+			# The control: the key NAME must be in there. Without it the file is not a panel session,
+			# or it is unreadable, and "no value found" would only mean the probe never arrived.
+			grep -qF -- "$k" "$f" 2> /dev/null && named=1
+			v=$(sed -n "s/^$k='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null | head -1)
+			[ -n "$v" ] || continue
+			seen=$((seen + 1))
+			grep -qF -- "$v" "$f" 2> /dev/null && bad="$bad ${f##*/}:$k"
+		done
+	done
+	if [ "$n" -eq 0 ]; then
+		skip "panel session store: $path is swept by the daily cleanup, and holds no session to inspect (0 files)"
+	elif [ "$named" -eq 0 ]; then
+		no "panel session store: no secret key name in $n session file(s)" \
+			"the files are not panel sessions or cannot be read - a clean result would prove nothing"
+	elif [ -n "$bad" ]; then
+		no "panel session store:$bad" "a secret's value from hestia.conf appears verbatim in a session file"
+	elif [ "$seen" -eq 0 ]; then
+		ok "panel session store: $n session file(s), cleanup sweeps $path, and no secret carries a value to leak"
+	else
+		ok "panel session store: $n session file(s), cleanup sweeps $path, no secret value among them"
+	fi
+}
+
 # check_hestia_conf_mode: the chain that keeps hestia.conf to root: /etc/hestia at the mode the wizard
 # gives it (700, so the panel pool and every customer stop at the directory), and the file at the mode the
 # seed gives it. Both expectations are read from the tree (include/wizard.sh, include/helper.sh), so a
@@ -2984,6 +3032,7 @@ check_protected_names_effective
 check_hestia_conf_mode
 check_install_root_owner
 check_secret_file_modes
+check_panel_session_store
 check_record_only_protected
 check_eval_sites
 check_yescrypt_hashing

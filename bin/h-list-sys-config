@@ -1,8 +1,9 @@
 #!/bin/bash
 # info: list system configuration
-# options: [FORMAT]
+# options: [FORMAT] [KEY]
 #
 # example: h-list-sys-config json
+# example: h-list-sys-config secret SERVER_SMTP_PASSWD
 #
 # This function for obtaining the list of system parameters.
 
@@ -31,8 +32,12 @@ command -v nginx > /dev/null 2>&1 && nginx -V 2>&1 | grep -q -- '--with-http_v3_
 # a key the list forgot (five POLICY_SPAM_* did) never reached a policy gate. A registry the reader
 # cannot use ends this command non-zero, and the login refuses rather than gates on nothing.
 json_list() {
-	local _k _keys _n=0 _last
+	local _k _keys _secrets _n=0 _last
 	_keys=$(sysreg_keys) || exit "$E_UPDATE"
+	# Same refusal as the key list above: a registry this cannot read would emit every secret in
+	# cleartext, which is the one failure mode worth ending the command over.
+	_secrets=$(sysreg_secret_keys) || exit "$E_UPDATE"
+	_secrets=" ${_secrets//$'\n'/ } "
 	_last=$(printf '%s\n' "$_keys" | tail -n1)
 	echo '{'
 	echo '		"config": {'
@@ -42,6 +47,13 @@ json_list() {
 	json_escape WEB_HTTP3
 	printf '			"WEB_HTTP3": "%s",\n' "$WEB_HTTP3"
 	for _k in $_keys; do
+		# A secret travels as a mask, never as its value: the panel drops every key of this output into
+		# $_SESSION, and PHP writes the session to a FILE under $HESTIA/.sessions - one copy per login,
+		# and every backup of the install root keeps them. Emptiness survives, because the panel's
+		# readers of a secret only ask whether it is set; the one reader that needs the value fetches
+		# it at the moment it sends (#976). This is about the secret lying around, not about a
+		# compromised panel - that one may call this command in any format sudo allows.
+		case "$_secrets" in *" $_k "*) [ -z "${!_k}" ] || printf -v "$_k" '%s' '********' ;; esac
 		json_escape "$_k"
 		_n=$((_n + 1))
 		if [ "$_k" = "$_last" ]; then
@@ -52,6 +64,21 @@ json_list() {
 	done
 	echo '		}'
 	echo '	}'
+}
+
+# One key, raw, and only one the registry marks secret - so this cannot become a general key dumper
+# and cannot be pointed at a key whose masking nobody thought about. This is the counterpart of the
+# mask above: the panel's mailer asks here, at send time, instead of carrying the SMTP password in
+# its session (#976).
+secret_value() {
+	local _k="$1"
+	[ -n "$_k" ] || check_result "$E_INVALID" "secret: needs a key, e.g. h-list-sys-config secret SERVER_SMTP_PASSWD"
+	local _s
+	_s=$(sysreg_secret_keys) || check_result "$E_UPDATE" "secret: the key registry is unreadable"
+	case " ${_s//$'\n'/ } " in
+		*" $_k "*) printf '%s\n' "${!_k}" ;;
+		*) check_result "$E_INVALID" "secret: $_k is not a key the registry marks secret" ;;
+	esac
 }
 
 # Shell list
@@ -164,7 +191,8 @@ shell_list() {
 case $format in
 	json) json_list ;;
 	shell) shell_list ;;
-	*) check_result "$E_INVALID" "invalid format: $format - this command has json and shell" ;;
+	secret) secret_value "${2-}" ;;
+	*) check_result "$E_INVALID" "invalid format: $format - this command has json, shell and secret" ;;
 esac
 
 #----------------------------------------------------------#

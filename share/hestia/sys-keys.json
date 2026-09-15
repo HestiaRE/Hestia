@@ -190,7 +190,8 @@
   },
   "POLICY_BACKUP_SUSPENDED_USERS": {
    "class": "betreiber",
-   "default": "no"
+   "default": "no",
+   "values": ["yes", "no"]
   },
   "POLICY_CSRF_STRICTNESS": {
    "class": "betreiber",
@@ -198,7 +199,8 @@
   },
   "POLICY_SPAM_CUSTOMER_TUNING": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_SPAM_REJECT_SCORE_MAX": {
    "class": "betreiber",
@@ -218,11 +220,13 @@
   },
   "POLICY_SYNC_ERROR_DOCUMENTS": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_SYNC_SKELETON": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_SYSTEM_ENABLE_BACON": {
    "class": "betreiber",
@@ -230,43 +234,53 @@
   },
   "POLICY_SYSTEM_HIDE_ADMIN": {
    "class": "betreiber",
-   "default": "no"
+   "default": "no",
+   "values": ["yes", "no"]
   },
   "POLICY_SYSTEM_HIDE_SERVICES": {
    "class": "betreiber",
-   "default": "no"
+   "default": "no",
+   "values": ["yes", "no"]
   },
   "POLICY_SYSTEM_PASSWORD_RESET": {
    "class": "betreiber",
-   "default": "no"
+   "default": "no",
+   "values": ["yes", "no"]
   },
   "POLICY_SYSTEM_PROTECTED_ADMIN": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_USER_CHANGE_THEME": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_USER_DELETE_LOGS": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_USER_EDIT_DETAILS": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_USER_EDIT_WEB_TEMPLATES": {
    "class": "betreiber",
-   "default": "no"
+   "default": "no",
+   "values": ["yes", "no"]
   },
   "POLICY_USER_VIEW_LOGS": {
    "class": "betreiber",
-   "default": "yes"
+   "default": "yes",
+   "values": ["yes", "no"]
   },
   "POLICY_USER_VIEW_SUSPENDED": {
    "class": "betreiber",
-   "default": "no"
+   "default": "no",
+   "values": ["yes", "no"]
   },
   "PROJECT_QUOTA": {
    "class": "system",

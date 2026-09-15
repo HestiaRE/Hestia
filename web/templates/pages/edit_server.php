@@ -1321,10 +1321,10 @@
 										name="v_policy_user_view_suspended"
 										id="v_policy_user_view_suspended"
 									>
-										<option value="yes">
+										<option value="yes" <?= tohtml($_SESSION["POLICY_USER_VIEW_SUSPENDED"] == "yes" ? "selected" : "") ?>>
 											<?= tohtml(_("Yes")) ?>
 										</option>
-										<option value="no" <?= tohtml($_SESSION["POLICY_USER_VIEW_SUSPENDED"] == "no" ? "selected" : "") ?>>
+										<option value="no" <?= tohtml($_SESSION["POLICY_USER_VIEW_SUSPENDED"] != "yes" ? "selected" : "") ?>>
 											<?= tohtml(_("No")) ?>
 										</option>
 									</select>

@@ -67,6 +67,19 @@ opens above it.
 
 ### Fixed
 
+- **Saving the server form wrote `true` into a yes/no policy** (#1057). The view-suspended control is
+  a select, but the POST was read with `post_checkbox`, which takes any non-empty value as "on" - so
+  every save wrote its on-value regardless of the choice, and both the value and the fallback key were
+  the preview flag's, not this policy's. One save turned `POLICY_USER_VIEW_SUSPENDED` into `true`, and
+  suspending a customer then left their account unlocked. Read with `post_or_keep` now, in the
+  record's own vocabulary; leaving preview mode closes the policy with `no` instead of a flag value.
+
+- **A key with a closed set is normalised to the registry's spelling, and anything outside it is
+  refused** (#1055). `h-change-sys-config-value` took any string. `Yes` and `yes` are the same answer
+  and are now stored the same way; `true`, `1` or a typo end the command with the accepted set named.
+  The fourteen yes/no policies carry that set now - the system keys already did. Case is the only
+  leniency, and a key without a set is untouched, because most values are free text.
+
 - **A suspended customer kept SSH, SFTP and FTP when the view-suspended policy held anything but
   `yes` or `no`** (#1055, upstream #5711). `h-suspend-user` tested `POLICY_USER_VIEW_SUSPENDED` against
   the restricting literal, so a third value - `Yes` is enough - skipped the whole branch: no

@@ -37,14 +37,8 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# NOT gated on POLICY_USER_VIEW_SUSPENDED, unlike the suspend side. That policy governs what happens
-# DURING a suspension, and after this command there is none - so mirroring the guard here strands a
-# customer whose policy changed in between: suspended under 'no' the account is locked, unsuspended
-# under 'yes' the branch is skipped and the lock is never lifted. Measured: record says SUSPENDED=no,
-# `passwd -S` says L, and nothing reports a failure. Upstream's #5711 does not cover this either.
-# Safe unconditionally because every step is a no-op where the suspend side skipped it: usermod
-# --unlock on an unlocked account returns 0 and changes nothing, and the file manager restore is
-# idempotent and already tolerant of its own failure.
+# Unconditional: POLICY_USER_VIEW_SUSPENDED governs a running suspension, and after this command there
+# is none. Every step is a no-op where the suspend side skipped it (#1055).
 
 # Deleting '!' in front of the password
 /usr/sbin/usermod --unlock $user

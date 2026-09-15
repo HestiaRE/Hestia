@@ -268,10 +268,8 @@ $offer_pgsql = !empty($_SESSION["DB_SYSTEM"]) && $v_pgsql == "yes";
 if (!empty($_POST["save"])) {
 	$require_refresh = false;
 	$post_experimental = post_checkbox("v_experimental_features", true, "false", "true", "false");
-	// post_or_keep, not post_checkbox: the control is a select carrying yes/no, and post_checkbox
-	// reads any non-empty POST value as "on" - so every save wrote its $on regardless of the choice.
-	// Own key and own vocabulary too; both pointed at the preview flag, which put `true` into a key
-	// every reader compares against `yes` (#1057).
+	// post_or_keep, not post_checkbox: the control is a select, and post_checkbox reads any non-empty
+	// POST value as "on" (#1057).
 	$post_view_suspended = post_or_keep(
 		"v_policy_user_view_suspended",
 		$offer_preview_policies,
@@ -458,9 +456,7 @@ if (!empty($_POST["save"])) {
 		check_return_code($return_var, $output);
 		unset($output);
 		$v_debug_mode_adv = "yes";
-		// Leaving preview mode closes the preview policy with it - in the record's own vocabulary, and
-		// only when it is not already closed. The old condition held this policy against the preview
-		// flag, two values that never share a spelling, so it fired on every save.
+		// Leaving preview mode closes the preview policy with it, in the record's own vocabulary.
 		if ($post_experimental == "false" && ($_SESSION["POLICY_USER_VIEW_SUSPENDED"] ?? "no") != "no") {
 			exec(
 				HESTIA_CMD .

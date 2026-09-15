@@ -38,10 +38,7 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Do not restrict access to SFTP/FTP/SSH if POLICY_USER_VIEW_SUSPENDED is set to yes.
-# Tested against the PERMISSIVE literal, so anything else falls to the restricting side: the key has no
-# values list, the panel already reads it as `!== "yes"`, and `= 'no'` let a third value skip the branch
-# entirely - leaving a suspended account unlocked (upstream #5711, which fixed only the unsuspend half).
+# Only the permissive literal keeps the account open; anything else locks it (#1055).
 if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
 	# Adding '!' in front of the password
 	/usr/sbin/usermod --lock "$user"

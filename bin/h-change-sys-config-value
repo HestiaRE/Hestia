@@ -31,18 +31,15 @@ check_args '2' "$#" 'KEY VALUE'
 is_common_format_valid "$key" 'key'
 format_no_quotes "$value" 'value'
 
-# A key with a closed set is normalised to the registry's own spelling, case being the only leniency:
-# an operator types Yes, every reader downstream compares against a literal, and the two halves then
-# disagree silently - that is how a suspended account kept its login (#1055). Anything not in the set
-# is refused here instead of falling to whichever side a gate happens to test for.
-# Matched against the list, not lowercased blindly: a future token that is not lowercase stays correct.
-# A key with no list is untouched - most values are free text.
-# The sentinel is load-bearing: the empty string is a legal member of most system sets (it means "not
-# on this box"), it is the LAST line of the list, and a command substitution strips trailing newlines -
-# so without it every set silently loses its empty member and h-delete-sys-* could not clear a key.
+# A key with a closed set is normalised to the registry's spelling, case being the only leniency, and
+# anything outside the set is refused here rather than left for a reader to misjudge (#1055). Matched
+# against the list, not lowercased, so a token that is not lowercase stays correct. A key without a
+# list is untouched - most values are free text.
+# The sentinel keeps the trailing newline: the empty string is a legal member of most system sets and
+# is their last line, so a command substitution would drop it and h-delete-sys-* could not clear a key.
 if _set=$(sysreg_values "$key" 2> /dev/null && printf 'S'); then
 	_set="${_set%S}"
-	# Membership carried by a marker, not by the match being non-empty, for the same reason.
+	# The marker carries the hit, so a match on the empty member is not read as no match.
 	_hit=$(printf '%s' "$_set" | awk -v v="$value" 'tolower($0) == tolower(v) { print "=" $0; exit }')
 	if [ -z "$_hit" ]; then
 		check_result "$E_INVALID" "$key accepts $(printf '%s' "$_set" | sed 's/^$/(empty)/' | paste -sd'|') - not '$value'"

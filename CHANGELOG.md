@@ -80,6 +80,13 @@ opens above it.
   The fourteen yes/no policies carry that set now - the system keys already did. Case is the only
   leniency, and a key without a set is untouched, because most values are free text.
 
+- **Unsuspending a customer restores their access whatever the policy says now** (#1055). The unlock
+  carried the same guard as the lock, so a customer suspended while the policy said `no` and
+  unsuspended after it changed to `yes` kept the lock: the record read `SUSPENDED=no`, `passwd -S`
+  read `L`, and nothing reported a failure. The policy governs what happens during a suspension, and
+  after this command there is none - so the restore is unconditional. It is a no-op wherever the
+  suspend side skipped its own work. Upstream's fix does not cover this case either.
+
 - **A suspended customer kept SSH, SFTP and FTP when the view-suspended policy held anything but
   `yes` or `no`** (#1055, upstream #5711). `h-suspend-user` tested `POLICY_USER_VIEW_SUSPENDED` against
   the restricting literal, so a third value - `Yes` is enough - skipped the whole branch: no

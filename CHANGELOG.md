@@ -76,6 +76,11 @@ opens above it.
   passed `'ssl_dir restart'` as a single word; unquoted splitting made it work by accident, and the
   same call written correctly anywhere else would not have been noticed either.
 
+- **Emptying `CRON_SYSTEM` no longer removes the cron check from the smoke** (#971). cron is in the
+  installer's base package list, so it is on every box whatever the key says, and no command sets
+  the key in the first place. The check was gated on it and therefore disappeared rather than
+  failing - a guard that goes green by looking at less.
+
 ## v0.19.0 (2026-09-13)
 
 Closes the update chapter: a box can fetch, verify and apply a release on its own, and `hestia.conf`

@@ -2805,7 +2805,11 @@ check_family_lage
 	&& check_config_loaded dovecot "imap" /etc/dovecot/dovecot.conf /etc/dovecot/conf.d/*.conf
 [ -n "$ANTISPAM_SYSTEM" ] && check_service "$ANTISPAM_SYSTEM" "antispam"
 [ -n "$FTP_SYSTEM" ] && check_service "$FTP_SYSTEM" "ftp"
-[ -n "$CRON_SYSTEM" ] && check_service "$CRON_SYSTEM" "cron"
+# Not gated on CRON_SYSTEM: cron is in the installer's base package list, so it is on every box in
+# every profile. No command sets the key either, so gating here meant emptying it by hand REMOVED
+# this check instead of failing it - the key names the implementation, it does not decide whether
+# cron is expected (#971). An unusable registry leaves the name empty, which is red, not silent.
+check_service "${CRON_SYSTEM:-$(sysreg_default CRON_SYSTEM)}" "cron"
 # A LOCAL engine is the presence key, never DB_SYSTEM: that one is the host register and a token there can
 # name a remote server, on which no local service is expected to run. The recipe is gone from here
 # for the same reason it is gone everywhere else, it says what was chosen.

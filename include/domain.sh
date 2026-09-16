@@ -1035,6 +1035,8 @@ add_webmail_config() {
 	ssl_pem="$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem"
 	ssl_ca="$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.ca"
 
+	# mail is a legal alias value, decided and not an oversight: the vhost otherwise carries the alias
+	# name AND mail.<domain>, so with alias=mail the second name would just be the first one twice.
 	override_alias=""
 	if [ "$WEBMAIL_ALIAS" != "mail" ]; then
 		override_alias="mail.$domain"

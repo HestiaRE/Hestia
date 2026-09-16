@@ -122,9 +122,14 @@ if (isset($_SESSION["user"])) {
 	// includes header.php before it calls top_panel(), output_buffering is off, so by then the headers
 	// are gone and the Location was never sent - measured, a suspended customer got 13883 bytes of
 	// rendered page.
-	// Read from the REAL account: an admin who is suspended while impersonating somebody must go too.
-	// Looking AT a suspended customer is the case POLICY_USER_VIEW_SUSPENDED covers, and that one is
-	// decided on the effective account.
+	// Read from the REAL account too: an admin who is suspended while impersonating somebody used to
+	// stay inside, because the check was skipped whenever look was set. Looking AT a suspended
+	// customer is the case POLICY_USER_VIEW_SUSPENDED covers, and that one is decided on the
+	// effective account.
+	// Both branches share the policy gate KNOWINGLY. It leaves one case open - a suspended admin,
+	// mid-impersonation, on a box where the operator turned the policy on - and covering it would
+	// split one question into two switches for a combination that needs three unlikely things at
+	// once. Decided, not overlooked.
 	$suspended =
 		($real_data["SUSPENDED"] ?? "") === "yes" ||
 		(($eff_data["SUSPENDED"] ?? "") === "yes" && empty($_SESSION["look"]));

@@ -84,10 +84,8 @@ if (!isset($_SESSION["token"])) {
 
 // Set user shell variable
 if (isset($_SESSION["user"])) {
-	// Two records, because the session answers two different questions: WHO is logged in, and AS WHOM
-	// are they acting. A check about the person (does the account still exist, is it suspended, is it
-	// still admin) must read the real user; shell and effective role must read the impersonated one.
-	// One lookup when nobody is impersonating - both names are the same account then.
+	// Two records: a question about the person reads the real user, shell and effective role read the
+	// impersonated one. One lookup while nobody impersonates - both names are the same account then.
 	$real_user = $_SESSION["user"];
 	$eff_user = !empty($_SESSION["look"]) ? $_SESSION["look"] : $real_user;
 
@@ -97,9 +95,7 @@ if (isset($_SESSION["user"])) {
 			? $real_data
 			: cli_json("h-list-user " . quoteshellarg($eff_user) . " json")[$eff_user] ?? null;
 
-	// Either account can vanish mid-session - an admin deletes the impersonated customer from another
-	// session (#438 blocks delete/user from inside an impersonation session, so it happens elsewhere),
-	// or the logged-in account itself goes. Log out cleanly instead of limping on with undefined
+	// Either account can vanish mid-session; log out cleanly instead of limping on with undefined
 	// role/shell values.
 	if (!isset($real_data) || !isset($eff_data)) {
 		destroy_sessions();
@@ -107,10 +103,8 @@ if (isset($_SESSION["user"])) {
 		exit();
 	}
 
-	// The role is decided from the record, not from the note taken at login: adminContext is written
-	// once in login/index.php and never refreshed, so a demoted admin kept every admin route until
-	// they logged out - measured (#1059). Keyed on the REAL account, which is the one whose rights
-	// the session carries.
+	// From the record, not from adminContext: that is written once at login and never refreshed, so a
+	// demoted admin kept every admin route until logout. Keyed on the REAL account (#1059).
 	if (($_SESSION["adminContext"] ?? "") === "admin" && ($real_data["ROLE"] ?? "") !== "admin") {
 		destroy_sessions();
 		$_SESSION["error_msg"] = _("You are logged out, please log in again.");
@@ -118,18 +112,12 @@ if (isset($_SESSION["user"])) {
 		exit();
 	}
 
-	// Suspension is decided HERE and not in top_panel(), which is where it used to live: render_page()
-	// includes header.php before it calls top_panel(), output_buffering is off, so by then the headers
-	// are gone and the Location was never sent - measured, a suspended customer got 13883 bytes of
-	// rendered page.
-	// Read from the REAL account too: an admin who is suspended while impersonating somebody used to
-	// stay inside, because the check was skipped whenever look was set. Looking AT a suspended
-	// customer is the case POLICY_USER_VIEW_SUSPENDED covers, and that one is decided on the
-	// effective account.
-	// Both branches share the policy gate KNOWINGLY. It leaves one case open - a suspended admin,
-	// mid-impersonation, on a box where the operator turned the policy on - and covering it would
-	// split one question into two switches for a combination that needs three unlikely things at
-	// once. Decided, not overlooked.
+	// Decided HERE and not in top_panel(): render_page() includes header.php first and output_buffering
+	// is off, so by then the headers are gone and the Location is never sent.
+	// The real account counts too, or a suspended admin keeps working through an impersonation.
+	// Looking AT a suspended customer is what POLICY_USER_VIEW_SUSPENDED covers, hence the effective
+	// account there. Both branches share that gate KNOWINGLY: the case it leaves open needs a
+	// suspended admin, mid-impersonation, on a box with the policy on. Decided, not overlooked.
 	$suspended =
 		($real_data["SUSPENDED"] ?? "") === "yes" ||
 		(($eff_data["SUSPENDED"] ?? "") === "yes" && empty($_SESSION["look"]));
@@ -142,10 +130,9 @@ if (isset($_SESSION["user"])) {
 
 	$_SESSION["login_shell"] = $eff_data["SHELL"];
 	$_SESSION["role"] = $eff_data["ROLE"];
-	// Effective vs real role (#438). Admin-only gates read userContext, so during impersonation it
-	// must be the IMPERSONATED user's role - otherwise a script running in the impersonation session
-	// (same panel origin) reaches admin routes. adminContext holds the real logged-in role for the
-	// impersonation controls and off-chain routes; the check above keeps it honest against the record.
+	// Admin-only gates read userContext, so during impersonation it must be the IMPERSONATED user's
+	// role - otherwise a script in that session (same panel origin) reaches admin routes. adminContext
+	// carries the real role for the impersonation controls, kept honest by the check above (#438).
 	if (!empty($_SESSION["look"])) {
 		$_SESSION["userContext"] = $_SESSION["role"];
 	} elseif (!empty($_SESSION["adminContext"])) {

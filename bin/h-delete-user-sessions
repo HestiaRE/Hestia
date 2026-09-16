@@ -4,12 +4,10 @@
 #
 # example: h-delete-user-sessions alice
 #
-# Removes the PHP session files that belong to USER, so any browser still holding one is logged out
-# at its next request. Called wherever a change invalidates who somebody is - a password change
-# cannot be noticed by the panel's per-request record read, because the record looks the same
-# afterwards, so this is the only way to reach an open session (#1059).
-# The caller's OWN session goes with them: the panel takes a fresh one with session_regenerate_id()
-# right after, which keeps the operator logged in and retires the old id at the same time.
+# Removes USER's PHP session files, so a browser still holding one is logged out at its next request.
+# A password change leaves the record unchanged, so the panel's per-request read cannot notice it -
+# this is the only way to reach an open session (#1059). The caller's OWN session goes too; the panel
+# takes a fresh one with session_regenerate_id() right after.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -41,17 +39,16 @@ is_format_valid 'user'
 #                       Action                             #
 #----------------------------------------------------------#
 
-# No panel pool yet means no sessions can exist - the installer calls h-change-user-role before the
-# panel stage on a fresh box, and an abort here would end the installation.
+# No panel pool means no sessions can exist. The installer calls h-change-user-role, and an abort
+# here would end the installation.
 pool_ini='/etc/php/hestia/fpm/php.ini'
 if [ ! -f "$pool_ini" ]; then
 	echo 0
 	exit
 fi
 
-# The store is named by the pool, never guessed here: this deletes files, and a guessed path would
-# delete them somewhere else. A config that is there but names nothing usable is an error, not a
-# reason to carry on.
+# The store is named by the pool, never guessed: this deletes files. A config that is there but names
+# nothing usable is an error, not a reason to carry on.
 sess_dir=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$pool_ini" | head -1)
 case "$sess_dir" in
 	/*/*) ;;
@@ -62,8 +59,7 @@ if [ ! -d "$sess_dir" ]; then
 	exit
 fi
 
-# Matched on the serialised key, not on the bare name: a customer called 'ann' otherwise matches
-# every session of 'anna'. PHP writes the length with it, so the pattern is exact.
+# The serialised key, not the bare name: 'ann' would otherwise match every session of 'anna'.
 needle="user|s:${#user}:\"$user\""
 n=0
 for f in "$sess_dir"/sess_*; do

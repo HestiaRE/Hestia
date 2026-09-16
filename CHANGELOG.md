@@ -75,6 +75,11 @@ opens above it.
 
 ### Fixed
 
+- **Renaming a web domain could delete one of its aliases** (#1064). The alias list was rewritten
+  with the old domain as an unescaped pattern, so renaming `a.b.com` turned an alias `awb.com` into
+  the new name - and the duplicate filter right after then dropped it. rc 0, no message, one alias
+  gone. The same escaping the line above already carried, two lines further down.
+
 - **The certificate's common name came out wrong on Debian 13 and Ubuntu 26.04** (#1064, upstream
   #5585). Three listers parsed it out of `openssl x509 -text`, and OpenSSL 3.5 prints a DN without
   the spaces around `=` that the parsing keyed on - so the SSL panel showed the whole subject line

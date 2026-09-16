@@ -61,10 +61,12 @@ get_domain_values 'web'
 # Changing domain in web.conf - pattern-side dots escaped, or renaming a.b.com also
 # rewrites the aXb.com record
 sed -i "s/DOMAIN='${domain//./\\.}'/DOMAIN='$new_domain'/" $USER_DATA/web.conf
+# Dots escaped here too, for the reason above: renaming a.b.com otherwise rewrote an alias awb.com to
+# the new name, and the duplicate filter below then dropped it - the customer lost an alias silently.
 new_alias=$(echo "$ALIAS,$domain" \
 	| sed -e "s/,/\n/g" \
-	| sed -e "s/$domain/$new_domain/" \
-	| sed -e "s/^$new_domain$//g" \
+	| sed -e "s/${domain//./\\.}/$new_domain/" \
+	| sed -e "s/^${new_domain//./\\.}$//g" \
 	| sed -e "/^$/d" \
 	| sed -e ':a;N;$!ba;s/\n/,/g')
 

@@ -67,6 +67,18 @@ opens above it.
 
 ### Fixed
 
+- **A suspended domain with awstats stopped its log rotation** (upstream #5684/#5685). The apache
+  prerotate hook ran the webstats queue and handed its exit code to logrotate, which treats a failing
+  prerotate as a reason to skip the rotation - so the logs kept growing, and logrotate itself still
+  exited 0. The queue refuses a suspended object with `E_SUSPENDED`, which is exactly the state a
+  suspended customer leaves behind. The hook tolerates the failure now; a stats update is not a
+  reason to stop rotating logs.
+
+- **`h-add-mail-domain-smtp-relay` called `is_password_valid` with arguments it does not read**
+  (upstream #5665). The function resolves a `/tmp` secret file into the global `$password`; it is not
+  a validator despite the name. Twenty-one of the twenty-two call sites already spell it bare.
+
+
 - **Saving the server form wrote `true` into a yes/no policy** (#1057). The view-suspended control is
   a select, but the POST was read with `post_checkbox`, which takes any non-empty value as "on" - so
   every save wrote its on-value regardless of the choice, and both the value and the fallback key were

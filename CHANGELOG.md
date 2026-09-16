@@ -14,6 +14,14 @@ opens above it.
 
 ### Added
 
+- **`h-delete-user-sessions` ends a user's panel sessions** (#1059). A password change leaves the
+  record looking exactly as it did, so the panel's per-request read cannot notice it - an open
+  session outlived the password it was opened with. `h-change-user-password` and
+  `h-change-user-role` end them now, and the panel takes a fresh session id right after, so an
+  operator changing their own password stays logged in while every other session of that account
+  goes. Sessions of other accounts are untouched.
+
+
 - **An internal point release is one manual action** (#1045). The `Bump point release` workflow
   takes the version, writes it into `VERSION` on `dev` and cuts the release on that commit. Both
   halves in one place, because a bump without a release, or a release without the bump, is exactly
@@ -66,6 +74,13 @@ opens above it.
   `source.conf` itself stays, hand-written, for the one key still read from it: `HESTIARE_MIRROR`.
 
 ### Fixed
+
+- **A demoted admin kept every admin route until they logged out** (#1059, upstream #5706). The
+  admin decision came from a note taken at login, not from the record, and nothing refreshed it.
+  The session block now reads two records - the real user for who you are, the impersonated one for
+  whom you act as - and ends the session when the record no longer says admin. The suspension check
+  moved to the real user with it: an admin suspended while impersonating somebody stayed inside.
+
 
 - **An empty alias is refused instead of written** (#1058, upstream #5663). `is_common_format_valid`
   lets an empty string through, and clearing the phpMyAdmin URL field rendered `redir / // 308` into

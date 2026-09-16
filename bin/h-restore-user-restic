@@ -13,11 +13,15 @@
 # Argument definition
 user=$1
 snapshot=$2
-web=$3
-dns=$4
-mail=$5
-db=$6
-cron=$7
+# An OMITTED selector means everything, an explicitly empty one means nothing - hence `-` and not
+# `:-`, so a caller can still skip a section by passing ''. Without the defaults, `h-restore-user-restic
+# user snapshot` matched no object at all and reported success (upstream #5709).
+# The `*` is literal: the right-hand side of an assignment is not glob-expanded.
+web=${3-*}
+dns=$4 # no DNS subsystem here; the slot stays for signature parity
+mail=${5-*}
+db=${6-*}
+cron=${7-yes}
 udir=${8-yes}
 notify=${9-no}
 

@@ -67,6 +67,13 @@ opens above it.
 
 ### Fixed
 
+- **A whole-user restic restore restored nothing and said it had worked** (upstream #5709). The
+  scheduler queued the run with every selector empty, and an empty selector matches no object - so
+  web, mail, databases, the cron jobs and the user's own files were all skipped, leaving only the
+  record rebuild. The queue spells every selector out now, and an omitted selector means everything
+  while an explicitly empty one still means "skip this section", so a selective restore keeps
+  working. Only the CLI could reach it: the panel schedules one call per object.
+
 - **A suspended domain with awstats stopped its log rotation** (upstream #5684/#5685). The apache
   prerotate hook ran the webstats queue and handed its exit code to logrotate, which treats a failing
   prerotate as a reason to skip the rotation - so the logs kept growing, and logrotate itself still

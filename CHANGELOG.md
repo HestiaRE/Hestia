@@ -75,6 +75,16 @@ opens above it.
 
 ### Fixed
 
+- **The certificate's common name came out wrong on Debian 13 and Ubuntu 26.04** (#1064, upstream
+  #5585). Three listers parsed it out of `openssl x509 -text`, and OpenSSL 3.5 prints a DN without
+  the spaces around `=` that the parsing keyed on - so the SSL panel showed the whole subject line
+  instead of the name, while the panel certificate's own entry was wrong on all four targets. Worse
+  than a display fault: the mail rebuild greps that output to decide whether a domain gets its own
+  dovecot certificate, so a certificate carrying no SAN silently lost it. Read with
+  `-nameopt multiline` now, from one helper instead of three copies that had already drifted into
+  two different broken forms.
+
+
 - **A demoted admin kept every admin route until they logged out** (#1059, upstream #5706). The
   admin decision came from a note taken at login, not from the record, and nothing refreshed it.
   The session block now reads two records - the real user for who you are, the impersonated one for

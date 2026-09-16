@@ -67,6 +67,14 @@ opens above it.
 
 ### Fixed
 
+- **An empty alias is refused instead of written** (#1058, upstream #5663). `is_common_format_valid`
+  lets an empty string through, and clearing the phpMyAdmin URL field rendered `handle_path //*` into
+  the route the panel site imports ahead of its own catch-all - caddy accepts that, so every panel
+  request would have landed on the database editor. The webmail side tore every domain's webmail down
+  and built it back with the old alias, printing a usage error in the middle and still reporting
+  success. Switching an editor off remains the delete command's job, which also removes the route.
+
+
 - **A whole-user restic restore restored nothing and said it had worked** (upstream #5709). The
   scheduler queued the run with every selector empty, and an empty selector matches no object - so
   web, mail, databases, the cron jobs and the user's own files were all skipped, leaving only the

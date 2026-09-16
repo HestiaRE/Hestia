@@ -39,6 +39,9 @@ is_object_unsuspended 'user' 'USER' "$user"
 $BIN/h-log-action "system" "Warning" "Security" "User privileges changed (User: $user, Role: $role, Previous: $ROLE)."
 update_user_value "$user" '$ROLE' "$role"
 
+# A session carries the rights it was opened with, so the new role only reaches it once it is gone.
+$BIN/h-delete-user-sessions "$user" > /dev/null
+
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#

@@ -161,6 +161,12 @@ if (!empty($_POST["save"])) {
 			check_return_code($return_var, $output);
 			unset($output);
 			unlink($v_password);
+			// The command ends every session of that account, this one included when an operator
+			// changes their own password. A fresh id carries the current session on and retires the
+			// old one, which is what a password change should do to it anyway (#1059).
+			if (empty($_SESSION["error_msg"]) && $v_username === $_SESSION["user"]) {
+				session_regenerate_id(true);
+			}
 			$v_password = quoteshellarg($_POST["v_password"]);
 		}
 	}

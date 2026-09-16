@@ -67,6 +67,25 @@ opens above it.
 
 ### Fixed
 
+- **A whole-user restic restore restored nothing and said it had worked** (upstream #5709). The
+  scheduler queued the run with every selector empty, and an empty selector matches no object - so
+  web, mail, databases, the cron jobs and the user's own files were all skipped, leaving only the
+  record rebuild. The queue spells every selector out now, and an omitted selector means everything
+  while an explicitly empty one still means "skip this section", so a selective restore keeps
+  working. Only the CLI could reach it: the panel schedules one call per object.
+
+- **A suspended domain with awstats stopped its log rotation** (upstream #5684/#5685). The apache
+  prerotate hook ran the webstats queue and handed its exit code to logrotate, which treats a failing
+  prerotate as a reason to skip the rotation - so the logs kept growing, and logrotate itself still
+  exited 0. The queue refuses a suspended object with `E_SUSPENDED`, which is exactly the state a
+  suspended customer leaves behind. The hook tolerates the failure now; a stats update is not a
+  reason to stop rotating logs.
+
+- **`h-add-mail-domain-smtp-relay` called `is_password_valid` with arguments it does not read**
+  (upstream #5665). The function resolves a `/tmp` secret file into the global `$password`; it is not
+  a validator despite the name. Twenty-one of the twenty-two call sites already spell it bare.
+
+
 - **Saving the server form wrote `true` into a yes/no policy** (#1057). The view-suspended control is
   a select, but the POST was read with `post_checkbox`, which takes any non-empty value as "on" - so
   every save wrote its on-value regardless of the choice, and both the value and the fallback key were

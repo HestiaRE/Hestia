@@ -1,4 +1,6 @@
 #!/bin/sh
 
 # Changes made by HestiaCP due to https://github.com/hestiacp/hestiacp/issues/3289
-/usr/local/hestia/bin/h-update-sys-queue webstats
+# A failing stats update must not abort the rotation: logrotate treats a non-zero prerotate as a
+# failure and leaves the logs unrotated, so they keep growing (upstream #5684).
+/usr/local/hestia/bin/h-update-sys-queue webstats || true

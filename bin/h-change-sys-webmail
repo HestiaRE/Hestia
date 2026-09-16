@@ -33,7 +33,7 @@ is_common_format_valid "$NEW_ALIAS" "Alias"
 # in between fail on its argument count, so the rebuild used the old alias and the whole run was a
 # no-op that still reported success - with every customer's webmail briefly gone (#1058).
 if [ -z "$NEW_ALIAS" ]; then
-	check_result "$E_ARGS" "alias cannot be empty"
+	check_result "$E_INVALID" "alias cannot be empty"
 fi
 is_restart_format_valid "$restart"
 

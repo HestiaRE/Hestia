@@ -32,12 +32,13 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '2' "$#" 'type alias'
 
 is_common_format_valid "$alias" "Alias"
-# is_common_format_valid passes an empty string, and an empty alias renders `handle_path //*` into the
-# route that the :8083 site imports ahead of the panel catch-all - caddy accepts it and every panel
-# request lands on the database editor. Switching the editor off is h-delete-sys-phpmyadmin's job; it
-# clears the key AND removes the route, which is what an empty DB_PMA_ALIAS means elsewhere (#1058).
+# is_common_format_valid passes an empty string, and an empty alias renders `redir / // 308` plus
+# `handle_path //*` into the route the :8083 site imports ahead of its own catch-all: caddy accepts
+# it, and the panel's entry point then redirects to itself forever. Switching the editor off is
+# h-delete-sys-phpmyadmin's job; it clears the key AND removes the route, which is what an empty
+# DB_PMA_ALIAS means everywhere else (#1058).
 if [ -z "$alias" ]; then
-	check_result "$E_ARGS" "alias cannot be empty - to switch the editor off use h-delete-sys-phpmyadmin"
+	check_result "$E_INVALID" "alias cannot be empty - to switch the editor off use h-delete-sys-phpmyadmin"
 fi
 
 #----------------------------------------------------------#

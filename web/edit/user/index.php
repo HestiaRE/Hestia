@@ -161,6 +161,11 @@ if (!empty($_POST["save"])) {
 			check_return_code($return_var, $output);
 			unset($output);
 			unlink($v_password);
+			// The command ended this session too. A fresh id carries it on and retires the old
+			// one, which is what a password change should do to it anyway (#1059).
+			if (empty($_SESSION["error_msg"]) && $v_username === $_SESSION["user"]) {
+				session_regenerate_id(true);
+			}
 			$v_password = quoteshellarg($_POST["v_password"]);
 		}
 	}

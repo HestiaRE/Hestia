@@ -358,6 +358,7 @@
       ],
       "language": "php",
       "routing": "directory-based: /list/user/, /add/web/, /edit/mail/ etc.",
+      "quirks": "Session identity (#438/#578/#1059): web/inc/main.php reads the user record on EVERY request and decides three things from it - the account still exists, it is not suspended, and it is still admin. TWO records are read, the real user for those checks and the impersonated one for shell and effective role; one lookup when nobody is impersonating. adminContext is written once at login and is no longer trusted on its own - a demoted admin used to keep every admin route until logout. A password change cannot be seen in the record at all, so h-delete-user-sessions ends the sessions instead; h-change-user-password and h-change-user-role call it, and the panel takes a fresh id with session_regenerate_id() so an operator changing their own password stays logged in.",
       "features": [
         "2FA (TOTP)",
         "CSRF protection",

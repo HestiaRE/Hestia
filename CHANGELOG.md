@@ -29,6 +29,15 @@ opens above it.
   refuses a version that is not one, one that does not go forward, and a tag that already exists;
   a run that wrote the file but did not reach the release finishes when it is run again.
 
+### Security
+
+- **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440). 112 panel
+  pages verify the token; the page that rewrites the privileged panel crontab and the white-label
+  page did not. The global wall in `prevent_csrf.php` only inspects a request that carries an
+  `Origin` header, so a POST without one reached both handlers. Measured against a live panel: a
+  cross-site shaped POST without `Origin` rewrote the crontab and changed `APP_NAME`; with `Origin`
+  the wall answered 400, and a page that does verify the token refused the same request.
+
 ### Changed
 
 - **An install from a handed-in tarball pins itself to that version** (#1052). `HESTIA_RELEASE_URL`
@@ -74,6 +83,17 @@ opens above it.
   `source.conf` itself stays, hand-written, for the one key still read from it: `HESTIARE_MIRROR`.
 
 ### Fixed
+
+- **An uptime past 1000 days showed as "1 days"** (#1066, upstream #5468). `number_format()`
+  groups thousands and the `%d` in front of it truncated at the comma. Two boundary cases came
+  along: exactly 60 minutes read "60 minutes", exactly 24 hours read "24 hours".
+
+- **A firewall rule with a malformed netmask was accepted and then silently never rendered**
+  (#1066, upstream #5044). `h-add-firewall-rule ACCEPT 10.9.9.0/-1 2223` returned 0, landed in
+  `rules.conf` and was listed as active, while the ruleset never carried it. The hardening
+  upstream wrote lived in the one CIDR validator nothing calls; the firewall goes through the two
+  that still accepted `/-1` and an empty mask. All three now share one parser, so the mask rule
+  cannot drift apart again.
 
 - **Renaming a web domain could delete one of its aliases** (#1064). The alias list was rewritten
   with the old domain as an unescaped pattern, so renaming `a.b.com` turned an alias `awb.com` into

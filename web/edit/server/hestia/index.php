@@ -19,6 +19,9 @@ if ($_SESSION["userContext"] !== "admin") {
 
 // Check POST request
 if (!empty($_POST["save"])) {
+	// prevent_csrf.php only inspects the request when an Origin header is present, so a POST
+	// without one reached this handler, which rewrites the privileged panel crontab.
+	verify_csrf($_POST);
 	if (!empty($_POST["v_config"])) {
 		$fp = tmpfile();
 		$new_conf = stream_get_meta_data($fp)["uri"];

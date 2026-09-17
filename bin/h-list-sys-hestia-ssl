@@ -101,7 +101,7 @@ key=$(echo "$key_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 
 # Parsing SSL certificate details without CA
 info=$(openssl x509 -text -in $HESTIA_SSL/certificate.crt)
-subj=$(echo "$info" | grep Subject: | cut -f 2 -d =)
+subj=$(cert_common_name "$HESTIA_SSL/certificate.crt")
 before=$(echo "$info" | grep Before: | sed -e "s/.*Before: //")
 after=$(echo "$info" | grep "After :" | sed -e "s/.*After : //")
 signature=$(echo "$info" | grep "Algorithm:" | head -n1)

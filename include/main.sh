@@ -904,6 +904,14 @@ is_dir_symlink() {
 	fi
 }
 
+# The certificate's common name, from one place: read out of `-text` output it depends on how openssl
+# spells a DN, and 3.5 dropped the spaces around the `=` that the old parsing keyed on - which broke it
+# on deb13 and ub26 while deb12 and ub24 still worked. `-nameopt multiline` prints one attribute per
+# line and is version-independent. Empty when the certificate carries no CN, which is a real state.
+cert_common_name() {
+	openssl x509 -noout -nameopt multiline -subject -in "$1" 2> /dev/null | sed -n 's/^ *commonName *= //p'
+}
+
 # Escape named variables IN PLACE for a JSON string literal. In place and by name to avoid a subshell
 # per field: a 300-domain listing would fork twelve thousand times.
 # Emitters only, and only last: it destroys the raw value.

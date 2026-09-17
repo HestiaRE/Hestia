@@ -101,7 +101,14 @@ manifest_get() {
 	jq -r "$1" "$HESTIA/share/manifest.json" 2> /dev/null
 }
 
-if [ -z "$user" ]; then
+# Two different states, and only one of them means "no user context". UNSET is a command that never
+# names a user (the installer, an h-list-sys-*), and that keeps the $ROOT_USER default. SET BUT EMPTY
+# is a caller that passed "" where a name belongs, and filling that in made 300+ commands act on
+# admin instead of refusing: check_args counts arguments, is_format_valid skips empty values by
+# design, so nothing downstream sees it. h-check-user-password then matched the empty name against
+# $CONF_DIR/users/admin and accepted admin's password. Refused here rather than in each command,
+# because the guard that catches it must not be one a caller can happen to lack.
+if [ -z "${user+set}" ]; then
 	if [ -z "$ROOT_USER" ]; then
 		if [ -z "$HESTIA" ]; then
 			# shellcheck source=/etc/hestia/hestia.env
@@ -110,6 +117,11 @@ if [ -z "$user" ]; then
 		source_conf "$HESTIA/conf/hestia.conf" # load config file
 	fi
 	user="$ROOT_USER"
+elif [ -z "$user" ]; then
+	# Literal 2: this runs before E_INVALID is defined further down, and moving the codes up would
+	# put them ahead of source_conf, which the branch above needs.
+	echo "Error: empty USER argument" >&2
+	exit 2
 fi
 
 # Internal variables. No operator key belongs here: the registry carries its default and the repair

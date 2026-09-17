@@ -1480,10 +1480,25 @@ is_ip46_format_valid() {
 	fi
 }
 
+# One parser for all three families. Three copies drifted apart: only the v4 one ever got the mask
+# hardened, and that is the one nothing calls, while the firewall goes through the other two. A mask
+# is an unsigned integer in its family's range, so ctype_digit does both bounds at once; "x/" carries
+# no mask but is not the same as "x". filter_var alone decides the address (measured against
+# upstream's extra preg_match: it rejects nothing filter_var accepts, e.g. 010.0.0.1, 10.0.0.01).
+_is_cidr_valid() {
+	$HESTIA_PHP -r '$p = explode("/", $argv[1]);
+		if (count($p) > 2) { echo 1; exit; }
+		$v4 = (bool) filter_var($p[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
+		$v6 = (bool) filter_var($p[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV6);
+		$fam = $argv[2];
+		if (!($fam === "46" ? ($v4 || $v6) : ($fam === "4" ? $v4 : $v6))) { echo 1; exit; }
+		if (count($p) === 1) { echo 0; exit; }
+		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' "$1" "$2"
+}
+
 is_ipv4_cidr_format_valid() {
 	object_name=${2-ip}
-	valid=$($HESTIA_PHP -r '[$ip, $net] = [...explode("/", $argv[1]), "32"]; echo (preg_match("/^(\d{1,3}\.){3}\d{1,3}$/", $ip) && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && is_numeric($net) && $net >= 0 && $net <= 32) ? 0 : 1;' "$1")
-	if [ "$valid" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 4)" -ne 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
@@ -1492,20 +1507,14 @@ is_ipv4_cidr_format_valid() {
 # validators stay for the places that genuinely mean one family (an IP object, a NAT address).
 is_ip_cidr_format_valid() {
 	object_name=${2-ip}
-	valid=$($HESTIA_PHP -r '$cidr=$argv[1]; $p=explode("/", $cidr); $ip=$p[0]; $m=$p[1]??null;
-		$v4=filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
-		$v6=filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6);
-		$ok=($v4 && ($m===null || $m<=32)) || ($v6 && ($m===null || $m<=128));
-		echo $ok ? 0 : 1;' "$1")
-	if [ "$valid" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 46)" -ne 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
 
 is_ipv6_cidr_format_valid() {
 	object_name=${2-ipv6}
-	valid=$($HESTIA_PHP -r '$cidr=$argv[1]; list($ip, $netmask) = [...explode("/", $cidr), 128]; echo ((filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) && $netmask <= 128) ? 0 : 1);' "$1")
-	if [ "$valid" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 6)" -ne 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }

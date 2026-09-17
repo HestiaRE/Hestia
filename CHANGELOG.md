@@ -84,6 +84,13 @@ opens above it.
 
 ### Fixed
 
+- **A firewall rule with a malformed netmask was accepted and then silently never rendered**
+  (#1066, upstream #5044). `h-add-firewall-rule ACCEPT 10.9.9.0/-1 2223` returned 0, landed in
+  `rules.conf` and was listed as active, while the ruleset never carried it. The hardening
+  upstream wrote lived in the one CIDR validator nothing calls; the firewall goes through the two
+  that still accepted `/-1` and an empty mask. All three now share one parser, so the mask rule
+  cannot drift apart again.
+
 - **Renaming a web domain could delete one of its aliases** (#1064). The alias list was rewritten
   with the old domain as an unescaped pattern, so renaming `a.b.com` turned an alias `awb.com` into
   the new name - and the duplicate filter right after then dropped it. rc 0, no message, one alias

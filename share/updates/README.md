@@ -81,12 +81,24 @@ and that is what `key_empty` is for.
 ## Types
 
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
-`package_installed`, `file_differs`. Actions: `key_set`, `key_clear`, `token_add`, `token_remove`,
-`file_copy`, `path_delete`, `function_call`, `package_install`, `package_remove`, `service_restart`.
+`package_installed`, `file_differs`, `file_contains`, `pin_differs`, `dir_not_empty`,
+`php_ext_missing`. Actions: `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`,
+`path_delete`, `dir_clear`, `function_call`, `package_install`, `package_remove`, `service_restart`.
 
-Fields per type: `name` and `value` for the key types, `name` for a command, package or service,
-`path` for `path_exists` and `path_delete`, `source` (tree-relative) and `target` for `file_differs`
-and `file_copy` (`mode` optional), `function` for `function_call` (only names in `UPDATE_CALLABLE`).
+Fields per type: `name` and `value` for the key types, `name` for a command, package, service or a
+PHP extension, `path` for `path_exists`, `path_delete`, `dir_not_empty` and `dir_clear`, `path` and
+`value` for `file_contains`, `name` (a key under `software_versions` in `share/manifest.json`) and
+`path` (the marker file the component wrote) for `pin_differs`, `source` (tree-relative) and
+`target` for `file_differs` and `file_copy` (`mode` optional), `function` for `function_call` (only
+names in `UPDATE_CALLABLE`).
+
+The four late conditions exist because a state outside the tree cannot be compared to a file in it.
+`file_differs` needs a tree source, so a file the box *generates* is out of its reach:
+`file_contains` looks for what the older version wrote instead, and goes false once it is rewritten.
+`pin_differs` reads the pin from the manifest rather than carrying a version of its own. `dir_clear`
+empties a directory and leaves it standing, because its owner and mode are part of what it is.
+`php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a
+second list here.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

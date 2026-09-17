@@ -485,10 +485,12 @@ These are settled decisions (`README.md:53-59`, registry `CODEMAP.json` `removed
 custom apt repository.
 
 **HestiaRE.** No packages, no binaries - source only (`README.md:32-46`): a `v*` git
-tag triggers CI (`.github/workflows/release.yml`), which stamps `VERSION` and packs the
-tree into one `hestiare-<version>.tar.gz`; `install.sh` fetches + extracts it into
-`/usr/local/hestia` and hands off to the wizard -> `sbin/h-install-hestia`. Source/channel
-is overridable via `/etc/hestia/source.conf`. The release actually runs on the public
+tag triggers CI (`.github/workflows/release.yml`), which compares the committed `VERSION`
+against the tag and packs the tree into one `hestiare-<version>.tar.gz` plus its `.sha256`;
+`install.sh` fetches + extracts it into `/usr/local/hestia` and hands off to the wizard ->
+`sbin/h-install-hestia`. There are no channels (#1045): the version a box follows is
+`RELEASE_BRANCH`, and the only source override is the fetch override `HESTIA_RELEASE_URL`,
+which replaces the download and nothing else. The release actually runs on the public
 GitHub mirror (Gitea has no release workflow); see `project-release-github-mirror` in
 memory for the full Gitea-release -> mirror -> GitHub chain. No compiled artifact, no
 private repo, no build toolchain on target (the earlier `just`/Make dependency was

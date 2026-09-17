@@ -93,6 +93,12 @@ opens above it.
 
 ### Fixed
 
+- **A fresh install registered no IP object** (#1073). `h-add-sys-ip` bound its optional `USER`
+  argument before the includes, so an absent one reached `include/main.sh` as set-but-empty and the
+  refusal added in #1067 fired before the command's own fallback. `h-update-sys-ip` calls it with
+  three arguments, so every fresh install ended without an IP object, without ports 80 and 443, and
+  with four failing smoke checks.
+
 - **Customer PHP versions came out without a database driver** (#1070). `h-add-web-php` decided the
   `mysql` and `pgsql` extensions from `DB_SYSTEM`, which is empty for the whole PHP stage: the
   installer seeds it so, and only the database stage that runs afterwards writes a token. Measured on

@@ -1,0 +1,84 @@
+{
+  "version": "0.20.0",
+  "entries": [
+    {
+      "id": "apache-prerotate",
+      "description": "A failing stats run aborted the log rotation, so the logs kept growing",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/logrotate.d/httpd-prerotate" },
+        { "type": "file_differs", "source": "share/apache2/httpd-prerotate/awstats", "target": "/etc/logrotate.d/httpd-prerotate/awstats" }
+      ],
+      "action": { "type": "file_copy", "source": "share/apache2/httpd-prerotate/awstats", "target": "/etc/logrotate.d/httpd-prerotate/awstats", "mode": "755" },
+      "paths": ["/etc/logrotate.d/httpd-prerotate/awstats"],
+      "reversible": true
+    },
+    {
+      "id": "provenance-bin",
+      "description": "Drop the provenance manifest that older tarballs carried into bin/",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/bin/PROVENANCE.json" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/PROVENANCE.json" },
+      "paths": ["/usr/local/hestia/bin/PROVENANCE.json"],
+      "reversible": false
+    },
+    {
+      "id": "provenance-include",
+      "description": "Drop the provenance manifest that older tarballs carried into include/",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/include/PROVENANCE.json" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/include/PROVENANCE.json" },
+      "paths": ["/usr/local/hestia/include/PROVENANCE.json"],
+      "reversible": false
+    },
+    {
+      "id": "provenance-share",
+      "description": "Drop the provenance manifest that older tarballs carried into share/",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/share/PROVENANCE.json" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/share/PROVENANCE.json" },
+      "paths": ["/usr/local/hestia/share/PROVENANCE.json"],
+      "reversible": false
+    },
+    {
+      "id": "provenance-web",
+      "description": "Drop the provenance manifest that older tarballs carried into web/",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/PROVENANCE.json" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/PROVENANCE.json" },
+      "paths": ["/usr/local/hestia/web/PROVENANCE.json"],
+      "reversible": false
+    },
+    {
+      "id": "panel-session-purge",
+      "description": "Empty the panel session store once: older sessions hold system secrets in clear",
+      "conditions": [{ "type": "dir_not_empty", "path": "/var/lib/hestia/sessions" }],
+      "action": { "type": "dir_clear", "path": "/var/lib/hestia/sessions" },
+      "paths": ["/var/lib/hestia/sessions"],
+      "reversible": false
+    },
+    {
+      "id": "session-cleanup-path",
+      "description": "The daily session sweep named the store's old path and swept nothing",
+      "conditions": [
+        { "type": "file_contains", "path": "/etc/cron.daily/php-session-cleanup", "value": "/usr/local/hestia/.sessions/" }
+      ],
+      "action": { "type": "function_call", "function": "panel_session_cleanup_apply" },
+      "paths": ["/etc/cron.daily/php-session-cleanup"],
+      "reversible": false
+    },
+    {
+      "id": "php-db-drivers",
+      "description": "Customer PHP reached no database: both drivers were stripped before DB_SYSTEM was composed",
+      "conditions": [{ "type": "php_ext_missing", "name": "mysql,pgsql" }],
+      "action": { "type": "function_call", "function": "php_db_drivers_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "tachyon-pin",
+      "description": "Tachyon stays on the version it was installed with: no update path calls h-add-sys-*",
+      "conditions": [
+        { "type": "pin_differs", "name": "tachyon", "path": "/var/lib/tachyon/data/VERSION" }
+      ],
+      "action": { "type": "function_call", "function": "tachyon_pin_apply" },
+      "paths": ["/var/lib/tachyon"],
+      "reversible": false
+    }
+  ]
+}

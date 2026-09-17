@@ -112,6 +112,73 @@ upd_cond_file_differs() {
 	! cmp -s "$src" "$2"
 }
 
+# For a file the box generates: no tree source to compare against, so the marker is what the OLD
+# version wrote. That is what makes this false once the file has been rewritten.
+upd_cond_file_contains() {
+	[ -n "$1" ] && [ -n "$2" ] || {
+		echo "update: file_contains needs a path and a value" >&2
+		return 2
+	}
+	[ -f "$1" ] || return 1
+	[ -r "$1" ] || {
+		echo "update: $1 exists but cannot be read - file_contains cannot decide" >&2
+		return 2
+	}
+	grep -qF -- "$2" "$1"
+}
+
+# Absent marker is false: not installed here, and an update installs nothing. An empty pin is the
+# tree being wrong, never a box fact, so it must not read as "nothing to do".
+upd_cond_pin_differs() {
+	local pin
+	[ -n "$1" ] && [ -n "$2" ] || {
+		echo "update: pin_differs needs a manifest key and a marker path" >&2
+		return 2
+	}
+	pin=$(manifest_get ".software_versions.$1")
+	[ -n "$pin" ] && [ "$pin" != null ] || {
+		echo "update: share/manifest.json carries no software_versions.$1" >&2
+		return 2
+	}
+	[ -f "$2" ] || return 1
+	[ "$(cat "$2" 2> /dev/null)" != "$pin" ]
+}
+
+# Contents, not the directory: path_exists would keep saying yes long after the store is empty.
+upd_cond_dir_not_empty() {
+	[ -n "$1" ] || {
+		echo "update: dir_not_empty needs a path" >&2
+		return 2
+	}
+	[ -d "$1" ] || return 1
+	[ -n "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null)" ]
+}
+
+# Versions from h-list-sys-php, not from /etc/php, which also holds versions no customer runs. A
+# comma list because the action repairs a set, and a lister that cannot answer is rc 2, not a zero.
+upd_cond_php_ext_missing() {
+	local v e out rc exts=()
+	[ -n "$1" ] || {
+		echo "update: php_ext_missing needs one extension name or a comma list" >&2
+		return 2
+	}
+	IFS=, read -ra exts <<< "$1"
+	out=$("$UPDATE_ROOT/bin/h-list-sys-php" plain 2> /dev/null)
+	rc=$?
+	[ "$rc" -eq 0 ] || {
+		echo "update: php_ext_missing could not ask h-list-sys-php (rc $rc)" >&2
+		return 2
+	}
+	while read -r v; do
+		[ -n "$v" ] || continue
+		for e in "${exts[@]}"; do
+			[ -n "$e" ] || continue
+			upd_cond_package_installed "php$v-$e" || return 0
+		done
+	done <<< "$out"
+	return 1
+}
+
 #----------------------------------------------------------#
 # Actions #
 #----------------------------------------------------------#
@@ -123,7 +190,8 @@ upd_cond_file_differs() {
 upd_action_reversible() {
 	case "$1" in
 		key_set | key_clear | token_add | token_remove | file_copy | package_install) echo yes ;;
-		path_delete | package_remove | service_restart | function_call) echo no ;;
+		# dir_clear sits with path_delete: both make a path cease to exist.
+		path_delete | dir_clear | package_remove | service_restart | function_call) echo no ;;
 		*) return 1 ;;
 	esac
 }
@@ -131,7 +199,8 @@ upd_action_reversible() {
 # The line between a vocabulary and arbitrary code. deploy_hestia_sudoers and login_defs_guard are
 # deliberately absent (#948): their targets are not copies of a tree file, so no condition could go
 # false after them. The smoke reports their drift and names the command instead.
-UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply)
+UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
+	php_db_drivers_apply tachyon_pin_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -181,6 +250,14 @@ upd_act_path_delete() {
 	rm -rf -- "$1"
 }
 
+# The directory stays with its owner and mode: deleting it locks the panel out, nobody recreates it.
+# The rc reads the result, not find's opinion of a file that vanished under it.
+upd_act_dir_clear() {
+	[ -d "$1" ] || return 0
+	find "$1" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2> /dev/null
+	[ -z "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null)" ]
+}
+
 # File found, not listed: a second list goes stale.
 upd_act_function_call() {
 	local fn="$1" src
@@ -228,6 +305,11 @@ upd_condition() {
 		key_empty | key_is | key_has_token | path_exists | command_exists | package_installed | file_differs)
 			"upd_cond_$t" "$@"
 			;;
+		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
+		# in ")", so a continuation drops every name before it out of the set it compares.
+		file_contains | pin_differs | dir_not_empty | php_ext_missing)
+			"upd_cond_$t" "$@"
+			;;
 		*)
 			echo "update: unknown condition type '$t'" >&2
 			return 2
@@ -243,10 +325,31 @@ upd_action() {
 	"upd_act_$t" "$@"
 }
 
+# Absolute, not only slashes, ".." as a component: a glob let "/..", "//" and relative paths through.
+# "/etc/foo..bar" stays allowed. One home, because every deleting action needs the same rule.
+_upd_abs_path_ok() {
+	local t="$1" _p="$2"
+	case "$_p" in /*) ;; *)
+		echo "update: $t needs an absolute path, got '$_p'" >&2
+		return 1
+		;;
+	esac
+	while [ "${_p%/}" != "$_p" ]; do _p="${_p%/}"; done
+	[ -n "$_p" ] || {
+		echo "update: $t refuses '$2' - that is the root" >&2
+		return 1
+	}
+	case "/${_p#/}/" in */../*)
+		echo "update: $t refuses '$2' - '..' as a path component" >&2
+		return 1
+		;;
+	esac
+}
+
 # The one place an entry is validated, and the only one that may run without writing: the derivation
 # checks a manifest it must not execute. rc 0 sound, rc 2 the entry is wrong.
 upd_action_check() {
-	local t="$1" fn _p
+	local t="$1" fn
 	shift
 	case "$t" in
 		key_set)
@@ -297,25 +400,8 @@ upd_action_check() {
 				return 2
 			}
 			;;
-		path_delete)
-			# Absolute, not only slashes, ".." as a component: a glob let "/..", "//" and relative paths
-			# through. "/etc/foo..bar" stays allowed.
-			_p="${1:-}"
-			case "$_p" in /*) ;; *)
-				echo "update: path_delete needs an absolute path, got '$_p'" >&2
-				return 2
-				;;
-			esac
-			while [ "${_p%/}" != "$_p" ]; do _p="${_p%/}"; done
-			[ -n "$_p" ] || {
-				echo "update: path_delete refuses '$1' - that is the root" >&2
-				return 2
-			}
-			case "/${_p#/}/" in */../*)
-				echo "update: path_delete refuses '$1' - '..' as a path component" >&2
-				return 2
-				;;
-			esac
+		path_delete | dir_clear)
+			_upd_abs_path_ok "$t" "${1:-}" || return 2
 			;;
 		function_call)
 			# One name, no arguments: every callable takes none, and a path that looks like it
@@ -392,10 +478,13 @@ upd_manifest_files() {
 UPD_ARGS_JQ='
 def argv(t):
   if t=="key_empty" or t=="command_exists" or t=="package_installed" or t=="key_clear"
-     or t=="package_install" or t=="package_remove" or t=="service_restart" then [.name // ""]
+     or t=="package_install" or t=="package_remove" or t=="service_restart"
+     or t=="php_ext_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
-  elif t=="path_exists" or t=="path_delete" then [.path // ""]
+  elif t=="path_exists" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear" then [.path // ""]
+  elif t=="file_contains" then [.path // "", .value // ""]
+  elif t=="pin_differs" then [.name // "", .path // ""]
   elif t=="file_differs" then [.source // "", .target // ""]
   elif t=="file_copy" then [.source // "", .target // ""] + (if has("mode") then [.mode] else [] end)
   elif t=="function_call" then [.function // ""]

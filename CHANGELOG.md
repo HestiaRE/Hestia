@@ -14,6 +14,25 @@ opens above it.
 
 ### Added
 
+- **Four conditions, one action and three callables for the update path** (#1076). A release is
+  copied over the install tree, so nothing outside it and nothing apt installed is reached by an
+  update; four states a box from v0.19.0 carries needed an entry, and none of them could be written
+  so that it goes false after its own action. `file_contains` reads a file the box *generates* -
+  `file_differs` needs a source in the tree and cannot. `pin_differs` holds the pin in
+  `share/manifest.json` against a component's version marker, so it carries no version of its own.
+  `dir_not_empty`/`dir_clear` empty a directory and leave it standing, because its owner and mode
+  are part of what it is. `php_ext_missing` asks `h-list-sys-php` which versions are managed instead
+  of keeping a second list. The callables are `panel_session_cleanup_apply`,
+  `php_db_drivers_apply` and `tachyon_pin_apply`; the first moved out of `h-install-hestia`, so
+  installer and update write that file from one recipe.
+
+- **The first update manifest, `share/updates/0.20.0.json`** (#1076). Nine entries for what a box
+  coming from v0.19.0 does not get by having the release copied over it: the guarded logrotate hook,
+  four provenance files older tarballs left behind, the panel session store (older sessions hold
+  system secrets in clear), the daily session sweep that named a path gone since the store moved, the
+  two database drivers customer PHP never had, and Tachyon, which no update path would otherwise
+  move off the version it was installed with.
+
 - **`h-delete-user-sessions` ends a user's panel sessions** (#1059). A password change leaves the
   record looking exactly as it did, so the panel's per-request read cannot notice it - an open
   session outlived the password it was opened with. `h-change-user-password` and

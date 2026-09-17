@@ -529,3 +529,45 @@ login_defs_guard() {
 		fi
 	done
 }
+
+# ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
+# The overlay copies the tree and nothing else: what sits outside it, or came from apt, stays old.
+
+# Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
+# directory that no longer exists. check_panel_session_store holds the two together.
+panel_session_cleanup_apply() {
+	local _sess _dst='/etc/cron.daily/php-session-cleanup'
+	_sess=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$HESTIA/share/panel-php/fpm/php.ini" | head -1)
+	# Never interpolate an empty path into the find below: it would sweep and DELETE from / downwards.
+	[ -n "$_sess" ] && [ "$_sess" != / ] || return 1
+	printf '#!/bin/sh\nfind -O3 /home/*/tmp/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\nfind -O3 %s/ -ignore_readdir_race -depth -mindepth 1 -name '"'"'sess_*'"'"' -type f -cmin '"'"'+10080'"'"' -delete > /dev/null 2>&1\n' \
+		"$_sess" > "$_dst" || return 1
+	# cron REFUSES a group-writable file, which is the failure this mode pins down.
+	chmod 755 "$_dst"
+}
+
+# DB_SYSTEM is empty until the db stage, so an older install stripped both drivers and customer PHP
+# reached no database. Only the two packages: a full h-add-web-php re-run rewrites live pool configs.
+php_db_drivers_apply() {
+	local v d want=""
+	while read -r v; do
+		[ -n "$v" ] || continue
+		for d in mysql pgsql; do
+			[ "$(dpkg-query -W -f='${db:Status-Status}' "php$v-$d" 2> /dev/null)" = installed ] || want="$want php$v-$d"
+		done
+	done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
+	[ -n "$want" ] || return 0
+	# A halfway-killed apt makes the next one refuse, for a reason two runs old.
+	dpkg --configure -a > /dev/null 2>&1
+	# shellcheck disable=SC2086 # the list is built from validated version numbers, one package per word
+	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install $want > /dev/null 2>&1
+	# apt's rc covers the whole run, so ask dpkg per package.
+	for v in $want; do
+		[ "$(dpkg-query -W -f='${db:Status-Status}' "$v" 2> /dev/null)" = installed ] || return 1
+	done
+}
+
+# The update path calls no h-add-sys-* of its own, so a moved pin reaches an installed box only here.
+tachyon_pin_apply() {
+	"$BIN/h-add-sys-tachyon" > /dev/null 2>&1
+}

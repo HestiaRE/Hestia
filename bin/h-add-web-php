@@ -32,9 +32,6 @@ if [ -z "$WEB_BACKEND" ]; then
 	echo "Multiple php versions are not supported for modphp"
 fi
 
-# Set file locations
-php_fpm="/etc/init.d/php$version-fpm"
-
 # Verify php version format
 if [[ ! $version =~ ^[0-9]+\.[0-9]+ ]]; then
 	echo "The specified PHP version format is invalid, it should look like [0-9].[0-9]."
@@ -113,8 +110,10 @@ case " $mph " in *" php$version-cli "*) ;; *)
 	;;
 esac
 
-# Install php packages
-apt-get -y -qq -o Dpkg::Options::="--force-confold" install $mph > /dev/null 2>&1 &
+# Install php packages. Not /dev/null: a failure has to leave something to read.
+apt_log=$(mktemp)
+# shellcheck disable=SC2086
+apt-get -y -qq -o Dpkg::Options::="--force-confold" install $mph > "$apt_log" 2>&1 &
 
 BACK_PID=$!
 
@@ -127,17 +126,30 @@ while kill -0 $BACK_PID > /dev/null 2>&1; do
 	sleep 0.5
 done
 
+# The spinner loop only waits; wait hands over the exit code nobody used to collect.
+wait "$BACK_PID"
+apt_rc=$?
+
 # Do a blank echo to get the \n back
 echo
 
-# Check if installation was successful — abort instead of reporting success, so
-# callers (h-change-sys-panel-php, the installer multi-PHP loop, direct users) can
-# detect a failed apt run rather than continuing on a half-installed version.
-if [ ! -f "$php_fpm" ]; then
+# Abort instead of reporting success, so a caller sees a half-installed version. Asked of the
+# requested list, not of one file: the init script this used to check is already there whenever the
+# panel stage installed that version.
+missing=""
+for _p in $mph; do
+	[ "$(dpkg-query -W -f='${db:Status-Status}' "$_p" 2> /dev/null)" = installed ] || missing="$missing $_p"
+done
+if [ "$apt_rc" -ne 0 ] || [ -n "$missing" ]; then
 	echo "ERROR: Installation failed, please run the following command manually for debugging:"
 	echo "apt-get install $mph"
+	[ "$apt_rc" -ne 0 ] && echo "apt exited $apt_rc"
+	[ -n "$missing" ] && echo "not installed:$missing"
+	sed -n '$p' "$apt_log" 2> /dev/null
+	rm -f "$apt_log"
 	exit "$E_INVALID"
 fi
+rm -f "$apt_log"
 
 # Check if required modules for apache2 are enabled
 if [ "$WEB_SYSTEM" = "apache2" ]; then

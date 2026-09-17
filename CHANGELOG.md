@@ -93,6 +93,19 @@ opens above it.
 
 ### Fixed
 
+- **Customer PHP versions came out without a database driver** (#1070). `h-add-web-php` decided the
+  `mysql` and `pgsql` extensions from `DB_SYSTEM`, which is empty for the whole PHP stage: the
+  installer seeds it so, and only the database stage that runs afterwards writes a token. Measured on
+  the fleet, PHP 8.3 and 8.5 knew neither `mysqli` nor `pdo_mysql`, so a customer on one of them could
+  not reach MariaDB; the versions that did work owed it to the panel stage and to a phpMyAdmin
+  dependency. The gate was wrong in the other direction too, since adding PostgreSQL later registers
+  the token while nothing backfills the extension. Both drivers go in unconditionally now.
+- **`h-add-web-php` reported success without asking apt** (#1070). The install ran in the background
+  with every line sent to `/dev/null`, its exit status was never collected, and the success check
+  asked whether one init script existed - which for the panel's own PHP version is true before the
+  command even starts. A failing run now exits non-zero, names the packages that did not arrive, and
+  keeps the last line of apt's output.
+
 - **An uptime past 1000 days showed as "1 days"** (#1066, upstream #5468). `number_format()`
   groups thousands and the `%d` in front of it truncated at the comma. Two boundary cases came
   along: exactly 60 minutes read "60 minutes", exactly 24 hours read "24 hours".

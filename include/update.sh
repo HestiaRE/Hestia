@@ -158,16 +158,20 @@ upd_cond_dir_not_empty() {
 	[ -n "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null)" ]
 }
 
-# True as soon as ONE managed version lacks the extension. The version list comes from
-# h-list-sys-php, never from a second walk of /etc/php here: that directory also holds versions no
-# customer runs. A box with no managed version is a legitimate false (mail-only has none), a
-# lister that cannot answer is not - that would be a count of zero standing in for a fact.
+# True as soon as ONE managed version lacks ONE of the extensions. A comma list, because an action
+# that repairs a set has to be asked about that set: a condition on half of it leaves the other half
+# unrepaired on a box that only lost that half.
+# The version list comes from h-list-sys-php, never from a second walk of /etc/php here: that
+# directory also holds versions no customer runs. A box with no managed version is a legitimate false
+# (mail-only has none), a lister that cannot answer is not - that would be a count of zero standing
+# in for a fact.
 upd_cond_php_ext_missing() {
-	local v out rc
+	local v e out rc exts=()
 	[ -n "$1" ] || {
-		echo "update: php_ext_missing needs an extension name" >&2
+		echo "update: php_ext_missing needs one extension name or a comma list" >&2
 		return 2
 	}
+	IFS=, read -ra exts <<< "$1"
 	out=$("$UPDATE_ROOT/bin/h-list-sys-php" plain 2> /dev/null)
 	rc=$?
 	[ "$rc" -eq 0 ] || {
@@ -176,7 +180,10 @@ upd_cond_php_ext_missing() {
 	}
 	while read -r v; do
 		[ -n "$v" ] || continue
-		upd_cond_package_installed "php$v-$1" || return 0
+		for e in "${exts[@]}"; do
+			[ -n "$e" ] || continue
+			upd_cond_package_installed "php$v-$e" || return 0
+		done
 	done <<< "$out"
 	return 1
 }
@@ -191,8 +198,10 @@ upd_cond_php_ext_missing() {
 # Can this be taken back by putting files back. "no" is where rollback becomes "restore the tarball".
 upd_action_reversible() {
 	case "$1" in
-		key_set | key_clear | token_add | token_remove | file_copy | package_install | dir_clear) echo yes ;;
-		path_delete | package_remove | service_restart | function_call) echo no ;;
+		key_set | key_clear | token_add | token_remove | file_copy | package_install) echo yes ;;
+		# dir_clear sits with path_delete, not with file_copy: both make a path cease to exist, and the
+		# line this list draws has always been there rather than at "could cp -a bring it back".
+		path_delete | dir_clear | package_remove | service_restart | function_call) echo no ;;
 		*) return 1 ;;
 	esac
 }

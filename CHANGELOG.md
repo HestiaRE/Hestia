@@ -26,6 +26,13 @@ opens above it.
   `php_db_drivers_apply` and `tachyon_pin_apply`; the first moved out of `h-install-hestia`, so
   installer and update write that file from one recipe.
 
+- **The first update manifest, `share/updates/0.20.0.json`** (#1076). Nine entries for what a box
+  coming from v0.19.0 does not get by having the release copied over it: the guarded logrotate hook,
+  four provenance files older tarballs left behind, the panel session store (older sessions hold
+  system secrets in clear), the daily session sweep that named a path gone since the store moved, the
+  two database drivers customer PHP never had, and Tachyon, which no update path would otherwise
+  move off the version it was installed with.
+
 - **`h-delete-user-sessions` ends a user's panel sessions** (#1059). A password change leaves the
   record looking exactly as it did, so the panel's per-request read cannot notice it - an open
   session outlived the password it was opened with. `h-change-user-password` and

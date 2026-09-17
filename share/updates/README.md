@@ -98,7 +98,8 @@ The four late conditions exist because a state outside the tree cannot be compar
 `pin_differs` reads the pin from the manifest rather than carrying a version of its own. `dir_clear`
 empties a directory and leaves it standing, because its owner and mode are part of what it is.
 `php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a
-second list here.
+second list here; its `name` takes a comma list, because an action that repairs a set has to be
+asked about that set.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

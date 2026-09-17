@@ -64,6 +64,7 @@ declare -a versions
 # "phphestia-fpm" that breaks h-restart-web-backend + the #120 switch health gate.
 if [ -n "$WEB_BACKEND" ]; then
 	for version in /etc/php/*/fpm; do
+		[ -d "$version" ] || continue
 		ver=$(echo "$version" | awk -F"/" '{ print $4 }')
 		[ "$ver" = "hestia" ] && continue
 		versions+=("$ver")
@@ -71,6 +72,7 @@ if [ -n "$WEB_BACKEND" ]; then
 else
 	# Fix for modphp
 	for version in /etc/php/*/cli; do
+		[ -d "$version" ] || continue
 		ver=$(echo "$version" | awk -F"/" '{ print $4 }')
 		[ "$ver" = "hestia" ] && continue
 		versions+=("$ver")

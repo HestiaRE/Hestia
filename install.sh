@@ -20,7 +20,6 @@
 #   bash install.sh <preset> -a      # fully unattended: also take the default
 #                                    #   hostname/port/admin/email, no prompts
 #   bash install.sh <preset> -a --port=9443   # unattended on a non-default panel port
-#   bash install.sh --dev            # configure private source first
 #   bash install.sh --profile=<p>    # same as positional preset arg
 #   bash install.sh --force          # re-run on a box that is already installed
 #                                    #   (the wizard REPLACES install.conf, see below)
@@ -33,14 +32,19 @@
 
 set -euo pipefail
 
+# cp -r takes the source mode minus the umask, and a git-archive tarball carries group-write
+# (git's tar.umask defaults to 0002). Without this the install tree's modes would follow
+# whichever shell started the installer. h-install-hestia sets the same for its own stage.
+umask 0022
+
 # ── Constants ──────────────────────────────────────────────
 SOURCE_CONF="/etc/hestia/source.conf"
 INSTALL_DIR="/usr/local/hestia"
 MANIFEST="${INSTALL_DIR}/share/manifest.json"
 LOG_DIR="/var/log/hestia"
 
-# GitHub defaults - can be overridden by /etc/hestia/source.conf
-# (set HESTIARE_SOURCE=gitea + HESTIARE_REPO_URL for private Gitea releases)
+# Where a release comes from. One source; the only thing source.conf can still say about it is
+# HESTIARE_MIRROR, which switches the fallback mirror off.
 GITHUB_REPO="HestiaRE/Hestia"
 GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}"
 GITHUB_RAW="https://github.com/${GITHUB_REPO}/releases/download"
@@ -53,7 +57,6 @@ RELEASE_MIRROR="https://dl.hestiare.com"
 OS=""
 FASTTRACK_PRESET=""
 PANEL_PORT=""
-DEV_MODE=false
 AUTO_MODE=false
 FORCE_MODE=false
 
@@ -75,7 +78,6 @@ trap '_on_error "$?" "$LINENO"' ERR
 # ── Argument parsing ───────────────────────────────────────
 for _arg in "$@"; do
 	case $_arg in
-		--dev) DEV_MODE=true ;;
 		--profile=*) FASTTRACK_PRESET="${_arg#*=}" ;;
 		--port=*) PANEL_PORT="${_arg#*=}" ;;
 		-a | --auto) AUTO_MODE=true ;;
@@ -128,39 +130,12 @@ fn_prerequisites() {
 	DEBIAN_FRONTEND=noninteractive apt-get -qq update
 	DEBIAN_FRONTEND=noninteractive apt-get -y -qq install curl jq whiptail ca-certificates gnupg apt-utils >> "$LOG_DIR/install.log" 2>&1
 
-	if [ "$DEV_MODE" = true ]; then
-		_dev_setup
-	fi
-
+	# Only HESTIARE_MIRROR is still read from here; nothing writes the file any more.
 	[ -f "$SOURCE_CONF" ] && source "$SOURCE_CONF" || true
-	HESTIARE_SOURCE="${HESTIARE_SOURCE:-github}"
 
 	if [ ! -f "$MANIFEST" ]; then
 		_fetch_release
 	fi
-}
-
-_dev_setup() {
-	echo ""
-	echo "HestiaRE — Dev Source Setup"
-	echo "---------------------------"
-	HESTIARE_REPO_URL="${HESTIARE_REPO_URL:-}"
-	HESTIARE_TOKEN="${HESTIARE_TOKEN:-}"
-	HESTIARE_CHANNEL="${HESTIARE_CHANNEL:-stable}"
-	read -rp "Source repo URL [${HESTIARE_REPO_URL:-https://gitea.example.com/user/hestiare}]: " _i < /dev/tty
-	HESTIARE_REPO_URL="${_i:-$HESTIARE_REPO_URL}"
-	read -rsp "Access token (silent): " _i < /dev/tty
-	echo ""
-	HESTIARE_TOKEN="${_i:-$HESTIARE_TOKEN}"
-	read -rp "Channel [stable/prerelease, default: stable]: " _i < /dev/tty
-	HESTIARE_CHANNEL="${_i:-stable}"
-	HESTIARE_SOURCE="gitea"
-	mkdir -p "$(dirname "$SOURCE_CONF")"
-	printf 'HESTIARE_SOURCE="%s"\nHESTIARE_REPO_URL="%s"\nHESTIARE_TOKEN="%s"\nHESTIARE_CHANNEL="%s"\n' \
-		"$HESTIARE_SOURCE" "$HESTIARE_REPO_URL" "$HESTIARE_TOKEN" "$HESTIARE_CHANNEL" > "$SOURCE_CONF"
-	chmod 600 "$SOURCE_CONF"
-	echo "[ * ] Source config written to $SOURCE_CONF"
-	echo ""
 }
 
 # $1 = api|raw, $2 = path below that root, rest = curl args. Bounded, or an unroutable host costs
@@ -179,54 +154,60 @@ _release_get() {
 }
 
 _fetch_release() {
-	HESTIARE_REPO_URL="${HESTIARE_REPO_URL:-}"
-	HESTIARE_TOKEN="${HESTIARE_TOKEN:-}"
-	HESTIARE_CHANNEL="${HESTIARE_CHANNEL:-stable}"
 	RELEASE_MIRROR="${HESTIARE_MIRROR-$RELEASE_MIRROR}"
-	# A private Gitea release is a different build - it never falls back to the public mirror.
-	[ "${HESTIARE_SOURCE:-github}" = "gitea" ] && RELEASE_MIRROR=""
 
-	echo "[ * ] Fetching latest release..."
-	local latest
-	local -a curl_auth=()
-	[ -n "$HESTIARE_TOKEN" ] && curl_auth=(-H "Authorization: token ${HESTIARE_TOKEN}")
+	local latest=""
 
-	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
-		latest=$(curl -fsSL "${curl_auth[@]}" "${HESTIARE_REPO_URL}/releases/latest" \
-			| jq -r '.tag_name') || latest=''
-	elif [ "${HESTIARE_CHANNEL}" = "prerelease" ]; then
-		latest=$(_release_get api "/releases" | jq -r '.[0].tag_name') || latest=''
-	else
-		latest=$(_release_get api "/releases/latest" | jq -r '.tag_name') || latest=''
-	fi
-
-	# the assignments above absorb their own failure, or set -e would abort before this message
-	{ [ -n "$latest" ] && [ "$latest" != "null" ]; } || {
-		echo "ERROR: Could not determine latest release." >&2
-		exit 1
-	}
-	echo "[ * ] Version: ${latest}"
-
-	if [ "${HESTIARE_SOURCE:-github}" = "gitea" ]; then
-		curl -fsSL "${curl_auth[@]}" \
-			"${HESTIARE_REPO_URL}/releases/download/${latest}/hestiare-${latest}.tar.gz" \
+	# The test override: one URL, taken as given, instead of resolving a release. Own copy here for the
+	# same reason the fetch itself is duplicated: this runs before the tree exists. The tarball's own
+	# VERSION is then the only statement about what it is, and it is checked below like any other.
+	if [ -n "${HESTIA_RELEASE_URL:-}" ]; then
+		echo "[ * ] Fetching the tarball named by HESTIA_RELEASE_URL"
+		local -a ov_auth=()
+		[ -n "${HESTIA_RELEASE_TOKEN:-}" ] && ov_auth=(-H "Authorization: token ${HESTIA_RELEASE_TOKEN}")
+		curl -fsSL --connect-timeout 15 --max-time 600 "${ov_auth[@]}" "${HESTIA_RELEASE_URL}" \
 			-o /tmp/hestiare.tar.gz
 	else
+		echo "[ * ] Fetching latest release..."
+		latest=$(_release_get api "/releases/latest" | jq -r '.tag_name') || latest=''
+		# the assignment above absorbs its own failure, or set -e would abort before this message
+		{ [ -n "$latest" ] && [ "$latest" != "null" ]; } || {
+			echo "ERROR: Could not determine latest release." >&2
+			exit 1
+		}
+		echo "[ * ] Version: ${latest}"
 		_release_get raw "/${latest}/hestiare-${latest}.tar.gz" -o /tmp/hestiare.tar.gz
 	fi
-	tar -xzf /tmp/hestiare.tar.gz -C /tmp
+	# The root directory comes from the tarball itself, never from its name: the release asset carries
+	# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one
+	# entry, or this is not a release tarball. Unpacked into its own directory, so the name cannot
+	# collide with anything else that already sits in /tmp.
+	_root=$(tar -tzf /tmp/hestiare.tar.gz | cut -d/ -f1 | sort -u)
+	if [ -z "${_root}" ] || [ "$(printf '%s\n' "${_root}" | wc -l)" != 1 ]; then
+		echo "ERROR: the fetched tarball has no single root directory (holds: ${_root:-nothing})." >&2
+		rm -f /tmp/hestiare.tar.gz
+		exit 1
+	fi
+	_work=$(mktemp -d /tmp/hestiare.XXXXXX)
+	tar -xzf /tmp/hestiare.tar.gz -C "${_work}"
 	rm /tmp/hestiare.tar.gz
 	# A mirror can cache or hand back the wrong asset, and on a v6-only box there is no second
 	# opinion: the extracted tree has to carry the version that was asked for.
-	_got=$(cat "/tmp/hestiare-${latest}/VERSION" 2> /dev/null || echo "")
-	if [ "${_got#v}" != "${latest#v}" ]; then
-		echo "ERROR: fetched release is not ${latest} (tree says '${_got:-nothing}')." >&2
-		rm -rf "/tmp/hestiare-${latest}"
+	_got=$(cat "${_work}/${_root}/VERSION" 2> /dev/null || echo "")
+	if [ -z "${_got}" ]; then
+		echo "ERROR: the fetched tree carries no VERSION, so there is nothing to check it against." >&2
+		rm -rf "${_work}"
 		exit 1
 	fi
+	if [ -n "${latest}" ] && [ "${_got#v}" != "${latest#v}" ]; then
+		echo "ERROR: fetched release is not ${latest} (tree says '${_got}')." >&2
+		rm -rf "${_work}"
+		exit 1
+	fi
+	[ -n "${latest}" ] || echo "[ * ] Version: ${_got} (from the tarball)"
 	mkdir -p "${INSTALL_DIR}"
-	cp -r /tmp/hestiare-${latest}/. "${INSTALL_DIR}/"
-	rm -rf /tmp/hestiare-${latest}
+	cp -r "${_work}/${_root}/." "${INSTALL_DIR}/"
+	rm -rf "${_work}"
 	echo "[ * ] Extracted to ${INSTALL_DIR}"
 }
 

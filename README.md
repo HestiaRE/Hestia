@@ -49,8 +49,9 @@ The result is a smaller, more auditable surface that tracks the distributions' o
 HestiaCP builds versioned Debian **`.deb` packages** (including compiled binaries) and serves them from a **custom apt repository**. HestiaRE ships **no packages and no binaries**, only source:
 
 1. Pushing a `v*` git tag triggers CI (`.github/workflows/release.yml`).
-2. CI stamps the tag into `VERSION` and packs the tree into a single versioned **`hestiare-<version>.tar.gz`** source tarball.
+2. CI compares the committed `VERSION` against the tag, refuses a release where the two disagree, and packs the tree into a single versioned **`hestiare-<version>.tar.gz`** source tarball with its `.sha256` beside it.
 3. `install.sh`, the one curl-able bootstrap, fetches and extracts that tarball into `/usr/local/hestia`, then takes over.
+4. `hestia update` does the same for an installed box: it fetches and verifies the next release, unpacks it over the tree, and works off what `share/updates/` says a box coming from an older version still has to catch up on.
 
 There is no compiled artifact, no private package repo, and no build toolchain required on the target host. (Earlier iterations used `just`/Make; that dependency has been removed, the installer is pure bash now.)
 

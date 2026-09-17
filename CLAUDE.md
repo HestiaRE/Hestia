@@ -39,6 +39,14 @@ These are absolute. Never deviate, never re-suggest rejected items.
 - Minimal explicit sudo rules per command
 - Conservative approach over clever approach
 
+**Every loop over a file pattern guards the empty case.** With no match the shell hands the body the
+PATTERN, and the body then works on a path that does not exist - three times already (#826, #1031,
+#1033). So `[ -e "$x" ] || continue` is the FIRST line of the body, and the word list is quoted up to
+the pattern itself (`"$dir"/*`, never `$dir/*`). `for x in $*` globs as well; write `"$@"`.
+`.gitea/tools/lint-shell.sh` derives the set from the code and fails on an unguarded loop. Not
+nullglob: it is not function-local, an abort through `check_result` never restores it, and it would
+make a pattern borne by a VALUE vanish silently instead of being wrong.
+
 ---
 
 ## COMMENT STYLE
@@ -161,7 +169,7 @@ include/wizard.sh    interactive wizard (manifest-driven) → writes /etc/hestia
 include/helper.sh    installer helpers: hestia_apt, load_os_profile, seed_hestia_etc
 sbin/h-install-hestia non-interactive installer (reads install.conf, COMPONENT_*-gated)
 sbin/hestia       umbrella: hestia install|configure|update|uninstall|status
-VERSION           empty placeholder, filled at build time — never edit
+VERSION           the version this tree is; committed before each tag, release.yml compares
 CODEMAP.json      component map — read before exploring the codebase
 CLAUDE.md         this file
 ```
@@ -303,6 +311,12 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   fix, and `v0.16.0` missed a security fix by twelve hours. Nothing that runs after the tag repairs
   it - the guard at the end of `.gitea/workflows/mirror-on-release.yml` only makes it loud. Say it
   out loud *before* the release, not in a PR footnote.
+- **Bump `VERSION` in a commit before the tag, onto the commit the tag will point at.** The tree
+  carries its own version instead of having one stamped at build time, so `release.yml` compares
+  the two and refuses a release whose `VERSION` disagrees with the tag; an empty file is refused
+  as well, because two empty strings compare just fine. For a minor this is a hand step, done before
+  the tag; an internal point release gets it from the `Bump point release` workflow, which writes the
+  file and cuts the release in one go so the two cannot come apart.
 - Consolidate the `CHANGELOG.md` Unreleased section into the new minor (point releases stay
   inside the cycle they belong to). Archive the uncondensed text on `docs` under
   `full-changes/CHANGELOG_v0-N.md` before condensing; target density is ~120 lines per section.

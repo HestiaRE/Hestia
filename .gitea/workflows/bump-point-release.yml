@@ -1,0 +1,145 @@
+# .gitea/workflows/bump-point-release.yml
+name: Bump point release
+#
+# Write VERSION on dev, then tag that commit as a release. Both halves here, because a bump without
+# a release ships a tarball carrying the previous number and nothing on this line would notice.
+#
+# HOST DEPENDENCY, complete list: curl, jq, base64. Written through the API, so branch protection
+# and the audit trail apply.
+# SECRET, complete list: RELEASE_TOKEN, scope `write:repository`. Its owner needs push rights on the
+# branch below, which no scope grants, and authors the bump commit.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "vX.Y.Z for this point release"
+        required: true
+permissions:
+  contents: read
+jobs:
+  bump:
+    runs-on: hestiare
+    steps:
+      - name: Write VERSION on dev, then cut the release
+        env:
+          API_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          WANT: ${{ github.event.inputs.version }}
+          REPO_SLUG: ${{ github.repository }}
+          API_BASE: ${{ github.api_url }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for t in curl jq base64; do command -v "$t" > /dev/null 2>&1 || missing="$missing $t"; done
+          if [ -n "$missing" ]; then
+            echo "Missing on the runner host:$missing"
+            echo "Install once, from the OS repos:  apt install$missing"
+            exit 1
+          fi
+
+          BRANCH=dev
+          [ -n "${API_BASE:-}" ] || { echo "github.api_url did not resolve - refusing to guess the API host."; exit 1; }
+          [ -n "${API_TOKEN:-}" ] || { echo "The RELEASE_TOKEN secret is not set; it needs write access to this repository."; exit 1; }
+          [ -n "${WANT:-}" ] || { echo "No version given."; exit 1; }
+          # A regex, because the obvious glob also accepts "v0.19.1 && rm -rf /".
+          if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "'$WANT' is not a version. Expected the form v0.19.1."
+            exit 1
+          fi
+          # Gitea hands over the finished base, so nothing here knows the path shape.
+          API="${API_BASE}/repos/${REPO_SLUG}"
+
+          # $1 method, $2 path, $3 body. Status on the first line, response below: the code is read
+          # before the body is believed.
+          api() {
+            local out
+            out=$(mktemp)
+            if [ -n "${3:-}" ]; then
+              curl -s -o "$out" -w '%{http_code}\n' -X "$1" "$API$2" \
+                -H "Authorization: token $API_TOKEN" -H "Content-Type: application/json" -d "$3"
+            else
+              curl -s -o "$out" -w '%{http_code}\n' -X "$1" "$API$2" -H "Authorization: token $API_TOKEN"
+            fi
+            cat "$out"
+            rm -f "$out"
+          }
+
+          echo "== What $BRANCH says now"
+          raw=$(api GET "/contents/VERSION?ref=$BRANCH")
+          code=$(printf '%s' "$raw" | head -1)
+          body=$(printf '%s' "$raw" | tail -n +2)
+          [ "$code" = "200" ] || { echo "Cannot read VERSION on $BRANCH (HTTP $code). Nothing was changed."; exit 1; }
+          blob_sha=$(printf '%s' "$body" | jq -r '.sha')
+          have=$(printf '%s' "$body" | jq -r '.content' | base64 -d | tr -d '\n')
+          [ -n "$have" ] || { echo "VERSION on $BRANCH is empty. It has to carry a version before this can raise one."; exit 1; }
+          echo "   VERSION on $BRANCH: $have, requested: $WANT"
+
+          # Equal is a resume, not an error: a previous run wrote the file and missed the release.
+          RESUME=no
+          if [ "$have" = "$WANT" ]; then
+            RESUME=yes
+            echo "   VERSION already says $WANT, so this run only cuts the release."
+          else
+            newest=$(printf '%s\n%s\n' "$have" "$WANT" | sort -V | tail -1)
+            [ "$newest" = "$WANT" ] || { echo "$WANT is not above $have. A point release only goes forward."; exit 1; }
+          fi
+
+          echo "== Is the tag free"
+          for path in "/releases/tags/$WANT" "/tags/$WANT"; do
+            c=$(api GET "$path" | head -1)
+            [ "$c" = "404" ] || { echo "$path answers HTTP $c, so $WANT already exists. Nothing was changed."; exit 1; }
+          done
+          echo "   $WANT is free"
+
+          if [ "$RESUME" = no ]; then
+            echo "== Writing VERSION on $BRANCH"
+            # The blob sha refuses the write if the file moved since it was read.
+            payload=$(jq -n --arg c "$(printf '%s\n' "$WANT" | base64 -w0)" --arg s "$blob_sha" \
+              --arg b "$BRANCH" --arg m "chore: bump VERSION to $WANT" \
+              '{content:$c, sha:$s, branch:$b, message:$m}')
+            raw=$(api PUT "/contents/VERSION" "$payload")
+            code=$(printf '%s' "$raw" | head -1)
+            body=$(printf '%s' "$raw" | tail -n +2)
+            [ "$code" = "200" ] || [ "$code" = "201" ] || { echo "Write failed (HTTP $code): $body"; exit 1; }
+            commit=$(printf '%s' "$body" | jq -r '.commit.sha')
+          else
+            commit=$(api GET "/branches/$BRANCH" | tail -n +2 | jq -r '.commit.id')
+          fi
+          [ -n "$commit" ] && [ "$commit" != null ] || { echo "No commit sha to tag. Nothing further was done."; exit 1; }
+          echo "   bump commit: $commit"
+
+          echo "== Cutting the release"
+          # The branch NAME, not the sha: that is what the mirror gate and the consolidation script
+          # read. The read-back below covers what that costs in precision.
+          payload=$(jq -n --arg t "$WANT" --arg b "$BRANCH" \
+            '{tag_name:$t, target_commitish:$b, name:$t, body:"Internal point release. Not mirrored.", draft:false, prerelease:true}')
+          raw=$(api POST "/releases" "$payload")
+          code=$(printf '%s' "$raw" | head -1)
+          if [ "$code" != "201" ]; then
+            echo "Release creation failed (HTTP $code): $(printf '%s' "$raw" | tail -n +2)"
+            if [ "$code" = "409" ]; then
+              # The check above asked and the answer went stale. Gitea refused the duplicate, so
+              # "run it again" would be wrong: the next run stops at that same check.
+              echo "$WANT exists now although it did not a moment ago, so somebody cut it in between."
+              echo "VERSION on $BRANCH is at $WANT. Decide whether that release is the one you wanted;"
+              echo "if it is not, delete it and its tag, then run this again."
+            else
+              echo "VERSION is already at $WANT on $BRANCH; run this again with the same version to finish."
+            fi
+            exit 1
+          fi
+
+          echo "== Reading back"
+          rel=$(api GET "/releases/tags/$WANT" | tail -n +2)
+          got_target=$(printf '%s' "$rel" | jq -r '.target_commitish')
+          got_pre=$(printf '%s' "$rel" | jq -r '.prerelease')
+          tag_sha=$(api GET "/tags/$WANT" | tail -n +2 | jq -r '.commit.sha')
+          echo "   release target=$got_target prerelease=$got_pre"
+          echo "   tag points at $tag_sha"
+          [ "$got_target" = "$BRANCH" ] && [ "$got_pre" = "true" ] || { echo "The release did not come out as asked."; exit 1; }
+          if [ "$tag_sha" != "$commit" ]; then
+            echo "The tag does not point at the bump commit: something landed on $BRANCH in between."
+            echo "The release carries $tag_sha, the bump was $commit. Delete both and run this again."
+            exit 1
+          fi
+          echo ""
+          echo "$WANT is cut on $BRANCH. It stays internal: the mirror gate lets only main through."

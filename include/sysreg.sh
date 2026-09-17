@@ -145,6 +145,13 @@ sysreg_tokens() {
 	jq -r --arg k "$1" 'if .keys[$k].tokens == true then "yes" else "no" end' "$(sysreg_file)"
 }
 
+# The keys whose VALUE must not travel. Read once by a caller that walks every key, not per key:
+# two jq runs times ninety-odd keys is a login's worth of work for a two-entry answer.
+sysreg_secret_keys() {
+	_sysreg_ok || return 1
+	jq -r '.keys | to_entries[] | select(.value.secret == true) | .key' "$(sysreg_file)"
+}
+
 # One per line; an allowed empty value is an empty line, so read with mapfile.
 # rc 1 unknown key, rc 2 deliberately open set: a caller that cannot tell them apart reads
 # "no contract" as "no such key".

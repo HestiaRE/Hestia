@@ -117,7 +117,7 @@ if [ -e "$USER_DATA/ssl/mail.$domain.crt" ]; then
 	crt=$(echo "$crt_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 
 	info=$(openssl x509 -text -in $USER_DATA/ssl/mail.$domain.crt)
-	subj=$(echo "$info" | grep Subject: | sed -e "s/\"//g" -e "s/.*= //")
+	subj=$(cert_common_name "$USER_DATA/ssl/mail.$domain.crt")
 	before=$(echo "$info" | grep Before: | sed -e "s/.*Before: //")
 	after=$(echo "$info" | grep "After :" | sed -e "s/.*After : //")
 	signature=$(echo "$info" | grep "Algorithm:" | head -n1)

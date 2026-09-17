@@ -53,6 +53,7 @@ rm -f /etc/systemd/system/php*-fpm.service.d/hestia-slice.conf
 rmdir /etc/systemd/system/php*-fpm.service.d 2> /dev/null || true
 systemctl daemon-reload
 for s in /etc/php/*/fpm; do
+	[ -d "$s" ] || continue
 	v=$(basename "$(dirname "$s")")
 	[ "$v" = 'hestia' ] && continue
 	systemctl try-restart "php$v-fpm" 2> /dev/null || true

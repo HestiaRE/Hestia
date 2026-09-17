@@ -35,7 +35,6 @@ fi
 
 # :- not -: an EMPTY third argument (h-update-sys-ip passes jq output) must fall back
 iface="${3:-$iface}"
-user="$4"
 ip_status="${5-shared}"
 ip_name="$6"
 nat_ip="$7"
@@ -54,9 +53,9 @@ source $HESTIA/include/web-model.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-if [ -z "$4" ]; then
-	user="$ROOT_USER"
-fi
+# Bound AFTER the includes: USER is optional here (h-update-sys-ip passes three arguments), and
+# main.sh refuses a $user that is set but empty. Unset it stays, so the default below applies.
+user="${4:-$ROOT_USER}"
 
 #----------------------------------------------------------#
 #                    Verifications                         #

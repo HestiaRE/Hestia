@@ -1,0 +1,78 @@
+#!/bin/bash
+# info: end a user's panel sessions
+# options: USER
+#
+# example: h-delete-user-sessions alice
+#
+# Removes USER's PHP session files, so a browser still holding one is logged out at its next request.
+# A password change leaves the record unchanged, so the panel's per-request read cannot notice it -
+# this is the only way to reach an open session (#1059). The caller's OWN session goes too; the panel
+# takes a fresh one with session_regenerate_id() right after.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+user="$1"
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+[ "$(id -u)" = '0' ] || {
+	echo "ERROR: h-delete-user-sessions must be run as root"
+	exit 10
+}
+
+check_args '1' "$#" 'USER'
+is_format_valid 'user'
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# No panel pool means no sessions can exist. The installer calls h-change-user-role, and an abort
+# here would end the installation.
+pool_ini='/etc/php/hestia/fpm/php.ini'
+if [ ! -f "$pool_ini" ]; then
+	echo 0
+	exit
+fi
+
+# The store is named by the pool, never guessed: this deletes files. A config that is there but names
+# nothing usable is an error, not a reason to carry on.
+sess_dir=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$pool_ini" | head -1)
+case "$sess_dir" in
+	/*/*) ;;
+	*) check_result "$E_NOTEXIST" "no usable session.save_path in $pool_ini" ;;
+esac
+if [ ! -d "$sess_dir" ]; then
+	echo 0
+	exit
+fi
+
+# The serialised key, not the bare name: 'ann' would otherwise match every session of 'anna'.
+needle="user|s:${#user}:\"$user\""
+n=0
+for f in "$sess_dir"/sess_*; do
+	[ -f "$f" ] || continue
+	grep -qF -- "$needle" "$f" 2> /dev/null || continue
+	rm -f "$f"
+	n=$((n + 1))
+done
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+log_event "$OK" "$ARGUMENTS"
+echo "$n"
+exit

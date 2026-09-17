@@ -372,7 +372,7 @@ updates. `CONF_DIR="${CONF_DIR:-/etc/hestia}"` (`include/main.sh:48`), exported 
 | `/etc/hestia/hestia.env` | bootstrap file (renamed from `hestia.conf`, #81) |
 | `/etc/hestia/local.conf` | operator overrides, survive upgrades |
 | `/etc/hestia/limits.conf` | `CUSTOMER_PHP_CPU_PERCENT`, seeded once and never rewritten (#212) |
-| `/etc/hestia/source.conf` | written by `install.sh --dev` for a private release source; the runtime reads it nowhere since #949 |
+| `/etc/hestia/source.conf` | hand-written and optional since #1045; the one key still read is `HESTIARE_MIRROR`, which switches the release mirror off. Nothing writes the file |
 | `/etc/hestia/install.conf` | wizard recipe only, frozen after the wizard writes it (#945); live state is `hestia.conf` |
 | `/etc/hestia/conf/` | panel config; `$HESTIA/conf` is now a **symlink** here (#129) |
 | `/etc/hestia/{firewall,ips,queue,users}/` | moved out of `$HESTIA/data/` (#148/#154/#156) |
@@ -485,10 +485,12 @@ These are settled decisions (`README.md:53-59`, registry `CODEMAP.json` `removed
 custom apt repository.
 
 **HestiaRE.** No packages, no binaries - source only (`README.md:32-46`): a `v*` git
-tag triggers CI (`.github/workflows/release.yml`), which stamps `VERSION` and packs the
-tree into one `hestiare-<version>.tar.gz`; `install.sh` fetches + extracts it into
-`/usr/local/hestia` and hands off to the wizard -> `sbin/h-install-hestia`. Source/channel
-is overridable via `/etc/hestia/source.conf`. The release actually runs on the public
+tag triggers CI (`.github/workflows/release.yml`), which compares the committed `VERSION`
+against the tag and packs the tree into one `hestiare-<version>.tar.gz` plus its `.sha256`;
+`install.sh` fetches + extracts it into `/usr/local/hestia` and hands off to the wizard ->
+`sbin/h-install-hestia`. There are no channels (#1045): the version a box follows is
+`RELEASE_BRANCH`, and the only source override is the fetch override `HESTIA_RELEASE_URL`,
+which replaces the download and nothing else. The release actually runs on the public
 GitHub mirror (Gitea has no release workflow); see `project-release-github-mirror` in
 memory for the full Gitea-release -> mirror -> GitHub chain. No compiled artifact, no
 private repo, no build toolchain on target (the earlier `just`/Make dependency was

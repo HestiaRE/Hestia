@@ -268,12 +268,12 @@ $offer_pgsql = !empty($_SESSION["DB_SYSTEM"]) && $v_pgsql == "yes";
 if (!empty($_POST["save"])) {
 	$require_refresh = false;
 	$post_experimental = post_checkbox("v_experimental_features", true, "false", "true", "false");
-	$post_view_suspended = post_checkbox(
+	// post_or_keep, not post_checkbox: the control is a select, and post_checkbox reads any non-empty
+	// POST value as "on" (#1057).
+	$post_view_suspended = post_or_keep(
 		"v_policy_user_view_suspended",
 		$offer_preview_policies,
-		$_SESSION["POLICY_SYSTEM_ENABLE_BACON"] ?? "false",
-		"true",
-		"false",
+		$_SESSION["POLICY_USER_VIEW_SUSPENDED"] ?? "no",
 	);
 	// Check token
 	verify_csrf($_POST);
@@ -456,15 +456,12 @@ if (!empty($_POST["save"])) {
 		check_return_code($return_var, $output);
 		unset($output);
 		$v_debug_mode_adv = "yes";
-		if (
-			$post_view_suspended != $_SESSION["POLICY_SYSTEM_ENABLE_BACON"] &&
-			$post_experimental == "false"
-		) {
-			//disable preview mode
+		// Leaving preview mode closes the preview policy with it, in the record's own vocabulary.
+		if ($post_experimental == "false" && ($_SESSION["POLICY_USER_VIEW_SUSPENDED"] ?? "no") != "no") {
 			exec(
 				HESTIA_CMD .
 					"h-change-sys-config-value POLICY_USER_VIEW_SUSPENDED " .
-					quoteshellarg($post_view_suspended),
+					quoteshellarg("no"),
 				$output,
 				$return_var,
 			);

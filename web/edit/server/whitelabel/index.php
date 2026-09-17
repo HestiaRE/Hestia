@@ -14,6 +14,8 @@ if ($_SESSION["userContext"] != "admin") {
 }
 
 if (!empty($_POST)) {
+	// Same gap as the panel service config page: the global wall needs an Origin header to act.
+	verify_csrf($_POST);
 	if (!empty($_POST["v_app_name"]) && $_SESSION["APP_NAME"] != $_POST["v_app_name"]) {
 		exec(
 			HESTIA_CMD .

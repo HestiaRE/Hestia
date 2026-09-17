@@ -2,7 +2,7 @@
 # info: list HestiaRE installation status
 # options: (none)
 #
-# Read-only status report: version, release source, OS/profile, completed
+# Read-only status report: version, OS/profile, completed
 # install phases ($CONF_DIR/.done.*), and the two answers side by side: what the
 # wizard was asked for, and what the box actually carries.
 
@@ -13,17 +13,12 @@ CONF_DIR="${CONF_DIR:-/etc/hestia}"
 # shellcheck source=/etc/hestia/hestia.env
 [ -f "$CONF_DIR/hestia.env" ] && . "$CONF_DIR/hestia.env" 2> /dev/null || true
 INSTALL_CONF="$CONF_DIR/install.conf"
-SOURCE_CONF="$CONF_DIR/source.conf"
 VERSION="$(cat "$HESTIA/VERSION" 2> /dev/null || echo dev)"
 
 # shellcheck disable=SC1090
 [ -f "$INSTALL_CONF" ] && . "$INSTALL_CONF" 2> /dev/null || true
-# shellcheck disable=SC1090
-[ -f "$SOURCE_CONF" ] && . "$SOURCE_CONF" 2> /dev/null || true
 
 echo "HestiaRE $VERSION"
-echo "Source:   ${HESTIARE_SOURCE:-github}"
-echo "Channel:  ${HESTIARE_CHANNEL:-stable}"
 echo "OS:       ${INSTALL_OS:-unknown}"
 echo "Profile:  ${INSTALL_PROFILE:-unknown}"
 echo ""

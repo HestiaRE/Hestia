@@ -90,7 +90,9 @@ if [ -n "$object" ] && [ "$object" != "cron" ]; then
 fi
 
 if [ -z "$object" ]; then
-	echo "$BIN/h-restore-user-restic '$user' '$snapshot' '' '' '' '' '' '' 'yes' >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
+	# Every selector spelled out: an empty one means "skip this section", so the whole-user restore
+	# used to queue a run that touched nothing. dns stays empty - there is no DNS subsystem here.
+	echo "$BIN/h-restore-user-restic '$user' '$snapshot' '*' '' '*' '*' 'yes' 'yes' 'yes' >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
 else
 	if [ "$object" = "web" ]; then
 		is_domain_format_valid "$value" 'value'

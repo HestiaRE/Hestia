@@ -13,7 +13,10 @@
 # Argument definition
 type=$1
 host=$2
-user=$3
+# The login name on the REMOTE target, not a panel user. Named apart from $user because that one is
+# filled in from $ROOT_USER when a command is handed no name, and a local target legitimately has
+# none: an ftp host added without one stored USERNAME='admin'.
+remote_user=$3
 raw_password=$4
 # A /tmp secret file must be resolved BEFORE quotemeta, or is_password_valid later sees an
 # escaped path and never reads it. A key file keeps its path - the OPENSSH branch needs it.
@@ -58,7 +61,7 @@ if [ "$type" != 'local' ]; then
 		fi
 	fi
 	is_type_valid 'sftp,ftp,rclone' "$type"
-	is_username_format_valid "$user" "username"
+	is_username_format_valid "$remote_user" "username"
 	privatekey="no"
 	if [ -f "$raw_password" ]; then
 		if [[ $(cat "$raw_password" | grep "OPENSSH PRIVATE") ]]; then
@@ -94,7 +97,7 @@ if [ "$type" = 'ftp' ]; then
 		port=21
 	fi
 	PORT=$port
-	USERNAME=$user
+	USERNAME=$remote_user
 	PASSWORD=$password
 	HOST=$host
 	PRIVATEKEY=$privatekey
@@ -103,7 +106,7 @@ if [ "$type" = 'ftp' ]; then
 	ferror=$(echo $fconn \
 		| grep -i -e failed -e error -e "can't" -e "not conn" -e "incorrect")
 	if [ -n "$ferror" ]; then
-		echo "Error: can't login to ftp $user@$host"
+		echo "Error: can't login to ftp $remote_user@$host"
 		log_event "$E_CONNECT" "$ARGUMENTS"
 		exit "$E_CONNECT"
 	fi
@@ -130,7 +133,7 @@ if [ "$type" = 'sftp' ]; then
 		port=22
 	fi
 	PORT=$port
-	USERNAME=$user
+	USERNAME=$remote_user
 	PASSWORD=$password
 	HOST=$host
 	if [ -z $path ]; then
@@ -148,7 +151,7 @@ if [ "$type" = 'sftp' ]; then
 	rc=$?
 	if [[ "$rc" -ne 0 ]]; then
 		case $rc in
-			$E_CONNECT) echo "Error: can't login to sftp $user@$host" ;;
+			$E_CONNECT) echo "Error: can't login to sftp $remote_user@$host" ;;
 			$E_FTP) echo "Error: can't create temp folder on the sftp host" ;;
 			*) echo "Error Unable to connect via sftp." ;;
 		esac
@@ -180,7 +183,7 @@ fi
 # Adding backup host
 if [ $type == 'ftp' ] || [ $type = 'sftp' ]; then
 	new_timestamp
-	str="HOST='$host'\nUSERNAME='$user'\nPASSWORD='$password'\nPRIVATEKEY='$privatekey'"
+	str="HOST='$host'\nUSERNAME='$remote_user'\nPASSWORD='$password'\nPRIVATEKEY='$privatekey'"
 	str="$str\nBPATH='$path'\nPORT='$port'\nBACKUPS_KEEP='$keep'\nTIME='$time'\nDATE='$date'"
 	echo -e "$str" > $HESTIA/conf/$type.backup.conf
 	chmod 660 $HESTIA/conf/$type.backup.conf

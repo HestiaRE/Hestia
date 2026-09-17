@@ -30,7 +30,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #----------------------------------------------------------#
 
 check_args '1' "$#" 'SSL_DIR [RESTART]'
-is_format_valid 'ssl_dir restart'
+is_format_valid 'ssl_dir' 'restart'
 
 #----------------------------------------------------------#
 #                       Action                             #

@@ -31,6 +31,15 @@ opens above it.
 
 ### Security
 
+- **An empty user argument was read as "admin"** (#1067). `include/main.sh` could not tell a command
+  that names no user (the installer, an `h-list-sys-*`) from a caller that passed `""` where a name
+  belongs, and filled both in from `ROOT_USER`. `check_args` counts arguments and `is_format_valid`
+  skips empty values by design, so nothing downstream saw it: `h-change-user-language "" de` changed
+  admin, and `h-check-user-password ""` matched the empty name against admin's directory and
+  accepted admin's password. Not reachable from the panel, which concatenates the name unquoted so
+  an empty value becomes no argument at all. Refused now, once, where the two states are still
+  distinguishable.
+
 - **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440). 112 panel
   pages verify the token; the page that rewrites the privileged panel crontab and the white-label
   page did not. The global wall in `prevent_csrf.php` only inspects a request that carries an

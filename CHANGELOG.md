@@ -49,6 +49,14 @@ opens above it.
 
 ### Changed
 
+- **Tachyon moves to 4.2.4** (#846), from the 3.2.2 pin. The major brings a CalDAV calendar, one
+  theme per design with a light/dark toggle instead of two, and signed release assets. Measured on a
+  test box before the bump: the upgrade leaves `application.ini` byte-identical, a login against a
+  real mail account answers `Auth:true` with a wrong password refused, the change-password plugin
+  loads, and the per-domain Sieve blocks keep their shape. The three plugin assets exist for this tag
+  at the same version numbers, but two of them carry different bytes than under 3.2.2 while keeping
+  that number - which is why the pin is a hash, not a version.
+
 - **An install from a handed-in tarball pins itself to that version** (#1052). `HESTIA_RELEASE_URL`
   names a build the release source does not carry, so the default `release` resolved to an older
   public tag and every update check read as a downgrade - the pin had to be set by hand afterwards,

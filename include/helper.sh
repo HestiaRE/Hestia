@@ -531,13 +531,10 @@ login_defs_guard() {
 }
 
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
-# Each repairs a box state the overlay cannot reach: the release is copied over the tree, so anything
-# outside it, and anything apt installed, stays as the older version left it.
+# The overlay copies the tree and nothing else: what sits outside it, or came from apt, stays old.
 
-# The panel's session sweeper. Generated, not copied: the path is read from the pool's php.ini so it
-# is never spelled a second time. #974 moved the store and left this fegging a directory that no
-# longer exists, which is why an updated box needs it too. check_panel_session_store holds the two
-# together.
+# Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
+# directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {
 	local _sess _dst='/etc/cron.daily/php-session-cleanup'
 	_sess=$(sed -n 's/^session\.save_path[[:space:]]*=[[:space:]]*//p' "$HESTIA/share/panel-php/fpm/php.ini" | head -1)
@@ -549,11 +546,8 @@ panel_session_cleanup_apply() {
 	chmod 755 "$_dst"
 }
 
-# The two database drivers for every managed PHP version. Until #1070 they were stripped whenever
-# DB_SYSTEM did not name them, and DB_SYSTEM is empty until the db stage runs - after this one. So a
-# box installed before that has customer PHP that reaches no database at all.
-# Only the two packages, deliberately not a full h-add-web-php re-run: that rewrites live pool
-# configs and restarts the web front, which is far more than this gap is.
+# DB_SYSTEM is empty until the db stage, so an older install stripped both drivers and customer PHP
+# reached no database. Only the two packages: a full h-add-web-php re-run rewrites live pool configs.
 php_db_drivers_apply() {
 	local v d want=""
 	while read -r v; do
@@ -567,16 +561,13 @@ php_db_drivers_apply() {
 	dpkg --configure -a > /dev/null 2>&1
 	# shellcheck disable=SC2086 # the list is built from validated version numbers, one package per word
 	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install $want > /dev/null 2>&1
-	# apt's own status is not the answer: a package it could not fetch leaves it non-zero for the
-	# whole run, and one it installed anyway is done. Ask dpkg about each name instead.
+	# apt's rc covers the whole run, so ask dpkg per package.
 	for v in $want; do
 		[ "$(dpkg-query -W -f='${db:Status-Status}' "$v" 2> /dev/null)" = installed ] || return 1
 	done
 }
 
-# Tachyon to the pinned version. The update path calls no h-add-sys-* of its own, so a moved pin
-# reaches an installed box only from here. The command is idempotent and refuses politely when the
-# installed version already matches.
+# The update path calls no h-add-sys-* of its own, so a moved pin reaches an installed box only here.
 tachyon_pin_apply() {
 	"$BIN/h-add-sys-tachyon" > /dev/null 2>&1
 }

@@ -112,10 +112,8 @@ upd_cond_file_differs() {
 	! cmp -s "$src" "$2"
 }
 
-# A file the tree does not carry: it is generated on the box, so no tree source can be compared to it.
-# The condition looks for what the OLD version wrote, which is what makes it false once rewritten.
-# Absent file is false - there is nothing to repair. Unreadable is loud: silence there would be a
-# guard going green because it looked at less.
+# For a file the box generates: no tree source to compare against, so the marker is what the OLD
+# version wrote. That is what makes this false once the file has been rewritten.
 upd_cond_file_contains() {
 	[ -n "$1" ] && [ -n "$2" ] || {
 		echo "update: file_contains needs a path and a value" >&2
@@ -129,9 +127,8 @@ upd_cond_file_contains() {
 	grep -qF -- "$2" "$1"
 }
 
-# The pin in share/manifest.json against the version marker a component wrote when it was installed.
-# Absent marker is false: the component is not on this box, and an update does not install one. An
-# empty pin is the tree being wrong, never a box fact - it must not read as "nothing to do".
+# Absent marker is false: not installed here, and an update installs nothing. An empty pin is the
+# tree being wrong, never a box fact, so it must not read as "nothing to do".
 upd_cond_pin_differs() {
 	local pin
 	[ -n "$1" ] && [ -n "$2" ] || {
@@ -147,8 +144,7 @@ upd_cond_pin_differs() {
 	[ "$(cat "$2" 2> /dev/null)" != "$pin" ]
 }
 
-# Contents, not the directory: a store that exists but is empty is done, and path_exists would keep
-# saying yes forever.
+# Contents, not the directory: path_exists would keep saying yes long after the store is empty.
 upd_cond_dir_not_empty() {
 	[ -n "$1" ] || {
 		echo "update: dir_not_empty needs a path" >&2
@@ -158,13 +154,8 @@ upd_cond_dir_not_empty() {
 	[ -n "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null)" ]
 }
 
-# True as soon as ONE managed version lacks ONE of the extensions. A comma list, because an action
-# that repairs a set has to be asked about that set: a condition on half of it leaves the other half
-# unrepaired on a box that only lost that half.
-# The version list comes from h-list-sys-php, never from a second walk of /etc/php here: that
-# directory also holds versions no customer runs. A box with no managed version is a legitimate false
-# (mail-only has none), a lister that cannot answer is not - that would be a count of zero standing
-# in for a fact.
+# Versions from h-list-sys-php, not from /etc/php, which also holds versions no customer runs. A
+# comma list because the action repairs a set, and a lister that cannot answer is rc 2, not a zero.
 upd_cond_php_ext_missing() {
 	local v e out rc exts=()
 	[ -n "$1" ] || {
@@ -199,8 +190,7 @@ upd_cond_php_ext_missing() {
 upd_action_reversible() {
 	case "$1" in
 		key_set | key_clear | token_add | token_remove | file_copy | package_install) echo yes ;;
-		# dir_clear sits with path_delete, not with file_copy: both make a path cease to exist, and the
-		# line this list draws has always been there rather than at "could cp -a bring it back".
+		# dir_clear sits with path_delete: both make a path cease to exist.
 		path_delete | dir_clear | package_remove | service_restart | function_call) echo no ;;
 		*) return 1 ;;
 	esac
@@ -260,9 +250,8 @@ upd_act_path_delete() {
 	rm -rf -- "$1"
 }
 
-# The directory stays, with its owner and mode: the panel session store is hestia:hestia 0770 and a
-# recreated one would not be. Dotfiles included, and the rc says what is there afterwards rather than
-# what find thought of a file that vanished under it.
+# The directory stays with its owner and mode: deleting it locks the panel out, nobody recreates it.
+# The rc reads the result, not find's opinion of a file that vanished under it.
 upd_act_dir_clear() {
 	[ -d "$1" ] || return 0
 	find "$1" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2> /dev/null
@@ -317,7 +306,7 @@ upd_condition() {
 			"upd_cond_$t" "$@"
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
-		# in ")", and a continuation drops every name before it out of the set it compares.
+		# in ")", so a continuation drops every name before it out of the set it compares.
 		file_contains | pin_differs | dir_not_empty | php_ext_missing)
 			"upd_cond_$t" "$@"
 			;;
@@ -337,7 +326,7 @@ upd_action() {
 }
 
 # Absolute, not only slashes, ".." as a component: a glob let "/..", "//" and relative paths through.
-# "/etc/foo..bar" stays allowed. Shared by every action that deletes, so the rule has one home.
+# "/etc/foo..bar" stays allowed. One home, because every deleting action needs the same rule.
 _upd_abs_path_ok() {
 	local t="$1" _p="$2"
 	case "$_p" in /*) ;; *)

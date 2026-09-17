@@ -84,6 +84,10 @@ opens above it.
 
 ### Fixed
 
+- **An uptime past 1000 days showed as "1 days"** (#1066, upstream #5468). `number_format()`
+  groups thousands and the `%d` in front of it truncated at the comma. Two boundary cases came
+  along: exactly 60 minutes read "60 minutes", exactly 24 hours read "24 hours".
+
 - **A firewall rule with a malformed netmask was accepted and then silently never rendered**
   (#1066, upstream #5044). `h-add-firewall-rule ACCEPT 10.9.9.0/-1 2223` returned 0, landed in
   `rules.conf` and was listed as active, while the ruleset never carried it. The hardening

@@ -12,7 +12,20 @@ opens above it.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **The updater handed over to the new release and then ran against the old library** (#1080). After
+  the `exec` into the tarball's `update.sh`, `include/release.sh` still came from the installed tree,
+  which does not carry the functions the newer updater calls. The checksum fetch failed as
+  `command not found`, and the `if` around it reads that as "this release publishes none", so the
+  tarball was unpacked unverified. The updater sources the library beside itself now: the installed
+  one on the first pass, the new one after the handover.
+
+- **The session purge would have fired on every future update** (#1081). Its condition was the store
+  merely being non-empty, and that store fills up in normal operation - a login, a monitoring probe
+  or the smoke run itself is enough. It asks whether a session still carries a registry-secret with a
+  real value now, which is the state it actually means: the mask and an empty value do not count, so
+  a box with nothing to purge is left alone instead of logging everybody out.
 
 ## v0.20.0 (2026-09-17)
 

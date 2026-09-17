@@ -14,8 +14,13 @@
 umask 0022
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
+# The library that shipped with THIS updater, not the installed one (#1080). After the handover the
+# running script comes from the tarball while $HESTIA is still the old tree, and a function the new
+# updater needs may be missing there: the checksum fetch then failed as "command not found", which an
+# if reads as "this release publishes none", and the tarball was unpacked unverified.
+UPD_SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=/usr/local/hestia/include/release.sh
-source "$HESTIA/include/release.sh"
+source "$UPD_SELF_DIR/include/release.sh"
 
 CHECK_ONLY=no
 [ "${1:-}" = "--check" ] && CHECK_ONLY=yes

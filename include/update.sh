@@ -179,6 +179,34 @@ upd_cond_php_ext_missing() {
 	return 1
 }
 
+# True when a file in the directory still carries a registry-secret with a real value. The mask and an
+# empty value do not count, so a store the masking emitter filled reads as clean and the entry stops
+# firing on a box that has nothing to purge. Key names come from the registry, never a list here; an
+# unreadable registry is rc 2, because "found no secret" must not stand in for "could not look".
+upd_cond_dir_has_secret_value() {
+	local k keys
+	[ -n "$1" ] || {
+		echo "update: dir_has_secret_value needs a path" >&2
+		return 2
+	}
+	keys=$(sysreg_secret_keys) || {
+		echo "update: dir_has_secret_value cannot read the key registry" >&2
+		return 2
+	}
+	[ -n "$keys" ] || {
+		echo "update: the registry marks no key secret - dir_has_secret_value has nothing to look for" >&2
+		return 2
+	}
+	[ -d "$1" ] || return 1
+	while read -r k; do
+		[ -n "$k" ] || continue
+		# A quoted value holding at least one character that is neither a quote nor an asterisk:
+		# that rules out both the mask and the empty string in one expression.
+		grep -rqE "$k\|s:[0-9]+:\"[^\"]*[^*\"][^\"]*\"" "$1" 2> /dev/null && return 0
+	done <<< "$keys"
+	return 1
+}
+
 #----------------------------------------------------------#
 # Actions #
 #----------------------------------------------------------#
@@ -307,7 +335,7 @@ upd_condition() {
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | pin_differs | dir_not_empty | php_ext_missing)
+		file_contains | pin_differs | dir_not_empty | php_ext_missing | dir_has_secret_value)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -482,7 +510,8 @@ def argv(t):
      or t=="php_ext_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
-  elif t=="path_exists" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear" then [.path // ""]
+  elif t=="path_exists" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear"
+    or t=="dir_has_secret_value" then [.path // ""]
   elif t=="file_contains" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
   elif t=="file_differs" then [.source // "", .target // ""]

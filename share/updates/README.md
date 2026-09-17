@@ -82,7 +82,7 @@ and that is what `key_empty` is for.
 
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
 `package_installed`, `file_differs`, `file_contains`, `pin_differs`, `dir_not_empty`,
-`php_ext_missing`. Actions: `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`,
+`php_ext_missing`, `dir_has_secret_value`. Actions: `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`,
 `path_delete`, `dir_clear`, `function_call`, `package_install`, `package_remove`, `service_restart`.
 
 Fields per type: `name` and `value` for the key types, `name` for a command, package, service or a
@@ -99,7 +99,9 @@ The four late conditions exist because a state outside the tree cannot be compar
 empties a directory and leaves it standing, because its owner and mode are part of what it is.
 `php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a
 second list here; its `name` takes a comma list, because an action that repairs a set has to be
-asked about that set.
+asked about that set. `dir_has_secret_value` asks whether a file in the directory still holds a
+registry-secret with a real value: a condition on the directory merely being full describes a normal
+steady state and would put its entry in every future plan.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

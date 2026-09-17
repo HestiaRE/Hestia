@@ -29,6 +29,15 @@ opens above it.
   refuses a version that is not one, one that does not go forward, and a tag that already exists;
   a run that wrote the file but did not reach the release finishes when it is run again.
 
+### Security
+
+- **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440). 112 panel
+  pages verify the token; the page that rewrites the privileged panel crontab and the white-label
+  page did not. The global wall in `prevent_csrf.php` only inspects a request that carries an
+  `Origin` header, so a POST without one reached both handlers. Measured against a live panel: a
+  cross-site shaped POST without `Origin` rewrote the crontab and changed `APP_NAME`; with `Origin`
+  the wall answered 400, and a page that does verify the token refused the same request.
+
 ### Changed
 
 - **An install from a handed-in tarball pins itself to that version** (#1052). `HESTIA_RELEASE_URL`

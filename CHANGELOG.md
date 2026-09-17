@@ -12,257 +12,149 @@ opens above it.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.20.0 (2026-09-17)
+
+The first release a box can be updated *into*: v0.19.0 is the lower bound, and
+`share/updates/0.20.0.json` says what an update has to catch up on.
+
 ### Added
 
-- **Four conditions, one action and three callables for the update path** (#1076). A release is
-  copied over the install tree, so nothing outside it and nothing apt installed is reached by an
-  update; four states a box from v0.19.0 carries needed an entry, and none of them could be written
-  so that it goes false after its own action. `file_contains` reads a file the box *generates* -
-  `file_differs` needs a source in the tree and cannot. `pin_differs` holds the pin in
-  `share/manifest.json` against a component's version marker, so it carries no version of its own.
-  `dir_not_empty`/`dir_clear` empty a directory and leave it standing, because its owner and mode
-  are part of what it is. `php_ext_missing` asks `h-list-sys-php` which versions are managed instead
-  of keeping a second list. The callables are `panel_session_cleanup_apply`,
-  `php_db_drivers_apply` and `tachyon_pin_apply`; the first moved out of `h-install-hestia`, so
-  installer and update write that file from one recipe.
+- **An update path with a vocabulary of its own** (#1076). A release is copied over the install tree,
+  so nothing outside it and nothing apt installed is reached that way. Eleven conditions and eleven
+  actions describe the catching-up as data rather than shell, and every entry has to go false after
+  its own action, so a repeated run converges instead of replaying.
 
-- **The first update manifest, `share/updates/0.20.0.json`** (#1076). Nine entries for what a box
-  coming from v0.19.0 does not get by having the release copied over it: the guarded logrotate hook,
-  four provenance files older tarballs left behind, the panel session store (older sessions hold
-  system secrets in clear), the daily session sweep that named a path gone since the store moved, the
-  two database drivers customer PHP never had, and Tachyon, which no update path would otherwise
-  move off the version it was installed with.
+- **The first manifest, `share/updates/0.20.0.json`** (#1076). Nine entries: the guarded logrotate
+  hook, four provenance files older tarballs left behind, the panel session store, the daily session
+  sweep that named a path gone since the store moved, the two database drivers customer PHP never
+  had, and Tachyon, which no update would otherwise move off its installed version.
 
 - **`h-delete-user-sessions` ends a user's panel sessions** (#1059). A password change leaves the
-  record looking exactly as it did, so the panel's per-request read cannot notice it - an open
-  session outlived the password it was opened with. `h-change-user-password` and
-  `h-change-user-role` end them now, and the panel takes a fresh session id right after, so an
-  operator changing their own password stays logged in while every other session of that account
-  goes. Sessions of other accounts are untouched.
+  record looking exactly as it did, so the panel's per-request read cannot notice it. Password and
+  role changes end those sessions now; the panel takes a fresh id right after, so an operator
+  changing their own password stays logged in.
 
-
-- **An internal point release is one manual action** (#1045). The `Bump point release` workflow
-  takes the version, writes it into `VERSION` on `dev` and cuts the release on that commit. Both
-  halves in one place, because a bump without a release, or a release without the bump, is exactly
-  the drift the public build guards against and the internal line has no build to guard it. It
-  refuses a version that is not one, one that does not go forward, and a tag that already exists;
-  a run that wrote the file but did not reach the release finishes when it is run again.
+- **An internal point release is one manual action** (#1045). One workflow writes `VERSION` on `dev`
+  and cuts the release on that commit: a bump without a release, or the reverse, is the drift the
+  public build guards against and the internal line has no build to guard it.
 
 ### Security
 
 - **An empty user argument was read as "admin"** (#1067). `include/main.sh` could not tell a command
-  that names no user (the installer, an `h-list-sys-*`) from a caller that passed `""` where a name
-  belongs, and filled both in from `ROOT_USER`. `check_args` counts arguments and `is_format_valid`
-  skips empty values by design, so nothing downstream saw it: `h-change-user-language "" de` changed
-  admin, and `h-check-user-password ""` matched the empty name against admin's directory and
-  accepted admin's password. Not reachable from the panel, which concatenates the name unquoted so
-  an empty value becomes no argument at all. Refused now, once, where the two states are still
-  distinguishable.
+  that names no user from a caller that passed `""` where a name belongs, and filled both in from
+  `ROOT_USER`: `h-change-user-language "" de` changed admin, and `h-check-user-password ""` accepted
+  admin's password. Not reachable from the panel, which turns an empty value into no argument at all.
 
-- **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440). 112 panel
-  pages verify the token; the page that rewrites the privileged panel crontab and the white-label
-  page did not. The global wall in `prevent_csrf.php` only inspects a request that carries an
-  `Origin` header, so a POST without one reached both handlers. Measured against a live panel: a
-  cross-site shaped POST without `Origin` rewrote the crontab and changed `APP_NAME`; with `Origin`
-  the wall answered 400, and a page that does verify the token refused the same request.
+- **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440). 112 panel pages
+  verify it; the page that rewrites the privileged panel crontab and the white-label page did not.
+  The global wall only inspects a request carrying an `Origin` header, so a POST without one reached
+  both handlers.
+
+- **The panel's session files no longer carry a secret's value** (#976). Every registry key of
+  `h-list-sys-config json` goes into `$_SESSION` and PHP writes that to a file, so `PHPMYADMIN_KEY`
+  sat in cleartext in one file per login and in every backup that took them along. A key the registry
+  marks secret travels as a mask now; the one reader that needs the value fetches it when it sends.
 
 ### Changed
 
-- **Tachyon moves to 4.2.4** (#846), from the 3.2.2 pin. The major brings a CalDAV calendar, one
-  theme per design with a light/dark toggle instead of two, and signed release assets. Measured on a
-  test box before the bump: the upgrade leaves `application.ini` byte-identical, a login against a
-  real mail account answers `Auth:true` with a wrong password refused, the change-password plugin
-  loads, and the per-domain Sieve blocks keep their shape. The three plugin assets exist for this tag
-  at the same version numbers, but two of them carry different bytes than under 3.2.2 while keeping
-  that number - which is why the pin is a hash, not a version.
+- **Tachyon moves to 4.2.4** (#846), from 3.2.2. A CalDAV calendar, one theme per design with a
+  light/dark toggle instead of two, and signed release assets. Two of the three plugin assets carry
+  different bytes than under 3.2.2 while keeping their version number, which is why the pin is a hash
+  and not a version.
+
+- **A key with a closed set is normalised, and anything outside it refused** (#1055).
+  `h-change-sys-config-value` took any string. `Yes` and `yes` are stored the same way now; `true`,
+  `1` or a typo end the command with the accepted set named. Case is the only leniency, and a key
+  without a set is untouched.
 
 - **An install from a handed-in tarball pins itself to that version** (#1052). `HESTIA_RELEASE_URL`
   names a build the release source does not carry, so the default `release` resolved to an older
-  public tag and every update check read as a downgrade - the pin had to be set by hand afterwards,
-  going around the validator. It is now seeded with the tarball's own `VERSION`, and only when that
-  names a tag: an unreadable one falls back to `release` rather than pinning the box to `dev`. An
-  install without the override is untouched and never pins itself.
+  public tag and every update check read as a downgrade. Seeded from the tarball's own `VERSION` now,
+  and only when that names a tag; an install without the override never pins itself.
 
-- **The tarball's root directory is read from the tarball** (#1045). The installer and the updater
-  took it from the tag (`hestiare-<tag>/`), which is what the release asset happens to be called.
-  An archive built straight from the repository carries `hestiare/`, and both would have missed it.
-  Exactly one root entry is required, so a tarball that is not one refuses instead of unpacking
-  somewhere unexpected. The installer also unpacks into its own directory now rather than into
-  bare `/tmp` under a predictable name.
+- **The tree carries its own version** (#1045). `VERSION` was an empty placeholder the release build
+  stamped from the tag, so source and artefact were two statements about one number. It is committed
+  before each tag now and the build compares instead of writing: a mismatch, or an empty file, ends
+  the release.
 
-- **A published checksum is compared by value, not with `sha256sum -c`** (#1045). The checksum file
-  also names the asset, and the same bytes fetched under another name failed a check that had
-  nothing to do with the bytes. A file listing more than one asset is refused rather than passing
-  on whichever line happened to match.
+- **The release fetch stopped guessing** (#1045). The tarball's root directory is read from the
+  tarball rather than assumed from the tag, and exactly one root entry is required. A published
+  checksum is compared by value, because `sha256sum -c` also matches the asset's name.
 
-- **The tree carries its own version** (#1045). `VERSION` was an empty placeholder that the release
-  build stamped from the tag, so the source and the artefact were two independent statements about
-  one number. It is committed before each tag now, and the build compares instead of writing: a
-  mismatch, or an empty file, ends the release rather than shipping a tarball that disagrees with
-  its own tag.
-
-- **Only a release cut from `main` reaches the public mirror** (#1045). Point releases tag `dev`
-  and stay inside Gitea. The mirror workflow still starts for them, because Gitea takes a
-  workflow from the ref of the event and `dev` carries the file too, so a gate at the top of the
-  job is the only thing between an internal tag and a public push. A `target_commitish` that
-  does not resolve is a red run, never a silent skip.
+- **Only a release cut from `main` reaches the public mirror** (#1045). Point releases tag `dev` and
+  stay internal. Gitea takes a workflow from the ref of the event, so the mirror job starts for them
+  regardless; a gate at the top of it is the only thing between an internal tag and a public push.
 
 ### Removed
 
-- **The private-source scaffolding is gone** (#1045). `install.sh --dev` wrote a `source.conf`
-  naming a Gitea repository, a token and a `stable`/`prerelease` channel, and the fetch carried a
-  second branch for it. Measured against a real Gitea instance, that branch could not have worked:
-  its `releases/latest` needs an API base while its download needs a web base, and one variable
-  cannot be both. The channel was the second name for a question `RELEASE_BRANCH` already answers,
-  and it reached the operator as a `Channel:` line in `h-list-sys-install` that meant nothing. What
-  replaces all of it is the fetch override, which touches the download and nothing else.
-  `source.conf` itself stays, hand-written, for the one key still read from it: `HESTIARE_MIRROR`.
+- **The private-source scaffolding is gone** (#1045). `install.sh --dev` wrote a `source.conf` naming
+  a Gitea repository, a token and a `stable`/`prerelease` channel, and its fetch branch could never
+  have worked: one variable had to be both an API base and a download base. The fetch override
+  replaces it and touches the download alone; `source.conf` stays for `HESTIARE_MIRROR`.
 
 ### Fixed
 
-- **A fresh install registered no IP object** (#1073). `h-add-sys-ip` bound its optional `USER`
-  argument before the includes, so an absent one reached `include/main.sh` as set-but-empty and the
-  refusal added in #1067 fired before the command's own fallback. `h-update-sys-ip` calls it with
-  three arguments, so every fresh install ended without an IP object, without ports 80 and 443, and
-  with four failing smoke checks.
+- **Customer PHP versions came out without a database driver, and nothing noticed** (#1070).
+  `h-add-web-php` decided the `mysql` and `pgsql` extensions from `DB_SYSTEM`, which is empty for the
+  whole PHP stage, so a customer on such a version could not reach MariaDB. Both go in unconditionally
+  now. The command could not have reported it either: apt ran into `/dev/null`, its exit status was
+  never collected, and the success check asked whether an init script existed that the panel's own
+  version already has.
 
-- **Customer PHP versions came out without a database driver** (#1070). `h-add-web-php` decided the
-  `mysql` and `pgsql` extensions from `DB_SYSTEM`, which is empty for the whole PHP stage: the
-  installer seeds it so, and only the database stage that runs afterwards writes a token. Measured on
-  the fleet, PHP 8.3 and 8.5 knew neither `mysqli` nor `pdo_mysql`, so a customer on one of them could
-  not reach MariaDB; the versions that did work owed it to the panel stage and to a phpMyAdmin
-  dependency. The gate was wrong in the other direction too, since adding PostgreSQL later registers
-  the token while nothing backfills the extension. Both drivers go in unconditionally now.
-- **`h-add-web-php` reported success without asking apt** (#1070). The install ran in the background
-  with every line sent to `/dev/null`, its exit status was never collected, and the success check
-  asked whether one init script existed - which for the panel's own PHP version is true before the
-  command even starts. A failing run now exits non-zero, names the packages that did not arrive, and
-  keeps the last line of apt's output.
-
-- **An uptime past 1000 days showed as "1 days"** (#1066, upstream #5468). `number_format()`
-  groups thousands and the `%d` in front of it truncated at the comma. Two boundary cases came
-  along: exactly 60 minutes read "60 minutes", exactly 24 hours read "24 hours".
-
-- **A firewall rule with a malformed netmask was accepted and then silently never rendered**
-  (#1066, upstream #5044). `h-add-firewall-rule ACCEPT 10.9.9.0/-1 2223` returned 0, landed in
-  `rules.conf` and was listed as active, while the ruleset never carried it. The hardening
-  upstream wrote lived in the one CIDR validator nothing calls; the firewall goes through the two
-  that still accepted `/-1` and an empty mask. All three now share one parser, so the mask rule
-  cannot drift apart again.
-
-- **Renaming a web domain could delete one of its aliases** (#1064). The alias list was rewritten
-  with the old domain as an unescaped pattern, so renaming `a.b.com` turned an alias `awb.com` into
-  the new name - and the duplicate filter right after then dropped it. rc 0, no message, one alias
-  gone. The same escaping the line above already carried, two lines further down.
+- **Renaming a web domain could delete one of its aliases** (#1064). The alias list was rewritten with
+  the old domain as an unescaped pattern, so renaming `a.b.com` turned an alias `awb.com` into the new
+  name and the duplicate filter dropped it. rc 0, no message, one alias gone.
 
 - **The certificate's common name came out wrong on Debian 13 and Ubuntu 26.04** (#1064, upstream
-  #5585). Three listers parsed it out of `openssl x509 -text`, and OpenSSL 3.5 prints a DN without
-  the spaces around `=` that the parsing keyed on - so the SSL panel showed the whole subject line
-  instead of the name, while the panel certificate's own entry was wrong on all four targets. Worse
+  #5585). OpenSSL 3.5 prints a DN without the spaces around `=` that three listers keyed on. Worse
   than a display fault: the mail rebuild greps that output to decide whether a domain gets its own
-  dovecot certificate, so a certificate carrying no SAN silently lost it. Read with
-  `-nameopt multiline` now, from one helper instead of three copies that had already drifted into
-  two different broken forms.
+  dovecot certificate, so a certificate carrying no SAN silently lost it.
 
+- **A demoted admin kept every admin route until they logged out** (#1059, upstream #5706). The admin
+  decision came from a note taken at login, not from the record. The session block reads two records
+  now - the real user for who you are, the impersonated one for whom you act as - and ends the session
+  when the record no longer says admin.
 
-- **A demoted admin kept every admin route until they logged out** (#1059, upstream #5706). The
-  admin decision came from a note taken at login, not from the record, and nothing refreshed it.
-  The session block now reads two records - the real user for who you are, the impersonated one for
-  whom you act as - and ends the session when the record no longer says admin. The suspension check
-  moved to the real user with it: an admin suspended while impersonating somebody stayed inside.
+- **A suspended customer kept SSH, SFTP and FTP when the policy held a third value** (#1055, upstream
+  #5711). `h-suspend-user` tested `POLICY_USER_VIEW_SUSPENDED` against the restricting literal, so
+  `Yes` was enough to skip the whole branch while the record read `SUSPENDED=yes`. Unsuspending is
+  unconditional now, because after that command there is no suspension left for a policy to govern.
 
+- **Saving the server form wrote `true` into a yes/no policy** (#1057). The view-suspended control is a
+  select but the POST was read as a checkbox, which takes any non-empty value as "on". One save turned
+  `POLICY_USER_VIEW_SUSPENDED` into `true`, and suspending a customer then left their account unlocked.
 
-- **An empty alias is refused instead of written** (#1058, upstream #5663). `is_common_format_valid`
-  lets an empty string through, and clearing the phpMyAdmin URL field rendered `redir / // 308` into
-  the route the panel site imports ahead of its own catch-all - caddy accepts that, and the panel's
-  entry point then redirects to itself forever. The webmail side tore every domain's webmail down
-  and built it back with the old alias, printing a usage error in the middle and still reporting
-  success. Switching an editor off remains the delete command's job, which also removes the route.
+- **A firewall rule with a malformed netmask was accepted and then never rendered** (#1066, upstream
+  #5044). `h-add-firewall-rule ACCEPT 10.9.9.0/-1 2223` returned 0, landed in `rules.conf` and was
+  listed as active while the ruleset never carried it. All three CIDR validators share one parser now.
 
+- **An empty alias is refused instead of written** (#1058, upstream #5663). Clearing the phpMyAdmin URL
+  field rendered `redir / // 308` into the route the panel imports ahead of its own catch-all, and the
+  panel then redirected to itself forever.
 
 - **A whole-user restic restore restored nothing and said it had worked** (upstream #5709). The
-  scheduler queued the run with every selector empty, and an empty selector matches no object - so
-  web, mail, databases, the cron jobs and the user's own files were all skipped, leaving only the
-  record rebuild. The queue spells every selector out now, and an omitted selector means everything
-  while an explicitly empty one still means "skip this section", so a selective restore keeps
-  working. Only the CLI could reach it: the panel schedules one call per object.
+  scheduler queued the run with every selector empty, and an empty selector matches no object, so only
+  the record rebuild happened. An omitted selector means everything now.
 
 - **A suspended domain with awstats stopped its log rotation** (upstream #5684/#5685). The apache
-  prerotate hook ran the webstats queue and handed its exit code to logrotate, which treats a failing
-  prerotate as a reason to skip the rotation - so the logs kept growing, and logrotate itself still
-  exited 0. The queue refuses a suspended object with `E_SUSPENDED`, which is exactly the state a
-  suspended customer leaves behind. The hook tolerates the failure now; a stats update is not a
-  reason to stop rotating logs.
-
-- **`h-add-mail-domain-smtp-relay` called `is_password_valid` with arguments it does not read**
-  (upstream #5665). The function resolves a `/tmp` secret file into the global `$password`; it is not
-  a validator despite the name. Twenty-one of the twenty-two call sites already spell it bare.
-
-
-- **Saving the server form wrote `true` into a yes/no policy** (#1057). The view-suspended control is
-  a select, but the POST was read with `post_checkbox`, which takes any non-empty value as "on" - so
-  every save wrote its on-value regardless of the choice, and both the value and the fallback key were
-  the preview flag's, not this policy's. One save turned `POLICY_USER_VIEW_SUSPENDED` into `true`, and
-  suspending a customer then left their account unlocked. Read with `post_or_keep` now, in the
-  record's own vocabulary; leaving preview mode closes the policy with `no` instead of a flag value.
-
-- **A key with a closed set is normalised to the registry's spelling, and anything outside it is
-  refused** (#1055). `h-change-sys-config-value` took any string. `Yes` and `yes` are the same answer
-  and are now stored the same way; `true`, `1` or a typo end the command with the accepted set named.
-  The fourteen yes/no policies carry that set now - the system keys already did. Case is the only
-  leniency, and a key without a set is untouched, because most values are free text.
-
-- **Unsuspending a customer restores their access whatever the policy says now** (#1055). The unlock
-  carried the same guard as the lock, so a customer suspended while the policy said `no` and
-  unsuspended after it changed to `yes` kept the lock: the record read `SUSPENDED=no`, `passwd -S`
-  read `L`, and nothing reported a failure. The policy governs what happens during a suspension, and
-  after this command there is none - so the restore is unconditional. It is a no-op wherever the
-  suspend side skipped its own work. Upstream's fix does not cover this case either.
-
-- **A suspended customer kept SSH, SFTP and FTP when the view-suspended policy held anything but
-  `yes` or `no`** (#1055, upstream #5711). `h-suspend-user` tested `POLICY_USER_VIEW_SUSPENDED` against
-  the restricting literal, so a third value - `Yes` is enough - skipped the whole branch: no
-  `usermod --lock`, no FTP lock, and the file manager listener left standing, while the record read
-  `SUSPENDED=yes` and the panel treated the policy as closed. The key carries no value list, so a
-  third value is reachable. Both commands test the permissive literal now, and everything else falls
-  to the restricting side. Upstream fixed only the unsuspend half.
-
-
-- **The install tree's permissions no longer follow the calling shell** (#1045). `install.sh`
-  set no umask, so the modes under `/usr/local/hestia` came from whatever umask the installer
-  was started with. It stayed invisible because the published tarball already carries 644/755,
-  but a tarball produced by `git archive` carries group-write and that would have landed on the
-  box. `h-install-hestia` has always set the same umask for its own stage.
-
-- **A for-loop over a file pattern no longer runs once on the pattern itself** (#1035). With no
-  match the shell hands the body the pattern, and the body then works on a path that does not
-  exist: a restore whose archive carried no vhost config for a domain ran `grep` and `cp` against
-  a literal `*`. Eight loops are guarded now, and the shell gate derives the set from the code and
-  fails on an unguarded one rather than relying on the habit that had already lapsed three times.
-
-- **`is_format_valid` checked one argument that names two things** (#1035). `h-change-sys-hestia-ssl`
-  passed `'ssl_dir restart'` as a single word; unquoted splitting made it work by accident, and the
-  same call written correctly anywhere else would not have been noticed either.
-
-- **Emptying `CRON_SYSTEM` no longer removes the cron check from the smoke** (#971). cron is in the
-  installer's base package list, so it is on every box whatever the key says, and no command sets
-  the key in the first place. The check was gated on it and therefore disappeared rather than
-  failing - a guard that goes green by looking at less.
-
-- **The panel's session files no longer carry a secret's value** (#976). Every registry key of
-  `h-list-sys-config json` goes into `$_SESSION`, and PHP writes the session to a file - so
-  `PHPMYADMIN_KEY` sat in cleartext in one file per login, and in every backup that took them along
-  (measured on the fleet: six files, the value byte-identical to `hestia.conf`). A key the registry
-  marks secret now travels as a mask; emptiness survives, because every panel reader of one only
-  asks whether it is set. The single reader that needs the value - the mailer - fetches it through
-  `h-list-sys-config secret KEY` at the moment it sends. This is about the secret lying around, not
-  about a compromised panel, which may call that command itself.
+  prerotate hook handed the webstats queue's exit code to logrotate, which skips the rotation when a
+  prerotate fails - so the logs kept growing while logrotate itself exited 0.
 
 - **The daily session cleanup swept a directory that no longer exists** (#976). Moving the panel's
-  session store to `/var/lib/hestia/sessions` left `/etc/cron.daily/php-session-cleanup` pointed at
-  the old `$HESTIA/.sessions`, so nothing but PHP's probabilistic GC collected those files. The
-  path is read from the pool's own `php.ini` now instead of being spelled a second time, and the
-  smoke holds the two together.
+  session store left `/etc/cron.daily/php-session-cleanup` pointed at the old `$HESTIA/.sessions`, so
+  nothing but PHP's probabilistic GC collected those files.
+
+- **A for-loop over a file pattern no longer runs once on the pattern itself** (#1035). With no match
+  the shell hands the body the pattern: a restore whose archive carried no vhost config for a domain
+  ran `grep` and `cp` against a literal `*`. The shell gate fails on an unguarded loop now.
+
+- Smaller ones: an uptime past 1000 days showed as "1 days" (#1066, upstream #5468), emptying
+  `CRON_SYSTEM` removed the cron check from the smoke instead of failing it (#971),
+  `h-change-sys-hestia-ssl` passed two arguments as one word (#1035),
+  `h-add-mail-domain-smtp-relay` called `is_password_valid` with arguments it does not read (upstream
+  #5665), and `install.sh` sets its own umask instead of inheriting the calling shell's (#1045).
 
 ## v0.19.0 (2026-09-13)
 
@@ -271,113 +163,74 @@ became one described surface on the way.
 
 ### Added
 
-- **`hestia update` does the whole run** (#946/#947/#948/#949). It asks the source which tag this box
-  follows, fetches the tarball, verifies it against the published sha256, secures the install tree
-  into one run directory under `/root`, unpacks the release, derives from the **new** tree what this
-  box still has to catch up on, and works that list off entry by entry. `--check` says what would
-  happen and changes nothing. Reversible entries run first; the moment the run reaches one that
-  putting files back cannot undo, it marks the run directory and says so, and the rollback script
-  next to the backup refuses from there. The self-update is finished before anything on the box
-  changes: `update.sh` ships inside the tarball, so the same query answers "is there a newer release"
-  and "is there a newer updater". `UPDATE.md` is the operator's view, `share/updates/README.md` the
-  manifest author's.
+- **`hestia update` does the whole run** (#946/#947/#948/#949). It asks which tag this box follows,
+  fetches and verifies the tarball, secures the install tree into one run directory, unpacks, derives
+  from the **new** tree what the box still has to catch up on, and works that list off. `--check`
+  changes nothing. Reversible entries run first; from the first irreversible one the run is marked and
+  the rollback script refuses. The updater ships inside the tarball, so one query answers both "is
+  there a newer release" and "is there a newer updater".
 - **The update has a lower bound, and never goes backwards** (#949). **v0.19.0** is the oldest box an
-  update accepts; below it there is no release that carried an updater, so such a box is reinstalled
-  rather than updated. A target older than the installed version is refused as well, both by
-  `update.sh` and by `h-change-sys-release`, where the pin is set. The bound is a literal in
-  `update.sh`, so the copy that decides is the one in the release being installed: the running
-  updater checks it, hands over, and the new one checks its own before a file on the box is touched.
-- **A release carries its checksum** (#949). `release.yml` writes `hestiare-<tag>.tar.gz.sha256`
-  beside the tarball. A release without one stays installable; one that does not match will not.
-- **The panel says when a release is waiting** (#949). A daily `--check` sets `UPDATE_AVAILABLE`, the
-  banner names `hestia update`, and the key is cleared again when the release is installed or when
-  nothing is waiting any more. No automatic update, no trigger in the panel.
-- **One registry for the system keys of `hestia.conf`** (#932/#943/#944). Every key has one entry
-  with its class, its default and, for 23 of them, the values it may carry. Operator keys are filled
-  by the repair and never touched by an update; system keys are the consequence of a command and are
-  never invented. Ten components that had no key got one, every component in the manifest names its
-  key, and the smoke holds all three against each other and against the box.
-- **The repair runs on a schedule, from outside the file it repairs** (#1006). Nothing called
-  `h-repair-sys-config` at all, so an emptied operator key stayed empty: the customer cron feature
-  and HestiaRE's own job commands were off with nothing saying so.
-- **A conf.d link is never taken away from another customer** (#956), and the smoke measures the
-  chain that keeps `hestia.conf` to root (#960).
+  update accepts; below it no release carried an updater. A target older than the installed version is
+  refused too. The bound is a literal in `update.sh`, so the copy that decides is the one being
+  installed.
+- **A release carries its checksum** (#949), and **the panel says when one is waiting** (#949): a daily
+  check sets `UPDATE_AVAILABLE` and the banner names `hestia update`. No automatic update.
+- **One registry for the system keys of `hestia.conf`** (#932/#943/#944). Class, default and, for 23 of
+  them, the values they may carry. Operator keys are filled by the repair and never touched by an
+  update; system keys are the consequence of a command. The smoke holds registry, manifest and box
+  against each other.
+- **The repair runs on a schedule, from outside the file it repairs** (#1006). Nothing called it at
+  all, so an emptied operator key stayed empty and features were off with nothing saying so.
 
 ### Security
 
-- **Eleven commands stopped executing `hestia.conf` as shell** (#955). They read it with a plain
-  `source`, so a word in an operator value ran as a command; the writer's `sed` deepened it, because
-  an `&` in a value pasted the old value into the new one and left the quotes unbalanced. The eleven
-  readers now parse instead of execute, and the writer builds the line, refuses a quote or a line
-  break before writing, and renames it into place.
+- **Eleven commands stopped executing `hestia.conf` as shell** (#955). A plain `source` ran a word in
+  an operator value as a command, and the writer's `sed` deepened it: an `&` pasted the old value into
+  the new one and left the quotes unbalanced. The readers parse now, and the writer refuses a quote or
+  a line break before renaming the file into place.
 
 ### Changed
 
-- **The recipe freezes** (#945). After the wizard, nothing writes `install.conf` again: the 40 sites
-  that did are gone, the install stamps moved into the wizard, and every runtime reader asks the
-  status instead of the recipe. A finished install therefore has eight valid stage markers for the
-  first time, and `hestia configure` refuses on an installed box without `--force`, because it would
-  invalidate them.
-- **One rule for what an add command says when there is nothing to do** (#945). "Not installable",
-  "already there" and "freshly installed" were three states on two exit codes across 30 commands.
-  Now: already there is success, a soft addon that cannot be installed is a loud line and an empty
-  key, and the install keeps going instead of leaving half a box behind.
-- **`h-update-hestia` is the executor and nothing else** (#948). It takes the path of a run
-  directory's `update.conf` and works the entries off; finding, downloading and unpacking is
-  `update.sh`. It refuses when the run directory is missing, because that is where the backup lives.
-- **Panel session store moved out of the install root** (#974), so an update tarball of the tree
-  cannot carry sessions with it.
-- **Two operator defaults leave `include/main.sh`** (#992) and live where operator values live.
-- **The panel reads the exit code of every command it writes with** (#957). A failed write used to
-  redirect back to the form as if it had worked.
+- **The recipe freezes** (#945). After the wizard nothing writes `install.conf` again; every runtime
+  reader asks the status instead. A finished install has eight valid stage markers for the first time,
+  and `hestia configure` refuses on an installed box without `--force`.
+- **One rule for what an add command says when there is nothing to do** (#945). Across 30 commands:
+  already there is success, a soft addon that cannot be installed is a loud line and an empty key, and
+  the install keeps going instead of leaving half a box behind.
+- **`h-update-hestia` is the executor and nothing else** (#948). Finding, downloading and unpacking is
+  `update.sh`; it refuses without a run directory, because that is where the backup lives.
+- **The panel session store moved out of the install root** (#974), so an update tarball cannot carry
+  sessions with it. And **the panel reads the exit code of every command it writes with** (#957) - a
+  failed write used to redirect back to the form as if it had worked.
 
 ### Removed
 
-- **`reapply_outside_tree`** (#948). It re-applied seven things after every update. Three were
-  one-time migrations no box below the update lower bound can still need; two belong to the release
-  that actually changes the unit; the last two have no tree file to compare against, so no condition
-  could go false after them. The smoke reports their drift now, with the command that ends it.
-- **`h-repair-sys-config restore`** (#930), which wanted a file nothing in the tree ever writes, and
-  the synthetic emitter key `CROWDSEC` (#945), replaced by a real registry key with a different and
-  more honest predicate.
-- **The status value `remote`, which no writer has ever set** (#1015), and the two jail delete
-  commands with their `v-*` symlinks (#945).
+- **`reapply_outside_tree`** (#948), which re-applied seven things after every update: three were
+  one-time migrations no box above the lower bound can still need, two belong to the release that
+  changes the unit, and the last two had nothing to compare against. The smoke reports their drift now.
+- **`h-repair-sys-config restore`** (#930), the synthetic emitter key `CROWDSEC` (#945), the status
+  value `remote` that no writer ever set (#1015), and the two jail delete commands (#945).
 
 ### Fixed
 
 - **A mail domain without a single account made every backup of that user fail** (#1033). The account
-  loop globs the domain's maildir; with no account the pattern matches nothing, bash leaves the star
-  standing, and it travelled into the member tar as if it were an account name. The run aborted with
-  a disk error on a box with plenty free, mailed about it and dropped its queue job. Adding a mail
-  domain and not creating a mailbox yet is enough to get there.
-- **`www.<domain>` took over another customer's vhost** (#925). The `www.` prefix was stripped from
-  one variable and not the other, so the "does this domain exist" check asked about the wrong name:
-  the record landed under the base domain, the other customer's logs were chowned and their conf.d
-  link replaced.
+  loop globs the maildir; with no account bash leaves the star standing and it travelled into the
+  member tar as an account name. The run aborted with a disk error on a box with plenty free.
+- **`www.<domain>` took over another customer's vhost** (#925). The prefix was stripped from one
+  variable and not the other, so the existence check asked about the wrong name: the other customer's
+  logs were chowned and their conf.d link replaced.
 - **"Securing MariaDB" ran unchecked, so a box could finish an install unsecured** (#998). Six
-  statements, no exit code read; the install reported success either way. In the same pass the root
-  password stays usable in `/root/.my.cnf`, which is where an admin looks first.
-- **A token list was split by something that also expanded it** (#1031). `for tok in ${VALUE//,/ }`
-  performs pathname expansion too, so a `*` in a value was matched against the working directory and
-  the loop saw tokens that do not exist. 22 sites, the interesting ones in the restore paths, where
-  the value comes out of an archive another box wrote.
-- **The Sury retrofit died on a package Sury itself wanted to replace** (#986), so a box that already
-  had a transitively installed `php-mcrypt` could not gain multi-PHP.
-- **The LANGUAGE repair never worked, and the repair command reported success anyway** (#929). It
-  passed the key name where the language belonged, and nobody read the exit code.
-- **An sshd `Subsystem` line after a `Match` block is inert** (#1017), and the guard that was
-  supposed to notice called it fine.
-- **A registered database host was read as a local service** (#980), and a box without a local
-  server had no client at all, so it could not even dump into its own backup.
-- **The installer started its services instead of restarting them** (#1001), so dovecot never read
-  the configuration the install had just written for it, while the smoke stayed green.
-- **A second installer run no longer costs the box port 443** (#994), and a successful install no
-  longer prints four error lines that mean nothing (#997).
-- Smaller ones: consent for a restore travels in the argument and the message names it (#1004), one
-  encoder and one decoder for record values (#1002), the webmail front is a service the lister can
-  see (#1003), the backup lister reads the operator's setting instead of a constant (#992), one
-  source for the hestia crontab (#972), the crontab is renamed into place instead of truncated
-  (#945), and the password-reset and 2FA pages work when opened directly (#968).
+  statements, no exit code read, success reported either way.
+- **A token list was split by something that also expanded it** (#1031). `${VALUE//,/ }` performs
+  pathname expansion, so a `*` in a value was matched against the working directory. 22 sites, the
+  interesting ones in the restore paths.
+- **The installer started its services instead of restarting them** (#1001), so dovecot never read the
+  configuration the install had just written, while the smoke stayed green.
+- Smaller ones: the Sury retrofit died on a package Sury itself replaces (#986), the LANGUAGE repair
+  never worked and reported success anyway (#929), an sshd `Subsystem` line after a `Match` block is
+  inert and its guard called it fine (#1017), a registered database host was read as a local service
+  (#980), a second installer run cost the box port 443 (#994), and seven smaller ones around consent,
+  record encoding, the webmail front and the hestia crontab (#1004/#1002/#1003/#992/#972/#945/#968).
 
 ## v0.18.0 (2026-09-01)
 

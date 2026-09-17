@@ -25,8 +25,8 @@
 ├── share/             Shipped install-time assets: manifest.json, panel-caddy/,
 │                      panel-php/, dovecot/, firewall/ (consumed by the installer)
 ├── templates/         Selectable only: nginx/ vhosts, php/ pool profiles, docker/ (#219)
-├── .sessions/         PHP panel session files (owner: hestia)
-│                      (data/ fully dissolved — see /etc/hestia below)
+│                      (data/ fully dissolved — see /etc/hestia below; the panel session
+│                      store left the tree with #974 and lives in /var/lib/hestia/sessions/)
 ├── include/           Shared bash function libraries
 ├── log -> /var/log/hestia   Symlink
 ├── ssl/               Panel SSL certificate and key
@@ -244,7 +244,7 @@ Migrated via the data/-dissolution PRs (#129 conf, #148 ips/queue/extensions/ses
 | `/usr/local/hestia/data/ips/` | `/etc/hestia/ips/` | IP address entries — **DONE (#148)** |
 | `/usr/local/hestia/data/extensions/` | *dissolved* | PSL → `/etc/hestia/public_suffix_list.dat` (single file); mail-domain hooks → `/etc/hestia/hooks/` — **DONE (#148)** |
 | `/usr/local/hestia/data/queue/` | `/etc/hestia/queue/` | Runtime named pipes (recreated fresh, never copied) — **DONE (#148)** |
-| `/usr/local/hestia/data/sessions/` | `/usr/local/hestia/.sessions/` | PHP panel sessions (target under install root) — **DONE (#148)** |
+| `/usr/local/hestia/data/sessions/` | `/var/lib/hestia/sessions/` | PHP panel sessions — **DONE (#148, moved again in #974)**: first to `.sessions/` under the install root, then out of it entirely. An update tars the install root to roll the overlay back, and live sessions have no place in that snapshot; keeping them outside also spares `check_install_root_owner` a group-writable exception. Owner `hestia:hestia`, mode 0770, swept by `/etc/cron.daily/php-session-cleanup` |
 | `/usr/local/hestia/data/users/` | `/etc/hestia/users/` | Per-user config tree — **DONE (#156)**: backup format is location-agnostic (relative archive paths), so old archives restore unchanged |
 | `/usr/local/hestia/data/packages/` | `/etc/hestia/packages/` | Hosting plans — **DONE (#150/#663)**: instance state under `CONF_DIR`, seeded from `share/hestia/packages/` samples only when absent |
 | `/usr/local/hestia/data/templates/` | `/usr/local/hestia/templates/` | vhost/php-fpm templates — **DONE (#150)**: repo-root tarball asset |

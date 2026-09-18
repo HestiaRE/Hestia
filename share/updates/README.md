@@ -108,6 +108,18 @@ rest of this tree.
 
 New need means a new building block, never a shell snippet in the JSON.
 
+## A published file is frozen
+
+Once a version's manifest has gone out in a release, its entries do not change. The identity
+`version/id` is a promise about what ran on a box, and editing a published entry's condition or
+action makes two boxes disagree about what "the same" entry did. A correction is a **new entry in the
+next version's manifest**, with its own id, whose condition describes the state the earlier entry left
+behind.
+
+The file may still be edited while the release carrying it has not reached an installation outside
+this project - that window is a courtesy, not the rule, and it closes the moment somebody else runs
+it.
+
 ## Expiry
 
 A file whose version is at or below the update lower bound can never apply again, because no box

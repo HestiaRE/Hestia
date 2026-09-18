@@ -47,7 +47,7 @@
     {
       "id": "panel-session-purge",
       "description": "Empty the panel session store once: older sessions hold system secrets in clear",
-      "conditions": [{ "type": "dir_not_empty", "path": "/var/lib/hestia/sessions" }],
+      "conditions": [{ "type": "dir_has_secret_value", "path": "/var/lib/hestia/sessions" }],
       "action": { "type": "dir_clear", "path": "/var/lib/hestia/sessions" },
       "paths": ["/var/lib/hestia/sessions"],
       "reversible": false

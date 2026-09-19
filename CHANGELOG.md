@@ -12,6 +12,17 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **Plus-subaddressing: `john+tag@domain` is delivered to `john`** (#596). The suffix survives all
+  the way into sieve, so a customer can filter on `envelope :detail` - the point of the feature, and
+  the thing a header-only workaround cannot do. It needed the delivery path to change: with the sieve
+  addon, exim hands local mail to dovecot over **LMTP** now instead of piping it into `dovecot-lda`.
+  A pipe command could never carry the envelope recipient, because `$local_part` is tainted and exim
+  refuses it in a command line; LMTP carries it over the protocol. Two translation layers fall away
+  with the pipe: `-e` and `return_fail_output` existed only to turn an exit code into a deferral, and
+  LMTP answers `452` natively. The appendfile path (no sieve addon) is untouched.
+
 ### Fixed
 
 - **The updater handed over to the new release and then ran against the old library** (#1080). After

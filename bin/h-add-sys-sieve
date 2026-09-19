@@ -44,7 +44,13 @@ is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 
 # Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
 # The status key is part of the condition, so it already says yes.
-if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii'; then
+# Packages are not the target state, the deployed configuration is: a run that installed
+# the packages and then died on the dovecot restart leaves both present and nothing wired,
+# and a guard on packages alone calls that done. 15-lmtp.conf is the last file this command
+# lays down, so its presence is what "finished" means (#596).
+if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii' \
+	&& dpkg -l dovecot-lmtpd 2> /dev/null | grep -q '^ii' \
+	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ]; then
 	echo "INFO: sieve is already installed."
 	exit 0
 fi
@@ -53,12 +59,16 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-echo "Installing sieve (dovecot-managesieved, dovecot-sieve)..."
-apt-get -y -qq install dovecot-managesieved dovecot-sieve > /dev/null 2>&1
-if ! dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii'; then
-	echo "ERROR: sieve installation failed."
-	exit "$E_INVALID"
-fi
+# dovecot-lmtpd too: the delivery path is LMTP since #596, and without the package
+# dovecot opens no socket while exim already routes to it.
+echo "Installing sieve (dovecot-managesieved, dovecot-sieve, dovecot-lmtpd)..."
+apt-get -y -qq install dovecot-managesieved dovecot-sieve dovecot-lmtpd > /dev/null 2>&1
+for _p in dovecot-managesieved dovecot-lmtpd; do
+	if ! dpkg -l "$_p" 2> /dev/null | grep -q '^ii'; then
+		echo "ERROR: sieve installation failed ($_p)."
+		exit "$E_INVALID"
+	fi
+done
 
 # version-specific overlay (2.3/2.4) replacing the package defaults
 DOVECOT_VER=$(dovecot --version 2> /dev/null | cut -d. -f1,2 || echo "2.3")

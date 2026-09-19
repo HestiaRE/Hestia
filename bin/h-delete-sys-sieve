@@ -55,7 +55,8 @@ fi
 rm -f /etc/dovecot/conf.d/20-managesieve.conf \
 	/etc/dovecot/conf.d/90-sieve.conf \
 	/etc/dovecot/conf.d/90-sieve-extprograms.conf \
-	/etc/dovecot/conf.d/91-imapsieve.conf
+	/etc/dovecot/conf.d/91-imapsieve.conf \
+	/etc/dovecot/conf.d/25-lmtp.conf
 
 # Before the restart: the rules are gone, so the plugin and the group go with them.
 sieve_mail_group_del
@@ -79,9 +80,11 @@ fi
 # On dovecot 2.4 core DEPENDS on dovecot-sieve, so purging sieve takes core, imapd and pop3d with
 # it - the whole mail server, for removing an optional addon. Read from the dependency and not from
 # a version number: the packaging is what changes here.
-purge_pkgs='dovecot-managesieved dovecot-sieve'
+# lmtpd in both branches: dovecot-core only Suggests it, so the purge cannot take the mail
+# server with it the way dovecot-sieve can.
+purge_pkgs='dovecot-managesieved dovecot-sieve dovecot-lmtpd'
 if apt-cache show dovecot-core 2> /dev/null | grep -qE '^Depends:.*[ ,]dovecot-sieve[ ,(]'; then
-	purge_pkgs='dovecot-managesieved'
+	purge_pkgs='dovecot-managesieved dovecot-lmtpd'
 	echo "NOTE: dovecot-core requires dovecot-sieve on this release - the package stays, its configuration does not."
 fi
 # shellcheck disable=SC2086  # deliberate word splitting: one or two package names

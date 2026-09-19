@@ -639,7 +639,7 @@ local_spam_delivery:
 # enforced by the dovecot quota plugin from the userdb extras). LMTP over a unix
 # socket, not the lda pipe it used to be (#596): the envelope recipient travels
 # over the protocol instead of a command line, which is the only way a tainted
-# local part can reach dovecot at all - and what lets sieve see a +suffix.
+# local part can reach dovecot at all, and what lets sieve see a +suffix.
 dovecot_virtual_delivery:
   driver = lmtp
   socket = /run/dovecot/lmtp
@@ -650,11 +650,13 @@ dovecot_virtual_delivery:
   # must be named here even though Debian-exim is a member of it.
   user = Debian-exim
   group = mail
-  # dovecot writes Return-Path and Delivered-To itself; only these two are ours.
+  # dovecot writes Return-Path and Delivered-To itself, but NOT Delivery-date (measured by
+  # dropping the option: the header then disappears), so this one stays and keeps the header
+  # set level with the appendfile path.
   delivery_date_add
   envelope_to_add
   # Over-quota answers 452 over the protocol and exim defers on it, which is what
-  # the appendfile transports do - no exit code has to be translated any more.
+  # the appendfile transports do; no exit code has to be translated any more.
 .endif
 
 address_pipe:

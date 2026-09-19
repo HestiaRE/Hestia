@@ -46,7 +46,7 @@ is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 # The status key is part of the condition, so it already says yes.
 # Packages are not the target state, the deployed configuration is: a run that installed
 # the packages and then died on the dovecot restart leaves both present and nothing wired,
-# and a guard on packages alone calls that done. 15-lmtp.conf is the last file this command
+# and a guard on packages alone calls that done. 25-lmtp.conf is the last file this command
 # lays down, so its presence is what "finished" means (#596).
 if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii' \
 	&& dpkg -l dovecot-lmtpd 2> /dev/null | grep -q '^ii' \

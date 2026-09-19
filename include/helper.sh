@@ -583,8 +583,20 @@ sieve_lmtp_apply() {
 	[ "$(dpkg-query -W -f='${db:Status-Status}' dovecot-lmtpd 2> /dev/null)" = installed ] || return 1
 	cp -f "$dcdir/sieve/25-lmtp.conf" /etc/dovecot/conf.d/ || return 1
 	systemctl restart dovecot || return 1
-	# The socket is what exim routes to; without it the transport defers every mail.
-	[ -S /run/dovecot/lmtp ]
+	# Two checks, because neither alone is worth much. systemctl returns when systemd calls the
+	# unit started, not when the listener is bound; and the socket FILE outlives a dovecot that
+	# cannot serve lmtp at all, so its presence proves nothing on its own (measured: it was still
+	# there after purging dovecot-lmtpd). The protocol list says the config took, the socket says
+	# exim has something to connect to.
+	local _t
+	for _t in $(seq 1 25); do
+		if [ -S /run/dovecot/lmtp ] && doveconf -h protocols 2> /dev/null | grep -qw lmtp; then
+			return 0
+		fi
+		sleep 0.2
+	done
+	echo "ERROR: dovecot restarted but lmtp is not being served within 5s"
+	return 1
 }
 
 # The exim side of #596. Patched rather than copied, because the operator may have edited this file

@@ -141,7 +141,13 @@ upd_cond_file_patch_pending() {
 		echo "update: patch(1) is missing, so no patch entry can decide anything" >&2
 		return 2
 	}
-	[ -f "$tgt" ] || return 1
+	# Not rc 1, and not file_differs' rc 0 either: a patch cannot create the file the way a copy
+	# can, so an absent target is a state this cannot decide, not one it can repair or dismiss.
+	# An entry for an optional component gates that with its own condition instead.
+	[ -f "$tgt" ] || {
+		echo "update: $tgt does not exist, so $1 can neither apply nor be shown to have applied" >&2
+		return 2
+	}
 	# -F0: no fuzz. A hunk that only roughly matches is drift, not a hit.
 	patch --dry-run -F0 -s "$tgt" < "$pf" > /dev/null 2>&1 && return 0
 	patch --dry-run -F0 -s -R "$tgt" < "$pf" > /dev/null 2>&1 && return 1

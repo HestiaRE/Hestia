@@ -1,0 +1,27 @@
+{
+  "version": "0.21.0",
+  "entries": [
+    {
+      "id": "sieve-lmtp",
+      "description": "Sieve delivery runs over dovecot's LMTP service now; the package and its config sit outside the tree",
+      "conditions": [
+        { "type": "key_is", "name": "SIEVE_SYSTEM", "value": "yes" },
+        { "type": "path_absent", "path": "/etc/dovecot/conf.d/25-lmtp.conf" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_lmtp_apply" },
+      "paths": ["/etc/dovecot/conf.d/25-lmtp.conf"],
+      "reversible": false
+    },
+    {
+      "id": "exim-lmtp-subaddressing",
+      "description": "Plus-subaddressing routers and the LMTP transport, patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.21.0/exim-lmtp-subaddressing.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_lmtp_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false,
+      "after": "0.21.0/sieve-lmtp"
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+--- exim4.conf.template
++++ exim4.conf.template
+@@ -434,6 +434,8 @@
+ 
+ autoreplay:
+   driver = accept
++  local_part_suffix = +*
++  local_part_suffix_optional
+   require_files = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${local_part}.msg
+   condition = ${if exists{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${local_part}.msg}{yes}{no}}
+   retry_use_local_part
+@@ -459,6 +461,8 @@
+ 
+ aliases:
+   driver = redirect
++  local_part_suffix = +*
++  local_part_suffix_optional
+   headers_add = X-redirected: yes
+   data = ${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
+   require_files = /etc/exim4/domains/$domain/aliases
+@@ -468,16 +472,22 @@
+ 
+ localuser_fwd_only:
+   driver = accept
++  local_part_suffix = +*
++  local_part_suffix_optional
+   transport = devnull
+   condition = ${if exists{/etc/exim4/domains/$domain/fwd_only}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/fwd_only}{true}{false}}}}
+ 
+ localuser_spam:
+   driver = accept
++  local_part_suffix = +*
++  local_part_suffix_optional
+   transport = local_spam_delivery
+   condition = ${if eq {${if match{$h_X-Spam-Status:}{\N^Yes\N}{yes}{no}}} {${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}{yes}{no_such_user}}}}
+ 
+ localuser:
+   driver = accept
++  local_part_suffix = +*
++  local_part_suffix_optional
+ # With the sieve addon (h-add-sys-sieve) clean local mail is handed to
+ # dovecot-lda so the account's sieve scripts run at delivery. Spam keeps the
+ # direct .Spam appendfile path (localuser_spam above) — its verdict is final.
+@@ -490,6 +500,8 @@
+ 
+ catchall:
+   driver = redirect
++  local_part_suffix = +*
++  local_part_suffix_optional
+   headers_add = X-redirected: yes
+   require_files = /etc/exim4/domains/$domain/aliases
+   data = ${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
+@@ -499,6 +511,10 @@
+ 
+ terminate_alias:
+   driver = accept
++  # Without this, an alias with a +suffix is delivered AND bounces: the original
++  # address would find no terminating router.
++  local_part_suffix = +*
++  local_part_suffix_optional
+   transport = devnull
+   condition = ${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}{true}{false}}
+ 
+@@ -617,28 +633,21 @@
+   quota_warn_threshold = 75%
+ 
+ .ifdef SIEVE
+-# Sieve addon delivery agent: dovecot-lda runs the account's sieve scripts and
+-# writes into the same maildir layout as local_delivery (quota enforced by the
+-# dovecot quota plugin from the userdb extras). The account name is detainted
+-# via the accounts-file lookup; the userdb lookup (-d) goes through the
+-# auth-master socket (10-master.conf), running as the mailbox system user.
++# Sieve addon delivery agent, LMTP over a unix socket rather than the lda pipe it was (#596):
++# a command line cannot carry the tainted $local_part, the protocol can, and only that lets
++# sieve see a +suffix. Same maildir layout and quota plugin as local_delivery.
+ dovecot_virtual_delivery:
+-  driver = pipe
+-  command = /usr/lib/dovecot/dovecot-lda -e -d ${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}
++  driver = lmtp
++  socket = /run/dovecot/lmtp
++  # Sends the +suffix along, which is what sieve tests.
++  rcpt_include_affixes
++  # Named although Debian-exim is in that group: exim loads no supplementary groups here.
++  user = Debian-exim
++  group = mail
++  # Return-Path and Delivered-To come from dovecot, Delivery-date does not (measured).
+   delivery_date_add
+   envelope_to_add
+-  return_path_add
+-  log_output = true
+-  log_defer_output = true
+-  user = ${extract{2}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}}}}
+-  group = mail
+-  # return_fail_output (not return_output): honour dovecot-lda's exit code so a
+-  # temporary failure defers instead of bouncing. With quota_full_tempfail=yes
+-  # in the sieve lda config, an over-quota mailbox exits EX_TEMPFAIL(75) and
+-  # exim defers — same as the appendfile transports (local_delivery /
+-  # local_spam_delivery) so the sieve addon does not change over-quota
+-  # behaviour vs. the base install. Permanent lda errors still bounce.
+-  return_fail_output
++  # Over quota answers 452 and exim defers on it, so no exit code needs translating.
+ .endif
+ 
+ address_pipe:

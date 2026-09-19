@@ -68,6 +68,17 @@ upd_cond_key_has_token() {
 	return 1
 }
 
+# The other direction, and the most common shape of update work there is: we ship something the box
+# does not have yet. path_exists cannot say it, and the vocabulary has no negation.
+upd_cond_path_absent() {
+	[ -n "$1" ] || {
+		echo "update: path_absent needs a path" >&2
+		return 2
+	}
+	if [ -e "$1" ] || [ -L "$1" ]; then return 1; fi
+	return 0
+}
+
 # File, directory or symlink in one type.
 upd_cond_path_exists() {
 	[ -n "$1" ] || {
@@ -110,6 +121,32 @@ upd_cond_file_differs() {
 	}
 	[ -f "$2" ] || return 0
 	! cmp -s "$src" "$2"
+}
+
+# A shipped file the operator may edit (every target of h-change-sys-service-config, and the exim
+# template the addons set macros in). Copying the tree version over it destroys their work, so a
+# change arrives as a patch. Three-way on purpose: rc 0 to do, rc 1 done, rc 2 the context is gone.
+# That last one must not read as "done": it is the case where someone edited exactly this block.
+upd_cond_file_patch_pending() {
+	local pf="$UPDATE_ROOT/$1" tgt="$2"
+	[ -n "$1" ] && [ -n "$2" ] || {
+		echo "update: file_patch_pending needs a tree-relative patch and a target" >&2
+		return 2
+	}
+	[ -f "$pf" ] || {
+		echo "update: $1 is not a file in this tree" >&2
+		return 2
+	}
+	command -v patch > /dev/null 2>&1 || {
+		echo "update: patch(1) is missing, so no patch entry can decide anything" >&2
+		return 2
+	}
+	[ -f "$tgt" ] || return 1
+	# -F0: no fuzz. A hunk that only roughly matches is drift, not a hit.
+	patch --dry-run -F0 -s "$tgt" < "$pf" > /dev/null 2>&1 && return 0
+	patch --dry-run -F0 -s -R "$tgt" < "$pf" > /dev/null 2>&1 && return 1
+	echo "update: neither $1 nor its reverse applies to $tgt - the file changed where the patch touches it" >&2
+	return 2
 }
 
 # For a file the box generates: no tree source to compare against, so the marker is what the OLD
@@ -228,7 +265,7 @@ upd_action_reversible() {
 # deliberately absent (#948): their targets are not copies of a tree file, so no condition could go
 # false after them. The smoke reports their drift and names the command instead.
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
-	php_db_drivers_apply tachyon_pin_apply)
+	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -330,12 +367,12 @@ upd_condition() {
 			echo "update: there is no condition 'key_missing' - absent and empty are one state, use key_empty" >&2
 			return 2
 			;;
-		key_empty | key_is | key_has_token | path_exists | command_exists | package_installed | file_differs)
+		key_empty | key_is | key_has_token | path_exists | path_absent | command_exists | package_installed | file_differs)
 			"upd_cond_$t" "$@"
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | pin_differs | dir_not_empty | php_ext_missing | dir_has_secret_value)
+		file_contains | pin_differs | dir_not_empty | php_ext_missing | dir_has_secret_value | file_patch_pending)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -510,11 +547,12 @@ def argv(t):
      or t=="php_ext_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
-  elif t=="path_exists" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear"
+  elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
   elif t=="file_contains" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
-  elif t=="file_differs" then [.source // "", .target // ""]
+  elif t=="file_differs" or t=="file_patch_pending"
+    then [.source // "", .target // ""]
   elif t=="file_copy" then [.source // "", .target // ""] + (if has("mode") then [.mode] else [] end)
   elif t=="function_call" then [.function // ""]
   else [] end;

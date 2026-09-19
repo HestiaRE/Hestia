@@ -182,12 +182,14 @@ install_base() {
 	apt-get -qq update
 	# b3sum ships ahead of its consumer: the differential backup map (#712) hashes every byte, and
 	# BLAKE3 is the only cryptographic candidate that stays ahead of the compressor without sha_ni.
+	# patch likewise: an update entry that has to change an operator-editable file applies a patch
+	# rather than copying over it (#1083), and it is not part of a minimal Debian.
 	# shellcheck disable=SC2086
 	hestia_apt -y install \
 		acl at b3sum bc bsdmainutils bsdutils ca-certificates \
 		cron curl dnsutils e2fslibs e2fsprogs expect flex ftp \
 		git gnupg idn2 imagemagick jq nftables \
-		lsb-release lsof mc net-tools openssh-server quota \
+		lsb-release lsof mc net-tools openssh-server patch quota \
 		rrdtool rsyslog sysstat unzip util-linux vim-common \
 		wget whois xxd zip zstd bubblewrap sudo \
 		apt-transport-https awstats \

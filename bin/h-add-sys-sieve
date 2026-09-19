@@ -44,10 +44,9 @@ is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 
 # Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
 # The status key is part of the condition, so it already says yes.
-# Packages are not the target state, the deployed configuration is: a run that installed
-# the packages and then died on the dovecot restart leaves both present and nothing wired,
-# and a guard on packages alone calls that done. 25-lmtp.conf is the last file this command
-# lays down, so its presence is what "finished" means (#596).
+# The deployed configuration is the target state, not the packages: a run that installed them
+# and then died on the dovecot restart would otherwise read as done. 25-lmtp.conf is laid down
+# last, so its presence is what "finished" means (#596).
 if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii' \
 	&& dpkg -l dovecot-lmtpd 2> /dev/null | grep -q '^ii' \
 	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ]; then
@@ -59,8 +58,7 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# dovecot-lmtpd too: the delivery path is LMTP since #596, and without the package
-# dovecot opens no socket while exim already routes to it.
+# dovecot-lmtpd too: without it dovecot opens no socket while exim already routes there.
 echo "Installing sieve (dovecot-managesieved, dovecot-sieve, dovecot-lmtpd)..."
 apt-get -y -qq install dovecot-managesieved dovecot-sieve dovecot-lmtpd > /dev/null 2>&1
 for _p in dovecot-managesieved dovecot-lmtpd; do

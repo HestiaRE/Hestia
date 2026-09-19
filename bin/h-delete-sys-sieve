@@ -80,8 +80,8 @@ fi
 # On dovecot 2.4 core DEPENDS on dovecot-sieve, so purging sieve takes core, imapd and pop3d with
 # it - the whole mail server, for removing an optional addon. Read from the dependency and not from
 # a version number: the packaging is what changes here.
-# lmtpd goes in both branches: dovecot-core only Suggests it (measured on all targets), so
-# purging it cannot take the mail server with it the way dovecot-sieve can.
+# lmtpd in both branches: dovecot-core only Suggests it, so the purge cannot take the mail
+# server with it the way dovecot-sieve can.
 purge_pkgs='dovecot-managesieved dovecot-sieve dovecot-lmtpd'
 if apt-cache show dovecot-core 2> /dev/null | grep -qE '^Depends:.*[ ,]dovecot-sieve[ ,(]'; then
 	purge_pkgs='dovecot-managesieved dovecot-lmtpd'

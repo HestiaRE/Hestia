@@ -2,6 +2,16 @@
   "version": "0.21.0",
   "entries": [
     {
+      "id": "cron-update-check",
+      "description": "The daily update check calls a command inside bin/, where the sudo grant reaches; the old line was refused and the panel banner never appeared",
+      "conditions": [
+        { "type": "file_contains", "path": "/var/spool/cron/crontabs/hestia", "value": "sudo bash /usr/local/hestia/update.sh --check" }
+      ],
+      "action": { "type": "function_call", "function": "cron_update_check_apply" },
+      "paths": ["/var/spool/cron/crontabs/hestia"],
+      "reversible": true
+    },
+    {
       "id": "sieve-lmtp",
       "description": "Sieve delivery runs over dovecot's LMTP service now; the package and its config sit outside the tree",
       "conditions": [

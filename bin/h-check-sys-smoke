@@ -2440,6 +2440,44 @@ check_sudoers_drift() {
 	fi
 }
 
+# The crontab calls its jobs through sudo, and /etc/sudoers.d/hestia says which paths that grant
+# reaches. Two hand-kept lists over one surface, with nothing holding them together: a line pointing
+# one level above bin/ was refused every night for a week and the panel banner never appeared
+# (#1091). sudo is asked rather than the file parsed, so a grant from any sudoers file counts.
+#
+# Not covered: whether the command then does what the line intends. sudo is asked about the command
+# path, because that is what the grant is written in terms of, not about its arguments.
+check_crontab_sudo_reach() {
+	local ct='/var/spool/cron/crontabs/hestia' line cmd n=0 bad=''
+	if [ ! -s "$ct" ]; then
+		no "crontab sudo reach: $ct is missing or empty" "nothing to compare, which is not a pass"
+		return
+	fi
+	# Controls first, both directions: sudo must call the granted path allowed and an unrelated one
+	# refused. Without them a sudo that answers nothing at all would clear every line in the file.
+	if ! sudo -l -U hestia "$HESTIA/bin/h-list-sys-services" > /dev/null 2>&1 \
+		|| sudo -l -U hestia /bin/sh > /dev/null 2>&1; then
+		skip "crontab sudo reach: sudo -l -U does not decide on this box, so the lines are unchecked"
+		return
+	fi
+	while read -r line; do
+		[ -n "$line" ] || continue
+		# shellcheck disable=SC2086  # the crontab line is a command line; the first word is the command
+		set -- $line
+		cmd=$1
+		n=$((n + 1))
+		sudo -l -U hestia "$cmd" > /dev/null 2>&1 || bad="$bad $cmd"
+	done < <(sed -n 's/^[^#]*[[:space:]]sudo[[:space:]]\{1,\}\(.*\)$/\1/p' "$ct")
+	if [ "$n" -eq 0 ]; then
+		no "crontab sudo reach: no sudo line in $ct" "the crontab calls its jobs through sudo, so this read nothing"
+	elif [ -n "$bad" ]; then
+		no "crontab sudo reach: $(echo "$bad" | wc -w) command(s) the grant does not cover:$bad" \
+			"sudo refuses them nightly; move the command into $HESTIA/bin rather than widening the grant"
+	else
+		ok "crontab sudo reach: all $n sudo command(s) in the crontab are covered by the grant"
+	fi
+}
+
 check_update_dispatcher() {
 	local lib="$HESTIA/include/update.sh" defined accepted missing extra
 	if [ ! -f "$lib" ]; then
@@ -3052,6 +3090,7 @@ check_update_dispatcher
 check_update_manifests
 check_update_version
 check_sudoers_drift
+check_crontab_sudo_reach
 check_sys_key_registry
 check_system_keys_agree
 check_manifest_status_link

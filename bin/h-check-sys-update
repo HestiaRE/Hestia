@@ -1,0 +1,39 @@
+#!/bin/bash
+# info: ask the release source whether a newer release is published
+# options: NONE
+#
+# example: h-check-sys-update
+#
+# Writes UPDATE_AVAILABLE for the panel banner and downloads nothing.
+#
+# It exists so the daily crontab line has something inside bin/ to call. sudo grants hestia
+# /usr/local/hestia/bin/* and nothing else, so a line pointing one level up at update.sh is refused
+# as "command not allowed" and the banner never appears (#1091). Widening the grant is the wrong
+# direction: bin/ IS the panel-callable surface. No v-* symlink.
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '0' "$#" 'NONE'
+[ -f "$HESTIA/update.sh" ] || check_result "$E_NOTEXIST" "$HESTIA/update.sh is missing"
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+bash "$HESTIA/update.sh" --check
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+exit

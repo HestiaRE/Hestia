@@ -612,3 +612,28 @@ exim_lmtp_apply() {
 	systemctl restart exim4 || return 1
 	systemctl is-active --quiet exim4
 }
+
+# The hestia crontab is operator surface (#972), so this replaces ONE line and leaves everything
+# else standing. Rename and not truncate, for the same reason system_crontab_write does it: the
+# crontabs directory is sticky and group-writable, where opening the file is EACCES even for root.
+cron_update_check_apply() {
+	local ct='/var/spool/cron/crontabs/hestia' tmp before after
+	[ -s "$ct" ] || return 1
+	before=$(grep -c '' "$ct")
+	tmp="/var/spool/cron/crontabs/.hestia.$$"
+	sed "s#sudo bash $HESTIA/update\.sh --check[[:space:]]*\$#sudo $HESTIA/bin/h-check-sys-update#" "$ct" > "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	after=$(grep -c '' "$tmp")
+	# A line count that moved means the edit hit more than the one line it was written for.
+	if [ "$before" != "$after" ] || grep -q 'update\.sh --check' "$tmp"; then
+		rm -f "$tmp"
+		return 1
+	fi
+	chmod 600 "$tmp" && chown hestia:hestia "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	mv -f "$tmp" "$ct"
+}

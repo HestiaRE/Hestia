@@ -1246,8 +1246,9 @@ system_crontab_write() {
 		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
 		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
 		echo "$_min $_hour * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
-		# Sets UPDATE_AVAILABLE for the panel once a day; --check downloads nothing.
-		echo "$_min 04 * * * sudo bash $HESTIA/update.sh --check"
+		# Sets UPDATE_AVAILABLE for the panel once a day; downloads nothing. Through bin/, because
+		# the sudo grant ends there and a line pointing at update.sh itself is refused (#1091).
+		echo "$_min 04 * * * sudo $HESTIA/bin/h-check-sys-update"
 	} > "$_tmp" || return 1
 	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
 		rm -f "$_tmp"

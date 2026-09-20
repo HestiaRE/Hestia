@@ -38,6 +38,13 @@ opens above it.
   with the pipe: `-e` and `return_fail_output` existed only to turn an exit code into a deferral, and
   LMTP answers `452` natively. The appendfile path (no sieve addon) is untouched.
 
+### Removed
+
+- **The `dir_not_empty` condition is gone** (#1076). Its only intended entry got the sharper
+  `dir_has_secret_value` instead (#1081), and no manifest ever asked for it: a condition on a
+  directory merely being full describes a normal steady state. Unused vocabulary is worse than a
+  gap, because the next reader takes it for a tested one.
+
 ### Fixed
 
 - **The updater handed over to the new release and then ran against the old library** (#1080). After

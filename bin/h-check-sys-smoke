@@ -2372,14 +2372,21 @@ check_update_manifests() {
 	if [ "$n" -lt 0 ]; then
 		no "update manifests: the check returned no count" "the derivation moved, so nothing was measured"
 	elif [ "$n" -eq 0 ]; then
-		# Zero was the right answer while share/updates was empty. With files in it, zero means the
-		# scan read none of them, and that is the shape of a pass over nothing.
-		files=$(find "$HESTIA/share/updates" -maxdepth 1 -name '*.json' 2> /dev/null | grep -c .)
+		# Zero was the right answer while share/updates was empty. Counted is what is IN SCOPE, not
+		# what lies in the directory: a manifest at or below the lower bound is deliberately not read
+		# (#1093), so its presence is no reason to expect entries. Not covered, said out loud: such a
+		# file is then not validated either, which is the price of not reading it.
+		files=$(
+			# shellcheck source=/usr/local/hestia/include/update.sh
+			source "$lib" > /dev/null 2>&1
+			upd_manifest_files "$UPD_VERSION_MAX" 2> /dev/null | grep -c .
+		)
+		case "$files" in '' | *[!0-9]*) files=0 ;; esac
 		if [ "$files" -gt 0 ]; then
-			no "update manifests: $files file(s) in share/updates, but the check read 0 entries" \
+			no "update manifests: $files file(s) in scope, but the check read 0 entries" \
 				"the scan found none of them, so nothing was measured"
 		else
-			ok "update manifests: none in share/updates yet, nothing to check"
+			ok "update manifests: none in scope above the lower bound, nothing to check"
 		fi
 	else
 		ok "update manifests: $n entry(s) read, every type, id and dependency holds"

@@ -38,6 +38,16 @@ opens above it.
   with the pipe: `-e` and `return_fail_output` existed only to turn an exit code into a deferral, and
   LMTP answers `452` natively. The appendfile path (no sieve addon) is untouched.
 
+### Changed
+
+- **A manifest at or below the update lower bound is no longer read** (#1093). It can never apply,
+  because no box below the bound is accepted, so the discovery skips it. That also closes a quieter
+  path: the overlay of an update never deletes and the discovery is a glob over the directory, so a
+  manifest dropped from the tree stays on every installed box and would keep being read there,
+  possibly against a vocabulary that has since moved on. The bound is read from `update.sh` instead
+  of being repeated, so the tree being derived from is the one that decides. Removing a manifest
+  from the tree now means removing it with an entry that removes it on a box as well.
+
 ### Removed
 
 - **The `dir_not_empty` condition is gone** (#1076). Its only intended entry got the sharper

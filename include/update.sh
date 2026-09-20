@@ -518,9 +518,24 @@ upd_version_le() {
 # No directory means no manifests. That is the state until the first release ships one, not an error.
 # A name that is not a version is refused, never skipped: sort -V would quietly sort it out of range
 # and the file would be missing from every plan without a word.
+# The bound is read from update.sh and not repeated here: it travels in the tarball, so the tree
+# being derived from is the one whose bound decides, and two literals would drift.
+upd_min_version() {
+	local b
+	b=$(sed -n 's/^UPDATE_MIN_VERSION=//p' "$UPDATE_ROOT/update.sh" 2> /dev/null | head -1 | tr -d "\"'")
+	[ -n "$b" ] || return 1
+	printf '%s\n' "$b"
+}
+
 upd_manifest_files() {
-	local target="$1" f v out=""
+	local target="$1" f v out="" bound
 	[ -d "$UPDATE_DIR" ] || return 0
+	# Unreadable is an error, never "read everything": without the bound there is no saying what is
+	# still in scope, and guessing would be the wrong half of the question either way.
+	bound=$(upd_min_version) || {
+		echo "update: no UPDATE_MIN_VERSION in $UPDATE_ROOT/update.sh, so the scope cannot be decided" >&2
+		return 2
+	}
 	for f in "$UPDATE_DIR"/*.json; do
 		[ -f "$f" ] || continue
 		v=$(basename "$f" .json)
@@ -529,6 +544,10 @@ upd_manifest_files() {
 			return 2
 			;;
 		esac
+		# At or below the bound it can never apply, because no box below the bound is accepted. Not
+		# read at all, so a copy left on a box by an earlier release cannot reach the plan either:
+		# the overlay of an update never deletes, and this discovery is a glob (#1093).
+		upd_version_le "$v" "$bound" && continue
 		upd_version_le "$v" "$target" && out="$out$v	$f"$'\n'
 	done
 	printf '%s' "$out" | LC_ALL=C sort -V | cut -f2

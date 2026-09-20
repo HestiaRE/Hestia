@@ -162,4 +162,14 @@ it.
 ## Expiry
 
 A file whose version is at or below the update lower bound can never apply again, because no box
-below that bound is accepted. It may be deleted, and the release checklist asks the question.
+below that bound is accepted. **It is not read**: the discovery skips it, so it cannot reach a plan
+and cannot be compared against a vocabulary that has moved on since. The bound itself is read from
+`update.sh`, which travels in the tarball, so the tree being derived from is the one that decides.
+
+That is also why such a file may simply stay. If one is removed all the same, it is removed **with
+an entry that removes it on a box as well**: the overlay of an update never deletes, and the
+discovery is a glob over the directory, so a file dropped from the tree survives on every installed
+box. Deleting it in the tree alone changes nothing out there.
+
+Being unread means being unchecked, too: the soundness check no longer looks at such a file. It is
+inert either way, but nothing will tell you it has rotted.

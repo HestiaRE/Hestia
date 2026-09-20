@@ -9,7 +9,7 @@
       ],
       "action": { "type": "function_call", "function": "cron_update_check_apply" },
       "paths": ["/var/spool/cron/crontabs/hestia"],
-      "reversible": true
+      "reversible": false
     },
     {
       "id": "sieve-lmtp",

@@ -2356,7 +2356,7 @@ check_operator_keys_present() {
 # reversibility claim. It says how many entries it read, because until the first release ships a
 # manifest the honest answer is zero and a green line must not read as coverage.
 check_update_manifests() {
-	local lib="$HESTIA/include/update.sh" out n
+	local lib="$HESTIA/include/update.sh" out n files
 	[ -f "$lib" ] || return
 	# In a subshell: the library re-sources main.sh, and the smoke keeps its own state.
 	if ! out=$(
@@ -2372,7 +2372,15 @@ check_update_manifests() {
 	if [ "$n" -lt 0 ]; then
 		no "update manifests: the check returned no count" "the derivation moved, so nothing was measured"
 	elif [ "$n" -eq 0 ]; then
-		ok "update manifests: none in share/updates yet, nothing to check"
+		# Zero was the right answer while share/updates was empty. With files in it, zero means the
+		# scan read none of them, and that is the shape of a pass over nothing.
+		files=$(find "$HESTIA/share/updates" -maxdepth 1 -name '*.json' 2> /dev/null | grep -c .)
+		if [ "$files" -gt 0 ]; then
+			no "update manifests: $files file(s) in share/updates, but the check read 0 entries" \
+				"the scan found none of them, so nothing was measured"
+		else
+			ok "update manifests: none in share/updates yet, nothing to check"
+		fi
 	else
 		ok "update manifests: $n entry(s) read, every type, id and dependency holds"
 	fi

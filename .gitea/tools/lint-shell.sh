@@ -172,8 +172,17 @@ else
 fi
 rm -f "$ec_probe"
 
+# There is no -j in shellcheck, and tier 1 is 160 of the CI job's 190 seconds, so it runs in two
+# niced processes: the runner has two cores, one of which idled through all of it. Chunks and not
+# two halves, because the halves are not equally heavy and one of them finishes early. Two writers
+# can interleave in the pipe once there are findings; the verdict is the emptiness of the output.
 echo "== tier 1: shellcheck (severity=error), ${#ALL_FILES[@]} files =="
-if out=$(shellcheck -S error -f gcc "${ALL_FILES[@]}" 2> /dev/null) && [ -z "$out" ]; then
+if [ "${#ALL_FILES[@]}" -eq 0 ]; then
+	# Measured: an empty list reaches shellcheck as one empty name and fails with nothing printed.
+	echo "   FAILED - no file selected, so tier 1 looked at nothing."
+	rc=1
+elif out=$(printf '%s\0' "${ALL_FILES[@]}" \
+	| xargs -0 -r -n50 -P2 nice -n 10 shellcheck -S error -f gcc 2> /dev/null) && [ -z "$out" ]; then
 	echo "   OK"
 else
 	echo "$out"

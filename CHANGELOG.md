@@ -47,6 +47,14 @@ opens above it.
 
 ### Fixed
 
+- **The daily update check never ran, so the panel banner never appeared** (#1091). The crontab
+  called `sudo bash /usr/local/hestia/update.sh --check`, but the sudo grant for the panel user
+  covers `/usr/local/hestia/bin/*` and nothing above it: sudo refused the line every night and
+  `UPDATE_AVAILABLE` was never written. The grant stays as it is and the check moves into `bin/` as
+  `h-check-sys-update`. Boxes that already carry the broken line get it replaced by an update entry,
+  because the crontab is operator surface and nothing rewrites a file that is there. A new smoke
+  check asks sudo whether every command the crontab calls is actually covered.
+
 - **The updater handed over to the new release and then ran against the old library** (#1080). After
   the `exec` into the tarball's `update.sh`, `include/release.sh` still came from the installed tree,
   which does not carry the functions the newer updater calls. The checksum fetch failed as

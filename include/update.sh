@@ -187,16 +187,6 @@ upd_cond_pin_differs() {
 	[ "$(cat "$2" 2> /dev/null)" != "$pin" ]
 }
 
-# Contents, not the directory: path_exists would keep saying yes long after the store is empty.
-upd_cond_dir_not_empty() {
-	[ -n "$1" ] || {
-		echo "update: dir_not_empty needs a path" >&2
-		return 2
-	}
-	[ -d "$1" ] || return 1
-	[ -n "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null)" ]
-}
-
 # Versions from h-list-sys-php, not from /etc/php, which also holds versions no customer runs. A
 # comma list because the action repairs a set, and a lister that cannot answer is rc 2, not a zero.
 upd_cond_php_ext_missing() {
@@ -378,7 +368,7 @@ upd_condition() {
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | pin_differs | dir_not_empty | php_ext_missing | dir_has_secret_value | file_patch_pending)
+		file_contains | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -553,7 +543,7 @@ def argv(t):
      or t=="php_ext_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
-  elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear"
+  elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
   elif t=="file_contains" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]

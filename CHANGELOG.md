@@ -57,6 +57,18 @@ opens above it.
 
 ### Fixed
 
+- **The nightly backup of a customer with a PostgreSQL database failed on a non-English box**
+  (#1096). The size of a pgsql database was read out of psql's aligned table and the row-count
+  footer filtered away by the word `row`, which on a German box reads `(1 Zeile)`: the footer
+  survived, the value became two lines, and dividing it was a syntax error. A fatal arithmetic
+  expansion ends the whole shell, so `get_user_disk_usage` returned nothing at all and the space
+  barrier refused the run - correctly, and that is the only reason this was loud rather than a
+  silently over-committed disk. The size comes from `psql_value` now, which asks for the bare value,
+  and an unreadable one is counted as 1 MB with a warning instead of killing the run. The same
+  function is what writes `U_DISK` for a database, so on such a box the disk figure of every pgsql
+  database was stale as well. What the barrier could not read is its own message now: blaming the
+  free space sent the operator to `df` on a box with 27 GB free.
+
 - **The daily update check never ran, so the panel banner never appeared** (#1091). The crontab
   called `sudo bash /usr/local/hestia/update.sh --check`, but the sudo grant for the panel user
   covers `/usr/local/hestia/bin/*` and nothing above it: sudo refused the line every night and

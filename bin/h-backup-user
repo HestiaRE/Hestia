@@ -87,6 +87,13 @@ docker_backup_unknown() {
 	)
 }
 
+# Add a measured figure to the sum, or fail. An empty value is 0 in an arithmetic expansion, so a
+# du that produced nothing would shrink the budget by a whole directory with nothing to show for it.
+add_usage() {
+	case "$1" in '' | *[!0-9]*) return 1 ;; esac
+	u_usage=$((u_usage + $1))
+}
+
 # Return Disk Usage
 get_user_disk_usage() {
 	u_usage=0
@@ -130,7 +137,7 @@ get_user_disk_usage() {
 				# Checking home directory exist
 				if [ -e "$home_dir" ]; then
 					disk_usage=$(nice -n 19 du -shm "$home_dir" "${fargs[@]}" | cut -f 1)
-					u_usage=$((u_usage + disk_usage))
+					add_usage "$disk_usage" || return 1
 				fi
 			fi
 		done
@@ -154,7 +161,7 @@ get_user_disk_usage() {
 
 					if [ -z "$exclusion" ] && [ -e "$home_dir" ]; then
 						disk_usage=$(nice -n 19 du -shm "$home_dir" | cut -f 1)
-						u_usage=$((u_usage + disk_usage))
+						add_usage "$disk_usage" || return 1
 					fi
 				done
 			fi
@@ -174,11 +181,14 @@ get_user_disk_usage() {
 				# Switching on db type
 				# A part that cannot be read makes the sum unreadable, it does not drop out of it:
 				# a summand quietly missing would be a smaller need and a barrier that says yes.
-				case $DB_SYSTEM in
+				# TYPE is the engine of THIS database. DB_SYSTEM is a token list, and on a box
+				# carrying both engines it reads "mysql,pgsql" and matches neither arm; the dump
+				# loop further down has always branched on TYPE.
+				case $TYPE in
 					mysql) get_mysql_disk_usage ;;
 					pgsql) get_pgsql_disk_usage || return 1 ;;
 				esac
-				u_usage=$((u_usage + usage))
+				add_usage "$usage" || return 1
 			fi
 		done
 	fi
@@ -195,7 +205,7 @@ get_user_disk_usage() {
 			[ -n "$xdocker" ] && fargs+=(--exclude="$HOMEDIR/$user/$xdocker")
 		done < <(docker_backup_excludes)
 		usage=$(du -shm "$HOMEDIR/$user" --exclude "$HOMEDIR/$user/web" --exclude "$HOMEDIR/$user/mail" --exclude "$HOMEDIR/$user/conf" "${fargs[@]}" | cut -f 1)
-		u_usage=$((u_usage + usage))
+		add_usage "$usage" || return 1
 	fi
 
 	echo ${u_usage}

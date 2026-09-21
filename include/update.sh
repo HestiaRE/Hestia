@@ -170,10 +170,8 @@ upd_cond_file_contains() {
 	grep -qF -- "$2" "$1"
 }
 
-# The complement of file_contains, for the other half of the same job. There the marker is what the
-# OLD version wrote; here it is what the new one writes, which is what an entry that has to ADD a
-# line needs. A file that is not there at all reads as false, like in file_contains: with no content
-# there is nothing to be asked about, and a missing file is somebody else's repair.
+# The complement of file_contains, for an entry that has to ADD a marker rather than replace one.
+# A missing file reads as false, as it does there: no content, nothing to be asked about.
 upd_cond_file_lacks() {
 	[ -n "$1" ] && [ -n "$2" ] || {
 		echo "update: file_lacks needs a path and a value" >&2

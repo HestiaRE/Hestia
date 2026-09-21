@@ -177,11 +177,9 @@ psql_query() {
 
 # psql_value QUERY - the value of a one-column, one-row SELECT, nothing else.
 #
-# Not psql_query: that prints the aligned table, whose heading, ruler and row-count footer are a
-# display format, and the footer is translated. Reading a value out of it lost every pgsql password
-# (`head -n1` is the column HEADING, a `grep md5` filter matches no SCRAM hash) and then the pgsql
-# size on a German box (#1096). Nothing parses psql_query's output any more; keep it that way.
-# -tAX: no heading, no padding, no .psqlrc.
+# Not psql_query: its heading, ruler and row-count footer are a display format, and the footer is
+# translated. Reading values out of it cost every pgsql password, then the pgsql size on a German
+# box. Nothing parses that output any more; keep it that way. -tAX drops heading, padding, .psqlrc.
 psql_value() {
 	local _tmp
 	_tmp=$(mktemp)
@@ -672,12 +670,10 @@ get_mysql_disk_usage() {
 get_pgsql_disk_usage() {
 	psql_connect $HOST
 
-	# psql_value, not the aligned table: its row-count footer is translated ("(1 Zeile)" on a
-	# German box), so the filter against "row" left it standing and the division died.
+	# Not the aligned table: its footer is translated ("(1 Zeile)"), so a filter on "row" left it.
 	usage=$(psql_value "SELECT pg_database_size('$database');")
-	# Unreadable stays unreadable, and the caller decides. A fatal arithmetic expansion would end
-	# the whole shell, here the caller's command substitution; inventing a megabyte instead would
-	# let a space check pass on a number nobody measured and write it into the record as a figure.
+	# Unreadable stays unreadable: an invented megabyte would let a space check pass on a number
+	# nobody measured, and a bad one would end the caller's whole command substitution.
 	case "$usage" in
 		'' | *[!0-9]*)
 			echo "Error: cannot read the size of $database" >&2

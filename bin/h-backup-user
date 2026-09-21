@@ -87,8 +87,8 @@ docker_backup_unknown() {
 	)
 }
 
-# Add a measured figure to the sum, or fail. An empty value is 0 in an arithmetic expansion, so a
-# du that produced nothing would shrink the budget by a whole directory with nothing to show for it.
+# An empty value is 0 in an arithmetic expansion, so a du that produced nothing would silently
+# shrink the budget by a whole directory.
 add_usage() {
 	case "$1" in '' | *[!0-9]*) return 1 ;; esac
 	u_usage=$((u_usage + $1))
@@ -179,11 +179,8 @@ get_user_disk_usage() {
 				get_database_values
 
 				# Switching on db type
-				# A part that cannot be read makes the sum unreadable, it does not drop out of it:
-				# a summand quietly missing would be a smaller need and a barrier that says yes.
-				# TYPE is the engine of THIS database. DB_SYSTEM is a token list, and on a box
-				# carrying both engines it reads "mysql,pgsql" and matches neither arm; the dump
-				# loop further down has always branched on TYPE.
+				# An unreadable part makes the sum unreadable, it does not drop out of it.
+				# TYPE is this database's engine; DB_SYSTEM is a token list and matches no arm.
 				case $TYPE in
 					mysql) get_mysql_disk_usage ;;
 					pgsql) get_pgsql_disk_usage || return 1 ;;
@@ -281,9 +278,8 @@ fi
 
 # Booked per DEVICE (#805): staging tree and finished archive each want about the usage, which on
 # one filesystem adds up and on two does not. Measured once - du over the whole home is not cheap.
-# An unreadable usage is its own case, and it says so: the barrier answers both halves of its
-# question with the same code, and blaming the free space sent the operator to df, where a box
-# with 27 GB free had nothing to see (#1096).
+# Its own case: the barrier answers both halves of its question with rc 2, and blaming the free
+# space sent the operator to df on a box with 27 GB free.
 _usage=$(get_user_disk_usage)
 case "$_usage" in
 	'' | *[!0-9]*)

@@ -1234,8 +1234,8 @@ system_crontab_write() {
 	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
 	_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
-		# One language for every nightly job: word matching against a program's output is
-		# locale-dependent, and psql saying "(1 Zeile)" on a German box cost a backup (#1096).
+		# One language for every job below: a word match against a program's output must not
+		# depend on the box.
 		echo "LC_ALL=C"
 		echo "MAILTO=\"\""
 		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""

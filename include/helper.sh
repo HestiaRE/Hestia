@@ -638,15 +638,12 @@ cron_update_check_apply() {
 	mv -f "$tmp" "$ct"
 }
 
-# The crontab is the one place where every nightly job can be pinned to one language at once, and
-# word matching against a program's output is what makes them locale-dependent: psql answering
-# "(1 Zeile)" on a German box cost the nightly backup (#1096). An extra, not the general fix, and
-# the same reason as above applies for replacing only what is needed.
+# Pins every nightly job to one language, so a word match against a program's output cannot depend
+# on the box. An extra, not the general fix; operator surface, so only the one line is added.
 cron_locale_apply() {
 	local ct='/var/spool/cron/crontabs/hestia' tmp before after
 	[ -s "$ct" ] || return 1
-	# The same question the condition asks, which is a substring one: the two must not disagree
-	# about what counts as done, and C.UTF-8 counts, rightly.
+	# The same substring question the condition asks, so the two cannot disagree; C.UTF-8 counts.
 	grep -qF 'LC_ALL=C' "$ct" && return 0
 	before=$(grep -c '' "$ct")
 	tmp="/var/spool/cron/crontabs/.hestia.$$"
@@ -658,8 +655,7 @@ cron_locale_apply() {
 		return 1
 	}
 	after=$(grep -c '' "$tmp")
-	# Exactly one line more, and exactly one of what THIS wrote: a check on the edit, not on the
-	# question above.
+	# One line more and exactly one of it: a check on the edit, not on the question above.
 	if [ "$after" != "$((before + 1))" ] || [ "$(grep -c '^LC_ALL=C$' "$tmp")" != 1 ]; then
 		rm -f "$tmp"
 		return 1

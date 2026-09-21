@@ -645,7 +645,9 @@ cron_update_check_apply() {
 cron_locale_apply() {
 	local ct='/var/spool/cron/crontabs/hestia' tmp before after
 	[ -s "$ct" ] || return 1
-	grep -q '^LC_ALL=C$' "$ct" && return 0
+	# The same question the condition asks, which is a substring one: the two must not disagree
+	# about what counts as done, and C.UTF-8 counts, rightly.
+	grep -qF 'LC_ALL=C' "$ct" && return 0
 	before=$(grep -c '' "$ct")
 	tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
@@ -656,8 +658,8 @@ cron_locale_apply() {
 		return 1
 	}
 	after=$(grep -c '' "$tmp")
-	# Exactly one line more, and exactly one of it: anything else means the file was not what this
-	# was written for.
+	# Exactly one line more, and exactly one of what THIS wrote: a check on the edit, not on the
+	# question above.
 	if [ "$after" != "$((before + 1))" ] || [ "$(grep -c '^LC_ALL=C$' "$tmp")" != 1 ]; then
 		rm -f "$tmp"
 		return 1

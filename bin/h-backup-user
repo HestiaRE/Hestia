@@ -172,9 +172,11 @@ get_user_disk_usage() {
 				get_database_values
 
 				# Switching on db type
+				# A part that cannot be read makes the sum unreadable, it does not drop out of it:
+				# a summand quietly missing would be a smaller need and a barrier that says yes.
 				case $DB_SYSTEM in
 					mysql) get_mysql_disk_usage ;;
-					pgsql) get_pgsql_disk_usage ;;
+					pgsql) get_pgsql_disk_usage || return 1 ;;
 				esac
 				u_usage=$((u_usage + usage))
 			fi

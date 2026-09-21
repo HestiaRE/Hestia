@@ -63,11 +63,10 @@ opens above it.
   survived, the value became two lines, and dividing it was a syntax error. A fatal arithmetic
   expansion ends the whole shell, so `get_user_disk_usage` returned nothing at all and the space
   barrier refused the run - correctly, and that is the only reason this was loud rather than a
-  silently over-committed disk. The size comes from `psql_value` now, which asks for the bare value,
-  and an unreadable one is counted as 1 MB with a warning instead of killing the run. The same
-  function is what writes `U_DISK` for a database, so on such a box the disk figure of every pgsql
-  database was stale as well. What the barrier could not read is its own message now: blaming the
-  free space sent the operator to `df` on a box with 27 GB free.
+  silently over-committed disk. The size comes from `psql_value` now, which asks for the bare value.
+  An unreadable one stays unreadable: the backup refuses with a message naming the disk usage rather
+  than the free space, which is what sent the operator to `df` on a box with 27 GB free, and
+  `h-update-database-disk` leaves `U_DISK` alone instead of recording a figure nobody measured.
 
 - **Both cron files HestiaRE writes pin the language** (#1096). `LC_ALL=C` in the hestia crontab and
   in `/etc/cron.d/hestia-repair`, so every nightly job matches the words it was written against. It

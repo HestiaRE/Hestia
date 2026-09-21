@@ -675,12 +675,14 @@ get_pgsql_disk_usage() {
 	# psql_value, not the aligned table: its row-count footer is translated ("(1 Zeile)" on a
 	# German box), so the filter against "row" left it standing and the division died.
 	usage=$(psql_value "SELECT pg_database_size('$database');")
-	# A fatal arithmetic expansion kills the whole shell, here the caller's command substitution,
-	# so the value is checked before it is used.
+	# Unreadable stays unreadable, and the caller decides. A fatal arithmetic expansion would end
+	# the whole shell, here the caller's command substitution; inventing a megabyte instead would
+	# let a space check pass on a number nobody measured and write it into the record as a figure.
 	case "$usage" in
 		'' | *[!0-9]*)
-			echo "Warning: cannot read the size of $database, counted as 1 MB" >&2
-			usage=0
+			echo "Error: cannot read the size of $database" >&2
+			usage=''
+			return 1
 			;;
 	esac
 	usage=$((usage / 1048576))

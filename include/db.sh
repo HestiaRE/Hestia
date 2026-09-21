@@ -177,9 +177,11 @@ psql_query() {
 
 # psql_value QUERY - the value of a one-column, one-row SELECT, nothing else.
 #
-# Not psql_query: that prints the aligned table, and get_pgsql_disk_usage parses exactly that shape.
-# Reading a value out of it lost every pgsql password - `head -n1` is the column HEADING, and a
-# `grep md5` filter matches no SCRAM hash. -tAX: no heading, no padding, no .psqlrc.
+# Not psql_query: that prints the aligned table, whose heading, ruler and row-count footer are a
+# display format, and the footer is translated. Reading a value out of it lost every pgsql password
+# (`head -n1` is the column HEADING, a `grep md5` filter matches no SCRAM hash) and then the pgsql
+# size on a German box (#1096). Nothing parses psql_query's output any more; keep it that way.
+# -tAX: no heading, no padding, no .psqlrc.
 psql_value() {
 	local _tmp
 	_tmp=$(mktemp)
@@ -670,15 +672,19 @@ get_mysql_disk_usage() {
 get_pgsql_disk_usage() {
 	psql_connect $HOST
 
-	query="SELECT pg_database_size('$database');"
-	usage=$(psql_query "$query")
-	usage=$(echo "$usage" | grep -v "-" | grep -v 'row' | sed "/^$/d")
-	usage=$(echo "$usage" | grep -v "pg_database_size" | awk '{print $1}')
-	if [ -z "$usage" ]; then
-		usage=0
-	fi
-	usage=$(($usage / 1048576))
-	if [ "$usage" -eq '0' ]; then
+	# psql_value, not the aligned table: its row-count footer is translated ("(1 Zeile)" on a
+	# German box), so the filter against "row" left it standing and the division died.
+	usage=$(psql_value "SELECT pg_database_size('$database');")
+	# A fatal arithmetic expansion kills the whole shell, here the caller's command substitution,
+	# so the value is checked before it is used.
+	case "$usage" in
+		'' | *[!0-9]*)
+			echo "Warning: cannot read the size of $database, counted as 1 MB" >&2
+			usage=0
+			;;
+	esac
+	usage=$((usage / 1048576))
+	if [ "$usage" -eq 0 ]; then
 		usage=1
 	fi
 }

@@ -269,7 +269,19 @@ fi
 
 # Booked per DEVICE (#805): staging tree and finished archive each want about the usage, which on
 # one filesystem adds up and on two does not. Measured once - du over the whole home is not cheap.
-_need=$(($(get_user_disk_usage) * 1048576))
+# An unreadable usage is its own case, and it says so: the barrier answers both halves of its
+# question with the same code, and blaming the free space sent the operator to df, where a box
+# with 27 GB free had nothing to see (#1096).
+_usage=$(get_user_disk_usage)
+case "$_usage" in
+	'' | *[!0-9]*)
+		echo "Cannot read the disk usage of $user, so the space the backup needs is unknown" \
+			| $SENDMAIL -s "$subj" "$email" "yes"
+		queue_drop_job "$CONF_DIR/queue/backup.pipe"
+		check_result "$E_LIMIT" "cannot read the disk usage of $user"
+		;;
+esac
+_need=$((_usage * 1048576))
 refusal=$(space_budget_refused "$BACKUP_TEMP:$_need" "$BACKUP:$_need") || {
 	case "$?" in
 		1)
@@ -278,6 +290,8 @@ refusal=$(space_budget_refused "$BACKUP_TEMP:$_need" "$BACKUP:$_need") || {
 			check_result "$E_LIMIT" "$user: $refusal"
 			;;
 		*)
+			echo "Cannot read the free space for the backup of $user ($BACKUP_TEMP, $BACKUP)" \
+				| $SENDMAIL -s "$subj" "$email" "yes"
 			queue_drop_job "$CONF_DIR/queue/backup.pipe"
 			check_result "$E_LIMIT" "cannot read the free space for the backup of $user ($BACKUP_TEMP, $BACKUP)"
 			;;

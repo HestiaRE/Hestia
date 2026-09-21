@@ -12,6 +12,26 @@
       "reversible": false
     },
     {
+      "id": "cron-locale",
+      "description": "Every nightly job runs under one language, so a translated program message cannot be matched against an English word",
+      "conditions": [
+        { "type": "file_lacks", "path": "/var/spool/cron/crontabs/hestia", "value": "LC_ALL=C" }
+      ],
+      "action": { "type": "function_call", "function": "cron_locale_apply" },
+      "paths": ["/var/spool/cron/crontabs/hestia"],
+      "reversible": false
+    },
+    {
+      "id": "cron-repair-locale",
+      "description": "The repair schedule gets the same language pin; it is not operator surface, so it is rewritten whole",
+      "conditions": [
+        { "type": "file_lacks", "path": "/etc/cron.d/hestia-repair", "value": "LC_ALL=C" }
+      ],
+      "action": { "type": "function_call", "function": "system_repair_cron_write" },
+      "paths": ["/etc/cron.d/hestia-repair"],
+      "reversible": false
+    },
+    {
       "id": "sieve-lmtp",
       "description": "Sieve delivery runs over dovecot's LMTP service now; the package and its config sit outside the tree",
       "conditions": [

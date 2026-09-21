@@ -170,6 +170,22 @@ upd_cond_file_contains() {
 	grep -qF -- "$2" "$1"
 }
 
+# The complement of file_contains, for an entry that has to ADD a marker rather than replace one.
+# A missing file reads as false, as it does there: no content, nothing to be asked about.
+upd_cond_file_lacks() {
+	[ -n "$1" ] && [ -n "$2" ] || {
+		echo "update: file_lacks needs a path and a value" >&2
+		return 2
+	}
+	[ -f "$1" ] || return 1
+	[ -r "$1" ] || {
+		echo "update: $1 exists but cannot be read, so file_lacks cannot decide" >&2
+		return 2
+	}
+	grep -qF -- "$2" "$1" && return 1
+	return 0
+}
+
 # Absent marker is false: not installed here, and an update installs nothing. An empty pin is the
 # tree being wrong, never a box fact, so it must not read as "nothing to do".
 upd_cond_pin_differs() {
@@ -261,7 +277,8 @@ upd_action_reversible() {
 # deliberately absent (#948): their targets are not copies of a tree file, so no condition could go
 # false after them. The smoke reports their drift and names the command instead.
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
-	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply)
+	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
+	cron_locale_apply system_repair_cron_write)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -368,7 +385,7 @@ upd_condition() {
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending)
+		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -564,7 +581,7 @@ def argv(t):
     then [.name // "", .value // ""]
   elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
-  elif t=="file_contains" then [.path // "", .value // ""]
+  elif t=="file_contains" or t=="file_lacks" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
   elif t=="file_differs" or t=="file_patch_pending"
     then [.source // "", .target // ""]

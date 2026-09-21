@@ -57,6 +57,35 @@ opens above it.
 
 ### Fixed
 
+- **The nightly backup of a customer with a PostgreSQL database failed on a non-English box**
+  (#1096). The size of a pgsql database was read out of psql's aligned table and the row-count
+  footer filtered away by the word `row`, which on a German box reads `(1 Zeile)`: the footer
+  survived, the value became two lines, and dividing it was a syntax error. A fatal arithmetic
+  expansion ends the whole shell, so `get_user_disk_usage` returned nothing at all and the space
+  barrier refused the run - correctly, and that is the only reason this was loud rather than a
+  silently over-committed disk. The size comes from `psql_value` now, which asks for the bare value.
+  An unreadable one stays unreadable: the backup refuses with a message naming the disk usage rather
+  than the free space, which is what sent the operator to `df` on a box with 27 GB free, and
+  `h-update-database-disk` leaves `U_DISK` alone instead of recording a figure nobody measured.
+
+- **Both cron files HestiaRE writes pin the language** (#1096). `LC_ALL=C` in the hestia crontab and
+  in `/etc/cron.d/hestia-repair`, so every nightly job matches the words it was written against. It
+  is deliberately an extra and not the general fix: a command run by hand in a German shell is still
+  on its own, and the place to be careful is still the code that matches a word. Existing boxes get
+  the line from two update entries, because neither file is ever rewritten once it is there. The
+  condition they need is `file_lacks`, the plain complement to `file_contains`: that one looks for
+  what the old version wrote, this one for what the new version has to add.
+
+- **The space a backup needs could be summed from numbers nobody measured** (#1099). Two ways, both
+  silent. The engine of a database was picked with `DB_SYSTEM`, which is a token list: on a box
+  carrying both engines it reads `mysql,pgsql`, matched neither arm, and the whole database dropped
+  out of the sum (the dump loop in the same file has always branched on the record's `TYPE`, which
+  is what this uses now). And a `du` that produced nothing added an empty string, which an
+  arithmetic expansion reads as zero, so a home directory could vanish from the budget without a
+  word. Every summand is checked before it is added, and a measurement that failed fails the run.
+  The check is on the value, never on `du`'s exit code: `du -s` returns 1 on a busy home all the
+  time, with a perfectly good total, because a file vanished under it while it counted.
+
 - **The daily update check never ran, so the panel banner never appeared** (#1091). The crontab
   called `sudo bash /usr/local/hestia/update.sh --check`, but the sudo grant for the panel user
   covers `/usr/local/hestia/bin/*` and nothing above it: sudo refused the line every night and

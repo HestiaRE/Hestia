@@ -81,18 +81,18 @@ and that is what `key_empty` is for.
 ## Types
 
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
-`path_absent`, `package_installed`, `file_differs`, `file_contains`, `pin_differs`,
-`php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`. Actions:
+`path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
+`pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
 Fields per type: `name` and `value` for the key types, `name` for a command, package, service or a
-PHP extension, `source` (tree-relative) and `target` for `file_patch_pending`,
-`path` for `path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and
-`value` for `file_contains`, `name` (a key under `software_versions` in `share/manifest.json`) and
-`path` (the marker file the component wrote) for `pin_differs`, `source` (tree-relative) and
-`target` for `file_differs` and `file_copy` (`mode` optional), `function` for `function_call` (only
-names in `UPDATE_CALLABLE`).
+PHP extension, `source` (tree-relative) and `target` for `file_patch_pending`, `path` for
+`path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`
+and `file_lacks`, `name` (a key under `software_versions` in `share/manifest.json`) and `path` (the
+marker file the component wrote) for `pin_differs`, `source` (tree-relative) and `target` for
+`file_differs` and `file_copy` (`mode` optional), `function` for `function_call` (only names in
+`UPDATE_CALLABLE`).
 
 ## A file the operator may edit is patched, never copied
 
@@ -134,6 +134,7 @@ we ship something the box does not have. The vocabulary carries no negation, so 
 The four late conditions exist because a state outside the tree cannot be compared to a file in it.
 `file_differs` needs a tree source, so a file the box *generates* is out of its reach:
 `file_contains` looks for what the older version wrote instead, and goes false once it is rewritten.
+`file_lacks` is its complement, for the entry that has to ADD the marker rather than replace one.
 `pin_differs` reads the pin from the manifest rather than carrying a version of its own. `dir_clear`
 empties a directory and leaves it standing, because its owner and mode are part of what it is.
 `php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a

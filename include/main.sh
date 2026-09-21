@@ -1234,6 +1234,9 @@ system_crontab_write() {
 	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
 	_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
+		# One language for every nightly job: word matching against a program's output is
+		# locale-dependent, and psql saying "(1 Zeile)" on a German box cost a backup (#1096).
+		echo "LC_ALL=C"
 		echo "MAILTO=\"\""
 		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
 		echo "*/2 * * * * sudo $HESTIA/bin/h-update-sys-queue restart"
@@ -1265,7 +1268,11 @@ system_crontab_write() {
 system_repair_cron_write() {
 	local _dst='/etc/cron.d/hestia-repair' _tmp
 	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
-	echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair" > "$_tmp" || {
+	# Same language pin as the hestia crontab, so the pair carries one policy and not half of one.
+	{
+		echo "LC_ALL=C"
+		echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair"
+	} > "$_tmp" || {
 		rm -f "$_tmp"
 		return 1
 	}

@@ -637,3 +637,34 @@ cron_update_check_apply() {
 	}
 	mv -f "$tmp" "$ct"
 }
+
+# The crontab is the one place where every nightly job can be pinned to one language at once, and
+# word matching against a program's output is what makes them locale-dependent: psql answering
+# "(1 Zeile)" on a German box cost the nightly backup (#1096). An extra, not the general fix, and
+# the same reason as above applies for replacing only what is needed.
+cron_locale_apply() {
+	local ct='/var/spool/cron/crontabs/hestia' tmp before after
+	[ -s "$ct" ] || return 1
+	grep -q '^LC_ALL=C$' "$ct" && return 0
+	before=$(grep -c '' "$ct")
+	tmp="/var/spool/cron/crontabs/.hestia.$$"
+	{
+		echo "LC_ALL=C"
+		cat "$ct"
+	} > "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	after=$(grep -c '' "$tmp")
+	# Exactly one line more, and exactly one of it: anything else means the file was not what this
+	# was written for.
+	if [ "$after" != "$((before + 1))" ] || [ "$(grep -c '^LC_ALL=C$' "$tmp")" != 1 ]; then
+		rm -f "$tmp"
+		return 1
+	fi
+	chmod 600 "$tmp" && chown hestia:hestia "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	mv -f "$tmp" "$ct"
+}

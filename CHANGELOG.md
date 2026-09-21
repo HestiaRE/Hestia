@@ -69,6 +69,14 @@ opens above it.
   database was stale as well. What the barrier could not read is its own message now: blaming the
   free space sent the operator to `df` on a box with 27 GB free.
 
+- **Both cron files HestiaRE writes pin the language** (#1096). `LC_ALL=C` in the hestia crontab and
+  in `/etc/cron.d/hestia-repair`, so every nightly job matches the words it was written against. It
+  is deliberately an extra and not the general fix: a command run by hand in a German shell is still
+  on its own, and the place to be careful is still the code that matches a word. Existing boxes get
+  the line from two update entries, because neither file is ever rewritten once it is there. The
+  condition they need is `file_lacks`, the plain complement to `file_contains`: that one looks for
+  what the old version wrote, this one for what the new version has to add.
+
 - **The daily update check never ran, so the panel banner never appeared** (#1091). The crontab
   called `sudo bash /usr/local/hestia/update.sh --check`, but the sudo grant for the panel user
   covers `/usr/local/hestia/bin/*` and nothing above it: sudo refused the line every night and

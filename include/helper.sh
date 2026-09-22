@@ -604,7 +604,7 @@ sieve_lmtp_apply() {
 # update-exim4.conf writes, so a restart alone would change nothing.
 exim_lmtp_apply() {
 	local tpl=/etc/exim4/exim4.conf.template
-	local pf="$HESTIA/share/updates/patches/0.21.0/exim-lmtp-subaddressing.patch"
+	local pf="$HESTIA/share/updates/patches/0.21/exim-lmtp-subaddressing.patch"
 	[ -f "$tpl" ] && [ -f "$pf" ] || return 1
 	patch --dry-run -F0 -s "$tpl" < "$pf" > /dev/null 2>&1 || return 1
 	patch -F0 -s --no-backup-if-mismatch "$tpl" < "$pf" > /dev/null 2>&1 || return 1

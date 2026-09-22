@@ -13,7 +13,7 @@ and actions are named building blocks from `include/update.sh`, reviewed like an
 }
 ```
 
-The file name is the version with `.json` appended and **without** the `v` (`0.19.0.json`); name and
+The file name is the version with `.json` appended and **without** the `v` (`0.21.json`); name and
 `version` field must agree, and a guard checks it. Files are merged and sorted over the whole set,
 never per file, and by version, never alphabetically (`0.10` after `0.9` is the trap).
 

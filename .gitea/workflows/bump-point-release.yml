@@ -4,16 +4,16 @@ name: Bump dev build
 # Write VERSION on dev, then tag that commit as a release. Both halves here, because a bump without
 # a release ships a tarball carrying the previous number and nothing on this line would notice.
 #
-# ONE form, vX.Y.Z-devN: an internal build of the minor being worked towards. Everything public is
-# cut on main by hand, never here, so a bare vX.Y.Z is refused rather than accepted. What this
+# ONE form, vX.Y-devN: an internal build of the minor being worked towards. Everything public is
+# cut on main by hand, never here, so a bare vX.Y is refused rather than accepted. What this
 # workflow takes and what it produces are then the same thing, and a mistyped tag cannot become a
 # release that looks public.
 #
-# The suffix is not decoration. A build has to sort ABOVE X.Y.Z for the share/updates/X.Y.Z.json
-# this tree ships to be in scope, and sort -V puts v0.21-1 BELOW v0.21.0, which would carry the new
-# tree to a box and silently skip its manifest. Above the minor also means a box that ran a -devN
-# refuses the later public X.Y.Z as a downgrade, which is right for a test box and unavoidable for
-# any form that reaches the manifest.
+# The suffix has to sort ABOVE X.Y, because that is what puts the share/updates/X.Y.json this tree
+# ships in scope; sort -V does that for anything a hyphen appends, so `dev` is chosen for saying
+# what it is, not for the ordering. Above the minor also means a box that ran a -devN refuses the
+# later public X.Y as a downgrade, which is right for a test box and unavoidable for any form that
+# reaches the manifest.
 #
 # The file keeps its name so the run history and any bookmark still resolve.
 #
@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "vX.Y.Z-devN, the internal build to cut on dev"
+        description: "vX.Y-devN, the internal build to cut on dev"
         required: true
 permissions:
   contents: read
@@ -54,8 +54,8 @@ jobs:
           [ -n "${API_TOKEN:-}" ] || { echo "The RELEASE_TOKEN secret is not set; it needs write access to this repository."; exit 1; }
           [ -n "${WANT:-}" ] || { echo "No version given."; exit 1; }
           # A regex, because the obvious glob also accepts "v0.19.1 && rm -rf /".
-          if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+\.[0-9]+-dev[0-9]+$ ]]; then
-            echo "'$WANT' is not an internal build. Expected the form v0.21.0-dev1."
+          if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+-dev[0-9]+$ ]]; then
+            echo "'$WANT' is not an internal build. Expected the form v0.21-dev1."
             echo "A public release is cut on main by hand, not here."
             exit 1
           fi

@@ -3,7 +3,7 @@
 # options: TARGET
 #
 # example: h-change-sys-release release
-# example: h-change-sys-release v0.19.0
+# example: h-change-sys-release v0.21
 #
 # TARGET is `release` for the newest tag, or a vX.Y.Z pin. There are no channels. A pin is checked
 # before it is written: a tag nobody carries would stop updates silently, and one below the installed
@@ -50,7 +50,7 @@ case "$target" in
 			check_result "$E_INVALID" "$target is older than the installed $installed - a pin below it would never apply"
 		fi
 		;;
-	*) check_result "$E_INVALID" "expected 'release' or a tag like v0.19.0, got '$target'" ;;
+	*) check_result "$E_INVALID" "expected 'release' or a tag like v0.21, got '$target'" ;;
 esac
 
 #----------------------------------------------------------#

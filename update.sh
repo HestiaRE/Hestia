@@ -39,7 +39,7 @@ CHECK_ONLY=no
 # A box below this is reinstalled, not updated: no release under it carried an updater, so there is
 # no run this one could be finishing. After the handover the target's own literal decides, which is
 # the second look at the question and the reason no manifest field repeats it.
-UPDATE_MIN_VERSION='v0.19.0'
+UPDATE_MIN_VERSION='v0.21'
 
 tree_version() { cat "$HESTIA/VERSION" 2> /dev/null; }
 status_version() { sed -n "s/^VERSION='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1; }

@@ -12,7 +12,15 @@ opens above it.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **The update lower bound is `v0.21`** (#1111). It was `v0.19.0`, and v0.21 is the first release the
+  one live box was actually carried onto, so nothing below that line is left in the field. A box under
+  it is reinstalled rather than updated, which it already was in practice. The visible consequence is
+  the manifest scope: `0.20.0.json` and `0.21.json` both sit at or below the bound now and are no
+  longer read at all, because no box that could still need them is accepted. Both files stay where
+  they are; removing one takes an entry that removes it on the box as well, and such an entry would
+  have nothing left to run on.
 
 ## v0.21 (2026-09-22)
 

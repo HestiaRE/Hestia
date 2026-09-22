@@ -314,9 +314,16 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
 - **Bump `VERSION` in a commit before the tag, onto the commit the tag will point at.** The tree
   carries its own version instead of having one stamped at build time, so `release.yml` compares
   the two and refuses a release whose `VERSION` disagrees with the tag; an empty file is refused
-  as well, because two empty strings compare just fine. For a minor this is a hand step, done before
-  the tag; an internal point release gets it from the `Bump point release` workflow, which writes the
-  file and cuts the release in one go so the two cannot come apart.
+  as well, because two empty strings compare just fine. Anything public is a hand step: bump the
+  file, merge, tag, and create the release on `main` in Gitea by hand.
+- **An internal build of the minor being worked towards is `vX.Y.Z-devN`**, and the `Bump dev build`
+  workflow is the only thing that cuts one: it writes `VERSION` on `dev` and cuts the release in one
+  go, so the two cannot come apart. It takes that form and nothing else, so a mistyped tag cannot
+  become a release that looks public. The suffix is not cosmetic: a build has to sort ABOVE `X.Y.Z`
+  for `share/updates/X.Y.Z.json` to be in scope, and `sort -V` puts `v0.21-1` *below* `v0.21.0`,
+  which would carry the new tree to a box and silently skip its manifest. Above the minor also means
+  a box that ran a `-devN` refuses the later public `X.Y.Z` as a downgrade - right for a test box,
+  and unavoidable for any form that reaches the manifest.
 - Consolidate the `CHANGELOG.md` Unreleased section into the new minor (point releases stay
   inside the cycle they belong to). Archive the uncondensed text on `docs` under
   `full-changes/CHANGELOG_v0-N.md` before condensing; target density is ~120 lines per section.

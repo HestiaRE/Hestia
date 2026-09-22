@@ -2115,9 +2115,9 @@ check_record_grammar() {
 # check_ip_object_counters: the ip-record counters had an authority but no guard (the
 # IP_AVAIL lage before ), and the NAT-blind decrease left real backlog. Object list
 # derives from the files; the authority's check mode is the only rule source.
-# The mirror URL is a literal in THREE places (install.sh and h-update-hestia run before or
-# without this tree), so this measures them against each other. The DEFAULT only, and it never
-# asks whether the host answers - that is the fetch's job.
+# The mirror URL is a literal in TWO places (install.sh runs before this tree exists), so this
+# measures them against each other. The DEFAULT only, and it never asks whether the host answers,
+# which is the fetch's job.
 check_release_mirror() {
 	local a c
 	# Two homes: install.sh keeps its own because it runs before this tree exists. Everything on an

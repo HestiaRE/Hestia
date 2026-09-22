@@ -397,10 +397,9 @@ get_user_owner() {
 }
 
 # github.com has no AAAA, so on a v6-only box the two upstream repos below are reachable only
-# through the mirror (assets under /wp-cli and /tachyon). Third literal beside install.sh and
-# sbin/h-update-hestia, which run before or without this tree; a smoke check holds the three
-# together. Every caller verifies the payload against a manifest pin, which is what makes a second
-# host acceptable at all.
+# through the mirror (assets under /wp-cli and /tachyon). Twin literal in install.sh, which runs
+# before this tree exists; a smoke check holds the two together. Every caller verifies the payload
+# against a manifest pin, which is what makes a second host acceptable at all.
 HESTIA_RELEASE_MIRROR="https://hestiare.com"
 
 # Bounded fetch, mirror as the second try. $1 = route below the mirror, $2 = github.com release URL,

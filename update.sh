@@ -229,6 +229,16 @@ say "[ * ] Stopping the panel and unpacking $TARGET over $HESTIA"
 systemctl stop caddy hestia-php 2> /dev/null || true
 cp -r "$NEWTREE/." "$HESTIA/" || die "update: the overlay failed - put the tree back with $RUNDIR/rollback.sh"
 
+# From here the tree IS the tarball, and a pin of 'release' would resolve to an older public tag, so
+# the nightly --check would die on the downgrade refusal. Same pin the installer writes.
+if [ -n "$OVERRIDE" ]; then
+	if "$HESTIA/bin/h-change-sys-config-value" RELEASE_BRANCH "$TARGET" > /dev/null 2>&1; then
+		say "[ * ] Pinned RELEASE_BRANCH to $TARGET"
+	else
+		say "[ ! ] could not pin RELEASE_BRANCH to $TARGET, so the nightly check will refuse until it is set"
+	fi
+fi
+
 say "[ * ] Deriving the plan from the new tree"
 "$HESTIA/bin/h-list-sys-updates" json "$TARGET" > "$RUNDIR/update.conf" 2> "$RUNDIR/derive.err" || {
 	say "$(cat "$RUNDIR/derive.err")" >&2

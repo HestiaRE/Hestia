@@ -14,8 +14,24 @@
 umask 0022
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
+# The library that shipped with THIS updater, not the installed one (#1080). After the handover the
+# running script comes from the tarball while $HESTIA is still the old tree, and a function the new
+# updater needs may be missing there: the checksum fetch then failed as "command not found", which an
+# if reads as "this release publishes none", and the tarball was unpacked unverified.
+# Not every start has a tree beside it: UPDATE.md's recovery path drops this file in /root and runs
+# it from there, so an absent library falls back to the installed one. After the handover it may not
+# be absent - the tarball carries it - and a missing one there is a broken unpack, not a fallback.
+UPD_SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd)
+UPD_LIB="$UPD_SELF_DIR/include/release.sh"
+if [ ! -r "$UPD_LIB" ]; then
+	if [ -n "${HESTIA_UPDATE_HANDOVER:-}" ]; then
+		echo "update: handed over to ${HESTIA_UPDATE_HANDOVER}, but ${UPD_LIB} is missing - refusing to run against another tree's library" >&2
+		exit 1
+	fi
+	UPD_LIB="$HESTIA/include/release.sh"
+fi
 # shellcheck source=/usr/local/hestia/include/release.sh
-source "$HESTIA/include/release.sh"
+source "$UPD_LIB"
 
 CHECK_ONLY=no
 [ "${1:-}" = "--check" ] && CHECK_ONLY=yes
@@ -212,6 +228,16 @@ chmod 700 "$RUNDIR/rollback.sh"
 say "[ * ] Stopping the panel and unpacking $TARGET over $HESTIA"
 systemctl stop caddy hestia-php 2> /dev/null || true
 cp -r "$NEWTREE/." "$HESTIA/" || die "update: the overlay failed - put the tree back with $RUNDIR/rollback.sh"
+
+# From here the tree IS the tarball, and a pin of 'release' would resolve to an older public tag, so
+# the nightly --check would die on the downgrade refusal. Same pin the installer writes.
+if [ -n "$OVERRIDE" ]; then
+	if "$HESTIA/bin/h-change-sys-config-value" RELEASE_BRANCH "$TARGET" > /dev/null 2>&1; then
+		say "[ * ] Pinned RELEASE_BRANCH to $TARGET"
+	else
+		say "[ ! ] could not pin RELEASE_BRANCH to $TARGET, so the nightly check will refuse until it is set"
+	fi
+fi
 
 say "[ * ] Deriving the plan from the new tree"
 "$HESTIA/bin/h-list-sys-updates" json "$TARGET" > "$RUNDIR/update.conf" 2> "$RUNDIR/derive.err" || {

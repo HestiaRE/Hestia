@@ -49,9 +49,10 @@ GITHUB_REPO="HestiaRE/Hestia"
 GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}"
 GITHUB_RAW="https://github.com/${GITHUB_REPO}/releases/download"
 # github.com has no AAAA: on a v6-only box the primary is unreachable, so this mirror serves the
-# same repo unchanged - a retry, not a second source. Twin literal in sbin/h-update-hestia, which
-# runs without this tree; empty HESTIARE_MIRROR switches it off.
-RELEASE_MIRROR="https://dl.hestiare.com"
+# same repo unchanged, a retry and not a second source. Twin literal in include/main.sh, which
+# serves the installed box; this one runs before that tree exists. Empty HESTIARE_MIRROR switches
+# it off.
+RELEASE_MIRROR="https://hestiare.com"
 
 # ── State ──────────────────────────────────────────────────
 OS=""

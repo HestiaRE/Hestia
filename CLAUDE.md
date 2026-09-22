@@ -314,9 +314,21 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
 - **Bump `VERSION` in a commit before the tag, onto the commit the tag will point at.** The tree
   carries its own version instead of having one stamped at build time, so `release.yml` compares
   the two and refuses a release whose `VERSION` disagrees with the tag; an empty file is refused
-  as well, because two empty strings compare just fine. For a minor this is a hand step, done before
-  the tag; an internal point release gets it from the `Bump point release` workflow, which writes the
-  file and cuts the release in one go so the two cannot come apart.
+  as well, because two empty strings compare just fine. Anything public is a hand step: bump the
+  file, merge, tag, and create the release on `main` in Gitea by hand.
+- **A public version is `vX.Y`, an internal build of the minor being worked towards is `vX.Y-devN`.**
+  There are no public dot releases: a hotfix becomes the next minor rather than a third component
+  that on every release so far stood at `.0` and carried no information. The `Bump dev build`
+  workflow is the only thing that cuts an internal build: it writes `VERSION` on `dev` and cuts the
+  release in one go, so the two cannot come apart, and it takes that form and nothing else, so a
+  mistyped tag cannot become a release that looks public. The suffix has to sort ABOVE `X.Y`,
+  because that is what puts `share/updates/X.Y.json` in scope; `sort -V` does that for anything a
+  hyphen appends, so `dev` is chosen for saying what it is, not for the ordering. Above the minor
+  also means a box that ran a `-devN` refuses the later public `X.Y` as a downgrade - right for a
+  test box, and unavoidable for any form that reaches the manifest.
+- **Remove the internal `vX.Y-devN` releases and their tags** as part of preparing the minor. They
+  are steps towards it, never mirrored, and a box that ran one refuses the public `X.Y` as a
+  downgrade, so they outlive their purpose the moment the minor exists.
 - Consolidate the `CHANGELOG.md` Unreleased section into the new minor (point releases stay
   inside the cycle they belong to). Archive the uncondensed text on `docs` under
   `full-changes/CHANGELOG_v0-N.md` before condensing; target density is ~120 lines per section.
@@ -333,10 +345,19 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
 - **Check `php_supported` against Sury**: has a new PHP gone GA? The wizard offers only the
   intersection of Sury's packages and this list (#688) — a missing bump means the new version
   is silently never offered, an eager bump offers a beta to customers. Decide here, per release.
-- **Check `share/updates/` against the update lower bound**: a manifest whose version is at or below
-  the bound can never apply again, because no box below the bound is accepted; it may be deleted.
-  Deliberately a question on this list and not code — a cleaner with write access to the install tree
-  is the opposite of what the artefact guards are for. Ask it here, decide per release.
+- **Check `share/updates/` against the update lower bound**: a manifest at or below the bound can
+  never apply again, because no box below the bound is accepted, and since #1093 it is not read at
+  all. It may therefore simply stay. If one is removed anyway, it is removed *together with an entry
+  that removes it on a box*: the overlay never deletes and the discovery is a glob, so dropping the
+  file from the tree alone leaves it in place everywhere. Deliberately a question on this list and
+  not code — a cleaner with write access to the install tree is the opposite of what the artefact
+  guards are for. Ask it here, decide per release.
+  **A RENAME is a removal and asks the same question.** Renaming `0.21.0.json` to `0.21.json` left
+  both on every box that already carried the old one (measured on 10.5.5.24), and the old one was
+  passed over only because `0.21.0` sorts *above* the target `0.21-dev1` — it looked like a future
+  version, not a stale one, and `0.21.0 <= 0.22` puts it back in scope at the next minor. Nothing
+  re-runs, because the conditions are false by then, but a second copy of the same entries is there
+  to be read against a vocabulary that may have moved on.
 
 ---
 

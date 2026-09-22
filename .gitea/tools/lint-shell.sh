@@ -172,8 +172,17 @@ else
 fi
 rm -f "$ec_probe"
 
+# There is no -j in shellcheck, and tier 1 is 160 of the CI job's 190 seconds, so it runs in two
+# niced processes: the runner has two cores, one of which idled through all of it. Chunks and not
+# two halves, because the halves are not equally heavy and one of them finishes early. Two writers
+# can interleave in the pipe once there are findings; the verdict is the emptiness of the output.
 echo "== tier 1: shellcheck (severity=error), ${#ALL_FILES[@]} files =="
-if out=$(shellcheck -S error -f gcc "${ALL_FILES[@]}" 2> /dev/null) && [ -z "$out" ]; then
+if [ "${#ALL_FILES[@]}" -eq 0 ]; then
+	# Measured: an empty list reaches shellcheck as one empty name and fails with nothing printed.
+	echo "   FAILED - no file selected, so tier 1 looked at nothing."
+	rc=1
+elif out=$(printf '%s\0' "${ALL_FILES[@]}" \
+	| xargs -0 -r -n50 -P2 nice -n 10 shellcheck -S error -f gcc 2> /dev/null) && [ -z "$out" ]; then
 	echo "   OK"
 else
 	echo "$out"
@@ -192,34 +201,47 @@ fi
 #
 # NOT covered, said out loud: a glob outside a for-loop (`arr=(dir/*)`, `cp dir/* .`), a pattern
 # borne by a value, and a guard sitting further down the body than its first line.
+# One literal, two readers: the grep that picks the files and the test that picks the lines. Reading
+# all 584 files line by line in bash cost 12s of the CI run, and only 171 of them carry such a head
+# at all. A prefilter is a reference set that can shrink unnoticed, so it may not be a second regex
+# that drifts; the probe below runs through the same narrowing and goes red if it stops selecting.
+GLOB_HEAD_RE='^[[:space:]]*for[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]+in[[:space:]]'
+
 glob_loop_scan() {
-	local f n line words stripped body
-	for f in "$@"; do
-		n=0
-		while IFS= read -r line; do
-			n=$((n + 1))
-			[[ $line =~ ^[[:space:]]*for[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]+in[[:space:]] ]] || continue
+	local f n line words body i
+	local -a cf cn cl cw stripped
+	[ "$#" -gt 0 ] || return 0
+	# grep finds the heads, bash only decides about them: reading every line in bash was 1.6 of the
+	# scan's 3.1 seconds, and one sed per candidate line another 0.8.
+	while IFS= read -r -d '' f; do
+		while IFS=: read -r n line; do
 			words=${line#*" in "}
-			words=${words%%;*}
-			# what the shell would really glob - not what a quote, a substitution or an expansion hides
-			stripped=$(printf '%s\n' "$words" \
-				| sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g' -e 's/\$([^)]*)//g' -e 's/\${[^}]*}//g' -e 's/\$[A-Za-z_][A-Za-z0-9_]*//g')
-			case "$stripped" in *'*'* | *'?'*) ;; *) continue ;; esac
-			# the body's first real line: on the head's own line for a one-liner, after the `do` for a
-			# head that runs over several lines
-			if [[ $line =~ \;[[:space:]]*do[[:space:]]+[^[:space:]] ]]; then
-				body=${line#*"; do "}
-			elif [[ $line =~ \;[[:space:]]*do[[:space:]]*$ ]]; then
-				body=$(awk -v s="$n" 'NR>s && NF && $0 !~ /^[[:space:]]*#/ {print; exit}' "$f")
-			else
-				body=$(awk -v s="$n" 'NR>s {if (seen && NF && $0 !~ /^[[:space:]]*#/) {print; exit} if ($0 ~ /do[[:space:]]*$/) seen=1}' "$f")
-			fi
-			if [[ $body =~ ^[[:space:]]*(if[[:space:]]+)?\[\[?[[:space:]]+!?[[:space:]]*-[edfsLrwx][[:space:]] ]]; then
-				echo "GUARDED $f:$n"
-			else
-				echo "OPEN $f:$n ${line#"${line%%[![:space:]]*}"}"
-			fi
-		done < "$f"
+			cf+=("$f") cn+=("$n") cl+=("$line") cw+=("${words%%;*}")
+		done < <(grep -nE "$GLOB_HEAD_RE" -- "$f")
+	done < <(grep -lZE "$GLOB_HEAD_RE" -- "$@" 2> /dev/null)
+	[ "${#cw[@]}" -gt 0 ] || return 0
+	# what the shell would really glob - not what a quote, a substitution or an expansion hides
+	mapfile -t stripped < <(printf '%s\n' "${cw[@]}" \
+		| sed -e "s/'[^']*'//g" -e 's/"[^"]*"//g' -e 's/\$([^)]*)//g' -e 's/\${[^}]*}//g' -e 's/\$[A-Za-z_][A-Za-z0-9_]*//g')
+	for i in "${!cw[@]}"; do
+		case "${stripped[i]}" in *'*'* | *'?'*) ;; *) continue ;; esac
+		f=${cf[i]}
+		n=${cn[i]}
+		line=${cl[i]}
+		# the body's first real line: on the head's own line for a one-liner, after the `do` for a
+		# head that runs over several lines
+		if [[ $line =~ \;[[:space:]]*do[[:space:]]+[^[:space:]] ]]; then
+			body=${line#*"; do "}
+		elif [[ $line =~ \;[[:space:]]*do[[:space:]]*$ ]]; then
+			body=$(awk -v s="$n" 'NR>s && NF && $0 !~ /^[[:space:]]*#/ {print; exit}' "$f")
+		else
+			body=$(awk -v s="$n" 'NR>s {if (seen && NF && $0 !~ /^[[:space:]]*#/) {print; exit} if ($0 ~ /do[[:space:]]*$/) seen=1}' "$f")
+		fi
+		if [[ $body =~ ^[[:space:]]*(if[[:space:]]+)?\[\[?[[:space:]]+!?[[:space:]]*-[edfsLrwx][[:space:]] ]]; then
+			echo "GUARDED $f:$n"
+		else
+			echo "OPEN $f:$n ${line#"${line%%[![:space:]]*}"}"
+		fi
 	done
 }
 

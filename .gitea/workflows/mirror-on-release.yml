@@ -18,7 +18,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          # Only a release cut from main is mirrored. A point release tags dev and has to stay
+          # Only a release cut from main is mirrored. An internal dev build tags dev and has to stay
           # internal, yet this workflow still starts, because Gitea takes the workflow from the ref
           # of the event and dev carries this file too: the gate is the only thing between an
           # internal tag and a public push. One field expression, never toJSON(github.event.release),

@@ -397,11 +397,10 @@ get_user_owner() {
 }
 
 # github.com has no AAAA, so on a v6-only box the two upstream repos below are reachable only
-# through the mirror (assets under /wp-cli and /tachyon). Third literal beside install.sh and
-# sbin/h-update-hestia, which run before or without this tree; a smoke check holds the three
-# together. Every caller verifies the payload against a manifest pin, which is what makes a second
-# host acceptable at all.
-HESTIA_RELEASE_MIRROR="https://dl.hestiare.com"
+# through the mirror (assets under /wp-cli and /tachyon). Twin literal in install.sh, which runs
+# before this tree exists; a smoke check holds the two together. Every caller verifies the payload
+# against a manifest pin, which is what makes a second host acceptable at all.
+HESTIA_RELEASE_MIRROR="https://hestiare.com"
 
 # Bounded fetch, mirror as the second try. $1 = route below the mirror, $2 = github.com release URL,
 # $3 = destination. Bounded because wget defaults to 20 tries at a 900s read timeout, so a host that
@@ -1234,6 +1233,9 @@ system_crontab_write() {
 	rm -f /var/spool/cron/crontabs/.hestia.* 2> /dev/null || true
 	_tmp="/var/spool/cron/crontabs/.hestia.$$"
 	{
+		# One language for every job below: a word match against a program's output must not
+		# depend on the box.
+		echo "LC_ALL=C"
 		echo "MAILTO=\"\""
 		echo "CONTENT_TYPE=\"text/plain; charset=utf-8\""
 		echo "*/2 * * * * sudo $HESTIA/bin/h-update-sys-queue restart"
@@ -1246,8 +1248,9 @@ system_crontab_write() {
 		echo "20 00 * * * sudo $HESTIA/bin/h-update-user-stats"
 		echo "*/5 * * * * sudo $HESTIA/bin/h-update-sys-rrd"
 		echo "$_min $_hour * * * sudo $HESTIA/bin/h-update-letsencrypt-ssl"
-		# Sets UPDATE_AVAILABLE for the panel once a day; --check downloads nothing.
-		echo "$_min 04 * * * sudo bash $HESTIA/update.sh --check"
+		# Sets UPDATE_AVAILABLE for the panel once a day; downloads nothing. Through bin/, because
+		# the sudo grant ends there and a line pointing at update.sh itself is refused (#1091).
+		echo "$_min 04 * * * sudo $HESTIA/bin/h-check-sys-update"
 	} > "$_tmp" || return 1
 	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
 		rm -f "$_tmp"
@@ -1264,7 +1267,11 @@ system_crontab_write() {
 system_repair_cron_write() {
 	local _dst='/etc/cron.d/hestia-repair' _tmp
 	_tmp=$(mktemp "/etc/cron.d/.hestia-repair.XXXXXX") || return 1
-	echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair" > "$_tmp" || {
+	# Same language pin as the hestia crontab, so the pair carries one policy and not half of one.
+	{
+		echo "LC_ALL=C"
+		echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair"
+	} > "$_tmp" || {
 		rm -f "$_tmp"
 		return 1
 	}

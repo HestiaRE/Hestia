@@ -2,7 +2,7 @@
 # Where a release comes from, for anything that runs on an installed box. install.sh keeps its own
 # copy because it resolves a release before this tree exists; the smoke holds the two mirror literals
 # against each other.
-# RELEASE_BRANCH is `release` for the newest tag or a vX.Y.Z pin. There are no channels.
+# RELEASE_BRANCH is `release` for the newest tag or a vX.Y pin. There are no channels.
 
 # main.sh reads sysreg.sh through $HESTIA, so the variable has to exist, not just a fallback inside
 # one path expression.
@@ -76,7 +76,7 @@ release_target_tag() {
 		release) release_latest_tag ;;
 		v[0-9]*) printf '%s\n' "$want" ;;
 		*)
-			echo "release: RELEASE_BRANCH carries '$want' - expected 'release' or a vX.Y.Z tag" >&2
+			echo "release: RELEASE_BRANCH carries '$want', expected 'release' or a tag such as v0.21" >&2
 			return 1
 			;;
 	esac

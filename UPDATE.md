@@ -53,7 +53,7 @@ onward.
 
 ## Which release a box follows
 
-`RELEASE_BRANCH` in `hestia.conf` is either `release`, the newest tag of the source, or a `vX.Y.Z`
+`RELEASE_BRANCH` in `hestia.conf` is either `release`, the newest tag of the source, or a `vX.Y`
 pin. Nothing else is a valid value.
 
 ```
@@ -136,8 +136,14 @@ not drift.
 
 ## The panel banner
 
-`update.sh --check` writes `UPDATE_AVAILABLE`, and a daily cron entry asks. The banner appears for
-an admin only after the next login, because the panel session is filled at login.
+`update.sh --check` writes `UPDATE_AVAILABLE`, and a daily cron entry asks through
+`h-check-sys-update`. The banner appears for an admin only after the next login, because the panel
+session is filled at login.
+
+The cron line calls the command in `bin/` and not `update.sh` itself: sudo grants the `hestia` user
+`/usr/local/hestia/bin/*` and nothing above it, so a line pointing at the updater is refused as
+"command not allowed" and the banner never appears. The grant is the boundary; a command that the
+crontab needs belongs inside it.
 
 ## Manifests
 

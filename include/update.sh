@@ -68,6 +68,17 @@ upd_cond_key_has_token() {
 	return 1
 }
 
+# The other direction, and the most common shape of update work there is: we ship something the box
+# does not have yet. path_exists cannot say it, and the vocabulary has no negation.
+upd_cond_path_absent() {
+	[ -n "$1" ] || {
+		echo "update: path_absent needs a path" >&2
+		return 2
+	}
+	if [ -e "$1" ] || [ -L "$1" ]; then return 1; fi
+	return 0
+}
+
 # File, directory or symlink in one type.
 upd_cond_path_exists() {
 	[ -n "$1" ] || {
@@ -112,6 +123,38 @@ upd_cond_file_differs() {
 	! cmp -s "$src" "$2"
 }
 
+# A shipped file the operator may edit (every target of h-change-sys-service-config, and the exim
+# template the addons set macros in). Copying the tree version over it destroys their work, so a
+# change arrives as a patch. Three-way on purpose: rc 0 to do, rc 1 done, rc 2 the context is gone.
+# That last one must not read as "done": it is the case where someone edited exactly this block.
+upd_cond_file_patch_pending() {
+	local pf="$UPDATE_ROOT/$1" tgt="$2"
+	[ -n "$1" ] && [ -n "$2" ] || {
+		echo "update: file_patch_pending needs a tree-relative patch and a target" >&2
+		return 2
+	}
+	[ -f "$pf" ] || {
+		echo "update: $1 is not a file in this tree" >&2
+		return 2
+	}
+	command -v patch > /dev/null 2>&1 || {
+		echo "update: patch(1) is missing, so no patch entry can decide anything" >&2
+		return 2
+	}
+	# Not rc 1, and not file_differs' rc 0 either: a patch cannot create the file the way a copy
+	# can, so an absent target is a state this cannot decide, not one it can repair or dismiss.
+	# An entry for an optional component gates that with its own condition instead.
+	[ -f "$tgt" ] || {
+		echo "update: $tgt does not exist, so $1 can neither apply nor be shown to have applied" >&2
+		return 2
+	}
+	# -F0: no fuzz. A hunk that only roughly matches is drift, not a hit.
+	patch --dry-run -F0 -s "$tgt" < "$pf" > /dev/null 2>&1 && return 0
+	patch --dry-run -F0 -s -R "$tgt" < "$pf" > /dev/null 2>&1 && return 1
+	echo "update: neither $1 nor its reverse applies to $tgt - the file changed where the patch touches it" >&2
+	return 2
+}
+
 # For a file the box generates: no tree source to compare against, so the marker is what the OLD
 # version wrote. That is what makes this false once the file has been rewritten.
 upd_cond_file_contains() {
@@ -125,6 +168,22 @@ upd_cond_file_contains() {
 		return 2
 	}
 	grep -qF -- "$2" "$1"
+}
+
+# The complement of file_contains, for an entry that has to ADD a marker rather than replace one.
+# A missing file reads as false, as it does there: no content, nothing to be asked about.
+upd_cond_file_lacks() {
+	[ -n "$1" ] && [ -n "$2" ] || {
+		echo "update: file_lacks needs a path and a value" >&2
+		return 2
+	}
+	[ -f "$1" ] || return 1
+	[ -r "$1" ] || {
+		echo "update: $1 exists but cannot be read, so file_lacks cannot decide" >&2
+		return 2
+	}
+	grep -qF -- "$2" "$1" && return 1
+	return 0
 }
 
 # Absent marker is false: not installed here, and an update installs nothing. An empty pin is the
@@ -142,16 +201,6 @@ upd_cond_pin_differs() {
 	}
 	[ -f "$2" ] || return 1
 	[ "$(cat "$2" 2> /dev/null)" != "$pin" ]
-}
-
-# Contents, not the directory: path_exists would keep saying yes long after the store is empty.
-upd_cond_dir_not_empty() {
-	[ -n "$1" ] || {
-		echo "update: dir_not_empty needs a path" >&2
-		return 2
-	}
-	[ -d "$1" ] || return 1
-	[ -n "$(find "$1" -mindepth 1 -maxdepth 1 -print -quit 2> /dev/null)" ]
 }
 
 # Versions from h-list-sys-php, not from /etc/php, which also holds versions no customer runs. A
@@ -179,6 +228,34 @@ upd_cond_php_ext_missing() {
 	return 1
 }
 
+# True when a file in the directory still carries a registry-secret with a real value. The mask and an
+# empty value do not count, so a store the masking emitter filled reads as clean and the entry stops
+# firing on a box that has nothing to purge. Key names come from the registry, never a list here; an
+# unreadable registry is rc 2, because "found no secret" must not stand in for "could not look".
+upd_cond_dir_has_secret_value() {
+	local k keys
+	[ -n "$1" ] || {
+		echo "update: dir_has_secret_value needs a path" >&2
+		return 2
+	}
+	keys=$(sysreg_secret_keys) || {
+		echo "update: dir_has_secret_value cannot read the key registry" >&2
+		return 2
+	}
+	[ -n "$keys" ] || {
+		echo "update: the registry marks no key secret - dir_has_secret_value has nothing to look for" >&2
+		return 2
+	}
+	[ -d "$1" ] || return 1
+	while read -r k; do
+		[ -n "$k" ] || continue
+		# A quoted value holding at least one character that is neither a quote nor an asterisk:
+		# that rules out both the mask and the empty string in one expression.
+		grep -rqE "$k\|s:[0-9]+:\"[^\"]*[^*\"][^\"]*\"" "$1" 2> /dev/null && return 0
+	done <<< "$keys"
+	return 1
+}
+
 #----------------------------------------------------------#
 # Actions #
 #----------------------------------------------------------#
@@ -200,7 +277,8 @@ upd_action_reversible() {
 # deliberately absent (#948): their targets are not copies of a tree file, so no condition could go
 # false after them. The smoke reports their drift and names the command instead.
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
-	php_db_drivers_apply tachyon_pin_apply)
+	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
+	cron_locale_apply system_repair_cron_write)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -302,12 +380,12 @@ upd_condition() {
 			echo "update: there is no condition 'key_missing' - absent and empty are one state, use key_empty" >&2
 			return 2
 			;;
-		key_empty | key_is | key_has_token | path_exists | command_exists | package_installed | file_differs)
+		key_empty | key_is | key_has_token | path_exists | path_absent | command_exists | package_installed | file_differs)
 			"upd_cond_$t" "$@"
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | pin_differs | dir_not_empty | php_ext_missing)
+		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -457,9 +535,24 @@ upd_version_le() {
 # No directory means no manifests. That is the state until the first release ships one, not an error.
 # A name that is not a version is refused, never skipped: sort -V would quietly sort it out of range
 # and the file would be missing from every plan without a word.
+# The bound is read from update.sh and not repeated here: it travels in the tarball, so the tree
+# being derived from is the one whose bound decides, and two literals would drift.
+upd_min_version() {
+	local b
+	b=$(sed -n 's/^UPDATE_MIN_VERSION=//p' "$UPDATE_ROOT/update.sh" 2> /dev/null | head -1 | tr -d "\"'")
+	[ -n "$b" ] || return 1
+	printf '%s\n' "$b"
+}
+
 upd_manifest_files() {
-	local target="$1" f v out=""
+	local target="$1" f v out="" bound
 	[ -d "$UPDATE_DIR" ] || return 0
+	# Unreadable is an error, never "read everything": without the bound there is no saying what is
+	# still in scope, and guessing would be the wrong half of the question either way.
+	bound=$(upd_min_version) || {
+		echo "update: no UPDATE_MIN_VERSION in $UPDATE_ROOT/update.sh, so the scope cannot be decided" >&2
+		return 2
+	}
 	for f in "$UPDATE_DIR"/*.json; do
 		[ -f "$f" ] || continue
 		v=$(basename "$f" .json)
@@ -468,6 +561,10 @@ upd_manifest_files() {
 			return 2
 			;;
 		esac
+		# At or below the bound it can never apply, because no box below the bound is accepted. Not
+		# read at all, so a copy left on a box by an earlier release cannot reach the plan either:
+		# the overlay of an update never deletes, and this discovery is a glob (#1093).
+		upd_version_le "$v" "$bound" && continue
 		upd_version_le "$v" "$target" && out="$out$v	$f"$'\n'
 	done
 	printf '%s' "$out" | LC_ALL=C sort -V | cut -f2
@@ -482,10 +579,12 @@ def argv(t):
      or t=="php_ext_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
-  elif t=="path_exists" or t=="path_delete" or t=="dir_not_empty" or t=="dir_clear" then [.path // ""]
-  elif t=="file_contains" then [.path // "", .value // ""]
+  elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
+    or t=="dir_has_secret_value" then [.path // ""]
+  elif t=="file_contains" or t=="file_lacks" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
-  elif t=="file_differs" then [.source // "", .target // ""]
+  elif t=="file_differs" or t=="file_patch_pending"
+    then [.source // "", .target // ""]
   elif t=="file_copy" then [.source // "", .target // ""] + (if has("mode") then [.mode] else [] end)
   elif t=="function_call" then [.function // ""]
   else [] end;

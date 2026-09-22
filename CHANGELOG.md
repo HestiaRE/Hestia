@@ -63,6 +63,14 @@ opens above it.
 
 ### Fixed
 
+- **A box updated from a handed-in tarball no longer mails a failure every night** (#1104). The
+  update left `RELEASE_BRANCH` on `release`, so the nightly `--check` resolved the newest public tag,
+  found it older than the installed tree and died on the downgrade refusal, which sits before the
+  check's own branch. The install path already pinned the version for exactly this reason; the
+  update path now does the same from the moment the overlay makes the tree that version. It could
+  not be repaired by hand either, because `h-change-sys-release` validates a tag against the release
+  source, and a build that was never published is not there.
+
 - **The nightly backup of a customer with a PostgreSQL database failed on a non-English box**
   (#1096). The size of a pgsql database was read out of psql's aligned table and the row-count
   footer filtered away by the word `row`, which on a German box reads `(1 Zeile)`: the footer

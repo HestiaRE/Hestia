@@ -55,7 +55,7 @@ HestiaCP builds versioned Debian **`.deb` packages** (including compiled binarie
 
 There is no compiled artifact, no private package repo, and no build toolchain required on the target host. (Earlier iterations used `just`/Make; that dependency has been removed, the installer is pure bash now.)
 
-One piece of infrastructure does exist, and it is worth naming: `dl.hestiare.com` mirrors this repository's release API and assets. It is a plain tarball mirror, not a package repo, and it is a **fallback**: the installer asks GitHub first and only falls back when that does not answer, which an empty `HESTIARE_MIRROR` in `/etc/hestia/source.conf` turns off entirely. It matters in exactly one case, an IPv6-only host, because github.com has no AAAA record. A fork does not inherit it: point the two literals at your own mirror, or drop it and lose nothing but the v6-only bootstrap.
+One piece of infrastructure does exist, and it is worth naming: `hestiare.com` mirrors this repository's release API and assets. It is a plain tarball mirror, not a package repo, and it is a **fallback**: the installer asks GitHub first and only falls back when that does not answer, which an empty `HESTIARE_MIRROR` in `/etc/hestia/source.conf` turns off entirely. It matters in exactly one case, an IPv6-only host, because github.com has no AAAA record. A fork does not inherit it: point the two literals at your own mirror, or drop it and lose nothing but the v6-only bootstrap.
 
 ### Installer, refactored
 

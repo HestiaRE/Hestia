@@ -48,6 +48,12 @@ opens above it.
   of being repeated, so the tree being derived from is the one that decides. Removing a manifest
   from the tree now means removing it with an entry that removes it on a box as well.
 
+- **The release mirror is `hestiare.com`** (#1100). `dl.hestiare.com` is gone; the four routes of
+  the fallback proxy (`/api`, `/raw`, `/wp-cli`, `/tachyon`) hang directly under the main host,
+  which carries the same AAAA the old name did, so the v6-only bootstrap is unchanged. Only the
+  default moves: a box that sets `HESTIARE_MIRROR` in `/etc/hestia/source.conf` keeps its own
+  value, and an empty one still switches the fallback off.
+
 ### Removed
 
 - **The `dir_not_empty` condition is gone** (#1076). Its only intended entry got the sharper

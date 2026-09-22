@@ -53,7 +53,7 @@ onward.
 
 ## Which release a box follows
 
-`RELEASE_BRANCH` in `hestia.conf` is either `release`, the newest tag of the source, or a `vX.Y.Z`
+`RELEASE_BRANCH` in `hestia.conf` is either `release`, the newest tag of the source, or a `vX.Y`
 pin. Nothing else is a valid value.
 
 ```

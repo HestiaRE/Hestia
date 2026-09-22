@@ -638,7 +638,7 @@ maintainer scripts carry whatever has to be migrated, and a branch name (`releas
 selects which stream a box follows.
 
 **HestiaRE.** There are no packages and no streams. `hestia update` runs `update.sh`, which asks the
-source for the tag this box should run (`RELEASE_BRANCH`: the newest, or a `vX.Y.Z` pin), fetches the
+source for the tag this box should run (`RELEASE_BRANCH`: the newest, or a `vX.Y` pin), fetches the
 tarball, verifies it against the published sha256, secures the install tree into one run directory
 under `/root`, unpacks the release over the tree, **derives** the list from the new tree plus this
 box's state, and hands that list to `sbin/h-update-hestia`. What cannot be expressed as "the file is

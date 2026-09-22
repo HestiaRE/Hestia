@@ -316,14 +316,19 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   the two and refuses a release whose `VERSION` disagrees with the tag; an empty file is refused
   as well, because two empty strings compare just fine. Anything public is a hand step: bump the
   file, merge, tag, and create the release on `main` in Gitea by hand.
-- **An internal build of the minor being worked towards is `vX.Y.Z-devN`**, and the `Bump dev build`
-  workflow is the only thing that cuts one: it writes `VERSION` on `dev` and cuts the release in one
-  go, so the two cannot come apart. It takes that form and nothing else, so a mistyped tag cannot
-  become a release that looks public. The suffix is not cosmetic: a build has to sort ABOVE `X.Y.Z`
-  for `share/updates/X.Y.Z.json` to be in scope, and `sort -V` puts `v0.21-1` *below* `v0.21.0`,
-  which would carry the new tree to a box and silently skip its manifest. Above the minor also means
-  a box that ran a `-devN` refuses the later public `X.Y.Z` as a downgrade - right for a test box,
-  and unavoidable for any form that reaches the manifest.
+- **A public version is `vX.Y`, an internal build of the minor being worked towards is `vX.Y-devN`.**
+  There are no public dot releases: a hotfix becomes the next minor rather than a third component
+  that on every release so far stood at `.0` and carried no information. The `Bump dev build`
+  workflow is the only thing that cuts an internal build: it writes `VERSION` on `dev` and cuts the
+  release in one go, so the two cannot come apart, and it takes that form and nothing else, so a
+  mistyped tag cannot become a release that looks public. The suffix has to sort ABOVE `X.Y`,
+  because that is what puts `share/updates/X.Y.json` in scope; `sort -V` does that for anything a
+  hyphen appends, so `dev` is chosen for saying what it is, not for the ordering. Above the minor
+  also means a box that ran a `-devN` refuses the later public `X.Y` as a downgrade - right for a
+  test box, and unavoidable for any form that reaches the manifest.
+- **Remove the internal `vX.Y-devN` releases and their tags** as part of preparing the minor. They
+  are steps towards it, never mirrored, and a box that ran one refuses the public `X.Y` as a
+  downgrade, so they outlive their purpose the moment the minor exists.
 - Consolidate the `CHANGELOG.md` Unreleased section into the new minor (point releases stay
   inside the cycle they belong to). Archive the uncondensed text on `docs` under
   `full-changes/CHANGELOG_v0-N.md` before condensing; target density is ~120 lines per section.

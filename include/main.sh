@@ -401,7 +401,7 @@ get_user_owner() {
 # sbin/h-update-hestia, which run before or without this tree; a smoke check holds the three
 # together. Every caller verifies the payload against a manifest pin, which is what makes a second
 # host acceptable at all.
-HESTIA_RELEASE_MIRROR="https://dl.hestiare.com"
+HESTIA_RELEASE_MIRROR="https://hestiare.com"
 
 # Bounded fetch, mirror as the second try. $1 = route below the mirror, $2 = github.com release URL,
 # $3 = destination. Bounded because wget defaults to 20 tries at a 900s read timeout, so a host that

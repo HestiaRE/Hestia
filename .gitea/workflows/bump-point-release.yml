@@ -1,8 +1,21 @@
 # .gitea/workflows/bump-point-release.yml
-name: Bump point release
+name: Bump dev build
 #
 # Write VERSION on dev, then tag that commit as a release. Both halves here, because a bump without
 # a release ships a tarball carrying the previous number and nothing on this line would notice.
+#
+# ONE form, vX.Y.Z-devN: an internal build of the minor being worked towards. Everything public is
+# cut on main by hand, never here, so a bare vX.Y.Z is refused rather than accepted - what this
+# workflow takes and what it produces are then the same thing, and a mistyped tag cannot become a
+# release that looks public.
+#
+# The suffix is not decoration. A build has to sort ABOVE X.Y.Z for the share/updates/X.Y.Z.json
+# this tree ships to be in scope, and sort -V puts v0.21-1 BELOW v0.21.0, which would carry the new
+# tree to a box and silently skip its manifest. Above the minor also means a box that ran a -devN
+# refuses the later public X.Y.Z as a downgrade, which is right for a test box and unavoidable for
+# any form that reaches the manifest.
+#
+# The file keeps its name so the run history and any bookmark still resolve.
 #
 # HOST DEPENDENCY, complete list: curl, jq, base64. Written through the API, so branch protection
 # and the audit trail apply.
@@ -12,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "vX.Y.Z for this point release"
+        description: "vX.Y.Z-devN, the internal build to cut on dev"
         required: true
 permissions:
   contents: read
@@ -41,8 +54,9 @@ jobs:
           [ -n "${API_TOKEN:-}" ] || { echo "The RELEASE_TOKEN secret is not set; it needs write access to this repository."; exit 1; }
           [ -n "${WANT:-}" ] || { echo "No version given."; exit 1; }
           # A regex, because the obvious glob also accepts "v0.19.1 && rm -rf /".
-          if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "'$WANT' is not a version. Expected the form v0.19.1."
+          if [[ ! $WANT =~ ^v[0-9]+\.[0-9]+\.[0-9]+-dev[0-9]+$ ]]; then
+            echo "'$WANT' is not an internal build. Expected the form v0.21.0-dev1."
+            echo "A public release is cut on main by hand, not here."
             exit 1
           fi
           # Gitea hands over the finished base, so nothing here knows the path shape.
@@ -80,7 +94,7 @@ jobs:
             echo "   VERSION already says $WANT, so this run only cuts the release."
           else
             newest=$(printf '%s\n%s\n' "$have" "$WANT" | sort -V | tail -1)
-            [ "$newest" = "$WANT" ] || { echo "$WANT is not above $have. A point release only goes forward."; exit 1; }
+            [ "$newest" = "$WANT" ] || { echo "$WANT is not above $have. This line only goes forward."; exit 1; }
           fi
 
           echo "== Is the tag free"
@@ -111,7 +125,7 @@ jobs:
           # The branch NAME, not the sha: that is what the mirror gate and the consolidation script
           # read. The read-back below covers what that costs in precision.
           payload=$(jq -n --arg t "$WANT" --arg b "$BRANCH" \
-            '{tag_name:$t, target_commitish:$b, name:$t, body:"Internal point release. Not mirrored.", draft:false, prerelease:true}')
+            '{tag_name:$t, target_commitish:$b, name:$t, body:"Internal dev build. Not mirrored.", draft:false, prerelease:true}')
           raw=$(api POST "/releases" "$payload")
           code=$(printf '%s' "$raw" | head -1)
           if [ "$code" != "201" ]; then

@@ -2,7 +2,7 @@
 # info: work an update plan off, entry by entry
 # options: PLAN
 #
-# example: h-update-hestia /root/hestiare-update/2026-09-13_v0.18.10_v0.19.0/update.conf
+# example: h-update-hestia /root/hestiare-update/2026-09-22_15-48-17_v0.20.0_v0.21/update.conf
 #
 # The executor and nothing else: finding, downloading, unpacking and securing a release is update.sh.
 # The log is evidence, never control. What is to be done is decided by the entry's condition on every

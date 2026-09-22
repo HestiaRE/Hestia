@@ -41,9 +41,10 @@ mechanism, not a second channel and not something an operator configures.
 
 ## The lower bound
 
-**v0.19.0.** A box below it is reinstalled, not updated, and the fetched updater above will say so
-rather than start. No release under v0.19.0 carried an updater, so there is no run one of them could
-be finishing and no state this one could reason about.
+**v0.21.** A box below it is reinstalled, not updated, and the fetched updater above will say so
+rather than start. It was `v0.19.0` until v0.21 shipped, which was the first release the one live
+box was actually carried onto; below that line there is nothing left in the field to reason about,
+and the manifests of the releases underneath can never apply again.
 
 The bound is a literal in `update.sh`, which means the copy that decides is the one in the release
 being installed: the old updater checks it, hands over to the new one, and the new one checks its own
@@ -58,7 +59,7 @@ pin. Nothing else is a valid value.
 
 ```
 h-change-sys-release release      # follow the newest
-h-change-sys-release v0.19.0      # stay on exactly this tag
+h-change-sys-release v0.21        # stay on exactly this tag
 h-change-sys-release              # show the current setting
 ```
 
@@ -91,7 +92,7 @@ Everything a run does lives in one directory under `/root/hestiare-update/`, nam
 and the two versions:
 
 ```
-hestiare-v0.19.0.tar.gz   what was fetched
+hestiare-v0.21.tar.gz     what was fetched
 install-root.tar.gz       the install tree as it was
 hestia.conf               the panel config as it was
 paths/                    every path an entry declared, as it was

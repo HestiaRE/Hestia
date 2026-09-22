@@ -352,6 +352,12 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   file from the tree alone leaves it in place everywhere. Deliberately a question on this list and
   not code — a cleaner with write access to the install tree is the opposite of what the artefact
   guards are for. Ask it here, decide per release.
+  **A RENAME is a removal and asks the same question.** Renaming `0.21.0.json` to `0.21.json` left
+  both on every box that already carried the old one (measured on 10.5.5.24), and the old one was
+  passed over only because `0.21.0` sorts *above* the target `0.21-dev1` — it looked like a future
+  version, not a stale one, and `0.21.0 <= 0.22` puts it back in scope at the next minor. Nothing
+  re-runs, because the conditions are false by then, but a second copy of the same entries is there
+  to be read against a vocabulary that may have moved on.
 
 ---
 

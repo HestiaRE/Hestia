@@ -1009,6 +1009,10 @@ rebuild_pgsql_database() {
 
 	query="GRANT CONNECT ON DATABASE template1 to $DBUSER"
 	psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
+
+	# CREATE DATABASE skips an existing one, so h-change-database-user needs this too, and it makes
+	# h-rebuild-databases the repair. Only a warning, or one bad database would stop the whole run.
+	psql_owner_apply "$DB" "$DBUSER" || true
 }
 
 # Import MySQL dump
@@ -1032,6 +1036,7 @@ import_mysql_database() {
 # Import PostgreSQL dump
 import_pgsql_database() {
 
+	local _rc
 	unset PORT
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
@@ -1045,4 +1050,10 @@ import_pgsql_database() {
 	fi
 
 	psql -h $HOST -U $USER -p $PORT $DB < $1 > /dev/null 2>&1
+	_rc=$?
+
+	# Only a warning: the rows are there, and a failed import would make h-change-database-owner undo
+	# a restore that worked.
+	[ "$_rc" -eq 0 ] && psql_owner_apply "$DB" "$DBUSER"
+	return "$_rc"
 }

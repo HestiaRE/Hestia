@@ -188,6 +188,75 @@ psql_value() {
 	rm -f "$_tmp"
 }
 
+# psql_owner_apply DATABASE ROLE - hand every object to the role the record names.
+#
+# The dump carries no owner (-O) and imports run as the admin role, so without this the customer
+# cannot read a restored database (#1113). Enumerated, not REASSIGN OWNED BY, which would also take
+# the admin's extensions; what another object carries (a serial's sequence) follows it and is skipped.
+# NOT covered: extensions, event triggers, large objects, default privileges, and grants to other
+# roles, which -x drops on purpose: a grant names a cluster-wide role with no record behind it.
+psql_owner_apply() {
+	local _db="$1" _role="$2" _tmp _err _rc
+	if [ -z "$_db" ] || [ -z "$_role" ]; then
+		echo "Warning!: no owner could be applied, the database or the role was not named"
+		return 1
+	fi
+	_tmp=$(mktemp) || return 1
+	_err=$(mktemp) || {
+		rm -f "$_tmp"
+		return 1
+	}
+	cat > "$_tmp" << 'SQL'
+SET client_min_messages = warning;
+ALTER DATABASE :"db" OWNER TO :"role";
+SELECT format('ALTER %s %I.%I OWNER TO %I;',
+		CASE c.relkind WHEN 'S' THEN 'SEQUENCE' WHEN 'v' THEN 'VIEW'
+			WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'TABLE' END,
+		n.nspname, c.relname, :'role')
+	FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+	WHERE c.relkind IN ('r', 'p', 'S', 'v', 'm', 'f')
+		AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+		AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass
+			AND d.objid = c.oid AND d.deptype IN ('a', 'i', 'e'))
+		AND pg_get_userbyid(c.relowner) <> :'role'
+\gexec
+SELECT format('ALTER SCHEMA %I OWNER TO %I;', n.nspname, :'role')
+	FROM pg_namespace n
+	WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'public')
+		AND n.nspname NOT LIKE 'pg\_%'
+		AND pg_get_userbyid(n.nspowner) <> :'role'
+\gexec
+SELECT format('ALTER ROUTINE %I.%I(%s) OWNER TO %I;',
+		n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), :'role')
+	FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+	WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+		AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_proc'::regclass
+			AND d.objid = p.oid AND d.deptype IN ('a', 'i', 'e'))
+		AND pg_get_userbyid(p.proowner) <> :'role'
+\gexec
+SELECT format('ALTER %s %I.%I OWNER TO %I;',
+		CASE t.typtype WHEN 'd' THEN 'DOMAIN' ELSE 'TYPE' END, n.nspname, t.typname, :'role')
+	FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+	WHERE t.typtype IN ('c', 'e', 'r', 'd')
+		AND (t.typrelid = 0 OR (SELECT c.relkind FROM pg_class c WHERE c.oid = t.typrelid) = 'c')
+		AND NOT EXISTS (SELECT 1 FROM pg_type e WHERE e.typarray = t.oid)
+		AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+		AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_type'::regclass
+			AND d.objid = t.oid AND d.deptype IN ('a', 'i', 'e'))
+		AND pg_get_userbyid(t.typowner) <> :'role'
+\gexec
+SQL
+	# Without ON_ERROR_STOP psql exits 0 after a failed statement.
+	psql -h "$HOST" -U "$USER" -p "$PORT" -d "$_db" -v ON_ERROR_STOP=1 -v db="$_db" -v role="$_role" \
+		-tAXq -f "$_tmp" > /dev/null 2> "$_err"
+	_rc=$?
+	if [ "$_rc" -ne 0 ]; then
+		echo "Warning!: $_db was not handed to $_role, the customer has no rights to the data: $(head -n1 "$_err")"
+	fi
+	rm -f "$_tmp" "$_err"
+	return "$_rc"
+}
+
 psql_dump() {
 	pg_dump -h $HOST -U $USER -p $PORT -c --inserts -O -x -f $1 $2 2> /tmp/e.psql
 	if [ '0' -ne "$?" ]; then

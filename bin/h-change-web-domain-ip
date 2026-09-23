@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: change web domain ip
-# options: USER DOMAIN DOMAIN [RESTART]
+# options: USER DOMAIN IP [RESTART]
 #
 # example: h-change-web-domain-ip admin example.com 167.86.105.230 yes
 #

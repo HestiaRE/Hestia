@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: work an update plan off, entry by entry
 # options: PLAN
+# labels: internal
+# caller: hestia update
 #
 # example: h-update-hestia /root/hestiare-update/2026-09-22_15-48-17_v0.20.0_v0.21/update.conf
 #
@@ -26,7 +28,10 @@ source "$HESTIA/include/update.sh"
 #----------------------------------------------------------#
 
 PLAN="${1:-}"
-[ -n "$PLAN" ] || check_result "$E_ARGS" "usage: h-update-hestia PLAN (the update.conf of a run directory)"
+if [ -z "$PLAN" ]; then
+	cmd_usage
+	check_result "$E_ARGS" "no plan given: 'hestia update' writes the plan and hands it here"
+fi
 # Absolute, because the log and the marker land next to the plan: a bare name would scatter them
 # across whatever directory the caller happened to stand in. Nothing here creates a run directory;
 # one that does not exist means there is no backup to go back to, and that is update.sh's job.

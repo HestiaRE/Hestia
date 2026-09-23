@@ -26,6 +26,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
+check_args '2' "$#" 'USER ROLE'
 ROLE=$(get_user_value '$ROLE')
 
 is_format_valid 'user' 'role'

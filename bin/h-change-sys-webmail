@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: change webmail alias url
-# options: WEBMAIL
+# options: WEBMAIL [RESTART]
 #
 # example: h-change-sys-webmail YourtrickyURLhere
 #
@@ -27,7 +27,7 @@ NEW_ALIAS=$1
 
 restart=${2-yes}
 
-check_args '1' "$#" 'ALIAS [RESTART]'
+check_args '1' "$#" 'WEBMAIL [RESTART]'
 is_common_format_valid "$NEW_ALIAS" "Alias"
 # The action tears every domain's webmail down and builds it back up; an empty alias made the write
 # in between fail on its argument count, so the rebuild used the old alias and the whole run was a

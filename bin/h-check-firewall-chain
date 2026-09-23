@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: check that a firewall jail chain is wired
 # options: CHAIN
+# labels: internal
+# caller: the fail2ban actions
 #
 # example: h-check-firewall-chain SSH
 #

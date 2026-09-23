@@ -32,6 +32,7 @@ CODE_DIR="/usr/share/filemanager/fm"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
+check_args '1' "$#" 'USER [RESTART]'
 [ "$(id -u)" = '0' ] || {
 	echo "ERROR: h-add-user-filemanager must be run as root"
 	exit 10

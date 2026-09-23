@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: update apache2 rrd
-# options: PERIOD
+# options: [PERIOD]
 #
 # example: h-update-sys-rrd-apache2
 #

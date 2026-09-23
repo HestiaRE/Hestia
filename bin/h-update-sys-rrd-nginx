@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: update nginx rrd
-# options: PERIOD
+# options: [PERIOD]
 #
 # example: h-update-sys-rrd-nginx
 #

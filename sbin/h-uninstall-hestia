@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: uninstall HestiaRE (keeps /home and databases)
 # options: [--purge]
+# labels: internal
+# caller: hestia uninstall
 #
 # Conservative uninstaller. By default it stops the panel services and removes
 # the panel's system config (cron, sudoers, profile.d, .done.* sentinels) but
@@ -8,6 +10,10 @@
 # databases intact. With --purge it additionally apt-removes the panel packages
 # and deletes /usr/local/hestia + $CONF_DIR. /home and databases are ALWAYS
 # kept (HestiaCP-compatibility rule).
+
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
 CONF_DIR="/etc/hestia"

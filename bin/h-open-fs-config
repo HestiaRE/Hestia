@@ -1,10 +1,16 @@
 #!/bin/bash
 # info: open config
 # options: CONFIG
+# labels: internal
+# caller: the panel server config editor
 #
 # example: h-open-fs-config /etc/mysql/my.cnf
 #
 # This function opens/reads config files on the file system
+
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -16,7 +22,7 @@ src_file=$1
 
 # Checking arguments
 if [ -z "$src_file" ]; then
-	echo "Usage: CONFIG"
+	echo "Usage: h-open-fs-config CONFIG"
 	exit 1
 fi
 

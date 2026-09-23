@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: add user login
-# options: USER IP STATUS [FINGERPRINT]
+# options: USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]
+# labels: internal
+# caller: the panel login
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -32,7 +34,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER IP SESSION_ID USER_AGENT [AUTHLOG] [REASON]'
+check_args '2' "$#" 'USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]'
 is_format_valid 'user' 'ip46'
 is_common_format_valid "$session_id" "SESSION_ID"
 format_no_quotes "$user_agent" "USER_AGENT"

@@ -34,13 +34,21 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-SearchResults=$(ls -a $BIN/ | sort)
-TotalItems=$(ls -a $BIN/ | sort | wc -l)
+# h-* only: the v-* aliases listed every command twice. Internal ones are machinery, not operator tools.
+commands=$(
+	for f in "$BIN"/h-* "$SBIN"/h-*; do
+		[ -e "$f" ] || continue
+		grep -qm1 '^# labels:.*\binternal\b' "$f" && continue
+		basename "$f"
+	done | sort
+)
+TotalItems=$(echo "$commands" | grep -c .)
+SearchResults="$commands"
 
-for i; do
-	SearchResults=$(echo $SearchResults | tr " " "\n" | grep $i)
-	FoundItems=$(echo $SearchResults | tr " " "\n" | grep $i | wc -l)
+for i in "$@"; do
+	SearchResults=$(echo "$SearchResults" | grep -- "$i")
 done
+FoundItems=$(echo "$SearchResults" | grep -c .)
 
 if [ -z "$SearchResults" ]; then
 	echo "No available commands were found matching the specified criteria."
@@ -48,7 +56,7 @@ if [ -z "$SearchResults" ]; then
 else
 	echo "Command Search Results"
 	echo "================================="
-	echo $SearchResults | tr " " "\n"
+	echo "$SearchResults"
 	echo "================================="
 	echo "Found $FoundItems matching items in $TotalItems commands."
 fi

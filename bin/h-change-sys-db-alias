@@ -29,7 +29,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'type alias'
+check_args '2' "$#" 'TYPE ALIAS'
 
 is_common_format_valid "$alias" "Alias"
 # is_common_format_valid passes an empty string, and an empty alias renders `redir / // 308` plus

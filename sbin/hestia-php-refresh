@@ -1,5 +1,7 @@
 #!/bin/sh
 # info: restart hestia-php when its master runs a deleted PHP binary image
+# labels: internal
+# caller: the apt Post-Invoke hook
 #
 # The distro postinst restarts only its own phpX.Y-fpm unit; the panel's own
 # master (hestia-php.service) keeps serving the replaced, deleted binary after
@@ -8,6 +10,11 @@
 # security update. Called from the apt Post-Invoke hook; restarts ONLY when
 # /proc says the running image is gone from disk, so every other apt run is a
 # no-op.
+
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
+
 pid=$(systemctl show -p MainPID --value hestia-php 2> /dev/null)
 [ -n "$pid" ] && [ "$pid" != 0 ] || exit 0
 exe=$(readlink "/proc/$pid/exe" 2> /dev/null)

@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: create one-time phpMyAdmin SSO handoff token
 # options: USER DATABASE CLIENT_IP
+# labels: internal
+# caller: the panel phpMyAdmin single sign-on
 #
 # example: h-add-database-sso-token admin admin_wp 203.0.113.5
 #

@@ -6,6 +6,10 @@
 #
 # This function lists disk information
 
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
+
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#

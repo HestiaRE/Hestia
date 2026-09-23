@@ -1,5 +1,7 @@
 #!/bin/bash
 # info: wire the customer php-fpm masters into their slice and cap it for this boot
+# labels: internal
+# caller: hestia-customer-php-limit.service
 #
 # The single writer for both halves, so there is no command to remember and no second copy
 # of the logic: it (re-)writes the per-version drop-ins and then computes the cap. Running it
@@ -17,6 +19,10 @@
 # what remains is the slice's fixed 200%, which is no limit worth the name on two cores and a
 # hard sixth of the machine on sixteen. Nothing else would notice, which is why the smoke check
 # reports the LIVE value rather than this file's intent.
+
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: install HestiaRE from a written $CONF_DIR/install.conf
 # options: (none)
+# labels: internal
+# caller: hestia install
 #
 # Non-interactive orchestrator: reads $CONF_DIR/install.conf (written by include/wizard.sh) and
 # installs in stages gated by COMPONENT_*. Stages are functions here, helpers in include/helper.sh,

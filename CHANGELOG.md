@@ -27,6 +27,12 @@ opens above it.
   answers with a page that reloads itself instead of a bare 502. The panel sees the real client
   address through it: login log, fail2ban, the per-user IP allow-list and the session pin work as on
   the port, and reset and account mails link to the domain.
+- **Every command answers `--help`** (#657). A lone `-h`/`--help` prints the usage, the description
+  and the examples from the command's header and exits without doing anything, including the ones
+  that run straight away when called bare (`h-delete-sys-*`, `h-add-sys-*`, `h-upgrade-sys-mariadb`).
+  A call with too few arguments prints the same block. Machinery that only the panel, cron, fail2ban,
+  systemd or the installer calls says so and by whom, and `h-search-command` leaves it out; it also
+  no longer lists every command twice through its `v-*` alias.
 
 ### Changed
 
@@ -51,6 +57,12 @@ opens above it.
 
 ### Fixed
 
+- **The usage of about a hundred commands described other arguments than the command reads** (#657).
+  `h-get-mail-account-value` left out ACCOUNT, `h-log-user-login` described a different signature,
+  `h-restore-cron-job` asked for a DOMAIN where it takes a cron job, optional arguments showed as
+  required and the other way round. Header and usage now say what the code does. Eight commands that
+  took required arguments without checking them now refuse a short call, and `hestia-php-fpm` called
+  bare refuses instead of starting a second master on the customer pools.
 - **A restored PostgreSQL database left the customer without rights to their own data** (#1113). The
   dump carries neither owner nor grants (`pg_dump -O -x`) and the import runs as the admin role, so
   every table of a restored database belonged to `postgres` while the database itself still belonged

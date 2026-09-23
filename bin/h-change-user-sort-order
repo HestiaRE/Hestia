@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: updates user role
 # options: USER SORT_ORDER
+# labels: internal
+# caller: the panel user settings
 #
 # example: h-change-user-sort-order user date
 #
@@ -26,6 +28,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
+check_args '2' "$#" 'USER SORT_ORDER'
 is_format_valid 'user'
 is_common_format_valid "$sort_order" "sort_order"
 is_object_valid 'user' 'USER' "$user"

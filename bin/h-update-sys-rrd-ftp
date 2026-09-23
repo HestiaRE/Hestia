@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: update ftp rrd
-# options: PERIOD
+# options: [PERIOD]
 #
 # example: h-update-sys-rrd-ftp
 #

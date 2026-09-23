@@ -38,7 +38,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-args_usage='USER SNAPSHOT DOMAIN [NOTIFY]'
+args_usage='USER SNAPSHOT PATH [NOTIFY]'
 check_args '3' "$#" "$args_usage"
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"

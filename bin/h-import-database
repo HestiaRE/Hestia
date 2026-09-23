@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: import database
-# options: USER DB PATH
+# options: USER DATABASE DUMP
 #
 # example: h-import-database alice mydb /full/path/to.sql
 #

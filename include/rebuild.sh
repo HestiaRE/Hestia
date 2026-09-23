@@ -1010,11 +1010,8 @@ rebuild_pgsql_database() {
 	query="GRANT CONNECT ON DATABASE template1 to $DBUSER"
 	psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
 
-	# The record names the owner, so the objects follow it: CREATE DATABASE does nothing on a
-	# database that is already there, and h-change-database-user then rewrote DBUSER while the
-	# tables stayed with the old role (#1113). Also the operator's repair for a database that a
-	# restore left on the admin role. A failed pass warns and stays out of this function's exit
-	# code, or a repair run over many databases would stop at the first one that has a problem.
+	# CREATE DATABASE skips an existing one, so h-change-database-user needs this too, and it makes
+	# h-rebuild-databases the repair. Only a warning, or one bad database would stop the whole run.
 	psql_owner_apply "$DB" "$DBUSER" || true
 }
 
@@ -1055,10 +1052,8 @@ import_pgsql_database() {
 	psql -h $HOST -U $USER -p $PORT $DB < $1 > /dev/null 2>&1
 	_rc=$?
 
-	# The dump carries no owner (psql_dump uses -O) and this ran as the admin role, so the objects
-	# have to be handed over afterwards or the customer cannot read their own data (#1113). A pass
-	# that fails is a warning, not a failed import: the rows are there, only the rights are not,
-	# and reporting it as a rejected dump would make a caller undo a restore that worked.
+	# Only a warning: the rows are there, and a failed import would make h-change-database-owner undo
+	# a restore that worked.
 	[ "$_rc" -eq 0 ] && psql_owner_apply "$DB" "$DBUSER"
 	return "$_rc"
 }

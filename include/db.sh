@@ -188,21 +188,13 @@ psql_value() {
 	rm -f "$_tmp"
 }
 
-# psql_owner_apply DATABASE ROLE - make the server agree with the record about who owns what.
+# psql_owner_apply DATABASE ROLE - hand every object to the role the record names.
 #
-# psql_dump writes neither owner nor grants (-O -x) and every import runs as the admin role, so
-# without this pass a restored database belongs to the admin and the customer cannot read their own
-# data (#1113). The same gap left h-change-database-user with the record handed over and the tables
-# still on the old role, which is also why deleting that role then failed.
-#
-# Enumerated rather than REASSIGN OWNED BY, which takes everything the admin owns in the database,
-# an installed extension included. Anything another object carries is left out: the sequence behind
-# a serial column has no owner of its own, and asking for one is an error that ends the pass.
-# NOT covered, because our own path never creates them for a customer: extensions, event triggers,
-# large objects and default privileges. Nor grants to a second role, which a customer can set in SQL
-# on their own tables: -x drops them on purpose, because a grant names a cluster-wide role with no
-# record behind it, and replayed on a restore under another name it would reach whoever holds that
-# name on this box.
+# The dump carries no owner (-O) and imports run as the admin role, so without this the customer
+# cannot read a restored database (#1113). Enumerated, not REASSIGN OWNED BY, which would also take
+# the admin's extensions; what another object carries (a serial's sequence) follows it and is skipped.
+# NOT covered: extensions, event triggers, large objects, default privileges, and grants to other
+# roles, which -x drops on purpose: a grant names a cluster-wide role with no record behind it.
 psql_owner_apply() {
 	local _db="$1" _role="$2" _tmp _err _rc
 	if [ -z "$_db" ] || [ -z "$_role" ]; then
@@ -254,8 +246,7 @@ SELECT format('ALTER %s %I.%I OWNER TO %I;',
 		AND pg_get_userbyid(t.typowner) <> :'role'
 \gexec
 SQL
-	# ON_ERROR_STOP, so the exit code carries the answer: psql leaves 0 behind after a failed
-	# statement otherwise, and a half applied pass would read as a whole one.
+	# Without ON_ERROR_STOP psql exits 0 after a failed statement.
 	psql -h "$HOST" -U "$USER" -p "$PORT" -d "$_db" -v ON_ERROR_STOP=1 -v db="$_db" -v role="$_role" \
 		-tAXq -f "$_tmp" > /dev/null 2> "$_err"
 	_rc=$?

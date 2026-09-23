@@ -278,7 +278,8 @@ upd_action_reversible() {
 # false after them. The smoke reports their drift and names the command instead.
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
-	cron_locale_apply system_repair_cron_write sieve_redirect_apply fail2ban_panel_action_apply)
+	cron_locale_apply system_repair_cron_write sieve_redirect_apply fail2ban_panel_action_apply
+	exim_autoreply_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

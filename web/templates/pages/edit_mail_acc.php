@@ -113,16 +113,22 @@
 							echo "disabled";
 						} ?>><?= tohtml(trim($v_fwd, "'")) ?></textarea>
 					</div>
+					<?php $autoreply_readonly = ($v_autoreply_source ?? "exim") == "custom"; ?>
 					<div class="form-check u-mb10">
-						<input x-model="hasAutoReply" class="form-check-input" type="checkbox" name="v_autoreply" id="v_autoreply">
+						<input x-model="hasAutoReply" class="form-check-input" type="checkbox" name="v_autoreply" id="v_autoreply" <?= $autoreply_readonly ? "disabled" : "" ?>>
 						<label for="v_autoreply">
 							<?= tohtml(_("Auto Reply")) ?>
 						</label>
 					</div>
+					<?php if ($autoreply_readonly) { ?>
+						<p class="hint u-mb10"><?= tohtml(_("This mailbox runs its own Sieve script. Change the auto reply there.")) ?></p>
+					<?php } elseif (in_array($v_autoreply_source ?? "", ["roundcube", "tachyon", "none"], true)) { ?>
+						<p class="hint u-mb10"><?= tohtml(_("Shared with the vacation filter in the webmail.")) ?></p>
+					<?php } ?>
 					<div x-cloak x-show="hasAutoReply" id="autoreplytable">
 						<div class="u-mb10">
 							<label for="v_autoreply_message" class="form-label"><?= tohtml(_("Message")) ?></label>
-							<textarea class="form-control" name="v_autoreply_message" id="v_autoreply_message"><?= tohtml(trim($v_autoreply_message, "'")) ?></textarea>
+							<textarea class="form-control" name="v_autoreply_message" id="v_autoreply_message" <?= $autoreply_readonly ? "readonly" : "" ?>><?= tohtml(trim($v_autoreply_message, "'")) ?></textarea>
 						</div>
 					</div>
 					<div class="u-mb20">

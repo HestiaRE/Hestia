@@ -23,6 +23,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -36,7 +38,6 @@ fi
 # Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -57,21 +58,30 @@ is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Adding exim autoreply
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	msg="$HOMEDIR/$user/conf/mail/$domain/autoreply.$account.msg"
-	echo -e "$autoreply" > $msg
-	chown $MAIL_USER:mail $msg
-	chmod 660 $msg
+msg=$(mktemp)
+echo -e "$autoreply" > "$msg"
+
+# With Sieve the vacation rule answers and exim stays silent, or the sender gets both.
+if vacation_sieve_on; then
+	vacation_enable "$user" "$domain" "$domain_idn" "$account" "$msg"
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		rm -f "$msg"
+		[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain has its own Sieve script, change the autoreply there"
+		check_result "$E_UPDATE" "the Sieve script of $account@$domain was not changed"
+	fi
+	rm -f "$(vacation_exim_file "$user" "$domain" "$account")"
+elif [[ "$MAIL_SYSTEM" =~ exim ]]; then
+	vacation_exim_write "$user" "$domain" "$account" "$msg"
 fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Adding autoreply message
-echo -e "$autoreply" > $USER_DATA/mail/$account@$domain.msg
-chmod 660 $USER_DATA/mail/$account@$domain.msg
+# Kept with Sieve too: the backup carries it to HestiaCP, and h-delete-sys-sieve falls back to exim.
+mv -f "$msg" "$USER_DATA/mail/$account@$domain.msg"
+chmod 660 "$USER_DATA/mail/$account@$domain.msg"
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY' 'yes'
 
 # Logging

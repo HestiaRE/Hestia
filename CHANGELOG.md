@@ -33,8 +33,20 @@ opens above it.
   A call with too few arguments prints the same block. Machinery that only the panel, cron, fail2ban,
   systemd or the installer calls says so and by whom, and `h-search-command` leaves it out; it also
   no longer lists every command twice through its `v-*` alias.
+- **With Sieve, panel and webmail share one out-of-office notice** (#784). The panel writes the
+  vacation rule into the mailbox's active script, in the format of the webmail that owns it
+  (Roundcube or Tachyon), and shows what the customer set there; exim no longer answers alongside,
+  so a sender gets one reply instead of two. A mailbox with a hand-written script is shown and left
+  alone. Without Sieve exim answers as before. Installing or removing the Sieve addon moves existing
+  notices across, a restore from an older backup converts them, and a backup carries the notice in
+  the form HestiaCP reads.
 
 ### Changed
+
+- **The exim autoreply follows RFC 3834** (#784). No answer to bounces, `mailer-daemon`,
+  `postmaster`, `owner-*`/`*-request`, mail marked `Auto-Submitted`, list mail (`List-Id`,
+  `List-Post`, `Precedence: bulk/junk/list`) or spam, and one answer per sender a week instead of one
+  per message; the reply carries `Auto-Submitted: auto-replied`. An update patches the exim template.
 
 - **The panel login jail bans on 80/443 as well as on the panel port** (#878). A login through a
   panel-proxy domain arrives on 443, where the old ban did not reach. An update swaps the action.

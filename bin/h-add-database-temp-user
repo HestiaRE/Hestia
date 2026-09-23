@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: add temp database user
 # options: USER DATABASE [TYPE] [HOST] [TTL]
+# labels: internal
+# caller: h-add-database-sso-token
 #
 # example: h-add-database-temp-user wordress wordpress_db mysql
 #

@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: list directory
-# options: USER DIRECTORY
+# options: USER [DIRECTORY]
 #
 # example: h-list-fs-directory /home/admin/web
 #

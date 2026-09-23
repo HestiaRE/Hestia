@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: restore Database
-# options: USER SNAPSHOT DATABASE
+# options: USER SNAPSHOT DATABASE [NOTIFY]
 #
 # example: h-restore-database-restic user snapshot user_database
 # example: h-restore-database-restic user snapshot 'user_database,user_database2'
@@ -38,7 +38,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-args_usage='USER SNAPSHOT DATABSE [NOTIFY]'
+args_usage='USER SNAPSHOT DATABASE [NOTIFY]'
 check_args '3' "$#" "$args_usage"
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"

@@ -27,6 +27,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                       Action                             #
 #----------------------------------------------------------#
 
+check_args '2' "$#" 'PACKAGE NEW_PACKAGE'
 is_package_valid "$package"
 is_package_new "$new_package"
 is_object_format_valid "$package" "Package"

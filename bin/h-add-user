@@ -51,7 +51,7 @@ is_user_free() {
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '3' "$#" 'USER PASSWORD EMAIL [PACKAGE] [NAME] '
+check_args '3' "$#" 'USER PASSWORD EMAIL [PACKAGE] [NAME] [LASTNAME]'
 is_format_valid 'user' 'email' 'package'
 if [ -n "$name" ]; then
 	is_format_valid 'name'

@@ -29,7 +29,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '3' "$#" 'TYPE PASS HASH'
+check_args '3' "$#" 'TYPE PASSWORD HASH'
 
 is_password_valid
 

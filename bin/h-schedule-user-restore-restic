@@ -30,7 +30,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER SNAPSHOT OBJECT VALUE'
+check_args '2' "$#" 'USER SNAPSHOT [OBJECT] [VALUE]'
 is_format_valid 'user'
 # snapshot/value go into the executed backup.pipe, so validate them or a quote breaks out
 # (GHSA-2xw3, root RCE). value is validated per object type below.

@@ -61,7 +61,7 @@ user="${4:-$ROOT_USER}"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'IP NETMASK [INTERFACE] [USER] [STATUS] [NAME] [NATED_IP]'
+check_args '2' "$#" 'IP NETMASK [INTERFACE] [USER] [IP_STATUS] [IP_NAME] [NAT_IP]'
 is_format_valid 'ip46' 'iface' 'user' 'ip_status'
 family=$(ip_family "$ip46")
 if [ "$family" = 6 ]; then

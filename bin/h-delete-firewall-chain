@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: delete firewall chain
 # options: CHAIN [KEEP_RECORDS]
+# labels: internal
+# caller: the fail2ban actions
 #
 # example: h-delete-firewall-chain WEB
 #
@@ -28,7 +30,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '1' "$#" 'CHAIN'
+check_args '1' "$#" 'CHAIN [KEEP_RECORDS]'
 is_format_valid 'chain'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 

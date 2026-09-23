@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: update user usage counters
-# options: [USER]
+# options: [USER] [MODE]
 #
 # example: h-update-user-counters admin
 #

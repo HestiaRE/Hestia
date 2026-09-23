@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: update MySQL rrd
-# options: PERIOD
+# options: [PERIOD]
 #
 # example: h-update-sys-rrd-mysql
 #

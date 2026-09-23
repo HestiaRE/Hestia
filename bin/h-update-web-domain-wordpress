@@ -32,7 +32,7 @@ WP_BIN="/usr/local/bin/wp"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER DOMAIN [core|all]'
+check_args '2' "$#" 'USER DOMAIN [SCOPE]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"

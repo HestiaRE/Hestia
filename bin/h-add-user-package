@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: adding user package
-# options: tmpfile PACKAGE [REWRITE]
+# options: PKG_DIR PACKAGE [REWRITE]
 #
 # This function adds new user package to the system.
 
@@ -93,7 +93,7 @@ is_package_consistent() {
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'PKG_DIR PACKAGE' 'rewrite'
+check_args '2' "$#" 'PKG_DIR PACKAGE [REWRITE]' 'rewrite'
 is_format_valid 'package'
 if [ "$rewrite" != 'yes' ]; then
 	is_package_new "$package"

@@ -30,7 +30,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '1' "$#" 'NAME [SOURCE] [IPVERSION] [AUTOUPDATE] [FORCE]'
+check_args '1' "$#" 'NAME [SOURCE] [IPVERSION] [AUTOUPDATE] [REFRESH]'
 is_format_valid 'ip_name'
 is_boolean_format_valid "$autoupdate" 'Automatically update IP list (yes/no)'
 is_boolean_format_valid "$refresh" 'Refresh IP list (yes/no)'
@@ -48,7 +48,7 @@ fi
 
 if [ -z "$data_source" ]; then
 	if [ ! -f "${IPSET_PATH}.conf" ] || [[ ! $(grep "LISTNAME='$ip_name'" "${IPSET_PATH}.conf") ]]; then
-		check_args '2' "$#" 'NAME SOURCE [IPVERSION] [AUTOUPDATE] [FORCE]'
+		check_args '2' "$#" 'NAME SOURCE [IPVERSION] [AUTOUPDATE] [REFRESH]'
 	fi
 
 	data_source="$(get_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$SOURCE')"

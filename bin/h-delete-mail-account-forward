@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: delete mail account forward
-# options: USER DOMAIN ACCOUNT EMAIL
+# options: USER DOMAIN ACCOUNT FORWARD
 #
 # example: h-delete-mail-account-forward admin acme.com tony bob@acme.com
 #

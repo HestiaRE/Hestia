@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: delete web/dns/mail domain
-# options: USER DOMAIN
+# options: USER DOMAIN [RESTART]
 #
 # example: h-delete-domain admin domain.tld
 #

@@ -26,7 +26,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                       Action                             #
 #----------------------------------------------------------#
 
-check_args '1' "$#" '[RESTART]' '[SKIP]'
+check_args '1' "$#" '[RESTART] [SKIP]'
 is_format_valid 'restart'
 
 # Webmail vhost templates ship at $HESTIA/share/$WEB_SYSTEM/webmail (delivered by

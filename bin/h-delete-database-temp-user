@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: deletes temp database user
-# options: USER DBUSER [TYPE] [HOST]
+# options: USER DATABASE DBUSER [TYPE] [HOST]
+# labels: internal
+# caller: the at job h-add-database-temp-user schedules
 #
 # example: h-delete-database-temp-user wordpress hestia_sso_user mysql
 #

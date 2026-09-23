@@ -29,6 +29,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
+check_args '1' "$#" 'USER [RESTART] [KEEP_FLAG]'
 [ "$(id -u)" = '0' ] || {
 	echo "ERROR: h-delete-user-filemanager must be run as root"
 	exit 10

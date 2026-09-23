@@ -23,7 +23,7 @@ source $HESTIA/include/main.sh
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER DIR'
+check_args '2' "$#" 'USER DIRECTORY'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 

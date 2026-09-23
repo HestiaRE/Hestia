@@ -28,13 +28,16 @@ foreach ($arr as $arr_key => $arr_val) {
 // the branch never fired and only produced a warning inside an access gate. Dropping it does not
 // narrow anything - the loop above already walks every address h-list-sys-ips knows, NAT included,
 // which is where the box's own address comes from.
-if ($ip == "127.0.0.1") {
+// Both loopbacks: "localhost" resolves to ::1 first on Debian.
+if ($ip == "127.0.0.1" || $ip == "::1") {
 	$ok = 1;
 }
 if ($ok == 0) {
 	exit();
 }
-if (isset($_SERVER["HTTP_X_REAL_IP"]) || isset($_SERVER["HTTP_X_FORWARDED_FOR"])) {
+// Local callers only: a relayed request names its client in X-Real-IP. X-Forwarded-For is no signal, Caddy sets it on
+// every request, which is how this endpoint refused the webmail password change everywhere.
+if (isset($_SERVER["HTTP_X_REAL_IP"])) {
 	exit();
 }
 

@@ -955,6 +955,23 @@
         "bin/h-change-sys-db-alias",
         "bin/h-check-sys-smoke"
       ]
+    },
+    "panel_proxy": {
+      "description": "Panel behind a customer web domain (#878): the 'panel' template turns the whole domain into a proxy to https://127.0.0.1:%panel_port% (BACKEND_PORT, re-rendered by h-change-sys-port), so the panel port can be closed to the outside. Two identical copies, share/web/nginx/panel.tpl for the proxy role (both) and templates/nginx/panel.tpl for nginx-only; apache-only gets none by decision (a custom conf does it). Plain http answers ACME and redirects, the domain needs SSL because the session cookie is Secure. The nginx.location.d include is left out on purpose: the cache fragment lands there. proxy_read_timeout 600s matches Caddy's FastCGI read_timeout; a 502/504 (caddy or hestia-php restarting) becomes a 503 page that reloads itself. Trust model is flat by decision: panel_proxied() in web/inc/helpers.php takes X-Real-IP from a loopback peer, which feeds get_real_user_ip (login log, fail2ban, LOGIN_ALLOW_IPS, session pin) and the reset/account mail links. X-Forwarded-For is no signal, Caddy sets it on every request. mesh-pair.php refuses a loopback peer instead. The panel login jail bans on 80/443 as well (share/fail2ban/action.d/hestia-panel.conf). Only an admin context may select the template in the panel; a domain already carrying it keeps it listed.",
+      "entry_points": [
+        "share/web/nginx/panel.tpl",
+        "templates/nginx/panel.tpl"
+      ],
+      "related_files": [
+        "include/domain.sh",
+        "bin/h-change-sys-port",
+        "web/inc/helpers.php",
+        "web/edit/web/index.php",
+        "web/reset/mail/index.php",
+        "web/mesh-pair.php",
+        "share/fail2ban/action.d/hestia-panel.conf",
+        "include/fail2ban.sh"
+      ]
     }
   },
   "service_matrix": {

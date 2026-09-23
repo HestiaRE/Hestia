@@ -33,6 +33,18 @@ fail2ban_install_config() {
 	chmod 644 "$F2B_OURS" 2> /dev/null
 }
 
+# The panel jail bans on 80/443 as well (#878), where a panel-proxy domain takes the same login. The update path:
+# the action file comes from the tree, the jail line is ours to swap.
+fail2ban_panel_action_apply() {
+	[ -f "$F2B_OURS" ] || return 1
+	cp -f "$HESTIA/share/fail2ban/action.d/hestia-panel.conf" "$F2B_DIR/action.d/" || return 1
+	sed -i 's/^action[[:space:]]*=[[:space:]]*hestia\[name=HESTIA\][[:space:]]*$/action   = hestia-panel/' "$F2B_OURS" || return 1
+	grep -q '^action   = hestia-panel$' "$F2B_OURS" || return 1
+	systemctl -q is-active fail2ban 2> /dev/null || return 0
+	# Restart, not reload: a reload drops the old action and never loads the new one (measured, the jail had none).
+	systemctl restart fail2ban
+}
+
 # From our own config, not by deleting the dpkg conffile jail.d/defaults-debian.conf, which an update restores.
 fail2ban_disable_distro_jails() {
 	grep -q '^\[sshd\]' "$F2B_OURS" 2> /dev/null && return 0

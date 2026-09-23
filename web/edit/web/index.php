@@ -280,6 +280,17 @@ if (!empty($_SESSION["PROXY_SYSTEM"])) {
 	$proxy_templates = cli_json("h-list-web-templates-proxy json");
 }
 
+// The panel-proxy template (#878) is the admin's to set. A domain already carrying it keeps it listed, or a customer's
+// save would switch it away unasked.
+$panel_tpl_allowed = fn (string $current): bool => ($_SESSION["adminContext"] ?? "") === "admin" || $current === "panel";
+$panel_tpl_filter = fn ($list, string $current) => is_array($list)
+	? array_values(array_filter($list, fn ($t) => $t !== "panel" || $panel_tpl_allowed($current)))
+	: $list;
+$templates = $panel_tpl_filter($templates, (string) $v_template);
+if (isset($proxy_templates)) {
+	$proxy_templates = $panel_tpl_filter($proxy_templates, (string) $v_proxy_template);
+}
+
 // List docker templates - only a docker customer can pick one
 $docker_templates = [];
 if (!empty($v_docker_net)) {
@@ -443,6 +454,9 @@ if (!empty($_POST["save"])) {
 	if ($can_edit_templates) {
 		// Hidden on apache-web models: the vhost renders from share/, nothing to select
 		$post_template = post_or_keep("v_template", $offer_web_template, $v_template);
+		if ($post_template === "panel" && !$panel_tpl_allowed((string) $v_template)) {
+			$_SESSION["error_msg"] = _("Only an administrator can select this template.");
+		}
 		if ($offer_web_template && $v_template != $post_template && empty($_SESSION["error_msg"])) {
 			exec(
 				HESTIA_CMD .
@@ -573,7 +587,10 @@ if (!empty($_POST["save"])) {
 		$ext = str_replace(" ", ", ", $ext);
 		// Absent for a customer and wherever there is only one to pick
 		$post_proxy_template = post_or_keep("v_proxy_template", $offer_proxy_template, $v_proxy_template);
-		if ($v_proxy_template != $post_proxy_template || $v_proxy_ext != $ext) {
+		if ($post_proxy_template === "panel" && !$panel_tpl_allowed((string) $v_proxy_template)) {
+			$_SESSION["error_msg"] = _("Only an administrator can select this template.");
+		}
+		if (($v_proxy_template != $post_proxy_template || $v_proxy_ext != $ext) && empty($_SESSION["error_msg"])) {
 			$ext = str_replace(", ", ",", $ext);
 			$v_proxy_template = $post_proxy_template;
 			exec(
@@ -601,6 +618,9 @@ if (!empty($_POST["save"])) {
 	if ($offer_proxy && empty($v_proxy) && !empty($post_proxy) && empty($_SESSION["error_msg"])) {
 		// template choice stays behind the real-identity gate; a customer enable gets default
 		$v_proxy_template = post_or_keep("v_proxy_template", $offer_proxy_template, "default");
+		if ($v_proxy_template === "panel" && !$panel_tpl_allowed("")) {
+			$v_proxy_template = "default";
+		}
 		if (!empty($post_proxy_ext)) {
 			$ext = preg_replace("/\n/", " ", $post_proxy_ext);
 			$ext = preg_replace("/,/", " ", $ext);

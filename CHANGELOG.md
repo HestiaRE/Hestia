@@ -19,9 +19,21 @@ opens above it.
   backup window; the result goes to syslog under `ntpdate`. The command comes from `ntpsec-ntpdate`,
   now a base package: `ntpdate` itself is only a transitional package on Debian 12 and Ubuntu 24.04
   and gone on 13 and 26.04. An update installs it and rewrites the schedule.
+- **A web domain can carry the panel** (#878). The `panel` template turns the https side of a domain
+  into a proxy to the panel on loopback, so the panel is reachable as `https://domain/` and its port
+  can be closed to the outside; any number of domains can carry it, each with its own certificate.
+  Opt-in, set by an admin, nginx models only. Plain http keeps serving the site from `public_html`
+  until force-SSL is switched on. Requests may run ten minutes, and a restart of the panel services
+  answers with a page that reloads itself instead of a bare 502. The panel sees the real client
+  address through it: login log, fail2ban, the per-user IP allow-list and the session pin work as on
+  the port, and reset and account mails link to the domain.
 
 ### Changed
 
+- **The panel login jail bans on 80/443 as well as on the panel port** (#878). A login through a
+  panel-proxy domain arrives on 443, where the old ban did not reach. An update swaps the action.
+- **Adding or removing a web domain or webmail from the panel reloads the web server instead of
+  restarting it** (#878). The restart cut the very request that asked for it.
 - **The update lower bound is `v0.21`** (#1111). It was `v0.19.0`, and v0.21 is the first release the
   one live box was actually carried onto, so nothing below that line is left in the field. A box under
   it is reinstalled rather than updated, which it already was in practice. The visible consequence is
@@ -66,6 +78,12 @@ opens above it.
   resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
   so a PHP package that only needed one older package named was dropped as not installable. The
   wizard's MariaDB version probe knew only German and English. Both read apt in the C locale now.
+- **The Roundcube password change failed on every box** (#878). `/reset/mail/` turned away any request
+  carrying `X-Forwarded-For`, and the panel's Caddy sets that header on every request, so Roundcube's
+  password plugin got an empty answer and reported a failure. It checks `X-Real-IP` now, which only a relaying proxy sets.
+- **A panel certificate set in the panel only took effect at the next restart** (#878). Caddy runs
+  without its admin API, so the reload failed silently. It restarts now, a few seconds after the
+  command, so the panel request that asked for it still gets its answer.
 - **A sieve redirect failed SPF at its target** (#1095). Dovecot hands a redirect to exim as a fresh
   local message with the original sender, so the SRS rewrite of forwards never applied and the target
   saw a foreign domain sent from our IP. A redirect is sent from the mailbox address now; a bounce

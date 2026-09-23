@@ -89,8 +89,21 @@ function exit_code_to_http_code(int $exit_code, int $default = 400): int
 	return $default;
 }
 
+// A request relayed by the panel-proxy template (#878): the loopback peer names its client in X-Real-IP. A process on
+// the box can send the same, which the flat trust model accepts; Caddy sets X-Forwarded-For itself, so that is no signal.
+function panel_proxied(): bool
+{
+	$peer = ip_unmap((string) ($_SERVER["REMOTE_ADDR"] ?? ""));
+	return in_array($peer, ["127.0.0.1", "::1"], true) &&
+		filter_var($_SERVER["HTTP_X_REAL_IP"] ?? "", FILTER_VALIDATE_IP) !== false;
+}
+
 function get_real_user_ip()
 {
+	if (panel_proxied()) {
+		return ip_unmap($_SERVER["HTTP_X_REAL_IP"]);
+	}
+
 	$ip = "";
 
 	if (
@@ -185,7 +198,7 @@ function get_hostname()
 function display_title($tab)
 {
 	$array1 = ["{{page}}", "{{hostname}}", "{{ip}}", "{{appname}}"];
-	$array2 = [$tab, get_hostname(), $_SERVER["REMOTE_ADDR"], $_SESSION["APP_NAME"]];
+	$array2 = [$tab, get_hostname(), get_real_user_ip(), $_SESSION["APP_NAME"]];
 	return str_replace($array1, $array2, $_SESSION["TITLE"]);
 }
 

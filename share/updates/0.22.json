@@ -32,6 +32,16 @@
       "action": { "type": "function_call", "function": "sieve_redirect_apply" },
       "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
       "reversible": false
+    },
+    {
+      "id": "fail2ban-panel-web-ban",
+      "description": "The panel login jail bans on 80/443 too, where a panel-proxy domain takes the same login; jail.d/hestia.local is ours, not the admin's jail.local",
+      "conditions": [
+        { "type": "file_contains", "path": "/etc/fail2ban/jail.d/hestia.local", "value": "hestia[name=HESTIA]" }
+      ],
+      "action": { "type": "function_call", "function": "fail2ban_panel_action_apply" },
+      "paths": ["/etc/fail2ban/jail.d/hestia.local", "/etc/fail2ban/action.d/hestia-panel.conf"],
+      "reversible": false
     }
   ]
 }

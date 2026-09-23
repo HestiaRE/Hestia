@@ -386,6 +386,7 @@ web_render_template() {
 		-e "s|%front_ssl_port%|${PROXY_SSL_PORT:-$WEB_SSL_PORT}|g" \
 		-e "s|%docker_port%|$DOCKER_PORT|g" \
 		-e "s|%docker_ip%|$web_docker_ip|g" \
+		-e "s|%panel_port%|${BACKEND_PORT:-8083}|g" \
 		-e "s/%proxy_extentions%/${PROXY_EXT//,/|}/g" \
 		-e "s/%proxy_extensions%/${PROXY_EXT//,/|}/g" \
 		-e "s|%user%|$user|g" \

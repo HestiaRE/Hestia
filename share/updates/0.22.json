@@ -21,6 +21,17 @@
       "paths": ["/etc/cron.d/hestia-repair"],
       "reversible": false,
       "after": "0.22/ntpdate-package"
+    },
+    {
+      "id": "sieve-redirect-envelope",
+      "description": "Sieve redirects send from the mailbox instead of the original sender, whose SPF fails at the target; 90-sieve.conf is not operator surface",
+      "conditions": [
+        { "type": "key_is", "name": "SIEVE_SYSTEM", "value": "yes" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "sieve_redirect_envelope_from = orig_recipient" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_redirect_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false
     }
   ]
 }

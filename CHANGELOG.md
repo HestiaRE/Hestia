@@ -66,6 +66,10 @@ opens above it.
   resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
   so a PHP package that only needed one older package named was dropped as not installable. The
   wizard's MariaDB version probe knew only German and English. Both read apt in the C locale now.
+- **A sieve redirect failed SPF at its target** (#1095). Dovecot hands a redirect to exim as a fresh
+  local message with the original sender, so the SRS rewrite of forwards never applied and the target
+  saw a foreign domain sent from our IP. A redirect is sent from the mailbox address now; a bounce
+  still goes out as `<>`. Boxes with the sieve addon get the setting on update.
 
 ## v0.21 (2026-09-22)
 

@@ -46,11 +46,12 @@ if ! timedatectl set-timezone "$timezone" > /dev/null 2>&1; then
 		sed -i "s/ZONE.*//" /etc/sysconfig/clock
 		echo "ZONE=\"$timezone\"" >> /etc/sysconfig/clock
 	fi
-	if [ -e "/etc/timezone" ]; then
-		echo "$timezone" > /etc/timezone
-	fi
 	rm -f /etc/localtime
 	ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
+fi
+# timedated leaves /etc/timezone alone, and Debian 12/13 and Ubuntu 24.04 still carry one for what reads it.
+if [ -e "/etc/timezone" ]; then
+	echo "$timezone" > /etc/timezone
 fi
 
 # Chaning php timezone

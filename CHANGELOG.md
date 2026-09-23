@@ -21,6 +21,13 @@ opens above it.
   longer read at all, because no box that could still need them is accepted. Both files stay where
   they are; removing one takes an entry that removes it on the box as well, and such an entry would
   have nothing left to run on.
+- **A remote PostgreSQL host has to speak TLS with a certificate this box trusts** (#1098, #980). The
+  rule stood since #980, but only the MariaDB client enforced it; on the pgsql side nothing set an
+  `sslmode`, so libpq fell back to plaintext without a word. Every connection to a remote pgsql host
+  now verifies against the OS trust store, a local one is unchanged. `h-add-database-host` takes a
+  ninth argument `TLS` (`yes`/`no`) for a host that deliberately runs without it; `TLS='no'` on the
+  record allows plaintext again. A remote host registered before without TLS stops connecting after
+  the update until `TLS='no'` is added to its line in `conf/pgsql.conf`.
 
 ### Fixed
 
@@ -37,6 +44,9 @@ opens above it.
   the human output of `timedatectl`, whose label is "Time zone" and is translated, so the match never
   held and the fallback wrote `date.timezone = UTC` on every box. It reads the machine form now. A box
   installed before keeps UTC until `h-change-sys-timezone` is run.
+- **`h-change-sys-timezone` never used timedatectl** (#1098). An inherited typo (`which timedatectls`)
+  sent every change down the hand-written path. It uses timedatectl now and still writes
+  `/etc/timezone`, which timedated leaves alone.
 - **Two install-time probes depended on the language of the box** (#1098). The Sury conflict
   resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
   so a PHP package that only needed one older package named was dropped as not installable. The

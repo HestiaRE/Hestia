@@ -55,7 +55,7 @@ fi
 if vacation_sieve_on; then
 	vacation_disable "$user" "$domain_idn" "$account"
 	rc=$?
-	[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain has its own Sieve script, change the autoreply there"
+	[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain keeps its autoreply in a Sieve script the panel does not manage (own script or several vacation rules), change it in the webmail"
 	check_result "$rc" "the Sieve script of $account@$domain was not changed"
 fi
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then

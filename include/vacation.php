@@ -2,7 +2,8 @@
 
 // Out-of-office in a mailbox's active Sieve script (#784), in the format of the webmail that owns it:
 // Roundcube's managesieve rules or Tachyon's filter set. Only the one vacation rule is touched; every
-// other byte of the script is carried over. A script in neither format is read, never written.
+// other byte of the script is carried over. A script in neither format, or with a second vacation rule, is read,
+// never written.
 //
 //   state   FILE              -> JSON {format, enabled, message, subject}; FILE may not exist
 //   states  FILE...           -> JSON {FILE: state, ...}
@@ -10,7 +11,7 @@
 //   disable FILE              -> the new script on stdout
 //   enabled FILE...           -> yes|no per FILE, one per line
 //   message FILE OUT          -> yes (message written to OUT), no, or custom
-// Exit 3, silent: the script is in no known format, so it cannot be changed from here.
+// Exit 3, silent: the script is in no known format, or has more than one vacation rule, so it is not changed here.
 //
 // Tachyon rebuilds its script from the base64 JSON header of each filter, so that JSON is what it
 // reads back; the Sieve text below it is written by the same rules as its sieve.js (4.2.x), so a save
@@ -408,7 +409,26 @@ function tx_join(string $head, array $blocks, string $tail): string
 
 // ---------------------------------------------------------------- dispatch
 
+// A second vacation rule, even a disabled one, makes the script custom: pigeonhole aborts the whole script when two
+// vacation actions fire on one message, and which rule the panel means is no longer knowable.
 function format_of(string $s): string
+{
+	$f = raw_format($s);
+	if ($f === 'roundcube' || $f === 'tachyon') {
+		return vacation_rules($f, $s) > 1 ? 'custom' : $f;
+	}
+	return $f;
+}
+
+function vacation_rules(string $f, string $s): int
+{
+	if ($f === 'tachyon') {
+		return count(array_filter(tx_split($s)[1], fn ($b) => ($b['json']['ActionType'] ?? '') === 'Vacation'));
+	}
+	return count(array_filter(rc_split($s)[1], fn ($r) => find_vacation($r) !== null));
+}
+
+function raw_format(string $s): string
 {
 	if (trim($s) === '') {
 		return 'none';
@@ -428,9 +448,10 @@ function format_of(string $s): string
 function state_of(string $file): array
 {
 	$s = is_file($file) ? (string) file_get_contents($file) : '';
-	$f = format_of($s);
 	try {
-		$st = state_in($f, $s);
+		$f = format_of($s);
+		// Several rules in a known format still read like that format: the first enabled one is shown.
+		$st = state_in(raw_format($s), $s);
 	} catch (UnexpectedValueException) {
 		// Unreadable to this parser means unwritable too: shown as custom, left to the webmail.
 		return ['format' => 'custom', 'enabled' => true, 'message' => '', 'subject' => ''];

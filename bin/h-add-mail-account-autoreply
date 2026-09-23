@@ -67,7 +67,7 @@ if vacation_sieve_on; then
 	rc=$?
 	if [ "$rc" -ne 0 ]; then
 		rm -f "$msg"
-		[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain has its own Sieve script, change the autoreply there"
+		[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain keeps its autoreply in a Sieve script the panel does not manage (own script or several vacation rules), change it in the webmail"
 		check_result "$E_UPDATE" "the Sieve script of $account@$domain was not changed"
 	fi
 	rm -f "$(vacation_exim_file "$user" "$domain" "$account")"

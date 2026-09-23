@@ -34,12 +34,12 @@ opens above it.
   systemd or the installer calls says so and by whom, and `h-search-command` leaves it out; it also
   no longer lists every command twice through its `v-*` alias.
 - **With Sieve, panel and webmail share one out-of-office notice** (#784). The panel writes the
-  vacation rule into the mailbox's active script, in the format of the webmail that owns it
-  (Roundcube or Tachyon), and shows what the customer set there; exim no longer answers alongside,
-  so a sender gets one reply instead of two. A mailbox with a hand-written script is shown and left
-  alone. Without Sieve exim answers as before. Installing or removing the Sieve addon moves existing
-  notices across, a restore from an older backup converts them, and a backup carries the notice in
-  the form HestiaCP reads.
+  vacation rule into the mailbox's active script, in the format of the webmail that owns it (Roundcube
+  or Tachyon), and shows what the customer set there; exim no longer answers alongside, so a sender
+  gets one reply instead of two. A mailbox with a hand-written script, or with more than one vacation
+  rule, is shown and left alone. Without Sieve exim answers as before. Installing or removing the
+  Sieve addon moves existing notices across, a restore from an older backup converts them, and a
+  backup carries the notice in the form HestiaCP reads.
 
 ### Changed
 

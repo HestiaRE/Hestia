@@ -121,7 +121,7 @@
 						</label>
 					</div>
 					<?php if ($autoreply_readonly) { ?>
-						<p class="hint u-mb10"><?= tohtml(_("This mailbox runs its own Sieve script. Change the auto reply there.")) ?></p>
+						<p class="hint u-mb10"><?= tohtml(_("The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, or several vacation rules). Change it in the webmail.")) ?></p>
 					<?php } elseif (in_array($v_autoreply_source ?? "", ["roundcube", "tachyon", "none"], true)) { ?>
 						<p class="hint u-mb10"><?= tohtml(_("Shared with the vacation filter in the webmail.")) ?></p>
 					<?php } ?>

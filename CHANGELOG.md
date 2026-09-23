@@ -19,14 +19,14 @@ opens above it.
   backup window; the result goes to syslog under `ntpdate`. The command comes from `ntpsec-ntpdate`,
   now a base package: `ntpdate` itself is only a transitional package on Debian 12 and Ubuntu 24.04
   and gone on 13 and 26.04. An update installs it and rewrites the schedule.
-- **A web domain can carry the panel** (#878). The `panel` template turns the whole domain into a
-  proxy to the panel on loopback, so the panel is reachable as `https://domain/` and its port can be
-  closed to the outside; any number of domains can carry it, each with its own certificate. Opt-in,
-  set by an admin, nginx models only. The domain needs SSL, plain http only redirects. Requests may
-  run ten minutes, and a restart of the panel services answers with a page that reloads itself
-  instead of a bare 502. The panel sees the real client address through it: login log, fail2ban,
-  the per-user IP allow-list and the session pin work as on the port, and reset and account mails
-  link to the domain.
+- **A web domain can carry the panel** (#878). The `panel` template turns the https side of a domain
+  into a proxy to the panel on loopback, so the panel is reachable as `https://domain/` and its port
+  can be closed to the outside; any number of domains can carry it, each with its own certificate.
+  Opt-in, set by an admin, nginx models only. Plain http keeps serving the site from `public_html`
+  until force-SSL is switched on. Requests may run ten minutes, and a restart of the panel services
+  answers with a page that reloads itself instead of a bare 502. The panel sees the real client
+  address through it: login log, fail2ban, the per-user IP allow-list and the session pin work as on
+  the port, and reset and account mails link to the domain.
 
 ### Changed
 

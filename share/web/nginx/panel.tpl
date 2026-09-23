@@ -1,23 +1,49 @@
 #=========================================================================#
 # Panel Proxy Template (#878)                                             #
 # DO NOT MODIFY THIS FILE! CHANGES WILL BE LOST WHEN REBUILDING DOMAINS   #
-# The whole domain becomes the panel. Plain http only answers ACME and    #
-# redirects, so the domain needs SSL: the session cookie is Secure.       #
-# templates/nginx/panel.tpl is the same file for the nginx-only model.    #
+# https carries the panel. Plain http serves the site as the default      #
+# template does, until the force-SSL switch sends it to https.            #
+# The https part is the same in templates/nginx/panel.tpl.                #
 #=========================================================================#
 
 server {
-	listen      %ip%:%front_port%;
-	listen      [%ip6%]:%front_port%;
+	listen      %ip%:%proxy_port%;
+	listen      [%ip6%]:%proxy_port%;
 	server_name %domain_idn% %alias_idn%;
 	include %home%/%user%/conf/web/%domain%/nginx.crowdsec.conf*;
 	include %home%/%user%/conf/web/%domain%/nginx.botlimit.conf*;
 	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
-	access_log  /var/log/%web_system%/domains/%domain%.log combined;
-	access_log  /var/log/%web_system%/domains/%domain%.bytes bytes;
+
+	include %home%/%user%/conf/web/%domain%/nginx.forcessl.conf*;
+
+	location ~ /\.(?!well-known\/|file) {
+		deny all;
+		return 404;
+	}
 
 	location / {
-		return 301 https://$host$request_uri;
+		proxy_pass http://%backend_addr%:%web_port%;
+
+		# per-domain fragments (a location / block cannot be replaced by a later include)
+		include %home%/%user%/conf/web/%domain%/nginx.location.d/*.conf;
+
+		location ~* ^.+\.(%proxy_extensions%)$ {
+			try_files  $uri @fallback;
+
+			root       %docroot%;
+			access_log /var/log/%web_system%/domains/%domain%.log combined;
+			access_log /var/log/%web_system%/domains/%domain%.bytes bytes;
+
+			expires    max;
+		}
+	}
+
+	location @fallback {
+		proxy_pass http://%backend_addr%:%web_port%;
+	}
+
+	location /error/ {
+		alias %home%/%user%/web/%domain%/document_errors/;
 	}
 
 	include %home%/%user%/conf/web/%domain%/nginx.conf_*;

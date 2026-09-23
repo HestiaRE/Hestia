@@ -1,25 +1,61 @@
 #=========================================================================#
 # Panel Proxy Template (#878)                                             #
 # DO NOT MODIFY THIS FILE! CHANGES WILL BE LOST WHEN REBUILDING DOMAINS   #
-# The whole domain becomes the panel. Plain http only answers ACME and    #
-# redirects, so the domain needs SSL: the session cookie is Secure.       #
-# templates/nginx/panel.tpl is the same file for the nginx-only model.    #
+# https carries the panel. Plain http serves the site as the default      #
+# template does, until the force-SSL switch sends it to https.            #
+# The https part is the same in share/web/nginx/panel.tpl.                #
 #=========================================================================#
 
 server {
-	listen      %ip%:%front_port%;
-	listen      [%ip6%]:%front_port%;
+	listen      %ip%:%web_port%;
+	listen      [%ip6%]:%web_port%;
 	server_name %domain_idn% %alias_idn%;
 	include %home%/%user%/conf/web/%domain%/nginx.crowdsec.conf*;
 	include %home%/%user%/conf/web/%domain%/nginx.botlimit.conf*;
-	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
+	root        %docroot%;
+	index       index.php index.html index.htm;
 	access_log  /var/log/%web_system%/domains/%domain%.log combined;
 	access_log  /var/log/%web_system%/domains/%domain%.bytes bytes;
+	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
 
-	location / {
-		return 301 https://$host$request_uri;
+	include %home%/%user%/conf/web/%domain%/nginx.forcessl.conf*;
+
+	location ~ /\.(?!well-known\/) {
+		deny all;
+		return 404;
 	}
 
+	location / {
+		location ~* ^.+\.(jpeg|jpg|png|webp|gif|bmp|ico|svg|css|js)$ {
+			expires max;
+			fastcgi_hide_header "Set-Cookie";
+		}
+
+		location ~ [^/]\.php(/|$) {
+			try_files $uri =404;
+
+			include /etc/nginx/fastcgi_params;
+
+			fastcgi_index index.php;
+			fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+
+			fastcgi_pass %backend_lsnr%;
+
+			include %home%/%user%/conf/web/%domain%/nginx.fastcgi_cache.conf*;
+		}
+	}
+
+	location /error/ {
+		alias %home%/%user%/web/%domain%/document_errors/;
+	}
+
+	location /vstats/ {
+		alias   %home%/%user%/web/%domain%/stats/;
+		include %home%/%user%/web/%domain%/stats/auth.conf*;
+	}
+
+	include /etc/nginx/conf.d/phpmyadmin.inc*;
+	include /etc/nginx/conf.d/phppgadmin.inc*;
 	include %home%/%user%/conf/web/%domain%/nginx.conf_*;
 }
 #=HESTIARE-SSL-VHOST=#

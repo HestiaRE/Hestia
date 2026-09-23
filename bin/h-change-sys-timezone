@@ -40,11 +40,8 @@ is_timezone_valid
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Changing system timezone
-which timedatectls > /dev/null 2>&1
-if [ "$?" -eq 0 ]; then
-	timedatectl set-timezone "$timezone"
-else
+# The files by hand only where timedatectl cannot run (no systemd); an upstream typo used to force that way.
+if ! timedatectl set-timezone "$timezone" > /dev/null 2>&1; then
 	if [ -e "/etc/sysconfig/clock" ]; then
 		sed -i "s/ZONE.*//" /etc/sysconfig/clock
 		echo "ZONE=\"$timezone\"" >> /etc/sysconfig/clock

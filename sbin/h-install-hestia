@@ -527,7 +527,8 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 
 	echo "[ * ] Configuring PHP settings (timezone, short_open_tag)..."
 	local ZONE pconf
-	ZONE=$(timedatectl 2> /dev/null | awk '/Timezone/{print $2}' || true)
+	# The human form labels it "Time zone" and translates the label, so every box used to get UTC.
+	ZONE=$(timedatectl show -p Timezone --value 2> /dev/null || true)
 	ZONE="${ZONE:-UTC}"
 	while IFS= read -r pconf; do
 		sed -i "s%;date.timezone =%date.timezone = $ZONE%g" "$pconf"

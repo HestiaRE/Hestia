@@ -33,6 +33,14 @@ opens above it.
   role, which is also why deleting that role afterwards failed. A database a restore already broke is
   repaired by `h-rebuild-databases`, which applies the same pass. Found on the first fleet round with
   a pgsql fixture on it, which is why it stood this long.
+- **PHP ran on UTC whatever time zone the box was set to** (#1098). The installer read the zone from
+  the human output of `timedatectl`, whose label is "Time zone" and is translated, so the match never
+  held and the fallback wrote `date.timezone = UTC` on every box. It reads the machine form now. A box
+  installed before keeps UTC until `h-change-sys-timezone` is run.
+- **Two install-time probes depended on the language of the box** (#1098). The Sury conflict
+  resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
+  so a PHP package that only needed one older package named was dropped as not installable. The
+  wizard's MariaDB version probe knew only German and English. Both read apt in the C locale now.
 
 ## v0.21 (2026-09-22)
 

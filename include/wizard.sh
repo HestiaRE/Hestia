@@ -450,8 +450,8 @@ fn_discover_php_versions() {
 
 fn_discover_mariadb_version() {
 	local ver=""
-	ver=$(apt-cache policy mariadb-server 2> /dev/null \
-		| grep -i 'Kandidat\|Candidate' | awk '{print $2}' \
+	# The label is translated (French writes "Candidat :", the colon on its own), so no word list can hold.
+	ver=$(LC_ALL=C apt-cache policy mariadb-server 2> /dev/null | awk '/Candidate:/{print $2}' \
 		| grep -oE '^[0-9]+:[0-9]+\.[0-9]+|^[0-9]+\.[0-9]+' \
 		| grep -oE '[0-9]+\.[0-9]+' | head -n1 || true)
 	if [ -z "$ver" ]; then

@@ -15,8 +15,9 @@ if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 
 if (!empty($_GET["domain"])) {
 	$v_domain = quoteshellarg($_GET["domain"]);
+	// Empty RESTART is a reload: 'yes' restarts, and that cuts the request asking for it (#878).
 	exec(
-		HESTIA_CMD . "h-delete-web-domain " . $user . " " . $v_domain . " 'yes'",
+		HESTIA_CMD . "h-delete-web-domain " . $user . " " . $v_domain . " ''",
 		$output,
 		$return_var,
 	);

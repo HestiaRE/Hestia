@@ -72,7 +72,10 @@ update_object_value 'mail' 'DOMAIN' "$domain" '$WEBMAIL' ""
 #----------------------------------------------------------#
 
 if [ -n "$restart" ]; then
-	# Restarting web server
+	# A removed vhost needs a reload; a restart would cut the panel request asking for it (#878).
+	if [ "$restart" = 'yes' ]; then
+		restart=''
+	fi
 	$BIN/h-restart-web "$restart"
 	check_result $? "Web restart failed" > /dev/null
 

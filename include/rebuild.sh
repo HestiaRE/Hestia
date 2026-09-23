@@ -1019,6 +1019,8 @@ rebuild_pgsql_database() {
 # Import MySQL dump
 import_mysql_database() {
 
+	local _cnf _rc
+	unset PORT
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
@@ -1026,12 +1028,19 @@ import_mysql_database() {
 		log_event "$E_PARSING" "$ARGUMENTS"
 		exit "$E_PARSING"
 	fi
+	# A defaults file, not -p on argv, where the admin password stood in the process list for the whole
+	# import; and it carries the port, which the argv form left out. Not mysql_connect: that exits on a
+	# failed connection, and the callers need the return code.
+	_cnf=$(mktemp) || return 1
+	printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" "$HOST" "$USER" "$PASSWORD" "${PORT:-3306}" > "$_cnf"
 	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb -h $HOST -u $USER -p$PASSWORD $DB < $1 > /dev/null 2>&1
+		mariadb --defaults-file="$_cnf" "$DB" < "$1" > /dev/null 2>&1
 	else
-		mysql -h $HOST -u $USER -p$PASSWORD $DB < $1 > /dev/null 2>&1
+		mysql --defaults-file="$_cnf" "$DB" < "$1" > /dev/null 2>&1
 	fi
-
+	_rc=$?
+	rm -f "$_cnf"
+	return "$_rc"
 }
 
 # Import PostgreSQL dump

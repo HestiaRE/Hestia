@@ -105,7 +105,7 @@ is_pgsql_host_alive() {
 	local pg_out
 	export PGPASSWORD="$dbpass"
 	pg_out=$(mktemp)
-	psql_tls "$host" "$tls"
+	psql_env "$host" "$tls"
 	# C locale: the cases below match libpq's words, which it translates.
 	LC_ALL=C psql -h $host -U $dbuser -p $port -c "SELECT VERSION()" > "$pg_out" 2>&1
 	if [ "$?" -ne '0' ]; then

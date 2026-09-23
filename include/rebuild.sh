@@ -945,7 +945,7 @@ rebuild_pgsql_database() {
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
-	psql_tls "$HOST" "$TLS"
+	psql_env "$HOST" "$TLS"
 
 	if [ -z "$PORT" ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then
@@ -1042,7 +1042,7 @@ import_pgsql_database() {
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
-	psql_tls "$HOST" "$TLS"
+	psql_env "$HOST" "$TLS"
 
 	if [ -z "$PORT" ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then

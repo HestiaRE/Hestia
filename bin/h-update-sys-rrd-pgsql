@@ -96,7 +96,7 @@ for host in $hosts; do
 		parse_object_kv_list "$host_str"
 
 		export PGPASSWORD="$PASSWORD"
-		psql_tls "$HOST" "$TLS"
+		psql_env "$HOST" "$TLS"
 		sql="psql -h $HOST -U $USER"
 
 		# Quoted: an unquoted $PASSWORD is split into words, and the emptiness check then dies with

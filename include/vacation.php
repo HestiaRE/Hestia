@@ -307,6 +307,12 @@ function tx_block(array $j, string $body): string
 {
 	$b64 = base64_encode(json_encode($j, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_LINE_TERMINATORS));
 	$enabled = !empty($j['Enabled']);
+	// A disabled filter sits in a bracket comment, which the first */ ends even inside a string, and the rest of the text
+	// would run as Sieve. Inside a quoted string \/ reads as / (RFC 5228 2.4.2), and Tachyon rebuilds the text from the header.
+	// sieve.js 4.2.4 has the same hole in its own quote().
+	if (!$enabled) {
+		$body = str_replace('*/', '*\\/', $body);
+	}
 	return implode(TX_EOL, [
 		'/*',
 		'BEGIN:FILTER:' . $j['ID'],

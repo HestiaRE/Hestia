@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: add new database server
-# options: TYPE HOST DBUSER DBPASS [MAX_DB] [CHARSETS] [TEMPLATE] [PORT]
+# options: TYPE HOST DBUSER DBPASS [MAX_DB] [CHARSETS] [TEMPLATE] [PORT] [TLS]
 #
 # example: h-add-database-host mysql localhost alice p@$$wOrd
 #
@@ -9,6 +9,9 @@
 # you can set limit for number of databases on a host. Template parameter is
 # used only for PostgreSQL and has an default value "template1". You can read
 # more about templates in official PostgreSQL documentation.
+#
+# A remote PostgreSQL host must offer TLS with a certificate this box trusts. TLS=no allows a
+# plaintext connection on purpose; it exists only for pgsql, the MariaDB client enforces TLS itself.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -20,10 +23,11 @@ host=$2
 dbuser=$3
 password=$4
 HIDE=4
-max_db=${5-500}
+max_db=${5:-500}
 charsets=${6}
 template=${7}
 port=${8}
+tls=${9:-yes}
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -101,7 +105,9 @@ is_pgsql_host_alive() {
 	local pg_out
 	export PGPASSWORD="$dbpass"
 	pg_out=$(mktemp)
-	psql -h $host -U $dbuser -p $port -c "SELECT VERSION()" > "$pg_out" 2>&1
+	psql_env "$host" "$tls"
+	# C locale: the cases below match libpq's words, which it translates.
+	LC_ALL=C psql -h $host -U $dbuser -p $port -c "SELECT VERSION()" > "$pg_out" 2>&1
 	if [ "$?" -ne '0' ]; then
 		# Same rule as MySQL: TLS is a prerequisite, and the reason belongs in the message.
 		case "$(tr 'A-Z' 'a-z' < "$pg_out")" in
@@ -129,7 +135,7 @@ is_pgsql_host_alive() {
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-args_usage='TYPE HOST DBUSER DBPASS [MAX_DB] [CHARSETS] [TPL] [PORT]'
+args_usage='TYPE HOST DBUSER DBPASS [MAX_DB] [CHARSETS] [TPL] [PORT] [TLS]'
 check_args '4' "$#" "$args_usage"
 
 if [ -z $charsets ]; then charsets="UTF8,LATIN1,WIN1250,WIN1251,WIN1252,WIN1256,WIN1258,KOI8"; fi
@@ -146,6 +152,11 @@ is_format_valid 'host' 'dbuser' 'max_db' 'charsets' 'template' 'port'
 case "$type" in
 	mysql | pgsql) ;;
 	*) check_result "$E_INVALID" "database type '$type' is not supported (mysql|pgsql)" ;;
+esac
+case "$type:$tls" in
+	*:yes | pgsql:no) ;;
+	mysql:no) check_result "$E_INVALID" "TLS=no exists only for pgsql, the MariaDB client enforces TLS itself" ;;
+	*) check_result "$E_INVALID" "invalid TLS value '$tls' (yes|no)" ;;
 esac
 is_dbhost_new
 is_password_valid
@@ -176,7 +187,7 @@ case $type in
 		str="HOST='$host' USER='$dbuser' PASSWORD='$dbpass'"
 		str="$str CHARSETS='$charsets' TPL='$template' MAX_DB='$max_db'"
 		str="$str U_SYS_USERS='' U_DB_BASES='0' SUSPENDED='no'"
-		str="$str TIME='$time' DATE='$date' PORT='$port'"
+		str="$str TIME='$time' DATE='$date' PORT='$port' TLS='$tls'"
 		;;
 esac
 

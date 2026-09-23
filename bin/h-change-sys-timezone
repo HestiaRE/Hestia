@@ -40,20 +40,18 @@ is_timezone_valid
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Changing system timezone
-which timedatectls > /dev/null 2>&1
-if [ "$?" -eq 0 ]; then
-	timedatectl set-timezone "$timezone"
-else
+# The files by hand only where timedatectl cannot run (no systemd); an upstream typo used to force that way.
+if ! timedatectl set-timezone "$timezone" > /dev/null 2>&1; then
 	if [ -e "/etc/sysconfig/clock" ]; then
 		sed -i "s/ZONE.*//" /etc/sysconfig/clock
 		echo "ZONE=\"$timezone\"" >> /etc/sysconfig/clock
 	fi
-	if [ -e "/etc/timezone" ]; then
-		echo "$timezone" > /etc/timezone
-	fi
 	rm -f /etc/localtime
 	ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
+fi
+# timedated leaves /etc/timezone alone, and Debian 12/13 and Ubuntu 24.04 still carry one for what reads it.
+if [ -e "/etc/timezone" ]; then
+	echo "$timezone" > /etc/timezone
 fi
 
 # Chaning php timezone

@@ -941,10 +941,11 @@ rebuild_mysql_database() {
 # Rebuild PostgreSQL
 rebuild_pgsql_database() {
 
-	unset PORT
+	unset PORT TLS
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
+	psql_env "$HOST" "$TLS"
 
 	if [ -z "$PORT" ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then
@@ -1018,6 +1019,7 @@ rebuild_pgsql_database() {
 # Import MySQL dump
 import_mysql_database() {
 
+	unset PORT
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
@@ -1025,22 +1027,26 @@ import_mysql_database() {
 		log_event "$E_PARSING" "$ARGUMENTS"
 		exit "$E_PARSING"
 	fi
+	# Through a pipe, not -p on argv (the process list) and not a file: the callers own the EXIT trap, so
+	# a file of ours would outlive an abort with the admin password in it. mysql_connect exits on a failed
+	# connection, and the callers need the return code.
+	_import_mysql_cnf() { printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" "$HOST" "$USER" "$PASSWORD" "${PORT:-3306}"; }
 	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb -h $HOST -u $USER -p$PASSWORD $DB < $1 > /dev/null 2>&1
+		mariadb --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
 	else
-		mysql -h $HOST -u $USER -p$PASSWORD $DB < $1 > /dev/null 2>&1
+		mysql --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
 	fi
-
 }
 
 # Import PostgreSQL dump
 import_pgsql_database() {
 
 	local _rc
-	unset PORT
+	unset PORT TLS
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
+	psql_env "$HOST" "$TLS"
 
 	if [ -z "$PORT" ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then

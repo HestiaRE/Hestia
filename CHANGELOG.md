@@ -12,6 +12,14 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **The clock is stepped once a day at 07:00** (#1098). A suspend-mode PBS snapshot costs the guest a
+  few seconds every night, so `/etc/cron.d/hestia-repair` runs `ntpdate -s pool.ntp.org` after the
+  backup window; the result goes to syslog under `ntpdate`. The command comes from `ntpsec-ntpdate`,
+  now a base package: `ntpdate` itself is only a transitional package on Debian 12 and Ubuntu 24.04
+  and gone on 13 and 26.04. An update installs it and rewrites the schedule.
+
 ### Changed
 
 - **The update lower bound is `v0.21`** (#1111). It was `v0.19.0`, and v0.21 is the first release the
@@ -21,6 +29,13 @@ opens above it.
   longer read at all, because no box that could still need them is accepted. Both files stay where
   they are; removing one takes an entry that removes it on the box as well, and such an entry would
   have nothing left to run on.
+- **A remote PostgreSQL host has to speak TLS with a certificate this box trusts** (#1098, #980). The
+  rule stood since #980, but only the MariaDB client enforced it; on the pgsql side nothing set an
+  `sslmode`, so libpq fell back to plaintext without a word. Every connection to a remote pgsql host
+  now verifies against the OS trust store, a local one is unchanged. `h-add-database-host` takes a
+  ninth argument `TLS` (`yes`/`no`) for a host that deliberately runs without it; `TLS='no'` on the
+  record allows plaintext again. A remote host registered before without TLS stops connecting after
+  the update until `TLS='no'` is added to its line in `conf/pgsql.conf`.
 
 ### Fixed
 
@@ -33,6 +48,24 @@ opens above it.
   role, which is also why deleting that role afterwards failed. A database a restore already broke is
   repaired by `h-rebuild-databases`, which applies the same pass. Found on the first fleet round with
   a pgsql fixture on it, which is why it stood this long.
+- **PHP ran on UTC whatever time zone the box was set to** (#1098). The installer read the zone from
+  the human output of `timedatectl`, whose label is "Time zone" and is translated, so the match never
+  held and the fallback wrote `date.timezone = UTC` on every box. It reads the machine form now. A box
+  installed before keeps UTC until `h-change-sys-timezone` is run.
+- **`h-change-sys-timezone` never used timedatectl** (#1098). An inherited typo (`which timedatectls`)
+  sent every change down the hand-written path. It uses timedatectl now and still writes
+  `/etc/timezone`, which timedated leaves alone.
+- **A remote PostgreSQL host whose admin has no database of the same name could not be added**
+  (#1098). Every psql of the layer connected to the database named after the admin role, which only
+  `postgres` happens to carry; they name the `postgres` database now.
+- **A database host on a non-default port was reached on the default one** (#1098). The status
+  report, the PostgreSQL graph and the MariaDB import of a restore left the port out; the import also
+  carried the admin password on its command line, visible in the process list while it ran. It reads
+  its credentials through a pipe now, so nothing is left on disk when a restore is killed.
+- **Two install-time probes depended on the language of the box** (#1098). The Sury conflict
+  resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
+  so a PHP package that only needed one older package named was dropped as not installable. The
+  wizard's MariaDB version probe knew only German and English. Both read apt in the C locale now.
 
 ## v0.21 (2026-09-22)
 

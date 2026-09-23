@@ -176,7 +176,8 @@ filter_installable_php_pkgs() {
 		brk=""
 		for round in 1 2 3; do
 			had=$(printf '%s' "$brk" | wc -w)
-			for add in $(apt-get -s install "$p" $brk 2>&1 | grep -oE 'Breaks: [a-z0-9.+-]+' | awk '{print $2}' | sort -u); do
+			# The dependency type is translated (German "Beschaedigt"), and only the C word can be matched.
+			for add in $(LC_ALL=C apt-get -s install "$p" $brk 2>&1 | grep -oE 'Breaks: [a-z0-9.+-]+' | awk '{print $2}' | sort -u); do
 				case " $brk " in *" $add "*) ;; *) brk="$brk $add" ;; esac
 			done
 			[ "$(printf '%s' "$brk" | wc -w)" -gt "$had" ] || break

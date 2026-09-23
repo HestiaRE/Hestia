@@ -28,7 +28,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 # JSON list function
 json_list() {
 	echo '{'
-	json_escape HOST PORT type CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL SUSPENDED TIME DATE
+	json_escape HOST PORT type CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL TLS SUSPENDED TIME DATE
 	printf '    "%s": {\n' "$HOST"
 	printf '        "HOST": "%s",\n' "$HOST"
 	printf '        "PORT": "%s",\n' "$PORT"
@@ -38,6 +38,7 @@ json_list() {
 	printf '        "U_SYS_USERS": "%s",\n' "$U_SYS_USERS"
 	printf '        "U_DB_BASES": "%s",\n' "$U_DB_BASES"
 	printf '        "TPL": "%s",\n' "$TPL"
+	printf '        "TLS": "%s",\n' "${TLS:-yes}"
 	printf '        "SUSPENDED": "%s",\n' "$SUSPENDED"
 	printf '        "TIME": "%s",\n' "$TIME"
 	printf '        "DATE": "%s"\n' "$DATE"
@@ -55,6 +56,7 @@ shell_list() {
 	echo "U_DB_BASES:     $U_DB_BASES"
 	echo "U_SYS_USERS:    $U_SYS_USERS"
 	echo "TPL:            $TPL"
+	echo "TLS:            ${TLS:-yes}"
 	echo "SUSPENDED:      $SUSPENDED"
 	echo "TIME:           $TIME"
 	echo "DATE:           $DATE"

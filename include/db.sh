@@ -142,11 +142,30 @@ mysql_dump() {
 }
 
 # PostgreSQL
+
+# psql_tls HOST [TLS] - a remote host must speak TLS with a certificate this box trusts (#980).
+# Left alone, libpq prefers TLS and falls back to plaintext unasked. The bundle, not sslrootcert=system,
+# which libpq 15 on Debian 12 does not know. TLS='no' on the record is the deliberate way back to that.
+psql_tls() {
+	case "$1" in
+		'' | localhost | 127.* | ::1 | /*) unset PGSSLMODE PGSSLROOTCERT ;;
+		*)
+			if [ "$2" = 'no' ]; then
+				export PGSSLMODE=prefer
+				unset PGSSLROOTCERT
+			else
+				export PGSSLMODE=verify-full PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt
+			fi
+			;;
+	esac
+}
+
 psql_connect() {
-	unset PORT
+	unset PORT TLS
 	host_str=$(grep "HOST='$1'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
+	psql_tls "$HOST" "$TLS"
 	if [ -z $PORT ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then
 		echo "Error: postgresql config parsing failed"

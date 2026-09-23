@@ -41,8 +41,10 @@ json_list() {
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
 			for str in $(cat $HESTIA/conf/$type.conf); do
+				# A record without the key (every mysql one, a pgsql one from before) is TLS-bound.
+				unset TLS
 				parse_object_kv_list "$str"
-				json_escape HOST PORT type CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL SUSPENDED TIME DATE
+				json_escape HOST PORT type CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL TLS SUSPENDED TIME DATE
 				echo '    {'
 				printf '        "HOST": "%s",\n' "$HOST"
 				printf '        "PORT": "%s",\n' "$PORT"
@@ -52,6 +54,7 @@ json_list() {
 				printf '        "U_SYS_USERS": "%s",\n' "$U_SYS_USERS"
 				printf '        "U_DB_BASES": "%s",\n' "$U_DB_BASES"
 				printf '        "TPL": "%s",\n' "$TPL"
+				printf '        "TLS": "%s",\n' "${TLS:-yes}"
 				printf '        "SUSPENDED": "%s",\n' "$SUSPENDED"
 				printf '        "TIME": "%s",\n' "$TIME"
 				printf '        "DATE": "%s"\n' "$DATE"

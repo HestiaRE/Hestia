@@ -18,6 +18,8 @@
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -40,6 +42,8 @@ for db in $(echo $DB_SYSTEM | tr ',' '\n'); do
 
 		# Checking server status
 		for host_str in $(cat $HESTIA/conf/$db.conf); do
+			# Keys a record leaves out would otherwise carry over from the host before.
+			unset TLS
 			parse_object_kv_list "$host_str"
 
 			# Checking MySQL
@@ -80,6 +84,7 @@ for db in $(echo $DB_SYSTEM | tr ',' '\n'); do
 			if [ "$db" = 'pgsql' ] && [ ! -z "$(which psql)" ]; then
 				echo "PostgreSQL $HOST status"
 				export PGPASSWORD="$PASSWORD"
+				psql_tls "$HOST" "$TLS"
 				psql -h $HOST -U $USER -c "SELECT * FROM pg_stat_activity"
 			fi
 		done

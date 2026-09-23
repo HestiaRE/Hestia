@@ -1271,6 +1271,8 @@ system_repair_cron_write() {
 	{
 		echo "LC_ALL=C"
 		echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair"
+		# After the PBS backups: a suspend-mode snapshot costs the guest a few seconds every night.
+		echo "00 07 * * * root /usr/sbin/ntpdate -s pool.ntp.org"
 	} > "$_tmp" || {
 		rm -f "$_tmp"
 		return 1

@@ -1,0 +1,26 @@
+{
+  "version": "0.22",
+  "entries": [
+    {
+      "id": "ntpdate-package",
+      "description": "ntpdate for the daily clock step; ntpsec-ntpdate is the package that carries it on all four targets",
+      "conditions": [
+        { "type": "path_absent", "path": "/usr/sbin/ntpdate" }
+      ],
+      "action": { "type": "package_install", "name": "ntpsec-ntpdate" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "cron-ntpdate",
+      "description": "The repair schedule steps the clock daily at 07:00, after the backups that suspend the guest; not operator surface, so it is rewritten whole",
+      "conditions": [
+        { "type": "file_lacks", "path": "/etc/cron.d/hestia-repair", "value": "ntpdate" }
+      ],
+      "action": { "type": "function_call", "function": "system_repair_cron_write" },
+      "paths": ["/etc/cron.d/hestia-repair"],
+      "reversible": false,
+      "after": "0.22/ntpdate-package"
+    }
+  ]
+}

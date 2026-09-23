@@ -12,6 +12,14 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **The clock is stepped once a day at 07:00** (#1098). A suspend-mode PBS snapshot costs the guest a
+  few seconds every night, so `/etc/cron.d/hestia-repair` runs `ntpdate -s pool.ntp.org` after the
+  backup window; the result goes to syslog under `ntpdate`. The command comes from `ntpsec-ntpdate`,
+  now a base package: `ntpdate` itself is only a transitional package on Debian 12 and Ubuntu 24.04
+  and gone on 13 and 26.04. An update installs it and rewrites the schedule.
+
 ### Changed
 
 - **The update lower bound is `v0.21`** (#1111). It was `v0.19.0`, and v0.21 is the first release the
@@ -47,6 +55,11 @@ opens above it.
 - **`h-change-sys-timezone` never used timedatectl** (#1098). An inherited typo (`which timedatectls`)
   sent every change down the hand-written path. It uses timedatectl now and still writes
   `/etc/timezone`, which timedated leaves alone.
+- **A remote PostgreSQL host whose admin has no database of the same name could not be added**
+  (#1098). Every psql of the layer connected to the database named after the admin role, which only
+  `postgres` happens to carry; they name the `postgres` database now.
+- **`h-list-sys-db-status` asked every database host on the default port** (#1098). A remote host on
+  another port was queried on 5432, and the MariaDB client file it writes carried no port at all.
 - **Two install-time probes depended on the language of the box** (#1098). The Sury conflict
   resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
   so a PHP package that only needed one older package named was dropped as not installable. The

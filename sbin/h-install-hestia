@@ -184,6 +184,8 @@ install_base() {
 	# BLAKE3 is the only cryptographic candidate that stays ahead of the compressor without sha_ni.
 	# patch likewise: an update entry that has to change an operator-editable file applies a patch
 	# rather than copying over it (#1083), and it is not part of a minimal Debian.
+	# ntpsec-ntpdate for the daily clock step in /etc/cron.d/hestia-repair; the ntpdate package is only a
+	# transitional one on Debian 12 and Ubuntu 24.04 and gone on 13 and 26.04.
 	# shellcheck disable=SC2086
 	hestia_apt -y install \
 		acl at b3sum bc bsdmainutils bsdutils ca-certificates \
@@ -191,7 +193,7 @@ install_base() {
 		git gnupg idn2 imagemagick jq nftables \
 		lsb-release lsof mc net-tools openssh-server patch quota \
 		rrdtool rsyslog sysstat unzip util-linux vim-common \
-		wget whois xxd zip zstd bubblewrap sudo \
+		wget whois xxd zip zstd bubblewrap sudo ntpsec-ntpdate \
 		apt-transport-https awstats \
 		$BASE_PKGS_EXTRA
 

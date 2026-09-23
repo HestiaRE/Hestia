@@ -199,7 +199,10 @@ psql_value() {
 # an installed extension included. Anything another object carries is left out: the sequence behind
 # a serial column has no owner of its own, and asking for one is an error that ends the pass.
 # NOT covered, because our own path never creates them for a customer: extensions, event triggers,
-# large objects and default privileges.
+# large objects and default privileges. Nor grants to a second role, which a customer can set in SQL
+# on their own tables: -x drops them on purpose, because a grant names a cluster-wide role with no
+# record behind it, and replayed on a restore under another name it would reach whoever holds that
+# name on this box.
 psql_owner_apply() {
 	local _db="$1" _role="$2" _tmp _err _rc
 	if [ -z "$_db" ] || [ -z "$_role" ]; then

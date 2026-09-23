@@ -188,6 +188,81 @@ psql_value() {
 	rm -f "$_tmp"
 }
 
+# psql_owner_apply DATABASE ROLE - make the server agree with the record about who owns what.
+#
+# psql_dump writes neither owner nor grants (-O -x) and every import runs as the admin role, so
+# without this pass a restored database belongs to the admin and the customer cannot read their own
+# data (#1113). The same gap left h-change-database-user with the record handed over and the tables
+# still on the old role, which is also why deleting that role then failed.
+#
+# Enumerated rather than REASSIGN OWNED BY, which takes everything the admin owns in the database,
+# an installed extension included. Anything another object carries is left out: the sequence behind
+# a serial column has no owner of its own, and asking for one is an error that ends the pass.
+# NOT covered, because our own path never creates them for a customer: extensions, event triggers,
+# large objects and default privileges.
+psql_owner_apply() {
+	local _db="$1" _role="$2" _tmp _err _rc
+	if [ -z "$_db" ] || [ -z "$_role" ]; then
+		echo "Warning!: no owner could be applied, the database or the role was not named"
+		return 1
+	fi
+	_tmp=$(mktemp) || return 1
+	_err=$(mktemp) || {
+		rm -f "$_tmp"
+		return 1
+	}
+	cat > "$_tmp" << 'SQL'
+SET client_min_messages = warning;
+ALTER DATABASE :"db" OWNER TO :"role";
+SELECT format('ALTER %s %I.%I OWNER TO %I;',
+		CASE c.relkind WHEN 'S' THEN 'SEQUENCE' WHEN 'v' THEN 'VIEW'
+			WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'TABLE' END,
+		n.nspname, c.relname, :'role')
+	FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+	WHERE c.relkind IN ('r', 'p', 'S', 'v', 'm', 'f')
+		AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+		AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_class'::regclass
+			AND d.objid = c.oid AND d.deptype IN ('a', 'i', 'e'))
+		AND pg_get_userbyid(c.relowner) <> :'role'
+\gexec
+SELECT format('ALTER SCHEMA %I OWNER TO %I;', n.nspname, :'role')
+	FROM pg_namespace n
+	WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'public')
+		AND n.nspname NOT LIKE 'pg\_%'
+		AND pg_get_userbyid(n.nspowner) <> :'role'
+\gexec
+SELECT format('ALTER ROUTINE %I.%I(%s) OWNER TO %I;',
+		n.nspname, p.proname, pg_get_function_identity_arguments(p.oid), :'role')
+	FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+	WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+		AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_proc'::regclass
+			AND d.objid = p.oid AND d.deptype IN ('a', 'i', 'e'))
+		AND pg_get_userbyid(p.proowner) <> :'role'
+\gexec
+SELECT format('ALTER %s %I.%I OWNER TO %I;',
+		CASE t.typtype WHEN 'd' THEN 'DOMAIN' ELSE 'TYPE' END, n.nspname, t.typname, :'role')
+	FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+	WHERE t.typtype IN ('c', 'e', 'r', 'd')
+		AND (t.typrelid = 0 OR (SELECT c.relkind FROM pg_class c WHERE c.oid = t.typrelid) = 'c')
+		AND NOT EXISTS (SELECT 1 FROM pg_type e WHERE e.typarray = t.oid)
+		AND n.nspname NOT IN ('pg_catalog', 'information_schema') AND n.nspname NOT LIKE 'pg\_%'
+		AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.classid = 'pg_type'::regclass
+			AND d.objid = t.oid AND d.deptype IN ('a', 'i', 'e'))
+		AND pg_get_userbyid(t.typowner) <> :'role'
+\gexec
+SQL
+	# ON_ERROR_STOP, so the exit code carries the answer: psql leaves 0 behind after a failed
+	# statement otherwise, and a half applied pass would read as a whole one.
+	psql -h "$HOST" -U "$USER" -p "$PORT" -d "$_db" -v ON_ERROR_STOP=1 -v db="$_db" -v role="$_role" \
+		-tAXq -f "$_tmp" > /dev/null 2> "$_err"
+	_rc=$?
+	if [ "$_rc" -ne 0 ]; then
+		echo "Warning!: $_db was not handed to $_role, the customer has no rights to the data: $(head -n1 "$_err")"
+	fi
+	rm -f "$_tmp" "$_err"
+	return "$_rc"
+}
+
 psql_dump() {
 	pg_dump -h $HOST -U $USER -p $PORT -c --inserts -O -x -f $1 $2 2> /tmp/e.psql
 	if [ '0' -ne "$?" ]; then

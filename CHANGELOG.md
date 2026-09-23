@@ -22,6 +22,18 @@ opens above it.
   they are; removing one takes an entry that removes it on the box as well, and such an entry would
   have nothing left to run on.
 
+### Fixed
+
+- **A restored PostgreSQL database left the customer without rights to their own data** (#1113). The
+  dump carries neither owner nor grants (`pg_dump -O -x`) and the import runs as the admin role, so
+  every table of a restored database belonged to `postgres` while the database itself still belonged
+  to the customer: `SELECT` answered `permission denied`. The objects are handed to the role the
+  record names now, in one place for every path that writes into a database. `h-change-database-user`
+  had the same hole from the other side, the record handed over and the tables left with the old
+  role, which is also why deleting that role afterwards failed. A database a restore already broke is
+  repaired by `h-rebuild-databases`, which applies the same pass. Found on the first fleet round with
+  a pgsql fixture on it, which is why it stood this long.
+
 ## v0.21 (2026-09-22)
 
 Plus-subaddressing reaches sieve, the version scheme drops its third component, and the update path

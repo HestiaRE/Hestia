@@ -34,6 +34,18 @@
       "reversible": false
     },
     {
+      "id": "sieve-vacation-recipient",
+      "description": "The Sieve vacation answers mail that came in through an alias or catch-all, as exim's autoreply does; both dovecot versions spell the setting with check_recipient",
+      "conditions": [
+        { "type": "key_is", "name": "SIEVE_SYSTEM", "value": "yes" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "check_recipient" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_vacation_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false,
+      "after": "0.22/sieve-redirect-envelope"
+    },
+    {
       "id": "fail2ban-panel-web-ban",
       "description": "The panel login jail bans on 80/443 too, where a panel-proxy domain takes the same login; jail.d/hestia.local is ours, not the admin's jail.local",
       "conditions": [

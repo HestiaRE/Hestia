@@ -443,6 +443,7 @@ autoreplay:
   unseen
   # RFC 3834: never answer a bounce, a system or list sender, automated or list mail, or spam. A second
   # condition, ANDed with the first, so the line the 0.21 update patch matches stays as it was.
+  # The spam test is also the Sieve vacation's (include/vacation.php); change both together.
   condition = ${if and{\
     {def:sender_address}\
     {!match{$sender_address_local_part}{\N(?i)^(mailer-daemon|postmaster|owner-.*|.*-request)$\N}}\

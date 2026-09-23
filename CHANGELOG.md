@@ -37,9 +37,10 @@ opens above it.
   vacation rule into the mailbox's active script, in the format of the webmail that owns it (Roundcube
   or Tachyon), and shows what the customer set there; exim no longer answers alongside, so a sender
   gets one reply instead of two. A mailbox with a hand-written script, or with more than one vacation
-  rule, is shown and left alone. Without Sieve exim answers as before. Installing or removing the
-  Sieve addon moves existing notices across, a restore from an older backup converts them, and a
-  backup carries the notice in the form HestiaCP reads.
+  rule, is shown and left alone. Like exim, the notice also answers mail that came in through an alias
+  or catch-all; an update sets that on boxes that already run Sieve. Without Sieve exim answers as
+  before. Installing or removing the Sieve addon moves existing notices across, a restore from an
+  older backup converts them, and a backup carries the notice in the form HestiaCP reads.
 
 ### Changed
 

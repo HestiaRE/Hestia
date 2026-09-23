@@ -600,15 +600,26 @@ sieve_lmtp_apply() {
 	return 1
 }
 
-# Sieve redirects keep an SPF-safe envelope sender (#1095). 90-sieve.conf is not panel surface and no
-# addon writes it, so the tree copy replaces it whole.
-sieve_redirect_apply() {
+# 90-sieve.conf is not panel surface and no addon writes it, so the tree copy replaces it whole.
+sieve_conf_copy() {
 	local dcdir ver
 	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2) || return 1
 	[ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = "2.4" ] && dcdir="$HESTIA/share/dovecot/2.4" || dcdir="$HESTIA/share/dovecot/2.3"
 	cp -f "$dcdir/sieve/90-sieve.conf" /etc/dovecot/conf.d/ || return 1
-	systemctl restart dovecot || return 1
+	systemctl restart dovecot
+}
+
+# Sieve redirects keep an SPF-safe envelope sender (#1095).
+sieve_redirect_apply() {
+	sieve_conf_copy || return 1
 	doveconf -n 2> /dev/null | grep -q '^ *sieve_redirect_envelope_from = orig_recipient'
+}
+
+# The vacation answers alias and catch-all mail like exim's autoreply (#784). The setting's name and polarity differ
+# between pigeonhole for 2.3 and 2.4.
+sieve_vacation_apply() {
+	sieve_conf_copy || return 1
+	doveconf -n 2> /dev/null | grep -qE '^ *sieve_vacation_(dont_check_recipient = yes|check_recipient = no)$'
 }
 
 # The exim side of #596. Patched rather than copied, because the operator may have edited this file

@@ -1,11 +1,12 @@
 --- exim4.conf.template
 +++ exim4.conf.template
-@@ -441,6 +441,17 @@
+@@ -441,6 +441,18 @@
    retry_use_local_part
    transport = userautoreply
    unseen
 +  # RFC 3834: never answer a bounce, a system or list sender, automated or list mail, or spam. A second
 +  # condition, ANDed with the first, so the line the 0.21 update patch matches stays as it was.
++  # The spam test is also the Sieve vacation's (include/vacation.php); change both together.
 +  condition = ${if and{\
 +    {def:sender_address}\
 +    {!match{$sender_address_local_part}{\N(?i)^(mailer-daemon|postmaster|owner-.*|.*-request)$\N}}\
@@ -18,7 +19,7 @@
  
  inbound_srs:
      driver = redirect
-@@ -667,9 +678,13 @@
+@@ -667,9 +679,13 @@
    driver = autoreply
    file = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}.msg
    from = "${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}"

@@ -61,7 +61,7 @@ opens above it.
 - **A database host on a non-default port was reached on the default one** (#1098). The status
   report, the PostgreSQL graph and the MariaDB import of a restore left the port out; the import also
   carried the admin password on its command line, visible in the process list while it ran. It reads
-  a temporary defaults file now, the way every other MariaDB call does.
+  its credentials through a pipe now, so nothing is left on disk when a restore is killed.
 - **Two install-time probes depended on the language of the box** (#1098). The Sury conflict
   resolution matched the English "Breaks" in apt's output, which a German box writes as "Beschaedigt",
   so a PHP package that only needed one older package named was dropped as not installable. The

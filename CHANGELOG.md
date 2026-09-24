@@ -35,6 +35,9 @@ opens above it.
   one the panel, cron and a stock root shell already have, so a stock box sees no change: from a root shell
   set to 077, a restore (a HestiaCP archive as well as an own backup) aborted with rc 12 and brought back
   neither the web data nor the mailbox.
+- **The counters drifted after an aborted restore** (#1137). The restore counted only at its end, so the
+  `h-delete-user` after an abort subtracted an account and domains that were never counted; the recount now
+  runs on every exit. `h-rebuild-user` also leaves `tmp/` at 700 instead of widening it to 771.
 
 ## v0.22 (2026-09-24)
 

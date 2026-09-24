@@ -1748,9 +1748,10 @@ check_install_root_owner() {
 # check_secret_file_modes: the files whose mode means something: the sudoers rule (440 root:root,
 # what deploy_hestia_sudoers installs), and every private key the panel or a customer holds: the panel
 # certificate under /etc/ssl/hestia, the mail SNI links under /etc/exim4/ssl (resolved), the customers'
-# keys under /etc/hestia/users/*/ssl and /home/*/conf/{web,mail}/*/ssl. Rule for keys: no world bit at
-# all; group access is by design (root:mail 660, exim reads them). The set is found, not listed; a box
-# without a single key says so as a skip with the count, never as a pass.
+# keys under /etc/hestia/users/*/ssl and /home/*/conf/{web,mail}/*/ssl, and the SMTP relay files with the
+# relay password in clear text (/etc/exim4/smtp_relay.conf, /home/*/conf/mail/*/smtp_relay.conf, #1142).
+# Rule: no world bit at all; group access is by design (root:mail 660, exim reads them). The set is found,
+# not listed; a box without a single key says so as a skip with the count, never as a pass.
 check_secret_file_modes() {
 	local bad='' sudoers=/etc/sudoers.d/hestia keys k m n
 	if [ -f "$sudoers" ]; then
@@ -1759,8 +1760,11 @@ check_secret_file_modes() {
 	else
 		bad="$bad sudoers(missing)"
 	fi
-	keys=$(find /etc/ssl/hestia /etc/exim4/ssl /etc/hestia/users/*/ssl /home/*/conf/web/*/ssl /home/*/conf/mail/*/ssl \
-		-maxdepth 1 \( -name '*.key' -o -name '*.pem' \) 2> /dev/null | sort -u)
+	keys=$({
+		find /etc/ssl/hestia /etc/exim4/ssl /etc/hestia/users/*/ssl /home/*/conf/web/*/ssl /home/*/conf/mail/*/ssl \
+			-maxdepth 1 \( -name '*.key' -o -name '*.pem' \) 2> /dev/null
+		find /etc/exim4/smtp_relay.conf /home/*/conf/mail/*/smtp_relay.conf -maxdepth 0 2> /dev/null
+	} | sort -u)
 	n=$(printf '%s\n' "$keys" | grep -c .)
 	for k in $keys; do
 		[ -e "$k" ] || {
@@ -1773,9 +1777,9 @@ check_secret_file_modes() {
 	if [ -n "$bad" ]; then
 		no "secret file modes" "$bad"
 	elif [ "$n" -eq 0 ]; then
-		skip "secret file modes: sudoers 440 root:root, and no private key or pem on this box to check (0 found)"
+		skip "secret file modes: sudoers 440 root:root, and no private key, pem or relay file on this box to check (0 found)"
 	else
-		ok "secret file modes: sudoers 440 root:root, $n key/pem file(s) without a world bit"
+		ok "secret file modes: sudoers 440 root:root, $n key/pem/relay file(s) without a world bit"
 	fi
 }
 

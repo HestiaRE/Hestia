@@ -890,6 +890,33 @@ mail_ssl_modes() { # USER DOMAIN
 	return 0
 }
 
+# SMTP relay credentials, in clear text for exim, so never with a world bit: box-wide 640 root:Debian-exim, per domain
+# 660 Debian-exim:mail, the modes rebuild_mail_domain_conf gives every file of conf/mail/<domain>. cat > under the
+# umask left both 644 (#1142).
+smtp_relay_write() { # FILE OWNER MODE HOST PORT USER PASS
+	local tmp
+	tmp=$(mktemp "$1.XXXXXX") || return 1
+	if printf 'host:%s\nport:%s\nuser:%s\npass:%s\n' "$4" "$5" "$6" "$7" > "$tmp" \
+		&& chown "$2" "$tmp" && chmod "$3" "$tmp" && mv -f "$tmp" "$1"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	return 1
+}
+
+# Update 0.23: the relay files already on the box.
+smtp_relay_modes_apply() {
+	local f
+	if [ -e /etc/exim4/smtp_relay.conf ]; then
+		chown "root:${MAIL_USER:-Debian-exim}" /etc/exim4/smtp_relay.conf && chmod 640 /etc/exim4/smtp_relay.conf || return 1
+	fi
+	for f in "$HOMEDIR"/*/conf/mail/*/smtp_relay.conf; do
+		[ -e "$f" ] || continue
+		chown "${MAIL_USER:-Debian-exim}:mail" "$f" && chmod 660 "$f" || return 1
+	done
+	return 0
+}
+
 # Update 0.23: every mail certificate on the box, once, since each domain operation used to reset them all to 644.
 mail_ssl_modes_apply() {
 	local d rest

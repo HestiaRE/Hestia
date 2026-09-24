@@ -10,6 +10,26 @@
       "action": { "type": "function_call", "function": "mail_ssl_modes_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "smtp-relay-modes-box",
+      "description": "The box-wide SMTP relay file holds the relay password in clear text and was written 644: 640 root:Debian-exim",
+      "conditions": [
+        { "type": "file_mode_wider", "path": "/etc/exim4/smtp_relay.conf", "value": "640" }
+      ],
+      "action": { "type": "function_call", "function": "smtp_relay_modes_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "smtp-relay-modes-domain",
+      "description": "A per-domain SMTP relay file was 644 until the next mail rebuild: 660 Debian-exim:mail like the rest of conf/mail/<domain>",
+      "conditions": [
+        { "type": "file_mode_wider", "path": "/home/*/conf/mail/*/smtp_relay.conf", "value": "660" }
+      ],
+      "action": { "type": "function_call", "function": "smtp_relay_modes_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

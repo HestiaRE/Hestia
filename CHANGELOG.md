@@ -21,6 +21,17 @@ opens above it.
   A box installed without mail (the nomail profile) failed the same check a second way: the two exim patch
   entries tested the stock Debian template, which is not ours. They now ask for `MAIL_SYSTEM` first, and
   the check stops at the first false condition, as the plan always did.
+- **Mail certificate keys were world-readable, and the smoke stood red on every box with one** (#1135).
+  Each mail SSL operation ran `chmod -R 0644` over `/etc/exim4/ssl/*`, which follows the links and set the key
+  of every domain on the box to 644 (only the 750 directory kept them private), and handed every link to the
+  user at hand. The files are now 640, exim reads them through the `mail` group, and only the domain's own
+  links are touched, in all four places that did it. An update entry re-modes the keys already on a box,
+  through the new condition `file_mode_wider`.
+- **An account created under a restrictive umask was broken without an error** (#1134). Under `umask 077`
+  `h-add-user` left `conf/` and `web/` at 700: IMAP answered `UNAVAILABLE`, every web domain 403, all with
+  rc 0. The modes are now set, as `h-rebuild-user` sets them, which also repairs such an account.
+  `h-add-web-domain` stops and removes the half-built folder when the directories cannot be created, and
+  the webmail logs are 640 like the domain logs.
 
 ## v0.22 (2026-09-24)
 

@@ -44,6 +44,9 @@ opens above it.
 
 ### Changed
 
+- **Tachyon 4.2.5** (#1125). Delivery receipts also report delays and warn when the domain sends through php
+  mail(), PDF attachments preview again. Reaches a fresh install; an existing box keeps its version until
+  `h-add-sys-tachyon` runs.
 - **The exim autoreply follows RFC 3834** (#784). No answer to bounces, `mailer-daemon`,
   `postmaster`, `owner-*`/`*-request`, mail marked `Auto-Submitted`, list mail (`List-Id`,
   `List-Post`, `Precedence: bulk/junk/list`) or spam, and one answer per sender a week instead of one

@@ -76,6 +76,17 @@
       "paths": ["/etc/exim4/exim4.conf.template"],
       "reversible": false,
       "after": "0.22/exim-autoreply-rfc3834"
+    },
+    {
+      "id": "exim-system-filter-tag-once",
+      "description": "A deferred delivery ran the system filter again and tagged the subject a second time; system.filter is not operator surface, so it is copied whole",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/exim4/system.filter" },
+        { "type": "file_differs", "source": "share/exim/system.filter", "target": "/etc/exim4/system.filter" }
+      ],
+      "action": { "type": "file_copy", "source": "share/exim/system.filter", "target": "/etc/exim4/system.filter", "mode": "644" },
+      "paths": ["/etc/exim4/system.filter"],
+      "reversible": true
     }
   ]
 }

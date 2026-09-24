@@ -1138,6 +1138,28 @@ del_webmail_ssl_config() {
 	fi
 }
 
+# exim writes maildirsize through the mailbox's tmp/, which only the first INBOX delivery created: a mailbox whose
+# first mail was spam had its Spam delivery deferred until then, and bounced if nothing else arrived.
+mail_account_maildir_ensure() { # USER DOMAIN_IDN ACCOUNT
+	local d="$HOMEDIR/$1/mail/$2/$3" sub
+	[ -d "$d" ] || install -d -o "$1" -g mail -m 700 "$d" || return 1
+	for sub in cur new tmp; do
+		[ -d "$d/$sub" ] || install -d -o "$1" -g mail -m 770 "$d/$sub" || return 1
+	done
+}
+
+# exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.
+# Without ACCOUNT it clears every mailbox of the domain. The names are exim's, see the userautoreply transport.
+mail_autoreply_once_clear() { # DOMAIN_IDN [ACCOUNT]
+	local db=/var/spool/exim4/db
+	[ -n "$1" ] || return 0
+	if [ -n "${2:-}" ]; then
+		rm -f "$db/autoreply.$2@$1" "$db/autoreply.$2@$1.lockfile"
+	else
+		rm -f "$db/autoreply."*"@$1" "$db/autoreply."*"@$1.lockfile"
+	fi
+}
+
 #----------------------------------------------------------#
 #                        CMN                               #
 #----------------------------------------------------------#

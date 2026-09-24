@@ -39,15 +39,16 @@
 				</div>
 			<?php } ?>
 			<?php if (($_SESSION["userContext"] == "admin" && $accept === "true") || $_SESSION["userContext"] !== "admin") { ?>
-				<div x-data="{ d: '' }" x-init="d = $refs.domain.value">
+				<div x-data="{ d: '', ok() { return this.d.trim().replace(/^www\./i, '').split('.').length === 2 } }" x-init="d = $refs.domain.value">
 					<div class="u-mb10">
 						<label for="v_domain" class="form-label"><?= tohtml(_("Domain")) ?></label>
 						<input type="text" class="form-control" name="v_domain" id="v_domain" x-ref="domain" x-model="d" value="<?= tohtml(trim($v_domain, "'")) ?>" required>
 					</div>
-					<?php // Shown for a two-label domain only, the gate the handler applies again (www. is stripped there too)?>
+					<?php // Shown for a two-label domain only, the gate the handler applies again (www. is stripped there too). Hiding
+					// clears the tick, so a domain typed back to two labels does not come back shared unasked.?>
 					<?php if ($offer_allow_users) { ?>
-					<div class="form-check u-mb10 u-hidden" :class="{ 'u-hidden': d.trim().replace(/^www\./i, '').split('.').length !== 2 }">
-						<input class="form-check-input" type="checkbox" name="v_allow_users" id="v_allow_users">
+					<div class="form-check u-mb10 u-hidden" :class="{ 'u-hidden': !ok() }">
+						<input class="form-check-input" type="checkbox" name="v_allow_users" id="v_allow_users" x-effect="if (!ok()) $el.checked = false">
 						<label for="v_allow_users">
 							<?= tohtml(_("Share: other accounts on this server may add subdomains of this domain (web and mail)")) ?>
 						</label>

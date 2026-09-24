@@ -112,6 +112,8 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 |------|------|
 | Config | `/etc/exim4/exim4.conf.template` |
 | Filter | `/etc/exim4/system.filter` |
+| Autoreply text (no Sieve) | `/home/$user/conf/mail/$domain/autoreply.$account.msg` |
+| Autoreply once-DB | `/var/spool/exim4/db/autoreply.$account@$domain_idn` (cleared with account, domain and autoreply, #1127) |
 | Supplemental | `/etc/exim4/dnsbl.conf`, `spam-blocks.conf`, `limit.conf` |
 
 ### Mail — Dovecot
@@ -119,6 +121,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Item | Path |
 |------|------|
 | Config | `/etc/dovecot/dovecot.conf` |
+| Active Sieve script (addon) | `/home/$user/mail/$domain/$account/dovecot.sieve` (symlink); holds the panel's vacation rule (#784) |
 | Note | Dovecot 2.4 has breaking changes vs 2.3 — check upstream/hestiacp for Debian 13 handling |
 
 ### Mail — Rspamd
@@ -148,7 +151,8 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 
 | Item | Path |
 |------|------|
-| Jail config | `/etc/fail2ban/jail.local` |
+| Jail config | `/etc/fail2ban/jail.d/hestia.local` (ours, re-rendered); `jail.local` stays the admin's |
+| Panel ban action | `/etc/fail2ban/action.d/hestia-panel.conf` (panel port plus 80/443, #878) |
 | Auth log watched | `/var/log/hestia/auth.log` |
 
 ### Cron (hestia crontab)

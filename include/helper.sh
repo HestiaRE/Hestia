@@ -634,6 +634,11 @@ exim_autoreply_apply() {
 	exim_template_patch 0.22/exim-autoreply-rfc3834.patch
 }
 
+# Incoming X-Spam-* headers are dropped before our scan writes its own (#1121), same way in.
+exim_spam_header_apply() {
+	exim_template_patch 0.22/exim-spam-header-strip.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

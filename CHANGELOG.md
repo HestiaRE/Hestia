@@ -70,6 +70,11 @@ opens above it.
 
 ### Fixed
 
+- **A sender could keep spam out of the spam folder with an `X-Spam-Status` of their own** (#1121). The
+  tests for the spam folder, the subject tag and the exim autoreply read only the first `X-Spam-Status`,
+  so a `No` sent along stood in front of the verdict rspamd had just added, and a `Yes` moved ham into
+  the spam folder. Incoming `X-Spam-*` headers are dropped before the scan now. An update patches the
+  exim template.
 - **The usage of about a hundred commands described other arguments than the command reads** (#657).
   `h-get-mail-account-value` left out ACCOUNT, `h-log-user-login` described a different signature,
   `h-restore-cron-job` asked for a DOMAIN where it takes a cron job, optional arguments showed as

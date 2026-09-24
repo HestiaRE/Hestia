@@ -157,6 +157,12 @@ acl_check_mail:
 
 
 acl_check_rcpt:
+.ifdef RSPAMD
+  # Only our own scan speaks through X-Spam-*. A foreign X-Spam-Status in front of ours hid it from every ^Yes test
+  # (spam folder, subject tag, autoreply): "No" kept spam in the inbox, "Yes" moved ham out. Removed here, before
+  # DATA, so rspamd does not read it either and the header our DATA ACL adds is not matched by the removal.
+  warn    remove_header = X-Spam-Status : X-Spam-Score : X-Spam-Bar : X-Spam-Report
+.endif
   accept  hosts         = :
 
 # Limit per email account for SMTP auhenticated users

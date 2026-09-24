@@ -1,0 +1,15 @@
+{
+  "version": "0.23",
+  "entries": [
+    {
+      "id": "mail-ssl-modes",
+      "description": "Mail certificate files go from 644 to 640: exim reads them through the mail group, and every domain operation used to reset the keys of all domains on the box",
+      "conditions": [
+        { "type": "file_mode_wider", "path": "/home/*/conf/mail/*/ssl/*", "value": "640" }
+      ],
+      "action": { "type": "function_call", "function": "mail_ssl_modes_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

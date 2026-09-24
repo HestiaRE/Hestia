@@ -155,6 +155,22 @@ upd_cond_file_patch_pending() {
 	return 2
 }
 
+# Files that sit one per account and domain, so the path is a pattern; true when one of them carries a bit outside
+# the mode. Expanded with compgen, not a for-loop, so a pattern that matches nothing is simply no match.
+upd_cond_file_mode_wider() {
+	local f m
+	[ -n "$1" ] && [[ "$2" =~ ^[0-7]{3,4}$ ]] || {
+		echo "update: file_mode_wider needs a path pattern and an octal mode" >&2
+		return 2
+	}
+	while read -r f; do
+		[ -n "$f" ] || continue
+		m=$(stat -L -c '%a' "$f" 2> /dev/null) || continue
+		(((8#$m & ~8#$2) != 0)) && return 0
+	done < <(compgen -G "$1")
+	return 1
+}
+
 # For a file the box generates: no tree source to compare against, so the marker is what the OLD
 # version wrote. That is what makes this false once the file has been rewritten.
 upd_cond_file_contains() {
@@ -279,7 +295,7 @@ upd_action_reversible() {
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
 	cron_locale_apply system_repair_cron_write sieve_redirect_apply sieve_vacation_apply fail2ban_panel_action_apply
-	exim_autoreply_apply exim_spam_header_apply)
+	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -386,7 +402,7 @@ upd_condition() {
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending)
+		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending | file_mode_wider)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -582,7 +598,7 @@ def argv(t):
     then [.name // "", .value // ""]
   elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
-  elif t=="file_contains" or t=="file_lacks" then [.path // "", .value // ""]
+  elif t=="file_contains" or t=="file_lacks" or t=="file_mode_wider" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
   elif t=="file_differs" or t=="file_patch_pending"
     then [.source // "", .target // ""]

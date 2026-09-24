@@ -872,6 +872,35 @@ is_mail_new() {
 	fi
 }
 
+# Modes of a mail domain's certificate files: exim reads them through the mail group, dovecot as root, nobody else.
+# Only this domain's SNI links: chmod on a glob over $MAIL_SNI_DIR followed every link and set the keys of every
+# domain on the box to 644, and chown -h handed all links to the current user (#1135).
+mail_ssl_modes() { # USER DOMAIN
+	local d="$HOMEDIR/$1/conf/mail/$2/ssl" f
+	chmod 0750 "$d"
+	chown -R "$MAIL_USER:mail" "$d"
+	for f in "$d"/*; do
+		[ -e "$f" ] || continue
+		chmod 0640 "$f"
+		chown -h "$1:mail" "$f"
+	done
+	for f in "$MAIL_SNI_DIR/$2.crt" "$MAIL_SNI_DIR/$2.key" "$MAIL_SNI_DIR/mail.$2.crt" "$MAIL_SNI_DIR/mail.$2.key"; do
+		[ -L "$f" ] && chown -h "$1:mail" "$f"
+	done
+	return 0
+}
+
+# Update 0.23: every mail certificate on the box, once, since each domain operation used to reset them all to 644.
+mail_ssl_modes_apply() {
+	local d rest
+	for d in "$HOMEDIR"/*/conf/mail/*/ssl; do
+		[ -e "$d" ] || continue
+		rest=${d#"$HOMEDIR"/}
+		rest=${rest%/ssl}
+		mail_ssl_modes "${rest%%/*}" "${rest##*/}" || return 1
+	done
+}
+
 add_mail_ssl_config() {
 	if [ ! -d "$HOMEDIR/$user/conf/mail/$domain/ssl/" ]; then
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain/ssl/
@@ -956,13 +985,7 @@ add_mail_ssl_config() {
 	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
 	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
 
-	# Set correct permissions on certificates
-	chmod 0750 $HOMEDIR/$user/conf/mail/$domain/ssl
-	chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/ssl
-	chmod 0644 $HOMEDIR/$user/conf/mail/$domain/ssl/*
-	chown -h $user:mail $HOMEDIR/$user/conf/mail/$domain/ssl/*
-	chmod -R 0644 $MAIL_SNI_DIR/*
-	chown -h $user:mail $MAIL_SNI_DIR/*
+	mail_ssl_modes "$user" "$domain"
 }
 
 del_mail_ssl_config() {

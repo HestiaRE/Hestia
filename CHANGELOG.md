@@ -70,6 +70,14 @@ opens above it.
 
 ### Fixed
 
+- **The first spam to a new mailbox waited until its first ordinary mail** (#1127). exim writes the quota file
+  through the mailbox's `tmp/`, which only the first delivery to the inbox created, so the spam folder delivery
+  deferred until then and bounced if nothing else came. A new mailbox has `cur/new/tmp` from the start, and a
+  mail rebuild adds them to an existing one.
+- **A spam subject could read `*** SPAM *** *** SPAM ***`** (#1127). Every retry ran the system filter again on
+  the subject it had already tagged. An update copies the corrected filter.
+- **A recreated mailbox stayed silent to earlier senders** (#1127). exim's record of who got the autoreply
+  survived the mailbox, its domain and the autoreply itself, and suppressed answers for 7 days.
 - **A sender could keep spam out of the spam folder with an `X-Spam-Status` of their own** (#1121). The
   tests for the spam folder, the subject tag and the exim autoreply read only the first `X-Spam-Status`,
   so a `No` sent along stood in front of the verdict rspamd had just added, and a `Yes` moved ham into

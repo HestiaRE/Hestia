@@ -772,6 +772,7 @@ rebuild_mail_domain_conf() {
 			if [ "$QUOTA" = 'unlimited' ]; then
 				QUOTA=0
 			fi
+			mail_account_maildir_ensure "$user" "$domain_idn" "$account"
 			dovecot_version="$(dovecot --version | cut -f -2 -d .)"
 			if [[ "$dovecot_version" = "2.4" ]]; then
 				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_storage_size=${QUOTA}M"

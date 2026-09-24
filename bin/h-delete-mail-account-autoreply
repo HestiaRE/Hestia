@@ -60,6 +60,7 @@ if vacation_sieve_on; then
 fi
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	rm -f "$(vacation_exim_file "$user" "$domain" "$account")"
+	mail_autoreply_once_clear "$domain_idn" "$account"
 fi
 
 #----------------------------------------------------------#

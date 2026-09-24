@@ -31,7 +31,10 @@ opens above it.
   `h-add-user` left `conf/` and `web/` at 700: IMAP answered `UNAVAILABLE`, every web domain 403, all with
   rc 0. The modes are now set, as `h-rebuild-user` sets them, which also repairs such an account.
   `h-add-web-domain` stops and removes the half-built folder when the directories cannot be created, and
-  the webmail logs are 640 like the domain logs.
+  the webmail logs are 640 like the domain logs. Underneath, every command now starts from `umask 022`, the
+  one the panel, cron and a stock root shell already have, so a stock box sees no change: from a root shell
+  set to 077, a restore (a HestiaCP archive as well as an own backup) aborted with rc 12 and brought back
+  neither the web data nor the mailbox.
 
 ## v0.22 (2026-09-24)
 

@@ -1160,11 +1160,7 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_inactive_session_timeout = $_POST["v_inactive_session_timeout"];
-				}
 			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1180,10 +1176,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_csrf_strictness = $_POST["v_inactive_session_timeout"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1199,10 +1191,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_edit_details = $_POST["v_policy_user_edit_details"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1221,10 +1209,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_edit_details = $_POST["v_policy_user_edit_web_templates"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1240,10 +1224,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_view_logs = $_POST["v_policy_user_view_logs"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1259,10 +1239,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_delete_logs = $_POST["v_policy_user_delete_logs"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1278,10 +1254,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_system_password_reset = $_POST["v_policy_system_password_reset"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1301,10 +1273,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_system_protected_admin = $_POST["v_policy_system_protected_admin"];
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1325,10 +1293,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_user_view_suspended = $post_view_suspended;
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1357,9 +1321,6 @@ if (!empty($_POST["save"])) {
 				unset($_SESSION["userTheme"]);
 				$require_refresh = true;
 			}
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_change_theme = $_POST["v_policy_user_change_theme"];
-			}
 		}
 	}
 
@@ -1376,10 +1337,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_system_hide_admin = $_POST["v_policy_system_hide_admin"];
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1399,10 +1356,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_system_hide_services = $_POST["v_policy_system_hide_services"];
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1420,10 +1373,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_system_hide_services = $_POST["v_policy_backup_suspended_users"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1438,10 +1387,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_sync_error_documents = $_POST["v_policy_sync_error_documents"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 	if (empty($_SESSION["error_msg"])) {
@@ -1455,10 +1400,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_sync_skeleton = $_POST["v_policy_sync_skeleton"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1474,10 +1415,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_login_style = $_POST["v_login_style"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 

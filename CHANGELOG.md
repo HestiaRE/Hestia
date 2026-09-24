@@ -48,6 +48,10 @@ opens above it.
 - **Saving the server settings without a change ran commands** (#1140). On a box without an SMTP relay every
   save ran its delete, because the stored string `'false'` compares equal to `true`, and every save re-wrote
   all bot families and reloaded the web server. Only a changed row and a real untick act now.
+- **The SMTP relay password was readable by every account on the box** (#1142). Both relay files, box-wide
+  and per domain, were written 644 root:root with the password in clear text. They are now 640
+  root:Debian-exim and 660 Debian-exim:mail, written through a temp file; an update entry re-modes the files
+  already on a box, and the smoke's secret-mode check covers them.
 
 ## v0.22 (2026-09-24)
 

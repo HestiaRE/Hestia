@@ -28,6 +28,8 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
@@ -71,6 +73,11 @@ if [ -n "$(webmail_front)" ] || [ -n "$PROXY_SYSTEM" ]; then
 			$BIN/h-add-mail-domain-webmail "$user" "$domain" "$WEBMAIL" "$restart" 'yes'
 		fi
 	fi
+fi
+
+# A restore from an exim-era backup lands the autoreply as an exim file, after the maildir is back.
+if vacation_sieve_on; then
+	vacation_domain_to_sieve "$user" "$domain"
 fi
 
 #----------------------------------------------------------#

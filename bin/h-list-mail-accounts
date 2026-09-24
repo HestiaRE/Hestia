@@ -20,8 +20,18 @@ format=${3-shell}
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+
+# With Sieve the customer can switch it in the webmail, so the script answers, not the record.
+declare -A live=()
+live_autoreply() {
+	if [ -n "${live[$ACCOUNT]}" ]; then
+		AUTOREPLY=${live[$ACCOUNT]}
+	fi
+}
 
 # JSON list function
 json_list() {
@@ -31,6 +41,7 @@ json_list() {
 	echo "{"
 	while read -r str; do
 		parse_object_kv_list "$str"
+		live_autoreply
 		json_escape ACCOUNT ALIAS FWD FWD_ONLY AUTOREPLY QUOTA U_DISK SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$ACCOUNT"
 		printf '        "ALIAS": "%s",\n' "$ALIAS"
@@ -83,6 +94,7 @@ plain_list() {
 	IFS=$'\n'
 	while read str; do
 		parse_object_kv_list "$str"
+		live_autoreply
 		echo -ne "$ACCOUNT\t$ALIAS\t$FWD\t$FWD_ONLY\t$AUTOREPLY\t"
 		echo -e "$QUOTA\t$U_DISK\t$SUSPENDED\t$TIME\t$DATE"
 	done < <(cat $USER_DATA/mail/$domain.conf)
@@ -100,6 +112,14 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
+
+if vacation_sieve_on && [ "$format" != 'shell' ]; then
+	format_domain_idn
+	mapfile -t accounts < <(sed -n "s/^ACCOUNT='\([^']*\)'.*/\1/p" "$USER_DATA/mail/$domain.conf")
+	while read -r acc st; do
+		live[$acc]=$st
+	done < <(vacation_live "$user" "$domain_idn" "${accounts[@]}")
+fi
 
 # Listing data
 case $format in

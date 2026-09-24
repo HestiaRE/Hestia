@@ -34,6 +34,18 @@
       "reversible": false
     },
     {
+      "id": "sieve-vacation-recipient",
+      "description": "The Sieve vacation answers mail that came in through an alias or catch-all, as exim's autoreply does; both dovecot versions spell the setting with check_recipient",
+      "conditions": [
+        { "type": "key_is", "name": "SIEVE_SYSTEM", "value": "yes" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "check_recipient" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_vacation_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false,
+      "after": "0.22/sieve-redirect-envelope"
+    },
+    {
       "id": "fail2ban-panel-web-ban",
       "description": "The panel login jail bans on 80/443 too, where a panel-proxy domain takes the same login; jail.d/hestia.local is ours, not the admin's jail.local",
       "conditions": [
@@ -42,6 +54,17 @@
       "action": { "type": "function_call", "function": "fail2ban_panel_action_apply" },
       "paths": ["/etc/fail2ban/jail.d/hestia.local", "/etc/fail2ban/action.d/hestia-panel.conf"],
       "reversible": false
+    },
+    {
+      "id": "exim-autoreply-rfc3834",
+      "description": "The exim autoreply skips bounces, list and automated mail and spam, and answers a sender once a week; patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.22/exim-autoreply-rfc3834.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_autoreply_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false,
+      "after": "0.21/exim-lmtp-subaddressing"
     }
   ]
 }

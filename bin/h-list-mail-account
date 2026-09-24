@@ -21,6 +21,8 @@ format=${4-shell}
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -82,6 +84,11 @@ is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 
 # Parsing mail account
 parse_object_kv_list "$(grep -F "ACCOUNT='$account'" $USER_DATA/mail/$domain.conf)"
+# With Sieve the customer can switch it in the webmail, so the script answers, not the record.
+if vacation_sieve_on; then
+	format_domain_idn
+	AUTOREPLY=$(vacation_live "$user" "$domain_idn" "$account" | cut -d' ' -f2)
+fi
 
 # Listing data
 case $format in

@@ -21,6 +21,8 @@ format=${4-shell}
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -33,9 +35,11 @@ json_list() {
 	# did it either (#1002).
 	local msg="$msg_raw"
 	echo '{'
-	json_escape account msg
+	json_escape account msg source enabled
 	printf '\t"%s": {\n' "$account"
-	echo "            \"MSG\": \"$msg\""
+	echo "            \"MSG\": \"$msg\","
+	echo "            \"SOURCE\": \"$source\","
+	echo "            \"ENABLED\": \"$enabled\""
 	echo -e "\t}\n}"
 }
 
@@ -65,10 +69,25 @@ is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
 #                       Action                             #
 #----------------------------------------------------------#
 
-if [ -e "$USER_DATA/mail/$account@$domain.msg" ]; then
+# SOURCE says who answers: exim, or the Sieve script in the webmail's format (roundcube, tachyon, none
+# yet), or custom, which is shown and never written. With Sieve the script is the truth, since the
+# customer may have changed it in the webmail since.
+source='exim'
+enabled=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY')
+if vacation_sieve_on; then
+	format_domain_idn
+	st=$(vacation_state "$user" "$domain_idn" "$account")
+	source=$(echo "$st" | jq -r '.format')
+	enabled=$(echo "$st" | jq -r 'if .enabled then "yes" else "no" end')
+	msg_raw=$(echo "$st" | jq -r '.message')
+	# A notice not yet in the script still shows what the panel last set.
+	if [ -z "$msg_raw" ] && [ -e "$USER_DATA/mail/$account@$domain.msg" ]; then
+		msg_raw=$(cat "$USER_DATA/mail/$account@$domain.msg")
+	fi
+elif [ -e "$USER_DATA/mail/$account@$domain.msg" ]; then
 	msg_raw=$(cat $USER_DATA/mail/$account@$domain.msg)
-	msg=$(echo "$msg_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 fi
+msg=$(echo "$msg_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 
 # Listing data
 case $format in

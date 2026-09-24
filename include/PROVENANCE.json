@@ -301,6 +301,24 @@
       "note": ""
     },
     {
+      "path": "vacation.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-23",
+      "divergence": null,
+      "note": ""
+    },
+    {
+      "path": "vacation.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-23",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "web-model.sh",
       "source_type": "eigenbau",
       "upstream_path": null,

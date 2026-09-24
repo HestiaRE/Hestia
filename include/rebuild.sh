@@ -173,7 +173,8 @@ rebuild_user_conf() {
 		mkdir -p $HOMEDIR/$user/tmp
 		chmod 751 $HOMEDIR/$user/conf/web
 		chmod 751 $HOMEDIR/$user/web
-		chmod 771 $HOMEDIR/$user/tmp
+		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
+		chmod 700 $HOMEDIR/$user/tmp
 		chown --no-dereference $root:$user $HOMEDIR/$user/web
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart

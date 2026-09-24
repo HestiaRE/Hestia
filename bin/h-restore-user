@@ -152,10 +152,18 @@ tmpdir=$(mktemp -p $BACKUP_TEMP -d) || {
 # behind, pam material included. ONE trap owner - later stages add work via flags, never via a
 # second `trap ... EXIT` (replaces silently, and only in its own branch).
 quota_cap_lifted=''
+counters_recount=''
 restore_cleanup() {
 	rm -rf "$tmpdir"
 	# an aborted restore must not leave the customer unlimited
 	[ "$quota_cap_lifted" = 'yes' ] && "$BIN/h-update-user-quota" "$user" > /dev/null 2>&1
+	# Also after an abort: the account and domains exist from the first write on, and a later h-delete-user
+	# subtracts what was never counted (#1137).
+	if [ "$counters_recount" = 'yes' ]; then
+		[ -e "$USER_DATA/user.conf" ] && "$BIN/h-update-user-counters" "$user" > /dev/null 2>&1
+		"$BIN/h-update-user-counters" "$ROOT_USER" > /dev/null 2>&1
+		"$BIN/h-update-sys-ip-counters" > /dev/null 2>&1
+	fi
 }
 trap restore_cleanup EXIT
 
@@ -343,6 +351,7 @@ if [ -n "$restore_refused" ]; then
 	restore_suggest=$(tr ' ' ',' <<< "${restore_refused# }")
 	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version."
 fi
+counters_recount='yes'
 
 # Restoring user account
 if [ "$create_user" = 'yes' ]; then
@@ -1452,11 +1461,6 @@ if ! grep -qF "BACKUP='$backup'" "$USER_DATA/backup.conf" 2> /dev/null; then
 		echo "Warning: $backup could not be adopted - it stays unlisted and, in $BACKUP/$user, rotatable"
 	fi
 fi
-
-# Update user counters
-$BIN/h-update-user-counters "$user"
-$BIN/h-update-user-counters "$ROOT_USER"
-$BIN/h-update-sys-ip-counters
 
 # Logging
 # A restore is the one path that creates domains without the add commands (rebuild-based),

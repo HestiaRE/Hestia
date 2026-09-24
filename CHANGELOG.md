@@ -75,6 +75,8 @@ opens above it.
   so a `No` sent along stood in front of the verdict rspamd had just added, and a `Yes` moved ham into
   the spam folder. Incoming `X-Spam-*` headers are dropped before the scan now. An update patches the
   exim template.
+- **Removing webmail left the nginx logs of the webmail vhost behind** (#1122). With nginx in front of apache the
+  webmail vhost logs under nginx, and the removal only cleaned the apache side.
 - **The usage of about a hundred commands described other arguments than the command reads** (#657).
   `h-get-mail-account-value` left out ACCOUNT, `h-log-user-login` described a different signature,
   `h-restore-cron-job` asked for a DOMAIN where it takes a cron job, optional arguments showed as

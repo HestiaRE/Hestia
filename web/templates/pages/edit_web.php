@@ -70,6 +70,14 @@
 				<input type="text" class="form-control" name="v_domain" id="v_domain" value="<?= tohtml(trim($v_domain, "'")) ?>" disabled required>
 				<input type="hidden" name="v_domain" value="<?= tohtml(trim($v_domain, "'")) ?>">
 			</div>
+			<?php if ($offer_allow_users) { ?>
+			<div class="form-check u-mb10">
+				<input class="form-check-input" type="checkbox" name="v_allow_users" id="v_allow_users" <?= $v_allow_users == "yes" ? "checked" : "" ?>>
+				<label for="v_allow_users">
+					<?= tohtml(sprintf(_("Share: other accounts on this server may add subdomains of %s (web and mail)"), $v_domain)) ?>
+				</label>
+			</div>
+			<?php } ?>
 			<div class="u-mb10">
 				<label for="v_aliases" class="form-label"><?= tohtml(_("Aliases")) ?></label>
 				<textarea class="form-control" name="v_aliases" id="v_aliases"><?= tohtml(trim($v_aliases, "'")) ?></textarea>

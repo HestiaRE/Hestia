@@ -12,6 +12,13 @@ opens above it.
 
 ## Unreleased
 
+### Changed
+
+- **Sharing a domain is the owner's switch on the web domain** (#751). Add and Edit Web Domain carry a
+  Share box right below the domain: other accounts on the server may then add subdomains of it, web and mail. The server-wide
+  "Enforce subdomain ownership" left the panel; `ENFORCE_SUBDOMAIN_OWNERSHIP` stays in `hestia.conf` for
+  the CLI. `h-add-web-domain-allow-users` now refuses a subdomain, whose flag the check never read.
+
 ### Fixed
 
 - **An update to v0.22 stopped halfway, and every v0.22 box reported its update manifests as unsound** (#1132).

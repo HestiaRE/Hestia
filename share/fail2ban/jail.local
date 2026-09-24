@@ -35,7 +35,7 @@ maxretry = 5
 [hestia-iptables]
 enabled  = true
 filter   = hestia
-action   = hestia[name=HESTIA]
+action   = hestia-panel
 logpath  = /var/log/hestia/auth.log
 maxretry = 5
 

@@ -1,4 +1,5 @@
-if $h_X-Spam-Status: matches ^[Yy]es
+# A deferred delivery runs the filter again on the subject it already tagged, so tag only once.
+if $h_X-Spam-Status: matches ^[Yy]es and not $h_subject: contains "*** SPAM ***"
 then
     headers add "Old-Subject: $h_subject"
     headers remove "Subject"
@@ -7,7 +8,7 @@ then
 endif
 
 # X-Anti-Virus: infected
-if $h_X-Anti-Virus: contains "infected"
+if $h_X-Anti-Virus: contains "infected" and not $h_subject: contains "*** VIRUS ***"
 then
     headers add "Old-Subject: $h_subject"
     headers remove "Subject"

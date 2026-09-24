@@ -29,7 +29,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 FILE=$HOMEDIR/$user/.bash_aliases
 
-check_args '2' "$#" 'USER PHPVERSION'
+check_args '2' "$#" 'USER VERSION'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"

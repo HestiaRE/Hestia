@@ -46,8 +46,7 @@ if (!isset($_SESSION["user_combined_ip"])) {
 }
 
 // Same session, same client: session_ip_key lets a v6 client rotate inside its own /64 (#894).
-// Both sides come from get_real_user_ip(), so behind a proxy both become the proxy and this pin
-// stops distinguishing anyone - #878 has to look here.
+// Behind the panel proxy get_real_user_ip() reads X-Real-IP (#878), so the pin still tells clients apart.
 if (
 	session_ip_key((string) $_SESSION["user_combined_ip"]) !== session_ip_key((string) $user_combined_ip) &&
 	isset($_SESSION["user"]) &&

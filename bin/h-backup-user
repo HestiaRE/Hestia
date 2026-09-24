@@ -28,6 +28,8 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -606,6 +608,10 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 			cd $tmpdir/mail/$domain/
 			cp -r $HOMEDIR/$user/conf/mail/$domain/* conf/
+			# A Sieve box has no exim file; HestiaCP and a restore here both read the autoreply from one.
+			if vacation_sieve_on; then
+				vacation_domain_sync "$user" "$domain" conf > /dev/null
+			fi
 		fi
 
 		# Backup mail.conf

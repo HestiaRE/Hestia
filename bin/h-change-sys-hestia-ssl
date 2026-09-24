@@ -61,9 +61,11 @@ cp -f $ssl_dir/certificate.key $HESTIA_SSL/certificate.key
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Reload the panel webserver (Caddy) to pick up the new certificate
+# Caddy runs with admin off, so a reload fails and the certificate used to wait for the next restart. Deferred: the
+# panel request asking for it runs through this Caddy and would be cut before its answer.
 if [ "$restart" != 'no' ]; then
-	systemctl reload caddy 2> /dev/null || true
+	systemd-run --quiet --on-active=3 --unit="hestia-caddy-restart-$$" /usr/bin/systemctl restart caddy > /dev/null 2>&1 \
+		|| systemctl restart caddy
 	$BIN/h-restart-mail "$restart"
 fi
 

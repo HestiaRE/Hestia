@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: get user salt
 # options: USER [IP] [FORMAT]
+# labels: internal
+# caller: the panel login
 #
 # example: h-get-user-salt admin
 #

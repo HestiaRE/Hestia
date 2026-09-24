@@ -24,6 +24,8 @@ source $HESTIA/include/syshealth.sh
 #                        Action                            #
 #----------------------------------------------------------#
 
+check_args '1' "$#" 'MODE'
+
 case "$mode" in
 	repair)
 		# load config file

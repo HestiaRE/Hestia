@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: add ssh key
-# options: USER KEY
+# options: USER SSH_PUBLIC_KEY
 #
 # example: h-add-user-ssh-key user 'valid ssh key'
 #

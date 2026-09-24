@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: Log User logout event
-# options: USER FINGERPRINT
+# options: USER SESSION_ID
+# labels: internal
+# caller: the panel logout
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

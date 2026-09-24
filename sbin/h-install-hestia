@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: install HestiaRE from a written $CONF_DIR/install.conf
 # options: (none)
+# labels: internal
+# caller: hestia install
 #
 # Non-interactive orchestrator: reads $CONF_DIR/install.conf (written by include/wizard.sh) and
 # installs in stages gated by COMPONENT_*. Stages are functions here, helpers in include/helper.sh,
@@ -184,6 +186,8 @@ install_base() {
 	# BLAKE3 is the only cryptographic candidate that stays ahead of the compressor without sha_ni.
 	# patch likewise: an update entry that has to change an operator-editable file applies a patch
 	# rather than copying over it (#1083), and it is not part of a minimal Debian.
+	# ntpsec-ntpdate for the daily clock step in /etc/cron.d/hestia-repair; the ntpdate package is only a
+	# transitional one on Debian 12 and Ubuntu 24.04 and gone on 13 and 26.04.
 	# shellcheck disable=SC2086
 	hestia_apt -y install \
 		acl at b3sum bc bsdmainutils bsdutils ca-certificates \
@@ -191,7 +195,7 @@ install_base() {
 		git gnupg idn2 imagemagick jq nftables \
 		lsb-release lsof mc net-tools openssh-server patch quota \
 		rrdtool rsyslog sysstat unzip util-linux vim-common \
-		wget whois xxd zip zstd bubblewrap sudo \
+		wget whois xxd zip zstd bubblewrap sudo ntpsec-ntpdate \
 		apt-transport-https awstats \
 		$BASE_PKGS_EXTRA
 
@@ -527,7 +531,8 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 
 	echo "[ * ] Configuring PHP settings (timezone, short_open_tag)..."
 	local ZONE pconf
-	ZONE=$(timedatectl 2> /dev/null | awk '/Timezone/{print $2}' || true)
+	# The human form labels it "Time zone" and translates the label, so every box used to get UTC.
+	ZONE=$(timedatectl show -p Timezone --value 2> /dev/null || true)
 	ZONE="${ZONE:-UTC}"
 	while IFS= read -r pconf; do
 		sed -i "s%;date.timezone =%date.timezone = $ZONE%g" "$pconf"

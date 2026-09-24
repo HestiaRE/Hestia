@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: list backup host
-# options: TYPE [FORMAT]
+# options: [FORMAT]
 #
 # example: h-list-backup-host local
 #

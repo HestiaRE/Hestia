@@ -6,6 +6,10 @@
 # install phases ($CONF_DIR/.done.*), and the two answers side by side: what the
 # wizard was asked for, and what the box actually carries.
 
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
+
 HESTIA="${HESTIA:-/usr/local/hestia}"
 # CONF_DIR before the read that uses it: the two lines were the other way round, so the env was looked
 # for at /hestia.env and never sourced. Harmless only because HESTIA has the same default here.

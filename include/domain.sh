@@ -386,6 +386,7 @@ web_render_template() {
 		-e "s|%front_ssl_port%|${PROXY_SSL_PORT:-$WEB_SSL_PORT}|g" \
 		-e "s|%docker_port%|$DOCKER_PORT|g" \
 		-e "s|%docker_ip%|$web_docker_ip|g" \
+		-e "s|%panel_port%|${BACKEND_PORT:-8083}|g" \
 		-e "s/%proxy_extentions%/${PROXY_EXT//,/|}/g" \
 		-e "s/%proxy_extensions%/${PROXY_EXT//,/|}/g" \
 		-e "s|%user%|$user|g" \
@@ -1134,6 +1135,28 @@ del_webmail_ssl_config() {
 	if [ -n "$PROXY_SYSTEM" ]; then
 		rm -f $HOMEDIR/$user/conf/mail/$domain/$PROXY_SYSTEM.*ssl.conf
 		conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
+	fi
+}
+
+# exim writes maildirsize through the mailbox's tmp/, which only the first INBOX delivery created: a mailbox whose
+# first mail was spam had its Spam delivery deferred until then, and bounced if nothing else arrived.
+mail_account_maildir_ensure() { # USER DOMAIN_IDN ACCOUNT
+	local d="$HOMEDIR/$1/mail/$2/$3" sub
+	[ -d "$d" ] || install -d -o "$1" -g mail -m 700 "$d" || return 1
+	for sub in cur new tmp; do
+		[ -d "$d/$sub" ] || install -d -o "$1" -g mail -m 770 "$d/$sub" || return 1
+	done
+}
+
+# exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.
+# Without ACCOUNT it clears every mailbox of the domain. The names are exim's, see the userautoreply transport.
+mail_autoreply_once_clear() { # DOMAIN_IDN [ACCOUNT]
+	local db=/var/spool/exim4/db
+	[ -n "$1" ] || return 0
+	if [ -n "${2:-}" ]; then
+		rm -f "$db/autoreply.$2@$1" "$db/autoreply.$2@$1.lockfile"
+	else
+		rm -f "$db/autoreply."*"@$1" "$db/autoreply."*"@$1.lockfile"
 	fi
 }
 

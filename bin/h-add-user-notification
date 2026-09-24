@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: add user notification
-# options: USER TOPIC NOTICE [TYPE]
+# options: USER TOPIC NOTICE [TYPE] [PRIORITY]
 #
 # This function adds a new user notification to the panel.
 
@@ -33,7 +33,7 @@ notice=$(record_value_encode "$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER TOPIC NOTICE TYPE [PRIORITY]'
+check_args '2' "$#" 'USER TOPIC NOTICE [TYPE] [PRIORITY]'
 is_format_valid 'user' 'topic' 'notice' 'priority'
 is_object_valid 'user' 'USER' "$user"
 is_common_format_valid "$type"

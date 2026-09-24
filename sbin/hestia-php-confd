@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: rebuild the panel PHP's isolated conf.d (FPM + CLI)
 # options: [VERSION]
+# labels: internal
+# caller: the panel PHP install and h-change-sys-panel-php
 #
 # example: hestia-php-confd 8.3
 #
@@ -16,6 +18,10 @@
 # fpm_webmail_*): a 2026-07 audit removed `dom` after checking only panel + DB
 # tools and 500'd every Roundcube page. Critical = hard build-time failure;
 # optional = warn. See CODEMAP panel_php_service.confd_isolation for the coupling.
+
+# The rest of the tree gets --help through main.sh, which this command does not load.
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
 version="${1:-$(cat /etc/php/hestia/php-version 2> /dev/null)}"
 

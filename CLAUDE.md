@@ -71,8 +71,10 @@ sweep for it opportunistically in code/comment cleanup rounds over the panel and
   **header** or **CODEMAP** — never delete it.
 
 **Do NOT touch (these are API/tooling, not prose):**
-- Header directives parsed by Hestia for `--help`: `# info:`, `# options:`,
-  `# example:`, `# labels:` (every `bin/h-*` must keep a non-empty `# info:`).
+- Header directives parsed by `include/help.sh` for `--help` and `check_args`: `# info:`, `# options:`,
+  `# example:`, `# labels:`, `# caller:` (every `bin/h-*` must keep a non-empty `# info:`). `# options:`
+  is the usage an empty call prints, so it has to match the arguments the code reads. Machinery gets
+  `# labels: internal` plus `# caller: <who>`; `h-search-command` leaves it out.
 - `# shellcheck disable=…` / `# shellcheck source=…`, editor modelines,
   license/attribution headers from the upstream heritage.
 

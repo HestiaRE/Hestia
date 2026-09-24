@@ -157,11 +157,13 @@ if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_date = $data[$v_account]["DATE"];
 	$v_time = $data[$v_account]["TIME"];
 
-	// Parse autoreply
+	// Always asked: with Sieve the source (webmail format, or a custom script the panel must not
+	// write) decides what the form offers, whatever the switch says.
+	$autoreply_str = cli_json(
+		"h-list-mail-account-autoreply " . $user . " " . quoteshellarg($v_domain) . " " . quoteshellarg($v_account) . " json",
+	);
+	$v_autoreply_source = $autoreply_str[$v_account]["SOURCE"] ?? "exim";
 	if ($v_autoreply == "yes") {
-		$autoreply_str = cli_json(
-			"h-list-mail-account-autoreply " . $user . " " . quoteshellarg($v_domain) . " " . quoteshellarg($v_account) . " json",
-		);
 		$v_autoreply_message = $autoreply_str[$v_account]["MSG"];
 		$v_autoreply_message = str_replace("\\n", "\n", $v_autoreply_message);
 	} else {
@@ -1301,8 +1303,11 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$v_fwd_only = "yes";
 	}
 
+	// A custom Sieve script renders the switch read-only and posts nothing, which must not read as "off".
+	$autoreply_editable = $v_autoreply_source != "custom";
+
 	// Delete autoreply
-	if ($v_autoreply == "yes" && empty($_POST["v_autoreply"]) && empty($_SESSION["error_msg"])) {
+	if ($autoreply_editable && $v_autoreply == "yes" && empty($_POST["v_autoreply"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
 				"h-delete-mail-account-autoreply " .
@@ -1321,7 +1326,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 	}
 
 	// Add autoreply
-	if (!empty($_POST["v_autoreply"]) && empty($_SESSION["error_msg"])) {
+	if ($autoreply_editable && !empty($_POST["v_autoreply"]) && empty($_SESSION["error_msg"])) {
 		if ($v_autoreply_message != str_replace("\r\n", "\n", $_POST["v_autoreply_message"])) {
 			$v_autoreply_message = str_replace("\r\n", "\n", $_POST["v_autoreply_message"]);
 			$v_autoreply_message = quoteshellarg($v_autoreply_message);

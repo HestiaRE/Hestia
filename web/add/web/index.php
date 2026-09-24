@@ -65,7 +65,7 @@ if (!empty($_POST["ok"])) {
 	$v_backend_template = $user_config[$user_plain]["BACKEND_TEMPLATE"];
 	$v_proxy_template = $user_config[$user_plain]["PROXY_TEMPLATE"];
 
-	// Add web domain
+	// Add web domain. Empty RESTART is a reload: 'yes' restarts, and that cuts the request asking for it (#878).
 	if (empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -75,7 +75,7 @@ if (!empty($_POST["ok"])) {
 				quoteshellarg($v_domain) .
 				" " .
 				$v_ip .
-				" 'yes'",
+				" ''",
 			$output,
 			$return_var,
 		);

@@ -6,6 +6,10 @@
 # #
 #===========================================================================#
 
+# First, so a lone --help is answered before anything below runs.
+# shellcheck source=/usr/local/hestia/include/help.sh
+source "$HESTIA/include/help.sh"
+
 # Names a record must never bind: values are validated everywhere, the NAME was not, so a restored
 # user.conf with PATH=/tmp/x rebound PATH in the root shell reading it. ROOT_USER, REPO, BACKUP and
 # BACKUP_TEMP are absent on purpose; each is a legitimate key somewhere.
@@ -118,6 +122,12 @@ if [ -z "${user+set}" ]; then
 	fi
 	user="$ROOT_USER"
 elif [ -z "$user" ]; then
+	# No argument at all is a bare call, not a caller passing "": it gets the usage, since otherwise
+	# every command taking USER first would answer an empty call with this line instead.
+	if [ "$#" -eq 0 ]; then
+		cmd_usage ''
+		exit 1
+	fi
 	# Literal 2: this runs before E_INVALID is defined further down, and moving the codes up would
 	# put them ahead of source_conf, which the branch above needs.
 	echo "Error: empty USER argument" >&2
@@ -313,8 +323,8 @@ check_result() {
 # Argument list checker
 check_args() {
 	if [ "$1" -gt "$2" ]; then
-		echo "Usage: $(basename $0) $3"
-		check_result "$E_ARGS" "not enought arguments" > /dev/null
+		cmd_usage "$3"
+		check_result "$E_ARGS" "not enough arguments" > /dev/null
 	fi
 }
 
@@ -1271,6 +1281,8 @@ system_repair_cron_write() {
 	{
 		echo "LC_ALL=C"
 		echo "40 04 * * * root $HESTIA/bin/h-repair-sys-config repair"
+		# After the PBS backups: a suspend-mode snapshot costs the guest a few seconds every night.
+		echo "00 07 * * * root /usr/sbin/ntpdate -s pool.ntp.org"
 	} > "$_tmp" || {
 		rm -f "$_tmp"
 		return 1

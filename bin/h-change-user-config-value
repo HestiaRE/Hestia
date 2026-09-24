@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: changes user configuration value
 # options: USER KEY VALUE
+# labels: internal
+# caller: the panel user settings
 #
 # example: h-change-user-config-value admin ROLE admin
 #
@@ -27,6 +29,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
+check_args '2' "$#" 'USER KEY VALUE'
 is_format_valid 'user' 'key'
 # LOGIN_ALLOW_IPS carries addresses and networks; the common deny list rejects them on the colon
 # and the slash alone, so that one key gets the list validator (#894).

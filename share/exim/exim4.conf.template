@@ -157,6 +157,12 @@ acl_check_mail:
 
 
 acl_check_rcpt:
+.ifdef RSPAMD
+  # Only our own scan speaks through X-Spam-*. A foreign X-Spam-Status in front of ours hid it from every ^Yes test
+  # (spam folder, subject tag, autoreply): "No" kept spam in the inbox, "Yes" moved ham out. Removed here, before
+  # DATA, so rspamd does not read it either and the header our DATA ACL adds is not matched by the removal.
+  warn    remove_header = X-Spam-Status : X-Spam-Score : X-Spam-Bar : X-Spam-Report
+.endif
   accept  hosts         = :
 
 # Limit per email account for SMTP auhenticated users
@@ -441,6 +447,18 @@ autoreplay:
   retry_use_local_part
   transport = userautoreply
   unseen
+  # RFC 3834: never answer a bounce, a system or list sender, automated or list mail, or spam. A second
+  # condition, ANDed with the first, so the line the 0.21 update patch matches stays as it was.
+  # The spam test is also the Sieve vacation's (include/vacation.php); change both together.
+  condition = ${if and{\
+    {def:sender_address}\
+    {!match{$sender_address_local_part}{\N(?i)^(mailer-daemon|postmaster|owner-.*|.*-request)$\N}}\
+    {or{{!def:h_Auto-Submitted:}{match{$h_Auto-Submitted:}{\N(?i)^no\b\N}}}}\
+    {!def:h_List-Id:}\
+    {!def:h_List-Post:}\
+    {!match{$h_Precedence:}{\N(?i)^(bulk|junk|list)\b\N}}\
+    {!match{$h_X-Spam-Status:}{\N^Yes\N}}\
+    }{yes}{no}}
 
 inbound_srs:
     driver = redirect
@@ -667,9 +685,13 @@ userautoreply:
   driver = autoreply
   file = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}.msg
   from = "${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}"
-  headers = Content-Type: text/plain; charset=utf-8;\nContent-Transfer-Encoding: 8bit
+  headers = Content-Type: text/plain; charset=utf-8;\nContent-Transfer-Encoding: 8bit\nAuto-Submitted: auto-replied
   subject = "${if def:h_Subject: {Autoreply: \"${rfc2047:$h_Subject:}\"} {Autoreply Message}}"
   to = "${sender_address}"
+  # One answer per sender and account a week, as Sieve's vacation :days 7 does. Built from lookups like
+  # file above: exim refuses a once path spelled with the message's own $local_part/$domain (tainted).
+  once = /var/spool/exim4/db/autoreply.${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}
+  once_repeat = 7d
 
 devnull:
   driver = appendfile

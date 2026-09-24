@@ -36,7 +36,7 @@ format_domain_idn
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER DOMAIN [RESTART]'
+check_args '2' "$#" 'USER DOMAIN [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 front=$(webmail_front)
@@ -53,8 +53,11 @@ if [ -n "$WEBMAIL_ALIAS" ]; then
 	# Delete webmail configuration
 	del_webmail_config
 	del_webmail_ssl_config
-	rm -f "/var/log/$front/domains/$WEBMAIL_ALIAS.$domain.log"* \
-		"/var/log/$front/domains/$WEBMAIL_ALIAS.$domain.error"*
+	# The nginx webmail templates log under nginx whatever the front is, so in the both model the proxy logs stay
+	# behind unless removed here too (#1122).
+	for logdir in "/var/log/$front/domains" ${PROXY_SYSTEM:+"/var/log/$PROXY_SYSTEM/domains"}; do
+		rm -f "$logdir/$WEBMAIL_ALIAS.$domain.log"* "$logdir/$WEBMAIL_ALIAS.$domain.error"*
+	done
 	# the LAST log leaving must disarm the jails, or the next fail2ban start dies
 	# shellcheck source=/usr/local/hestia/include/fail2ban.sh
 	declare -F fail2ban_regate_web_apply > /dev/null 2>&1 || source "$HESTIA/include/fail2ban.sh"
@@ -72,7 +75,10 @@ update_object_value 'mail' 'DOMAIN' "$domain" '$WEBMAIL' ""
 #----------------------------------------------------------#
 
 if [ -n "$restart" ]; then
-	# Restarting web server
+	# A removed vhost needs a reload; a restart would cut the panel request asking for it (#878).
+	if [ "$restart" = 'yes' ]; then
+		restart=''
+	fi
 	$BIN/h-restart-web "$restart"
 	check_result $? "Web restart failed" > /dev/null
 

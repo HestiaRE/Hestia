@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: learn a message as spam or ham
 # options: CLASS [ACCOUNT]
+# labels: internal
+# caller: the dovecot imapsieve pipe
 #
 # example: h-learn-mail-message spam john@example.com
 #
@@ -8,8 +10,11 @@
 # or out of the Spam folder, so it runs with the mailbox's uid and dovecot's groups - the group that
 # opens the controller socket comes from mail_access_groups (see include/sieve.sh).
 #
-# Loads NOTHING from include/, because as the customer it cannot: hestia.env is 0600 and hestia.conf
-# 0660, root-only on purpose. Exit codes mirror include/main.sh.
+# Loads NOTHING from include/ but the dependency-free help.sh on --help, because as the customer it
+# cannot: hestia.env is 0600 and hestia.conf 0660, root-only on purpose. Exit codes mirror include/main.sh.
+
+# shellcheck source=/usr/local/hestia/include/help.sh
+case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

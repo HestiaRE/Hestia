@@ -772,6 +772,7 @@ rebuild_mail_domain_conf() {
 			if [ "$QUOTA" = 'unlimited' ]; then
 				QUOTA=0
 			fi
+			mail_account_maildir_ensure "$user" "$domain_idn" "$account"
 			dovecot_version="$(dovecot --version | cut -f -2 -d .)"
 			if [[ "$dovecot_version" = "2.4" ]]; then
 				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_storage_size=${QUOTA}M"
@@ -941,10 +942,11 @@ rebuild_mysql_database() {
 # Rebuild PostgreSQL
 rebuild_pgsql_database() {
 
-	unset PORT
+	unset PORT TLS
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
+	psql_env "$HOST" "$TLS"
 
 	if [ -z "$PORT" ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then
@@ -1009,11 +1011,16 @@ rebuild_pgsql_database() {
 
 	query="GRANT CONNECT ON DATABASE template1 to $DBUSER"
 	psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
+
+	# CREATE DATABASE skips an existing one, so h-change-database-user needs this too, and it makes
+	# h-rebuild-databases the repair. Only a warning, or one bad database would stop the whole run.
+	psql_owner_apply "$DB" "$DBUSER" || true
 }
 
 # Import MySQL dump
 import_mysql_database() {
 
+	unset PORT
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
@@ -1021,21 +1028,26 @@ import_mysql_database() {
 		log_event "$E_PARSING" "$ARGUMENTS"
 		exit "$E_PARSING"
 	fi
+	# Through a pipe, not -p on argv (the process list) and not a file: the callers own the EXIT trap, so
+	# a file of ours would outlive an abort with the admin password in it. mysql_connect exits on a failed
+	# connection, and the callers need the return code.
+	_import_mysql_cnf() { printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" "$HOST" "$USER" "$PASSWORD" "${PORT:-3306}"; }
 	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb -h $HOST -u $USER -p$PASSWORD $DB < $1 > /dev/null 2>&1
+		mariadb --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
 	else
-		mysql -h $HOST -u $USER -p$PASSWORD $DB < $1 > /dev/null 2>&1
+		mysql --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
 	fi
-
 }
 
 # Import PostgreSQL dump
 import_pgsql_database() {
 
-	unset PORT
+	local _rc
+	unset PORT TLS
 	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
+	psql_env "$HOST" "$TLS"
 
 	if [ -z "$PORT" ]; then PORT=5432; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $TPL ]; then
@@ -1045,4 +1057,10 @@ import_pgsql_database() {
 	fi
 
 	psql -h $HOST -U $USER -p $PORT $DB < $1 > /dev/null 2>&1
+	_rc=$?
+
+	# Only a warning: the rows are there, and a failed import would make h-change-database-owner undo
+	# a restore that worked.
+	[ "$_rc" -eq 0 ] && psql_owner_apply "$DB" "$DBUSER"
+	return "$_rc"
 }

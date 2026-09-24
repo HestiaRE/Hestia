@@ -213,7 +213,7 @@ if (!empty($_POST["ok"])) {
 			"name" => htmlentities($name),
 			"user" => htmlentities($_POST["v_username"]),
 			"password" => htmlentities($_POST["v_password"]),
-			"hostname" => htmlentities($hostname),
+			"hostname" => htmlentities(panel_proxied() ? get_http_host_name() : $hostname),
 			"appname" => $_SESSION["APP_NAME"],
 		]);
 

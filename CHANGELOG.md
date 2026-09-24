@@ -14,6 +14,75 @@ opens above it.
 
 _Nothing yet._
 
+## v0.22 (2026-09-24)
+
+Panel and webmail share one out-of-office notice, the panel can sit behind a web domain, every command
+answers `--help`, and the spam path loses three defects inherited from HestiaCP.
+
+### Added
+
+- **With Sieve, panel and webmail share one out-of-office notice** (#784). The panel writes the
+  vacation rule into the mailbox's active script, in the format of the webmail that owns it (Roundcube
+  or Tachyon), and shows what the customer set there; exim no longer answers alongside, so a sender
+  gets one reply instead of two. A hand-written script, or one with more than one vacation rule, is
+  shown and left alone. Installing or removing the Sieve addon moves existing notices across, and a
+  backup carries the notice in the form HestiaCP reads. Without Sieve exim answers as before.
+- **A web domain can carry the panel** (#878). The `panel` template proxies the https side of a domain
+  to the panel on loopback, so the panel port can be closed to the outside. Opt-in, set by an admin,
+  nginx models only. The panel sees the real client address through it (login log, fail2ban, IP
+  allow-list, session pin), and the login jail bans on 80/443 as well as on the panel port.
+- **Every command answers `--help`** (#657). It prints usage, description and examples from the
+  command's header and does nothing else, also for the commands that run straight away when called
+  bare. About a hundred headers described other arguments than the code reads; they say what it does
+  now, and eight commands that took required arguments unchecked refuse a short call.
+- **The clock is stepped once a day at 07:00** (#1098). A suspend-mode snapshot costs the guest a few
+  seconds every night; `ntpsec-ntpdate` is a base package now, and an update installs it.
+
+### Changed
+
+- **A remote PostgreSQL host has to speak TLS with a certificate this box trusts** (#1098, #980). Only
+  the MariaDB client enforced the rule so far; libpq fell back to plaintext without a word. A local
+  host is unchanged. **A remote host registered without TLS stops connecting after the update** until
+  `TLS='no'` is added to its line in `conf/pgsql.conf`; `h-add-database-host` takes it as a ninth argument.
+- **The exim autoreply follows RFC 3834** (#784). No answer to bounces, system senders, list mail,
+  `Auto-Submitted` mail or spam, and one answer per sender a week instead of one per message.
+- **The update lower bound is `v0.21`** (#1111). A box below it is reinstalled rather than updated.
+  `0.20.0.json` and `0.21.json` are no longer read and stay in the tree.
+- **Tachyon 4.2.5** (#1125): delivery receipts also report delays, PDF attachments preview again.
+  Reaches a fresh install; an existing box keeps its version until `h-add-sys-tachyon` runs.
+- **Adding or removing a web domain or webmail from the panel reloads the web server** (#878). The
+  restart cut the very request that asked for it.
+
+### Fixed
+
+- **A sender could keep spam out of the spam folder with an `X-Spam-Status` of their own** (#1121). The
+  spam folder and the subject tag read only the first `X-Spam-Status`, so a `No` sent along stood in
+  front of rspamd's verdict, and a `Yes` moved ham into the spam folder. Incoming `X-Spam-*` headers
+  are dropped before the scan; an update patches the exim template.
+- **The first spam to a new mailbox waited for its first ordinary mail** (#1127). exim writes the
+  quota file through the mailbox's `tmp/`, which only the first inbox delivery created, so the spam
+  folder delivery deferred until then and bounced if nothing else came; every retry also tagged the
+  subject again (`*** SPAM *** *** SPAM ***`). A new mailbox has `cur/new/tmp` from the start, a mail
+  rebuild adds them to an existing one, and an update copies the corrected system filter.
+- **A restored PostgreSQL database left the customer without rights to their own data** (#1113). The
+  dump carries no owner or grants and the import runs as the admin role, so every table belonged to
+  `postgres`. The objects go to the role the record names now; `h-change-database-user` had the same
+  hole. `h-rebuild-databases` repairs a database a restore already broke.
+- **The Roundcube password change failed on every box** (#878). `/reset/mail/` refused any request
+  carrying `X-Forwarded-For`, which the panel's Caddy sets on every request.
+- **A sieve redirect failed SPF at its target** (#1095). It went out with the original sender, so the
+  SRS rewrite never applied; it is sent from the mailbox address now.
+- **PHP ran on UTC whatever the box's time zone** (#1098). The installer matched a translated label of
+  `timedatectl`; `h-change-sys-timezone` run once fixes an installed box, and it uses timedatectl now
+  instead of an inherited typo's hand-written path.
+- **Database hosts off the defaults** (#1098). A non-default port was left out of the status report,
+  the pgsql graph and the MariaDB restore import, whose admin password also sat on its command line;
+  a remote pgsql host whose admin has no database of the same name could not be added.
+- **Two install-time probes depended on the language of the box** (#1098). The Sury conflict
+  resolution and the wizard's MariaDB probe read apt in the C locale now.
+- Smaller ones: a panel certificate set in the panel only took effect at the next restart (#878), and
+  removing webmail left the nginx logs of its vhost behind in the nginx-before-apache model (#1122).
+
 ## v0.21 (2026-09-22)
 
 Plus-subaddressing reaches sieve, the version scheme drops its third component, and the update path
@@ -21,196 +90,83 @@ loses six defects that only the first real runs could find.
 
 ### Added
 
-- **Plus-subaddressing: `john+tag@domain` is delivered to `john`** (#596). The suffix survives all
-  the way into sieve, so a customer can filter on `envelope :detail` - the point of the feature, and
-  the thing a header-only workaround cannot do. It needed the delivery path to change: with the sieve
-  addon, exim hands local mail to dovecot over **LMTP** now instead of piping it into `dovecot-lda`.
-  A pipe command could never carry the envelope recipient, because `$local_part` is tainted and exim
-  refuses it in a command line; LMTP carries it over the protocol. Two translation layers fall away
-  with the pipe: `-e` and `return_fail_output` existed only to turn an exit code into a deferral, and
-  LMTP answers `452` natively. The appendfile path (no sieve addon) is untouched. Installed boxes get
-  it through `share/updates/0.21.json`: a box that had sieve gets `dovecot-lmtpd` and its config, and
-  every box gets the router change patched into its exim template and the template recompiled,
-  because exim reads `config.autogenerated` and a restart alone would change nothing.
-
-- **A shipped config the operator may edit is patched, not copied** (#1083). Every target of
-  `h-change-sys-service-config` is a textarea in the panel, and the exim template carries edits of
-  ours on top: the addons uncomment their macros in place. Copying the tree version over it would
-  switch rspamd, sieve and the spam thresholds off without a word. Such a change arrives as a patch
-  now, asked about with `file_patch_pending`, which answers in three: apply it, already applied, or
-  the context is gone because somebody edited exactly those lines. That third case is loud, where a
-  two-way condition would have called it "nothing to do" and the change would never have arrived.
-  `path_absent` comes with it, the plain complement to `path_exists`.
+- **Plus-subaddressing: `john+tag@domain` is delivered to `john`** (#596), with the suffix reaching
+  sieve as `envelope :detail`. With the sieve addon exim hands local mail to dovecot over LMTP instead
+  of a `dovecot-lda` pipe, whose command line could never carry the tainted recipient. An update
+  installs `dovecot-lmtpd` and patches the exim template.
+- **A shipped config the operator may edit is patched, not copied** (#1083). `file_patch_pending`
+  answers in three: apply, already applied, or loud because somebody edited exactly those lines.
 
 ### Changed
 
-- **A version is `vX.Y`, an internal build `vX.Y-devN`** (#1106). The third component stood at `.0`
-  on every release so far and carried no information: dot releases turned out to be development
-  stages, and with internal builds doing that job a hotfix simply becomes the next minor. Exactly
-  one place enforced three components, the `Bump dev build` workflow's regex; everything that reads
-  a version already matches `v[0-9]*` or `[0-9]*.[0-9]*`. A box that already applied the renamed
-  manifest is unaffected: the plan comes from the conditions, not from a ledger of applied ids.
-
-- **A manifest at or below the update lower bound is no longer read** (#1093). It can never apply,
-  because no box below the bound is accepted, so the discovery skips it. That also closes a quieter
-  path: the overlay of an update never deletes and the discovery is a glob over the directory, so a
-  manifest dropped from the tree stays on every installed box and would keep being read there,
-  possibly against a vocabulary that has since moved on. The bound is read from `update.sh` instead
-  of being repeated, so the tree being derived from is the one that decides. Removing a manifest
-  from the tree now means removing it with an entry that removes it on a box as well.
-
-- **The release mirror is `hestiare.com`** (#1100). `dl.hestiare.com` is gone; the four routes of
-  the fallback proxy (`/api`, `/raw`, `/wp-cli`, `/tachyon`) hang directly under the main host,
-  which carries the same AAAA the old name did, so the v6-only bootstrap is unchanged. Only the
-  default moves: a box that sets `HESTIARE_MIRROR` in `/etc/hestia/source.conf` keeps its own
-  value, and an empty one still switches the fallback off.
+- **A version is `vX.Y`, an internal build `vX.Y-devN`** (#1106). A hotfix becomes the next minor.
+- **A manifest at or below the update lower bound is no longer read** (#1093), so a copy an earlier
+  release left on a box cannot reach a plan.
+- **The release mirror is `hestiare.com`** (#1100); a `HESTIARE_MIRROR` of the box's own is kept.
 
 ### Removed
 
-- **The `dir_not_empty` condition is gone** (#1076). Its only entry got the sharper
-  `dir_has_secret_value` instead (#1081), and no other manifest ever asked for it: a condition on a
-  directory merely being full describes a normal steady state. Unused vocabulary is worse than a
-  gap, because the next reader takes it for a tested one.
+- **The `dir_not_empty` condition** (#1076). Its only entry took the sharper `dir_has_secret_value`.
 
 ### Fixed
 
-- **A box updated from a handed-in tarball no longer mails a failure every night** (#1104). The
-  update left `RELEASE_BRANCH` on `release`, so the nightly `--check` resolved the newest public tag,
-  found it older than the installed tree and died on the downgrade refusal, which sits before the
-  check's own branch. The install path already pinned the version for exactly this reason; the
-  update path now does the same from the moment the overlay makes the tree that version. It could
-  not be repaired by hand either, because `h-change-sys-release` validates a tag against the release
-  source, and a build that was never published is not there.
-
-- **The nightly backup of a customer with a PostgreSQL database failed on a non-English box**
-  (#1096). The size of a pgsql database was read out of psql's aligned table and the row-count
-  footer filtered away by the word `row`, which on a German box reads `(1 Zeile)`: the footer
-  survived, the value became two lines, and dividing it was a syntax error. A fatal arithmetic
-  expansion ends the whole shell, so `get_user_disk_usage` returned nothing at all and the space
-  barrier refused the run - correctly, and that is the only reason this was loud rather than a
-  silently over-committed disk. The size comes from `psql_value` now, which asks for the bare value.
-  An unreadable one stays unreadable: the backup refuses with a message naming the disk usage rather
-  than the free space, which is what sent the operator to `df` on a box with 27 GB free, and
-  `h-update-database-disk` leaves `U_DISK` alone instead of recording a figure nobody measured.
-
-- **Both cron files HestiaRE writes pin the language** (#1096). `LC_ALL=C` in the hestia crontab and
-  in `/etc/cron.d/hestia-repair`, so every nightly job matches the words it was written against. It
-  is deliberately an extra and not the general fix: a command run by hand in a German shell is still
-  on its own, and the place to be careful is still the code that matches a word. Existing boxes get
-  the line from two update entries, because neither file is ever rewritten once it is there. The
-  condition they need is `file_lacks`, the plain complement to `file_contains`.
-
-- **The space a backup needs could be summed from numbers nobody measured** (#1099). Two ways, both
-  silent. The engine of a database was picked with `DB_SYSTEM`, which is a token list: on a box
-  carrying both engines it reads `mysql,pgsql`, matched neither arm, and the whole database dropped
-  out of the sum. And a `du` that produced nothing added an empty string, which an arithmetic
-  expansion reads as zero, so a home directory could vanish from the budget without a word. Every
-  summand is checked before it is added, and a measurement that failed fails the run. The check is on
-  the value, never on `du`'s exit code: `du -s` returns 1 on a busy home all the time, with a
-  perfectly good total, because a file vanished under it while it counted.
-
-- **The daily update check never ran, so the panel banner never appeared** (#1091). The crontab
-  called `sudo bash /usr/local/hestia/update.sh --check`, but the sudo grant for the panel user
-  covers `/usr/local/hestia/bin/*` and nothing above it: sudo refused the line every night and
-  `UPDATE_AVAILABLE` was never written. The grant stays as it is and the check moves into `bin/` as
-  `h-check-sys-update`. Boxes that already carry the broken line get it replaced by an update entry,
-  because the crontab is operator surface and nothing rewrites a file that is there. A new smoke
-  check asks sudo whether every command the crontab calls is actually covered.
-
-- **The updater handed over to the new release and then ran against the old library** (#1080). After
-  the `exec` into the tarball's `update.sh`, `include/release.sh` still came from the installed tree,
-  which does not carry the functions the newer updater calls. The checksum fetch failed as
-  `command not found`, and the `if` around it reads that as "this release publishes none", so the
-  tarball was unpacked unverified. The updater sources the library beside itself now: the installed
-  one on the first pass, the new one after the handover.
-
-- **The session purge would have fired on every future update** (#1081). Its condition was the store
-  merely being non-empty, and that store fills up in normal operation - a login, a monitoring probe
-  or the smoke run itself is enough. It asks whether a session still carries a registry-secret with a
-  real value now, which is the state it actually means: the mask and an empty value do not count, so
-  a box with nothing to purge is left alone instead of logging everybody out.
+- **A box updated from a handed-in tarball mailed a failure every night** (#1104). The nightly check
+  read the installed tree as a downgrade; the update pins the version as the install already did.
+- **The nightly backup of a customer with a PostgreSQL database failed on a non-English box** (#1096).
+  psql's German row footer survived a filter on `row` and broke the size arithmetic. Both cron files
+  HestiaRE writes pin `LC_ALL=C` now.
+- **The space a backup needs could be summed from numbers nobody measured** (#1099): a box with both
+  database engines dropped every database, an empty `du` counted as zero. A failed measurement fails
+  the run.
+- **The daily update check never ran, so the panel banner never appeared** (#1091). sudo refused the
+  crontab line; the check moved into `bin/` as `h-check-sys-update`.
+- **The updater ran the new release against the old library** (#1080), so the checksum fetch failed
+  and the tarball was unpacked unverified.
+- **The session purge would have fired on every future update** (#1081); it asks for a real secret
+  value in a session now, not a store that is merely non-empty.
 
 ## v0.20.0 (2026-09-17)
 
-The first release a box can be updated *into*: v0.19.0 is the lower bound, and
-`share/updates/0.20.0.json` says what an update has to catch up on.
+The first release a box can be updated *into*, with `share/updates/0.20.0.json` as the first manifest.
 
 ### Added
 
-- **An update path with a vocabulary of its own** (#1076). A release is copied over the install tree,
-  so nothing outside it and nothing apt installed is reached that way. Eleven conditions and eleven
-  actions describe the catching-up as data rather than shell, and every entry has to go false after
-  its own action, so a repeated run converges instead of replaying. The first manifest,
-  `share/updates/0.20.0.json`, carries nine of them.
-
-- **`h-delete-user-sessions` ends a user's panel sessions** (#1059). A password change leaves the
-  record looking exactly as it did, so the panel's per-request read cannot notice it. Password and
-  role changes end those sessions now.
-
-- **An internal point release is one manual action** (#1045). One workflow writes `VERSION` on `dev`
-  and cuts the release on that commit, so a bump and a release cannot come apart.
+- **An update path with a vocabulary of its own** (#1076). Conditions and actions describe the
+  catching-up as data, and every entry goes false after its own action, so a repeated run converges.
+- **`h-delete-user-sessions`** (#1059); password and role changes end a user's panel sessions.
+- **An internal point release is one manual action** (#1045).
 
 ### Security
 
-- **An empty user argument was read as "admin"** (#1067). `include/main.sh` could not tell a command
-  that names no user from a caller that passed `""` where a name belongs, and filled both in from
-  `ROOT_USER`. Not reachable from the panel, which turns an empty value into no argument at all.
-
-- **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440). The global wall
-  only inspects a request carrying an `Origin` header, so a POST without one reached the page that
-  rewrites the privileged panel crontab and the white-label page.
-
-- **The panel's session files no longer carry a secret's value** (#976). `PHPMYADMIN_KEY` sat in
-  cleartext in one file per login, and in every backup that took them along. A key the registry marks
-  secret travels as a mask now.
+- **An empty user argument was read as "admin"** (#1067). Not reachable from the panel.
+- **Two admin pages accepted a POST without the CSRF token** (#1066, upstream #5440).
+- **The panel's session files no longer carry a secret's value** (#976); `PHPMYADMIN_KEY` travels as a
+  mask.
 
 ### Changed
 
-- **Tachyon moves to 4.2.4** (#846), from 3.2.2: a CalDAV calendar, one theme per design, and signed
-  release assets. Two plugin assets carry different bytes while keeping their version number, which
-  is why the pin is a hash and not a version.
-
-- **A key with a closed set is normalised, and anything outside it refused** (#1055). Case is the only
-  leniency; a key without a set is untouched.
-
-- **An install from a handed-in tarball pins itself to that version** (#1052). Otherwise the default
-  `release` resolved to an older public tag and every update check read as a downgrade.
-
+- **Tachyon moves to 4.2.4** (#846), from 3.2.2, with signed release assets.
+- **A key with a closed set is normalised, anything outside it refused** (#1055).
+- **An install from a handed-in tarball pins itself to that version** (#1052).
 - **The tree carries its own version, and only a release cut from `main` is mirrored** (#1045).
-  `VERSION` is committed before each tag and the build compares instead of writing. Point releases tag
-  `dev` and stay internal, held back by a gate at the top of the mirror job.
 
 ### Removed
 
-- **The private-source scaffolding is gone** (#1045). `install.sh --dev` wrote a `source.conf` naming
-  a Gitea repository, a token and a channel, and its fetch branch could never have worked: one
-  variable had to be both an API base and a download base. `source.conf` stays for `HESTIARE_MIRROR`.
+- **The private-source scaffolding** (#1045); `source.conf` stays for `HESTIARE_MIRROR`.
 
 ### Fixed
 
-- **Customer PHP versions came out without a database driver, and nothing noticed** (#1070). The
-  extensions were decided from `DB_SYSTEM`, which is empty for the whole PHP stage. The command could
-  not have reported it either: apt ran into `/dev/null` and its exit status was never collected.
-
-- **Renaming a web domain could delete one of its aliases** (#1064). The old domain went into the
-  rewrite as an unescaped pattern, so an alias that merely matched it was swallowed. rc 0, no message.
-
+- **Customer PHP versions came out without a database driver** (#1070), and apt's failure was never
+  collected.
+- **Renaming a web domain could delete one of its aliases** (#1064).
 - **The certificate's common name came out wrong on Debian 13 and Ubuntu 26.04** (#1064, upstream
-  #5585). OpenSSL 3.5 prints a DN without the spaces three listers keyed on, and the mail rebuild
-  greps that output, so a certificate carrying no SAN silently lost its own dovecot certificate.
-
-- **A demoted admin kept every admin route until they logged out** (#1059, upstream #5706). The admin
-  decision came from a note taken at login, not from the record.
-
-- **Two policy defects around suspension** (#1055/#1057, upstream #5711). `h-suspend-user` compared
-  `POLICY_USER_VIEW_SUSPENDED` against the restricting literal, so `Yes` skipped the whole branch; and
-  the server form read that select as a checkbox, which writes `true` from any non-empty value.
-
-- Smaller ones: a malformed netmask was accepted and never rendered (#1066, upstream #5044), an empty
-  phpMyAdmin alias redirected the panel to itself forever (#1058, upstream #5663), a whole-user restic
-  restore restored nothing and said it worked (upstream #5709), a suspended domain with awstats stopped
-  its log rotation (upstream #5684), the daily session cleanup swept a directory that no longer exists
-  (#976), and a for-loop over a file pattern ran once on the pattern itself (#1035).
+  #5585), which cost a SAN-less certificate its dovecot copy.
+- **A demoted admin kept every admin route until logout** (#1059, upstream #5706).
+- **Two policy defects around suspension** (#1055/#1057, upstream #5711).
+- Smaller ones: a malformed netmask (#1066, upstream #5044), an endless phpMyAdmin redirect (#1058,
+  upstream #5663), a whole-user restic restore that restored nothing (upstream #5709), awstats stopping
+  a suspended domain's log rotation (upstream #5684), a stale session cleanup path (#976), and a
+  for-loop over a file pattern running on the pattern itself (#1035).
 
 ## v0.19.0 (2026-09-13)
 

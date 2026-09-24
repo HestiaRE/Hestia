@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: Changes the document root for an existing web domain
-# options: USER DOMAIN TARGET_DOMAIN [DIRECTORY] [PHP]
+# options: USER DOMAIN [TARGET_DOMAIN] [DIRECTORY] [PHP] [RESTART]
 #
 # example: h-change-web-domain-docroot admin domain.tld otherdomain.tld
 #          # add custom docroot
@@ -46,7 +46,7 @@ format_domain
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER DOMAIN [TARGET_DOMAIN] [DIRECTORY] [PHP-DOCROOT] [RESTART]'
+check_args '2' "$#" 'USER DOMAIN [TARGET_DOMAIN] [DIRECTORY] [PHP] [RESTART]'
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 # Check to ensure that target domain is valid if we're
 # not setting the docroot value back to defaults

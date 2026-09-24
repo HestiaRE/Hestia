@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: backup system user with all its objects to restic backup
-# options: USER NOTIFY
+# options: USER [NOTIFY]
 #
 # example: h-backup-user-restic admin yes
 #
@@ -31,7 +31,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '1' "$#" 'USER'
+check_args '1' "$#" 'USER [NOTIFY]'
 is_format_valid 'user'
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"

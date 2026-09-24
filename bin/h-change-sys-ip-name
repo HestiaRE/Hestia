@@ -30,7 +30,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'IP IP_NAME'
+check_args '2' "$#" 'IP NAME'
 is_format_valid 'ip46'
 is_format_valid 'ip_name'
 if [ "$(ip_family "$ip46")" = 6 ]; then

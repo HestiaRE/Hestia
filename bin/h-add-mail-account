@@ -97,6 +97,7 @@ fi
 mkdir $HOMEDIR/$user/mail/$domain_idn/$account
 chown $user:mail $HOMEDIR/$user/mail/$domain_idn/$account
 chmod 700 $HOMEDIR/$user/mail/$domain_idn/$account
+mail_account_maildir_ensure "$user" "$domain_idn" "$account"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

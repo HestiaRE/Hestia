@@ -161,6 +161,22 @@ if [ -n "$DB_PMA_ALIAS" ]; then
 	fi
 fi
 
+# Panel-proxy domains carry the port in their vhost (#878).
+_panel_proxied=0
+for _conf in "$CONF_DIR"/users/*/web.conf; do
+	[ -e "$_conf" ] || continue
+	_user=$(basename "$(dirname "$_conf")")
+	for _domain in $(grep -E "(^| )(TPL|PROXY)='panel'" "$_conf" | sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p"); do
+		"$BIN/h-rebuild-web-domain" "$_user" "$_domain" 'no' > /dev/null 2>&1 \
+			|| echo "Warning: $_domain still proxies to the old panel port - fix, then: h-rebuild-web-domain $_user $_domain"
+		_panel_proxied=1
+	done
+done
+if [ "$_panel_proxied" = 1 ]; then
+	"$BIN/h-restart-web" > /dev/null 2>&1
+	[ -n "$PROXY_SYSTEM" ] && "$BIN/h-restart-proxy" > /dev/null 2>&1
+fi
+
 # The name has to BE $FIREWALL_SYSTEM: h-restart-service compares against that key, and a literal
 # that stops matching leaves the new port in rules.conf but never applied.
 if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != no ]; then

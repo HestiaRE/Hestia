@@ -111,12 +111,14 @@ source_conf "$USER_DATA/user.conf"
 # Creating domain directories
 mkdir $HOMEDIR/$user/web/$domain
 chown $user:$user $HOMEDIR/$user/web/$domain
-$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/public_html"
-$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/document_errors"
-$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/cgi-bin"
-$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/private"
-$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/stats"
-$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/logs"
+# A tree the user cannot write into used to end in rc 0 and a 403 site (#1134); nothing is recorded yet, so
+# removing the folder leaves the account as it was.
+for sub in public_html document_errors cgi-bin private stats logs; do
+	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/$sub" > /dev/null || {
+		rm -rf "${HOMEDIR:?}/$user/web/$domain"
+		check_result "$E_NOTEXIST" "cannot create $HOMEDIR/$user/web/$domain/$sub as $user; h-rebuild-user $user repairs the modes of $HOMEDIR/$user/web"
+	}
+done
 
 # Creating domain logs
 touch /var/log/$WEB_SYSTEM/domains/$domain.bytes \

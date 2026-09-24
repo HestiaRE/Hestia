@@ -6,6 +6,10 @@
 # #
 #===========================================================================#
 
+# A floor, not a ceiling: the panel (sudo) and cron already run under 022, a root shell under 077 built accounts that
+# could not be served and restores that lost their data (#1134). A command that writes tighter sets its own after this.
+umask 022
+
 # First, so a lone --help is answered before anything below runs.
 # shellcheck source=/usr/local/hestia/include/help.sh
 source "$HESTIA/include/help.sh"

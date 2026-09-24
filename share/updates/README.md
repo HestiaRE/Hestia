@@ -82,14 +82,15 @@ and that is what `key_empty` is for.
 
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
-`pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`. Actions:
+`pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
+`file_mode_wider`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
 Fields per type: `name` and `value` for the key types, `name` for a command, package, service or a
 PHP extension, `source` (tree-relative) and `target` for `file_patch_pending`, `path` for
-`path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`
-and `file_lacks`, `name` (a key under `software_versions` in `share/manifest.json`) and `path` (the
+`path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`,
+`file_lacks` and `file_mode_wider`, `name` (a key under `software_versions` in `share/manifest.json`) and `path` (the
 marker file the component wrote) for `pin_differs`, `source` (tree-relative) and `target` for
 `file_differs` and `file_copy` (`mode` optional), `function` for `function_call` (only names in
 `UPDATE_CALLABLE`).
@@ -147,6 +148,9 @@ second list here; its `name` takes a comma list, because an action that repairs 
 asked about that set. `dir_has_secret_value` asks whether a file in the directory still holds a
 registry-secret with a real value: a condition on the directory merely being full describes a normal
 steady state and would put its entry in every future plan.
+`file_mode_wider` takes a `path` that is a pattern (`/home/*/conf/mail/*/ssl/*`) and a `value` that is
+an octal mode, and is true while one matching file carries a bit outside it: for files that sit one
+per account or domain, where no single path could be named. A pattern that matches nothing is false.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

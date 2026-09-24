@@ -635,6 +635,9 @@ upd_entry_check() {
 		echo "update: $ident: needs at least one condition, so a second run can see it is done" >&2
 		return 2
 	}
+	# Stops at the first false one, as upd_entry_applies does: a gate (key_is MAIL_SYSTEM) is what keeps a
+	# patch condition off a box where the file is not ours, the stock exim template of a nomail box (#1132).
+	# Not covered: a condition behind a false gate is checked only on the boxes where the gate holds.
 	for ((i = 0; i < n; i++)); do
 		t=$(jq -r ".conditions[$i].type // \"\"" <<< "$entry")
 		mapfile -t _argv < <(upd_argv "$entry" ".conditions[$i]")
@@ -644,6 +647,7 @@ upd_entry_check() {
 			echo "update: $ident: ${msg#update: }" >&2
 			return 2
 		}
+		[ "$rc" -eq 1 ] && break
 	done
 	return 0
 }

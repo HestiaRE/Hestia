@@ -18,6 +18,9 @@ opens above it.
   An entry in `0.22.json` waited for one in `0.21.json`, which the raised lower bound no longer reads, so the
   derivation refused the whole set: the update had already stopped the panel and unpacked the tree and ended
   on its rollback hint. The wait is gone; every box the update accepts is at v0.21 already.
+  A box installed without mail (the nomail profile) failed the same check a second way: the two exim patch
+  entries tested the stock Debian template, which is not ours. They now ask for `MAIL_SYSTEM` first, and
+  the check stops at the first false condition, as the plan always did.
 
 ## v0.22 (2026-09-24)
 

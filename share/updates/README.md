@@ -124,6 +124,11 @@ The condition is deliberately **three-way**, and that is the whole point:
 A two-way condition would report the third case as "nothing to do" and the change would silently
 never arrive. `-F0` throughout: a hunk that only roughly matches is drift, not a hit.
 
+**Gate it when the file is not always ours.** On a box without mail the exim template is Debian's stock
+file, and the patch condition reads it as edited. So a key condition goes in front (`key_is` `MAIL_SYSTEM`
+`exim4`): the check stops at the first false condition, as the plan does, and never reaches the patch.
+The price is that a condition behind a false gate is only checked on the boxes where the gate holds.
+
 **Not every shipped file needs this.** A file under `/etc` that the panel does not expose and no
 addon rewrites can still be a plain `file_copy`; the patch form is for the ones somebody else owns
 a say in. Decide per file, and say which it is in the entry's `description`.

@@ -12,7 +12,12 @@ opens above it.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **An update to v0.22 stopped halfway, and every v0.22 box reported its update manifests as unsound** (#1132).
+  An entry in `0.22.json` waited for one in `0.21.json`, which the raised lower bound no longer reads, so the
+  derivation refused the whole set: the update had already stopped the panel and unpacked the tree and ended
+  on its rollback hint. The wait is gone; every box the update accepts is at v0.21 already.
 
 ## v0.22 (2026-09-24)
 

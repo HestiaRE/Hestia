@@ -63,8 +63,7 @@
       ],
       "action": { "type": "function_call", "function": "exim_autoreply_apply" },
       "paths": ["/etc/exim4/exim4.conf.template"],
-      "reversible": false,
-      "after": "0.21/exim-lmtp-subaddressing"
+      "reversible": false
     },
     {
       "id": "exim-spam-header-strip",

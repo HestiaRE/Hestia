@@ -1187,25 +1187,6 @@ if (!empty($_POST["save"])) {
 		}
 	}
 
-	// Change ENFORCE_SUBDOMAIN_OWNERSHIP
-	if (empty($_SESSION["error_msg"])) {
-		if ($_POST["v_enforce_subdomain_ownership"] != $_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"]) {
-			exec(
-				HESTIA_CMD .
-					"h-change-sys-config-value ENFORCE_SUBDOMAIN_OWNERSHIP " .
-					quoteshellarg($_POST["v_enforce_subdomain_ownership"]),
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_enforce_subdomain_ownership = $_POST["v_enforce_subdomain_ownership"];
-			}
-			$v_security_adv = "yes";
-		}
-	}
-
 	// Change POLICY_USER_EDIT_DETAILS
 	if (empty($_SESSION["error_msg"])) {
 		if ($_POST["v_policy_user_edit_details"] != $_SESSION["POLICY_USER_EDIT_DETAILS"]) {

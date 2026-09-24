@@ -1381,26 +1381,6 @@
 									</option>
 								</select>
 							</div>
-							<h3 class="u-mt20 u-mb10">
-								<?= tohtml(_("Domains")) ?>
-							</h3>
-							<div class="u-mb10">
-								<label for="v_enforce_subdomain_ownership" class="form-label">
-									<?= tohtml(_("Enforce subdomain ownership")) ?>
-								</label>
-								<select
-									class="form-select"
-									name="v_enforce_subdomain_ownership"
-									id="v_enforce_subdomain_ownership"
-								>
-									<option value="yes">
-										<?= tohtml(_("Yes")) ?>
-									</option>
-									<option value="no" <?= tohtml($_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"] == "no" ? "selected" : "") ?>>
-										<?= tohtml(_("No")) ?>
-									</option>
-								</select>
-							</div>
 						</div>
 					</details>
 

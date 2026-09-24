@@ -159,6 +159,7 @@ if ($v_proxy_cache == "yes") {
 	}
 }
 $v_offline = $data[$v_domain]["OFFLINE"] ?? "";
+$v_allow_users = $data[$v_domain]["ALLOW_USERS"] ?? "";
 $v_proxy = $data[$v_domain]["PROXY"];
 $v_proxy_template = $data[$v_domain]["PROXY"];
 $v_proxy_ext = str_replace(",", ", ", $data[$v_domain]["PROXY_EXT"]);
@@ -310,6 +311,13 @@ $offer_web_template = empty($v_docker) && $can_edit_templates && is_array($templ
 $offer_backend = empty($v_docker) && !empty($_SESSION["WEB_BACKEND"]);
 // rendered unconditionally today - the gate exists so the reader follows the file's rule
 $offer_offline = true;
+// Sharing only means something while ownership is enforced (the box-wide 'no' lets every account already), and only
+// on a base domain, which h-add-web-domain-allow-users decides against the public suffix list. Offered here on two
+// labels, where that answer is certain, or while it is on, so it can be switched off. Not covered: a base domain with
+// a two-part suffix (example.co.uk) is shared through the CLI only.
+$offer_allow_users =
+	($_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"] ?? "yes") != "no" &&
+	(substr_count($v_domain, ".") == 1 || $v_allow_users == "yes");
 // A managed WordPress lives IN the document root - pointing the domain elsewhere would orphan
 // its files, its wp-config artefact and the guards that read them. Redirects stay available:
 // forwarding a domain while the installation waits (migration, move) is a real case.
@@ -703,6 +711,19 @@ if (!empty($_POST["save"])) {
 		check_return_code($return_var, $output);
 		unset($output);
 		$restart_web = "yes";
+	}
+
+	// Share the domain: other accounts may add subdomains of it, web and mail. The owner's namespace, so the owner's switch.
+	$v_allow_users_check = $v_allow_users == "yes" ? "on" : "";
+	$post_allow_users = post_checkbox("v_allow_users", $offer_allow_users, $v_allow_users_check, "on", "");
+	if ($v_allow_users_check != $post_allow_users && empty($_SESSION["error_msg"])) {
+		$allow_cmd = $post_allow_users == "on" ? "h-add-web-domain-allow-users" : "h-delete-web-domain-allow-users";
+		exec(HESTIA_CMD . $allow_cmd . " " . $user . " " . quoteshellarg($v_domain), $output, $return_var);
+		check_return_code($return_var, $output);
+		unset($output);
+		if (empty($_SESSION["error_msg"])) {
+			$v_allow_users = $post_allow_users == "on" ? "yes" : "no";
+		}
 	}
 
 	// Change aliases

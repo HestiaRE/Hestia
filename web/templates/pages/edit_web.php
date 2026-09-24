@@ -115,6 +115,14 @@
 					<?= tohtml(_("Take website temporarily offline (visitors see a maintenance page, HTTP 503)")) ?>
 				</label>
 			</div>
+			<?php if ($offer_allow_users) { ?>
+			<div class="form-check u-mb10">
+				<input class="form-check-input" type="checkbox" name="v_allow_users" id="v_allow_users" <?= $v_allow_users == "yes" ? "checked" : "" ?>>
+				<label for="v_allow_users">
+					<?= tohtml(sprintf(_("Share: other accounts on this server may add subdomains of %s (web and mail)"), $v_domain)) ?>
+				</label>
+			</div>
+			<?php } ?>
 				<?php if (empty($v_docker) && $can_edit_templates) { ?>
 					<?php // These policy gates protect the CUSTOMER from themselves (a pool set to high, a broken
 					// proxy template), so the REAL admin overrides them even while impersonating: adminContext

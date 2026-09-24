@@ -5,7 +5,8 @@
 # example: h-delete-web-domain-allow-users admin admin.com
 #
 # Enable the rule check for Enforce subdomain ownership for a specific domain.
-# Enforce subdomain ownership setting in /edit/server/ set to no will always overwrite this behaviour
+# A base domain only. ENFORCE_SUBDOMAIN_OWNERSHIP='no' in hestia.conf (CLI only) lifts the check box-wide.
+# The panel offers this as the Share switch of the web domain.
 # eg: admin adds admin.com
 # user can create user.admin.com
 

@@ -618,7 +618,8 @@ if (!empty($_POST["save"])) {
 				}
 			}
 		}
-		if ($offer_mail && !isset($_POST["v_smtp_relay"]) && $v_smtp_relay == true) {
+		// The record holds the string 'false', which == true in PHP: every save without the box deleted a relay (#1140).
+		if ($offer_mail && !isset($_POST["v_smtp_relay"]) && $v_smtp_relay == "true") {
 			$v_smtp_relay = false;
 			$v_smtp_relay_host = $v_smtp_relay_user = $v_smtp_relay_pass = $v_smtp_relay_port = "";
 			exec(HESTIA_CMD . "h-delete-sys-smtp-relay", $output, $return_var);
@@ -1479,6 +1480,9 @@ if (!empty($_POST["save"])) {
 	// test for the whole box.
 	if (empty($_SESSION["error_msg"]) && is_array($_POST["v_bl_fam"] ?? null)) {
 		$bl_touched = false;
+		// A row as stored is left alone: every save re-wrote all families and reloaded the web server (#1140).
+		$bl_stored = cli_json("h-list-sys-botfamily json");
+		$bl_stored = is_array($bl_stored) ? $bl_stored : [];
 		// Bounded by the slot count: the CLI rejects the surplus anyway, but only after this loop had
 		// forked a command per row.
 		foreach (array_slice(array_keys($_POST["v_bl_fam"]), 0, $bl_slots_max, true) as $bl_i) {
@@ -1501,6 +1505,15 @@ if (!empty($_POST["save"])) {
 				$bl_touched = true;
 			}
 			if ($bl_name === "" || $bl_match === "") {
+				continue;
+			}
+			$bl_was = $bl_stored[$bl_name] ?? null;
+			if (
+				$bl_name === $bl_orig &&
+				is_array($bl_was) &&
+				[$bl_match, $bl_len, $bl_str, $bl_en] ===
+					[$bl_was["MATCH"] ?? "", $bl_was["LENIENT"] ?? "", $bl_was["STRICT"] ?? "", $bl_was["ENABLED"] ?? "no"]
+			) {
 				continue;
 			}
 			exec(

@@ -45,6 +45,9 @@ opens above it.
 - **The counters drifted after an aborted restore** (#1137). The restore counted only at its end, so the
   `h-delete-user` after an abort subtracted an account and domains that were never counted; the recount now
   runs on every exit. `h-rebuild-user` also leaves `tmp/` at 700 instead of widening it to 771.
+- **Saving the server settings without a change ran commands** (#1140). On a box without an SMTP relay every
+  save ran its delete, because the stored string `'false'` compares equal to `true`, and every save re-wrote
+  all bot families and reloaded the web server. Only a changed row and a real untick act now.
 
 ## v0.22 (2026-09-24)
 

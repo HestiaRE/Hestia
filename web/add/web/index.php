@@ -84,6 +84,19 @@ if (!empty($_POST["ok"])) {
 		$domain_added = empty($_SESSION["error_msg"]);
 	}
 
+	// Share at creation: the gate of /edit/web/, on the domain as it was saved. A subdomain would be refused by the CLI.
+	$offer_allow_users =
+		($_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"] ?? "yes") != "no" && substr_count($v_domain, ".") == 1;
+	if (post_checkbox("v_allow_users", $offer_allow_users, "", "on", "") == "on" && empty($_SESSION["error_msg"])) {
+		exec(
+			HESTIA_CMD . "h-add-web-domain-allow-users " . $user . " " . quoteshellarg($v_domain),
+			$output,
+			$return_var,
+		);
+		check_return_code($return_var, $output);
+		unset($output);
+	}
+
 	if (empty($_POST["v_mail"])) {
 		$_POST["v_mail"] = "no";
 	}
@@ -149,6 +162,8 @@ $ip_label = $ips_v4 ? _("IP Address") : _("IPv6 Address");
 $user_domains = array_keys(cli_json("h-list-web-domains " . $user . " json"));
 
 $accept = $_GET["accept"] ?? "";
+// The view half of the gate; the two-label half runs in the browser as the domain is typed.
+$offer_allow_users = ($_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"] ?? "yes") != "no";
 
 $v_domain = $_POST["domain"] ?? "";
 

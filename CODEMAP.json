@@ -834,6 +834,20 @@
         "sbin/h-install-hestia"
       ]
     },
+    "customer_php_versions": {
+      "description": "Customer PHP versions (#1069). h-add-web-php is the one path for every version and every PHP mode (os_single too; before that an OS-PHP box kept the distro php.ini with exec() open and the www pool live): installs php_module_pkgs (include/helper.sh, the single extension set, sized for WordPress/Nextcloud/Magento without follow-up installs), writes the FPM php.ini hardening and leaves the CLI disable_functions empty so occ and indexers can fork. opcache has no package from 8.5 on and drops through filter_installable_php_pkgs. h-delete-web-php purges whatever dpkg knows of the version and refuses when apt would take anything else with it (phpmyadmin/roundcube hang on the version the php-* metas point at). The update callables php_versions_configure_apply, php_modules_apply and php_cli_pcntl_apply bring installed boxes to the same state.",
+      "entry_points": [
+        "bin/h-add-web-php",
+        "bin/h-delete-web-php"
+      ],
+      "related_files": [
+        "include/helper.sh",
+        "sbin/h-install-hestia",
+        "bin/h-change-sys-panel-php",
+        "web/edit/server/index.php",
+        "share/updates/0.23.json"
+      ]
+    },
     "fail2ban": {
       "description": "Brute-force protection, wired as a CLIENT of the hestia firewall rather than as an independent writer: share/fail2ban/action.d/hestia.conf maps actionstart/stop/ban/unban onto h-add/delete-firewall-chain and h-add/delete-firewall-ban, so bans land in banlist.conf AND in the live fail2ban-<CHAIN> chain and therefore survive a full h-update-firewall rebuild. That client model is the reason to keep owning the ban action rather than adopting fail2ban's native nftables banaction, which would bypass the banlist, the panel and rebuild-survival alike.",
       "config_install": "fail2ban_apply in include/fail2ban.sh is the single implementation of \"a configured fail2ban\", shared by the installer and (later) the addon commands. It copies the WHOLE share/fail2ban tree through a staging dir: enumerating the files individually is what once left out action.d/hestia.conf and made every jail using action = hestia[...] unstartable with smoke still green (D1, fixed in #502). Our jails live in jail.d/hestia.local, never in jail.local, which is left to the admin - fail2ban reads jail.conf -> jail.d/*.conf -> jail.local -> jail.d/*.local, so ours is read last and wins. The distro [sshd] jail is disabled from our own config rather than by deleting jail.d/defaults-debian.conf: that is a dpkg conffile, so rm -f is undone by the next package update.",

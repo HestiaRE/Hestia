@@ -24,9 +24,22 @@ opens above it.
   covers, and guards for single fixed incidents, are gone. A new `nginx -t` / `apache2ctl -t` check replaces two
   of them and covers every cause of a configuration the next reload would refuse. The error-code guard never
   compared anything since it was written (control bytes in its sed replacement) and does now.
+- **Every PHP version gets one extension set, sized for WordPress, Nextcloud and Magento** (#1069). New are
+  `redis`, `igbinary` and `mcrypt` on every version; `cgi`, `pspell` and `imap` are no longer installed (a box
+  that has them keeps them). The CLI no longer blocks `pcntl_*`, so `occ` and the Magento indexers can fork;
+  the FPM list is unchanged. phpMyAdmin and Roundcube install without recommends, which put the newest Sury
+  version's `cli` and `common` on boxes that run none of it. Update entries bring installed boxes along.
 
 ### Fixed
 
+- **An OS-PHP box left customer PHP unhardened** (#1069). The singlephp and mailonly presets never ran
+  `h-add-web-php`: `exec()`, `system()` and friends were open to every customer, uploads stopped at 2 MB, the
+  distro `www` pool ran, and `bcmath` and `soap` were missing. Installs now run it in every mode, and an update
+  entry configures the versions it never reached. Customer code on such a box that relied on `exec()` stops
+  working, as it always did on a Sury box.
+- **Removing a PHP version could take phpMyAdmin and Roundcube with it** (#1069). On the version the `php-*`
+  metas point at, apt removed both without a word; `h-delete-web-php` now refuses and names them. It also purges
+  whatever dpkg knows of the version instead of its own list, which had drifted.
 - **Saving the PHP page overwrote every php.ini on the box, the panel's own included** (#1144). The target was
   a search over `/etc/php`, so one textarea landed on cli, cgi and fpm of every version and on the panel pool,
   which lost its session path. The page now edits the fpm `php.ini` of one version, picked by a select and

@@ -73,15 +73,23 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-mph="php$version-common php$version-mbstring php$version-bcmath php$version-cli php$version-curl
- php$version-fpm php$version-gd php$version-intl php$version-mysql
- php$version-soap php$version-xml php$version-zip php$version-mbstring
- php$version-json php$version-bz2 php$version-pspell php$version-imagick php$version-pgsql
- php$version-imap php$version-ldap php$version-apcu"
+# Whatever dpkg knows of this version rather than a list of our own: that one drifted (no gmp, no sqlite3),
+# and an extension an older release installed is still on the box after the list dropped it.
+mph=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' "php$version" "php$version-*" 2> /dev/null \
+	| awk '$2 != "not-installed" {print $1}' | tr '\n' ' ')
 
-# Check if version is 7.1 or below to remove mcrypt
-if [[ $(echo "$version 7.2" | awk '{print ($1 < $2)}') == 1 ]]; then
-	mph="$mph php$version-mcrypt"
+# apt also removes what depends on a purged package. This version's php-<ext> metas may go with it, but on the
+# version the php-* metas point at, phpmyadmin and roundcube hang on it as well, and -y takes them silently.
+collateral=""
+# shellcheck disable=SC2086 # one package name per word, from dpkg
+for _p in $(LC_ALL=C apt-get -s purge $mph 2> /dev/null | awk '/^(Purg|Remv) /{print $2}'); do
+	case "$_p" in "php$version" | "php$version-"*) continue ;; esac
+	case " $mph " in *" php$version-${_p#php-} "*) continue ;; esac
+	collateral="$collateral $_p"
+done
+if [ -n "$collateral" ]; then
+	echo "ERROR: PHP $version cannot be removed, these depend on it:$collateral"
+	exit "$E_INVALID"
 fi
 
 # Purge php packages

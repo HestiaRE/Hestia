@@ -141,6 +141,9 @@ The four late conditions exist because a state outside the tree cannot be compar
 `file_differs` needs a tree source, so a file the box *generates* is out of its reach:
 `file_contains` looks for what the older version wrote instead, and goes false once it is rewritten.
 `file_lacks` is its complement, for the entry that has to ADD the marker rather than replace one.
+`file_contains` also takes a pattern, as `file_mode_wider` does, for a file that sits once per PHP version; one
+match carrying the marker is enough. `file_lacks` stays literal: "one of them lacks it" is a different
+question from "it is missing", and no entry has needed it yet.
 `pin_differs` reads the pin from the manifest rather than carrying a version of its own. `dir_clear`
 empties a directory and leaves it standing, because its owner and mode are part of what it is.
 `php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a

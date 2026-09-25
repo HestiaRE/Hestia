@@ -30,6 +30,31 @@
       "action": { "type": "function_call", "function": "smtp_relay_modes_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "php-versions-configure",
+      "description": "An OS-PHP install never ran h-add-web-php: distro php.ini with exec() open to customers, the www pool live, no bcmath or soap. bcmath is what only that command installs",
+      "conditions": [{ "type": "php_ext_missing", "name": "bcmath" }],
+      "action": { "type": "function_call", "function": "php_versions_configure_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "php-modules",
+      "description": "redis, igbinary and mcrypt joined the extension set every PHP version gets. After the configure entry, which installs the whole set and would otherwise find bcmath already there",
+      "conditions": [{ "type": "php_ext_missing", "name": "redis,igbinary,mcrypt" }],
+      "action": { "type": "function_call", "function": "php_modules_apply" },
+      "paths": [],
+      "reversible": false,
+      "after": "0.23/php-versions-configure"
+    },
+    {
+      "id": "php-cli-pcntl",
+      "description": "The CLI carried the FPM pcntl_* block, so occ and the Magento indexers could not fork. Only the exact line h-add-web-php wrote; an edited one stays",
+      "conditions": [{ "type": "file_contains", "path": "/etc/php/*/cli/php.ini", "value": "disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority" }],
+      "action": { "type": "function_call", "function": "php_cli_pcntl_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

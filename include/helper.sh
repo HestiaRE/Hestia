@@ -157,8 +157,8 @@ os_default_php() {
 # A pure-OS box does not carry everything the Sury list has. apt -s sees real
 # and virtual packages alike. $1 names the extension suffixes that may drop
 # with a warning, each carrying its own condition: "name" tolerates always,
-# "name:X.Y" only from PHP X.Y on - php8.2-imap DOES exist in the OS repos, so
-# a flat tolerance would swallow a real repo failure on 8.2/8.3. Any other
+# "name:X.Y" only from PHP X.Y on: php8.4-opcache DOES exist, so a flat
+# tolerance would swallow a real repo failure on 8.4 and older. Any other
 # failed probe is apt not answering, not a missing package: return 1 instead
 # of installing through it and surfacing as a broken panel later.
 filter_installable_php_pkgs() {
@@ -214,6 +214,21 @@ filter_installable_php_pkgs() {
 		case " $keep " in *" $p "*) ;; *) keep="$keep $p" ;; esac
 	done
 	echo "${keep# }"
+}
+
+# The one extension set a customer version gets (#1069), sized so WordPress, Nextcloud and Magento need no
+# follow-up install. sockets, ftp, sodium, exif and sysvsem ship in -common, xsl in -xml. Both DB drivers
+# unconditionally: DB_SYSTEM is empty until the db stage, and adding pgsql later backfills nothing.
+# Tolerated drop for the filter: "opcache:8.5" (built into core from 8.5 on).
+php_module_pkgs() {
+	local v="$1" e out=""
+	for e in common cli fpm mbstring bcmath curl gd gmp intl mysql pgsql sqlite3 soap xml zip bz2 \
+		imagick ldap apcu opcache mcrypt redis igbinary; do
+		out="$out php$v-$e"
+	done
+	# Core from 8.0 on.
+	[ "${v%%.*}" -lt 8 ] && out="$out php$v-json"
+	printf '%s\n' "${out# }"
 }
 
 # ── Sury PHP repository (shared by wizard + installer) ──────────────────────
@@ -565,6 +580,62 @@ php_db_drivers_apply() {
 	# apt's rc covers the whole run, so ask dpkg per package.
 	for v in $want; do
 		[ "$(dpkg-query -W -f='${db:Status-Status}' "$v" 2> /dev/null)" = installed ] || return 1
+	done
+}
+
+# os_single installs never ran h-add-web-php (#1069): distro php.ini with exec() open to customers, the www pool
+# live. bcmath is what only that command installs, so a version without it was never configured by us.
+php_versions_configure_apply() {
+	local v rc=0
+	while read -r v; do
+		[ -n "$v" ] || continue
+		[ "$(dpkg-query -W -f='${db:Status-Status}' "php$v-bcmath" 2> /dev/null)" = installed ] && continue
+		"$BIN/h-add-web-php" "$v" > /dev/null 2>&1 || {
+			rc=1
+			continue
+		}
+		# php.ini and the dropped www pool take effect only on a reload.
+		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || rc=1
+	done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
+	return "$rc"
+}
+
+# redis, igbinary and mcrypt joined the set (#1069). Packages only, like php_db_drivers_apply; whatever else of the
+# set a version lacks comes along.
+php_modules_apply() {
+	local v p miss want="" touched=""
+	while read -r v; do
+		[ -n "$v" ] || continue
+		miss=""
+		for p in $(php_module_pkgs "$v"); do
+			[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] || miss="$miss $p"
+		done
+		[ -n "$miss" ] || continue
+		# shellcheck disable=SC2086 # one package per word
+		miss=$(filter_installable_php_pkgs "opcache:8.5" $miss 2> /dev/null) || return 1
+		[ -n "$miss" ] || continue
+		want="$want $miss"
+		touched="$touched $v"
+	done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
+	[ -n "$want" ] || return 0
+	dpkg --configure -a > /dev/null 2>&1
+	# shellcheck disable=SC2086 # one package per word
+	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install $want > /dev/null 2>&1
+	for p in $want; do
+		[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] || return 1
+	done
+	for v in $touched; do
+		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || return 1
+	done
+}
+
+# The CLI carried FPM's 21 pcntl_* entries, so occ and the Magento indexers could not fork (#1069). Only the exact
+# line h-add-web-php wrote: an edited one belongs to whoever edited it. Same string as the 0.23 manifest entry.
+php_cli_pcntl_apply() {
+	local f old='disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority'
+	for f in /etc/php/*/cli/php.ini; do
+		[ -e "$f" ] || continue
+		sed -i "s/^${old}\$/disable_functions =/" "$f" || return 1
 	done
 }
 

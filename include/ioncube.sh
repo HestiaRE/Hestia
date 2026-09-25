@@ -43,10 +43,10 @@ ioncube_fetch() {
 		echo "ERROR: share/manifest.json carries no ionCube pin for $arch"
 		return 1
 	}
-	[ "$(cat "$IONCUBE_PIN_FILE" 2> /dev/null)" = "$ver" ] && return 0
+	ioncube_intact "$ver" && return 0
 	# Asked again under the lock: another run may have fetched the same pin meanwhile.
 	ioncube_lock -x || return 1
-	if [ "$(cat "$IONCUBE_PIN_FILE" 2> /dev/null)" = "$ver" ]; then
+	if ioncube_intact "$ver"; then
 		ioncube_unlock
 		return 0
 	fi
@@ -56,12 +56,20 @@ ioncube_fetch() {
 	return "$rc"
 }
 
+# The pin file alone would vouch for itself, and a loader damaged after the fetch would never be fetched again.
+# The sums are taken from the verified archive at unpack time.
+ioncube_intact() {
+	[ "$(cat "$IONCUBE_PIN_FILE" 2> /dev/null)" = "$1" ] || return 1
+	(cd "$IONCUBE_DIR" && sha256sum --quiet -c hestia-sums > /dev/null 2>&1)
+}
+
 # A pin change swaps IONCUBE_DIR (exclusive) while a panel h-add-web-php may be copying a loader out of it
 # (shared). $1 = -x or -s.
 ioncube_lock() {
 	mkdir -p /run/hestia || return 1
 	exec {IONCUBE_LOCK_FD}> /run/hestia/ioncube.lock || return 1
-	flock "$1" -w 300 "$IONCUBE_LOCK_FD" && return 0
+	# Long enough for a fetch that falls back to the mirror; a timeout is an error, never a go-ahead.
+	flock "$1" -w 900 "$IONCUBE_LOCK_FD" && return 0
 	echo "ERROR: the ionCube lock is held by another run"
 	ioncube_unlock
 	return 1
@@ -72,35 +80,46 @@ ioncube_unlock() {
 }
 
 ioncube_fetch_locked() {
-	local ver="$1" arch="$2" sum="$3" name tmp
+	local ver="$1" arch="$2" sum="$3" name tmp src ok=""
 	name="ioncube_loaders_lin_${arch}_${ver}.tar.gz"
-	tmp=$(mktemp -d) || return 1
-	# Bounded like fetch_release_asset: wget's defaults cost ~45 minutes on a host that drops SYNs.
-	if ! wget "$IONCUBE_URL/$name" --timeout=30 --tries=3 --retry-connrefused --quiet -O "$tmp/$name" \
-		|| ! [ -s "$tmp/$name" ]; then
-		wget "$IONCUBE_MIRROR/$name" --timeout=30 --tries=3 --retry-connrefused --quiet -O "$tmp/$name"
-	fi
-	if [ "$(sha256sum "$tmp/$name" 2> /dev/null | cut -d' ' -f1)" != "$sum" ]; then
-		echo "ERROR: $name missing or not matching its pinned sha256"
+	# Next to the target, so both moves below are renames and not a copy across filesystems.
+	mkdir -p "${IONCUBE_DIR%/*}" && tmp=$(mktemp -d "${IONCUBE_DIR%/*}/.ioncube.XXXXXX") || return 1
+	# Each source is judged by the sum, not by wget: a portal or a stale cache answers 200 too. Bounded like
+	# fetch_release_asset, wget's defaults cost ~45 minutes on a host that drops SYNs.
+	for src in "$IONCUBE_URL" "$IONCUBE_MIRROR"; do
+		wget "$src/$name" --timeout=30 --tries=3 --retry-connrefused --quiet -O "$tmp/$name" || continue
+		if [ "$(sha256sum "$tmp/$name" | cut -d' ' -f1)" = "$sum" ]; then
+			ok=yes
+			break
+		fi
+		echo "WARNING: $src/$name does not match its pinned sha256"
+	done
+	if [ -z "$ok" ]; then
+		echo "ERROR: no source delivered $name with its pinned sha256"
 		rm -rf "$tmp"
 		return 1
 	fi
 	# The archive ships its loaders group-writable and owned by uid "dev".
-	tar -xzf "$tmp/$name" -C "$tmp" --no-same-owner --no-same-permissions || {
+	if ! tar -xzf "$tmp/$name" -C "$tmp" --no-same-owner --no-same-permissions \
+		|| ! chmod 0755 "$tmp/ioncube" || ! find "$tmp/ioncube" -type f -exec chmod 0644 {} + \
+		|| ! (cd "$tmp/ioncube" && sha256sum ioncube_loader_lin_*.so > hestia-sums); then
+		rm -rf "$tmp"
+		return 1
+	fi
+	printf '%s\n' "$ver" > "$tmp/ioncube/hestia-pin" || {
 		rm -rf "$tmp"
 		return 1
 	}
-	chmod 0755 "$tmp/ioncube" && find "$tmp/ioncube" -type f -exec chmod 0644 {} + || {
+	# With a way back: a failed swap must not leave the box without the loaders it had.
+	if [ -e "$IONCUBE_DIR" ] && ! mv "$IONCUBE_DIR" "$tmp/old"; then
 		rm -rf "$tmp"
 		return 1
-	}
-	printf '%s\n' "$ver" > "$tmp/ioncube/hestia-pin"
-	rm -rf "$IONCUBE_DIR"
-	mkdir -p "${IONCUBE_DIR%/*}"
-	mv "$tmp/ioncube" "$IONCUBE_DIR" || {
+	fi
+	if ! mv "$tmp/ioncube" "$IONCUBE_DIR"; then
+		[ -e "$tmp/old" ] && mv "$tmp/old" "$IONCUBE_DIR"
 		rm -rf "$tmp"
 		return 1
-	}
+	fi
 	rm -rf "$tmp"
 }
 
@@ -128,12 +147,20 @@ ioncube_version_apply() {
 	printf '; priority=10\nzend_extension=ioncube.so\nopcache.jit_buffer_size=0\n' \
 		> "/etc/php/$v/mods-available/ioncube.ini" || return 1
 	phpenmod -v "$v" ioncube || return 1
-	# A loader PHP refuses leaves every script of this version dead, so it goes straight back out.
-	if ! "/usr/bin/php$v" -v 2> /dev/null | grep -q 'ionCube'; then
+	# A loader PHP refuses leaves every script of this version dead, so it goes straight back out. Both SAPIs:
+	# FPM reads its own conf.d, and its reload is a USR2 that returns before the new master has loaded anything.
+	if ! "/usr/bin/php$v" -v 2> /dev/null | grep -q 'ionCube' \
+		|| ! "/usr/sbin/php-fpm$v" -v 2> /dev/null | grep -q 'ionCube'; then
 		ioncube_version_remove "$v"
 		return 1
 	fi
-	systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || true
+	ioncube_fpm_reload "$v"
+}
+
+# Only a running master: one that was stopped on purpose stays stopped, and a purged version has none.
+ioncube_fpm_reload() {
+	systemctl is-active --quiet "php$1-fpm" || return 0
+	systemctl reload "php$1-fpm" > /dev/null 2>&1
 }
 
 # The .so is ours, not a package's: a purge of the version leaves it behind unless it goes first.
@@ -142,7 +169,6 @@ ioncube_version_remove() {
 	[ -f "/etc/php/$v/mods-available/ioncube.ini" ] && phpdismod -v "$v" ioncube
 	rm -f "/etc/php/$v/mods-available/ioncube.ini"
 	ext=$(ioncube_ext_dir "$v") && [ -n "$ext" ] && rm -f "$ext/ioncube.so"
-	# The running master keeps a loaded loader until it restarts.
-	systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || true
-	return 0
+	# The running master keeps a loaded loader until it reloads.
+	ioncube_fpm_reload "$v"
 }

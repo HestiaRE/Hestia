@@ -631,12 +631,12 @@ db_is_owned_by_user() {
 	cut -d' ' -f1 "$USER_DATA/db.conf" 2> /dev/null | grep -qxF "DB='$1'"
 }
 
-# db_record_field LINE KEY - one field of a db.conf record, exact: a grep for DBUSER='x' also hits X_DBUSER='x'.
+# db_record_field LINE KEY: one field of a db.conf record, exact: a grep for DBUSER='x' also hits X_DBUSER='x'.
 db_record_field() {
 	[[ " $1" =~ \ $2=\'([^\']*)\' ]] && printf '%s' "${BASH_REMATCH[1]}"
 }
 
-# db_user_in_use DBUSER TYPE HOST [SELF_DB] [IGNORE_DBS] - does another record of this customer hold DBUSER in a
+# db_user_in_use DBUSER TYPE HOST [SELF_DB] [IGNORE_DBS]: does another record of this customer hold DBUSER in a
 # slot? TYPE/HOST '*' match any. rc 0 in use, 1 free, 2 cannot tell; callers drop a user only on 1, so a doubt keeps
 # it. SELF_DB must be seen: a file without the caller's own record is not the one it thinks it is reading.
 db_user_in_use() {
@@ -658,7 +658,7 @@ db_user_in_use() {
 	[ -n "$found" ]
 }
 
-# db_user_hash_elsewhere DBUSER TYPE HOST SELF_DB [IGNORE_DBS] - does a record other than SELF_DB, outside
+# db_user_hash_elsewhere DBUSER TYPE HOST SELF_DB [IGNORE_DBS]: does a record other than SELF_DB, outside
 # IGNORE_DBS, carry DBUSER's hash? Its password is then the one the user has on the server.
 db_user_hash_elsewhere() {
 	local ignore=" ${5:-} " line db
@@ -678,7 +678,7 @@ db_record_matches() {
 		&& { [ "$3" = '*' ] || [ "$(db_record_field "$1" HOST)" = "$3" ]; }
 }
 
-# db_user_host DBUSER TYPE - the HOST of the records holding DBUSER; a shared user lives on exactly one server.
+# db_user_host DBUSER TYPE: the HOST of the records holding DBUSER; a shared user lives on exactly one server.
 db_user_host() {
 	local line
 	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
@@ -692,7 +692,7 @@ db_user_host() {
 	return 1
 }
 
-# db_user_canonical DBUSER TYPE HOST - "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_2). rc 1 none,
+# db_user_canonical DBUSER TYPE HOST: "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_2). rc 1 none,
 # rc 2 more than one: two records claiming one password is a state no command may build on.
 db_user_canonical() {
 	local line hit=''

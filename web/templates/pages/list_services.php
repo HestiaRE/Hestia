@@ -124,14 +124,16 @@
 					$spnd_icon_class = 'icon-green';
 					$state_icon = 'fa-circle-minus icon-red';
 				}
+				$edit_query = "";
 				if (in_array($key, $phpfpm)) {
 					$edit_url = "php";
+					$edit_query = preg_match('/^php(\d+\.\d+)-fpm$/', $key, $m) ? "?version=" . rawurlencode($m[1]) : "";
 				} else {
 					$edit_url = $key;
 				}
 				// rspamd has no service-config page - its "edit" target is the
 				// embedded web UI page, so the name and pencil links point there.
-				$edit_href = ($key === "rspamd") ? "/list/rspamd/" : "/edit/server/" . $edit_url . "/";
+				$edit_href = ($key === "rspamd") ? "/list/rspamd/" : "/edit/server/" . $edit_url . "/" . $edit_query;
 
 				$cpu = $data[$key]['CPU'] / 10;
 				$cpu = number_format($cpu, 1);

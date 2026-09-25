@@ -4,7 +4,8 @@
 #
 # example: h-change-sys-service-config /home/admin/dovecot.conf dovecot yes
 #
-# This function for changing service confguration.
+# This function for changing service confguration. SERVICE php is the fpm php.ini of the default version,
+# php-X.Y that of version X.Y; one file either way, and only that version's fpm restarts.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -46,7 +47,11 @@ case $service in
 	exim) dst='/etc/exim/exim.conf' ;;
 	exim4) dst='/etc/exim4/exim4.conf.template' ;;
 	proftpd) dst=$(find /etc/proftpd* -name 'proftpd.conf') ;;
-	php) dst=$(find /etc/php* -name php.ini) ;;
+	php | php-[0-9]*)
+		php_v=''
+		[ "$service" = php ] || php_v=${service#php-}
+		dst=$(php_ini_path "$php_v") || check_result "$E_NOTEXIST" "$service has no fpm php.ini"
+		;;
 	mysql) dst=$(find /etc/my* -name my.cnf) ;;
 	mysqld) dst=$(find /etc/my* -name my.cnf) ;;
 	mariadb) dst=$(find /etc/my* -name my.cnf) ;;
@@ -93,11 +98,7 @@ if [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
 	fi
 
 	if [ "$service" = 'php' ]; then
-		if [ "$(multiphp_count)" -gt 0 ]; then
-			service="php-fpm"
-		elif [ "$WEB_SYSTEM" = 'apache2' ]; then
-			service="$WEB_SYSTEM"
-		fi
+		service="php$(php_ini_version "$dst")-fpm"
 	fi
 
 	if [[ "$service" != "hestia" ]]; then

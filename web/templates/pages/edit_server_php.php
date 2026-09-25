@@ -20,10 +20,21 @@
 	<form id="main-form" name="v_configure_server" method="post">
 		<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
 		<input type="hidden" name="save" value="save">
+		<input type="hidden" name="v_version" value="<?= tohtml($v_version) ?>">
 
 		<div class="form-container">
-			<h1 class="u-mb20"><?= tohtml(_("Configure Server")) ?>: PHP</h1>
+			<h1 class="u-mb20"><?= tohtml(_("Configure Server")) ?>: PHP <?= tohtml($v_version) ?></h1>
 			<?php show_alert_message($_SESSION); ?>
+			<?php if (count($v_versions) > 1) { ?>
+				<div class="u-mb20">
+					<label for="v_php_version" class="form-label"><?= tohtml(_("PHP Version")) ?></label>
+					<select class="form-select" id="v_php_version" x-data x-on:change="window.location.search = '?version=' + encodeURIComponent($event.target.value)">
+						<?php foreach ($v_versions as $ver) { ?>
+							<option value="<?= tohtml($ver) ?>" <?= $ver === $v_version ? "selected" : "" ?>><?= tohtml($ver) ?></option>
+						<?php } ?>
+					</select>
+				</div>
+			<?php } ?>
 			<div class="js-basic-options">
 				<div class="u-mb10">
 					<label for="v_max_execution_time" class="form-label">max_execution_time</label>

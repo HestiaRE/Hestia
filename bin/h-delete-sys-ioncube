@@ -1,0 +1,52 @@
+#!/bin/bash
+# info: remove the ionCube loader from every PHP version
+# options: NONE
+#
+# example: h-delete-sys-ioncube
+#
+# Disables the loader on every version that has it, removes the copies and the unpacked archive. Encoded
+# scripts of customers stop working from here on.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ioncube.sh
+source $HESTIA/include/ioncube.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '0' "$#" 'NONE'
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# From the ini files rather than the version list, so a version the lister no longer shows is cleaned too.
+for ini in /etc/php/*/mods-available/ioncube.ini; do
+	[ -e "$ini" ] || continue
+	v="${ini#/etc/php/}"
+	v="${v%%/*}"
+	ioncube_version_remove "$v"
+	systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || true
+	echo "ionCube disabled for PHP $v"
+done
+rm -rf "$IONCUBE_DIR"
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+change_sys_value "IONCUBE_SYSTEM" ""
+log_event "$OK" "$ARGUMENTS"
+
+exit

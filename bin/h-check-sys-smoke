@@ -1041,6 +1041,36 @@ check_restic_mode_supported() {
 		no "$bad customer(s) in restic mode without support" "$first"
 	fi
 }
+# check_ioncube_versions: h-add-web-php only warns when the loader does not go onto a new version, so a
+# version without it would otherwise stay silent until an encoded script fails. Asks the FPM binary, which
+# reads the conf.d customers run with. Not covered: the loader's own behaviour beyond loading.
+check_ioncube_versions() {
+	local v list checked=0 noload='' bad=''
+	[ -n "${IONCUBE_SYSTEM:-}" ] || {
+		skip "ionCube loader (addon not installed)"
+		return
+	}
+	# shellcheck source=/usr/local/hestia/include/ioncube.sh
+	source "$HESTIA/include/ioncube.sh"
+	list=$("$BIN/h-list-sys-php" plain 2> /dev/null)
+	if [ -z "$list" ]; then
+		no "ionCube: h-list-sys-php named no PHP version" "nothing was checked"
+		return
+	fi
+	for v in $list; do
+		if [ ! -f "$IONCUBE_DIR/ioncube_loader_lin_$v.so" ]; then
+			noload="$noload $v"
+			continue
+		fi
+		checked=$((checked + 1))
+		"/usr/sbin/php-fpm$v" -v 2> /dev/null | grep -q 'ionCube' || bad="$bad $v"
+	done
+	if [ -n "$bad" ]; then
+		no "ionCube is not loaded in PHP$bad" "h-add-sys-ioncube"
+	else
+		ok "ionCube loaded in $checked PHP version(s)${noload:+, no loader exists for$noload}"
+	fi
+}
 # check_logrotate_parses: a doubled path makes logrotate exit 1 and the unit stay failed. Only a
 # collision with one of our files is ours; base-system ones are named, not red.
 check_logrotate_parses() {
@@ -1487,7 +1517,7 @@ check_manifest_artefacts() {
 		fi
 	done < <(jq -r '.components | to_entries[] | select(.value.status_artefact) | .value.status_artefact as $a | ($a | keys[0]) as $t | [.key, (.value.status_key // ""), $t, ($a[$t] | tostring)] | @tsv' "$m" 2> /dev/null)
 	if [ "$n" -eq 0 ]; then
-		no "manifest artefacts: no component carries a status_artefact" "the seven swallowed addons must (1c)"
+		no "manifest artefacts: no component carries a status_artefact" "every swallowed addon must (1c)"
 	elif [ -n "$bad" ]; then
 		no "manifest artefacts disagree with the box:$bad" "key and artefact must agree in both directions"
 	else
@@ -1643,7 +1673,7 @@ check_service "${CRON_SYSTEM:-$(sysreg_default CRON_SYSTEM)}" "cron"
 #
 # What these gates do NOT cover, said out loud because the reference set got narrower: they now believe the
 # status key. An empty key where the service IS installed makes the check below skip in silence, and only
-# the seven components with a status_artefact are watched from the other side (check_manifest_artefacts).
+# the components with a status_artefact are watched from the other side (check_manifest_artefacts).
 # MariaDB, PostgreSQL, Redis, CrowdSec and Adminer are not among them, so for those five the pairing rests
 # on their writers, which set the key on the success path AND on the already-installed path (the 1b build
 # rule). Redis has no artefact on purpose: the package is there in both states, and only the cap marker
@@ -1751,6 +1781,7 @@ check_web_templates_resolvable
 check_web_record_has_vhost
 check_logrotate_parses
 check_restic_mode_supported
+check_ioncube_versions
 check_protected_names_effective
 # 644 from the old /tmp sort path was silent on every box.
 check_hestia_conf_mode

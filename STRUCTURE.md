@@ -626,8 +626,8 @@ than it risks. A box therefore carries a mixed state for a while, and that is th
 cannot reach a release at all; `install.sh` and the updater retry through the release mirror
 (`hestiare.com`, routes `/api` and `/raw`), which serves the same repo. It is a retry of one
 source, not a second trust anchor: the extracted tree is checked against the tag that was asked
-for, and the two foreign assets that also travel that way (wp-cli, Tachyon) verify against their
-manifest sha256.
+for, and the foreign assets that also travel that way (wp-cli, Tachyon, the ionCube loaders under
+`/ioncube`) verify against their manifest sha256.
 
 **Deliberately v4.** The per-user docker model lives in `127.20.0.0/16` on the loopback, as do the
 file manager, webmail and stub_status listeners. They work unchanged on a v6-only box, there is

@@ -17,7 +17,13 @@
       "change-password-hestia": { "version": "2.36", "sha256": "046cfd56f52c6e0807f00474f0b591888189d68d9f588f36d99113c11fd0a09b" },
       "add-x-originating-ip-header": { "version": "2.0", "sha256": "49a36cb67b0aed75cee0bd8889b4f9c2a3214b4644a135f3e9e11b8ab239ee3b" }
     },
-    "$comment_php_supported": "The release-tested PHP set: h-add-web-php validates against it, and the wizard offers only the intersection with Sury's packages - Sury ships pre-release builds, so availability alone offered versions the installer refused (#688). Bump per release. Checked 2026-09-22 for v0.21 on bookworm: 8.5 is still the newest GA (8.5.10-1), Sury's php8.6 is still 8.6.0~alpha1, so no bump.",
+    "$comment_ioncube": "ionCube loader (#1069), sha256 per archive: the loaders are closed binaries loaded into every customer PHP, so never the moving 'latest' URL. The archive name carries the version, and hestiare.com/ioncube mirrors both archives byte-identically for v6-only boxes (downloads.ioncube.com has no AAAA; the license allows redistribution with LICENSE.txt, which the archive carries). 15.5.1 pinned on 2026-09-25: identical to latest, loaders for 5.6, 7.0-7.4 and 8.1-8.5, none for 8.0. Bump version and both sums together, and put the new archives on the mirror first.",
+  "ioncube": "15.5.1",
+  "ioncube_sha256": {
+    "x86-64": "739962bd012e77ee82bf01f77a9641f050e4be057f0a5d1a95fe59ce11fd62ba",
+    "aarch64": "b091974aa80a76bd798d71fd5209797d93749b0be13eaff978a3dbe0106b9e1f"
+  },
+  "$comment_php_supported": "The release-tested PHP set: h-add-web-php validates against it, and the wizard offers only the intersection with Sury's packages - Sury ships pre-release builds, so availability alone offered versions the installer refused (#688). Bump per release. Checked 2026-09-22 for v0.21 on bookworm: 8.5 is still the newest GA (8.5.10-1), Sury's php8.6 is still 8.6.0~alpha1, so no bump.",
     "php_supported": ["5.6", "7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
   },
 
@@ -367,6 +373,18 @@
       "label": "Fail2Ban",
       "description": "Brute-force protection (log-based)",
       "default": { "standard": true, "compact": true, "latest": true, "singlephp": true, "nomail": true, "mailonly": true }
+    },
+
+    "ADDON_IONCUBE": {
+      "group": "addons",
+      "type": "checkbox",
+      "status_key": "IONCUBE_SYSTEM",
+      "status_artefact": { "file": "/usr/local/lib/ioncube/hestia-pin" },
+      "label": "ionCube Loader",
+      "description": "Runs ionCube-encoded PHP (pinned loader, every customer PHP version)",
+      "fixed_no_prompt": { "mailonly": false },
+      "default": { "standard": true, "compact": true, "latest": false, "singlephp": false, "nomail": false, "mailonly": false },
+      "note": "Preselected on standard and compact (#1069). Not on mailonly: no customer PHP there. h-add-web-php and h-delete-web-php carry the loader along with a version; the panel pool never loads it."
     },
 
     "ADDON_PROFTPD": {

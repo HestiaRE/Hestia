@@ -796,7 +796,7 @@ install_security() {
 }
 
 # ════════════════════════════════════════════════════════════════════════════
-# Stage: addons — proftpd / docker / filemanager (per components)
+# Stage: addons: proftpd / docker / filemanager / restic / ioncube (per components)
 # ════════════════════════════════════════════════════════════════════════════
 install_addons() {
 	stage_done addons && {
@@ -818,6 +818,11 @@ install_addons() {
 	if is_on "${COMPONENT_ADDON_RESTIC:-}"; then
 		echo "[ * ] Installing restic (incremental backup mode)..."
 		addon_install restic
+	fi
+	# After install_web: the loader goes onto the versions that stage installed.
+	if is_on "${COMPONENT_ADDON_IONCUBE:-}"; then
+		echo "[ * ] Installing the ionCube loader..."
+		addon_install ioncube
 	fi
 	stage_mark addons
 	# stage-level only: each || true above swallows a flaky addon failure, and the closing

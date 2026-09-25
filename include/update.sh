@@ -301,7 +301,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
 	cron_locale_apply system_repair_cron_write sieve_redirect_apply sieve_vacation_apply fail2ban_panel_action_apply
 	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply
-	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply)
+	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

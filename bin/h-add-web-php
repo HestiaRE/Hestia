@@ -170,8 +170,7 @@ sed -i "s/;opcache.enable=1/opcache.enable=1/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.memory_consumption=128/opcache.memory_consumption=512/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.max_accelerated_files=10000/opcache.max_accelerated_files=100000/g" /etc/php/$version/fpm/php.ini
 
-# The loader follows the addon onto every version (#1069). Not fatal: the version itself is installed and
-# usable, and the smoke names a version that should carry the loader and does not.
+# Only a warning: the version itself is usable, and the smoke names one without the loader.
 if [ -n "${IONCUBE_SYSTEM:-}" ]; then
 	# shellcheck source=/usr/local/hestia/include/ioncube.sh
 	source "$HESTIA/include/ioncube.sh"

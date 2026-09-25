@@ -17,7 +17,7 @@
       "change-password-hestia": { "version": "2.36", "sha256": "046cfd56f52c6e0807f00474f0b591888189d68d9f588f36d99113c11fd0a09b" },
       "add-x-originating-ip-header": { "version": "2.0", "sha256": "49a36cb67b0aed75cee0bd8889b4f9c2a3214b4644a135f3e9e11b8ab239ee3b" }
     },
-    "$comment_ioncube": "ionCube loader (#1069), sha256 per archive: the loaders are closed binaries loaded into every customer PHP, so never the moving 'latest' URL. The archive name carries the version, and hestiare.com/ioncube mirrors both archives byte-identically for v6-only boxes (downloads.ioncube.com has no AAAA; the license allows redistribution with LICENSE.txt, which the archive carries). 15.5.1 pinned on 2026-09-25: identical to latest, loaders for 5.6, 7.0-7.4 and 8.1-8.5, none for 8.0. Bump version and both sums together, and put the new archives on the mirror first.",
+    "$comment_ioncube": "ionCube loader (#1069), sha256 per archive because the loaders are closed binaries in every customer PHP. hestiare.com/ioncube mirrors both byte-identically (no AAAA upstream; the license allows it with LICENSE.txt). 15.5.1 pinned 2026-09-25, no loader for 8.0. Bump version and both sums together, mirror first.",
   "ioncube": "15.5.1",
   "ioncube_sha256": {
     "x86-64": "739962bd012e77ee82bf01f77a9641f050e4be057f0a5d1a95fe59ce11fd62ba",
@@ -384,7 +384,7 @@
       "description": "Runs ionCube-encoded PHP (pinned loader, every customer PHP version)",
       "fixed_no_prompt": { "mailonly": false },
       "default": { "standard": true, "compact": true, "latest": false, "singlephp": false, "nomail": false, "mailonly": false },
-      "note": "Preselected on standard and compact (#1069). Not on mailonly: no customer PHP there. h-add-web-php and h-delete-web-php carry the loader along with a version; the panel pool never loads it."
+      "note": "Not on mailonly: no customer PHP there. The panel pool never loads it."
     },
 
     "ADDON_PROFTPD": {

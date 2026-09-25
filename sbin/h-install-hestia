@@ -819,7 +819,6 @@ install_addons() {
 		echo "[ * ] Installing restic (incremental backup mode)..."
 		addon_install restic
 	fi
-	# After install_web: the loader goes onto the versions that stage installed.
 	if is_on "${COMPONENT_ADDON_IONCUBE:-}"; then
 		echo "[ * ] Installing the ionCube loader..."
 		addon_install ioncube

@@ -4,8 +4,7 @@
 #
 # example: h-delete-sys-ioncube
 #
-# Disables the loader on every version that has it, removes the copies and the unpacked archive. Encoded
-# scripts of customers stop working from here on.
+# Disables the loader everywhere and removes the archive; encoded customer scripts stop working.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -31,7 +30,7 @@ check_args '0' "$#" 'NONE'
 #                       Action                             #
 #----------------------------------------------------------#
 
-# From the ini files rather than the version list, so a version the lister no longer shows is cleaned too.
+# From the ini files, so a version the lister no longer shows is cleaned too.
 for ini in /etc/php/*/mods-available/ioncube.ini; do
 	[ -e "$ini" ] || continue
 	v="${ini#/etc/php/}"

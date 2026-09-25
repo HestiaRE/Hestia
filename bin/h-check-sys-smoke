@@ -1041,9 +1041,8 @@ check_restic_mode_supported() {
 		no "$bad customer(s) in restic mode without support" "$first"
 	fi
 }
-# check_ioncube_versions: h-add-web-php only warns when the loader does not go onto a new version, so a
-# version without it would otherwise stay silent until an encoded script fails. Asks the FPM binary, which
-# reads the conf.d customers run with. Not covered: the loader's own behaviour beyond loading.
+# check_ioncube_versions: h-add-web-php only warns when a new version misses the loader. Asks the FPM binary,
+# whose conf.d customers run with; covers loading, not the loader's behaviour.
 check_ioncube_versions() {
 	local v list checked=0 noload='' bad=''
 	[ -n "${IONCUBE_SYSTEM:-}" ] || {

@@ -639,7 +639,7 @@ php_cli_pcntl_apply() {
 	done
 }
 
-# Same for the ionCube loader: re-running converges the archive and every version to the pin.
+# Same for the ionCube loader.
 ioncube_pin_apply() {
 	"$BIN/h-add-sys-ioncube" > /dev/null 2>&1
 }

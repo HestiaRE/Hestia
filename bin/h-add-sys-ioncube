@@ -4,9 +4,7 @@
 #
 # example: h-add-sys-ioncube
 #
-# Fetches the loader archive pinned in share/manifest.json (sha256-verified, mirror for v6-only boxes),
-# keeps it unpacked in /usr/local/lib/ioncube and enables the loader on each installed version. A PHP
-# version added later gets it through h-add-web-php. Re-running converges to the pin.
+# Fetches the pinned loader archive and enables it on every installed version; re-running converges to the pin.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -49,7 +47,7 @@ done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# The archive is on the box whatever a single version did, and h-add-web-php reads this key.
+# Set even when one version failed: the archive is there, and h-add-web-php reads the key.
 change_sys_value "IONCUBE_SYSTEM" "$(cat "$IONCUBE_PIN_FILE")"
 [ -z "$failed" ] || check_result "$E_UPDATE" "ionCube could not be enabled for PHP$failed"
 log_event "$OK" "$ARGUMENTS"

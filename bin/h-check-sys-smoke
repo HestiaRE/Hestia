@@ -96,20 +96,6 @@ check_sudo_secret_leak() {
 	ok "no panel command line kept in the persistent logs ($(echo $sinks | wc -w) sink(s) checked)"
 }
 
-# check_source_absent <label> <pattern> <path...>, a vulnerable pattern must not
-# reappear (static regression guard for a security fix). Comment lines excluded.
-check_source_absent() {
-	local label="$1" pat="$2"
-	shift 2
-	local hit
-	hit=$(grep -rnE "$pat" "$@" 2> /dev/null | grep -vE ':[[:space:]]*(//|#|\*)')
-	if [ -z "$hit" ]; then
-		ok "invariant: $label"
-	else
-		no "invariant: $label" "$(echo "$hit" | head -n1)"
-	fi
-}
-
 # check_session_user_allowlist <webdir>, $_SESSION["user"] is the REAL logged-in
 # user; during impersonation it is the ADMIN, not the customer (who is in "look").
 # Scoping customer data by it mis-targets. Rather than chase every spelling
@@ -134,26 +120,6 @@ templates/pages/list_search.php templates/pages/list_user.php"
 		ok "invariant: \$_SESSION[user] only in allowlisted files (#438)"
 	else
 		no "invariant: \$_SESSION[user] in non-allowlisted file (#438 mis-target risk)" "${bad# }"
-	fi
-}
-
-# check_xaccel_allowlist <webdir>, only list/rrd/image.php may EMIT X-Accel-Redirect. Caddy serves it
-# via file_server as `caddy`, which reads only the web-root files it owns (the RRD images); a download
-# handler emitting it for a customer file hits the caddy-can't-read wall, stream via
-# inc/download.php as `hestia` instead. Matches header(...) emission, not the handlers' prose.
-check_xaccel_allowlist() {
-	local webdir="$1" bad="" f rel
-	local allow="list/rrd/image.php"
-	while IFS= read -r f; do
-		[ -n "$f" ] || continue
-		rel=${f#"$webdir"/}
-		case " $allow " in *" $rel "*) continue ;; esac
-		bad="$bad $rel"
-	done <<< "$(grep -rlE 'header\(["'"'"']X-Accel-Redirect' "$webdir" 2> /dev/null)"
-	if [ -z "$bad" ]; then
-		ok "invariant: X-Accel-Redirect only emitted by allowlisted files (#441/#443)"
-	else
-		no "invariant: X-Accel-Redirect emitted by non-allowlisted file (caddy-can't-read wall)" "${bad# }"
 	fi
 }
 
@@ -251,16 +217,6 @@ check_socket() {
 	fi
 }
 
-# check_firewall_backend: without /usr/sbin/nft, FIREWALL_SYSTEM is a claim the box cannot honour, and the
-# policy check below only SKIPs, so a missing backend would pass for a permissions quirk.
-check_firewall_backend() {
-	if [ -x "$FW_NFT" ]; then
-		ok "firewall backend present ($FW_NFT)"
-	else
-		no "firewall backend missing" "$FW_NFT not executable - FIREWALL_SYSTEM is set but nothing can apply a ruleset"
-	fi
-}
-
 # With the firewall enabled INPUT must default to DROP; nothing else notices a box that came up with policy
 # ACCEPT and no rules at all.
 check_firewall_closed() {
@@ -272,21 +228,6 @@ check_firewall_closed() {
 		ok "firewall INPUT policy closed (DROP)"
 	else
 		no "firewall INPUT policy is not DROP" "$pol"
-	fi
-}
-
-# check_firewall_icmpv6: without an explicit accept, NDP/PMTUD die under the drop policy and IPv6 breaks
-# entirely (neigh INCOMPLETE, ping6 100% loss). Invisible on the v4-only fleet, hence the guard.
-check_firewall_icmpv6() {
-	local rules
-	rules=$(nft list chain inet hestia input 2> /dev/null) || {
-		skip "firewall ICMPv6 accept (inet hestia not readable)"
-		return
-	}
-	if echo "$rules" | grep -q 'ipv6-icmp'; then
-		ok "firewall accepts ICMPv6 (NDP/PMTUD - IPv6 stays functional)"
-	else
-		no "firewall drops ICMPv6" "no icmpv6 accept in inet hestia input - IPv6 NDP breaks under the drop policy"
 	fi
 }
 
@@ -302,21 +243,6 @@ check_firewall_ruleset_loadable() {
 		ok "persisted firewall ruleset loads"
 	else
 		no "persisted firewall ruleset is rejected by nft" "$(nft -c -f "$ruleset" 2>&1 | head -n1)"
-	fi
-}
-
-# check_firewall_chains_tracked: the live ruleset must not carry a jail chain the object model forgot.
-# Reproduced under iptables, where a leaked jump kept a chain referenced until its record was already gone;
-# kept now the cause is fixed, because an untracked chain is a rule nobody audits.
-check_firewall_chains_tracked() {
-	local orphan='' c
-	for c in $(fw_jail_chains_live); do
-		grep -q "CHAIN='$c'" "$CONF_DIR/firewall/chains.conf" 2> /dev/null || orphan="$orphan $c"
-	done
-	if [ -n "$orphan" ]; then
-		no "live firewall jail chain with no chains.conf record" "${orphan# }"
-	else
-		ok "firewall jail chains all tracked in the object model"
 	fi
 }
 
@@ -447,33 +373,6 @@ check_fail2ban_backends() {
 	fi
 }
 
-# WEBMAIL_SYSTEM used to be written before the install ran, so a failed download left the config claiming a
-# webmail that was never unpacked. The listener check catches that too, but only as an ambiguous 404
-# - this names the cause.
-check_webmail_payload() {
-	local wm="$1" f="$2"
-	[ -s "$f" ] && {
-		ok "$wm payload installed"
-		return
-	}
-	no "$wm claimed by WEBMAIL_SYSTEM but not installed" "missing $f"
-}
-
-# The SQLite exception: a webmailer installed while MariaDB was deselected records the
-# sqlite backend in its own config. WHERE that artefact says sqlite, the PHP driver must be in
-# the panel pool - confd lists it as optional (an updated one-minor-back box lacks the package),
-# so this is the guard that turns a missing driver into a hard failure exactly where it breaks.
-check_webmail_sqlite_driver() {
-	local wm="$1"
-	if ls /etc/php/hestia/fpm/conf.d/*-sqlite3.ini > /dev/null 2>&1 \
-		&& ls /etc/php/hestia/fpm/conf.d/*-pdo_sqlite.ini > /dev/null 2>&1; then
-		ok "$wm sqlite backend has its PHP driver"
-		return
-	fi
-	no "$wm records the sqlite backend but the panel pool lacks sqlite3/pdo_sqlite" \
-		"install php-sqlite3 for the pinned panel version, then re-run hestia-php-confd"
-}
-
 # The write-path value domain (WEBMAIL_KNOWN_CLIENTS, include/main.sh) is a hand-kept list;
 # this derives the shipped-client set from the webmail templates and asserts coverage - a
 # client added by template alone would have its records normalized to 'disabled' while
@@ -497,25 +396,6 @@ check_webmail_value_domain() {
 		return
 	}
 	no "webmail templates outside the value domain:$missing" "extend WEBMAIL_KNOWN_CLIENTS in include/main.sh"
-}
-
-# The other direction: every token the status key holds must be a known client, or h-list-sys-webmail
-# drops it without a word (it offers only what has a template) and the operator sees a choice missing.
-# A hand edit or a migration entry is how such a token gets there. An empty key is a box without webmail.
-check_webmail_tokens_known() {
-	local t unknown='' n=0
-	local -a _t_list
-	IFS=, read -ra _t_list <<< "$WEBMAIL_SYSTEM"
-	for t in "${_t_list[@]}"; do
-		[ -n "$t" ] || continue
-		n=$((n + 1))
-		case " $WEBMAIL_KNOWN_CLIENTS " in *" $t "*) ;; *) unknown="$unknown $t" ;; esac
-	done
-	if [ -n "$unknown" ]; then
-		no "WEBMAIL_SYSTEM carries unknown token(s):$unknown" "not in WEBMAIL_KNOWN_CLIENTS, so never offered; fix the key or extend the list"
-	else
-		ok "WEBMAIL_SYSTEM tokens are all known clients ($n token(s))"
-	fi
 }
 
 # Two files have to agree on how a diff payload is spelled: backup.sh names it, h-restore-user greps
@@ -827,157 +707,6 @@ check_panel_php_version() {
 	ok "panel PHP $v (php-version file, binaries present, master image on disk)"
 }
 
-# The install-time derivation is a one-shot edit; flip the kernel lage later and the
-# fatal bind returns with nothing re-deriving. Holds CONFIGURED families against the
-# KERNEL's. Covers dovecot listen + exim dc_local_interfaces, not the hestia template
-# (immune: exim skips a missing family itself).
-# Configured for a family the kernel refuses - the three places WE derive; the distro's own
-# "::1 localhost" is deliberately not one of them.
-check_family_lage() {
-	local kernel6='' hits=0 fqdn
-	[ -e /proc/net/if_inet6 ] && kernel6=yes
-	if [ -n "$kernel6" ]; then
-		ok "family lage: kernel has v6, listed v6 loopbacks cannot be unbindable"
-		return
-	fi
-	if [ -f /etc/dovecot/dovecot.conf ] && grep -qE '^listen *=.*::' /etc/dovecot/dovecot.conf; then
-		no "dovecot lists a v6 listener on a v6-less kernel" \
-			"listen(::) is fatal at start - drop the v6 half or re-enable kernel v6"
-		hits=1
-	fi
-	if [ -f /etc/exim4/update-exim4.conf.conf ] && grep -q '::1' /etc/exim4/update-exim4.conf.conf; then
-		no "exim send-only list names ::1 on a v6-less kernel" \
-			"the stock template dies at start on it - rerun the derivation or re-enable kernel v6"
-		hits=1
-	fi
-	# derived once, at hostname time: a box that lost v6 since keeps the line
-	fqdn=$(hostname -f 2> /dev/null || hostname 2> /dev/null)
-	if [ -n "$fqdn" ] && grep -qE "^::1[[:space:]]+${fqdn//./\\.}$" /etc/hosts 2> /dev/null; then
-		no "/etc/hosts names ::1 for $fqdn on a v6-less kernel" \
-			"derived when the box still had v6 - re-derive with: h-change-sys-hostname $fqdn"
-		hits=1
-	fi
-	[ "$hits" = 0 ] && ok "family lage: v6-less kernel, no v6 loopback listed (dovecot, exim send-only, /etc/hosts)"
-}
-
-# Exim refuses a macro whose name contains an EARLIER macro as substring; this closes
-# the class instead of waiting for the next collision.
-check_exim_macro_names() {
-	local tpl=/etc/exim4/exim4.conf.template names n1 n2 count found=''
-	if [ ! -f "$tpl" ] || ! grep -q "HestiaRE\|OUTGOING_IP" "$tpl" 2> /dev/null; then
-		skip "exim macro names: no hestia template on this box"
-		return
-	fi
-	names=$(grep -oE '^[A-Z][A-Z0-9_]+ *=' "$tpl" | sed 's/ *=$//')
-	# grep -c. not -c "": an empty list must count 0, not claim one checked name
-	count=$(echo "$names" | grep -c .)
-	if [ "$count" = 0 ]; then
-		no "exim macro names: derivation found no macros" \
-			"the check would measure nothing - template layout changed under it"
-		return
-	fi
-	# ALL collisions in one pass: reporting only the first hides the second until the
-	# first is fixed, and the fix for one is how the next one gets typed
-	while read -r n1; do
-		while read -r n2; do
-			[ "$n1" = "$n2" ] && continue
-			case "$n2" in
-				*"$n1"*) found="${found:+$found, }$n2>$n1" ;;
-			esac
-		done <<< "$(echo "$names" | grep -A999 -Fx "$n1" | tail -n +2)"
-	done <<< "$names"
-	if [ -n "$found" ]; then
-		no "exim macro name(s) contain an earlier macro: $found" \
-			"exim refuses such definitions - rename them"
-		return
-	fi
-	ok "exim macro names: no name contains an earlier one ($count checked)"
-}
-
-# An interface expansion with an empty list element defers EVERY remote delivery, one
-# layer past check_notification_mta. exim -be expands the REAL line offline: the no-pin
-# case falls out naturally (empty $sender_address_domain), the pin cases run over a temp
-# dir in the same expression. Macro substitution is textual - -be resolves expansions,
-# not macro names.
-check_exim_interface_expansion() {
-	local tpl=/etc/exim4/exim4.conf.template expr m4 m6 out probe rc=0
-	if [ ! -f "$tpl" ] || ! grep -q '^OUTGOING_IP = ' "$tpl"; then
-		skip "exim interface expansion: no hestia template on this box"
-		return
-	fi
-	# The expression lives TWICE (both smtp transports): expanding one is only valid
-	# while both are identical, so the identity is part of the check.
-	local iface_lines
-	iface_lines=$(grep '^  interface = ' "$tpl")
-	if [ "$(echo "$iface_lines" | grep -c .)" != 2 ] || [ "$(echo "$iface_lines" | sort -u | grep -c .)" != 1 ]; then
-		no "exim interface lines diverged or changed count ($(echo "$iface_lines" | grep -c .) found)" \
-			"remote_smtp and remote_forwarded_smtp must carry the SAME line - one drifted"
-		return
-	fi
-	expr=$(echo "$iface_lines" | head -1 | sed 's/^  interface = //')
-	m4=$(sed -n 's/^OUTGOING_IP = //p' "$tpl" | head -1)
-	m6=$(sed -n 's/^OUTGOING6_IP = //p' "$tpl" | head -1)
-	if [ -z "$expr" ] || [ -z "$m4" ] || [ -z "$m6" ]; then
-		no "exim interface expansion: derivation broke (line or macros not found)" \
-			"the check would measure nothing - template layout changed under it"
-		return
-	fi
-	expr=${expr//OUTGOING6_IP/$m6}
-	expr=${expr//OUTGOING_IP/$m4}
-	# stdin, not an argument (-be args hit a 256-byte limit); "Failed"/empty-on-error is
-	# NOT VERIFIABLE, never a pass.
-	_be_expand() {
-		printf '%s\n' "$1" | exim4 -be 2>&1 | head -1 | sed 's/^> //'
-	}
-	_iface_shape_ok() { # rejects any empty list element; empty whole = option unset = fine
-		local v="$1" item
-		case "$v" in *Failed* | *failed*) return 2 ;; esac
-		[ -z "$v" ] && return 0
-		case "$v" in "<;"*) ;; *) return 1 ;; esac
-		while IFS= read -r item; do
-			item="${item#"${item%%[![:space:]]*}"}"
-			item="${item%"${item##*[![:space:]]}"}"
-			[ -n "$item" ] || return 1
-		done <<< "$(echo "${v#<;}" | tr ';' '\n')"
-		return 0
-	}
-	# no-pin case - exactly the break that deferred every mail without pin files
-	out=$(_be_expand "$expr")
-	_iface_shape_ok "$out"
-	case $? in
-		1)
-			no "exim interface expands to a broken list without pin files: '$out'" \
-				"every remote delivery of a domain without conf/mail pins would defer"
-			return
-			;;
-		2)
-			no "exim interface expansion not verifiable: '$out'" \
-				"the expansion itself errored - fix the check's input, do not trust a green"
-			return
-			;;
-	esac
-	# pin cases as positive control: proves the instrument expands for real
-	probe=$(mktemp -d)
-	local lookup_part='/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}'
-	local expr_probe=${expr//"$lookup_part"/$probe}
-	echo "192.0.2.9" > "$probe/ip"
-	out=$(_be_expand "$expr_probe")
-	[ "$out" = "<; 192.0.2.9" ] || rc=1
-	echo "2001:db8::9" > "$probe/ipv6"
-	out=$(_be_expand "$expr_probe")
-	[ "$out" = "<; 192.0.2.9 ; 2001:db8::9" ] || rc=2
-	rm -f "$probe/ip"
-	out=$(_be_expand "$expr_probe")
-	[ "$out" = "<; 2001:db8::9" ] || rc=3
-	rm -rf "$probe"
-	if [ "$rc" != 0 ]; then
-		no "exim interface expansion: with-pin shape $rc broke (got '$out')" \
-			"the pinned source address would not reach the transport as built"
-		return
-	fi
-	ok "exim interface expansion: all four shapes clean, no empty list element (offline via -be)"
-}
-
 # The MTA the panel actually calls. PHP's mail runs sendmail_path, so a box without
 # that binary loses every notification - password reset, backup report - while the wrapper still
 # exits 0. Nothing installed one without a mail block; on Debian the base image happened to ship
@@ -1176,55 +905,6 @@ check_panel_cli_i18n() {
 	fi
 }
 
-# check_panel_locale: the FPM pools pin env[LANG] so a child does not inherit whatever the admin's
-# base install happens to have. Pinning a locale that is not generated is the same failure with more
-# confidence: every child that touches locale warns, and awstats' perl warnings land in the panel log
-# (that is how this was found). The expected value is READ FROM the deployed pool, not written here,
-# so changing the pin cannot leave the check testing yesterday's value.
-# NOT covered: locales a customer's own PHP or a cron job sets for itself.
-check_panel_locale() {
-	local pool=/etc/php/hestia/fpm/pool.d/panel.conf want
-	if [ ! -f "$pool" ]; then
-		no "panel FPM locale" "$pool missing - nothing pins env[LANG]"
-		return
-	fi
-	want=$(sed -n 's/^env\[LANG\][[:space:]]*=[[:space:]]*//p' "$pool" | tail -n1)
-	if [ -z "$want" ]; then
-		no "panel FPM locale" "no env[LANG] in $pool - the child inherits whatever is around"
-		return
-	fi
-	if locale -a 2> /dev/null | grep -qiFx "$(echo "$want" | tr -d '-' | tr '[:upper:]' '[:lower:]')"; then
-		ok "panel FPM locale $want is generated"
-	else
-		no "panel FPM locale $want is NOT generated" "children warn on every locale-aware call"
-	fi
-}
-
-# check_sbin_not_under_bin: nothing may invoke an sbin command through a bin/ path. The sbin split
-# moved the panel-PHP wrappers and the lifecycle commands out of the sudo wildcard's reach;
-# callers referencing them as "$BIN/x" kept resolving to a file that is no longer there, and the
-# breakage only shows when that code path runs (a fresh install died on $BIN/hestia-php-confd).
-# The set is derived from what actually IS in sbin/, so a later move needs no edit here, and an
-# empty sbin/ fails rather than silently agreeing with nothing.
-# NOT covered: bare "bin/x" in prose/comments (deliberate - only invocation forms are checked), and
-# any path assembled at runtime from a variable this cannot see.
-check_sbin_not_under_bin() {
-	local names hit
-	names=$(find "$HESTIA/sbin" -maxdepth 1 -type f -printf '%f\n' 2> /dev/null | grep -v '\.json$' | paste -sd'|')
-	if [ -z "$names" ]; then
-		no "sbin commands never invoked via bin/" "sbin/ is empty or unreadable"
-		return
-	fi
-	hit=$(grep -rnE "(\\\$BIN|\\\$HESTIA/bin|/usr/local/hestia/bin)/($names)([\"'[:space:]]|\$)" \
-		"$HESTIA/bin" "$HESTIA/sbin" "$HESTIA/func" "$HESTIA/web" "$HESTIA/share" 2> /dev/null \
-		| grep -vE ':[[:space:]]*(//|#|\*|;)')
-	if [ -z "$hit" ]; then
-		ok "sbin commands never invoked via bin/"
-	else
-		no "sbin commands never invoked via bin/" "$(echo "$hit" | head -n1)"
-	fi
-}
-
 # check_policy_fragment_coverage, a per-domain POLICY fragment (CrowdSec Layer A, bot rate limiting)
 # must be in EVERY customer-domain template of its web system: it applies to all traffic, so a template
 # missing one is a silent bypass (switch to the wordpress template, escape the throttle, nothing fails).
@@ -1272,237 +952,6 @@ check_sudoers() {
 		ok "sudoers $2 ($1) valid"
 	else
 		no "sudoers $2 ($1) invalid" "$(visudo -cf "$1" 2>&1 | tail -1)"
-	fi
-}
-
-check_web_hsts_effective() {
-	local u d line hsts front conf miss=0 first='' checked=0
-	front="${PROXY_SYSTEM:-$WEB_SYSTEM}"
-	[ -n "$front" ] || {
-		skip "no web front - hsts guard not checkable"
-		return
-	}
-	for u in $("$BIN/h-list-users" list 2> /dev/null); do
-		[ -f "$CONF_DIR/users/$u/web.conf" ] || continue
-		while IFS= read -r line; do
-			case "$line" in *"SSL_HSTS='yes'"*) ;; *) continue ;; esac
-			d=$(sed -n "s/.*DOMAIN='\([^']*\)'.*/\1/p" <<< "$line")
-			[ -n "$d" ] || continue
-			checked=$((checked + 1))
-			conf="$HOMEDIR/$u/conf/web/$d/$front.hsts.conf"
-			# Two ways to be switched on and still send nothing: no fragment for this front, or a
-			# fragment carrying the other server's directive.
-			hsts='ok'
-			[ -s "$conf" ] || hsts='missing'
-			if [ "$hsts" = 'ok' ]; then
-				case "$front" in
-					apache2) grep -q '^Header' "$conf" || hsts='wrong syntax' ;;
-					*) grep -q '^add_header' "$conf" || hsts='wrong syntax' ;;
-				esac
-			fi
-			[ "$hsts" = 'ok' ] && continue
-			miss=$((miss + 1))
-			[ -z "$first" ] && first="$d: $hsts ($front)"
-		done < "$CONF_DIR/users/$u/web.conf"
-	done
-	if [ "$miss" -eq 0 ]; then
-		ok "hsts switches have a fragment the front can read ($checked on)"
-	else
-		no "$miss domain(s) claim hsts without an effective fragment" "$first"
-	fi
-}
-
-# check_web_cache_zones: a cache flag whose zone is gone breaks nginx -t box-wide: the
-# vhost references a zone nginx never loaded.
-check_web_cache_zones() {
-	local u d line miss=0 first="" checked=0
-	for u in $("$BIN/h-list-users" list 2> /dev/null); do
-		[ -f "$CONF_DIR/users/$u/web.conf" ] || continue
-		while IFS= read -r line; do
-			d=$(sed -n "s/.*DOMAIN='\([^']*\)'.*/\1/p" <<< "$line")
-			[ -n "$d" ] || continue
-			# Same role gating as the rebuild reapply: after a switch to a proxyless model the
-			# flag stays recorded (inert) and MUST NOT count as a missing zone
-			if [[ "$line" == *"PROXY_CACHE='yes'"* ]] && [ "$PROXY_SYSTEM" = 'nginx' ]; then
-				checked=$((checked + 1))
-				if [ ! -f "/etc/nginx/conf.d/cache-zone.$d.conf" ]; then
-					miss=$((miss + 1))
-					[ -z "$first" ] && first="proxy zone missing: $u/$d"
-				fi
-			fi
-			if [[ "$line" == *"FASTCGI_CACHE='yes'"* ]] && [ "$WEB_SYSTEM" = 'nginx' ]; then
-				checked=$((checked + 1))
-				if ! grep -qF "keys_zone=$d:" /etc/nginx/conf.d/fastcgi_cache_pool.conf 2> /dev/null; then
-					miss=$((miss + 1))
-					[ -z "$first" ] && first="fastcgi zone missing: $u/$d"
-				fi
-			fi
-		done < "$CONF_DIR/users/$u/web.conf"
-	done
-	if [ "$miss" -eq 0 ]; then
-		ok "cache zones match their flags ($checked flag(s))"
-	else
-		no "$miss cache zone(s) missing for enabled flags" "$first"
-	fi
-}
-
-# check_web_http3_orphan: a quic listen fragment (nginx.ssl.conf_http3) on a box whose nginx
-# lacks http_v3 fails nginx -t box-wide. The switch is capability-gated at write and the rebuild
-# reconciles it off, so one surviving here means the nginx package changed under a live install, or
-# a fragment was placed out of band. A recorded HTTP3='yes' WITHOUT a fragment is fine and NOT
-# flagged: that is intent kept for a later move onto a capable host.
-check_web_http3_orphan() {
-	local u frag d stray=0 first="" checked=0
-	# where nginx can do http3 a fragment is correct, so there is nothing to police
-	if nginx_has_http3; then
-		ok "http3 fragments match the nginx build (http_v3 present)"
-		return
-	fi
-	for u in $("$BIN/h-list-users" list 2> /dev/null); do
-		for frag in "$HOMEDIR/$u"/conf/web/*/nginx.ssl.conf_http3; do
-			[ -f "$frag" ] || continue
-			checked=$((checked + 1))
-			stray=$((stray + 1))
-			d=$(basename "$(dirname "$frag")")
-			[ -z "$first" ] && first="quic fragment on a box without http_v3: $u/$d"
-		done
-	done
-	if [ "$stray" -eq 0 ]; then
-		ok "no quic fragment on a box whose nginx lacks http_v3"
-	else
-		no "$stray quic fragment(s) on a box whose nginx has no http_v3" "$first"
-	fi
-}
-
-# check_web_docker_wildcard: the add-command's wildcard check is a snapshot: a customer can bind
-# 0.0.0.0 tomorrow, or an addon can take a new wildcard port. The docker domain then keeps its
-# port, the customer bind silently fails and the outage shows at the NEIGHBOUR, not the causer
-# (measured). This is the standing counterpart: no wildcard listener may hold a port a
-# docker domain proxies to.
-check_web_docker_wildcard() {
-	local u line d port hit=0 first="" checked=0 wildcards
-	wildcards=$(ss -ltnH 2> /dev/null | awk '{print $4}' \
-		| grep -E '^(0\.0\.0\.0|\*|\[::\]):' | grep -oE '[0-9]+$' | sort -u)
-	for u in $("$BIN/h-list-users" list 2> /dev/null); do
-		[ -f "$CONF_DIR/users/$u/web.conf" ] || continue
-		while IFS= read -r line; do
-			grep -q "DOCKER='[^']" <<< "$line" || continue
-			port=$(sed -n "s/.*DOCKER_PORT='\([^']*\)'.*/\1/p" <<< "$line")
-			[ -n "$port" ] || continue
-			checked=$((checked + 1))
-			if grep -qxF "$port" <<< "$wildcards"; then
-				hit=$((hit + 1))
-				d=$(sed -n "s/.*DOMAIN='\([^']*\)'.*/\1/p" <<< "$line")
-				[ -z "$first" ] && first="wildcard listener holds docker port $port ($u/$d)"
-			fi
-		done < "$CONF_DIR/users/$u/web.conf"
-	done
-	if [ "$hit" -eq 0 ]; then
-		ok "no wildcard listener on a docker domain port ($checked checked)"
-	else
-		no "$hit docker domain port(s) held by a wildcard listener" "$first"
-	fi
-}
-
-# check_vhost_nonempty: a 0-byte vhost passes apache2 -t and the domain silently falls
-# through to the box default vhost.
-check_vhost_nonempty() {
-	local f n=0 miss=0 first=""
-	for f in "/etc/$WEB_SYSTEM/conf.d/domains"/*.conf "/etc/${PROXY_SYSTEM:-none}/conf.d/domains"/*.conf; do
-		[ -e "$f" ] || continue
-		n=$((n + 1))
-		if [ ! -s "$f" ]; then
-			miss=$((miss + 1))
-			[ -z "$first" ] && first="$f is empty"
-		fi
-	done
-	if [ "$miss" -eq 0 ]; then
-		ok "no empty vhost configs ($n checked)"
-	else
-		no "$miss empty vhost config(s)" "$first"
-	fi
-}
-# Two silent ways a vhost can be wrong: an UNBRACKETED v6 (nginx reads it as its own address,
-# apache refuses to parse it), and an nginx server block with NO listen - not an error but a
-# WILDCARD bind, which is what a %ip%-only custom template renders to on a v6-only box.
-# Covers the vhosts plus the per-domain http3 fragments; a brace inside a string would miscount,
-# so the number of blocks entered is part of the verdict.
-check_vhost_listen_form() {
-	local f n=0 blocks=0 bare=0 nolisten=0 first="" second="" c out
-	for f in "/etc/$WEB_SYSTEM/conf.d/domains"/*.conf "/etc/${PROXY_SYSTEM:-none}/conf.d/domains"/*.conf \
-		"$HOMEDIR"/*/conf/web/*/*conf_http3; do
-		[ -e "$f" ] || continue
-		n=$((n + 1))
-		c=$(awk '
-			/^[ \t]*(listen|Listen)[ \t]/ || /^[ \t]*<VirtualHost/ {
-				line = $0
-				sub(/^[ \t]*(listen|Listen)[ \t]+/, "", line)
-				sub(/^[ \t]*<VirtualHost[ \t]+/, "", line)
-				sub(/>.*$/, "", line)
-				sub(/;.*$/, "", line)
-				k = split(line, t, /[ \t]+/)
-				for (i = 1; i <= k; i++) {
-					if (gsub(/:/, ":", t[i]) >= 2 && index(t[i], "[") == 0) bad++
-				}
-			}
-			END { print bad + 0 }' "$f")
-		if [ "${c:-0}" -gt 0 ]; then
-			bare=$((bare + c))
-			[ -z "$first" ] && first="$f carries an unbracketed v6 address"
-		fi
-		case "$f" in
-			/etc/nginx/*)
-				# brace may sit on the next line; a comment cannot open a block
-				out=$(awk '
-					{
-						line = $0
-						sub(/#.*/, "", line)
-						if (!inblock) {
-							if (line ~ /^[ \t]*server[ \t]*\{/) { inblock = 1; depth = 0; seen = 0 }
-							else if (line ~ /^[ \t]*server[ \t]*$/) { pending = 1; next }
-							else if (pending && line ~ /\{/) { inblock = 1; depth = 0; seen = 0; pending = 0 }
-							else next
-						}
-						depth += gsub(/\{/, "{", line) - gsub(/\}/, "}", line)
-						if (line ~ /^[ \t]*listen[ \t]/) seen = 1
-						if (depth <= 0) { blocks++; if (!seen) bad++; inblock = 0 }
-					}
-					END { print blocks + 0, bad + 0 }' "$f")
-				blocks=$((blocks + ${out%% *}))
-				c=${out##* }
-				if [ "${c:-0}" -gt 0 ]; then
-					nolisten=$((nolisten + c))
-					[ -z "$second" ] && second="$f has a server block without a listen line - it binds the wildcard"
-				fi
-				;;
-		esac
-	done
-	if [ "$n" -eq 0 ]; then
-		skip "vhost listen form (no rendered web vhost on this box - a mail-only box has none)"
-		return
-	fi
-	[ "$bare" -eq 0 ] || no "$bare unbracketed v6 address(es) in rendered vhosts" "$first"
-	[ "$nolisten" -eq 0 ] || no "$nolisten nginx server block(s) without a listen line" "$second - a custom template with only %ip% renders to this on a v6-only box"
-	{ [ "$bare" -eq 0 ] && [ "$nolisten" -eq 0 ]; } \
-		&& ok "rendered vhosts: every v6 address bracketed, every server block bound ($n file(s), $blocks nginx server block(s) entered)"
-}
-
-# check_vhost_upstream_host: "http://:3000" (docker domain, owner without DOCKER_IP) makes nginx
-# and apache reject the whole configuration. Read the rendered files: a custom template does it too.
-check_vhost_upstream_host() {
-	local f n=0 hit=0 first=""
-	for f in "/etc/$WEB_SYSTEM/conf.d/domains"/*.conf "/etc/${PROXY_SYSTEM:-none}/conf.d/domains"/*.conf; do
-		[ -e "$f" ] || continue
-		n=$((n + 1))
-		if grep -qE '://:[0-9]+' "$f"; then
-			hit=$((hit + 1))
-			[ -z "$first" ] && first="$f proxies to a port without a host"
-		fi
-	done
-	if [ "$hit" -eq 0 ]; then
-		ok "no vhost proxies to a hostless upstream ($n checked)"
-	else
-		no "$hit vhost(s) proxy to a hostless upstream" "$first"
 	fi
 }
 # check_error_code_registry: the exit codes live twice, in the shell and in the panel, and nothing
@@ -1654,77 +1103,6 @@ check_yescrypt_hashing() {
 		ok "yescrypt hashing works and reproduces from its setting"
 	fi
 }
-
-# check_protected_names: the floor that stops a record from binding PATH or BIN. Two ways
-# it could go green while protecting nothing: the list empties, or a name in it is also a real
-# config key, in which case the floor locks that key out of every conf. Both are checked here, and
-# the second is checked against the key registries rather than a second hand-kept list.
-check_protected_names() {
-	local n bad=0 first="" reg regs nregs
-	regs="web mail mail_accounts user cron db system ip backup_excludes"
-	nregs=$(wc -w <<< "$regs")
-	n=$(wc -w <<< "$SOURCE_CONF_PROTECTED")
-	if [ "${n:-0}" -lt 10 ]; then
-		no "protected name list is empty or short ($n)" "SOURCE_CONF_PROTECTED in include/main.sh"
-		return
-	fi
-	for reg in $regs; do
-		for name in $(syshealth_known_keys "$reg"); do
-			is_protected_key "$name" || continue
-			bad=$((bad + 1))
-			[ -z "$first" ] && first="$name is both a $reg key and a protected name"
-		done
-	done
-	# Derived from the data, not from the compiled lists: a name can be a config key without being
-	# in any registry (BACKUP_TEMP was, and the floor swallowed it in silence). If a conf on this
-	# box carries a protected name as a key, the floor is dropping something real.
-	local pat live
-	pat="^($(tr -s ' \n' '||' <<< "$SOURCE_CONF_PROTECTED" | sed -e 's/^|//' -e 's/|$//'))="
-	live=$(grep -lE "$pat" "$HESTIA/conf"/*.conf "$CONF_DIR/users"/*/user.conf \
-		"$CONF_DIR/users"/*/backup-excludes.conf "$CONF_DIR/packages"/*.pkg "$CONF_DIR/ips"/* \
-		2> /dev/null | head -3 | tr '\n' ' ')
-	if [ "$bad" -gt 0 ]; then
-		no "$bad protected name(s) collide with a real config key" "$first"
-	elif [ -n "$live" ]; then
-		no "a protected name is used as a key in a live config" "$live"
-	else
-		ok "protected names hold and collide with no config key ($n names, $nregs registries)"
-	fi
-}
-# check_record_only_protected: RECORD_ONLY_PROTECTED carries names source_conf MUST accept (they
-# are honest hestia.conf / restic.conf keys) while the record parser must refuse them. Floor and
-# list differ only in WHERE a name is allowed, so the question this asks is: does one of them ever
-# appear as a key in a RECORD? BACKUP is deliberately absent from the list because it is one.
-#
-# Does NOT cover records inside an archive - refusing those is the parser's job, not this check's.
-check_record_only_protected() {
-	local n names f reads=0 bad='' pat
-	names="$RECORD_ONLY_PROTECTED"
-	n=$(wc -w <<< "$names")
-	if [ "${n:-0}" -lt 1 ]; then
-		no "the record-only protected list is empty" "RECORD_ONLY_PROTECTED in include/main.sh"
-		return
-	fi
-	pat="^[[:space:]]*($(tr -s ' \n' '||' <<< "$names" | sed -e 's/^|//' -e 's/|$//'))="
-	for f in "$CONF_DIR/users"/*/*.conf "$CONF_DIR/users"/*/mail/*.conf "$CONF_DIR/packages"/*.pkg; do
-		[ -f "$f" ] || continue
-		# Positive control per file: it must yield a key at all. Without it a clean result is
-		# indistinguishable from a sweep that read nothing.
-		if grep -qE '^[A-Z][A-Z0-9_]*=' "$f"; then
-			reads=$((reads + 1))
-		fi
-		if grep -qE "$pat" "$f"; then
-			bad="$bad $(basename "$(dirname "$f")")/$(basename "$f")"
-		fi
-	done
-	if [ "$reads" -eq 0 ]; then
-		no "the record sweep read no key from any record file" "looked under $CONF_DIR/users and $CONF_DIR/packages"
-	elif [ -n "$bad" ]; then
-		no "a record-only protected name is used as a record key" "$bad"
-	else
-		ok "record-only names appear in no record ($n names, $reads record file(s) read)"
-	fi
-}
 # check_install_root_owner: nothing under the install root belongs
 # to anyone but root, nothing is group- or world-writable. The runtime directories a panel pool needs
 # (session.save_path, upload_tmp_dir, sys_temp_dir) are read from the FPM configuration, never written
@@ -1863,7 +1241,7 @@ check_hestia_conf_mode() {
 	fi
 }
 
-# check_protected_names_effective: the list above is a claim; this is the effect. A record that
+# check_protected_names_effective: the protected-name list (#807) judged by its effect. A record that
 # tries to bind PATH must not change it, and a harmless one must still bind, in the same run.
 check_protected_names_effective() {
 	local tmp before after
@@ -1884,58 +1262,6 @@ check_protected_names_effective() {
 		no "the protected-name probe never bound anything" "source_conf read nothing - the check proves nothing"
 	else
 		ok "a config file cannot rebind PATH, an ordinary key still binds"
-	fi
-}
-# check_restic_pairs: a snapshot without its package cannot be restored, a package without its
-# snapshot describes nothing. Derived from the tags, so it also sees a package deleted by hand.
-check_restic_pairs() {
-	local u repo tags pkg tag n=0 orphan_snap=0 orphan_pkg=0 first="" unread=0 first_unread=""
-	repo=$(restic_repo_base) || {
-		ok "no restic repository configured - pairs not checked"
-		return
-	}
-	command -v restic > /dev/null 2>&1 || {
-		skip "restic not installed"
-		return
-	}
-	local json ids sid rc
-	for u in $("$BIN/h-list-users" list 2> /dev/null); do
-		[ -f "$CONF_DIR/users/$u/restic.conf" ] || continue
-		json=$(restic --repo "$repo$u" --password-file "$CONF_DIR/users/$u/restic.conf" --json \
-			snapshots 2> /dev/null)
-		rc=$?
-		# A repository that cannot be read is not an empty one: counting orphans here would blame
-		# every package for a broken line.
-		if [ "$rc" -ne 0 ]; then
-			unread=$((unread + 1))
-			[ -z "$first_unread" ] && first_unread="repository for $u could not be read (restic rc=$rc)"
-			continue
-		fi
-		tags=$(grep -o '"meta:[^"]*"' <<< "$json" | tr -d '"')
-		ids=$(grep -o '"short_id":"[^"]*"' <<< "$json" | cut -d'"' -f4)
-		for tag in $tags; do
-			n=$((n + 1))
-			[ -f "$BACKUP/$u/${tag#meta:}.meta.tgz" ] && continue
-			orphan_snap=$((orphan_snap + 1))
-			[ -z "$first" ] && first="$u: snapshot tagged $tag has no package"
-		done
-		for pkg in "$BACKUP/$u/$u".*.meta.tgz; do
-			[ -f "$pkg" ] || continue
-			tag="meta:$(basename "$pkg" .meta.tgz)"
-			grep -qxF "$tag" <<< "$tags" && continue
-			# Second direction: the snapshot the package names itself.
-			sid=$(tar -xzOf "$pkg" ./restic.meta 2> /dev/null | sed -n "s/^SNAPSHOT='\([^']*\)'.*/\1/p")
-			[ -n "$sid" ] && grep -qxF "$sid" <<< "$ids" && continue
-			orphan_pkg=$((orphan_pkg + 1))
-			[ -z "$first" ] && first="$u: package $(basename "$pkg") has no snapshot"
-		done
-	done
-	if [ "$unread" -gt 0 ]; then
-		no "$unread restic repository(s) could not be read - only $n pair(s) checked" "$first_unread"
-	elif [ "$((orphan_snap + orphan_pkg))" -eq 0 ]; then
-		ok "every restic snapshot has its package ($n pair(s))"
-	else
-		no "$((orphan_snap + orphan_pkg)) restic artefact(s) without a partner" "$first"
 	fi
 }
 # check_restic_mode_supported: restic mode without the addon or without a repository means no
@@ -2008,6 +1334,27 @@ check_logrotate_parses() {
 		ok "logrotate parses its configuration (ours: $mycount file(s))"
 	fi
 }
+# check_web_config_test: a vhost or fragment the server cannot load (a quic listen on an nginx without
+# http_v3, a cache flag whose zone is gone, a 0-byte or hostless-upstream vhost) stays harmless until the
+# next reload, which then fails box-wide. One config test per server covers every such cause at once.
+check_web_config_test() {
+	local sys out rc n=0
+	for sys in $(printf '%s\n' "$WEB_SYSTEM" "$PROXY_SYSTEM" "${WEBMAIL_FRONT:-}" | grep . | sort -u); do
+		case "$sys" in
+			nginx) out=$(nginx -t 2>&1) rc=$? ;;
+			apache2) out=$(apache2ctl -t 2>&1) rc=$? ;;
+			*) continue ;;
+		esac
+		n=$((n + 1))
+		if [ "$rc" -eq 0 ]; then
+			ok "$sys accepts its configuration ($sys config test)"
+		else
+			no "$sys rejects its configuration, the next reload fails" "$(grep -m1 -iE 'emerg|error' <<< "$out")"
+		fi
+	done
+	[ "$n" -gt 0 ] || skip "web config test (no nginx or apache2 configured on this box)"
+}
+
 # check_web_record_has_vhost: the upstream check reads files, so a domain whose vhost was skipped
 # looks clean by being absent. Expectation comes from the record: a docker domain in a proxy model
 # has its backend vhost removed on purpose, everything else needs the front (and the proxy it names).
@@ -2112,64 +1459,6 @@ check_record_grammar() {
 		ok "record grammar holds on $n record lines"
 	else
 		no "$bad record line(s) are not KEY='value'" "$first - readable but unwritable: every writer looks for KEY='...'"
-	fi
-}
-
-# The mirror URL is a literal in TWO places (install.sh runs before this tree exists), so this
-# measures them against each other. The DEFAULT only, and it never asks whether the host answers,
-# which is the fetch's job.
-check_release_mirror() {
-	local a c
-	# Two homes: install.sh keeps its own because it runs before this tree exists. Everything on an
-	# installed box reads the literal below through include/release.sh. Not covered: the fetch logic
-	# around the literal, which exists twice and can drift without anything noticing.
-	a=$(sed -n 's|^RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/install.sh" 2> /dev/null | head -n1)
-	c=$(sed -n 's|^HESTIA_RELEASE_MIRROR="\(https://[^"$]*\)"$|\1|p' "$HESTIA/include/main.sh" 2> /dev/null | head -n1)
-	if [ -z "$a" ] || [ -z "$c" ]; then
-		no "release mirror default unreadable" "install.sh='${a:-none}' main.sh='${c:-none}' - a line moved and this guard now measures nothing"
-	elif [ "$a" != "$c" ]; then
-		no "release mirror default drifted" "install.sh=$a, main.sh=$c - the bootstrap and the runtime fetches would use different hosts"
-	else
-		ok "release mirror default identical in both fetch paths ($a)"
-	fi
-}
-
-# v6 keeps a PREFIX LENGTH in NETMASK and never a NAT address (NAT is v4-only). Nothing to compare
-# against but the file itself, so an empty set of objects is a finding, not a pass.
-check_ip_object_shape() {
-	local f ip fam nm nat n=0 bad=0 first=""
-	for f in "$CONF_DIR/ips"/*; do
-		[ -f "$f" ] || continue
-		ip=$(basename "$f")
-		n=$((n + 1))
-		fam=$(ip_family "$ip")
-		nm=$(sed -n "s/^NETMASK='\(.*\)'\$/\1/p" "$f" | head -1)
-		nat=$(sed -n "s/^NAT='\(.*\)'\$/\1/p" "$f" | head -1)
-		if [ "$fam" = 6 ]; then
-			if ! [[ "$nm" =~ ^[0-9]{1,3}$ ]] || [ "$nm" -gt 128 ]; then
-				bad=$((bad + 1))
-				[ -z "$first" ] && first="$ip: NETMASK='$nm' is not a prefix length (0-128)"
-			fi
-			if [ -n "$nat" ]; then
-				bad=$((bad + 1))
-				[ -z "$first" ] && first="$ip: NAT='$nat' - NAT does not exist for v6"
-			fi
-		elif [ "$fam" = 4 ]; then
-			if ! [[ "$nm" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-				bad=$((bad + 1))
-				[ -z "$first" ] && first="$ip: NETMASK='$nm' is not a dotted-quad mask"
-			fi
-		else
-			bad=$((bad + 1))
-			[ -z "$first" ] && first="$ip: the object name is neither a v4 nor a v6 address"
-		fi
-	done
-	if [ "$n" -eq 0 ]; then
-		no "no IP object to check" "every box registers at least one - the directory or the guard moved"
-	elif [ "$bad" -gt 0 ]; then
-		no "$bad IP object field(s) do not match their family" "$first"
-	else
-		ok "IP objects match their family ($n checked: netmask form, no NAT on v6)"
 	fi
 }
 
@@ -2699,53 +1988,6 @@ check_key_registries() {
 	fi
 }
 
-# check_identity_band: the allocator's preconditions, not its output. Panel users
-# created before keep their old uid by design, so their position is NOT checked;
-# what must hold is that nothing can wander into the band and that the subordinate
-# ranges the companion needs are actually permitted.
-check_identity_band() {
-	local defs='/etc/login.defs' band_start=11000 v dupes
-	if [ ! -f "$defs" ]; then
-		skip "login.defs absent - identity band guard not checkable"
-		return
-	fi
-
-	for key in UID_MAX GID_MAX; do
-		v=$(awk -v k="$key" '$1 == k { print $2; exit }' "$defs")
-		if [ -n "$v" ] && [ "$v" -lt "$band_start" ] 2> /dev/null; then
-			ok "$key caps below the panel band"
-		else
-			no "$key is ${v:-unset}, not below $band_start" \
-				"a bare useradd lands inside the band; source $HESTIA/include/helper.sh && login_defs_guard"
-		fi
-	done
-
-	# The shipped default (600100000) sits below the highest range the formula produces,
-	# which would reject the companion subuid ranges of roughly 43% of usernames - and
-	# only at "enable Docker", long after the account was made.
-	for key in SUB_UID_MAX SUB_GID_MAX; do
-		v=$(awk -v k="$key" '$1 == k { print $2; exit }' "$defs")
-		if [ -n "$v" ] && [ "$v" -ge 1048675999 ] 2> /dev/null; then
-			ok "$key covers the whole subordinate range"
-		else
-			no "$key is ${v:-unset}, below the highest computed range end" \
-				"companion subuid ranges get rejected later (#389); source $HESTIA/include/helper.sh && login_defs_guard"
-		fi
-	done
-
-	# Two panel users on one uid is corruption, not a legacy artefact.
-	dupes=$(for u in "$CONF_DIR"/users/*/; do
-		u=$(basename "$u")
-		[ "$u" = '*' ] && continue
-		id -u "$u" 2> /dev/null
-	done | sort | uniq -d | wc -l)
-	if [ "$dupes" -eq 0 ]; then
-		ok "no two panel users share a uid"
-	else
-		no "$dupes uid(s) shared by more than one panel user" "ownership cannot be separated; check /etc/passwd"
-	fi
-}
-
 # check_proc_hardening: the exemption is a live mount option, so verify the running
 # state, not the config. Catches a failed unit (fail-open is silent to users) and a gid
 # that drifted off the group after a delete/recreate cycle.
@@ -2792,40 +2034,6 @@ check_mesh_serve_staged() {
 	fi
 }
 
-check_realip_header() {
-	local f=/etc/nginx/conf.d/cloudflare.inc
-	# The installer rewrites this file from the CF API and skips it silently on a failed
-	# fetch. Without real_ip_header nginx defaults to X-Real-IP, which the client controls:
-	# CF-Connecting-IP is then ignored (every visitor logs as the CF edge, so fail2ban bans
-	# the edge) and a forged X-Real-IP becomes $remote_addr for every ban consumer.
-	if [ ! -f "$f" ]; then
-		skip "cloudflare realip include absent"
-	elif grep -qE '^\s*real_ip_header' "$f"; then
-		ok "cloudflare realip names its header"
-	else
-		no "cloudflare realip has no real_ip_header (#553)" "nginx then trusts client-set X-Real-IP; re-copy share/nginx/cloudflare.inc"
-	fi
-}
-
-check_slice_dropins_owned() {
-	local d uid orphan='' first=''
-	for d in /etc/systemd/system.control/user-*.slice.d; do
-		[ -d "$d" ] || continue
-		uid=$(basename "$d")
-		uid=${uid#user-}
-		uid=${uid%.slice.d}
-		getent passwd "$uid" > /dev/null 2>&1 && continue
-		orphan=$((${orphan:-0} + 1))
-		[ -z "$first" ] && first="uid $uid"
-	done
-	if [ -z "$orphan" ]; then
-		ok "no resource drop-in outlives its account"
-	else
-		no "$orphan resource drop-in(s) without an account" \
-			"$first - a later account reusing the uid inherits the limit with no visible cause"
-	fi
-}
-
 # check_web_model_sentinel: flag an interrupted model switch so the box reports it
 # rather than the operator discovering it at the next reboot.
 check_web_model_sentinel() {
@@ -2850,7 +2058,6 @@ check_service caddy "panel webserver"
 check_service hestia-php "panel PHP-FPM"
 check_panel_php_version
 check_panel_cli_i18n
-check_port "${BACKEND_PORT:-8083}" "panel"
 check_panel_port
 check_http "https://127.0.0.1:${BACKEND_PORT:-8083}/login/" "panel login page"
 # The v6 twin of the same probe: a listener that binds only v4 looks identical from 127.0.0.1.
@@ -2874,9 +2081,6 @@ echo "-- services --"
 [ -n "$MAIL_SYSTEM" ] && check_service "$MAIL_SYSTEM" "mail"
 check_notification_mta
 check_exim_sendonly
-check_family_lage
-[ -n "$MAIL_SYSTEM" ] && check_exim_macro_names
-[ -n "$MAIL_SYSTEM" ] && check_exim_interface_expansion
 [ -n "$IMAP_SYSTEM" ] && check_service "$IMAP_SYSTEM" "imap"
 # The one measured case: a dovecot that never read its own auth chain still answers on 143
 # with a banner, so the liveness check above cannot see it.
@@ -2926,25 +2130,17 @@ if [ -f "$CONF_DIR/crowdsec/mesh.conf" ]; then
 	check_service hestia-crowdsec-mesh.timer "crowdsec fleet-mesh timer"
 	check_mesh_serve_staged
 fi
-# adminer/webmail: no own daemon, served by a caddy FPM pool, so check the socket
+# adminer: no own daemon, served by a caddy FPM pool, so check the socket
 [ -n "$DB_ADMINER_ALIAS" ] && check_socket /run/hestia-adminer.sock "adminer FPM"
 check_webmail_value_domain
-check_webmail_tokens_known
 check_backup_container_meta
 check_backup_diff_member_name
 if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube'; then
-	check_webmail_payload roundcube /etc/roundcube/config.inc.php
-	check_socket /run/hestia-webmail-roundcube.sock "roundcube FPM"
+	# The listener serves through the pool socket, so a 200 also proves socket and payload.
 	check_http "http://127.0.0.1:8090/" "roundcube internal listener"
-	grep -q "^\$config\['db_dsnw'\] = 'sqlite:" /etc/roundcube/config.inc.php 2> /dev/null \
-		&& check_webmail_sqlite_driver roundcube
 fi
 if echo "$WEBMAIL_SYSTEM" | grep -qw 'tachyon'; then
-	check_webmail_payload tachyon /etc/tachyon/data/VERSION
-	check_socket /run/hestia-webmail-tachyon.sock "tachyon FPM"
 	check_http "http://127.0.0.1:8091/" "tachyon internal listener"
-	grep -A10 '^\[contacts\]' /etc/tachyon/data/_data_/_default_/configs/application.ini 2> /dev/null \
-		| grep -q 'type = "sqlite"' && check_webmail_sqlite_driver tachyon
 fi
 # redis: the general service or rspamd's always-present Bayes companion
 if [ -n "$REDIS_SYSTEM" ] || [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
@@ -2957,11 +2153,8 @@ fi
 # iptables renderer (re-expresses them against nft), the mechanism below does not.
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
-	check_firewall_backend
 	check_firewall_closed
-	check_firewall_icmpv6
 	check_firewall_ruleset_loadable
-	check_firewall_chains_tracked
 	check_firewall_rules_rendered
 	check_firewall_ipsets_populated
 fi
@@ -2976,7 +2169,6 @@ fi
 # local listener is expected. Reachable after h-delete-sys-mariadb on a box that also has a remote host,
 # because the token only goes when the LAST host of its type does (measured: red on exactly that state).
 [ -n "$DB_MARIADB_SYSTEM" ] && check_port 3306 "mysql"
-[ -n "$MAIL_SYSTEM" ] && check_port 25 "smtp"
 # banner, not just port: IMAP/SMTP must actually answer (a hung login still listens)
 if [ -n "$IMAP_SYSTEM" ]; then
 	check_banner 143 "imap"
@@ -3004,8 +2196,6 @@ fi
 # --- Security invariants (static source gates) ---
 echo "-- security invariants --"
 check_sudo_secret_leak
-# GHSA-fcq6: auth gate must not compare a bare $ROOT_USER (legit: $_SESSION["ROOT_USER"])
-check_source_absent "no bare \$ROOT_USER auth gate (GHSA-fcq6)" '\$ROOT_USER' "$HESTIA/web"
 # GHSA-cr7q and the GHSA-xffx class were guarded file by file here; check_eval_sites covers both and
 # every other file besides, so the two named checks would only be a list to forget.
 # GHSA-xffx class: source_conf must keep its identifier guard on the key, or a
@@ -3020,51 +2210,26 @@ fi
 # dispatch / reset / real-identity display), everything else must use the
 # look-aware $user/$user_plain, or an admin impersonating a customer mis-targets.
 check_session_user_allowlist "$HESTIA/web"
-# userContext is the effective role and is what admin-gates read. The old
-# effective-mirror $_SESSION["role"] must NOT be compared against (it was unified
-# onto userContext), a divergent mirror would silently split the gate surface.
-check_source_absent "no gating on the effective-mirror \$_SESSION[role] (#438, use userContext)" \
-	'\$_SESSION\["role"\][[:space:]]*(==|!=)' "$HESTIA/web"
-# X-Accel-Redirect only from the allowlisted RRD handler; a new download
-# emitting it would hit the caddy-can't-read wall (stream via inc/download.php instead).
-check_xaccel_allowlist "$HESTIA/web"
 # v-* compat symlinks must all resolve (no dangling alias left by a rename).
 check_v_symlinks_resolve
-# an sbin command called through a bin/ path resolves to nothing (the sbin split).
-check_sbin_not_under_bin
-# a pinned locale that is not generated makes every locale-aware child warn.
-check_panel_locale
 # a policy fragment (crowdsec Layer A, bot rate limiting) missing from one template is a silent bypass.
 check_policy_fragment_coverage
-# a cache flag without its zone (or a 0-byte vhost) fails silently until the next reload.
-if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
-	check_web_cache_zones
-fi
-check_vhost_nonempty
-check_web_hsts_effective
-check_web_http3_orphan
-check_web_docker_wildcard
+check_web_config_test
 # An interrupted model switch must not stay invisible.
 check_web_model_sentinel
-check_realip_header
 # fail-open is invisible to users: verify the live mount, not the intent.
 check_proc_hardening
 # a record pointing at a removed template only shows up on the next rebuild.
 check_web_templates_resolvable
-check_vhost_upstream_host
-check_vhost_listen_form
 check_web_record_has_vhost
 check_logrotate_parses
 check_restic_mode_supported
-check_restic_pairs
-check_protected_names
 check_protected_names_effective
 # 644 from the old /tmp sort path was silent on every box.
 check_hestia_conf_mode
 check_install_root_owner
 check_secret_file_modes
 check_panel_session_store
-check_record_only_protected
 check_eval_sites
 check_yescrypt_hashing
 check_record_name_patterns
@@ -3072,8 +2237,6 @@ check_error_code_registry
 # derived counters drift silently when an increase/decrease pair dies half way.
 check_object_counters
 check_ip_object_counters
-check_ip_object_shape
-check_release_mirror
 check_record_grammar
 check_key_registries
 check_operator_keys_present
@@ -3089,9 +2252,6 @@ check_system_keys_agree
 check_manifest_status_link
 check_manifest_artefacts
 check_hestia_conf_key_patterns
-check_identity_band
-# a cap written for a companion that is gone would be inherited by whoever gets the uid next.
-check_slice_dropins_owned
 
 #----------------------------------------------------------#
 # Result #

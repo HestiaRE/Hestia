@@ -502,13 +502,6 @@ fw_jail_destroy() {
 	return 0
 }
 
-# Jail sets, reported under the chain names the object model uses.
-fw_jail_chains_live() {
-	# Both prefixes map to the same jail, so collapse them - a jail is one object to the object model.
-	"$FW_NFT" list sets "$FW_FAMILY" 2> /dev/null \
-		| sed -n 's/^	set f2b6\?_\([A-Za-z0-9_]*\) .*/\1/p' | sort -u
-}
-
 # Wired means the set exists and the input chain still matches it.
 fw_jail_wired() {
 	"$FW_NFT" list set "$FW_FAMILY" "$FW_TABLE" "$(fw_jail_set "$1")" > /dev/null 2>&1 || return 1

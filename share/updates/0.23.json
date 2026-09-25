@@ -65,6 +65,17 @@
       "action": { "type": "function_call", "function": "ioncube_pin_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "roundcube-pool-opcache",
+      "description": "The Roundcube pool's PHP 8.5 shim shortened the function table in a cache it shares with phpMyAdmin, so whichever app came second answered 500; the pool now runs without OPcache",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/php/hestia/fpm/pool.d/roundcube.conf" },
+        { "type": "file_differs", "source": "share/panel-php/pool.d/roundcube.conf", "target": "/etc/php/hestia/fpm/pool.d/roundcube.conf" }
+      ],
+      "action": { "type": "file_copy", "source": "share/panel-php/pool.d/roundcube.conf", "target": "/etc/php/hestia/fpm/pool.d/roundcube.conf", "mode": "644" },
+      "paths": ["/etc/php/hestia/fpm/pool.d/roundcube.conf"],
+      "reversible": true
     }
   ]
 }

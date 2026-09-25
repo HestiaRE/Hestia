@@ -52,6 +52,9 @@ ioncube_intact() {
 ioncube_lock() {
 	mkdir -p /run/hestia || return 1
 	exec {IONCUBE_LOCK_FD}> /run/hestia/ioncube.lock || return 1
+	flock -n "$1" "$IONCUBE_LOCK_FD" && return 0
+	# Said once, so a panel call stuck behind a slow download does not look hung.
+	echo "Waiting for the ionCube lock held by another run..."
 	flock "$1" -w 900 "$IONCUBE_LOCK_FD" && return 0
 	echo "ERROR: the ionCube lock is held by another run"
 	ioncube_unlock
@@ -65,6 +68,8 @@ ioncube_unlock() {
 ioncube_fetch_locked() {
 	local ver="$1" arch="$2" sum="$3" name tmp src ok=""
 	name="ioncube_loaders_lin_${arch}_${ver}.tar.gz"
+	# Left by a run killed mid-swap; nobody else can own one while we hold -x.
+	rm -rf "${IONCUBE_DIR%/*}"/.ioncube.*
 	# Same filesystem, so the swap below is two renames.
 	mkdir -p "${IONCUBE_DIR%/*}" && tmp=$(mktemp -d "${IONCUBE_DIR%/*}/.ioncube.XXXXXX") || return 1
 	# Judged by the sum, not by wget: a portal answers 200 too.
@@ -109,18 +114,19 @@ ioncube_ext_dir() {
 
 # rc 3: ionCube ships no loader for this version (8.0).
 ioncube_version_apply() {
+	local rc
+	ioncube_lock -s || return 1
+	ioncube_version_apply_locked "$1"
+	rc=$?
+	ioncube_unlock
+	return "$rc"
+}
+
+ioncube_version_apply_locked() {
 	local v="$1" ext
 	ext=$(ioncube_ext_dir "$v") && [ -d "$ext" ] || return 1
-	ioncube_lock -s || return 1
-	if [ ! -f "$IONCUBE_DIR/ioncube_loader_lin_$v.so" ]; then
-		ioncube_unlock
-		return 3
-	fi
-	install -m 0644 "$IONCUBE_DIR/ioncube_loader_lin_$v.so" "$ext/ioncube.so" || {
-		ioncube_unlock
-		return 1
-	}
-	ioncube_unlock
+	[ -f "$IONCUBE_DIR/ioncube_loader_lin_$v.so" ] || return 3
+	install -m 0644 "$IONCUBE_DIR/ioncube_loader_lin_$v.so" "$ext/ioncube.so" || return 1
 	# JIT cannot run next to the loader anyway; with a buffer, 8.4 warns on every FPM reload.
 	printf '; priority=10\nzend_extension=ioncube.so\nopcache.jit_buffer_size=0\n' \
 		> "/etc/php/$v/mods-available/ioncube.ini" && chmod 0644 "/etc/php/$v/mods-available/ioncube.ini" || return 1
@@ -149,5 +155,6 @@ ioncube_version_remove() {
 	[ -f "/etc/php/$v/mods-available/ioncube.ini" ] && phpdismod -v "$v" ioncube
 	rm -f "/etc/php/$v/mods-available/ioncube.ini"
 	ext=$(ioncube_ext_dir "$v") && [ -n "$ext" ] && rm -f "$ext/ioncube.so"
+	# rc is the reload's: the files are gone either way, a running master may still hold the loader.
 	ioncube_fpm_reload "$v"
 }

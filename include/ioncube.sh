@@ -11,6 +11,9 @@
 # priority 10: a zend_extension ionCube must load before OPcache, and       #
 # 10-ioncube sorts before 10-opcache. The panel pool builds its conf.d from #
 # a curated list (sbin/hestia-php-confd) and never loads it.                #
+# A new pin reaches the versions only through h-add-sys-ioncube, which      #
+# applies after the fetch: ioncube_fetch alone swaps the archive and leaves #
+# every installed ioncube.so on the old loader.                             #
 #                                                                           #
 #===========================================================================#
 
@@ -99,17 +102,15 @@ ioncube_fetch_locked() {
 		rm -rf "$tmp"
 		return 1
 	fi
-	# The archive ships its loaders group-writable and owned by uid "dev".
+	# The archive ships its loaders group-writable and owned by uid "dev"; the modes are set after our own two
+	# files are written, so none of them depends on the umask.
 	if ! tar -xzf "$tmp/$name" -C "$tmp" --no-same-owner --no-same-permissions \
-		|| ! chmod 0755 "$tmp/ioncube" || ! find "$tmp/ioncube" -type f -exec chmod 0644 {} + \
-		|| ! (cd "$tmp/ioncube" && sha256sum ioncube_loader_lin_*.so > hestia-sums); then
+		|| ! (cd "$tmp/ioncube" && sha256sum ioncube_loader_lin_*.so > hestia-sums) \
+		|| ! printf '%s\n' "$ver" > "$tmp/ioncube/hestia-pin" \
+		|| ! chmod 0755 "$tmp/ioncube" || ! find "$tmp/ioncube" -type f -exec chmod 0644 {} +; then
 		rm -rf "$tmp"
 		return 1
 	fi
-	printf '%s\n' "$ver" > "$tmp/ioncube/hestia-pin" || {
-		rm -rf "$tmp"
-		return 1
-	}
 	# With a way back: a failed swap must not leave the box without the loaders it had.
 	if [ -e "$IONCUBE_DIR" ] && ! mv "$IONCUBE_DIR" "$tmp/old"; then
 		rm -rf "$tmp"
@@ -145,7 +146,7 @@ ioncube_version_apply() {
 	ioncube_unlock
 	# JIT cannot run next to the loader's opcode handlers; with a buffer left, 8.4 warns on every FPM (re)load.
 	printf '; priority=10\nzend_extension=ioncube.so\nopcache.jit_buffer_size=0\n' \
-		> "/etc/php/$v/mods-available/ioncube.ini" || return 1
+		> "/etc/php/$v/mods-available/ioncube.ini" && chmod 0644 "/etc/php/$v/mods-available/ioncube.ini" || return 1
 	phpenmod -v "$v" ioncube || return 1
 	# A loader PHP refuses leaves every script of this version dead, so it goes straight back out. Both SAPIs:
 	# FPM reads its own conf.d, and its reload is a USR2 that returns before the new master has loaded anything.
@@ -154,7 +155,10 @@ ioncube_version_apply() {
 		ioncube_version_remove "$v"
 		return 1
 	fi
-	ioncube_fpm_reload "$v"
+	if ! ioncube_fpm_reload "$v"; then
+		ioncube_version_remove "$v"
+		return 1
+	fi
 }
 
 # Only a running master: one that was stopped on purpose stays stopped, and a purged version has none.

@@ -172,18 +172,23 @@ upd_cond_file_mode_wider() {
 }
 
 # For a file the box generates: no tree source to compare against, so the marker is what the OLD
-# version wrote. That is what makes this false once the file has been rewritten.
+# version wrote. That is what makes this false once the file has been rewritten. The path may be a
+# pattern, for a file that sits once per PHP version; true when one of the matches carries the marker.
 upd_cond_file_contains() {
+	local f
 	[ -n "$1" ] && [ -n "$2" ] || {
 		echo "update: file_contains needs a path and a value" >&2
 		return 2
 	}
-	[ -f "$1" ] || return 1
-	[ -r "$1" ] || {
-		echo "update: $1 exists but cannot be read - file_contains cannot decide" >&2
-		return 2
-	}
-	grep -qF -- "$2" "$1"
+	while read -r f; do
+		[ -f "$f" ] || continue
+		[ -r "$f" ] || {
+			echo "update: $f exists but cannot be read, so file_contains cannot decide" >&2
+			return 2
+		}
+		grep -qF -- "$2" "$f" && return 0
+	done < <(compgen -G "$1")
+	return 1
 }
 
 # The complement of file_contains, for an entry that has to ADD a marker rather than replace one.
@@ -295,7 +300,8 @@ upd_action_reversible() {
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
 	cron_locale_apply system_repair_cron_write sieve_redirect_apply sieve_vacation_apply fail2ban_panel_action_apply
-	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply)
+	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply
+	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

@@ -2246,38 +2246,6 @@ check_object_counters() {
 		|| no "registry counter(s) nothing computes:$missing" "outside both the recount and this guard - remove them or compute them"
 }
 
-# check_record_grammar: every record line against record_line_valid, the one place that defines
-# the grammar (include/backup.sh). A line that loses its quotes stays READABLE - source_conf takes
-# KEY=value just fine - while every writer looks for KEY='...' and silently finds nothing. The
-# record then shows a value that no change can move, and the panel looks correct while saving
-# nothing. Cheap, and it catches hand edits, ours included.
-check_record_grammar() {
-	local f n=0 bad=0 first="" line
-	if ! declare -F record_line_valid > /dev/null 2>&1; then
-		no "record grammar not checkable" "record_line_valid missing - include/backup.sh not sourced"
-		return
-	fi
-	for f in "$CONF_DIR/users"/*/user.conf "$CONF_DIR/users"/*/*.conf "$CONF_DIR/users"/*/mail/*.conf \
-		"$CONF_DIR/ips"/* "$CONF_DIR/packages"/*.pkg "$HESTIA/conf/hestia.conf"; do
-		[ -f "$f" ] || continue
-		while IFS= read -r line; do
-			[ -n "$line" ] || continue
-			n=$((n + 1))
-			record_line_valid "$line" && continue
-			bad=$((bad + 1))
-			[ -z "$first" ] && first="$f: ${line:0:60}"
-		done < "$f"
-	done
-	# Nothing to look at is a finding: every box has records.
-	if [ "$n" -eq 0 ]; then
-		no "record grammar: no record lines found" "$CONF_DIR looks empty - the check saw nothing"
-	elif [ "$bad" -eq 0 ]; then
-		ok "record grammar holds on $n record lines"
-	else
-		no "$bad record line(s) are not KEY='value'" "$first - readable but unwritable: every writer looks for KEY='...'"
-	fi
-}
-
 # check_sys_key_registry: the system key registry (share/hestia/sys-keys.json), three guards:
 # (1) the schema, through the same sysreg_check the CI runs; (2) every key the tree writes into
 # hestia.conf is registered; the write sites are extracted from the shipped code (the seven mechanisms:

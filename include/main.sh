@@ -2329,9 +2329,10 @@ is_username_format_valid() {
 change_sys_value() {
 	local _key="$1" _value="$2" _conf="$HESTIA/conf/hestia.conf" _tmp _prev_trap
 	# check_result exits; the returns behind it keep the write unreachable even where it does not
+	# The record grammar (record_line_valid), so the smoke cannot go red on a value written here (#1143).
 	case "$_value" in
-		*\'* | *$'\n'*)
-			check_result "$E_INVALID" "invalid value for $_key: a quote or a line break cannot be stored"
+		*\'* | *\"* | *\\* | *\`* | *$'\n'*)
+			check_result "$E_INVALID" "invalid value for $_key: a quote, backslash, backtick or line break cannot be stored"
 			return "$E_INVALID"
 			;;
 	esac

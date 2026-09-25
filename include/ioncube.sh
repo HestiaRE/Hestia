@@ -50,8 +50,16 @@ ioncube_intact() {
 
 # -x swaps IONCUBE_DIR, -s copies a loader out of it.
 ioncube_lock() {
+	# Not nestable: a second fd blocks on our own lock, and the shared variable would orphan the first.
+	if [ -n "${IONCUBE_LOCK_FD:-}" ]; then
+		echo "ERROR: the ionCube lock is already held by this run"
+		return 1
+	fi
 	mkdir -p /run/hestia || return 1
-	exec {IONCUBE_LOCK_FD}> /run/hestia/ioncube.lock || return 1
+	exec {IONCUBE_LOCK_FD}> /run/hestia/ioncube.lock || {
+		unset IONCUBE_LOCK_FD
+		return 1
+	}
 	flock -n "$1" "$IONCUBE_LOCK_FD" && return 0
 	# Said once, so a panel call stuck behind a slow download does not look hung.
 	echo "Waiting for the ionCube lock held by another run..."
@@ -63,6 +71,7 @@ ioncube_lock() {
 
 ioncube_unlock() {
 	exec {IONCUBE_LOCK_FD}>&-
+	unset IONCUBE_LOCK_FD
 }
 
 ioncube_fetch_locked() {
@@ -149,7 +158,7 @@ ioncube_fpm_reload() {
 	systemctl reload "php$1-fpm" > /dev/null 2>&1
 }
 
-# The .so belongs to no package, so a purge would leave it behind.
+# The .so belongs to no package, so a purge would leave it behind. Takes no lock: callers may hold one.
 ioncube_version_remove() {
 	local v="$1" ext
 	[ -f "/etc/php/$v/mods-available/ioncube.ini" ] && phpdismod -v "$v" ioncube

@@ -87,7 +87,9 @@ ioncube_version_apply() {
 	[ -f "$IONCUBE_DIR/ioncube_loader_lin_$v.so" ] || return 3
 	ext=$(ioncube_ext_dir "$v") && [ -d "$ext" ] || return 1
 	install -m 0644 "$IONCUBE_DIR/ioncube_loader_lin_$v.so" "$ext/ioncube.so" || return 1
-	printf '; priority=10\nzend_extension=ioncube.so\n' > "/etc/php/$v/mods-available/ioncube.ini" || return 1
+	# JIT cannot run next to the loader's opcode handlers; with a buffer left, 8.4 warns on every FPM (re)load.
+	printf '; priority=10\nzend_extension=ioncube.so\nopcache.jit_buffer_size=0\n' \
+		> "/etc/php/$v/mods-available/ioncube.ini" || return 1
 	phpenmod -v "$v" ioncube || return 1
 	# A loader PHP refuses leaves every script of this version dead, so it goes straight back out.
 	if ! "/usr/bin/php$v" -v 2> /dev/null | grep -q 'ionCube'; then

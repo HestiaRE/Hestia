@@ -55,8 +55,6 @@ no() {
 }
 skip() { echo "[ skip ] $1"; }
 
-# check_source_absent <label> <pattern> <path...>, a vulnerable pattern must not
-# reappear (static regression guard for a security fix). Comment lines excluded.
 # Whether sudo keeps panel command lines out of the logs depends on the sudo flavor and the
 # distro, so assert the outcome per run: a throwaway marker through an allowed panel call must
 # not survive in any persistent log. The sink set is derived from a control marker written to
@@ -98,6 +96,8 @@ check_sudo_secret_leak() {
 	ok "no panel command line kept in the persistent logs ($(echo $sinks | wc -w) sink(s) checked)"
 }
 
+# check_source_absent <label> <pattern> <path...>, a vulnerable pattern must not
+# reappear (static regression guard for a security fix). Comment lines excluded.
 check_source_absent() {
 	local label="$1" pat="$2"
 	shift 2
@@ -740,7 +740,7 @@ check_rspamd_ctrl_isolation() {
 # check_log_clean <file> <extended-regex> <label>
 check_log_clean() {
 	if [ ! -f "$1" ]; then
-		skip "log $2 absent ($1)"
+		skip "log $3 absent ($1)"
 		return
 	fi
 	local hits
@@ -787,12 +787,6 @@ check_v_symlinks_resolve() {
 	fi
 }
 
-# check_panel_locale: the FPM pools pin env[LANG] so a child does not inherit whatever the admin's
-# base install happens to have. Pinning a locale that is not generated is the same failure with more
-# confidence: every child that touches locale warns, and awstats' perl warnings land in the panel log
-# (that is how this was found). The expected value is READ FROM the deployed pool, not written here,
-# so changing the pin cannot leave the check testing yesterday's value.
-# NOT covered: locales a customer's own PHP or a cron job sets for itself.
 # The panel PHP version is a file, not a constant: /etc/php/hestia/php-version
 # names whatever the wrappers and hestia-php.service run. An empty file or a version
 # whose binaries are gone means every panel request dies at exec - say which half broke.
@@ -833,10 +827,6 @@ check_panel_php_version() {
 	ok "panel PHP $v (php-version file, binaries present, master image on disk)"
 }
 
-# The MTA the panel actually calls. PHP's mail runs sendmail_path, so a box without
-# that binary loses every notification - password reset, backup report - while the wrapper still
-# exits 0. Nothing installed one without a mail block; on Debian the base image happened to ship
-# exim4-daemon-light and it looked fine, on Ubuntu it never did.
 # The install-time derivation is a one-shot edit; flip the kernel lage later and the
 # fatal bind returns with nothing re-deriving. Holds CONFIGURED families against the
 # KERNEL's. Covers dovecot listen + exim dc_local_interfaces, not the hestia template
@@ -988,6 +978,10 @@ check_exim_interface_expansion() {
 	ok "exim interface expansion: all four shapes clean, no empty list element (offline via -be)"
 }
 
+# The MTA the panel actually calls. PHP's mail runs sendmail_path, so a box without
+# that binary loses every notification - password reset, backup report - while the wrapper still
+# exits 0. Nothing installed one without a mail block; on Debian the base image happened to ship
+# exim4-daemon-light and it looked fine, on Ubuntu it never did.
 check_notification_mta() {
 	local relay='' path bin
 	if [ "${USE_SERVER_SMTP:-}" = 'true' ] && [ -n "${SERVER_SMTP_HOST:-}" ]; then
@@ -1084,12 +1078,6 @@ check_project_quota() {
 	esac
 }
 
-# Customer PHP CPU cap: the ENFORCED value from the cgroup, never the systemd property -
-# the property reads the drop-in the moment it is written, so a fleet of masters still running in
-# system.slice reports itself capped. The boot step deliberately does not abort a boot, so nothing
-# else would notice a cap that never got computed.
-#
-# Not covered: whether the cap is the right size - a hand-set value is reported, not judged.
 # Panel port: the site it listens on against the value the firewall and proxies follow.
 check_panel_port() {
 	local want="${BACKEND_PORT:-8083}" live owner
@@ -1116,6 +1104,12 @@ check_panel_port() {
 	fi
 }
 
+# Customer PHP CPU cap: the ENFORCED value from the cgroup, never the systemd property -
+# the property reads the drop-in the moment it is written, so a fleet of masters still running in
+# system.slice reports itself capped. The boot step deliberately does not abort a boot, so nothing
+# else would notice a cap that never got computed.
+#
+# Not covered: whether the cap is the right size - a hand-set value is reported, not judged.
 check_customer_php_slice() {
 	local versions uncapped='' seen=0 ver cores cpu_max quota period pct conf
 	versions=$(customer_php_versions)
@@ -1182,6 +1176,12 @@ check_panel_cli_i18n() {
 	fi
 }
 
+# check_panel_locale: the FPM pools pin env[LANG] so a child does not inherit whatever the admin's
+# base install happens to have. Pinning a locale that is not generated is the same failure with more
+# confidence: every child that touches locale warns, and awstats' perl warnings land in the panel log
+# (that is how this was found). The expected value is READ FROM the deployed pool, not written here,
+# so changing the pin cannot leave the check testing yesterday's value.
+# NOT covered: locales a customer's own PHP or a cron job sets for itself.
 check_panel_locale() {
 	local pool=/etc/php/hestia/fpm/pool.d/panel.conf want
 	if [ ! -f "$pool" ]; then
@@ -1275,8 +1275,6 @@ check_sudoers() {
 	fi
 }
 
-# check_web_cache_zones: a cache flag whose zone is gone breaks nginx -t box-wide: the
-# vhost references a zone nginx never loaded.
 check_web_hsts_effective() {
 	local u d line hsts front conf miss=0 first='' checked=0
 	front="${PROXY_SYSTEM:-$WEB_SYSTEM}"
@@ -1314,6 +1312,8 @@ check_web_hsts_effective() {
 	fi
 }
 
+# check_web_cache_zones: a cache flag whose zone is gone breaks nginx -t box-wide: the
+# vhost references a zone nginx never loaded.
 check_web_cache_zones() {
 	local u d line miss=0 first="" checked=0
 	for u in $("$BIN/h-list-users" list 2> /dev/null); do
@@ -1422,8 +1422,6 @@ check_vhost_nonempty() {
 		no "$miss empty vhost config(s)" "$first"
 	fi
 }
-# check_vhost_upstream_host: "http://:3000" (docker domain, owner without DOCKER_IP) makes nginx
-# and apache reject the whole configuration. Read the rendered files: a custom template does it too.
 # Two silent ways a vhost can be wrong: an UNBRACKETED v6 (nginx reads it as its own address,
 # apache refuses to parse it), and an nginx server block with NO listen - not an error but a
 # WILDCARD bind, which is what a %ip%-only custom template renders to on a v6-only box.
@@ -1489,6 +1487,8 @@ check_vhost_listen_form() {
 		&& ok "rendered vhosts: every v6 address bracketed, every server block bound ($n file(s), $blocks nginx server block(s) entered)"
 }
 
+# check_vhost_upstream_host: "http://:3000" (docker domain, owner without DOCKER_IP) makes nginx
+# and apache reject the whole configuration. Read the rendered files: a custom template does it too.
 check_vhost_upstream_host() {
 	local f n=0 hit=0 first=""
 	for f in "/etc/$WEB_SYSTEM/conf.d/domains"/*.conf "/etc/${PROXY_SYSTEM:-none}/conf.d/domains"/*.conf; do
@@ -1509,7 +1509,7 @@ check_vhost_upstream_host() {
 # holds them together. Known alias: E_FORBIDEN/E_FORBIDDEN share 10 on purpose.
 check_error_code_registry() {
 	local sh_file="$HESTIA/include/main.sh" php_file="$HESTIA/web/inc/helpers.php"
-	local name val conflict=0 dupes=0 n=0 first=""
+	local name val conflict=0 dupes=0 n=0 m=0 first=""
 	if [ ! -f "$sh_file" ] || [ ! -f "$php_file" ]; then
 		skip "error code registries not both present"
 		return
@@ -1521,7 +1521,13 @@ check_error_code_registry() {
 	done < <(grep -oE '^E_[A-Z_]+=[0-9]+' "$sh_file")
 	while read -r name val; do
 		_php[$name]=$val
-	done < <(sed -n 's/^const \(E_[A-Z_]*\) *= *\([0-9]*\);.*/ /p' "$php_file")
+		m=$((m + 1))
+	done < <(sed -n 's/^const \(E_[A-Z_]*\) *= *\([0-9]*\);.*/\1 \2/p' "$php_file")
+	# Control bytes in the replacement once made the panel side read as empty, and empty agreed with everything.
+	if [ "$n" -eq 0 ] || [ "$m" -eq 0 ]; then
+		no "error code registries: read $n shell and $m panel code(s)" "a side came up empty, so nothing was compared"
+		return
+	fi
 	for name in "${!_sh[@]}"; do
 		[ -n "${_php[$name]:-}" ] || continue
 		if [ "${_sh[$name]}" != "${_php[$name]}" ]; then
@@ -1539,7 +1545,7 @@ check_error_code_registry() {
 		_seen[$val]=$name
 	done
 	if [ "$conflict" -eq 0 ] && [ "$dupes" -eq 0 ]; then
-		ok "error codes agree between shell and panel ($n shell codes)"
+		ok "error codes agree between shell and panel ($n shell, $m panel codes)"
 	else
 		no "$((conflict + dupes)) error code(s) out of step" "$first"
 	fi
@@ -2109,16 +2115,6 @@ check_record_grammar() {
 	fi
 }
 
-# check_object_counters: the stored counters against what h-update-user-counters WOULD write.
-# The counting rules are not repeated here: this guard had its own set, and the two that were
-# missing from it (IP_AVAIL, IP_OWNED) drifted for exactly that reason. The authority is
-# asked in its read-only 'check' mode, so a counter added there is verified from that day on.
-#
-# It also asks the other way round: a counter-shaped key in the registry that the authority does
-# not compute lives outside both, which is how U_MAIL_SSL survived for years.
-# check_ip_object_counters: the ip-record counters had an authority but no guard (the
-# IP_AVAIL lage before ), and the NAT-blind decrease left real backlog. Object list
-# derives from the files; the authority's check mode is the only rule source.
 # The mirror URL is a literal in TWO places (install.sh runs before this tree exists), so this
 # measures them against each other. The DEFAULT only, and it never asks whether the host answers,
 # which is the fetch's job.
@@ -2177,6 +2173,9 @@ check_ip_object_shape() {
 	fi
 }
 
+# check_ip_object_counters: the ip-record counters had an authority but no guard (the
+# IP_AVAIL lage before ), and the NAT-blind decrease left real backlog. Object list
+# derives from the files; the authority's check mode is the only rule source.
 check_ip_object_counters() {
 	local f addr line k want stored drift=0 checked=0 first='' obj_out obj_lines
 	for f in "$CONF_DIR"/ips/*; do
@@ -2210,6 +2209,13 @@ check_ip_object_counters() {
 	fi
 }
 
+# check_object_counters: the stored counters against what h-update-user-counters WOULD write.
+# The counting rules are not repeated here: this guard had its own set, and the two that were
+# missing from it (IP_AVAIL, IP_OWNED) drifted for exactly that reason. The authority is
+# asked in its read-only 'check' mode, so a counter added there is verified from that day on.
+#
+# It also asks the other way round: a counter-shaped key in the registry that the authority does
+# not compute lives outside both, which is how U_MAIL_SSL survived for years.
 check_object_counters() {
 	local u line k stored want drift=0 checked=0 first="" computed missing="" reg
 	computed=$("$BIN/h-update-user-counters" "$ROOT_USER" check 2> /dev/null | cut -d= -f1)
@@ -2284,11 +2290,6 @@ check_sys_key_registry() {
 	fi
 }
 
-# check_system_keys_agree: the system keys the repair never fills, held against the box: a
-# lost one stays lost until something says so. ROOT_USER must name an admin record; every DB_SYSTEM
-# token must have its host registration under conf/; every BACKUP_SYSTEM token except local its
-# backup host file. VERSION is Phase 4, the component keys are the service gates below and the
-# artefact fields of 1c.
 # Every operator key the registry declares has to be IN hestia.conf. Its default is reachable only
 # through h-repair-sys-config, and no cron runs that, so an absent key is a state nothing
 # else notices: the reader then gets an empty string, and the ad-hoc `[ -z "$X" ] && X=...` copies
@@ -2315,14 +2316,6 @@ check_operator_keys_present() {
 	fi
 }
 
-# One encoder and one decoder for record values. A call site that spells a placeholder
-# itself is a second home for the mapping: that is how the set stayed at one character while the
-# grammar refused four, and how thirteen readers each ended up with their own copy. The set is read
-# OUT of the helpers rather than repeated here, so this check cannot drift from them and its own
-# file carries no literal. Comment lines may name a placeholder; code may not. An empty set or an
-# empty scan fails rather than passes.
-# A type the dispatcher accepts but nothing defines would be skipped, and a skipped entry looks exactly
-# like one whose condition was false. Both sets come from the code, never from a list here.
 # THE BOUNDARY: this verifies, it never repairs. See the header of include/update.sh.
 # Structure of the update manifests, not their effect: types, ids, the `after` graph and the
 # reversibility claim. It says how many entries it read, because until the first release ships a
@@ -2465,6 +2458,8 @@ check_crontab_sudo_reach() {
 	fi
 }
 
+# A type the dispatcher accepts but nothing defines would be skipped, and a skipped entry looks exactly
+# like one whose condition was false. Both sets come from the code, never from a list here.
 check_update_dispatcher() {
 	local lib="$HESTIA/include/update.sh" defined accepted missing extra
 	if [ ! -f "$lib" ]; then
@@ -2489,6 +2484,12 @@ check_update_dispatcher() {
 	fi
 }
 
+# One encoder and one decoder for record values. A call site that spells a placeholder
+# itself is a second home for the mapping: that is how the set stayed at one character while the
+# grammar refused four, and how thirteen readers each ended up with their own copy. The set is read
+# OUT of the helpers rather than repeated here, so this check cannot drift from them and its own
+# file carries no literal. Comment lines may name a placeholder; code may not. An empty set or an
+# empty scan fails rather than passes.
 check_record_encoding_central() {
 	local src="$HESTIA/include/main.sh" ph f rel n=0 bad=''
 	ph=$(grep -oE '%[a-z]+%' "$src" 2> /dev/null | sort -u | paste -sd'|')
@@ -2514,6 +2515,11 @@ check_record_encoding_central() {
 }
 
 # THE BOUNDARY: a guard verifies an artefact, it never fills one. Nothing here may call an upd_act_*.
+# check_system_keys_agree: the system keys the repair never fills, held against the box: a
+# lost one stays lost until something says so. ROOT_USER must name an admin record; every DB_SYSTEM
+# token must have its host registration under conf/; every BACKUP_SYSTEM token except local its
+# backup host file. VERSION is Phase 4, the component keys are the service gates below and the
+# artefact fields of 1c.
 check_system_keys_agree() {
 	local bad='' t
 	if [ -z "$ROOT_USER" ]; then
@@ -2774,8 +2780,6 @@ check_proc_hardening() {
 	fi
 }
 
-# check_web_model_sentinel: flag an interrupted model switch so the box reports it
-# rather than the operator discovering it at the next reboot.
 check_mesh_serve_staged() {
 	# Without the staging, /mesh-decisions.php 404s and every peer silently stops receiving this box's
 	# bans - and since /run is tmpfs, a missed refresh after a boot looks healthy from anywhere else.
@@ -2822,6 +2826,8 @@ check_slice_dropins_owned() {
 	fi
 }
 
+# check_web_model_sentinel: flag an interrupted model switch so the box reports it
+# rather than the operator discovering it at the next reboot.
 check_web_model_sentinel() {
 	local s="/var/lib/hestia/web-model-switch/IN_PROGRESS" op
 	if [ -f "$s" ]; then

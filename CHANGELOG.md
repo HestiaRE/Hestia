@@ -18,6 +18,12 @@ opens above it.
   Share box right below the domain: other accounts on the server may then add subdomains of it, web and mail. The server-wide
   "Enforce subdomain ownership" left the panel; `ENFORCE_SUBDOMAIN_OWNERSHIP` stays in `hestia.conf` for
   the CLI. `h-add-web-domain-allow-users` now refuses a subdomain, whose flag the check never read.
+- **The smoke checks the box; checks on the code run in CI** (#1147). `h-check-sys-smoke` went from 97 checks to
+  57: guards whose answer depends on the shipped code alone moved to `.gitea/tools/check-tree.sh`, which runs on
+  every PR next to the shell lint and needs nothing but `jq` on the runner. Checks that another check already
+  covers, and guards for single fixed incidents, are gone. A new `nginx -t` / `apache2ctl -t` check replaces two
+  of them and covers every cause of a configuration the next reload would refuse. The error-code guard never
+  compared anything since it was written (control bytes in its sed replacement) and does now.
 
 ### Fixed
 

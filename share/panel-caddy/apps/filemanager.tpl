@@ -3,8 +3,8 @@
 # h-add-sys-filemanager, 0640 root:caddy because it carries the shared secret.
 # Removed by h-delete-sys-filemanager → /fm/ becomes a 404 when not installed.
 #
-# Two OVERWRITTEN headers are the entire Caddy-side trust model (§7.2 invariant -
-# guarded by a smoke test). Neither may ever come from the client:
+# Two OVERWRITTEN headers are the entire Caddy-side trust model (§7.2 invariant).
+# Neither may ever come from the client:
 #   Host              fm-<user>.local  - taken from the forward_auth response
 #                     (X-Hestia-User), NEVER the client; selects the customer's
 #                     vhost on the private listener.

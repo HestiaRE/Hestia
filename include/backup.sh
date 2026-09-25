@@ -109,8 +109,8 @@ BACKUP_CONTAINER='hestia'
 # (web|mail|db|cron.conf, mail), box-local (backup.conf), gone (dns), or secret (restic.conf, auth.log).
 BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns.conf dns restic.conf auth.log'
 # What the container says about the ARCHIVE rather than about the customer: written into hestia/ by
-# the backup side, read by probe and restore, never copied into $USER_DATA. h-check-sys-smoke holds
-# this against what the writers actually emit, because a hand-kept list is how the last two leaked.
+# the backup side, read by probe and restore, never copied into $USER_DATA. .gitea/tools/check-tree.sh
+# holds this against what the writers actually emit, because a hand-kept list is how the last two leaked.
 BACKUP_CONTAINER_META='web-system origin export-map backup.map backup.base backup.members'
 
 # The text identifying a queued job - command plus the arguments that tell it apart. One per

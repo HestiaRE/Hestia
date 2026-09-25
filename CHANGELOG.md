@@ -40,6 +40,10 @@ opens above it.
 
 ### Fixed
 
+- **On a PHP 8.5 panel, phpMyAdmin or Roundcube answered 500** (#1149). The Roundcube pool disables the new
+  native `array_first()`/`array_last()` so Roundcube 1.6 can declare its own, but the OPcache is shared by the
+  whole panel master, and code compiled in one pool called the wrong function in the other. Whichever app came
+  second after a restart broke. The Roundcube pool now runs without OPcache; an update entry carries the pool file.
 - **An OS-PHP box left customer PHP unhardened** (#1069). The singlephp and mailonly presets never ran
   `h-add-web-php`: `exec()`, `system()` and friends were open to every customer, uploads stopped at 2 MB, the
   distro `www` pool ran, and `bcmath` and `soap` were missing. Installs now run it in every mode, and an update

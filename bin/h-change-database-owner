@@ -58,6 +58,14 @@ if [ -z "$db_data" ]; then
 fi
 
 parse_object_kv_list "$db_data"
+# A shared user cannot follow one of its databases to another customer (#725).
+if [ "$TYPE" = 'mysql' ]; then
+	(
+		USER_DATA="$CONF_DIR/users/$owner"
+		db_user_in_use "$DBUSER" mysql "$HOST" "$database"
+	)
+	[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database of $owner"
+fi
 #Fix issue #1084 with "Upper case not allowed with PGSQL"
 if [ "$TYPE" == "pgsql" ]; then
 	usersmall=$(echo "$user" | tr '[:upper:]' '[:lower:]')

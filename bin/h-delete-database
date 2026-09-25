@@ -44,6 +44,13 @@ get_database_values
 # Issues with $SUSPENDED overwritten when delete_mysql_database is called
 suspended=$SUSPENDED
 
+# The password of a shared user lives in this record (#725). Refused rather than handed to another record: the
+# customer decides which database keeps the user.
+if [ "$TYPE" = 'mysql' ] && [ -n "$MD5" ]; then
+	db_user_in_use "$DBUSER" mysql "$HOST" "$database"
+	[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database; give that one its own user first"
+fi
+
 # Switching on db type
 case $TYPE in
 	mysql) delete_mysql_database ;;

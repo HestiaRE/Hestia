@@ -14,6 +14,11 @@ opens above it.
 
 ### Added
 
+- **A MySQL database can reuse a user another database of the customer already has** (#725). `h-add-database`
+  and `h-change-database-user` take an empty DBPASS for that. The password lives in the record that created the
+  user; the others only get grants, and the one holding it cannot be deleted or moved while another still uses
+  the user. A restore keeps a password that a database outside the restore still holds, and a database whose
+  user arrives nowhere ends the restore red instead of green.
 - **ionCube loader as an installer addon** (#1069), preselected on standard and compact, offered wherever the
   box runs customer PHP. The loader archive is pinned with a sha256 per architecture (x86-64 and aarch64) and
   comes through a mirror on v6-only boxes. Every customer PHP version gets it, a version added later too;
@@ -40,6 +45,10 @@ opens above it.
 
 ### Fixed
 
+- **A database restored without a password hash got a user without a password** (#725). The warning said
+  nothing could connect, but any local process could log in as that user, another customer's PHP included.
+  Such a user now gets a random password nobody knows, and `h-add-database` and `h-change-database-password`
+  no longer accept an empty DBPASS as a password.
 - **On a PHP 8.5 panel, phpMyAdmin or Roundcube answered 500** (#1149). The Roundcube pool disables the new
   native `array_first()`/`array_last()` so Roundcube 1.6 can declare its own, but the OPcache is shared by the
   whole panel master, and code compiled in one pool called the wrong function in the other. Whichever app came

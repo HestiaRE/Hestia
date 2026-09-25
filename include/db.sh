@@ -386,9 +386,22 @@ add_mysql_database() {
 	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 
+	# Checked before the database exists: the record alone does not prove the server still has the user.
+	if [ -n "${reuse:-}" ] && [ "$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$dbuser'" | tail -n1)" = '0' ]; then
+		check_result "$E_NOTEXIST" "database user $dbuser does not exist on $host"
+	fi
+
 	query="CREATE DATABASE \`$database\` CHARACTER SET $charset"
 	mysql_query "$query"
 	check_result $? "Unable to create database $database"
+
+	# A reused user keeps its password, and its hash stays in the record that created it.
+	if [ -n "${reuse:-}" ]; then
+		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@\`%\`" > /dev/null
+		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost" > /dev/null
+		md5=''
+		return 0
+	fi
 
 	dbpass_esc=$(mysql_sql_escape "$dbpass")
 
@@ -623,24 +636,80 @@ db_record_field() {
 	[[ " $1" =~ \ $2=\'([^\']*)\' ]] && printf '%s' "${BASH_REMATCH[1]}"
 }
 
-# db_user_in_use DBUSER TYPE HOST [EXCEPT_DB] - does another record of this customer hold DBUSER in a slot?
-# rc 0 in use, 1 free, 2 cannot tell. Callers drop the user only on 1, so a doubt keeps it. EXCEPT_DB must be
-# seen: a file that lacks the caller's own record is not the one it thinks it is reading.
+# db_user_in_use DBUSER TYPE HOST [SELF_DB] [IGNORE_DBS] - does another record of this customer hold DBUSER in a
+# slot? TYPE/HOST '*' match any. rc 0 in use, 1 free, 2 cannot tell; callers drop a user only on 1, so a doubt keeps
+# it. SELF_DB must be seen: a file without the caller's own record is not the one it thinks it is reading.
 db_user_in_use() {
-	local u="$1" type="$2" host="$3" except="${4:-}" line seen='' found=''
+	local u="$1" type="$2" host="$3" self="${4:-}" ignore=" ${5:-} " line db seen='' found=''
 	[ -n "$u" ] && [ -r "$USER_DATA/db.conf" ] || return 2
 	while IFS= read -r line || [ -n "$line" ]; do
-		if [ -n "$except" ] && [ "$(db_record_field "$line" DB)" = "$except" ]; then
+		db=$(db_record_field "$line" DB)
+		if [ -n "$self" ] && [ "$db" = "$self" ]; then
 			seen=yes
 			continue
 		fi
-		[ "$(db_record_field "$line" TYPE)" = "$type" ] && [ "$(db_record_field "$line" HOST)" = "$host" ] || continue
+		[[ "$ignore" == *" $db "* ]] && continue
+		db_record_matches "$line" "$type" "$host" || continue
 		if [ "$(db_record_field "$line" DBUSER)" = "$u" ] || [ "$(db_record_field "$line" DBUSER2)" = "$u" ]; then
 			found=yes
 		fi
 	done < "$USER_DATA/db.conf"
-	[ -z "$except" ] || [ -n "$seen" ] || return 2
+	[ -z "$self" ] || [ -n "$seen" ] || return 2
 	[ -n "$found" ]
+}
+
+# db_user_hash_elsewhere DBUSER TYPE HOST SELF_DB [IGNORE_DBS] - does a record other than SELF_DB, outside
+# IGNORE_DBS, carry DBUSER's hash? Its password is then the one the user has on the server.
+db_user_hash_elsewhere() {
+	local ignore=" ${5:-} " line db
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db=$(db_record_field "$line" DB)
+		[ "$db" != "$4" ] && [[ "$ignore" != *" $db "* ]] || continue
+		db_record_matches "$line" "$2" "$3" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then return 0; fi
+		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then return 0; fi
+	done < "$USER_DATA/db.conf"
+	return 1
+}
+
+db_record_matches() {
+	{ [ "$2" = '*' ] || [ "$(db_record_field "$1" TYPE)" = "$2" ]; } \
+		&& { [ "$3" = '*' ] || [ "$(db_record_field "$1" HOST)" = "$3" ]; }
+}
+
+# db_user_host DBUSER TYPE - the HOST of the records holding DBUSER; a shared user lives on exactly one server.
+db_user_host() {
+	local line
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db_record_matches "$line" "$2" '*' || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER2)" = "$1" ]; then
+			db_record_field "$line" HOST
+			return 0
+		fi
+	done < "$USER_DATA/db.conf"
+	return 1
+}
+
+# db_user_canonical DBUSER TYPE HOST - "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_2). rc 1 none,
+# rc 2 more than one: two records claiming one password is a state no command may build on.
+db_user_canonical() {
+	local line hit=''
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db_record_matches "$line" "$2" "$3" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then
+			[ -z "$hit" ] || return 2
+			hit="$(db_record_field "$line" DB) MD5"
+		fi
+		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then
+			[ -z "$hit" ] || return 2
+			hit="$(db_record_field "$line" DB) MD5_2"
+		fi
+	done < "$USER_DATA/db.conf"
+	[ -n "$hit" ] || return 1
+	echo "$hit"
 }
 
 # Delete MySQL database

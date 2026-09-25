@@ -96,6 +96,14 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Install source | `share/panel-php/` |
 | Required packages | `php<ref>-fpm -mysql -curl -zip -gmp -mbstring -opcache -xml -gd -bz2 -pgsql -intl -exif -sqlite3` |
 
+### ionCube loader (addon, #1069)
+
+| Item | Path |
+|------|------|
+| Unpacked archive | `/usr/local/lib/ioncube/` (loaders, `LICENSE.txt`) |
+| Pin marker | `/usr/local/lib/ioncube/hestia-pin` (read by the update entry `ioncube-pin`) |
+| Per version | `<extension_dir>/ioncube.so`, `/etc/php/<v>/mods-available/ioncube.ini` (priority 10) |
+
 ### nginx (frontend proxy / webserver)
 
 | Item | Path |

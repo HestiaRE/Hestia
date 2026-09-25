@@ -848,6 +848,22 @@
         "share/updates/0.23.json"
       ]
     },
+    "ioncube": {
+      "description": "ionCube loader addon (#1069). include/ioncube.sh fetches the archive pinned in share/manifest.json (software_versions.ioncube + ioncube_sha256 per arch, x86-64 and aarch64), primary downloads.ioncube.com, mirror hestiare.com/ioncube for v6-only boxes, and keeps it unpacked in /usr/local/lib/ioncube with the pin in hestia-pin. Each customer version gets <extension_dir>/ioncube.so plus mods-available/ioncube.ini at priority 10, so it loads before OPcache (built in from 8.5). No loader exists for 8.0, which is skipped loudly. h-add-web-php enables it on a new version when IONCUBE_SYSTEM is set; h-delete-web-php removes the .so before the purge, which would otherwise leave it behind. The panel pool never loads it (curated conf.d). Update entry ioncube-pin re-runs h-add-sys-ioncube when the pin moves; the smoke asks each version's FPM binary.",
+      "entry_points": [
+        "bin/h-add-sys-ioncube",
+        "bin/h-delete-sys-ioncube",
+        "include/ioncube.sh"
+      ],
+      "related_files": [
+        "bin/h-add-web-php",
+        "bin/h-delete-web-php",
+        "sbin/h-install-hestia",
+        "share/manifest.json",
+        "share/updates/0.23.json",
+        "bin/h-check-sys-smoke"
+      ]
+    },
     "fail2ban": {
       "description": "Brute-force protection, wired as a CLIENT of the hestia firewall rather than as an independent writer: share/fail2ban/action.d/hestia.conf maps actionstart/stop/ban/unban onto h-add/delete-firewall-chain and h-add/delete-firewall-ban, so bans land in banlist.conf AND in the live fail2ban-<CHAIN> chain and therefore survive a full h-update-firewall rebuild. That client model is the reason to keep owning the ban action rather than adopting fail2ban's native nftables banaction, which would bypass the banlist, the panel and rebuild-survival alike.",
       "config_install": "fail2ban_apply in include/fail2ban.sh is the single implementation of \"a configured fail2ban\", shared by the installer and (later) the addon commands. It copies the WHOLE share/fail2ban tree through a staging dir: enumerating the files individually is what once left out action.d/hestia.conf and made every jail using action = hestia[...] unstartable with smoke still green (D1, fixed in #502). Our jails live in jail.d/hestia.local, never in jail.local, which is left to the admin - fail2ban reads jail.conf -> jail.d/*.conf -> jail.local -> jail.d/*.local, so ours is read last and wins. The distro [sshd] jail is disabled from our own config rather than by deleting jail.d/defaults-debian.conf: that is a dpkg conffile, so rm -f is undone by the next package update.",

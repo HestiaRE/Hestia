@@ -157,6 +157,11 @@
    "class": "betreiber",
    "default": "60"
   },
+  "IONCUBE_SYSTEM": {
+   "class": "system",
+   "default": "",
+   "note": "the ionCube loader pin when the addon is installed (#1069); h-add-web-php reads it"
+  },
   "LANGUAGE": {
    "class": "betreiber",
    "default": "en"

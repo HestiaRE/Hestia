@@ -639,6 +639,11 @@ php_cli_pcntl_apply() {
 	done
 }
 
+# Same for the ionCube loader.
+ioncube_pin_apply() {
+	"$BIN/h-add-sys-ioncube" > /dev/null 2>&1
+}
+
 # The update path calls no h-add-sys-* of its own, so a moved pin reaches an installed box only here.
 tachyon_pin_apply() {
 	"$BIN/h-add-sys-tachyon" > /dev/null 2>&1

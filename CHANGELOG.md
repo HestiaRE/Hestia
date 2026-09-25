@@ -12,6 +12,14 @@ opens above it.
 
 ## Unreleased
 
+### Added
+
+- **ionCube loader as an installer addon** (#1069), preselected on standard and compact, offered wherever the
+  box runs customer PHP. The loader archive is pinned with a sha256 per architecture (x86-64 and aarch64) and
+  comes through a mirror on v6-only boxes. Every customer PHP version gets it, a version added later too;
+  8.0 is skipped because ionCube ships no loader for it. `h-add-sys-ioncube` / `h-delete-sys-ioncube` switch
+  it on a live box, and an update entry follows the pin.
+
 ### Changed
 
 - **Sharing a domain is the owner's switch on the web domain** (#751). Add and Edit Web Domain carry a

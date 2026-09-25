@@ -92,6 +92,11 @@ if [ -n "$collateral" ]; then
 	exit "$E_INVALID"
 fi
 
+# ioncube.so belongs to no package, so the purge would leave it behind.
+# shellcheck source=/usr/local/hestia/include/ioncube.sh
+source "$HESTIA/include/ioncube.sh"
+ioncube_version_remove "$version"
+
 # Purge php packages
 apt-get -y purge $mph > /dev/null 2>&1 &
 BACK_PID=$!

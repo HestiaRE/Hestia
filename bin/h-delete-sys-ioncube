@@ -1,0 +1,59 @@
+#!/bin/bash
+# info: remove the ionCube loader from every PHP version
+# options: NONE
+#
+# example: h-delete-sys-ioncube
+#
+# Disables the loader everywhere and removes the archive; encoded customer scripts stop working.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ioncube.sh
+source $HESTIA/include/ioncube.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '0' "$#" 'NONE'
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Exclusive, so an h-add-web-php copying out of the archive finishes first.
+ioncube_lock -x || check_result "$E_INUSE" "the ionCube lock is held by another run"
+failed=""
+# From the ini files, so a version the lister no longer shows is cleaned too.
+for ini in /etc/php/*/mods-available/ioncube.ini; do
+	[ -e "$ini" ] || continue
+	v="${ini#/etc/php/}"
+	v="${v%%/*}"
+	if ioncube_version_remove "$v"; then
+		echo "ionCube disabled for PHP $v"
+	else
+		echo "WARNING: ionCube removed for PHP $v, but php$v-fpm did not reload and still runs with it"
+		failed="$failed $v"
+	fi
+done
+rm -rf "$IONCUBE_DIR"
+ioncube_unlock
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+change_sys_value "IONCUBE_SYSTEM" ""
+[ -z "$failed" ] || check_result "$E_RESTART" "php-fpm did not reload for PHP$failed"
+log_event "$OK" "$ARGUMENTS"
+
+exit

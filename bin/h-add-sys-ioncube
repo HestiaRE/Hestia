@@ -1,0 +1,55 @@
+#!/bin/bash
+# info: install the ionCube loader for every customer PHP version
+# options: NONE
+#
+# example: h-add-sys-ioncube
+#
+# Fetches the pinned loader archive and enables it on every installed version; re-running converges to the pin.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ioncube.sh
+source $HESTIA/include/ioncube.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '0' "$#" 'NONE'
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+ioncube_fetch || check_result "$E_CONNECT" "could not fetch the pinned ionCube loaders"
+
+failed=""
+while read -r v; do
+	[ -n "$v" ] || continue
+	ioncube_version_apply "$v"
+	case $? in
+		0) echo "ionCube enabled for PHP $v" ;;
+		3) echo "WARNING: ionCube ships no loader for PHP $v, skipped" ;;
+		*) failed="$failed $v" ;;
+	esac
+done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+# Set even when one version failed: the archive is there, and h-add-web-php reads the key.
+change_sys_value "IONCUBE_SYSTEM" "$(cat "$IONCUBE_PIN_FILE")"
+[ -z "$failed" ] || check_result "$E_UPDATE" "ionCube could not be enabled for PHP$failed"
+log_event "$OK" "$ARGUMENTS"
+
+exit

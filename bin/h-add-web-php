@@ -170,6 +170,18 @@ sed -i "s/;opcache.enable=1/opcache.enable=1/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.memory_consumption=128/opcache.memory_consumption=512/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.max_accelerated_files=10000/opcache.max_accelerated_files=100000/g" /etc/php/$version/fpm/php.ini
 
+# Only a warning: the version itself is usable, and the smoke names one without the loader.
+if [ -n "${IONCUBE_SYSTEM:-}" ]; then
+	# shellcheck source=/usr/local/hestia/include/ioncube.sh
+	source "$HESTIA/include/ioncube.sh"
+	ioncube_fetch && ioncube_version_apply "$version"
+	case $? in
+		0) ;;
+		3) echo "WARNING: ionCube ships no loader for PHP $version, skipped" ;;
+		*) echo "WARNING: ionCube could not be enabled for PHP $version, run h-add-sys-ioncube" ;;
+	esac
+fi
+
 # Into the customer PHP slice (#212). The whole apply, not just this version's drop-in:
 # the units may not exist yet on a box updated into this, and it restarts only the masters
 # actually outside the slice - here, the one apt just started.

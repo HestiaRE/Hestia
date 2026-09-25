@@ -1,5 +1,7 @@
 <?php
 
+use function Hestiacp\quoteshellarg\quoteshellarg;
+
 $TAB = "SERVER";
 
 // Main include
@@ -9,6 +11,15 @@ include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 if ($_SESSION["userContext"] != "admin") {
 	header("Location: /list/user");
 	exit();
+}
+
+// One fpm version per page, the system default unless one is named. A save goes to the version the form was
+// loaded with, unchecked here: the CLI refuses an unknown one, where a fallback would write another file (#1144).
+$v_versions = cli_json("h-list-sys-php json");
+$v_default = cli_json("h-list-default-php json")[0] ?? "";
+$v_version = (string) ($_POST["v_version"] ?? ($_GET["version"] ?? $v_default));
+if (!in_array($v_version, $v_versions, true)) {
+	$v_version = in_array($v_default, $v_versions, true) ? $v_default : (string) ($v_versions[0] ?? "");
 }
 
 // Check POST request
@@ -30,7 +41,13 @@ if (!empty($_POST["save"])) {
 			fwrite($fp, str_replace("\r\n", "\n", $_POST["v_config"]));
 			fclose($fp);
 			exec(
-				HESTIA_CMD . "h-change-sys-service-config " . $new_conf . " php " . $v_restart,
+				HESTIA_CMD .
+					"h-change-sys-service-config " .
+					quoteshellarg($new_conf) .
+					" " .
+					quoteshellarg("php-" . (string) ($_POST["v_version"] ?? "")) .
+					" " .
+					quoteshellarg($v_restart),
 				$output,
 				$return_var,
 			);
@@ -47,7 +64,7 @@ if (!empty($_POST["save"])) {
 }
 
 // List config
-$data = cli_json("h-list-sys-php-config json");
+$data = cli_json("h-list-sys-php-config json " . quoteshellarg($v_version));
 $v_memory_limit = $data["CONFIG"]["memory_limit"];
 $v_max_execution_time = $data["CONFIG"]["max_execution_time"];
 $v_max_input_time = $data["CONFIG"]["max_input_time"];
@@ -58,7 +75,7 @@ $v_error_reporting = $data["CONFIG"]["error_reporting"];
 $v_config_path = $data["CONFIG"]["config_path"];
 
 # Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . quoteshellarg($v_config_path));
 
 // Render page
 render_page($user, $TAB, "edit_server_php");

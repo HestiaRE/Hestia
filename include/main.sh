@@ -2257,6 +2257,21 @@ multiphp_default_version() {
 	echo "$sys_phpversion"
 }
 
+# php_ini_path [VERSION]: the ONE php.ini the panel edits, the fpm one of a customer version (default: the
+# system default); rc 1 and no output for anything else. A find over /etc/php took cli, cgi and the panel's
+# own pool as well, and a save copied one file over all of them (#1144).
+php_ini_path() {
+	local v="${1:-$(multiphp_default_version)}"
+	$BIN/h-list-sys-php plain | grep -qxF -- "$v" || return 1
+	[ -f "/etc/php/$v/fpm/php.ini" ] || return 1
+	echo "/etc/php/$v/fpm/php.ini"
+}
+
+php_ini_version() { # PATH from php_ini_path
+	local v="${1#/etc/php/}"
+	echo "${v%%/*}"
+}
+
 is_hestia_package() {
 	check=false
 	for pkg in $1; do

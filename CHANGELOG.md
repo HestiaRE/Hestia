@@ -21,6 +21,11 @@ opens above it.
 
 ### Fixed
 
+- **Saving the PHP page overwrote every php.ini on the box, the panel's own included** (#1144). The target was
+  a search over `/etc/php`, so one textarea landed on cli, cgi and fpm of every version and on the panel pool,
+  which lost its session path. The page now edits the fpm `php.ini` of one version, picked by a select and
+  reached directly from each `phpX.Y-fpm` row of the service list, and only that version's fpm reloads.
+  `h-change-sys-service-config` takes `php-X.Y` for it, `h-list-sys-php-config` a VERSION.
 - **An update to v0.22 stopped halfway, and every v0.22 box reported its update manifests as unsound** (#1132).
   An entry in `0.22.json` waited for one in `0.21.json`, which the raised lower bound no longer reads, so the
   derivation refused the whole set: the update had already stopped the panel and unpacked the tree and ended

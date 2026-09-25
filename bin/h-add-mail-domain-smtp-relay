@@ -70,8 +70,9 @@ fi
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY' 'true'
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_HOST' "$host"
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PORT' "$port"
-update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_USERNAME' "$username"
-update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PASSWORD' "$password"
+# Encoded: a \ or ` is fine for exim but not for the record grammar, and h-restore-user refuses such a record (#1143).
+update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_USERNAME' "$(record_value_encode "$username")"
+update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PASSWORD' "$(record_value_encode "$password")"
 
 # Logging
 $BIN/h-log-action "$user" "Info" "Mail" "SMTP Relay enabled (Domain: $domain, Host: $host, Port: $port)."

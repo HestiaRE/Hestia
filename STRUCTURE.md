@@ -399,9 +399,9 @@ every `hestia.conf` key with its class (`system` | `betreiber`) and default, and
 every login) and the smoke read it in place through `include/sysreg.sh`. Deliberately no copy on the
 box: the copy is what drifted (`conf/defaults/system.conf` described a configuration the product had
 stopped having, 43 keys behind). The condition under which a file with login-wide effect may live in
-the tree is the gate: `sysreg_check` runs in the smoke and, through `.gitea/tools/check-sys-registry.sh`,
-in CI on every PR - one implementation, twice called - and every reader fails loudly on a registry it
-cannot use, so the login refuses (503) instead of gating on an empty set. Do not copy this pattern
+the tree is the gate: `sysreg_check` runs through `.gitea/tools/check-tree.sh` in CI on every PR, and
+every reader fails loudly on a registry it cannot use, so the login refuses (503) instead of gating on
+an empty set. Do not copy this pattern
 for other `share/` files without the same gate.
 
 ### The model is the install scope (#639)

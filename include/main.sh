@@ -461,8 +461,8 @@ ensure_panel_sqlite_driver() {
 	ls /etc/php/hestia/fpm/conf.d/*-pdo_sqlite.ini > /dev/null 2>&1
 }
 
-# The webmail clients this codebase ships, in ONE list: the write path reads it and the smoke check
-# asserts every shipped template appears here. A client added by template alone would otherwise have
+# The webmail clients this codebase ships, in ONE list: the write path reads it and the CI tree check
+# (.gitea/tools/check-tree.sh) asserts every shipped template appears here. A client added by template alone would otherwise have
 # its records normalized to 'disabled' while everything else works.
 WEBMAIL_KNOWN_CLIENTS='roundcube tachyon'
 

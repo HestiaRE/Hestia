@@ -609,7 +609,7 @@ argv(.type // "")[]
 '
 
 # Evaluating a condition is read-only, and every rc 2 in one comes from the tree (unknown key, value
-# outside the vocabulary), never from the box. So this one call serves the smoke and the derivation.
+# outside the vocabulary), never from the box. So this one call serves the CI tree check and the derivation.
 # The argv a building block takes, one per line. $2 is a jq selector from our own code, never data.
 upd_argv() { jq -r "$2 | $UPD_ARGS_JQ" <<< "$1"; }
 

@@ -52,6 +52,12 @@ opens above it.
   and per domain, were written 644 root:root with the password in clear text. They are now 640
   root:Debian-exim and 660 Debian-exim:mail, written through a temp file; an update entry re-modes the files
   already on a box, and the smoke's secret-mode check covers them.
+- **An SMTP relay login with `\` or `` ` `` made the mail backup unrestorable** (#1143). Exim took it, the backup
+  ran, but the restore onto a new or deleted account refused the mail record (rc 12) and brought back neither
+  the domain nor its mailboxes; a `DOMAIN\user` login did the same. Relay user and password are now stored
+  encoded, per domain and for the server SMTP account, and exim still gets them verbatim. A backup made this
+  way carries the encoded form, which HestiaCP takes literally, so the relay password has to be set again
+  there. `h-change-sys-config-value` refuses a `\` or `` ` `` now, as it already refused a quote.
 
 ## v0.22 (2026-09-24)
 

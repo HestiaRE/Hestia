@@ -37,7 +37,6 @@ for ini in /etc/php/*/mods-available/ioncube.ini; do
 	v="${ini#/etc/php/}"
 	v="${v%%/*}"
 	ioncube_version_remove "$v"
-	systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || true
 	echo "ionCube disabled for PHP $v"
 done
 rm -rf "$IONCUBE_DIR"

@@ -32,7 +32,7 @@ ioncube_arch() {
 
 # Fetch, verify and unpack the pinned archive into IONCUBE_DIR. rc 0 also when it is already there.
 ioncube_fetch() {
-	local ver arch sum name tmp
+	local ver arch sum
 	ver=$(manifest_get '.software_versions.ioncube')
 	arch=$(ioncube_arch) || {
 		echo "ERROR: no ionCube loader for architecture $(dpkg --print-architecture 2> /dev/null)"
@@ -44,6 +44,35 @@ ioncube_fetch() {
 		return 1
 	}
 	[ "$(cat "$IONCUBE_PIN_FILE" 2> /dev/null)" = "$ver" ] && return 0
+	# Asked again under the lock: another run may have fetched the same pin meanwhile.
+	ioncube_lock -x || return 1
+	if [ "$(cat "$IONCUBE_PIN_FILE" 2> /dev/null)" = "$ver" ]; then
+		ioncube_unlock
+		return 0
+	fi
+	ioncube_fetch_locked "$ver" "$arch" "$sum"
+	local rc=$?
+	ioncube_unlock
+	return "$rc"
+}
+
+# A pin change swaps IONCUBE_DIR (exclusive) while a panel h-add-web-php may be copying a loader out of it
+# (shared). $1 = -x or -s.
+ioncube_lock() {
+	mkdir -p /run/hestia || return 1
+	exec {IONCUBE_LOCK_FD}> /run/hestia/ioncube.lock || return 1
+	flock "$1" -w 300 "$IONCUBE_LOCK_FD" && return 0
+	echo "ERROR: the ionCube lock is held by another run"
+	ioncube_unlock
+	return 1
+}
+
+ioncube_unlock() {
+	exec {IONCUBE_LOCK_FD}>&-
+}
+
+ioncube_fetch_locked() {
+	local ver="$1" arch="$2" sum="$3" name tmp
 	name="ioncube_loaders_lin_${arch}_${ver}.tar.gz"
 	tmp=$(mktemp -d) || return 1
 	# Bounded like fetch_release_asset: wget's defaults cost ~45 minutes on a host that drops SYNs.
@@ -84,9 +113,17 @@ ioncube_ext_dir() {
 # rc 0 enabled, rc 1 failed, rc 3 no loader exists for this version (8.0): the caller says so and goes on.
 ioncube_version_apply() {
 	local v="$1" ext
-	[ -f "$IONCUBE_DIR/ioncube_loader_lin_$v.so" ] || return 3
 	ext=$(ioncube_ext_dir "$v") && [ -d "$ext" ] || return 1
-	install -m 0644 "$IONCUBE_DIR/ioncube_loader_lin_$v.so" "$ext/ioncube.so" || return 1
+	ioncube_lock -s || return 1
+	if [ ! -f "$IONCUBE_DIR/ioncube_loader_lin_$v.so" ]; then
+		ioncube_unlock
+		return 3
+	fi
+	install -m 0644 "$IONCUBE_DIR/ioncube_loader_lin_$v.so" "$ext/ioncube.so" || {
+		ioncube_unlock
+		return 1
+	}
+	ioncube_unlock
 	# JIT cannot run next to the loader's opcode handlers; with a buffer left, 8.4 warns on every FPM (re)load.
 	printf '; priority=10\nzend_extension=ioncube.so\nopcache.jit_buffer_size=0\n' \
 		> "/etc/php/$v/mods-available/ioncube.ini" || return 1
@@ -104,6 +141,8 @@ ioncube_version_remove() {
 	local v="$1" ext
 	[ -f "/etc/php/$v/mods-available/ioncube.ini" ] && phpdismod -v "$v" ioncube
 	rm -f "/etc/php/$v/mods-available/ioncube.ini"
-	ext=$(ioncube_ext_dir "$v") && rm -f "$ext/ioncube.so"
+	ext=$(ioncube_ext_dir "$v") && [ -n "$ext" ] && rm -f "$ext/ioncube.so"
+	# The running master keeps a loaded loader until it restarts.
+	systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || true
 	return 0
 }

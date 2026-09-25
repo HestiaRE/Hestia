@@ -618,6 +618,31 @@ db_is_owned_by_user() {
 	cut -d' ' -f1 "$USER_DATA/db.conf" 2> /dev/null | grep -qxF "DB='$1'"
 }
 
+# db_record_field LINE KEY - one field of a db.conf record, exact: a grep for DBUSER='x' also hits X_DBUSER='x'.
+db_record_field() {
+	[[ " $1" =~ \ $2=\'([^\']*)\' ]] && printf '%s' "${BASH_REMATCH[1]}"
+}
+
+# db_user_in_use DBUSER TYPE HOST [EXCEPT_DB] - does another record of this customer hold DBUSER in a slot?
+# rc 0 in use, 1 free, 2 cannot tell. Callers drop the user only on 1, so a doubt keeps it. EXCEPT_DB must be
+# seen: a file that lacks the caller's own record is not the one it thinks it is reading.
+db_user_in_use() {
+	local u="$1" type="$2" host="$3" except="${4:-}" line seen='' found=''
+	[ -n "$u" ] && [ -r "$USER_DATA/db.conf" ] || return 2
+	while IFS= read -r line || [ -n "$line" ]; do
+		if [ -n "$except" ] && [ "$(db_record_field "$line" DB)" = "$except" ]; then
+			seen=yes
+			continue
+		fi
+		[ "$(db_record_field "$line" TYPE)" = "$type" ] && [ "$(db_record_field "$line" HOST)" = "$host" ] || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$u" ] || [ "$(db_record_field "$line" DBUSER2)" = "$u" ]; then
+			found=yes
+		fi
+	done < "$USER_DATA/db.conf"
+	[ -z "$except" ] || [ -n "$seen" ] || return 2
+	[ -n "$found" ]
+}
+
 # Delete MySQL database
 delete_mysql_database() {
 	local database="${1:-$database}"
@@ -636,7 +661,8 @@ delete_mysql_database() {
 	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@localhost"
 	mysql_query "$query" > /dev/null
 
-	if [ "$(grep "DBUSER='$DBUSER'" $USER_DATA/db.conf | wc -l)" -lt 2 ]; then
+	db_user_in_use "$DBUSER" mysql "$HOST" "$database"
+	if [ $? -eq 1 ]; then
 		query="DROP USER '$DBUSER'@'%'"
 		mysql_query "$query" > /dev/null
 
@@ -663,7 +689,8 @@ delete_pgsql_database() {
 	query="DROP DATABASE $database"
 	psql_query "$query" > /dev/null
 
-	if [ "$(grep "DBUSER='$DBUSER'" $USER_DATA/db.conf | wc -l)" -lt 2 ]; then
+	db_user_in_use "$DBUSER" pgsql "$HOST" "$database"
+	if [ $? -eq 1 ]; then
 		query="REVOKE CONNECT ON DATABASE template1 FROM $DBUSER"
 		psql_query "$query" > /dev/null
 		query="DROP ROLE $DBUSER"
@@ -785,6 +812,10 @@ delete_mysql_user() {
 
 	query="REVOKE ALL ON \`$database\`.* FROM \`$old_dbuser\`@localhost"
 	mysql_query "$query" > /dev/null
+
+	# The rights on this database go either way; the user only when no other database still names it.
+	db_user_in_use "$old_dbuser" mysql "$HOST"
+	[ $? -eq 1 ] || return 0
 
 	query="DROP USER '$old_dbuser'@'%'"
 	mysql_query "$query" > /dev/null

@@ -86,14 +86,14 @@ if [ -n "$dbpass" ]; then
 	update_object_value 'db' 'DB' "$database" '$MD5' "$md5"
 fi
 
-# Remove old user
-check_old_dbuser=$(grep "DBUSER='$old_dbuser'" $USER_DATA/db.conf)
-if [ -z "$check_old_dbuser" ]; then
-	case $TYPE in
-		mysql) delete_mysql_user ;;
-		pgsql) delete_pgsql_user ;;
-	esac
-fi
+# Remove old user. mysql revokes its rights here even when another database keeps the user.
+case $TYPE in
+	mysql) delete_mysql_user ;;
+	pgsql)
+		db_user_in_use "$old_dbuser" pgsql "$HOST"
+		[ $? -ne 1 ] || delete_pgsql_user
+		;;
+esac
 
 #----------------------------------------------------------#
 #                       Hestia                             #

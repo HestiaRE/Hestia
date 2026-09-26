@@ -104,6 +104,15 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Pin marker | `/usr/local/lib/ioncube/hestia-pin` (read by the update entry `ioncube-pin`) |
 | Per version | `<extension_dir>/ioncube.so`, `/etc/php/<v>/mods-available/ioncube.ini` (priority 10) |
 
+### Panel translations (#1160, #1164)
+
+| Item | Path |
+|------|------|
+| Catalogs | `$HESTIA/web/locale/<l>/LC_MESSAGES/hestia.po` + `hestia.mo` (gettext domain `hestia`) |
+| Language list | `$HESTIA/web/locale/languages.json` |
+| Template and tool | `hestia.pot` and `.gitea/tools/i18n.sh`, repository only (export-ignore) |
+| System locale | `/etc/default/locale` (on Debian 13 and Ubuntu a symlink to `/etc/locale.conf`), the admin's; `h-change-sys-locale` writes it |
+
 ### nginx (frontend proxy / webserver)
 
 | Item | Path |

@@ -51,6 +51,11 @@ opens above it.
   that has them keeps them). The CLI no longer blocks `pcntl_*`, so `occ` and the Magento indexers can fork;
   the FPM list is unchanged. phpMyAdmin and Roundcube install without recommends, which put the newest Sury
   version's `cli` and `common` on boxes that run none of it. Update entries bring installed boxes along.
+- **Panel translations have text sources** (#1160). Each language is a `hestia.po` beside its compiled
+  `hestia.mo`, and `.gitea/tools/i18n.sh` derives the template from the code and keeps all three in step;
+  the gettext domain is `hestia` instead of upstream's `hestiacp`. The two upstream helper scripts are gone,
+  their glob never expanded. An update deletes the old catalogs on the box. Three plural strings whose
+  upstream translation printed nothing or lost the number (de, fr, ru) show English until they are translated.
 
 ### Removed
 

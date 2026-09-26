@@ -348,6 +348,86 @@
       "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/zh-tw" },
       "paths": ["/usr/local/hestia/web/locale/zh-tw"],
       "reversible": false
+    },
+    {
+      "id": "locale-old-domain-da",
+      "description": "Delete the 'da' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/da/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/da/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/da/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-de",
+      "description": "Delete the 'de' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/de/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/de/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/de/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-es",
+      "description": "Delete the 'es' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/es/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/es/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/es/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-fr",
+      "description": "Delete the 'fr' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/fr/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/fr/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/fr/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-nl",
+      "description": "Delete the 'nl' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/nl/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/nl/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/nl/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-pt",
+      "description": "Delete the 'pt' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/pt/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/pt/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/pt/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-ru",
+      "description": "Delete the 'ru' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ru/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ru/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/ru/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-template",
+      "description": "Delete the template of the old gettext domain: the catalog sources no longer ship",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hestiacp.pot" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hestiacp.pot" },
+      "paths": ["/usr/local/hestia/web/locale/hestiacp.pot"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-hst-scan-i18n",
+      "description": "Delete hst_scan_i18n.sh: .gitea/tools/i18n.sh replaces it and never ships",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hst_scan_i18n.sh" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hst_scan_i18n.sh" },
+      "paths": ["/usr/local/hestia/web/locale/hst_scan_i18n.sh"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-hst-convert-po2mo",
+      "description": "Delete hst_convert_po2mo.sh: .gitea/tools/i18n.sh replaces it and never ships",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hst_convert_po2mo.sh" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hst_convert_po2mo.sh" },
+      "paths": ["/usr/local/hestia/web/locale/hst_convert_po2mo.sh"],
+      "reversible": false
     }
   ]
 }

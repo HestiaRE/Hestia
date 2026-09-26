@@ -13,3 +13,6 @@ VENDORED.json export-ignore
 .editorconfig export-ignore
 .shellcheckrc export-ignore
 .php-cs-fixer.dist.php export-ignore
+# Catalog sources: the panel reads only the compiled hestia.mo.
+web/locale/*.pot export-ignore
+web/locale/*/LC_MESSAGES/*.po export-ignore

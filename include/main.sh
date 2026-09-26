@@ -1053,6 +1053,48 @@ update_user_value() {
 	fi
 }
 
+# rc 0 offered, 1 not, 2 the list is unusable: an empty reference set must not turn every account to en.
+# Asked of languages.json, not of the catalog directories: an update reads it after the overlay while
+# the catalogs of a dropped language are still on disk (#1160).
+language_offered() {
+	local list="$HESTIA/web/locale/languages.json"
+	[ "$1" = en ] && return 0
+	jq -e 'type == "object" and length > 0' "$list" > /dev/null 2>&1 || return 2
+	[[ "$1" == *_locale ]] && return 1
+	jq -e --arg l "$1" 'has($l)' "$list" > /dev/null 2>&1
+}
+
+# Every non-empty LANGUAGE the panel does not offer, as "<user> <lang>", "-" for the box default.
+# An empty value is left alone: the panel reads it as en already.
+languages_unlisted() {
+	local conf lang
+	language_offered ""
+	[ $? -eq 2 ] && return 2
+	lang=$(grep -m1 "^LANGUAGE=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d "'" -f 2)
+	[ -n "$lang" ] && ! language_offered "$lang" && echo "- $lang"
+	for conf in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$conf" ] || continue
+		lang=$(grep -m1 "^LANGUAGE=" "$conf" | cut -d "'" -f 2)
+		[ -n "$lang" ] && ! language_offered "$lang" && echo "$(basename "$(dirname "$conf")") $lang"
+	done
+	return 0
+}
+
+# Update building block (#1160): moves every account and the box default off a dropped language.
+language_fallback_apply() {
+	local who lang out rc=0
+	out=$(languages_unlisted) || return 1
+	while read -r who lang; do
+		[ -n "$who" ] || continue
+		if [ "$who" = - ]; then
+			$BIN/h-change-sys-language en > /dev/null 2>&1 || rc=1
+		else
+			$BIN/h-change-user-language "$who" en > /dev/null 2>&1 || rc=1
+		fi
+	done <<< "$out"
+	return $rc
+}
+
 # Increase user counter
 increase_user_value() {
 	key="${2//$/}"

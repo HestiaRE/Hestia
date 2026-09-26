@@ -88,6 +88,17 @@ upd_cond_path_exists() {
 	[ -e "$1" ] || [ -L "$1" ]
 }
 
+# True while an account or the box default names a language the panel no longer ships (#1160). Read
+# from languages.json, which the overlay has replaced, so it holds before the dropped catalogs are deleted.
+upd_cond_language_unlisted() {
+	local out
+	out=$(languages_unlisted) || {
+		echo "update: languages.json is unusable - language_unlisted cannot decide" >&2
+		return 2
+	}
+	[ -n "$out" ]
+}
+
 # command_exists NAME
 upd_cond_command_exists() {
 	[ -n "$1" ] || {
@@ -301,7 +312,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
 	cron_locale_apply system_repair_cron_write sieve_redirect_apply sieve_vacation_apply fail2ban_panel_action_apply
 	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply
-	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply)
+	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply language_fallback_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -409,6 +420,9 @@ upd_condition() {
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
 		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending | file_mode_wider)
+			"upd_cond_$t" "$@"
+			;;
+		language_unlisted)
 			"upd_cond_$t" "$@"
 			;;
 		*)

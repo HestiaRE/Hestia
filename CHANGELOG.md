@@ -62,6 +62,9 @@ opens above it.
   shows a literal `&amp;`. The existing German was reviewed as well: wrong meanings fixed (a CSRF policy read
   "CSRF deaktiviert", a firewall rule was "excluded" instead of suspended), and one term each for Domain, Backup,
   sperren, Passwort, Zugangsdaten and Cronjob.
+- **Dutch, French, Spanish, Portuguese, Danish and Russian cover the whole panel as well** (#1160). Their 157 to
+  204 missing strings are filled once, best effort; the plurals that fell back to English (French IP lists, Russian
+  snapshots) are fixed, and French "Banlist" no longer reads "Service".
 
 ### Removed
 
@@ -83,6 +86,10 @@ opens above it.
   are both `a_b_x`. The second one's GRANT reset the password of the first one's user, which lost its access
   while the second customer got into its database. Creating, renaming, moving and restoring a database now
   refuse a user name another customer or the server already has.
+- **An apostrophe in a translation, or a failed restic snapshot, broke the panel's scripts** (#1160). Eight
+  translations and the error message were written into single-quoted JavaScript; a French "l'" or a multi-line
+  restic error ended the string, and the store behind the menus and notices never loaded. They go through
+  `json_encode()` now.
 - **A database restored without a password hash got a user without a password** (#725). The warning said
   nothing could connect, but any local process could log in as that user, another customer's PHP included.
   Such a user now gets a random password nobody knows, and `h-add-database` and `h-change-database-password`

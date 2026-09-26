@@ -236,7 +236,7 @@ msgstr "O Endereço IP foi banido com sucesso."
 
 #: web/add/firewall/exclude/index.php
 msgid "IP address has been added to the whitelist successfully."
-msgstr ""
+msgstr "O endereço IP foi adicionado à lista branca."
 
 #: web/add/firewall/index.php web/edit/firewall/index.php
 #: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
@@ -292,7 +292,7 @@ msgstr "Nome"
 
 #: web/add/firewall/mesh/index.php web/templates/pages/list_firewall_mesh.php
 msgid "CrowdSec Fleet Mesh is not enabled on this server."
-msgstr ""
+msgstr "O CrowdSec Fleet Mesh não está ativo neste servidor."
 
 #: web/add/firewall/mesh/index.php
 #: web/templates/includes/email-settings-panel.php
@@ -306,11 +306,11 @@ msgstr "Nome de Servidor"
 #: web/add/firewall/mesh/index.php web/templates/pages/add_firewall_mesh.php
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Pairing Code"
-msgstr ""
+msgstr "Código de emparelhamento"
 
 #: web/add/firewall/mesh/index.php
 msgid "Peer has been paired successfully."
-msgstr ""
+msgstr "O par foi emparelhado."
 
 #: web/add/ip/index.php web/templates/pages/add_ip.php
 #: web/templates/pages/edit_ip.php
@@ -444,7 +444,7 @@ msgstr "Modelo Backend"
 #: web/add/package/index.php web/edit/package/index.php
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "Backup Mode"
-msgstr ""
+msgstr "Modo de cópia de segurança"
 
 #: web/add/package/index.php web/edit/package/index.php
 #: web/templates/includes/panel.php web/templates/pages/add_package.php
@@ -610,7 +610,7 @@ msgstr "O domínio {%s} foi criado com sucesso."
 
 #: web/add/web/index.php web/templates/pages/edit_web.php
 msgid "IPv6 Address"
-msgstr ""
+msgstr "Endereço IPv6"
 
 #: web/bulk/backup/incremental/index.php web/bulk/restore/index.php
 #: web/download/backup/index.php web/schedule/backup/index.php
@@ -655,7 +655,7 @@ msgstr "O Descarregamento do arquivo de cópia de segurança remoto foi agendado
 
 #: web/download/backup/index.php
 msgid "You are not allowed to access this backup."
-msgstr ""
+msgstr "Não tem acesso a esta cópia de segurança."
 
 #: web/edit/backup/exclusions/index.php web/edit/cron/index.php
 #: web/edit/db/index.php web/edit/firewall/index.php web/edit/ip/index.php
@@ -674,25 +674,25 @@ msgstr "As alterações foram guardadas."
 
 #: web/edit/mail/index.php
 msgid "Invalid spam mark threshold."
-msgstr ""
+msgstr "Limiar de marcação de spam inválido."
 
 #: web/edit/mail/index.php
 msgid "Invalid spam reject threshold."
-msgstr ""
+msgstr "Limiar de rejeição de spam inválido."
 
 #: web/edit/mail/index.php
 msgid "Invalid spam subject tag."
-msgstr ""
+msgstr "Etiqueta de assunto de spam inválida."
 
 #: web/edit/mail/index.php
 #, php-format
 msgid "Spam mark threshold must be between %s and %s."
-msgstr ""
+msgstr "O limiar de marcação de spam tem de estar entre %s e %s."
 
 #: web/edit/mail/index.php
 #, php-format
 msgid "Spam reject threshold must be between %s and %s."
-msgstr ""
+msgstr "O limiar de rejeição de spam tem de estar entre %s e %s."
 
 #: web/edit/server/cron/index.php web/edit/server/crond/index.php
 msgid "Info (read-only mode): Crontab can only be edited via SSH."
@@ -708,17 +708,17 @@ msgstr "O Tempo limite de sessão inativa não pode ser inferior a 1 minuto."
 
 #: web/edit/server/index.php
 msgid "Repository can not be empty"
-msgstr ""
+msgstr "O repositório não pode estar vazio"
 
 #: web/edit/user/index.php
 #, php-format
 msgid "Disabling Docker deletes the containers, images and volumes of %s. Confirm by typing the user name."
-msgstr ""
+msgstr "Desativar o Docker apaga os contentores, imagens e volumes de %s. Confirme escrevendo o nome de utilizador."
 
 #: web/edit/user/index.php
 #, php-format
 msgid "Not an IP address or network: %s"
-msgstr ""
+msgstr "Não é um endereço IP nem uma rede: %s"
 
 #: web/edit/user/index.php
 msgid "Please enter a valid contact name."
@@ -726,15 +726,15 @@ msgstr "Por favor, insira um nome de contacto válido."
 
 #: web/edit/web/index.php
 msgid "Container address must end in a number between 1 and 254."
-msgstr ""
+msgstr "O endereço do contentor tem de terminar num número entre 1 e 254."
 
 #: web/edit/web/index.php
 msgid "Container port must be a number between 1024 and 65535."
-msgstr ""
+msgstr "A porta do contentor tem de ser um número entre 1024 e 65535."
 
 #: web/edit/web/index.php
 msgid "Deletion was not confirmed."
-msgstr ""
+msgstr "A eliminação não foi confirmada."
 
 #: web/edit/web/index.php
 #, php-format
@@ -767,11 +767,11 @@ msgstr ""
 
 #: web/edit/web/index.php
 msgid "Only an administrator can select this template."
-msgstr ""
+msgstr "Apenas um administrador pode escolher este modelo."
 
 #: web/edit/web/index.php
 msgid "WordPress has been deleted."
-msgstr ""
+msgstr "O WordPress foi apagado."
 
 #: web/generate/ssl/index.php
 msgid "Certificate has been generated successfully."
@@ -827,7 +827,7 @@ msgstr[1] "%d minutos"
 #: web/inc/main.php
 #, php-format
 msgid "%d of %d failed: %s"
-msgstr ""
+msgstr "%d de %d falharam: %s"
 
 #: web/inc/main.php
 msgid "You are logged out, please log in again."
@@ -840,15 +840,15 @@ msgstr "Diretório"
 
 #: web/list/backup/incremental/index.php
 msgid "File"
-msgstr ""
+msgstr "Ficheiro"
 
 #: web/list/backup/incremental/index.php
 msgid "Symlink"
-msgstr ""
+msgstr "Ligação simbólica"
 
 #: web/list/backup/incremental/index.php
 msgid "Unknown"
-msgstr ""
+msgstr "Desconhecido"
 
 #: web/login/index.php
 msgid "Account has been suspended"
@@ -930,7 +930,7 @@ msgstr "Reinicio de \"%s\" falhou"
 
 #: web/schedule/backup/incremental/index.php
 msgid "Snapshot has been scheduled"
-msgstr ""
+msgstr "O snapshot foi agendado"
 
 #: web/schedule/backup/index.php
 msgid "An existing backup task is already running, please wait for it to complete."
@@ -942,7 +942,7 @@ msgstr "A Tarefa foi adicionada à fila. Irá receber uma notificação por e-ma
 
 #: web/sso/phpmyadmin/index.php
 msgid "Unable to open phpMyAdmin session"
-msgstr ""
+msgstr "Não foi possível abrir a sessão do phpMyAdmin"
 
 #: web/start/service/index.php
 #, php-format
@@ -1024,7 +1024,7 @@ msgstr "Não salvar formulário"
 
 #: web/templates/header.php
 msgid "Your browser version is not supported. Please update your browser to use the control panel."
-msgstr ""
+msgstr "A versão do seu navegador não é suportada. Atualize o navegador para usar o painel de controlo."
 
 #: web/templates/includes/email-settings-panel.php
 msgid "Authentication"
@@ -1036,11 +1036,11 @@ msgstr "Configurações comuns da conta"
 
 #: web/templates/includes/email-settings-panel.php
 msgid "Connect to this account using credentials:"
-msgstr ""
+msgstr "Ligue-se a esta conta com as credenciais:"
 
 #: web/templates/includes/email-settings-panel.php
 msgid "Copy to clipboard"
-msgstr ""
+msgstr "Copiar para a área de transferência"
 
 #: web/templates/includes/email-settings-panel.php
 msgid "IMAP Settings"
@@ -1237,11 +1237,11 @@ msgstr "e os caracteres devem ter 1 maiúsculo e 1 minúsculo"
 
 #: web/templates/includes/password-requirements.php
 msgid "8 characters minimum"
-msgstr ""
+msgstr "mínimo de 8 caracteres"
 
 #: web/templates/includes/password-requirements.php
 msgid "Password must include"
-msgstr ""
+msgstr "A senha tem de incluir"
 
 #: web/templates/pages/add_cron.php web/templates/pages/list_cron.php
 msgid "Add Cron Job"
@@ -1467,7 +1467,7 @@ msgstr "Domingo"
 
 #: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
 msgid "System time"
-msgstr ""
+msgstr "Hora do sistema"
 
 #: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
 msgid "Thursday"
@@ -1602,7 +1602,7 @@ msgstr "HestiaCP"
 
 #: web/templates/pages/add_firewall_banlist.php
 msgid "RECIDIVE"
-msgstr ""
+msgstr "RECIDIVE"
 
 #: web/templates/pages/add_firewall_banlist.php
 msgid "SSH"
@@ -1610,15 +1610,15 @@ msgstr "SSH"
 
 #: web/templates/pages/add_firewall_banlist.php
 msgid "WEBSCAN"
-msgstr ""
+msgstr "WEBSCAN"
 
 #: web/templates/pages/add_firewall_exclude.php
 msgid "Add IP Address to Whitelist"
-msgstr ""
+msgstr "Adicionar endereço IP à lista branca"
 
 #: web/templates/pages/add_firewall_exclude.php
 msgid "The address is exempted from every ban and removed from the ban list if it is currently banned. It is also mirrored into fail2ban, so its jails stop counting the address entirely."
-msgstr ""
+msgstr "O endereço fica isento de qualquer bloqueio e é retirado da lista negra se estiver bloqueado. É também passado ao fail2ban, cujas jails deixam de o contar por completo."
 
 #: web/templates/pages/add_firewall_ipset.php
 msgid "Add IPset IP List for Firewall"
@@ -1636,7 +1636,7 @@ msgstr "Não"
 
 #: web/templates/pages/add_firewall_ipset.php
 msgid "URL, script or file"
-msgstr ""
+msgstr "URL, script ou ficheiro"
 
 #: web/templates/pages/add_firewall_ipset.php
 #: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
@@ -1645,23 +1645,23 @@ msgstr "Sim"
 
 #: web/templates/pages/add_firewall_ipset.php
 msgid "level"
-msgstr ""
+msgstr "nível"
 
 #: web/templates/pages/add_firewall_mesh.php
 msgid "Get a pairing code from the other server's Fleet Mesh page. Both servers then share their web bans and open their panel port to each other only."
-msgstr ""
+msgstr "Obtenha um código de emparelhamento na página Fleet Mesh do outro servidor. Depois, ambos os servidores partilham os bloqueios web e abrem a porta do painel apenas um ao outro."
 
 #: web/templates/pages/add_firewall_mesh.php
 msgid "Join a Mesh Peer"
-msgstr ""
+msgstr "Emparelhar com um par do mesh"
 
 #: web/templates/pages/add_firewall_mesh.php
 msgid "Pair"
-msgstr ""
+msgstr "Emparelhar"
 
 #: web/templates/pages/add_firewall_mesh.php
 msgid "Panel Port"
-msgstr ""
+msgstr "Porta do painel"
 
 #: web/templates/pages/add_ip.php web/templates/pages/list_firewall_exclude.php
 #: web/templates/pages/list_ip.php
@@ -1674,7 +1674,7 @@ msgstr "Domínio Atribuído"
 
 #: web/templates/pages/add_ip.php
 msgid "IPv4 netmask or IPv6 prefix length"
-msgstr ""
+msgstr "Máscara IPv4 ou comprimento de prefixo IPv6"
 
 #: web/templates/pages/add_ip.php web/templates/pages/edit_ip.php
 msgid "NAT IP Association"
@@ -1778,19 +1778,19 @@ msgstr "Adicionar Pacote"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "Caps the customer's Docker companion: the daemon and all of their containers together. Percentages are of the host: 100% CPU is one core."
-msgstr ""
+msgstr "Limita o companheiro Docker do cliente: o daemon e todos os seus contentores em conjunto. As percentagens referem-se ao anfitrião: 100% de CPU é um núcleo."
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "DOCKER"
-msgstr ""
+msgstr "DOCKER"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "Differential"
-msgstr ""
+msgstr "Diferencial"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "Full"
-msgstr ""
+msgstr "Completa"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "Package Name"
@@ -1798,7 +1798,7 @@ msgstr "Nome do Pacote"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "Resource cap"
-msgstr ""
+msgstr "Limite de recursos"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 #: web/templates/pages/edit_user.php web/templates/pages/list_packages.php
@@ -1821,7 +1821,7 @@ msgstr "por domínio"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "restic (addon)"
-msgstr ""
+msgstr "restic (extra)"
 
 #: web/templates/pages/add_user.php web/templates/pages/edit_user.php
 msgid "Administrator"
@@ -1857,7 +1857,7 @@ msgstr "Suporte a Email"
 
 #: web/templates/pages/add_web.php
 msgid "Share: other accounts on this server may add subdomains of this domain (web and mail)"
-msgstr ""
+msgstr "Partilhar: outras contas deste servidor podem adicionar subdomínios deste domínio (web e email)"
 
 #: web/templates/pages/add_web.php
 msgid "a web domain"
@@ -1878,7 +1878,7 @@ msgstr "Editar Exclusões de Cópia de Segurança"
 
 #: web/templates/pages/edit_backup_exclusions.php
 msgid "Only * is honoured here: all cron jobs, or none. Single jobs cannot be excluded."
-msgstr ""
+msgstr "Aqui só * é considerado: todas as tarefas cron ou nenhuma. Não é possível excluir tarefas individuais."
 
 #: web/templates/pages/edit_backup_exclusions.php
 msgid "Type directory name, one per line. To exclude all dirs use *"
@@ -1938,7 +1938,7 @@ msgstr "Editar endereço IP"
 #: web/templates/pages/edit_mail.php
 #, php-format
 msgid "Allowed range: %s to %s."
-msgstr ""
+msgstr "Intervalo permitido: %s a %s."
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php
@@ -1947,7 +1947,7 @@ msgstr "Alternar"
 
 #: web/templates/pages/edit_mail.php
 msgid "Always treated as spam; rejected while Reject Spam is enabled. Same format as the whitelist, which wins on conflict."
-msgstr ""
+msgstr "Sempre tratado como spam; rejeitado enquanto Rejeitar Spam estiver ativo. Mesmo formato da lista branca, que prevalece em caso de conflito."
 
 #: web/templates/pages/edit_mail.php
 msgid "Catch-All Email"
@@ -1955,7 +1955,7 @@ msgstr "E-mail captura-tudo"
 
 #: web/templates/pages/edit_mail.php
 msgid "Custom threshold"
-msgstr ""
+msgstr "Limiar personalizado"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/list_mail.php
 #: web/templates/pages/list_mail_acc.php
@@ -1968,7 +1968,7 @@ msgstr "Ativar SSL para este domínio"
 
 #: web/templates/pages/edit_mail.php
 msgid "Excluded Recipient Domains"
-msgstr ""
+msgstr "Domínios de destinatário excluídos"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php web/templates/pages/generate_ssl.php
@@ -1993,19 +1993,19 @@ msgstr "Tamanho da chave"
 
 #: web/templates/pages/edit_mail.php
 msgid "Mail scoring above the threshold is marked as spam; lower means stricter."
-msgstr ""
+msgstr "O email com pontuação acima do limiar é marcado como spam; mais baixo é mais rigoroso."
 
 #: web/templates/pages/edit_mail.php
 msgid "Mark Threshold"
-msgstr ""
+msgstr "Limiar de marcação"
 
 #: web/templates/pages/edit_mail.php
 msgid "Never treated as spam. One sender per line: user@example.com, *@example.com, example.com or *.example.com."
-msgstr ""
+msgstr "Nunca tratado como spam. Um remetente por linha: user@example.com, *@example.com, example.com ou *.example.com."
 
 #: web/templates/pages/edit_mail.php
 msgid "Normal"
-msgstr ""
+msgstr "Normal"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php
@@ -2019,19 +2019,19 @@ msgstr "Não antes"
 
 #: web/templates/pages/edit_mail.php
 msgid "One recipient domain per line, wildcards like *.example.com allowed. Delivered directly instead of via the relay; requires valid SPF and DKIM for this server."
-msgstr ""
+msgstr "Um domínio de destinatário por linha, são permitidos curingas como *.example.com. Entregue diretamente em vez de através do relay; requer SPF e DKIM válidos para este servidor."
 
 #: web/templates/pages/edit_mail.php
 msgid "Only applies while Reject Spam is enabled. Empty = server default."
-msgstr ""
+msgstr "Só se aplica enquanto Rejeitar Spam estiver ativo. Vazio = predefinição do servidor."
 
 #: web/templates/pages/edit_mail.php
 msgid "Prepended to the subject of mail classified as spam."
-msgstr ""
+msgstr "Acrescentado ao início do assunto do email classificado como spam."
 
 #: web/templates/pages/edit_mail.php
 msgid "Reject Threshold"
-msgstr ""
+msgstr "Limiar de rejeição"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php web/templates/pages/list_ssl.php
@@ -2049,15 +2049,15 @@ msgstr "Chave Privada SSL"
 
 #: web/templates/pages/edit_mail.php
 msgid "Sender Blacklist"
-msgstr ""
+msgstr "Lista negra de remetentes"
 
 #: web/templates/pages/edit_mail.php
 msgid "Sender Whitelist"
-msgstr ""
+msgstr "Lista branca de remetentes"
 
 #: web/templates/pages/edit_mail.php
 msgid "Server default"
-msgstr ""
+msgstr "Predefinição do servidor"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php
@@ -2066,11 +2066,11 @@ msgstr "Assinatura"
 
 #: web/templates/pages/edit_mail.php
 msgid "Spam Filter Sensitivity"
-msgstr ""
+msgstr "Sensibilidade do filtro de spam"
 
 #: web/templates/pages/edit_mail.php
 msgid "Spam Subject Tag"
-msgstr ""
+msgstr "Etiqueta de assunto de spam"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php
@@ -2084,7 +2084,7 @@ msgstr "Para ativar Let's Encrypt SSL, confirme que existem registos DNS para ma
 
 #: web/templates/pages/edit_mail.php
 msgid "Tolerant"
-msgstr ""
+msgstr "Tolerante"
 
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_web.php
 msgid "Use Let's Encrypt to obtain SSL certificate"
@@ -2108,11 +2108,11 @@ msgstr "Mensagem"
 
 #: web/templates/pages/edit_mail_acc.php
 msgid "Shared with the vacation filter in the webmail."
-msgstr ""
+msgstr "Partilhado com o filtro de ausência do webmail."
 
 #: web/templates/pages/edit_mail_acc.php
 msgid "The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, or several vacation rules). Change it in the webmail."
-msgstr ""
+msgstr "A resposta automática desta caixa está num script Sieve que o painel não gere (um script próprio ou várias regras de ausência). Altere-a no webmail."
 
 #: web/templates/pages/edit_mail_acc.php
 msgid "one or more email addresses"
@@ -2120,7 +2120,7 @@ msgstr "um ou mais endereços de email"
 
 #: web/templates/pages/edit_package.php web/templates/pages/edit_user.php
 msgid "(current)"
-msgstr ""
+msgstr "(atual)"
 
 #: web/templates/pages/edit_package.php web/templates/pages/list_packages.php
 #: web/templates/pages/list_user.php
@@ -2130,11 +2130,11 @@ msgstr "Editar pacote"
 #: web/templates/pages/edit_server.php web/templates/pages/edit_web.php
 #, php-format
 msgid "%d active"
-msgstr ""
+msgstr "%d ativos"
 
 #: web/templates/pages/edit_server.php
 msgid "Advanced (config file only)"
-msgstr ""
+msgstr "Avançado (apenas ficheiro de configuração)"
 
 #: web/templates/pages/edit_server.php
 msgid "Allow suspended users to create new backups"
@@ -2175,15 +2175,15 @@ msgstr "Opções Básicas"
 #: web/templates/pages/edit_server.php web/templates/pages/edit_web.php
 #: web/templates/pages/list_services.php
 msgid "Bot Rate Limiting"
-msgstr ""
+msgstr "Limitação de bots"
 
 #: web/templates/pages/edit_server.php
 msgid "Bots are matched by User-Agent family and throttled to the rate below (HTTP 429); humans never are, malicious traffic is CrowdSec's job. Nothing is throttled until a domain opts in."
-msgstr ""
+msgstr "Os bots são reconhecidos pela família de User-Agent e limitados à taxa abaixo (HTTP 429); pessoas nunca, o tráfego malicioso é tarefa do CrowdSec. Nada é limitado até um domínio o ativar."
 
 #: web/templates/pages/edit_server.php
 msgid "Brute-force protection (Fail2Ban)"
-msgstr ""
+msgstr "Proteção contra força bruta (Fail2Ban)"
 
 #: web/templates/pages/edit_server.php
 msgid "Compression"
@@ -2218,7 +2218,7 @@ msgstr "Idioma padrão"
 
 #: web/templates/pages/edit_server.php
 msgid "Disabling or removing a family also stops it being applied to any domain that used it."
-msgstr ""
+msgstr "Uma família desativada ou removida deixa também de se aplicar aos domínios que a usavam."
 
 #: web/templates/pages/edit_server.php
 msgid "Do not allow other administrators to access Server Settings"
@@ -2230,7 +2230,7 @@ msgstr "Ativar modo de depuração"
 
 #: web/templates/pages/edit_server.php
 msgid "Enable incremental backup"
-msgstr ""
+msgstr "Ativar cópia de segurança incremental"
 
 #: web/templates/pages/edit_server.php
 msgid "Enable preview features"
@@ -2249,7 +2249,7 @@ msgstr "Versões do PHP Ativas"
 
 #: web/templates/pages/edit_server.php
 msgid "Family"
-msgstr ""
+msgstr "Família"
 
 #: web/templates/pages/edit_server.php web/templates/pages/list_services.php
 msgid "Firewall"
@@ -2265,7 +2265,7 @@ msgstr "Ocultar conta de outros administradores"
 
 #: web/templates/pages/edit_server.php
 msgid "Host is the name of an rclone remote configured as root (rclone config)."
-msgstr ""
+msgstr "Anfitrião é o nome de um remote do rclone configurado como root (rclone config)."
 
 #: web/templates/pages/edit_server.php
 msgid "Inactive session timeout"
@@ -2273,7 +2273,7 @@ msgstr "Tempo limite de sessão expirado"
 
 #: web/templates/pages/edit_server.php
 msgid "Incremental Backups"
-msgstr ""
+msgstr "Cópias de segurança incrementais"
 
 #: web/templates/pages/edit_server.php
 msgid "It may take a few minutes to save your changes. Please wait until the process has completed and do not refresh the page."
@@ -2281,23 +2281,23 @@ msgstr "Pode demorar alguns minutos para salvar as suas alterações. Por favor,
 
 #: web/templates/pages/edit_server.php
 msgid "Keep last daily backups"
-msgstr ""
+msgstr "Manter as últimas cópias de segurança diárias"
 
 #: web/templates/pages/edit_server.php
 msgid "Keep last monthly backups"
-msgstr ""
+msgstr "Manter as últimas cópias de segurança mensais"
 
 #: web/templates/pages/edit_server.php
 msgid "Keep last weekly backups"
-msgstr ""
+msgstr "Manter as últimas cópias de segurança semanais"
 
 #: web/templates/pages/edit_server.php
 msgid "Keep last yearly backups"
-msgstr ""
+msgstr "Manter as últimas cópias de segurança anuais"
 
 #: web/templates/pages/edit_server.php web/templates/pages/edit_web.php
 msgid "Lenient"
-msgstr ""
+msgstr "Permissivo"
 
 #: web/templates/pages/edit_server.php
 msgid "Local Backup"
@@ -2318,7 +2318,7 @@ msgstr "Servidor de Email"
 
 #: web/templates/pages/edit_server.php
 msgid "Mail is installed: without Fail2Ban, mail brute force goes undetected (CrowdSec does not cover mail)."
-msgstr ""
+msgstr "O email está instalado: sem Fail2Ban, os ataques de força bruta ao email passam despercebidos (o CrowdSec não cobre o email)."
 
 #: web/templates/pages/edit_server.php
 msgid "Maximum Number of Databases"
@@ -2382,7 +2382,7 @@ msgstr "Cópia de segurança remota"
 
 #: web/templates/pages/edit_server.php
 msgid "Repository"
-msgstr ""
+msgstr "Repositório"
 
 #: web/templates/pages/edit_server.php
 msgid "Restrict access to read-only for other administrators"
@@ -2390,7 +2390,7 @@ msgstr "Restringir o acesso somente a leitura para outros administradores"
 
 #: web/templates/pages/edit_server.php
 msgid "Retained sets on this target"
-msgstr ""
+msgstr "Cópias de segurança mantidas neste destino"
 
 #: web/templates/pages/edit_server.php web/templates/pages/list_mail.php
 #: web/templates/pages/list_web.php
@@ -2420,7 +2420,7 @@ msgstr "Definir tema selecionado para todos os utilizadores"
 #: web/templates/pages/edit_server.php web/templates/pages/list_backup.php
 #: web/templates/pages/list_backup_incremental.php
 msgid "Snapshots"
-msgstr ""
+msgstr "Snapshots"
 
 #: web/templates/pages/edit_server.php
 msgid "Sync Error document templates on user rebuild"
@@ -2456,7 +2456,7 @@ msgstr "Atualizações"
 
 #: web/templates/pages/edit_server.php
 msgid "User-Agent Match"
-msgstr ""
+msgstr "Padrão de User-Agent"
 
 #: web/templates/pages/edit_server.php
 msgid "Version"
@@ -2480,15 +2480,15 @@ msgstr "Mudança de Marca"
 
 #: web/templates/pages/edit_server.php
 msgid "empty = follow the package limit"
-msgstr ""
+msgstr "vazio = seguir o limite do pacote"
 
 #: web/templates/pages/edit_server.php
 msgid "empty to remove"
-msgstr ""
+msgstr "vazio para remover"
 
 #: web/templates/pages/edit_server.php
 msgid "no"
-msgstr ""
+msgstr "não"
 
 #: web/templates/pages/edit_server.php
 msgid "phpMyAdmin Alias"
@@ -2500,15 +2500,15 @@ msgstr "PHPMyAdmin Autenticação Simples"
 
 #: web/templates/pages/edit_server.php
 msgid "tokens separated by |"
-msgstr ""
+msgstr "termos separados por |"
 
 #: web/templates/pages/edit_server.php
 msgid "unused slot"
-msgstr ""
+msgstr "posição livre"
 
 #: web/templates/pages/edit_server.php
 msgid "yes"
-msgstr ""
+msgstr "sim"
 
 #: web/templates/pages/edit_server.php
 msgid "zstd only"
@@ -2540,7 +2540,7 @@ msgstr "Opções Avançadas"
 
 #: web/templates/pages/edit_server_php.php web/templates/pages/edit_web.php
 msgid "PHP Version"
-msgstr ""
+msgstr "Versão do PHP"
 
 #: web/templates/pages/edit_user.php
 msgid "2FA QR Code"
@@ -2570,7 +2570,7 @@ msgstr "Ordem de Classificação padrão da lista"
 #: web/templates/pages/edit_user.php
 #, php-format
 msgid "Disable Docker for %s?"
-msgstr ""
+msgstr "Desativar o Docker para %s?"
 
 #: web/templates/pages/edit_user.php web/templates/pages/list_user.php
 msgid "Edit User"
@@ -2578,11 +2578,11 @@ msgstr "Editar Utilizador"
 
 #: web/templates/pages/edit_user.php
 msgid "Enable Docker"
-msgstr ""
+msgstr "Ativar o Docker"
 
 #: web/templates/pages/edit_user.php
 msgid "Enable File Manager"
-msgstr ""
+msgstr "Ativar o gestor de ficheiros"
 
 #: web/templates/pages/edit_user.php
 msgid "Enable two-factor authentication"
@@ -2594,7 +2594,7 @@ msgstr "Por Exemplo"
 
 #: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
 msgid "Hide Advanced Options"
-msgstr ""
+msgstr "Ocultar opções avançadas"
 
 #: web/templates/pages/edit_user.php
 msgid "Manage SSH Keys"
@@ -2610,12 +2610,12 @@ msgstr "Por favor, digitalize o código abaixo no seu aplicativo 2FA"
 
 #: web/templates/pages/edit_user.php
 msgid "This removes the companion account and deletes every container, image and volume of this customer. Turning Docker back on later creates an empty companion; nothing comes back. Their docker domains revert to normal vhosts."
-msgstr ""
+msgstr "Isto remove a conta companheira e apaga todos os contentores, imagens e volumes deste cliente. Reativar o Docker mais tarde cria um companheiro vazio; nada é recuperado. Os domínios Docker voltam a ser vhosts normais."
 
 #: web/templates/pages/edit_user.php
 #, php-format
 msgid "Type %s to confirm."
-msgstr ""
+msgstr "Escreva %s para confirmar."
 
 #: web/templates/pages/edit_user.php
 msgid "Use IP address allow list for login attempts"
@@ -2623,7 +2623,7 @@ msgstr "Use a lista de permissões de endereços IP para tentativas de login "
 
 #: web/templates/pages/edit_user.php
 msgid "turning this off removes the containers and their volumes"
-msgstr ""
+msgstr "desativar remove os contentores e os respetivos volumes"
 
 #: web/templates/pages/edit_web.php
 msgid "Add FTP account"
@@ -2635,7 +2635,7 @@ msgstr "Conta(s) adicionais de FTP"
 
 #: web/templates/pages/edit_web.php
 msgid "Admin login"
-msgstr ""
+msgstr "Acesso de administrador"
 
 #: web/templates/pages/edit_web.php
 msgid "Cache Duration"
@@ -2643,7 +2643,7 @@ msgstr "Duração de cache"
 
 #: web/templates/pages/edit_web.php
 msgid "Container address and port"
-msgstr ""
+msgstr "Endereço e porta do contentor"
 
 #: web/templates/pages/edit_web.php
 msgid "Custom document root"
@@ -2665,27 +2665,27 @@ msgstr "Apagar"
 
 #: web/templates/pages/edit_web.php
 msgid "Delete installation"
-msgstr ""
+msgstr "Apagar instalação"
 
 #: web/templates/pages/edit_web.php
 msgid "Delete the WordPress installation?"
-msgstr ""
+msgstr "Apagar a instalação do WordPress?"
 
 #: web/templates/pages/edit_web.php
 msgid "Detach"
-msgstr ""
+msgstr "Desassociar"
 
 #: web/templates/pages/edit_web.php
 msgid "Detach WordPress?"
-msgstr ""
+msgstr "Desassociar o WordPress?"
 
 #: web/templates/pages/edit_web.php
 msgid "Docker Proxy"
-msgstr ""
+msgstr "Proxy Docker"
 
 #: web/templates/pages/edit_web.php
 msgid "Docker Template"
-msgstr ""
+msgstr "Modelo Docker"
 
 #: web/templates/pages/edit_web.php
 msgid "Edit Web Domain"
@@ -2701,7 +2701,7 @@ msgstr "Ativar HTTP Strict Transport Security (HSTS)"
 
 #: web/templates/pages/edit_web.php
 msgid "Enable HTTP/3 (QUIC)"
-msgstr ""
+msgstr "Ativar HTTP/3 (QUIC)"
 
 #: web/templates/pages/edit_web.php
 msgid "Enable automatic HTTPS redirection"
@@ -2713,11 +2713,11 @@ msgstr "Ativar redirecionamento de domínio"
 
 #: web/templates/pages/edit_web.php
 msgid "Enable proxy cache"
-msgstr ""
+msgstr "Ativar a cache do proxy"
 
 #: web/templates/pages/edit_web.php
 msgid "Files and database are removed for good. Type the domain name to confirm."
-msgstr ""
+msgstr "Os ficheiros e a base de dados são apagados definitivamente. Escreva o nome de domínio para confirmar."
 
 #: web/templates/pages/edit_web.php
 msgid "Hide Certificate"
@@ -2729,15 +2729,15 @@ msgstr "Se os alias web mudarem, o Let's Encrypt obterá um novo certificado SSL
 
 #: web/templates/pages/edit_web.php
 msgid "None (no PHP)"
-msgstr ""
+msgstr "Nenhum (sem PHP)"
 
 #: web/templates/pages/edit_web.php
 msgid "Off"
-msgstr ""
+msgstr "Desligado"
 
 #: web/templates/pages/edit_web.php
 msgid "PHP Pool Size"
-msgstr ""
+msgstr "Tamanho do pool PHP"
 
 #: web/templates/pages/edit_web.php
 msgid "Path"
@@ -2780,7 +2780,7 @@ msgstr "Enviar credenciais do FTP via email"
 #: web/templates/pages/edit_web.php
 #, php-format
 msgid "Share: other accounts on this server may add subdomains of %s (web and mail)"
-msgstr ""
+msgstr "Partilhar: outras contas deste servidor podem adicionar subdomínios de %s (web e email)"
 
 #: web/templates/pages/edit_web.php
 msgid "Show Certificate"
@@ -2796,7 +2796,7 @@ msgstr "Código de estado"
 
 #: web/templates/pages/edit_web.php
 msgid "Take website temporarily offline (visitors see a maintenance page, HTTP 503)"
-msgstr ""
+msgstr "Colocar o site temporariamente offline (os visitantes veem uma página de manutenção, HTTP 503)"
 
 #: web/templates/pages/edit_web.php
 msgid "Target domain or URL"
@@ -2804,15 +2804,15 @@ msgstr "Domínio alvo ou URL"
 
 #: web/templates/pages/edit_web.php
 msgid "The site keeps running and its files and database stay untouched; only the panel stops managing it. Re-enabling later is not possible while the document root is in use."
-msgstr ""
+msgstr "O site continua a funcionar e os ficheiros e a base de dados ficam intactos; apenas o painel deixa de o gerir. Não é possível reativar mais tarde enquanto a raiz do documento estiver em uso."
 
 #: web/templates/pages/edit_web.php
 msgid "Throttle crawlers by family (HTTP 429). Humans are never limited, and malicious traffic is CrowdSec's job. Rates come from the server-wide family table."
-msgstr ""
+msgstr "Limitar os rastreadores por família (HTTP 429). Pessoas nunca são limitadas, o tráfego malicioso é tarefa do CrowdSec. As taxas vêm da tabela de famílias do servidor."
 
 #: web/templates/pages/edit_web.php
 msgid "Update WordPress"
-msgstr ""
+msgstr "Atualizar o WordPress"
 
 #: web/templates/pages/edit_web.php
 msgid "Web Statistics"
@@ -2820,11 +2820,11 @@ msgstr "Estatísticas Web"
 
 #: web/templates/pages/edit_web.php
 msgid "WordPress"
-msgstr ""
+msgstr "WordPress"
 
 #: web/templates/pages/edit_web.php
 msgid "off"
-msgstr ""
+msgstr "desligado"
 
 #: web/templates/pages/edit_whitelabel.php
 msgid "Application Name"
@@ -2900,7 +2900,7 @@ msgstr[1] "%d cópias de segurança"
 
 #: web/templates/pages/list_backup.php
 msgid "(no local copy)"
-msgstr ""
+msgstr "(sem cópia local)"
 
 #: web/templates/pages/list_backup.php
 #: web/templates/pages/list_backup_detail.php
@@ -2932,7 +2932,7 @@ msgstr "Exclusões de Backup"
 #: web/templates/pages/list_backup.php
 #, php-format
 msgid "Base: %s"
-msgstr ""
+msgstr "Base: %s"
 
 #: web/templates/pages/list_backup.php
 msgid "Create Backup"
@@ -2949,7 +2949,7 @@ msgstr "Nome do ficheiro"
 
 #: web/templates/pages/list_backup.php
 msgid "Kept until deleted; retention does not rotate exports"
-msgstr ""
+msgstr "Mantidas até serem apagadas; a retenção não roda as exportações"
 
 #: web/templates/pages/list_backup.php
 #: web/templates/pages/list_backup_detail.php
@@ -3013,11 +3013,11 @@ msgstr "Tamanho"
 
 #: web/templates/pages/list_backup.php
 msgid "differential"
-msgstr ""
+msgstr "diferencial"
 
 #: web/templates/pages/list_backup.php
 msgid "export"
-msgstr ""
+msgstr "exportação"
 
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php
@@ -3031,11 +3031,11 @@ msgstr[1] "%d itens"
 #: web/templates/pages/list_backup_detail.php
 #, php-format
 msgid "Are you sure you want to restore %s?"
-msgstr ""
+msgstr "Tem a certeza que quer restaurar %s?"
 
 #: web/templates/pages/list_backup_detail.php
 msgid "Are you sure you want to restore cron jobs?"
-msgstr ""
+msgstr "Tem a certeza que quer restaurar as tarefas cron?"
 
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php
@@ -3050,7 +3050,7 @@ msgstr "Detalhes"
 #: web/templates/pages/list_backup_detail.php
 #, php-format
 msgid "Fall back to PHP %s"
-msgstr ""
+msgstr "Recorrer ao PHP %s"
 
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php
@@ -3069,11 +3069,11 @@ msgstr "Dominio Web"
 
 #: web/templates/pages/list_backup_detail_incremental.php
 msgid "Cronjob"
-msgstr ""
+msgstr "Tarefa cron"
 
 #: web/templates/pages/list_backup_detail_incremental.php
 msgid "Restore Snapshot"
-msgstr ""
+msgstr "Restaurar snapshot"
 
 #: web/templates/pages/list_backup_exclusions.php
 msgid "No exclusions"
@@ -3087,24 +3087,24 @@ msgstr "Valor"
 #, php-format
 msgid "%d snapshot"
 msgid_plural "%d snapshots"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d snapshot"
+msgstr[1] "%d snapshots"
 
 #: web/templates/pages/list_backup_incremental.php
 msgid "Archives & Exports"
-msgstr ""
+msgstr "Arquivos e exportações"
 
 #: web/templates/pages/list_backup_incremental.php
 msgid "Browse"
-msgstr ""
+msgstr "Procurar"
 
 #: web/templates/pages/list_backup_incremental.php
 msgid "Create Snapshot"
-msgstr ""
+msgstr "Criar snapshot"
 
 #: web/templates/pages/list_backup_incremental.php
 msgid "Snapshot"
-msgstr ""
+msgstr "Snapshot"
 
 #: web/templates/pages/list_cron.php
 #, php-format
@@ -3213,15 +3213,15 @@ msgstr "apenas leitura"
 
 #: web/templates/pages/list_files_incremental.php
 msgid "Date / Time"
-msgstr ""
+msgstr "Data / hora"
 
 #: web/templates/pages/list_files_incremental.php
 msgid "Files"
-msgstr ""
+msgstr "Ficheiros"
 
 #: web/templates/pages/list_files_incremental.php
 msgid "Restore Files"
-msgstr ""
+msgstr "Restaurar ficheiros"
 
 #: web/templates/pages/list_firewall.php
 #, php-format
@@ -3237,17 +3237,17 @@ msgstr "Adicionar Regra"
 #: web/templates/pages/list_firewall.php
 #, php-format
 msgid "Are you sure you want to delete rule #%s?"
-msgstr ""
+msgstr "Tem a certeza que quer apagar a regra #%s?"
 
 #: web/templates/pages/list_firewall.php
 #, php-format
 msgid "Are you sure you want to move rule #%s down?"
-msgstr ""
+msgstr "Tem a certeza que quer descer a regra #%s?"
 
 #: web/templates/pages/list_firewall.php
 #, php-format
 msgid "Are you sure you want to move rule #%s up?"
-msgstr ""
+msgstr "Tem a certeza que quer subir a regra #%s?"
 
 #: web/templates/pages/list_firewall.php
 #, php-format
@@ -3272,7 +3272,7 @@ msgstr "Regras da Firewall"
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Fleet Mesh"
-msgstr ""
+msgstr "Fleet Mesh"
 
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_ipset.php
@@ -3282,35 +3282,35 @@ msgstr "Listas IP do IPset"
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_jail.php
 msgid "Jail Status"
-msgstr ""
+msgstr "Estado das jails"
 
 #: web/templates/pages/list_firewall.php
 msgid "Move Down"
-msgstr ""
+msgstr "Descer"
 
 #: web/templates/pages/list_firewall.php
 msgid "Move Firewall Rule Down"
-msgstr ""
+msgstr "Descer a regra da firewall"
 
 #: web/templates/pages/list_firewall.php
 msgid "Move Firewall Rule Up"
-msgstr ""
+msgstr "Subir a regra da firewall"
 
 #: web/templates/pages/list_firewall.php
 msgid "Move Up"
-msgstr ""
+msgstr "Subir"
 
 #: web/templates/pages/list_firewall.php
 msgid "Pos"
-msgstr ""
+msgstr "Pos."
 
 #: web/templates/pages/list_firewall.php
 msgid "Position"
-msgstr ""
+msgstr "Posição"
 
 #: web/templates/pages/list_firewall.php
 msgid "Whitelist"
-msgstr ""
+msgstr "Lista branca"
 
 #: web/templates/pages/list_firewall_banlist.php
 #, php-format
@@ -3331,11 +3331,11 @@ msgstr "Bloquear Endereço IP"
 
 #: web/templates/pages/list_firewall_banlist.php
 msgid "Chain / Scenario"
-msgstr ""
+msgstr "Cadeia / cenário"
 
 #: web/templates/pages/list_firewall_banlist.php
 msgid "Source"
-msgstr ""
+msgstr "Origem"
 
 #: web/templates/pages/list_firewall_banlist.php
 msgid "There are currently no banned IP addresses."
@@ -3343,31 +3343,31 @@ msgstr "Atualmente não existem endereços IP bloqueados."
 
 #: web/templates/pages/list_firewall_banlist.php
 msgid "When"
-msgstr ""
+msgstr "Quando"
 
 #: web/templates/pages/list_firewall_exclude.php
 #, php-format
 msgid "%d whitelisted IP address"
 msgid_plural "%d whitelisted IP addresses"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d endereço IP na lista branca"
+msgstr[1] "%d endereços IP na lista branca"
 
 #: web/templates/pages/list_firewall_exclude.php
 msgid "A whitelisted address is accepted ahead of every ban and can no longer be banned. Add your own address here to recover from a lockout."
-msgstr ""
+msgstr "Um endereço na lista branca é aceite antes de qualquer bloqueio e já não pode ser bloqueado. Adicione aqui o seu próprio endereço para sair de um bloqueio."
 
 #: web/templates/pages/list_firewall_exclude.php
 #, php-format
 msgid "Are you sure you want to remove IP address %s from the whitelist?"
-msgstr ""
+msgstr "Tem a certeza que quer remover o endereço IP %s da lista branca?"
 
 #: web/templates/pages/list_firewall_exclude.php
 msgid "There are currently no whitelisted IP addresses."
-msgstr ""
+msgstr "Atualmente não existem endereços IP na lista branca."
 
 #: web/templates/pages/list_firewall_exclude.php
 msgid "Whitelisted IP Addresses"
-msgstr ""
+msgstr "Endereços IP na lista branca"
 
 #: web/templates/pages/list_firewall_ipset.php
 #, php-format
@@ -3398,28 +3398,28 @@ msgstr "Hora"
 #, php-format
 msgid "%d jail"
 msgid_plural "%d jails"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d jail"
+msgstr[1] "%d jails"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "Banned"
-msgstr ""
+msgstr "Bloqueados"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "Every jail this server configures, and what it is doing. A jail listed as stopped is configured but not running, which means it is protecting nothing."
-msgstr ""
+msgstr "Cada jail que este servidor configura, e o que está a fazer. Uma jail marcada como parada está configurada mas não está a correr, portanto não protege nada."
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "Failures"
-msgstr ""
+msgstr "Falhas"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "Jail"
-msgstr ""
+msgstr "Jail"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "Log File"
-msgstr ""
+msgstr "Ficheiro de registo"
 
 #: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
 #: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
@@ -3429,59 +3429,59 @@ msgstr "Estado"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "There are currently no jails configured."
-msgstr ""
+msgstr "Atualmente não existem jails configuradas."
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "current / total since the service started"
-msgstr ""
+msgstr "atual / total desde o arranque do serviço"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "running"
-msgstr ""
+msgstr "a correr"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "stopped"
-msgstr ""
+msgstr "parada"
 
 #: web/templates/pages/list_firewall_mesh.php
 #, php-format
 msgid "%d peer"
 msgid_plural "%d peers"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d par"
+msgstr[1] "%d pares"
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Address"
-msgstr ""
+msgstr "Endereço"
 
 #: web/templates/pages/list_firewall_mesh.php
 #, php-format
 msgid "Are you sure you want to unpair %s? Run the same action on that server too."
-msgstr ""
+msgstr "Tem a certeza que quer desemparelhar %s? Execute a mesma ação também nesse servidor."
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Generate Pairing Code"
-msgstr ""
+msgstr "Gerar código de emparelhamento"
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Join a Peer"
-msgstr ""
+msgstr "Emparelhar com um par"
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "No peers paired yet. Generate a pairing code here for the other server, or join with a code from its Fleet Mesh page."
-msgstr ""
+msgstr "Ainda não há pares emparelhados. Gere aqui um código de emparelhamento para o outro servidor, ou emparelhe com um código da página Fleet Mesh dele."
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Peer"
-msgstr ""
+msgstr "Par"
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Shared Bans"
-msgstr ""
+msgstr "Bloqueios partilhados"
 
 #: web/templates/pages/list_firewall_mesh.php
 msgid "Unpair"
-msgstr ""
+msgstr "Desemparelhar"
 
 #: web/templates/pages/list_ip.php
 #, php-format
@@ -3600,7 +3600,7 @@ msgstr "Tem certeza que quer de cancelar a suspensão do domínio %s?"
 #: web/templates/pages/list_mail.php
 #, php-format
 msgid "Bad Request: parameter q must be scalar, got %s."
-msgstr ""
+msgstr "Pedido inválido: o parâmetro q tem de ser escalar, recebido %s."
 
 #: web/templates/pages/list_mail.php
 msgid "DKIM"
@@ -3612,7 +3612,7 @@ msgstr "Registos DNS"
 
 #: web/templates/pages/list_mail.php
 msgid "Not installed"
-msgstr ""
+msgstr "Não instalado"
 
 #: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
 msgid "Open Webmail"
@@ -3706,7 +3706,7 @@ msgstr "Anualmente"
 
 #: web/templates/pages/list_rspamd.php
 msgid "Open in new tab"
-msgstr ""
+msgstr "Abrir num novo separador"
 
 #: web/templates/pages/list_search.php
 #, php-format
@@ -3759,21 +3759,21 @@ msgstr "Pré-visualizar funcionalidades"
 #: web/templates/pages/list_services.php
 #, php-format
 msgid "Are you sure you want to restart the %s service?"
-msgstr ""
+msgstr "Tem a certeza que quer reiniciar o serviço %s?"
 
 #: web/templates/pages/list_services.php
 msgid "Are you sure you want to restart the server?"
-msgstr ""
+msgstr "Tem a certeza que quer reiniciar o servidor?"
 
 #: web/templates/pages/list_services.php
 #, php-format
 msgid "Are you sure you want to start the %s service?"
-msgstr ""
+msgstr "Tem a certeza que quer iniciar o serviço %s?"
 
 #: web/templates/pages/list_services.php
 #, php-format
 msgid "Are you sure you want to stop the %s service?"
-msgstr ""
+msgstr "Tem a certeza que quer parar o serviço %s?"
 
 #: web/templates/pages/list_services.php
 msgid "Description"
@@ -3921,7 +3921,7 @@ msgstr "Reconstruir"
 
 #: web/templates/pages/list_web.php web/templates/pages/list_weblog.php
 msgid "View Logs"
-msgstr ""
+msgstr "Ver histórico"
 
 #: web/templates/pages/list_web.php
 msgid "Visit"

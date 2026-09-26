@@ -44,9 +44,9 @@ get_database_values
 # Issues with $SUSPENDED overwritten when delete_mysql_database is called
 suspended=$SUSPENDED
 
-# The password of a shared user lives in this record (#725). Refused rather than handed to another record: the
-# customer decides which database keeps the user. DB_DELETE_SET is h-delete-databases' run: what goes with this one
-# does not need the password kept, and two databases holding each other's slot-2 hashes would block in any order.
+# The password of a shared user lives in this record (#725); the customer decides which database keeps the user.
+# DB_DELETE_SET (h-delete-databases): what goes in the same run needs no password kept, and crosswise hashes would
+# block in any order.
 if [ "$TYPE" = 'mysql' ]; then
 	if [ -n "$MD5" ]; then
 		db_user_in_use "$DBUSER" mysql "$HOST" "$database" "${DB_DELETE_SET:-}"

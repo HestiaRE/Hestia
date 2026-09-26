@@ -878,9 +878,8 @@ rebuild_mysql_database() {
 	rebuild_mysql_database_user
 }
 
-# The user half, per slot; SLOT limits it to one. REBUILD_DB_DEFER (restore): a slot without a hash whose user is
-# not here yet waits in REBUILD_DB_DEFERRED as DB:SLOT, the database holding the password may come later in the run.
-# REBUILD_DB_RUN_SET: the databases of that run, which do not count as keeping a user's password elsewhere.
+# The user half, per slot (SLOT limits it to one). REBUILD_DB_DEFER (restore): a hashless slot whose user is not here
+# yet waits in REBUILD_DB_DEFERRED as DB:SLOT. REBUILD_DB_RUN_SET: that run's databases, not counted as elsewhere.
 # shellcheck disable=SC2120  # the slot argument comes from h-restore-user
 rebuild_mysql_database_user() {
 	mysql_connect $HOST
@@ -962,8 +961,7 @@ rebuild_mysql_slot() {
 			fi
 		fi
 	fi
-	# A suspended database keeps its rights revoked; GRANT ALL here used to hand them back on every rebuild. Read
-	# from the record: mysql_connect parses the host's own SUSPENDED over the database's.
+	# A suspended database stays revoked. Read from the record: mysql_connect overwrites SUSPENDED with the host's.
 	if [ "$(db_record_field "$(grep -F "DB='$DB'" "$USER_DATA/db.conf")" SUSPENDED)" != 'yes' ]; then
 		mysql_grant_slot "$u" "$DB" "$ro" || echo "Warning!: $u did not get its rights on $DB"
 	fi

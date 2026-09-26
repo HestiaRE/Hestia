@@ -389,16 +389,13 @@ mysql_read_md5() {
 			if [ "$mysql_ver_sub" -ge 8 ]; then
 				# mysql >= 8
 
-				# This query will be proceeding with the usage of Print identified with as hex feature
 				md5=$(mysql_query "SET print_identified_with_as_hex=ON; SHOW CREATE USER \`$1\`" 2> /dev/null)
 
-				# echo $md5
 				if [[ "$md5" =~ 0x([^ ]+) ]]; then
 					md5=$(echo "$md5" | grep password | grep -E -o '0x([^ ]+)')
 				else
 					md5=$(echo "$md5" | grep password | cut -f4 -d \')
 				fi
-				# echo $md5
 			else
 				# mysql < 8
 				md5=$(mysql_query "SHOW CREATE USER \`$1\`" 2> /dev/null)
@@ -715,9 +712,8 @@ db_user_canonical() {
 	echo "$hit"
 }
 
-# Read-only is SELECT and SHOW VIEW (#725): EXECUTE would run DEFINER routines with their creator's rights, and
-# LOCK TABLES lets a reader stall the application. What a read-only slot gives back is revoked one privilege per
-# statement, since a name this server version does not know fails alone instead of taking the rest with it.
+# Read-only (#725): no EXECUTE, DEFINER routines run with their creator's rights; no LOCK TABLES, a reader could stall
+# the app. One REVOKE per privilege, so a name this server version does not know fails alone.
 MYSQL_WRITE_PRIVS=(INSERT UPDATE DELETE CREATE DROP REFERENCES INDEX ALTER 'CREATE TEMPORARY TABLES' 'LOCK TABLES'
 	EXECUTE 'CREATE VIEW' 'CREATE ROUTINE' 'ALTER ROUTINE' EVENT TRIGGER 'DELETE HISTORY' 'SHOW CREATE ROUTINE')
 
@@ -726,9 +722,8 @@ mysql_db_privs() {
 	mysql_query "SHOW GRANTS FOR \`$1\`@\`$3\`" | sed -n "s/^GRANT \(.*\) ON \`$2\`\.\* TO .*/\1/p"
 }
 
-# mysql_grant_slot DBUSER DB RO: RO 'yes' is read-only, anything else full rights. The GRANT comes before any
-# REVOKE, so going from full to read-only never leaves a moment without SELECT. rc 1 unless the server ends up
-# holding exactly that, read back rather than assumed.
+# mysql_grant_slot DBUSER DB RO: RO 'yes' read-only, else full rights. GRANT before REVOKE keeps SELECT through the
+# switch; rc 1 unless SHOW GRANTS reads back exactly that.
 mysql_grant_slot() {
 	local h p grant='ALL' want='ALL PRIVILEGES'
 	if [ "$3" = 'yes' ]; then

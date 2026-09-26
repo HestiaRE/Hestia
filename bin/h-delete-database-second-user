@@ -4,8 +4,7 @@
 #
 # example: h-delete-database-second-user admin shop_db
 #
-# This function takes the second user off a MySQL database. The user itself goes once no other database of the
-# user has it in a slot.
+# This function takes the second user off a MySQL database; the user itself goes once no other database has it.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -47,8 +46,7 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# The record first: the user is dropped only once no record names it. Held apart, since update_object_value
-# parses the record it writes back into these globals.
+# Record first, the user drops only once none names it; old2 because update_object_value re-parses the globals.
 old2="$DBUSER_SECOND"
 update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND' ''
 update_object_value 'db' 'DB' "$database" '$MD5_SECOND' ''

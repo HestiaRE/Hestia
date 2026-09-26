@@ -5,10 +5,9 @@
 # example: h-change-database-second-user admin shop_db reader 'Pa55w0rd' yes
 # example: h-change-database-second-user admin shop_db matt '' no
 #
-# This function gives a MySQL database a second user next to its main one. A DBUSER another database of the user
-# already has is reused with its password, so DBPASS stays empty then; a new one needs DBPASS. Naming the current
-# second user again changes its password or its rights. RO yes grants read-only (SELECT, SHOW VIEW), no full rights,
-# empty keeps what the slot has.
+# This function gives a MySQL database a second user. A DBUSER the user already has is reused with an empty DBPASS,
+# a new one needs DBPASS; naming the current one again changes its password or rights. RO yes is read-only (SELECT,
+# SHOW VIEW), no full rights, empty keeps what the slot has.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -88,8 +87,7 @@ else
 			;;
 		*) check_result "$E_PARSING" "cannot read the databases of $user" ;;
 	esac
-	# The old second user's password lives in this record: whoever else uses it would be left with a user nobody
-	# can re-create.
+	# Its password lives here: another database on the old user would be left with one nobody can re-create.
 	if [ -n "$old2" ] && [ -n "$MD5_SECOND" ]; then
 		db_user_in_use "$old2" mysql "$HOST" "$database"
 		[ $? -eq 1 ] || check_result "$E_INUSE" "$old2 is used by another database; give that one its own user first"

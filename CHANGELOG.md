@@ -2,14 +2,13 @@
 
 All notable HestiaRE changes are documented here, starting from the fork
 point - a HestiaCP 1.9.6 snapshot, kept read-only in the `upstream/hestiacp`
-branch (upstream's own history was dropped from this file with #307).
+branch.
 
 Maintenance rule: every larger change adds an entry to the Unreleased
 section as part of its PR. Only public minors get a section - an internal
 build `vX.Y-devN` belongs to the minor it leads to. On release, the section
 gets that version number and a new Unreleased opens above it. The releases
-before v0.20.0 are folded into one section by theme; the uncondensed text of
-every release is kept on the `docs` branch under `full-changes/`.
+before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 

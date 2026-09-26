@@ -68,10 +68,8 @@
 						<?= tohtml(_("Username")) ?>
 						<em><small>(<?= tohtml(sprintf(_("Maximum %s characters length, including prefix"), 32)) ?>)</small></em>
 					</label>
-					<input type="text" class="form-control" name="v_dbuser_second" id="v_dbuser_second" value="<?= tohtml($v_dbuser_second) ?>" list="v_db_users">
-					<?php if ($v_dbuser_second !== "") { ?>
-						<small class="hint"><?= tohtml($user_plain . "_" . $v_dbuser_second) ?></small>
-					<?php } ?>
+					<input type="text" class="form-control js-db-hint-username" name="v_dbuser_second" id="v_dbuser_second" value="<?= tohtml($v_dbuser_second) ?>" list="v_db_users">
+					<small class="hint"></small>
 					<?php if (!empty($shared_second)) { ?>
 						<p class="hint u-mt5"><?= tohtml(sprintf(_("Shared with %s, a new password applies there too."), implode(", ", $shared_second))) ?></p>
 					<?php } ?>

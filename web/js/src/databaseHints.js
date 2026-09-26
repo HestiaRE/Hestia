@@ -2,15 +2,16 @@ import { debounce } from './helpers.js';
 
 // Attach listener to database "Name" and "Username" fields to update their hints
 export default function handleDatabaseHints() {
-	const usernameInput = document.querySelector('.js-db-hint-username');
+	// All of them: edit db carries a second user field beside the main one.
+	const usernameInputs = document.querySelectorAll('.js-db-hint-username');
 	const databaseNameInput = document.querySelector('.js-db-hint-database-name');
 
-	if (!usernameInput || !databaseNameInput) {
+	if (usernameInputs.length === 0 || !databaseNameInput) {
 		return;
 	}
 
 	removeUserPrefix(databaseNameInput);
-	attachUpdateHintListener(usernameInput);
+	usernameInputs.forEach(attachUpdateHintListener);
 	attachUpdateHintListener(databaseNameInput);
 }
 
@@ -38,6 +39,7 @@ function updateHint(input) {
 
 	if (input.value.trim() === '') {
 		hintElement.textContent = '';
+		return;
 	}
 
 	hintElement.textContent = Alpine.store('globals').USER_PREFIX + input.value;

@@ -124,24 +124,23 @@ if (!empty($_POST["save"])) {
 		if (!validate_password($_POST["v_password"])) {
 			$_SESSION["error_msg"] = _("Password does not match the minimum requirements.");
 		} else {
-			$v_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_password, "w");
-			fwrite($fp, $_POST["v_password"] . "\n");
-			fclose($fp);
-			exec(
-				HESTIA_CMD .
-					"h-change-database-password " .
-					$user .
-					" " .
-					quoteshellarg($v_database) .
-					" " .
-					$v_password,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			unlink($v_password);
+			$v_password = secret_tmpfile($_POST["v_password"]);
+			if ($v_password !== false) {
+				exec(
+					HESTIA_CMD .
+						"h-change-database-password " .
+						$user .
+						" " .
+						quoteshellarg($v_database) .
+						" " .
+						$v_password,
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+				unlink($v_password);
+			}
 			$v_password = quoteshellarg($_POST["v_password"]);
 		}
 	}

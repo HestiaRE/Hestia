@@ -210,20 +210,18 @@ if (!empty($_POST["save"])) {
 		$pkg .= "TIME=" . $v_time . "\n";
 		$pkg .= "DATE=" . $v_date . "\n";
 
-		$tmpfile = tempnam("/tmp/", "hst_");
-		$fp = fopen($tmpfile, "w");
-		fwrite($fp, $pkg);
-		exec(
-			HESTIA_CMD . "h-add-user-package " . $tmpfile . " " . $v_package . " yes",
-			$output,
-			$return_var,
-		);
-		fclose($fp);
-		// Removed before the return code is judged: check_return_code can end the request, and the
-		// package file would stay behind in /tmp.
-		unlink($tmpfile);
-		check_return_code($return_var, $output);
-		unset($output);
+		$tmpfile = private_tmpfile();
+		if ($tmpfile !== false) {
+			file_put_contents($tmpfile, $pkg);
+			exec(
+				HESTIA_CMD . "h-add-user-package " . $tmpfile . " " . $v_package . " yes",
+				$output,
+				$return_var,
+			);
+			unlink($tmpfile);
+			check_return_code($return_var, $output);
+			unset($output);
+		}
 
 		// Propagate new package
 		exec(HESTIA_CMD . "h-update-user-package " . $v_package . " 'json'", $output, $return_var);

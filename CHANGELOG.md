@@ -119,6 +119,10 @@ opens above it.
   encoded, per domain and for the server SMTP account, and exim still gets them verbatim. A backup made this
   way carries the encoded form, which HestiaCP takes literally, so the relay password has to be set again
   there. `h-change-sys-config-value` refuses a `\` or `` ` `` now, as it already refused a quote.
+- **A password save ended in a blank page when no tempfile could be made** (#1158). Thirteen password forms
+  and the two package forms still wrote their tempfile by hand, and PHP 8 answered the failed `tempnam()`
+  with an uncaught error: HTTP 500, nothing saved, nothing said. They now use the same helpers as the rest of
+  the panel, which report the error and remove the file even when the request ends early.
 
 ## v0.22 (2026-09-24)
 

@@ -261,10 +261,9 @@ if (!empty($_POST["ok_acc"])) {
 
 	// Add Mail Account
 	if (empty($_SESSION["error_msg"])) {
-		$v_password = tempnam("/tmp", "vst");
-		$fp = fopen($v_password, "w");
-		fwrite($fp, $_POST["v_password"] . "\n");
-		fclose($fp);
+		$v_password = secret_tmpfile($_POST["v_password"]);
+	}
+	if (empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
 				"h-add-mail-account " .

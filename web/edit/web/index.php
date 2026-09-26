@@ -1361,26 +1361,25 @@ if (!empty($_POST["save"])) {
 			$_SESSION["error_msg"] = sprintf(_('Field "%s" can not be blank.'), $error_msg);
 		} else {
 			$v_stats_user = quoteshellarg($_POST["v_stats_user"]);
-			$v_stats_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_stats_password, "w");
-			fwrite($fp, $_POST["v_stats_password"] . "\n");
-			fclose($fp);
-			exec(
-				HESTIA_CMD .
-					"h-add-web-domain-stats-user " .
-					$user .
-					" " .
-					quoteshellarg($v_domain) .
-					" " .
-					$v_stats_user .
-					" " .
-					$v_stats_password,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			unlink($v_stats_password);
+			$v_stats_password = secret_tmpfile($_POST["v_stats_password"]);
+			if ($v_stats_password !== false) {
+				exec(
+					HESTIA_CMD .
+						"h-add-web-domain-stats-user " .
+						$user .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						$v_stats_user .
+						" " .
+						$v_stats_password,
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+				unlink($v_stats_password);
+			}
 			$v_stats_password = quoteshellarg($_POST["v_stats_password"]);
 		}
 	}
@@ -1405,26 +1404,25 @@ if (!empty($_POST["save"])) {
 			(!empty($_POST["v_stats_password"]) && empty($_SESSION["error_msg"]))
 		) {
 			$v_stats_user = quoteshellarg($_POST["v_stats_user"]);
-			$v_stats_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_stats_password, "w");
-			fwrite($fp, $_POST["v_stats_password"] . "\n");
-			fclose($fp);
-			exec(
-				HESTIA_CMD .
-					"h-add-web-domain-stats-user " .
-					$user .
-					" " .
-					quoteshellarg($v_domain) .
-					" " .
-					$v_stats_user .
-					" " .
-					$v_stats_password,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			unlink($v_stats_password);
+			$v_stats_password = secret_tmpfile($_POST["v_stats_password"]);
+			if ($v_stats_password !== false) {
+				exec(
+					HESTIA_CMD .
+						"h-add-web-domain-stats-user " .
+						$user .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						$v_stats_user .
+						" " .
+						$v_stats_password,
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+				unlink($v_stats_password);
+			}
 			$v_stats_password = quoteshellarg($_POST["v_stats_password"]);
 		}
 	}
@@ -1474,10 +1472,9 @@ if (!empty($_POST["save"])) {
 				$v_ftp_user = quoteshellarg($v_ftp_username);
 				$v_ftp_path = quoteshellarg(trim($v_ftp_user_data["v_ftp_path"]));
 				if (empty($_SESSION["error_msg"])) {
-					$v_ftp_password = tempnam("/tmp", "vst");
-					$fp = fopen($v_ftp_password, "w");
-					fwrite($fp, $v_ftp_user_data["v_ftp_password"] . "\n");
-					fclose($fp);
+					$v_ftp_password = secret_tmpfile($v_ftp_user_data["v_ftp_password"]);
+				}
+				if (empty($_SESSION["error_msg"])) {
 					exec(
 						HESTIA_CMD .
 							"h-add-web-domain-ftp " .
@@ -1644,26 +1641,25 @@ if (!empty($_POST["save"])) {
 				}
 				// Change FTP account password
 				if (!empty($v_ftp_user_data["v_ftp_password"])) {
-					$v_ftp_password = tempnam("/tmp", "vst");
-					$fp = fopen($v_ftp_password, "w");
-					fwrite($fp, $v_ftp_user_data["v_ftp_password"] . "\n");
-					fclose($fp);
-					exec(
-						HESTIA_CMD .
-							"h-change-web-domain-ftp-password " .
-							$user .
-							" " .
-							quoteshellarg($v_domain) .
-							" " .
-							$v_ftp_username .
-							" " .
-							$v_ftp_password,
-						$output,
-						$return_var,
-					);
-					check_return_code($return_var, $output);
-					unset($output);
-					unlink($v_ftp_password);
+					$v_ftp_password = secret_tmpfile($v_ftp_user_data["v_ftp_password"]);
+					if ($v_ftp_password !== false) {
+						exec(
+							HESTIA_CMD .
+								"h-change-web-domain-ftp-password " .
+								$user .
+								" " .
+								quoteshellarg($v_domain) .
+								" " .
+								$v_ftp_username .
+								" " .
+								$v_ftp_password,
+							$output,
+							$return_var,
+						);
+						check_return_code($return_var, $output);
+						unset($output);
+						unlink($v_ftp_password);
+					}
 				}
 				if (!empty($v_ftp_user_data["v_ftp_email"]) && empty($_SESSION["error_msg"])) {
 					$to = $v_ftp_user_data["v_ftp_email"];

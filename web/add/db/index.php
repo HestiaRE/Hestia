@@ -92,34 +92,33 @@ if (!empty($_POST["ok"])) {
 		if ($reuse) {
 			$v_password = "''";
 		} else {
-			$v_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_password, "w");
-			fwrite($fp, $_POST["v_password"] . "\n");
-			fclose($fp);
+			$v_password = secret_tmpfile($_POST["v_password"]);
 		}
-		exec(
-			HESTIA_CMD .
-				"h-add-database " .
-				$user .
-				" " .
-				$v_database .
-				" " .
-				$v_dbuser .
-				" " .
-				$v_password .
-				" " .
-				$v_type .
-				" " .
-				$v_host .
-				" " .
-				$v_charset,
-			$output,
-			$return_var,
-		);
-		check_return_code($return_var, $output);
-		unset($output);
-		if (!$reuse) {
-			unlink($v_password);
+		if ($v_password !== false) {
+			exec(
+				HESTIA_CMD .
+					"h-add-database " .
+					$user .
+					" " .
+					$v_database .
+					" " .
+					$v_dbuser .
+					" " .
+					$v_password .
+					" " .
+					$v_type .
+					" " .
+					$v_host .
+					" " .
+					$v_charset,
+				$output,
+				$return_var,
+			);
+			check_return_code($return_var, $output);
+			unset($output);
+			if (!$reuse) {
+				unlink($v_password);
+			}
 		}
 		$v_password = quoteshellarg($_POST["v_password"]);
 		$v_type = $_POST["v_type"];

@@ -29,7 +29,7 @@
 
 	<?php if (!$mesh_enabled): ?>
 		<div class="form-container">
-			<p><?= tohtml(_("CrowdSec fleet-mesh is not enabled on this server.")) ?></p>
+			<p><?= tohtml(_("CrowdSec Fleet Mesh is not enabled on this server.")) ?></p>
 			<p class="hint"><code>h-add-sys-crowdsec-mesh</code></p>
 		</div>
 	<?php else: ?>
@@ -98,7 +98,7 @@
 			<p>
 				<?php
 						if ($i == 0) {
-							echo _('No peers paired yet. Generate a code here, then join from the other server - or ask its admin for a code and use "Join a Peer".');
+							echo tohtml(_("No peers paired yet. Generate a pairing code here for the other server, or join with a code from its Fleet Mesh page."));
 						} else {
 							printf(ngettext('%d peer', '%d peers', $i), $i);
 						}

@@ -30,7 +30,7 @@
 	<h1 class="u-text-center u-hide-desktop u-mt20 u-pr30 u-mb20 u-pl30"><?= tohtml(_("Whitelisted IP Addresses")) ?></h1>
 
 	<p class="u-mb20">
-		<?= tohtml(_("A whitelisted address is accepted ahead of every ban and can no longer be banned. Adding your own address here is what recovers a lockout.")) ?>
+		<?= tohtml(_("A whitelisted address is accepted ahead of every ban and can no longer be banned. Add your own address here to recover from a lockout.")) ?>
 	</p>
 
 	<div class="units-table js-units-container">

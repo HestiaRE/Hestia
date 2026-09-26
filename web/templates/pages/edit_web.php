@@ -196,7 +196,7 @@
 				<input x-model="wordpressEnabled" class="form-check-input" type="checkbox" name="v_wordpress" id="v_wordpress"
 					data-wp-installed="<?= tohtml(empty($v_wp) ? "no" : "yes") ?>"
 					data-confirm-title="<?= tohtml(_("Detach WordPress?")) ?>"
-					data-confirm-message="<?= tohtml(_("The site keeps running and its files and database stay untouched - only the panel stops managing it. Re-enabling later is not possible while the document root is in use.")) ?>"
+					data-confirm-message="<?= tohtml(_("The site keeps running and its files and database stay untouched; only the panel stops managing it. Re-enabling later is not possible while the document root is in use.")) ?>"
 					data-confirm-label="<?= tohtml(_("Detach")) ?>" <?php if (!empty($v_wp)) {
 						echo "checked";
 					} ?>>

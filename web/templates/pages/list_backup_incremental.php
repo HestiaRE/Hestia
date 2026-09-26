@@ -10,7 +10,7 @@
 		<?php /* archives=1 skips the mode redirect: the archives from before the switch and the
 		exports are ordinary archives and live in the other list. */ ?>
 		<a href="/list/backup/?<?= tohtml(http_build_query(["archives" => 1, "token" => $_SESSION["token"]])) ?>" class="button button-secondary">
-			<i class="fas fa-box-archive icon-orange"></i><?= tohtml(_("Archives &amp; Exports")) ?>
+			<i class="fas fa-box-archive icon-orange"></i><?= tohtml(_("Archives & Exports")) ?>
 		</a>
 		</div>
 		<div class="toolbar-right">

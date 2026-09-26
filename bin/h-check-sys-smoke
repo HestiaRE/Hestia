@@ -803,6 +803,21 @@ check_customer_php_slice() {
 	fi
 }
 
+# A de session through web/inc/i18n.php, the way the panel asks. glibc 2.39+ ignores LANGUAGE under C.UTF-8,
+# so without a generated en_US.UTF-8 every language shows English (#1157). Not covered: other languages.
+check_panel_translates() {
+	local php out
+	php='$_SESSION["language"] = "de"; require "'"$HESTIA"'/web/inc/i18n.php"; echo _("Password");'
+	out=$("$HESTIA/sbin/hestia-php" -r "$php" 2> /dev/null)
+	if [ -n "$out" ] && [ "$out" != "Password" ]; then
+		ok "panel translates: a de session reads '$out' for 'Password'"
+	elif ! locale_present en_US.UTF-8; then
+		no "panel translates" "en_US.UTF-8 is not generated: enable it in /etc/locale.gen and run locale-gen"
+	else
+		no "panel translates" "a de session reads '${out:-nothing}' for 'Password'"
+	fi
+}
+
 # The curated CLI conf.d is a hand-kept list against moving code (the mailfront work found gettext
 # missing three layers deep): send the wrapper through web/inc/i18n.php once - the
 # exact include chain mail-wrapper takes - so a missing extension fails HERE, loudly.
@@ -1807,6 +1822,7 @@ check_sudo_secret_leak
 # v-* compat symlinks must all resolve (no dangling alias left by a rename).
 check_v_symlinks_resolve
 check_panel_languages
+check_panel_translates
 # a policy fragment (crowdsec Layer A, bot rate limiting) missing from one template is a silent bypass.
 check_policy_fragment_coverage
 check_web_config_test

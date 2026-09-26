@@ -1053,6 +1053,13 @@ update_user_value() {
 	fi
 }
 
+# Is a locale generated? locale -a spells the codeset "utf8", a name like en_US.UTF-8 does not.
+locale_present() {
+	local want
+	want=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/utf-8$/utf8/')
+	[ -n "$want" ] || return 1
+	locale -a 2> /dev/null | tr '[:upper:]' '[:lower:]' | grep -qxF "$want"
+}
 # rc 0 offered, 1 not, 2 the list is unusable: an empty reference set must not turn every account to en.
 # Asked of languages.json, not of the catalog directories: an update reads it after the overlay while
 # the catalogs of a dropped language are still on disk (#1160).

@@ -751,6 +751,26 @@ cron_update_check_apply() {
 	mv -f "$tmp" "$ct"
 }
 
+# The panel translates only under a locale that is not C: glibc 2.39+ ignores LANGUAGE under C.UTF-8 (#1157),
+# and web/inc/i18n.php asks for en_US.UTF-8 first. Ubuntu's image lacks the locales package. The line goes into
+# /etc/locale.gen because a locales upgrade regenerates from there, and Debian's locale-gen ignores an argument
+# and still returns 0, so the answer comes from locale -a.
+panel_locale_apply() {
+	locale_present en_US.UTF-8 && return 0
+	if [ ! -f /etc/locale.gen ]; then
+		dpkg --configure -a > /dev/null 2>&1
+		DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Options::="--force-confold" \
+			install locales > /dev/null 2>&1 || return 1
+	fi
+	if grep -qE '^#[[:space:]]*en_US\.UTF-8 UTF-8[[:space:]]*$' /etc/locale.gen; then
+		sed -i -E 's/^#[[:space:]]*(en_US\.UTF-8 UTF-8)[[:space:]]*$/\1/' /etc/locale.gen || return 1
+	elif ! grep -qE '^en_US\.UTF-8 UTF-8' /etc/locale.gen; then
+		echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen || return 1
+	fi
+	locale-gen > /dev/null 2>&1
+	locale_present en_US.UTF-8
+}
+
 # Pins every nightly job to one language, so a word match against a program's output cannot depend
 # on the box. An extra, not the general fix; operator surface, so only the one line is added.
 cron_locale_apply() {

@@ -428,6 +428,14 @@
       "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hst_convert_po2mo.sh" },
       "paths": ["/usr/local/hestia/web/locale/hst_convert_po2mo.sh"],
       "reversible": false
+    },
+    {
+      "id": "panel-locale",
+      "description": "Generate en_US.UTF-8 for the panel: glibc 2.39+ ignores LANGUAGE under C.UTF-8, so every panel language showed English (#1157)",
+      "conditions": [{ "type": "locale_missing", "name": "en_US.UTF-8" }],
+      "action": { "type": "function_call", "function": "panel_locale_apply" },
+      "paths": ["/etc/locale.gen"],
+      "reversible": false
     }
   ]
 }

@@ -379,6 +379,16 @@ if [ "$create_user" = 'yes' ]; then
 	# Filtered, not copied: the archive is hostile input (#807).
 	copy_record_filtered "$tmpdir/$BACKUP_CONTAINER/user.conf" "$USER_DATA/user.conf" user \
 		|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"
+	# A language this panel does not offer (one dropped in #1160, or any of HestiaCP's) becomes en.
+	# rc 2, an unusable list, leaves the value alone rather than resetting every restored account.
+	_lang=$(grep -m1 "^LANGUAGE=" "$USER_DATA/user.conf" | cut -d "'" -f 2)
+	if [ -n "$_lang" ]; then
+		language_offered "$_lang"
+		if [ $? -eq 1 ]; then
+			update_user_value "$user" '$LANGUAGE' 'en'
+			echo "Note: the archived language '$_lang' is not offered here, $user uses en" | tee -a $tmpdir/restore.log
+		fi
+	fi
 	cp -r $tmpdir/$BACKUP_CONTAINER/ssl $USER_DATA/ > /dev/null 2>&1
 
 	# Everything else the container holds. Skipped: BACKUP_USER_DATA_CORE and BACKUP_CONTAINER_META

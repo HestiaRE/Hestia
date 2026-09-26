@@ -538,6 +538,35 @@ check_v_symlinks_resolve() {
 	fi
 }
 
+# Two lists describe the panel's languages: the catalog directories (what h-list-sys-languages offers)
+# and languages.json (their names, and what an update and a restore ask). A catalog without a name, a
+# name without a catalog, or an account on neither drifts silently (#1160). An empty list fails.
+# Not covered: whether a catalog actually translates, that is the locale of the panel FPM (#1157).
+check_panel_languages() {
+	local list="$HESTIA/web/locale/languages.json" d dirs=() named odd
+	named=$(jq -r 'keys[] | select(endswith("_locale") | not) | select(. != "en")' "$list" 2> /dev/null | sort)
+	if [ -z "$named" ]; then
+		no "panel languages" "languages.json lists no language"
+		return
+	fi
+	for d in "$HESTIA/web/locale"/*/; do
+		[ -e "$d" ] || continue
+		dirs+=("$(basename "$d")")
+	done
+	odd=$(comm -3 <(printf '%s\n' "${dirs[@]}" | sort) <(echo "$named") | tr -d '\t' | tr '\n' ' ')
+	if [ -n "$odd" ]; then
+		no "panel languages: catalogs and languages.json disagree" "${odd% }"
+		return
+	fi
+	odd=$(languages_unlisted)
+	odd="${odd%%$'\n'*}"
+	if [ -n "$odd" ]; then
+		no "panel languages: an account uses a language the panel does not offer" "$odd"
+		return
+	fi
+	ok "panel languages: ${#dirs[@]} catalog(s) agree with languages.json, every account on one of them"
+}
+
 # The panel PHP version is a file, not a constant: /etc/php/hestia/php-version
 # names whatever the wrappers and hestia-php.service run. An empty file or a version
 # whose binaries are gone means every panel request dies at exec - say which half broke.
@@ -1768,6 +1797,7 @@ echo "-- invariants --"
 check_sudo_secret_leak
 # v-* compat symlinks must all resolve (no dangling alias left by a rename).
 check_v_symlinks_resolve
+check_panel_languages
 # a policy fragment (crowdsec Layer A, bot rate limiting) missing from one template is a silent bypass.
 check_policy_fragment_coverage
 check_web_config_test

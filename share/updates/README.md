@@ -83,7 +83,7 @@ and that is what `key_empty` is for.
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
-`file_mode_wider`. Actions:
+`file_mode_wider`, `language_unlisted`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
@@ -154,6 +154,10 @@ steady state and would put its entry in every future plan.
 `file_mode_wider` takes a `path` that is a pattern (`/home/*/conf/mail/*/ssl/*`) and a `value` that is
 an octal mode, and is true while one matching file carries a bit outside it: for files that sit one
 per account or domain, where no single path could be named. A pattern that matches nothing is false.
+`language_unlisted` takes no field and is true while an account or the box default names a language
+that `web/locale/languages.json` does not list. It reads the list and not the catalog directories: the
+overlay has already replaced the list when the plan is derived, while a dropped catalog is still on
+disk until its own entry deletes it.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

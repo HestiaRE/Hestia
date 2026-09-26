@@ -52,6 +52,15 @@ opens above it.
   the FPM list is unchanged. phpMyAdmin and Roundcube install without recommends, which put the newest Sury
   version's `cli` and `common` on boxes that run none of it. Update entries bring installed boxes along.
 
+### Removed
+
+- **The panel keeps eight languages instead of forty-one** (#1160). English and German are maintained;
+  Dutch, French, Spanish, Portuguese, Danish and Russian stay as they are, the other 33 catalogs are gone.
+  Most of them covered a third of the panel or less, and all of them lacked the ~150 strings written
+  since the fork. An update deletes them on the box and moves every account and the box default on one
+  of them to English; a restore does the same with a note, so a HestiaCP account in Italian arrives in
+  English.
+
 ### Fixed
 
 - **A customer could take over another customer's database user** (#725). Database users are server-wide, and

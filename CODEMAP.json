@@ -397,7 +397,8 @@
           "web/templates/pages/setup_webapp.php — removed in Issue #56"
         ]
       },
-      "locales": 42,
+      "locales": 7,
+      "locales_note": "en is the msgid itself; de is maintained, nl fr es pt da ru are best effort (#1160). languages.json names them, and the smoke holds it to the catalog directories.",
       "action_dirs": [
         "add",
         "edit",

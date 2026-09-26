@@ -183,7 +183,7 @@ fi
 # In the mailfront model there is no customer web, so WEB_SYSTEM and PROXY_SYSTEM are empty and this
 # nginx would be listed nowhere (#1003) although it serves webmail and terminates ACME. The two
 # guards above it keep it from appearing twice where the same daemon is already a row. Label reused
-# on purpose: a new SYSTEM string would need its own .pot entry (web/locale/hst_scan_i18n.sh).
+# on purpose: a new SYSTEM string reaches the template (.gitea/tools/i18n.sh) but has no translation yet.
 if [ -n "$WEBMAIL_FRONT" ] \
 	&& [ "$WEBMAIL_FRONT" != "$WEB_SYSTEM" ] && [ "$WEBMAIL_FRONT" != "$PROXY_SYSTEM" ]; then
 	get_srv_state "$WEBMAIL_FRONT"

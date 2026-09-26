@@ -2911,120 +2911,124 @@
       "note": ""
     },
     {
-      "path": "locale/da/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/da/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/da/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 235,
-        "our_lines": 235,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 212,
+        "added": 212,
+        "removed": 235,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
     {
-      "path": "locale/de/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/da/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
+    },
+    {
+      "path": "locale/de/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/de/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 253,
-        "our_lines": 253,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 228,
+        "added": 228,
+        "removed": 253,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
     {
-      "path": "locale/es/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/de/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
+    },
+    {
+      "path": "locale/es/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/es/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 222,
-        "our_lines": 222,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 201,
+        "added": 201,
+        "removed": 222,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
     {
-      "path": "locale/fr/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/es/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
+    },
+    {
+      "path": "locale/fr/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/fr/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 220,
-        "our_lines": 220,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 205,
+        "added": 205,
+        "removed": 220,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
     {
-      "path": "locale/hestiacp.pot",
-      "source_type": "verbatim",
+      "path": "locale/fr/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
+    },
+    {
+      "path": "locale/hestia.pot",
+      "source_type": "derived",
       "upstream_path": "web/locale/hestiacp.pot",
       "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 5103,
-        "our_lines": 5103,
-        "added": 24,
-        "removed": 24,
-        "pct": 0,
-        "measured_at": "2026-09-22"
+        "our_lines": 3943,
+        "added": 2351,
+        "removed": 3511,
+        "pct": 65,
+        "measured_at": "2026-09-26"
       },
-      "note": ""
-    },
-    {
-      "path": "locale/hst_convert_po2mo.sh",
-      "source_type": "verbatim",
-      "upstream_path": "web/locale/hst_convert_po2mo.sh",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-22",
-      "divergence": {
-        "upstream_lines": 20,
-        "our_lines": 20,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22"
-      },
-      "note": ""
-    },
-    {
-      "path": "locale/hst_scan_i18n.sh",
-      "source_type": "derived",
-      "upstream_path": "web/locale/hst_scan_i18n.sh",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-22",
-      "divergence": {
-        "upstream_lines": 36,
-        "our_lines": 29,
-        "added": 2,
-        "removed": 9,
-        "pct": 16,
-        "measured_at": "2026-09-22"
-      },
-      "note": ""
+      "note": "Generated by .gitea/tools/i18n.sh from the panel code (#1160). Not in the tarball."
     },
     {
       "path": "locale/languages.json",
@@ -3043,55 +3047,82 @@
       "note": ""
     },
     {
-      "path": "locale/nl/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/nl/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/nl/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 238,
-        "our_lines": 238,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 217,
+        "added": 217,
+        "removed": 238,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
     {
-      "path": "locale/pt/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/nl/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
+    },
+    {
+      "path": "locale/pt/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/pt/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 232,
-        "our_lines": 232,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 211,
+        "added": 211,
+        "removed": 232,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
     {
-      "path": "locale/ru/LC_MESSAGES/hestiacp.mo",
-      "source_type": "verbatim",
+      "path": "locale/pt/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
+    },
+    {
+      "path": "locale/ru/LC_MESSAGES/hestia.mo",
+      "source_type": "derived",
       "upstream_path": "web/locale/ru/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-09-22",
+      "last_reconciled": "2026-09-26",
       "divergence": {
         "upstream_lines": 227,
-        "our_lines": 227,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-09-22",
+        "our_lines": 210,
+        "added": 210,
+        "removed": 227,
+        "pct": 100,
+        "measured_at": "2026-09-26",
         "method": "binary: byte compare"
       },
-      "note": "Compiled catalogue, carried unchanged from the fork snapshot - HestiaRE has never edited one and ships no .po source to edit. Pinned to that ref because a comparison against a newer upstream shows upstream's continuing translation work, not a divergence of ours."
+      "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
+    },
+    {
+      "path": "locale/ru/LC_MESSAGES/hestia.po",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-09-26",
+      "divergence": null,
+      "note": "Text source of hestia.mo (#1160); upstream ships only the compiled catalogue. Not in the tarball."
     },
     {
       "path": "login/index.php",

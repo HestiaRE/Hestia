@@ -64,8 +64,14 @@
 				<h2 class="u-mt20 u-mb10"><?= tohtml(_("Second User")) ?></h2>
 				<p class="hint u-mb10"><?= tohtml(_("An existing user is shared and keeps its password, a new one needs a password. Empty the name to remove the second user.")) ?></p>
 				<div class="u-mb10">
-					<label for="v_dbuser_second" class="form-label"><?= tohtml(_("Username")) ?></label>
+					<label for="v_dbuser_second" class="form-label u-side-by-side">
+						<?= tohtml(_("Username")) ?>
+						<em><small>(<?= tohtml(sprintf(_("Maximum %s characters length, including prefix"), 32)) ?>)</small></em>
+					</label>
 					<input type="text" class="form-control" name="v_dbuser_second" id="v_dbuser_second" value="<?= tohtml($v_dbuser_second) ?>" list="v_db_users">
+					<?php if ($v_dbuser_second !== "") { ?>
+						<small class="hint"><?= tohtml($user_plain . "_" . $v_dbuser_second) ?></small>
+					<?php } ?>
 					<?php if (!empty($shared_second)) { ?>
 						<p class="hint u-mt5"><?= tohtml(sprintf(_("Shared with %s, a new password applies there too."), implode(", ", $shared_second))) ?></p>
 					<?php } ?>

@@ -9,11 +9,11 @@ A leaner, modernized fork of [HestiaCP](https://github.com/hestiacp/hestiacp) fo
 
 It is deliberately scoped for a small, professional fleet, on the order of a few hundred domains across a couple dozen customers and servers, not for a broad community deployment.
 
-### Status: experimental
+### Status: maturing
 
 Nearly all of it is in place, and the test fleet has been through many rounds of it: installer, panel, web, mail, backup, firewall, CrowdSec, Docker, IPv6. Every subsystem exists, and every release is measured on all four target systems before it is cut. That makes HestiaRE **usable**.
 
-It does not make it **stable**. Interfaces still move, a point release can change behaviour, and **v1 is deliberately far away**, and the version number is not a countdown. Run it if you are willing to read a changelog and re-test after an update. Don't run it if you need something that stays put while you look elsewhere.
+It does not make it **stable**. Interfaces still move, any release can change behaviour, and **v1 is deliberately far away**, and the version number is not a countdown. Run it if you are willing to read a changelog and re-test after an update. Don't run it if you need something that stays put while you look elsewhere.
 
 **Target systems**, all first-class, equal priority (every feature must work on all four):
 - Debian 12 (Bookworm), Debian 13 (Trixie), Ubuntu 24.04 LTS (Noble), Ubuntu 26.04 LTS

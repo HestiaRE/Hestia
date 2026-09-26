@@ -768,7 +768,12 @@ panel_locale_apply() {
 		echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen || return 1
 	fi
 	locale-gen > /dev/null 2>&1
-	locale_present en_US.UTF-8
+	locale_present en_US.UTF-8 || return 1
+	# Measured: a running panel FPM keeps English until it restarts. update.sh stops it anyway, a direct call does not.
+	if systemctl is-active --quiet hestia-php; then
+		systemctl restart hestia-php
+	fi
+	return 0
 }
 
 # Pins every nightly job to one language, so a word match against a program's output cannot depend

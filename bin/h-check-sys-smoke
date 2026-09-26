@@ -804,7 +804,8 @@ check_customer_php_slice() {
 }
 
 # A de session through web/inc/i18n.php, the way the panel asks. glibc 2.39+ ignores LANGUAGE under C.UTF-8,
-# so without a generated en_US.UTF-8 every language shows English (#1157). Not covered: other languages.
+# so without a generated en_US.UTF-8 every language shows English (#1157). Not covered: other languages, and a
+# panel FPM started before the locale existed, which this fresh process cannot see (panel_locale_apply restarts it).
 check_panel_translates() {
 	local php out
 	php='$_SESSION["language"] = "de"; require "'"$HESTIA"'/web/inc/i18n.php"; echo _("Password");'

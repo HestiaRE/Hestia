@@ -1,0 +1,75 @@
+#!/bin/bash
+# info: change the system locale
+# options: LOCALE
+#
+# example: h-change-sys-locale en_US.UTF-8
+#
+# Sets LANG in /etc/default/locale after generating the locale; the installer asks for it (#1164). Takes
+# effect at the next reboot, running processes keep their environment. The panel language is separate
+# (h-change-sys-language), and an update never calls this: the system locale belongs to the admin.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Argument definition
+locale=$1
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+if [ "x$(id -u)" != 'x0' ]; then
+	echo "Error: Script can be run executed only by root"
+	exit 10
+fi
+
+check_args '1' "$#" 'LOCALE'
+
+# UTF-8 only, so no tool or panel page ever sees a byte-per-character encoding.
+if ! [[ "$locale" =~ ^(C|[a-z]{2,3}_[A-Z]{2})\.UTF-8$ ]]; then
+	echo "Error: locale $locale is not valid, expected a name like en_US.UTF-8 or C.UTF-8"
+	log_event "$E_INVALID" "$ARGUMENTS"
+	exit "$E_INVALID"
+fi
+
+locales_install
+check_result $? "the locales package could not be installed"
+
+if [ "$locale" != C.UTF-8 ] && ! grep -qxF "$locale UTF-8" /usr/share/i18n/SUPPORTED; then
+	echo "Error: locale $locale is not supported by this system"
+	log_event "$E_NOTEXIST" "$ARGUMENTS"
+	exit "$E_NOTEXIST"
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+locale_generate "$locale"
+check_result $? "locale $locale could not be generated"
+
+update-locale "LANG=$locale"
+check_result $? "update-locale refused LANG=$locale"
+# On Ubuntu and Debian 13 /etc/default/locale is a symlink to /etc/locale.conf; update-locale writes through it.
+if [ "$(grep -m1 '^LANG=' /etc/default/locale 2> /dev/null | cut -d= -f2 | tr -d '"')" != "$locale" ]; then
+	check_result "$E_UPDATE" "/etc/default/locale was not written: LANG"
+fi
+
+echo "System locale set to $locale, effective after a reboot."
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+# Logging
+$BIN/h-log-action "system" "Info" "System" "System locale changed (Locale: $locale)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

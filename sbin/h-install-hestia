@@ -1155,6 +1155,12 @@ finalize_install() {
 		HESTIA_PASS="(not found — use h-change-user-password $HESTIA_ADMIN <newpass>)"
 	fi
 
+	# Last, so the whole run saw one environment; it takes effect at the reboot asked for below (#1164).
+	if [ "${SYSTEM_LOCALE:-keep}" != keep ] && ! "$BIN/h-change-sys-locale" "$SYSTEM_LOCALE"; then
+		echo "[ ! ] System locale $SYSTEM_LOCALE could not be set, the box keeps its own" >&2
+	fi
+	panel_language_follow_system
+
 	echo "[ * ] Restarting panel services (Caddy + hestia-php)..."
 	# restart both so configure-stage changes (SSL cert, panel port) take effect
 	systemctl restart caddy hestia-php 2> /dev/null || true

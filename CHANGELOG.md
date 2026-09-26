@@ -14,6 +14,11 @@ opens above it.
 
 ### Added
 
+- **The installer asks for the system locale, and the panel's language follows it** (#1164). Leave as it is,
+  English, German or neutral (`C.UTF-8`); unattended with `--locale=`. It is set at the end of the install and
+  takes effect with the reboot; `h-change-sys-locale` does the same on an installed box. The panel's default
+  language and the admin's follow the system locale when there is a catalog for it, en otherwise. An update
+  never touches the system locale.
 - **A MySQL database can reuse a user another database of the customer already has** (#725). `h-add-database`
   and `h-change-database-user` take an empty DBPASS for that. The password lives in the record that created the
   user; the others only get grants, and the one holding it cannot be deleted or moved while another still uses

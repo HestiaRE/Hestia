@@ -1060,6 +1060,29 @@ locale_present() {
 	[ -n "$want" ] || return 1
 	locale -a 2> /dev/null | tr '[:upper:]' '[:lower:]' | grep -qxF "$want"
 }
+
+# Ubuntu's images ship without it: no locale.gen, no locale-gen, no update-locale (#1157).
+locales_install() {
+	[ -f /etc/locale.gen ] && command -v update-locale > /dev/null && return 0
+	dpkg --configure -a > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Options::="--force-confold" \
+		install locales > /dev/null 2>&1
+}
+
+# A UTF-8 locale by name. Only /etc/locale.gen counts: Debian's locale-gen ignores a name argument and returns 0.
+locale_generate() {
+	local name=$1 re
+	locale_present "$name" && return 0
+	locales_install || return 1
+	re=${name//./\\.}
+	if grep -qE "^#[[:space:]]*${re} UTF-8[[:space:]]*\$" /etc/locale.gen; then
+		sed -i -E "s/^#[[:space:]]*(${re} UTF-8)[[:space:]]*\$/\1/" /etc/locale.gen || return 1
+	elif ! grep -qE "^${re} UTF-8" /etc/locale.gen; then
+		echo "$name UTF-8" >> /etc/locale.gen || return 1
+	fi
+	locale-gen > /dev/null 2>&1
+	locale_present "$name"
+}
 # rc 0 offered, 1 not, 2 the list is unusable: an empty reference set must not turn every account to en.
 # Asked of languages.json, not of the catalog directories: an update reads it after the overlay while
 # the catalogs of a dropped language are still on disk (#1160).

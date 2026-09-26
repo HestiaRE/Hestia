@@ -757,23 +757,28 @@ cron_update_check_apply() {
 # and still returns 0, so the answer comes from locale -a.
 panel_locale_apply() {
 	locale_present en_US.UTF-8 && return 0
-	if [ ! -f /etc/locale.gen ]; then
-		dpkg --configure -a > /dev/null 2>&1
-		DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Options::="--force-confold" \
-			install locales > /dev/null 2>&1 || return 1
-	fi
-	if grep -qE '^#[[:space:]]*en_US\.UTF-8 UTF-8[[:space:]]*$' /etc/locale.gen; then
-		sed -i -E 's/^#[[:space:]]*(en_US\.UTF-8 UTF-8)[[:space:]]*$/\1/' /etc/locale.gen || return 1
-	elif ! grep -qE '^en_US\.UTF-8 UTF-8' /etc/locale.gen; then
-		echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen || return 1
-	fi
-	locale-gen > /dev/null 2>&1
-	locale_present en_US.UTF-8 || return 1
+	locale_generate en_US.UTF-8 || return 1
 	# Measured: a running panel FPM keeps English until it restarts. update.sh stops it anyway, a direct call does not.
 	if systemctl is-active --quiet hestia-php; then
 		systemctl restart hestia-php
 	fi
 	return 0
+}
+
+# The panel's default language follows the system locale where a catalog exists (#1164), en otherwise. Read from
+# the file, not from this shell: the installer runs in whatever LANG the admin's SSH session brought along.
+panel_language_follow_system() {
+	local lang
+	# Under the installer's pipefail a missing file or LANG line fails the assignment, and errexit would end the run.
+	lang=$(grep -m1 '^LANG=' /etc/default/locale 2> /dev/null | cut -d= -f2 | tr -d '"' | cut -d_ -f1) || lang=''
+	[[ "$lang" =~ ^[a-z]{2,3}$ ]] && [ "$lang" != en ] || return 0
+	language_offered "$lang" || return 0
+	if "$BIN/h-change-sys-language" "$lang" > /dev/null \
+		&& "$BIN/h-change-user-language" "$HESTIA_ADMIN" "$lang" > /dev/null; then
+		echo "[ * ] Panel language follows the system locale: $lang"
+	else
+		echo "[ ! ] Panel language could not be set to $lang, it stays en" >&2
+	fi
 }
 
 # Pins every nightly job to one language, so a word match against a program's output cannot depend

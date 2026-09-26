@@ -67,6 +67,20 @@
       "note": "No static default: it is derived from the answer to HESTIA_HOSTNAME."
     },
     {
+      "id": "SYSTEM_LOCALE",
+      "type": "choice",
+      "question": "System locale (the panel language follows it):",
+      "options": [
+        { "value": "keep", "label": "leave as it is" },
+        { "value": "en_US.UTF-8", "label": "English" },
+        { "value": "de_DE.UTF-8", "label": "German (apt and some tools answer in German)" },
+        { "value": "C.UTF-8", "label": "neutral" }
+      ],
+      "default": "keep",
+      "stage": "pre_preset",
+      "note": "The first option is the default; the menu has no preselection. Set at the end of the install by h-change-sys-locale, effective after the reboot; an update never touches it (#1164). Unattended: --locale=<value>."
+    },
+    {
       "id": "ADMIN_PASSWORD",
       "type": "generated",
       "stage": "post_install",

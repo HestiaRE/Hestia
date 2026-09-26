@@ -386,9 +386,25 @@ add_mysql_database() {
 	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 
+	# Checked before the database exists. A reused user must be there; a new one must not, or the GRANT below
+	# would take it over with this password, another customer's included.
+	if [ -n "${reuse:-}" ]; then
+		mysql_user_exists "$dbuser" || check_result "$E_NOTEXIST" "database user $dbuser does not exist on $host"
+	elif mysql_user_exists "$dbuser"; then
+		check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	fi
+
 	query="CREATE DATABASE \`$database\` CHARACTER SET $charset"
 	mysql_query "$query"
 	check_result $? "Unable to create database $database"
+
+	# A reused user keeps its password, and its hash stays in the record that created it.
+	if [ -n "${reuse:-}" ]; then
+		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@\`%\`" > /dev/null
+		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost" > /dev/null
+		md5=''
+		return 0
+	fi
 
 	dbpass_esc=$(mysql_sql_escape "$dbpass")
 
@@ -618,6 +634,108 @@ db_is_owned_by_user() {
 	cut -d' ' -f1 "$USER_DATA/db.conf" 2> /dev/null | grep -qxF "DB='$1'"
 }
 
+# db_record_field LINE KEY: one field of a db.conf record, exact: a grep for DBUSER='x' also hits X_DBUSER='x'.
+db_record_field() {
+	[[ " $1" =~ \ $2=\'([^\']*)\' ]] && printf '%s' "${BASH_REMATCH[1]}"
+}
+
+# db_user_in_use DBUSER TYPE HOST [SELF_DB] [IGNORE_DBS]: does another record of this customer hold DBUSER in a
+# slot? TYPE/HOST '*' match any. rc 0 in use, 1 free, 2 cannot tell; callers drop a user only on 1, so a doubt keeps
+# it. SELF_DB must be seen: a file without the caller's own record is not the one it thinks it is reading.
+db_user_in_use() {
+	local u="$1" type="$2" host="$3" self="${4:-}" ignore=" ${5:-} " line db seen='' found=''
+	[ -n "$u" ] && [ -r "$USER_DATA/db.conf" ] || return 2
+	while IFS= read -r line || [ -n "$line" ]; do
+		db=$(db_record_field "$line" DB)
+		if [ -n "$self" ] && [ "$db" = "$self" ]; then
+			seen=yes
+			continue
+		fi
+		[[ "$ignore" == *" $db "* ]] && continue
+		db_record_matches "$line" "$type" "$host" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$u" ] || [ "$(db_record_field "$line" DBUSER2)" = "$u" ]; then
+			found=yes
+		fi
+	done < "$USER_DATA/db.conf"
+	[ -z "$self" ] || [ -n "$seen" ] || return 2
+	[ -n "$found" ]
+}
+
+# db_user_hash_elsewhere DBUSER TYPE HOST SELF_DB [IGNORE_DBS]: does a record other than SELF_DB, outside
+# IGNORE_DBS, carry DBUSER's hash? Its password is then the one the user has on the server.
+db_user_hash_elsewhere() {
+	local ignore=" ${5:-} " line db
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db=$(db_record_field "$line" DB)
+		[ "$db" != "$4" ] && [[ "$ignore" != *" $db "* ]] || continue
+		db_record_matches "$line" "$2" "$3" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then return 0; fi
+		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then return 0; fi
+	done < "$USER_DATA/db.conf"
+	return 1
+}
+
+# db_user_foreign DBUSER USER: does another customer's record hold DBUSER in a slot? Database users are server-wide,
+# and the customer prefix does not keep names apart: customer a with b_x and customer a_b with x are both a_b_x.
+db_user_foreign() {
+	local conf line
+	for conf in "$CONF_DIR"/users/*/db.conf; do
+		[ -e "$conf" ] || continue
+		[ "$conf" != "$CONF_DIR/users/$2/db.conf" ] || continue
+		while IFS= read -r line || [ -n "$line" ]; do
+			if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER2)" = "$1" ]; then
+				return 0
+			fi
+		done < "$conf"
+	done
+	return 1
+}
+
+# mysql_user_exists DBUSER: the server's own answer, which also knows users no record names any more.
+mysql_user_exists() {
+	[ "$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$1'" | tail -n1)" != '0' ]
+}
+
+db_record_matches() {
+	{ [ "$2" = '*' ] || [ "$(db_record_field "$1" TYPE)" = "$2" ]; } \
+		&& { [ "$3" = '*' ] || [ "$(db_record_field "$1" HOST)" = "$3" ]; }
+}
+
+# db_user_host DBUSER TYPE: the HOST of the records holding DBUSER; a shared user lives on exactly one server.
+db_user_host() {
+	local line
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db_record_matches "$line" "$2" '*' || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER2)" = "$1" ]; then
+			db_record_field "$line" HOST
+			return 0
+		fi
+	done < "$USER_DATA/db.conf"
+	return 1
+}
+
+# db_user_canonical DBUSER TYPE HOST: "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_2). rc 1 none,
+# rc 2 more than one: two records claiming one password is a state no command may build on.
+db_user_canonical() {
+	local line hit=''
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db_record_matches "$line" "$2" "$3" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then
+			[ -z "$hit" ] || return 2
+			hit="$(db_record_field "$line" DB) MD5"
+		fi
+		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then
+			[ -z "$hit" ] || return 2
+			hit="$(db_record_field "$line" DB) MD5_2"
+		fi
+	done < "$USER_DATA/db.conf"
+	[ -n "$hit" ] || return 1
+	echo "$hit"
+}
+
 # Delete MySQL database
 delete_mysql_database() {
 	local database="${1:-$database}"
@@ -636,7 +754,8 @@ delete_mysql_database() {
 	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@localhost"
 	mysql_query "$query" > /dev/null
 
-	if [ "$(grep "DBUSER='$DBUSER'" $USER_DATA/db.conf | wc -l)" -lt 2 ]; then
+	db_user_in_use "$DBUSER" mysql "$HOST" "$database"
+	if [ $? -eq 1 ]; then
 		query="DROP USER '$DBUSER'@'%'"
 		mysql_query "$query" > /dev/null
 
@@ -663,7 +782,8 @@ delete_pgsql_database() {
 	query="DROP DATABASE $database"
 	psql_query "$query" > /dev/null
 
-	if [ "$(grep "DBUSER='$DBUSER'" $USER_DATA/db.conf | wc -l)" -lt 2 ]; then
+	db_user_in_use "$DBUSER" pgsql "$HOST" "$database"
+	if [ $? -eq 1 ]; then
 		query="REVOKE CONNECT ON DATABASE template1 FROM $DBUSER"
 		psql_query "$query" > /dev/null
 		query="DROP ROLE $DBUSER"
@@ -785,6 +905,10 @@ delete_mysql_user() {
 
 	query="REVOKE ALL ON \`$database\`.* FROM \`$old_dbuser\`@localhost"
 	mysql_query "$query" > /dev/null
+
+	# The rights on this database go either way; the user only when no other database still names it.
+	db_user_in_use "$old_dbuser" mysql "$HOST"
+	[ $? -eq 1 ] || return 0
 
 	query="DROP USER '$old_dbuser'@'%'"
 	mysql_query "$query" > /dev/null

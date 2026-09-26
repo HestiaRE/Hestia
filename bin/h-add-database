@@ -3,8 +3,10 @@
 # options: USER DATABASE DBUSER DBPASS [TYPE] [HOST] [CHARSET]
 #
 # example: h-add-database admin wordpress_db matt qwerty123
+# example: h-add-database admin shop_db matt ''
 #
 # This function creates the database concatenating username and user_db.
+# An empty DBPASS reuses DBUSER when another MySQL database of the user already has it.
 # Supported types of databases you can get using h-list-sys-config script.
 # If the host isn't stated and there are few hosts configured on the server,
 # then the host will be defined by one of three algorithms. "First" will choose
@@ -53,13 +55,29 @@ is_type_valid "$DB_SYSTEM" "$type"
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_new 'db' 'DB' "$database"
-is_object_new 'db' 'DBUSER' "$dbuser"
+is_password_valid
+# An empty DBPASS reuses a user another database of this customer holds (#725); anything else would be a user
+# without a password.
+reuse=''
+if [ -z "$password" ]; then
+	[ "$type" = 'mysql' ] || check_result "$E_INVALID" "DBPASS is empty: only a MySQL database can reuse a user"
+	reuse_host=$(db_user_host "$dbuser" mysql) \
+		|| check_result "$E_NOTEXIST" "DBPASS is empty and $dbuser is not a database user of $user"
+	if [ -n "$host" ] && [ "$host" != 'default' ] && [ "$host" != "$reuse_host" ]; then
+		check_result "$E_INVALID" "$dbuser lives on $reuse_host, not on $host"
+	fi
+	host="$reuse_host"
+	reuse='yes'
+else
+	db_user_in_use "$dbuser" '*' '*'
+	[ $? -eq 1 ] || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	! db_user_foreign "$dbuser" "$user" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+fi
 get_next_dbhost
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
 is_object_unsuspended "$HESTIA/conf/$type" 'DBHOST' "$host"
 #is_charset_valid
 is_package_full 'DATABASES'
-is_password_valid
 
 if [ "$type" = "pgsql" ]; then
 	exclude="-"

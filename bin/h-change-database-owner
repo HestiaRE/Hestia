@@ -58,6 +58,14 @@ if [ -z "$db_data" ]; then
 fi
 
 parse_object_kv_list "$db_data"
+# A shared user cannot follow one of its databases to another customer (#725).
+if [ "$TYPE" = 'mysql' ]; then
+	(
+		USER_DATA="$CONF_DIR/users/$owner"
+		db_user_in_use "$DBUSER" mysql "$HOST" "$database"
+	)
+	[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database of $owner"
+fi
 #Fix issue #1084 with "Upper case not allowed with PGSQL"
 if [ "$TYPE" == "pgsql" ]; then
 	usersmall=$(echo "$user" | tr '[:upper:]' '[:lower:]')
@@ -73,6 +81,12 @@ new_dbuser=$(echo "$DBUSER" | sed "s/^${owner}_/${usersmall}_/")
 # no command could remove. Measured, and it took the source database with it.
 is_database_format_valid "$new_db" 'database'
 is_dbuser_format_valid "$new_dbuser" 'dbuser'
+# The renamed user must be free server-wide: the prefix swap alone can land on another customer's user.
+! db_user_foreign "$new_dbuser" "$owner" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"
+if [ "$TYPE" = 'mysql' ]; then
+	mysql_connect "$HOST"
+	! mysql_user_exists "$new_dbuser" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"
+fi
 check_db=$(grep -F "DB='$new_db'" $CONF_DIR/users/$user/db.conf)
 if [ -n "$check_db" ]; then
 	echo "Error: $new_db database exists"

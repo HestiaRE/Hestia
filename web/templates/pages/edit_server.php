@@ -258,7 +258,7 @@
 						</summary>
 						<div class="box-collapse-content">
 							<p class="hint u-mb20">
-								<?= tohtml(_("Bot families are matched on the User-Agent and throttled to the rate below (HTTP 429). Humans are never limited; malicious traffic is handled by CrowdSec, not here. Each domain then picks off, lenient or strict per family in its own settings - nothing is throttled until someone does.")) ?>
+								<?= tohtml(_("Bots are matched by User-Agent family and throttled to the rate below (HTTP 429); humans never are, malicious traffic is CrowdSec's job. Nothing is throttled until a domain opts in.")) ?>
 							</p>
 							<?php foreach ($botfamily_rows as $i => $r) { ?>
 								<details class="box-collapse u-mb10">
@@ -1420,7 +1420,7 @@
 						</select>
 						<?php if (!empty($_SESSION["MAIL_SYSTEM"])) { ?>
 							<span class="hint">
-								<?= tohtml(_("Mail is installed: turning this off and relying on CrowdSec alone leaves mail brute force unprotected - CrowdSec has no mail detection surface.")) ?>
+								<?= tohtml(_("Mail is installed: without Fail2Ban, mail brute force goes undetected (CrowdSec does not cover mail).")) ?>
 							</span>
 						<?php } ?>
 					</div>

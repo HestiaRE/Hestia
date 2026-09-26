@@ -269,7 +269,7 @@
 					}
 					?>
 							</select>
-							<small class="form-text text-muted"><?= tohtml(_("Caps the customer's Docker companion - the daemon and all of their containers together. Percentages are of the host: 100% CPU is one core.")) ?></small>
+							<small class="form-text text-muted"><?= tohtml(_("Caps the customer's Docker companion: the daemon and all of their containers together. Percentages are of the host: 100% CPU is one core.")) ?></small>
 						</div>
 					</div>
 				</details>

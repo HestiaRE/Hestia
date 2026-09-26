@@ -291,7 +291,7 @@ msgid "Name"
 msgstr "Naam"
 
 #: web/add/firewall/mesh/index.php web/templates/pages/list_firewall_mesh.php
-msgid "CrowdSec fleet-mesh is not enabled on this server."
+msgid "CrowdSec Fleet Mesh is not enabled on this server."
 msgstr ""
 
 #: web/add/firewall/mesh/index.php
@@ -673,11 +673,11 @@ msgid "Changes have been saved."
 msgstr "Wijzigingen zijn opgeslagen."
 
 #: web/edit/mail/index.php
-msgid "Invalid spam reject threshold."
+msgid "Invalid spam mark threshold."
 msgstr ""
 
 #: web/edit/mail/index.php
-msgid "Invalid spam score threshold."
+msgid "Invalid spam reject threshold."
 msgstr ""
 
 #: web/edit/mail/index.php
@@ -686,12 +686,12 @@ msgstr ""
 
 #: web/edit/mail/index.php
 #, php-format
-msgid "Spam reject threshold must be between %s and %s."
+msgid "Spam mark threshold must be between %s and %s."
 msgstr ""
 
 #: web/edit/mail/index.php
 #, php-format
-msgid "Spam score threshold must be between %s and %s."
+msgid "Spam reject threshold must be between %s and %s."
 msgstr ""
 
 #: web/edit/server/cron/index.php web/edit/server/crond/index.php
@@ -1648,7 +1648,7 @@ msgid "level"
 msgstr ""
 
 #: web/templates/pages/add_firewall_mesh.php
-msgid "Ask the other server's admin to generate a pairing code on its own Fleet Mesh page. Both servers then share their web-tier bans, and each opens its panel port for the other only."
+msgid "Get a pairing code from the other server's Fleet Mesh page. Both servers then share their web bans and open their panel port to each other only."
 msgstr ""
 
 #: web/templates/pages/add_firewall_mesh.php
@@ -1777,7 +1777,7 @@ msgid "Add Package"
 msgstr "Pakket toevoegen"
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
-msgid "Caps the customer's Docker companion - the daemon and all of their containers together. Percentages are of the host: 100% CPU is one core."
+msgid "Caps the customer's Docker companion: the daemon and all of their containers together. Percentages are of the host: 100% CPU is one core."
 msgstr ""
 
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
@@ -1992,7 +1992,7 @@ msgid "Key Size"
 msgstr "Sleutelgrootte"
 
 #: web/templates/pages/edit_mail.php
-msgid "Mail scoring above the threshold is marked as spam - lower means stricter."
+msgid "Mail scoring above the threshold is marked as spam; lower means stricter."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php
@@ -2018,7 +2018,7 @@ msgid "Not Before"
 msgstr "Niet voor"
 
 #: web/templates/pages/edit_mail.php
-msgid "One recipient domain per line, wildcards like *.example.com allowed. Delivered directly instead of via the relay - requires valid SPF and DKIM for this server."
+msgid "One recipient domain per line, wildcards like *.example.com allowed. Delivered directly instead of via the relay; requires valid SPF and DKIM for this server."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php
@@ -2178,7 +2178,7 @@ msgid "Bot Rate Limiting"
 msgstr ""
 
 #: web/templates/pages/edit_server.php
-msgid "Bot families are matched on the User-Agent and throttled to the rate below (HTTP 429). Humans are never limited; malicious traffic is handled by CrowdSec, not here. Each domain then picks off, lenient or strict per family in its own settings - nothing is throttled until someone does."
+msgid "Bots are matched by User-Agent family and throttled to the rate below (HTTP 429); humans never are, malicious traffic is CrowdSec's job. Nothing is throttled until a domain opts in."
 msgstr ""
 
 #: web/templates/pages/edit_server.php
@@ -2317,7 +2317,7 @@ msgid "Mail Server"
 msgstr "Mail server"
 
 #: web/templates/pages/edit_server.php
-msgid "Mail is installed: turning this off and relying on CrowdSec alone leaves mail brute force unprotected - CrowdSec has no mail detection surface."
+msgid "Mail is installed: without Fail2Ban, mail brute force goes undetected (CrowdSec does not cover mail)."
 msgstr ""
 
 #: web/templates/pages/edit_server.php
@@ -2543,10 +2543,6 @@ msgid "PHP Version"
 msgstr ""
 
 #: web/templates/pages/edit_user.php
-msgid "- turning this off removes the containers and their volumes"
-msgstr ""
-
-#: web/templates/pages/edit_user.php
 msgid "2FA QR Code"
 msgstr "2FA QR code"
 
@@ -2613,7 +2609,7 @@ msgid "Please scan the code below in your 2FA application"
 msgstr "Scan de onderstaande code in uw 2FA-applicatie"
 
 #: web/templates/pages/edit_user.php
-msgid "This removes the companion account and deletes every container, image and volume of this customer. Turning Docker back on later creates an empty companion - nothing comes back. Their docker domains revert to normal vhosts."
+msgid "This removes the companion account and deletes every container, image and volume of this customer. Turning Docker back on later creates an empty companion; nothing comes back. Their docker domains revert to normal vhosts."
 msgstr ""
 
 #: web/templates/pages/edit_user.php
@@ -2624,6 +2620,10 @@ msgstr ""
 #: web/templates/pages/edit_user.php
 msgid "Use IP address allow list for login attempts"
 msgstr "Beperk toegang ip adressen voor login pogingen"
+
+#: web/templates/pages/edit_user.php
+msgid "turning this off removes the containers and their volumes"
+msgstr ""
 
 #: web/templates/pages/edit_web.php
 msgid "Add FTP account"
@@ -2803,7 +2803,7 @@ msgid "Target domain or URL"
 msgstr "Doel domein of URL"
 
 #: web/templates/pages/edit_web.php
-msgid "The site keeps running and its files and database stay untouched - only the panel stops managing it. Re-enabling later is not possible while the document root is in use."
+msgid "The site keeps running and its files and database stay untouched; only the panel stops managing it. Re-enabling later is not possible while the document root is in use."
 msgstr ""
 
 #: web/templates/pages/edit_web.php
@@ -2948,7 +2948,7 @@ msgid "File Name"
 msgstr "Bestandsnaam"
 
 #: web/templates/pages/list_backup.php
-msgid "Kept until deleted - retention does not rotate exports"
+msgid "Kept until deleted; retention does not rotate exports"
 msgstr ""
 
 #: web/templates/pages/list_backup.php
@@ -3091,7 +3091,7 @@ msgstr[0] "%d snapshot"
 msgstr[1] "%d snapshots"
 
 #: web/templates/pages/list_backup_incremental.php
-msgid "Archives &amp; Exports"
+msgid "Archives & Exports"
 msgstr ""
 
 #: web/templates/pages/list_backup_incremental.php
@@ -3353,7 +3353,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: web/templates/pages/list_firewall_exclude.php
-msgid "A whitelisted address is accepted ahead of every ban and can no longer be banned. Adding your own address here is what recovers a lockout."
+msgid "A whitelisted address is accepted ahead of every ban and can no longer be banned. Add your own address here to recover from a lockout."
 msgstr ""
 
 #: web/templates/pages/list_firewall_exclude.php
@@ -3468,7 +3468,7 @@ msgid "Join a Peer"
 msgstr ""
 
 #: web/templates/pages/list_firewall_mesh.php
-msgid "No peers paired yet. Generate a code here, then join from the other server - or ask its admin for a code and use \"Join a Peer\"."
+msgid "No peers paired yet. Generate a pairing code here for the other server, or join with a code from its Fleet Mesh page."
 msgstr ""
 
 #: web/templates/pages/list_firewall_mesh.php

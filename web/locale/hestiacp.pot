@@ -5101,3 +5101,41 @@ msgstr ""
 #: ../../bin/h-list-sys-services:336
 msgid "web terminal backend"
 msgstr ""
+
+#: ../../web/templates/pages/edit_db.php:64
+msgid "Second User"
+msgstr ""
+
+#: ../../web/templates/pages/edit_db.php:65
+msgid ""
+"An existing user is shared and keeps its password, a new one needs a "
+"password. Empty the name to remove the second user."
+msgstr ""
+
+#: ../../web/templates/pages/edit_db.php:40
+#: ../../web/templates/pages/edit_db.php:74
+#, php-format
+msgid "Shared with %s, a new password applies there too."
+msgstr ""
+
+#: ../../web/templates/pages/edit_db.php:96
+msgid "Read-only (SELECT, SHOW VIEW)"
+msgstr ""
+
+#: ../../web/templates/pages/list_db.php:272
+msgid "read-only"
+msgstr ""
+
+#: ../../web/templates/pages/add_db.php:85
+msgid ""
+"A MySQL user you already have is shared: leave the password empty, it keeps "
+"its own."
+msgstr ""
+
+#: ../../web/add/db/index.php:73
+msgid "An existing user keeps its password, leave the password empty."
+msgstr ""
+
+#: ../../web/add/db/index.php:210
+msgid "the existing password of this user"
+msgstr ""

@@ -63,6 +63,8 @@ opens above it.
   nothing could connect, but any local process could log in as that user, another customer's PHP included.
   Such a user now gets a random password nobody knows, and `h-add-database` and `h-change-database-password`
   no longer accept an empty DBPASS as a password.
+- **Add Database said "Prefix %s will be added"** (#725). The hint encoded the placeholder before filling it in,
+  so the customer prefix never showed.
 - **On a PHP 8.5 panel, phpMyAdmin or Roundcube answered 500** (#1149). The Roundcube pool disables the new
   native `array_first()`/`array_last()` so Roundcube 1.6 can declare its own, but the OPcache is shared by the
   whole panel master, and code compiled in one pool called the wrong function in the other. Whichever app came

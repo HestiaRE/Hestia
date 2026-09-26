@@ -399,7 +399,7 @@
         ]
       },
       "locales": 7,
-      "locales_note": "en is the msgid itself; de is maintained, nl fr es pt da ru are best effort (#1160). languages.json names them, and the smoke holds it to the catalog directories. Gettext domain hestia: each catalog is web/locale/<l>/LC_MESSAGES/hestia.po, compiled to hestia.mo, and .gitea/tools/i18n.sh (update|check, local, needs gettext) derives the template hestia.pot from the code and keeps the three in step. The .pot and .po do not ship. gettext needs a locale that is not C, so panel_locale_apply (include/helper.sh) generates en_US.UTF-8 at install and update (#1157); the smoke asks a de session.",
+      "locales_note": "en is the msgid itself; de is maintained, nl fr es pt da ru are best effort (#1160). languages.json names them, and the smoke holds it to the catalog directories. Gettext domain hestia: each catalog is web/locale/<l>/LC_MESSAGES/hestia.po, compiled to hestia.mo, and .gitea/tools/i18n.sh (update|check, local, needs gettext) derives the template hestia.pot from the code and keeps the three in step. The .pot and .po do not ship. gettext needs a locale that is not C, so panel_locale_apply (include/helper.sh) generates en_US.UTF-8 at install and update (#1157); the smoke asks a de session. The system locale is separate: the wizard's SYSTEM_LOCALE, set at the end of the install by bin/h-change-sys-locale (locale_generate in include/main.sh, shared with panel_locale_apply); the panel's default language follows it where a catalog exists (panel_language_follow_system), and an update never touches it (#1164).",
       "action_dirs": [
         "add",
         "edit",

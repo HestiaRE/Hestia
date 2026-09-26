@@ -11,6 +11,7 @@
 #   bash /usr/local/hestia/include/wizard.sh                # full interactive
 #   bash /usr/local/hestia/include/wizard.sh --preset=standard   # fasttrack
 #   bash /usr/local/hestia/include/wizard.sh --preset=standard --auto --port=9443
+#   bash /usr/local/hestia/include/wizard.sh --preset=standard --auto --locale=en_US.UTF-8
 #   bash /usr/local/hestia/include/wizard.sh --os=debian-bookworm
 #
 # After it writes install.conf, run the installer:
@@ -44,6 +45,7 @@ OS=""
 INSTALL_PROFILE=""
 FASTTRACK_PRESET=""
 PANEL_PORT_ARG=""
+LOCALE_ARG=""
 AUTO_MODE=false
 PHP_VERSIONS_AVAILABLE=""
 REFERENCE_PHP=""
@@ -58,6 +60,7 @@ for _arg in "$@"; do
 		--os=*) OS="${_arg#*=}" ;;
 		--preset=*) FASTTRACK_PRESET="${_arg#*=}" ;;
 		--port=*) PANEL_PORT_ARG="${_arg#*=}" ;;
+		--locale=*) LOCALE_ARG="${_arg#*=}" ;;
 		--auto) AUTO_MODE=true ;;
 		--force) FORCE=true ;;
 		-*) ;;
@@ -327,6 +330,7 @@ fn_pre_question_default() {
 		HESTIA_HOSTNAME) hostname --fqdn 2> /dev/null || hostname 2> /dev/null || echo "server.example.com" ;;
 		HESTIA_PANEL_PORT) echo "${PANEL_PORT_ARG:-$2}" ;;
 		HESTIA_EMAIL) echo "admin@${HESTIA_HOSTNAME}" ;;
+		SYSTEM_LOCALE) echo "${LOCALE_ARG:-$2}" ;;
 		*) echo "$2" ;;
 	esac
 }
@@ -344,21 +348,36 @@ fn_ask_pre_questions() {
 		echo "ERROR: no pre_preset entry in .pre_questions - the wizard would ask nothing." >&2
 		exit 1
 	}
-	local n=${#pq[@]} i=0 id q d val
+	local n=${#pq[@]} i=0 id q d t val _v _l
+	local -a items
 	for id in "${pq[@]}"; do
 		i=$((i + 1))
 		q=$(mq --arg id "$id" '.pre_questions[] | select(.id == $id) | .question')
 		d=$(mq --arg id "$id" '.pre_questions[] | select(.id == $id) | .default // "" | tostring')
 		d=$(fn_pre_question_default "$id" "$d")
-		if [ "$AUTO_MODE" = true ]; then
+		t=$(mq --arg id "$id" '.pre_questions[] | select(.id == $id) | .type')
+		# --locale answers its question, the way -a answers all of them.
+		if [ "$AUTO_MODE" = true ] || { [ "$id" = SYSTEM_LOCALE ] && [ -n "$LOCALE_ARG" ]; }; then
 			val="$d"
+		elif [ "$t" = choice ]; then
+			items=()
+			while IFS=$'\t' read -r _v _l; do items+=("$_v" "$_l"); done \
+				< <(mq --arg id "$id" '.pre_questions[] | select(.id == $id) | .options[] | [.value, .label] | @tsv')
+			val=$(_wt_menu "HestiaRE Setup ($i/$n)" "$q" "${items[@]}")
 		else
 			val=$(_wt_inputbox "HestiaRE Setup ($i/$n)" "$q" "$d")
+		fi
+		# A choice holds only its listed values: a mistyped --locale must not reach the installer.
+		if [ "$t" = choice ] && ! mq -e --arg id "$id" --arg v "$val" \
+			'.pre_questions[] | select(.id == $id) | any(.options[]; .value == $v)' > /dev/null; then
+			echo "ERROR: '$val' is not an answer to $id. Valid: $(mq --arg id "$id" \
+				'.pre_questions[] | select(.id == $id) | [.options[].value] | join(", ")')" >&2
+			exit 1
 		fi
 		printf -v "$id" '%s' "$val"
 	done
 	if [ "$AUTO_MODE" = true ]; then
-		echo "[ * ] Unattended: hostname=$HESTIA_HOSTNAME port=$HESTIA_PANEL_PORT admin=$HESTIA_ADMIN email=$HESTIA_EMAIL"
+		echo "[ * ] Unattended: hostname=$HESTIA_HOSTNAME port=$HESTIA_PANEL_PORT admin=$HESTIA_ADMIN email=$HESTIA_EMAIL locale=$SYSTEM_LOCALE"
 		echo "[ * ] That address is on this host, so system and panel mail stays in /var/mail/root"
 	fi
 	# Not manifest data: these three are h-install-hestia's contract, it aborts without them.

@@ -160,6 +160,8 @@ overlay has already replaced the list when the plan is derived, while a dropped 
 disk until its own entry deletes it.
 `locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
 there says nothing about whether the locale was generated.
+Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin
+(the installer's answer or `h-change-sys-locale`), and no entry ever changes it (#1164).
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

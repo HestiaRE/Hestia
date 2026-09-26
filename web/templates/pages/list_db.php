@@ -268,6 +268,9 @@ foreach ($data as $key => $value) {
 				<div class="units-table-cell u-text-bold u-text-center-desktop">
 					<span class="u-hide-desktop"><?= tohtml(_("Username")) ?>:</span>
 					<?= tohtml($data[$key]["DBUSER"]) ?>
+					<?php if (!empty($data[$key]["DBUSER_SECOND"])) { ?>
+						<br><span class="u-text-small">+ <?= tohtml($data[$key]["DBUSER_SECOND"]) ?><?= ($data[$key]["DBUSER_SECOND_RO"] ?? "") === "yes" ? " (" . tohtml(_("read-only")) . ")" : "" ?></span>
+					<?php } ?>
 				</div>
 				<div class="units-table-cell u-text-bold u-text-center-desktop">
 					<span class="u-hide-desktop"><?= tohtml(_("Hostname")) ?>:</span>

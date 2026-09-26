@@ -24,6 +24,10 @@ opens above it.
   read-only (`SELECT, SHOW VIEW`) without a gap in SELECT, and changes its password;
   `h-delete-database-second-user` removes it. Suspend, unsuspend, rebuild, backup and restore carry the second
   user. A rebuild no longer hands a suspended database its rights back.
+- **The panel offers shared and second database users** (#725). Add and Edit Database suggest the MySQL users the
+  customer already has; picking one shares it and takes no password. Edit Database carries a second user with a
+  read-only box, and names the databases a user is shared with, since a new password applies there too. Renaming
+  a user now takes the password field along instead of dropping it.
 - **ionCube loader as an installer addon** (#1069), preselected on standard and compact, offered wherever the
   box runs customer PHP. The loader archive is pinned with a sha256 per architecture (x86-64 and aarch64) and
   comes through a mirror on v6-only boxes. Every customer PHP version gets it, a version added later too;

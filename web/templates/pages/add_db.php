@@ -74,8 +74,16 @@
 						<?= tohtml(_("Username")) ?>
 						<em><small>(<?= tohtml(sprintf(_("Maximum %s characters length, including prefix"), 32)) ?>)</small></em>
 					</label>
-					<input type="text" class="form-control js-db-hint-username" name="v_dbuser" id="v_dbuser" value="<?= tohtml(trim($v_dbuser, "'")) ?>">
+					<input type="text" class="form-control js-db-hint-username" name="v_dbuser" id="v_dbuser" value="<?= tohtml(trim($v_dbuser, "'")) ?>" list="v_db_users">
 					<small class="hint"></small>
+					<datalist id="v_db_users">
+						<?php foreach ($db_users as $db_user) { ?>
+							<option value="<?= tohtml($db_user) ?>">
+						<?php } ?>
+					</datalist>
+					<?php if (!empty($db_users)) { ?>
+						<p class="hint u-mt5"><?= tohtml(_("A MySQL user you already have is shared: leave the password empty, it keeps its own.")) ?></p>
+					<?php } ?>
 				</div>
 				<div class="u-mb10">
 					<label for="v_password" class="form-label">

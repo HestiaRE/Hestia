@@ -59,6 +59,7 @@ fi
 
 parse_object_kv_list "$db_data"
 # A shared user cannot follow one of its databases to another customer (#725).
+[ -z "${DBUSER2:-}" ] || check_result "$E_INUSE" "$database has a second user, remove it with h-delete-database-slot2 first"
 if [ "$TYPE" = 'mysql' ]; then
 	(
 		USER_DATA="$CONF_DIR/users/$owner"

@@ -1,0 +1,152 @@
+#!/bin/bash
+# info: set the second user of a database
+# options: USER DATABASE DBUSER [DBPASS] [RO]
+#
+# example: h-change-database-slot2 admin shop_db reader 'Pa55w0rd' yes
+# example: h-change-database-slot2 admin shop_db matt '' no
+#
+# This function gives a MySQL database a second user next to its main one. A DBUSER another database of the user
+# already has is reused with its password, so DBPASS stays empty then; a new one needs DBPASS. Naming the current
+# second user again changes its password or its rights. RO yes grants read-only (SELECT, SHOW VIEW), no full rights,
+# empty keeps what the slot has.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Argument definition
+user=$1
+database=$2
+dbuser="$user"_"$3"
+password=$4
+ro=$5
+HIDE=4
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '3' "$#" 'USER DATABASE DBUSER [DBPASS] [RO]'
+is_format_valid 'user' 'database' 'dbuser'
+case "$ro" in
+	'' | yes | no) ;;
+	*) check_result "$E_INVALID" "RO is yes or no" ;;
+esac
+is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
+is_object_valid 'user' 'USER' "$user"
+is_object_unsuspended 'user' 'USER' "$user"
+is_object_valid 'db' 'DB' "$database"
+is_object_unsuspended 'db' 'DB' "$database"
+is_password_valid
+dbpass="$password"
+
+get_database_values
+[ "$TYPE" = 'mysql' ] || check_result "$E_INVALID" "a second user exists for MySQL databases only"
+[ "$dbuser" != "$DBUSER" ] || check_result "$E_INVALID" "$dbuser is already the main user of $database"
+
+# Held apart: update_object_value parses the record it writes back into these globals.
+old2="$DBUSER2"
+old_ro="$DBUSER2_RO"
+case "$ro" in
+	yes) new_ro='yes' ;;
+	no) new_ro='' ;;
+	*) [ "$dbuser" = "$old2" ] && new_ro="$old_ro" || new_ro='' ;;
+esac
+
+reuse=''
+if [ "$dbuser" = "$old2" ]; then
+	[ -n "$dbpass" ] || [ "$new_ro" != "$old_ro" ] || exit 0
+	if [ -n "$dbpass" ]; then
+		hash_at=$(db_user_canonical "$dbuser" mysql "$HOST")
+		case $? in
+			1) hash_at="$database MD5_2" ;;
+			2) check_result "$E_INVALID" "more than one database claims the password of $dbuser" ;;
+		esac
+	fi
+else
+	# A name another database holds is reused: same server, and its password stays the one it has.
+	db_user_in_use "$dbuser" '*' '*' "$database"
+	case $? in
+		0)
+			[ -z "$dbpass" ] || check_result "$E_INVALID" "$dbuser is used by another database, its password changes there"
+			[ "$(db_user_host "$dbuser" mysql)" = "$HOST" ] || check_result "$E_INVALID" "$dbuser lives on another database server"
+			reuse='yes'
+			;;
+		1)
+			[ -n "$dbpass" ] || check_result "$E_INVALID" "$dbuser is a new user, give DBPASS"
+			! db_user_foreign "$dbuser" "$user" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+			;;
+		*) check_result "$E_PARSING" "cannot read the databases of $user" ;;
+	esac
+	# The old second user's password lives in this record: whoever else uses it would be left with a user nobody
+	# can re-create.
+	if [ -n "$old2" ] && [ -n "$MD5_2" ]; then
+		db_user_in_use "$old2" mysql "$HOST" "$database"
+		[ $? -eq 1 ] || check_result "$E_INUSE" "$old2 is used by another database; give that one its own user first"
+	fi
+fi
+mysql_connect "$HOST"
+if [ -z "$reuse" ] && [ "$dbuser" != "$old2" ]; then
+	! mysql_user_exists "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Records from before #725 carry no slot-2 keys, and update_object_value only rewrites keys that are there.
+for key in DBUSER2 MD5_2 DBUSER2_RO; do
+	add_object_key 'db' 'DB' "$database" "$key" 'HOST'
+done
+
+if [ "$dbuser" = "$old2" ]; then
+	if [ -n "$dbpass" ]; then
+		mysql_set_password "$dbuser" "$dbpass" || check_result "$E_DB" "cannot set the password of $dbuser"
+		update_object_value 'db' 'DB' "${hash_at% *}" "\$${hash_at#* }" "$md5"
+	fi
+	if [ "$new_ro" != "$old_ro" ]; then
+		mysql_grant_slot "$dbuser" "$database" "$new_ro" || check_result "$E_DB" "$dbuser did not get the rights asked for on $database"
+		update_object_value 'db' 'DB' "$database" '$DBUSER2_RO' "$new_ro"
+	fi
+else
+	# The new user holds its rights before the old one loses them, so the slot is never without a working user.
+	md5=''
+	if [ -z "$reuse" ]; then
+		mysql_create_user "$dbuser" "$dbpass" || check_result "$E_DB" "cannot create $dbuser"
+	fi
+	if ! mysql_grant_slot "$dbuser" "$database" "$new_ro"; then
+		mysql_revoke_slot "$dbuser" "$database"
+		if [ -z "$reuse" ]; then
+			mysql_query "DROP USER '$dbuser'@'%'" > /dev/null
+			mysql_query "DROP USER '$dbuser'@'localhost'" > /dev/null
+		fi
+		check_result "$E_DB" "$dbuser did not get the rights asked for on $database"
+	fi
+	update_object_value 'db' 'DB' "$database" '$DBUSER2' "$dbuser"
+	update_object_value 'db' 'DB' "$database" '$MD5_2' "$md5"
+	update_object_value 'db' 'DB' "$database" '$DBUSER2_RO' "$new_ro"
+	if [ -n "$old2" ]; then
+		mysql_revoke_slot "$old2" "$database"
+		mysql_drop_user_if_free "$old2"
+	fi
+fi
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+# Logging
+$BIN/h-log-action "$user" "Info" "Database" "Second database user set (Database: $database, User: $dbuser, Read-only: ${new_ro:-no})"
+log_event "$OK" "$ARGUMENTS"
+
+exit

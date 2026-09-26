@@ -29,11 +29,15 @@ json_list() {
 	objects=$(grep "DB=" $USER_DATA/db.conf | wc -l)
 	echo "{"
 	while read -r str; do
+		# Records from before #725 have no slot-2 keys; the last record's would carry over.
+		DBUSER2='' DBUSER2_RO=''
 		parse_object_kv_list "$str"
-		json_escape DB DBUSER HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
+		json_escape DB DBUSER DBUSER2 DBUSER2_RO HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$DB"
 		printf '        "DATABASE": "%s",\n' "$DB"
 		printf '        "DBUSER": "%s",\n' "$DBUSER"
+		printf '        "DBUSER2": "%s",\n' "$DBUSER2"
+		printf '        "DBUSER2_RO": "%s",\n' "$DBUSER2_RO"
 		printf '        "HOST": "%s",\n' "$HOST"
 		printf '        "TYPE": "%s",\n' "$TYPE"
 		printf '        "CHARSET": "%s",\n' "$CHARSET"

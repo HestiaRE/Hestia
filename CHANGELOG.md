@@ -19,6 +19,11 @@ opens above it.
   user; the others only get grants, and the one holding it cannot be deleted or moved while another still uses
   the user. A restore keeps a password that a database outside the restore still holds, and a database whose
   user arrives nowhere ends the restore red instead of green.
+- **A MySQL database can have a second user, read-only if wanted** (#725). `h-change-database-slot2` sets it (a new
+  user with its own password, or one the customer already has), switches it between full rights and read-only
+  (`SELECT, SHOW VIEW`) without a gap in SELECT, and changes its password; `h-delete-database-slot2` removes it.
+  Suspend, unsuspend, rebuild, backup and restore carry the second slot. A rebuild no longer hands a suspended
+  database its rights back.
 - **ionCube loader as an installer addon** (#1069), preselected on standard and compact, offered wherever the
   box runs customer PHP. The loader archive is pinned with a sha256 per architecture (x86-64 and aarch64) and
   comes through a mirror on v6-only boxes. Every customer PHP version gets it, a version added later too;

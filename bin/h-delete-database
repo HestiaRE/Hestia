@@ -45,10 +45,17 @@ get_database_values
 suspended=$SUSPENDED
 
 # The password of a shared user lives in this record (#725). Refused rather than handed to another record: the
-# customer decides which database keeps the user.
-if [ "$TYPE" = 'mysql' ] && [ -n "$MD5" ]; then
-	db_user_in_use "$DBUSER" mysql "$HOST" "$database"
-	[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database; give that one its own user first"
+# customer decides which database keeps the user. DB_DELETE_SET is h-delete-databases' run: what goes with this one
+# does not need the password kept, and two databases holding each other's slot-2 hashes would block in any order.
+if [ "$TYPE" = 'mysql' ]; then
+	if [ -n "$MD5" ]; then
+		db_user_in_use "$DBUSER" mysql "$HOST" "$database" "${DB_DELETE_SET:-}"
+		[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database; give that one its own user first"
+	fi
+	if [ -n "$DBUSER2" ] && [ -n "$MD5_2" ]; then
+		db_user_in_use "$DBUSER2" mysql "$HOST" "$database" "${DB_DELETE_SET:-}"
+		[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER2 is used by another database; give that one its own user first"
+	fi
 fi
 
 # Switching on db type

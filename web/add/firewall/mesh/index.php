@@ -39,7 +39,7 @@ if (!empty($_POST["ok"])) {
 		// Through a 0600 handoff file, not argv: /proc/*/cmdline is world-readable.
 		$handoff = "/run/hestia/mesh/in/" . bin2hex(random_bytes(16));
 		if (@file_put_contents($handoff, $_POST["v_code"], LOCK_EX) === false) {
-			$_SESSION["error_msg"] = _("CrowdSec fleet-mesh is not enabled on this server.");
+			$_SESSION["error_msg"] = _("CrowdSec Fleet Mesh is not enabled on this server.");
 		} else {
 			chmod($handoff, 0600);
 			exec(

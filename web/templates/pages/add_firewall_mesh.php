@@ -25,7 +25,7 @@
 			<h1 class="u-mb20"><?= tohtml(_("Join a Mesh Peer")) ?></h1>
 			<?php show_alert_message($_SESSION); ?>
 			<p class="hint u-mb20">
-				<?= tohtml(_("Ask the other server's admin to generate a pairing code on its own Fleet Mesh page. Both servers then share their web-tier bans, and each opens its panel port for the other only.")) ?>
+				<?= tohtml(_("Get a pairing code from the other server's Fleet Mesh page. Both servers then share their web bans and open their panel port to each other only.")) ?>
 			</p>
 			<div class="u-mb20">
 				<label for="v_host" class="form-label"><?= tohtml(_("Hostname")) ?></label>

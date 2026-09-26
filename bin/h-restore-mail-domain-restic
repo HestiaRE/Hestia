@@ -200,13 +200,7 @@ for domain in "${domains[@]}"; do
 			ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
 			ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
 
-			# Set correct permissions on certificates
-			chmod 750 $HOMEDIR/$user/conf/mail/$domain/ssl
-			chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/ssl
-			chmod 0644 $HOMEDIR/$user/conf/mail/$domain/ssl/*
-			chown -h $user:mail $HOMEDIR/$user/conf/mail/$domain/ssl/*
-			chmod -R 0644 $MAIL_SNI_DIR/*
-			chown -h $user:mail $MAIL_SNI_DIR/*
+			mail_ssl_modes "$user" "$domain"
 		fi
 
 		# Restoring email accounts

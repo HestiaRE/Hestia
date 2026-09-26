@@ -53,24 +53,6 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-mph="php$version-common php$version-mbstring php$version-bcmath php$version-cli php$version-curl
-     php$version-fpm php$version-gd php$version-gmp php$version-intl php$version-mysql
-     php$version-soap php$version-xml php$version-zip php$version-json php$version-bz2
-     php$version-pspell php$version-imagick php$version-pgsql php$version-imap php$version-ldap php$version-apcu
-     php$version-sqlite3"
-# Both DB drivers unconditionally: DB_SYSTEM is empty until the db stage, which runs after this
-# command, and adding pgsql later backfills nothing either. 455 KB and 276 KB, no server dependency.
-
-# Check if version is 7.1 or below to add mcrypt
-if [[ $(echo "$version 7.2" | awk '{print ($1 < $2)}') == 1 ]]; then
-	mph="$mph php$version-mcrypt"
-fi
-
-# Check if version is 8.0 or higher and drop json
-if [[ ${version:0:1} == "8" ]]; then
-	mph=$(echo "$mph" | sed -e "s/php$version-json//")
-fi
-
 # Sury retrofit (#191): an os_single box carries no Sury repo. Asking for a version
 # the configured repos cannot install IS the retrofit path - arm Sury then. Keyed on
 # installability, not on a recorded mode: a hand-removed repo heals the same way.
@@ -94,12 +76,12 @@ if ! apt-get -qq -s install "php$version-fpm" > /dev/null 2>&1; then
 	apt-get -qq update || check_result "$E_CONNECT" "apt-get update failed after adding the Sury repo"
 fi
 
-# Some names exist in no repo at all (imap has no package from 8.4 on): drop them
-# loudly instead of failing the whole install, but cli+fpm must survive the filter.
+# The set lives in php_module_pkgs; opcache has no package from 8.5 on, so it drops loudly instead of failing
+# the whole install, but cli+fpm must survive the filter.
 # shellcheck source=/usr/local/hestia/include/helper.sh
-command -v filter_installable_php_pkgs > /dev/null 2>&1 || source "$HESTIA/include/helper.sh"
-# shellcheck disable=SC2086
-mph=$(filter_installable_php_pkgs "imap:8.4 opcache:8.5 exif" $mph) \
+command -v php_module_pkgs > /dev/null 2>&1 || source "$HESTIA/include/helper.sh"
+# shellcheck disable=SC2046
+mph=$(filter_installable_php_pkgs "opcache:8.5" $(php_module_pkgs "$version")) \
 	|| check_result "$E_CONNECT" "package availability probe failed - repos unreachable or broken"
 case " $mph " in *" php$version-fpm "*) ;; *)
 	check_result "$E_NOTEXIST" "php$version-fpm is not installable from the configured repos"
@@ -180,12 +162,25 @@ sed -i "s/;max_input_vars = 1000/max_input_vars = 4000/g" /etc/php/$version/fpm/
 # Disable exec and other harmfull php functions
 sed -i "s/disable_functions =.*/disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,exec,system,passthru,shell_exec,proc_open,popen/g" /etc/php/$version/fpm/php.ini
 
-sed -i "s/disable_functions =.*/disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority/g" /etc/php/$version/cli/php.ini
+# The CLI stays open: occ and the Magento indexers fork, and the FPM list above is what faces the web.
+sed -i "s/^disable_functions =.*/disable_functions =/" /etc/php/$version/cli/php.ini
 
 # Other use full changes
 sed -i "s/;opcache.enable=1/opcache.enable=1/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.memory_consumption=128/opcache.memory_consumption=512/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.max_accelerated_files=10000/opcache.max_accelerated_files=100000/g" /etc/php/$version/fpm/php.ini
+
+# Only a warning: the version itself is usable, and the smoke names one without the loader.
+if [ -n "${IONCUBE_SYSTEM:-}" ]; then
+	# shellcheck source=/usr/local/hestia/include/ioncube.sh
+	source "$HESTIA/include/ioncube.sh"
+	ioncube_fetch && ioncube_version_apply "$version"
+	case $? in
+		0) ;;
+		3) echo "WARNING: ionCube ships no loader for PHP $version, skipped" ;;
+		*) echo "WARNING: ionCube could not be enabled for PHP $version, run h-add-sys-ioncube" ;;
+	esac
+fi
 
 # Into the customer PHP slice (#212). The whole apply, not just this version's drop-in:
 # the units may not exist yet on a box updated into this, and it restarts only the masters

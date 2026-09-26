@@ -64,7 +64,8 @@ fi
 echo "roundcube-core roundcube/dbconfig-install boolean false" \
 	| debconf-set-selections
 
-DEBIAN_FRONTEND=noninteractive apt-get -y install \
+# No recommends (#1069): enchant never loads in the panel pool, and classic/larry are skins nobody selects.
+DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
 	roundcube "$RC_DB_PKG" roundcube-plugins
 
 if [ "$RC_DB_BACKEND" = "mysql" ]; then

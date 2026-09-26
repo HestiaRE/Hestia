@@ -258,7 +258,7 @@
 						</summary>
 						<div class="box-collapse-content">
 							<p class="hint u-mb20">
-								<?= tohtml(_("Bot families are matched on the User-Agent and throttled to the rate below (HTTP 429). Humans are never limited; malicious traffic is handled by CrowdSec, not here. Each domain then picks off, lenient or strict per family in its own settings - nothing is throttled until someone does.")) ?>
+								<?= tohtml(_("Bots are matched by User-Agent family and throttled to the rate below (HTTP 429); humans never are, malicious traffic is CrowdSec's job. Nothing is throttled until a domain opts in.")) ?>
 							</p>
 							<?php foreach ($botfamily_rows as $i => $r) { ?>
 								<details class="box-collapse u-mb10">
@@ -1381,26 +1381,6 @@
 									</option>
 								</select>
 							</div>
-							<h3 class="u-mt20 u-mb10">
-								<?= tohtml(_("Domains")) ?>
-							</h3>
-							<div class="u-mb10">
-								<label for="v_enforce_subdomain_ownership" class="form-label">
-									<?= tohtml(_("Enforce subdomain ownership")) ?>
-								</label>
-								<select
-									class="form-select"
-									name="v_enforce_subdomain_ownership"
-									id="v_enforce_subdomain_ownership"
-								>
-									<option value="yes">
-										<?= tohtml(_("Yes")) ?>
-									</option>
-									<option value="no" <?= tohtml($_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"] == "no" ? "selected" : "") ?>>
-										<?= tohtml(_("No")) ?>
-									</option>
-								</select>
-							</div>
 						</div>
 					</details>
 
@@ -1440,7 +1420,7 @@
 						</select>
 						<?php if (!empty($_SESSION["MAIL_SYSTEM"])) { ?>
 							<span class="hint">
-								<?= tohtml(_("Mail is installed: turning this off and relying on CrowdSec alone leaves mail brute force unprotected - CrowdSec has no mail detection surface.")) ?>
+								<?= tohtml(_("Mail is installed: without Fail2Ban, mail brute force goes undetected (CrowdSec does not cover mail).")) ?>
 							</span>
 						<?php } ?>
 					</div>

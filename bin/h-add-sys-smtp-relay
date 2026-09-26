@@ -23,6 +23,8 @@ port=${4-587}
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -47,12 +49,8 @@ change_sys_value 'SMTP_RELAY_HOST' "$host"
 change_sys_value 'SMTP_RELAY_PORT' "$port"
 change_sys_value 'SMTP_RELAY_USER' "$username"
 
-cat > /etc/exim4/smtp_relay.conf << EOL
-host:$host
-port:$port
-user:$username
-pass:$password
-EOL
+smtp_relay_write "/etc/exim4/smtp_relay.conf" 'root:Debian-exim' 640 "$host" "$port" "$username" "$password" \
+	|| check_result "$E_DISK" "cannot write /etc/exim4/smtp_relay.conf"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

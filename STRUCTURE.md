@@ -399,9 +399,9 @@ every `hestia.conf` key with its class (`system` | `betreiber`) and default, and
 every login) and the smoke read it in place through `include/sysreg.sh`. Deliberately no copy on the
 box: the copy is what drifted (`conf/defaults/system.conf` described a configuration the product had
 stopped having, 43 keys behind). The condition under which a file with login-wide effect may live in
-the tree is the gate: `sysreg_check` runs in the smoke and, through `.gitea/tools/check-sys-registry.sh`,
-in CI on every PR - one implementation, twice called - and every reader fails loudly on a registry it
-cannot use, so the login refuses (503) instead of gating on an empty set. Do not copy this pattern
+the tree is the gate: `sysreg_check` runs through `.gitea/tools/check-tree.sh` in CI on every PR, and
+every reader fails loudly on a registry it cannot use, so the login refuses (503) instead of gating on
+an empty set. Do not copy this pattern
 for other `share/` files without the same gate.
 
 ### The model is the install scope (#639)
@@ -626,8 +626,8 @@ than it risks. A box therefore carries a mixed state for a while, and that is th
 cannot reach a release at all; `install.sh` and the updater retry through the release mirror
 (`hestiare.com`, routes `/api` and `/raw`), which serves the same repo. It is a retry of one
 source, not a second trust anchor: the extracted tree is checked against the tag that was asked
-for, and the two foreign assets that also travel that way (wp-cli, Tachyon) verify against their
-manifest sha256.
+for, and the foreign assets that also travel that way (wp-cli, Tachyon, the ionCube loaders under
+`/ioncube`) verify against their manifest sha256.
 
 **Deliberately v4.** The per-user docker model lives in `127.20.0.0/16` on the loopback, as do the
 file manager, webmail and stub_status listeners. They work unchanged on a v6-only box, there is
@@ -709,6 +709,45 @@ per RFC 3834 and once per sender a week.
   them, and a backup carries the notice as the exim file, the form HestiaCP reads.
 - `vacation.php` mirrors the webmail's own writer (Tachyon's `sieve.js`), so a new Tachyon pin means
   checking `sieve.js` against it before the bump.
+
+
+## 18. Panel translations: 42 compiled catalogs -> eight languages from text sources (#1160)
+
+**Upstream.** 42 languages ship as compiled `hestiacp.mo` beside a `hestiacp.pot`, with no `.po` in the
+tree and two helper scripts (`hst_scan_i18n.sh`, `hst_convert_po2mo.sh`) whose glob never expanded. Most
+catalogs cover a third of HestiaRE's panel or less.
+
+**HestiaRE.** Eight languages: en and de maintained, nl fr es pt da ru filled once, best effort. Each
+is `web/locale/<l>/LC_MESSAGES/hestia.po` beside its `hestia.mo`, under the gettext domain `hestia`.
+`.gitea/tools/i18n.sh` derives the template from the code and keeps template, sources and compiled
+catalogs in step; its `check` holds German complete. It runs locally, the runner has no gettext.
+
+**Follow-on.**
+- An update deletes the dropped catalogs and those of the old domain (the overlay never deletes), and
+  moves every account on a dropped language to en; a restore does the same with a note.
+- glibc 2.39+ ignores `LANGUAGE` under `C.UTF-8`, so the panel asks for `en_US.UTF-8` first, and install
+  and update generate it (#1157). The system locale itself belongs to the admin: the wizard offers it
+  once and the panel default follows it where a catalog exists (#1164); an update never touches it.
+- A translation reaches JavaScript through `json_encode()`, never inside a quoted string: an apostrophe
+  ended the string and took the Alpine store with it.
+
+## 19. Database users: one per database -> a user shared or doubled (#725)
+
+**Upstream.** Each database record carries one `DBUSER` with its `MD5`, and the user belongs to that
+database alone. Names are server-wide while the customer prefix does not keep them apart, so
+customer `a` with user `b_x` and customer `a_b` with user `x` meet in `a_b_x`.
+
+**HestiaRE.** A customer's databases may share a user, and a database may carry a second one
+(`DBUSER_SECOND`, `MD5_SECOND`, `DBUSER_SECOND_RO` for `SELECT, SHOW VIEW`). The hash lives only in
+the record that created the user; every other record on it has an empty hash and gets grants. An
+empty DBPASS means reuse. A name another customer or the server already has is refused.
+
+**Follow-on.**
+- The record holding the hash cannot be deleted or moved while another database still uses the user.
+- A restore keeps a password that a record outside the restore still holds, and fails red when a
+  database's user arrives nowhere.
+- Suspend, unsuspend and rebuild act per slot; the rebuild reads `SUSPENDED` from the record, since the
+  host connection overwrites it.
 
 ---
 

@@ -145,7 +145,7 @@
 					<?php // Named, because retention does not touch it: an export is a deliberate
 					// artefact and stays until someone deletes it.
 					if (($data[$key]["MODE"] ?? "") === "export") { ?>
-						<span class="u-text-small" title="<?= tohtml(_("Kept until deleted - retention does not rotate exports")) ?>">
+						<span class="u-text-small" title="<?= tohtml(_("Kept until deleted; retention does not rotate exports")) ?>">
 							(<?= tohtml(_("export")) ?>)
 						</span>
 					<?php } ?>

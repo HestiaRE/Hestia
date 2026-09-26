@@ -173,7 +173,8 @@ rebuild_user_conf() {
 		mkdir -p $HOMEDIR/$user/tmp
 		chmod 751 $HOMEDIR/$user/conf/web
 		chmod 751 $HOMEDIR/$user/web
-		chmod 771 $HOMEDIR/$user/tmp
+		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
+		chmod 700 $HOMEDIR/$user/tmp
 		chown --no-dereference $root:$user $HOMEDIR/$user/web
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
@@ -684,7 +685,8 @@ rebuild_mail_domain_conf() {
 
 		# Rebuild SMTP Relay configuration
 		if [ "$U_SMTP_RELAY" = 'true' ]; then
-			$BIN/h-add-mail-domain-smtp-relay $user $domain "$U_SMTP_RELAY_HOST" "$U_SMTP_RELAY_USERNAME" "$U_SMTP_RELAY_PASSWORD" "$U_SMTP_RELAY_PORT"
+			$BIN/h-add-mail-domain-smtp-relay $user $domain "$U_SMTP_RELAY_HOST" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" \
+				"$(record_value_decode "$U_SMTP_RELAY_PASSWORD")" "$U_SMTP_RELAY_PORT"
 		fi
 
 		# Rebuild SMTP relay exclude list (recipient domains delivered
@@ -872,31 +874,69 @@ rebuild_mail_domain_conf() {
 # Rebuild MySQL
 rebuild_mysql_database() {
 	mysql_connect $HOST
-	# Cleared per call: only one branch sets it, so it would carry into the next database.
-	query2=''
+	mysql_query "CREATE DATABASE \`$DB\` CHARACTER SET $CHARSET" > /dev/null
+	rebuild_mysql_database_user
+}
+
+# The user half, per slot (SLOT limits it to one). REBUILD_DB_DEFER (restore): a hashless slot whose user is not here
+# yet waits in REBUILD_DB_DEFERRED as DB:SLOT. REBUILD_DB_RUN_SET: that run's databases, not counted as elsewhere.
+# shellcheck disable=SC2120  # the slot argument comes from h-restore-user
+rebuild_mysql_database_user() {
+	mysql_connect $HOST
+	if [ -n "${1:-}" ]; then
+		rebuild_mysql_slot "$1"
+	else
+		rebuild_mysql_slot 1
+		[ -z "${DBUSER_SECOND:-}" ] || rebuild_mysql_slot 2
+	fi
+	mysql_query "FLUSH PRIVILEGES" > /dev/null
+}
+
+rebuild_mysql_slot() {
+	local slot="$1" u="$DBUSER" hash="$MD5" key='MD5' ro='' existed shared_outside='' auth='' ident query query2=''
+	if [ "$slot" = 2 ]; then
+		u="$DBUSER_SECOND"
+		hash="${MD5_SECOND:-}"
+		key='MD5_SECOND'
+		ro="${DBUSER_SECOND_RO:-}"
+	fi
 	# Before the CREATE USERs: only "was this user already here" tells a kept credential from one
 	# that never arrived.
-	dbuser_existed=$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$DBUSER'" 2> /dev/null | tail -n1)
-	[ "$dbuser_existed" = '0' ] && dbuser_existed=''
-	mysql_query "CREATE DATABASE \`$DB\` CHARACTER SET $CHARSET" > /dev/null
+	existed=$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$u'" 2> /dev/null | tail -n1)
+	[ "$existed" = '0' ] && existed=''
+	if [ -n "${REBUILD_DB_DEFER:-}" ] && [ -z "$hash" ] && [ -z "$existed" ]; then
+		REBUILD_DB_DEFERRED="${REBUILD_DB_DEFERRED:-} $DB:$slot"
+		return 0
+	fi
+	# A record outside this run holds the user's password: that one is live, this record only points at it.
+	if [ -n "$hash" ] && [ -n "$existed" ] \
+		&& db_user_hash_elsewhere "$u" mysql "$HOST" "$DB" "${REBUILD_DB_RUN_SET:-}"; then
+		shared_outside=yes
+	fi
+	# An empty hash is a user without a password, so a new one without a hash gets one nobody knows.
+	if [ -z "$hash" ] && [ -z "$existed" ]; then
+		auth=" IDENTIFIED BY '$(generate_password)'"
+	fi
+	ident="IDENTIFIED BY PASSWORD '$hash'"
+	[ -n "$hash" ] || ident="${auth# }"
 	if [ "$mysql_fork" = "mysql" ]; then
 		# mysql
 		mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 		mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
 			# mysql >= 5.7
-			mysql_query "CREATE USER IF NOT EXISTS \`$DBUSER\`" > /dev/null
-			mysql_query "CREATE USER IF NOT EXISTS \`$DBUSER\`@localhost" > /dev/null
+			mysql_query "CREATE USER IF NOT EXISTS \`$u\`$auth" > /dev/null
+			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost$auth" > /dev/null
 			# mysql >= 8, with enabled Print identified with as hex feature
-			if [[ "$mysql_ver_sub" -ge 8 && "$MD5" =~ ^0x.* ]]; then
-				query="UPDATE mysql.user SET authentication_string=UNHEX('${MD5:2}')"
+			if [[ "$mysql_ver_sub" -ge 8 && "$hash" =~ ^0x.* ]]; then
+				query="UPDATE mysql.user SET authentication_string=UNHEX('${hash:2}')"
 			else
-				query="UPDATE mysql.user SET authentication_string='$MD5'"
+				query="UPDATE mysql.user SET authentication_string='$hash'"
 			fi
-			query="$query WHERE User='$DBUSER'"
+			query="$query WHERE User='$u'"
 		else
 			# mysql < 5.7
-			query="UPDATE mysql.user SET Password='$MD5' WHERE User='$DBUSER'"
+			query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 		fi
 	else
 		# mariadb
@@ -904,39 +944,47 @@ rebuild_mysql_database() {
 		mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 		if [ "$mysql_ver_sub" -eq 5 ]; then
 			# mariadb = 5
-			mysql_query "CREATE USER \`$DBUSER\`" > /dev/null
-			mysql_query "CREATE USER \`$DBUSER\`@localhost" > /dev/null
-			query="UPDATE mysql.user SET Password='$MD5' WHERE User='$DBUSER'"
+			mysql_query "CREATE USER \`$u\`$auth" > /dev/null
+			mysql_query "CREATE USER \`$u\`@localhost$auth" > /dev/null
+			query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 		else
 			# mariadb = 10
-			mysql_query "CREATE USER IF NOT EXISTS \`$DBUSER\` IDENTIFIED BY PASSWORD '$MD5'" > /dev/null
-			mysql_query "CREATE USER IF NOT EXISTS \`$DBUSER\`@localhost IDENTIFIED BY PASSWORD '$MD5'" > /dev/null
+			mysql_query "CREATE USER IF NOT EXISTS \`$u\` $ident" > /dev/null
+			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost $ident" > /dev/null
 			if [ "$mysql_ver_sub_sub" -ge 4 ]; then
 				#mariadb >= 10.4
-				query="SET PASSWORD FOR '$DBUSER'@'%' = '$MD5';"
-				query2="SET PASSWORD FOR '$DBUSER'@'localhost' = '$MD5';"
+				query="SET PASSWORD FOR '$u'@'%' = '$hash';"
+				query2="SET PASSWORD FOR '$u'@'localhost' = '$hash';"
 			else
 				#mariadb < 10.4
-				query="UPDATE mysql.user SET Password='$MD5' WHERE User='$DBUSER'"
+				query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 			fi
 		fi
 	fi
-	mysql_query "GRANT ALL ON \`$DB\`.* TO \`$DBUSER\`@\`%\`" > /dev/null
-	mysql_query "GRANT ALL ON \`$DB\`.* TO \`$DBUSER\`@localhost" > /dev/null
+	# A suspended database stays revoked. Read from the record: mysql_connect overwrites SUSPENDED with the host's.
+	if [ "$(db_record_field "$(grep -F "DB='$DB'" "$USER_DATA/db.conf")" SUSPENDED)" != 'yes' ]; then
+		mysql_grant_slot "$u" "$DB" "$ro" || echo "Warning!: $u did not get its rights on $DB"
+	fi
+	if [ -n "$shared_outside" ]; then
+		echo "Info: another database of $user holds the password of $u - it is kept, $DB now points at it"
+		update_object_value 'db' 'DB' "$DB" "\$$key" ''
+		printf -v "$key" '%s' ''
 	# An empty hash would blank a working password; mysql survives today only because its own read
 	# path happens to work. Guards an EXISTING credential - CREATE USER above is IF NOT EXISTS.
-	if [ -n "$MD5" ]; then
+	elif [ -n "$hash" ]; then
 		mysql_query "$query" > /dev/null
-		if [ ! -z "$query2" ]; then
+		if [ -n "$query2" ]; then
 			mysql_query "$query2" > /dev/null
 		fi
-	elif [ -n "$dbuser_existed" ]; then
-		echo "Warning!: $DB carries no password for $DBUSER - the one on this host is kept unchanged"
-	else
-		echo "Warning!: $DB has no password for $DBUSER on this host - the data is back, but nothing can connect to it until a password is set"
-		REBUILD_DB_UNUSABLE="$REBUILD_DB_UNUSABLE $DB"
+	elif [ -n "$existed" ]; then
+		# A slot on a user whose password another record holds is the shared case, not a lost password.
+		db_user_canonical "$u" mysql "$HOST" > /dev/null \
+			|| echo "Warning!: $DB carries no password for $u - the one on this host is kept unchanged"
+	# REBUILD_DB_PASS_FOLLOWS: the caller sets a slot-1 password right after, so this one is not lost.
+	elif [ "$slot" = 2 ] || [ -z "${REBUILD_DB_PASS_FOLLOWS:-}" ]; then
+		echo "Warning!: $DB has no password for $u on this host - the data is back, but nothing can connect to it until a password is set"
+		REBUILD_DB_UNUSABLE="${REBUILD_DB_UNUSABLE:-} $DB"
 	fi
-	mysql_query "FLUSH PRIVILEGES" > /dev/null
 }
 
 # Rebuild PostgreSQL

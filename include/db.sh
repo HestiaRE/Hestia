@@ -379,6 +379,40 @@ decrease_dbhost_values() {
 	sed -i "s/$old_users/$new_users/g" $HESTIA/conf/$TYPE.conf
 }
 
+# mysql_read_md5 DBUSER: the hash the server keeps for DBUSER, into $md5, in the form each fork prints it.
+mysql_read_md5() {
+	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
+	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
+	if [ "$mysql_fork" = "mysql" ]; then
+		# mysql
+		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
+			if [ "$mysql_ver_sub" -ge 8 ]; then
+				# mysql >= 8
+
+				md5=$(mysql_query "SET print_identified_with_as_hex=ON; SHOW CREATE USER \`$1\`" 2> /dev/null)
+
+				if [[ "$md5" =~ 0x([^ ]+) ]]; then
+					md5=$(echo "$md5" | grep password | grep -E -o '0x([^ ]+)')
+				else
+					md5=$(echo "$md5" | grep password | cut -f4 -d \')
+				fi
+			else
+				# mysql < 8
+				md5=$(mysql_query "SHOW CREATE USER \`$1\`" 2> /dev/null)
+				md5=$(echo "$md5" | grep password | cut -f8 -d \')
+			fi
+		else
+			# mysql < 5.7
+			md5=$(mysql_query "SHOW GRANTS FOR \`$1\`" 2> /dev/null)
+			md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
+		fi
+	else
+		# mariadb
+		md5=$(mysql_query "SHOW GRANTS FOR \`$1\`" 2> /dev/null)
+		md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
+	fi
+}
+
 # Create MySQL database
 add_mysql_database() {
 	mysql_connect $host
@@ -386,9 +420,25 @@ add_mysql_database() {
 	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 
+	# Checked before the database exists. A reused user must be there; a new one must not, or the GRANT below
+	# would take it over with this password, another customer's included.
+	if [ -n "${reuse:-}" ]; then
+		mysql_user_exists "$dbuser" || check_result "$E_NOTEXIST" "database user $dbuser does not exist on $host"
+	elif mysql_user_exists "$dbuser"; then
+		check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	fi
+
 	query="CREATE DATABASE \`$database\` CHARACTER SET $charset"
 	mysql_query "$query"
 	check_result $? "Unable to create database $database"
+
+	# A reused user keeps its password, and its hash stays in the record that created it.
+	if [ -n "${reuse:-}" ]; then
+		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@\`%\`" > /dev/null
+		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost" > /dev/null
+		md5=''
+		return 0
+	fi
 
 	dbpass_esc=$(mysql_sql_escape "$dbpass")
 
@@ -416,37 +466,7 @@ add_mysql_database() {
 		mysql_query "$query" > /dev/null
 	fi
 
-	if [ "$mysql_fork" = "mysql" ]; then
-		# mysql
-		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
-			if [ "$mysql_ver_sub" -ge 8 ]; then
-				# mysql >= 8
-
-				# This query will be proceeding with the usage of Print identified with as hex feature
-				md5=$(mysql_query "SET print_identified_with_as_hex=ON; SHOW CREATE USER \`$dbuser\`" 2> /dev/null)
-
-				# echo $md5
-				if [[ "$md5" =~ 0x([^ ]+) ]]; then
-					md5=$(echo "$md5" | grep password | grep -E -o '0x([^ ]+)')
-				else
-					md5=$(echo "$md5" | grep password | cut -f4 -d \')
-				fi
-				# echo $md5
-			else
-				# mysql < 8
-				md5=$(mysql_query "SHOW CREATE USER \`$dbuser\`" 2> /dev/null)
-				md5=$(echo "$md5" | grep password | cut -f8 -d \')
-			fi
-		else
-			# mysql < 5.7
-			md5=$(mysql_query "SHOW GRANTS FOR \`$dbuser\`" 2> /dev/null)
-			md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
-		fi
-	else
-		# mariadb
-		md5=$(mysql_query "SHOW GRANTS FOR \`$dbuser\`" 2> /dev/null)
-		md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
-	fi
+	mysql_read_md5 "$dbuser"
 }
 
 # Create PostgreSQL database
@@ -519,6 +539,8 @@ is_dbhost_new() {
 
 # Get database values
 get_database_values() {
+	# A record from before #725 has no slot-2 keys, so a loop over databases would carry the last one's over.
+	DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
 	parse_object_kv_list "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
 }
 
@@ -560,37 +582,7 @@ change_mysql_password() {
 		mysql_query "$query" > /dev/null
 	fi
 
-	if [ "$mysql_fork" = "mysql" ]; then
-		# mysql
-		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
-			if [ "$mysql_ver_sub" -ge 8 ]; then
-				# mysql >= 8
-
-				# This query will be proceeding with the usage of Print identified with as hex feature
-				md5=$(mysql_query "SET print_identified_with_as_hex=ON; SHOW CREATE USER \`$DBUSER\`" 2> /dev/null)
-
-				# echo $md5
-				if [[ "$md5" =~ 0x([^ ]+) ]]; then
-					md5=$(echo "$md5" | grep password | grep -E -o '0x([^ ]+)')
-				else
-					md5=$(echo "$md5" | grep password | cut -f4 -d \')
-				fi
-				# echo $md5
-			else
-				# mysql < 8
-				md5=$(mysql_query "SHOW CREATE USER \`$DBUSER\`" 2> /dev/null)
-				md5=$(echo "$md5" | grep password | cut -f8 -d \')
-			fi
-		else
-			# mysql < 5.7
-			md5=$(mysql_query "SHOW GRANTS FOR \`$DBUSER\`" 2> /dev/null)
-			md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
-		fi
-	else
-		# mariadb
-		md5=$(mysql_query "SHOW GRANTS FOR \`$DBUSER\`" 2> /dev/null)
-		md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
-	fi
+	mysql_read_md5 "$DBUSER"
 }
 
 # Change PostgreSQL database password
@@ -618,6 +610,171 @@ db_is_owned_by_user() {
 	cut -d' ' -f1 "$USER_DATA/db.conf" 2> /dev/null | grep -qxF "DB='$1'"
 }
 
+# db_record_field LINE KEY: one field of a db.conf record, exact: a grep for DBUSER='x' also hits X_DBUSER='x'.
+db_record_field() {
+	[[ " $1" =~ \ $2=\'([^\']*)\' ]] && printf '%s' "${BASH_REMATCH[1]}"
+}
+
+# db_user_in_use DBUSER TYPE HOST [SELF_DB] [IGNORE_DBS]: does another record of this customer hold DBUSER in a
+# slot? TYPE/HOST '*' match any. rc 0 in use, 1 free, 2 cannot tell; callers drop a user only on 1, so a doubt keeps
+# it. SELF_DB must be seen: a file without the caller's own record is not the one it thinks it is reading.
+db_user_in_use() {
+	local u="$1" type="$2" host="$3" self="${4:-}" ignore=" ${5:-} " line db seen='' found=''
+	[ -n "$u" ] && [ -r "$USER_DATA/db.conf" ] || return 2
+	while IFS= read -r line || [ -n "$line" ]; do
+		db=$(db_record_field "$line" DB)
+		if [ -n "$self" ] && [ "$db" = "$self" ]; then
+			seen=yes
+			continue
+		fi
+		[[ "$ignore" == *" $db "* ]] && continue
+		db_record_matches "$line" "$type" "$host" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$u" ] || [ "$(db_record_field "$line" DBUSER_SECOND)" = "$u" ]; then
+			found=yes
+		fi
+	done < "$USER_DATA/db.conf"
+	[ -z "$self" ] || [ -n "$seen" ] || return 2
+	[ -n "$found" ]
+}
+
+# db_user_hash_elsewhere DBUSER TYPE HOST SELF_DB [IGNORE_DBS]: does a record other than SELF_DB, outside
+# IGNORE_DBS, carry DBUSER's hash? Its password is then the one the user has on the server.
+db_user_hash_elsewhere() {
+	local ignore=" ${5:-} " line db
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db=$(db_record_field "$line" DB)
+		[ "$db" != "$4" ] && [[ "$ignore" != *" $db "* ]] || continue
+		db_record_matches "$line" "$2" "$3" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then return 0; fi
+		if [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_SECOND)" ]; then return 0; fi
+	done < "$USER_DATA/db.conf"
+	return 1
+}
+
+# db_user_foreign DBUSER USER: does another customer's record hold DBUSER in a slot? Database users are server-wide,
+# and the customer prefix does not keep names apart: customer a with b_x and customer a_b with x are both a_b_x.
+db_user_foreign() {
+	local conf line
+	for conf in "$CONF_DIR"/users/*/db.conf; do
+		[ -e "$conf" ] || continue
+		[ "$conf" != "$CONF_DIR/users/$2/db.conf" ] || continue
+		while IFS= read -r line || [ -n "$line" ]; do
+			if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ]; then
+				return 0
+			fi
+		done < "$conf"
+	done
+	return 1
+}
+
+# mysql_user_exists DBUSER: the server's own answer, which also knows users no record names any more.
+mysql_user_exists() {
+	[ "$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$1'" | tail -n1)" != '0' ]
+}
+
+db_record_matches() {
+	{ [ "$2" = '*' ] || [ "$(db_record_field "$1" TYPE)" = "$2" ]; } \
+		&& { [ "$3" = '*' ] || [ "$(db_record_field "$1" HOST)" = "$3" ]; }
+}
+
+# db_user_host DBUSER TYPE: the HOST of the records holding DBUSER; a shared user lives on exactly one server.
+db_user_host() {
+	local line
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db_record_matches "$line" "$2" '*' || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ]; then
+			db_record_field "$line" HOST
+			return 0
+		fi
+	done < "$USER_DATA/db.conf"
+	return 1
+}
+
+# db_user_canonical DBUSER TYPE HOST: "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_SECOND). rc 1 none,
+# rc 2 more than one: two records claiming one password is a state no command may build on.
+db_user_canonical() {
+	local line hit=''
+	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		db_record_matches "$line" "$2" "$3" || continue
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then
+			[ -z "$hit" ] || return 2
+			hit="$(db_record_field "$line" DB) MD5"
+		fi
+		if [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_SECOND)" ]; then
+			[ -z "$hit" ] || return 2
+			hit="$(db_record_field "$line" DB) MD5_SECOND"
+		fi
+	done < "$USER_DATA/db.conf"
+	[ -n "$hit" ] || return 1
+	echo "$hit"
+}
+
+# Read-only (#725): no EXECUTE, DEFINER routines run with their creator's rights; no LOCK TABLES, a reader could stall
+# the app. One REVOKE per privilege, so a name this server version does not know fails alone.
+MYSQL_WRITE_PRIVS=(INSERT UPDATE DELETE CREATE DROP REFERENCES INDEX ALTER 'CREATE TEMPORARY TABLES' 'LOCK TABLES'
+	EXECUTE 'CREATE VIEW' 'CREATE ROUTINE' 'ALTER ROUTINE' EVENT TRIGGER 'DELETE HISTORY' 'SHOW CREATE ROUTINE')
+
+# mysql_db_privs DBUSER DB HOST: what DBUSER@HOST holds on DB, worded as SHOW GRANTS words it.
+mysql_db_privs() {
+	mysql_query "SHOW GRANTS FOR \`$1\`@\`$3\`" | sed -n "s/^GRANT \(.*\) ON \`$2\`\.\* TO .*/\1/p"
+}
+
+# mysql_grant_slot DBUSER DB RO: RO 'yes' read-only, else full rights. GRANT before REVOKE keeps SELECT through the
+# switch; rc 1 unless SHOW GRANTS reads back exactly that.
+mysql_grant_slot() {
+	local h p grant='ALL' want='ALL PRIVILEGES'
+	if [ "$3" = 'yes' ]; then
+		grant='SELECT, SHOW VIEW'
+		want='SELECT, SHOW VIEW'
+	fi
+	for h in '%' localhost; do
+		mysql_query "GRANT $grant ON \`$2\`.* TO \`$1\`@\`$h\`" > /dev/null
+		if [ "$3" = 'yes' ]; then
+			for p in "${MYSQL_WRITE_PRIVS[@]}"; do
+				mysql_query "REVOKE $p ON \`$2\`.* FROM \`$1\`@\`$h\`" > /dev/null
+			done
+		fi
+		[ "$(mysql_db_privs "$1" "$2" "$h")" = "$want" ] || return 1
+	done
+}
+
+# mysql_revoke_slot DBUSER DB
+mysql_revoke_slot() {
+	mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@\`%\`" > /dev/null
+	mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@localhost" > /dev/null
+}
+
+# mysql_drop_user_if_free DBUSER [SELF_DB]: drops DBUSER once no record of the customer holds it in a slot.
+mysql_drop_user_if_free() {
+	db_user_in_use "$1" mysql "$HOST" "${2:-}"
+	[ $? -eq 1 ] || return 0
+	mysql_query "DROP USER '$1'@'%'" > /dev/null
+	mysql_query "DROP USER '$1'@'localhost'" > /dev/null
+}
+
+# mysql_create_user DBUSER DBPASS: a new user with no rights yet; its hash lands in $md5.
+mysql_create_user() {
+	local pass_esc
+	pass_esc=$(mysql_sql_escape "$2")
+	mysql_query "CREATE USER \`$1\`@\`%\` IDENTIFIED BY '$pass_esc'" > /dev/null || return 1
+	mysql_query "CREATE USER \`$1\`@localhost IDENTIFIED BY '$pass_esc'" > /dev/null || return 1
+	mysql_read_md5 "$1"
+	[ -n "$md5" ]
+}
+
+# mysql_set_password DBUSER DBPASS: both hosts, no grant touched; the new hash lands in $md5.
+mysql_set_password() {
+	local pass_esc
+	pass_esc=$(mysql_sql_escape "$2")
+	mysql_query "ALTER USER \`$1\`@\`%\` IDENTIFIED BY '$pass_esc'" > /dev/null || return 1
+	mysql_query "ALTER USER \`$1\`@localhost IDENTIFIED BY '$pass_esc'" > /dev/null || return 1
+	mysql_read_md5 "$1"
+	[ -n "$md5" ]
+}
+
 # Delete MySQL database
 delete_mysql_database() {
 	local database="${1:-$database}"
@@ -636,12 +793,17 @@ delete_mysql_database() {
 	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@localhost"
 	mysql_query "$query" > /dev/null
 
-	if [ "$(grep "DBUSER='$DBUSER'" $USER_DATA/db.conf | wc -l)" -lt 2 ]; then
+	db_user_in_use "$DBUSER" mysql "$HOST" "$database"
+	if [ $? -eq 1 ]; then
 		query="DROP USER '$DBUSER'@'%'"
 		mysql_query "$query" > /dev/null
 
 		query="DROP USER '$DBUSER'@'localhost'"
 		mysql_query "$query" > /dev/null
+	fi
+	if [ -n "${DBUSER_SECOND:-}" ]; then
+		mysql_revoke_slot "$DBUSER_SECOND" "$database"
+		mysql_drop_user_if_free "$DBUSER_SECOND" "$database"
 	fi
 	# Explicit, so a non-zero return means the guard refused and nothing else. Without it the status
 	# is whatever the last REVOKE happened to give, which no caller could have read as an answer.
@@ -663,7 +825,8 @@ delete_pgsql_database() {
 	query="DROP DATABASE $database"
 	psql_query "$query" > /dev/null
 
-	if [ "$(grep "DBUSER='$DBUSER'" $USER_DATA/db.conf | wc -l)" -lt 2 ]; then
+	db_user_in_use "$DBUSER" pgsql "$HOST" "$database"
+	if [ $? -eq 1 ]; then
 		query="REVOKE CONNECT ON DATABASE template1 FROM $DBUSER"
 		psql_query "$query" > /dev/null
 		query="DROP ROLE $DBUSER"
@@ -713,10 +876,8 @@ is_dbhost_free() {
 # Suspend MySQL database
 suspend_mysql_database() {
 	mysql_connect $HOST
-	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@\`%\`"
-	mysql_query "$query" > /dev/null
-	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@localhost"
-	mysql_query "$query" > /dev/null
+	mysql_revoke_slot "$DBUSER" "$database"
+	[ -z "${DBUSER_SECOND:-}" ] || mysql_revoke_slot "$DBUSER_SECOND" "$database"
 }
 
 # Suspend PostgreSQL database
@@ -729,10 +890,11 @@ suspend_pgsql_database() {
 # Unsuspend MySQL database
 unsuspend_mysql_database() {
 	mysql_connect $HOST
-	query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@\`%\`"
-	mysql_query "$query" > /dev/null
-	query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@localhost"
-	mysql_query "$query" > /dev/null
+	mysql_grant_slot "$DBUSER" "$database" '' || echo "Warning!: $DBUSER did not get its rights on $database back"
+	if [ -n "${DBUSER_SECOND:-}" ]; then
+		mysql_grant_slot "$DBUSER_SECOND" "$database" "${DBUSER_SECOND_RO:-}" \
+			|| echo "Warning!: $DBUSER_SECOND did not get its rights on $database back"
+	fi
 }
 
 # Unsuspend PostgreSQL database
@@ -785,6 +947,10 @@ delete_mysql_user() {
 
 	query="REVOKE ALL ON \`$database\`.* FROM \`$old_dbuser\`@localhost"
 	mysql_query "$query" > /dev/null
+
+	# The rights on this database go either way; the user only when no other database still names it.
+	db_user_in_use "$old_dbuser" mysql "$HOST"
+	[ $? -eq 1 ] || return 0
 
 	query="DROP USER '$old_dbuser'@'%'"
 	mysql_query "$query" > /dev/null

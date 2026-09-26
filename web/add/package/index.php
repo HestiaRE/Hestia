@@ -163,19 +163,18 @@ if (!empty($_POST["ok"])) {
 			$pkg .= "TIME=" . $v_time . "\n";
 			$pkg .= "DATE=" . $v_date . "\n";
 
-			$tmpfile = tempnam("/tmp/", "hst_");
-			$fp = fopen($tmpfile, "w");
-			fwrite($fp, $pkg);
-			exec(
-				HESTIA_CMD . "h-add-user-package " . $tmpfile . " " . $v_package,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-
-			fclose($fp);
-			unlink($tmpfile);
+			$tmpfile = private_tmpfile();
+			if ($tmpfile !== false) {
+				file_put_contents($tmpfile, $pkg);
+				exec(
+					HESTIA_CMD . "h-add-user-package " . $tmpfile . " " . $v_package,
+					$output,
+					$return_var,
+				);
+				unlink($tmpfile);
+				check_return_code($return_var, $output);
+				unset($output);
+			}
 		}
 		// Flush field values on success
 		if (empty($_SESSION["error_msg"])) {

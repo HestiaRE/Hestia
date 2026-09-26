@@ -1,0 +1,441 @@
+{
+  "version": "0.23",
+  "entries": [
+    {
+      "id": "mail-ssl-modes",
+      "description": "Mail certificate files go from 644 to 640: exim reads them through the mail group, and every domain operation used to reset the keys of all domains on the box",
+      "conditions": [
+        { "type": "file_mode_wider", "path": "/home/*/conf/mail/*/ssl/*", "value": "640" }
+      ],
+      "action": { "type": "function_call", "function": "mail_ssl_modes_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "smtp-relay-modes-box",
+      "description": "The box-wide SMTP relay file holds the relay password in clear text and was written 644: 640 root:Debian-exim",
+      "conditions": [
+        { "type": "file_mode_wider", "path": "/etc/exim4/smtp_relay.conf", "value": "640" }
+      ],
+      "action": { "type": "function_call", "function": "smtp_relay_modes_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "smtp-relay-modes-domain",
+      "description": "A per-domain SMTP relay file was 644 until the next mail rebuild: 660 Debian-exim:mail like the rest of conf/mail/<domain>",
+      "conditions": [
+        { "type": "file_mode_wider", "path": "/home/*/conf/mail/*/smtp_relay.conf", "value": "660" }
+      ],
+      "action": { "type": "function_call", "function": "smtp_relay_modes_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "php-versions-configure",
+      "description": "An OS-PHP install never ran h-add-web-php: distro php.ini with exec() open to customers, the www pool live, no bcmath or soap. bcmath is what only that command installs",
+      "conditions": [{ "type": "php_ext_missing", "name": "bcmath" }],
+      "action": { "type": "function_call", "function": "php_versions_configure_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "php-modules",
+      "description": "redis, igbinary and mcrypt joined the extension set every PHP version gets. After the configure entry, which installs the whole set and would otherwise find bcmath already there",
+      "conditions": [{ "type": "php_ext_missing", "name": "redis,igbinary,mcrypt" }],
+      "action": { "type": "function_call", "function": "php_modules_apply" },
+      "paths": [],
+      "reversible": false,
+      "after": "0.23/php-versions-configure"
+    },
+    {
+      "id": "php-cli-pcntl",
+      "description": "The CLI carried the FPM pcntl_* block, so occ and the Magento indexers could not fork. Only the exact line h-add-web-php wrote; an edited one stays",
+      "conditions": [{ "type": "file_contains", "path": "/etc/php/*/cli/php.ini", "value": "disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority" }],
+      "action": { "type": "function_call", "function": "php_cli_pcntl_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "ioncube-pin",
+      "description": "The ionCube loader stays on the version it was installed with: no update path calls h-add-sys-*. Only where the addon is installed",
+      "conditions": [
+        { "type": "pin_differs", "name": "ioncube", "path": "/usr/local/lib/ioncube/hestia-pin" }
+      ],
+      "action": { "type": "function_call", "function": "ioncube_pin_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "roundcube-pool-opcache",
+      "description": "The Roundcube pool's PHP 8.5 shim shortened the function table in a cache it shares with phpMyAdmin, so whichever app came second answered 500; the pool now runs without OPcache",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/php/hestia/fpm/pool.d/roundcube.conf" },
+        { "type": "file_differs", "source": "share/panel-php/pool.d/roundcube.conf", "target": "/etc/php/hestia/fpm/pool.d/roundcube.conf" }
+      ],
+      "action": { "type": "file_copy", "source": "share/panel-php/pool.d/roundcube.conf", "target": "/etc/php/hestia/fpm/pool.d/roundcube.conf", "mode": "644" },
+      "paths": ["/etc/php/hestia/fpm/pool.d/roundcube.conf"],
+      "reversible": true
+    },
+    {
+      "id": "language-fallback",
+      "description": "The panel keeps en, de, nl, fr, es, pt, da and ru; an account or the box default on a dropped language moves to en, which the panel already showed for most of their strings",
+      "conditions": [{ "type": "language_unlisted" }],
+      "action": { "type": "function_call", "function": "language_fallback_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ar",
+      "description": "Delete the dropped 'ar' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ar" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ar" },
+      "paths": ["/usr/local/hestia/web/locale/ar"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-az",
+      "description": "Delete the dropped 'az' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/az" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/az" },
+      "paths": ["/usr/local/hestia/web/locale/az"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-bg",
+      "description": "Delete the dropped 'bg' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/bg" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/bg" },
+      "paths": ["/usr/local/hestia/web/locale/bg"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-bn",
+      "description": "Delete the dropped 'bn' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/bn" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/bn" },
+      "paths": ["/usr/local/hestia/web/locale/bn"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-bs",
+      "description": "Delete the dropped 'bs' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/bs" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/bs" },
+      "paths": ["/usr/local/hestia/web/locale/bs"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ca",
+      "description": "Delete the dropped 'ca' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ca" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ca" },
+      "paths": ["/usr/local/hestia/web/locale/ca"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-cs",
+      "description": "Delete the dropped 'cs' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/cs" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/cs" },
+      "paths": ["/usr/local/hestia/web/locale/cs"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-el",
+      "description": "Delete the dropped 'el' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/el" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/el" },
+      "paths": ["/usr/local/hestia/web/locale/el"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-fa",
+      "description": "Delete the dropped 'fa' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/fa" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/fa" },
+      "paths": ["/usr/local/hestia/web/locale/fa"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-fi",
+      "description": "Delete the dropped 'fi' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/fi" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/fi" },
+      "paths": ["/usr/local/hestia/web/locale/fi"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-hr",
+      "description": "Delete the dropped 'hr' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hr" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hr" },
+      "paths": ["/usr/local/hestia/web/locale/hr"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-hu",
+      "description": "Delete the dropped 'hu' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hu" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hu" },
+      "paths": ["/usr/local/hestia/web/locale/hu"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-id",
+      "description": "Delete the dropped 'id' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/id" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/id" },
+      "paths": ["/usr/local/hestia/web/locale/id"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-it",
+      "description": "Delete the dropped 'it' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/it" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/it" },
+      "paths": ["/usr/local/hestia/web/locale/it"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ja",
+      "description": "Delete the dropped 'ja' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ja" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ja" },
+      "paths": ["/usr/local/hestia/web/locale/ja"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ka",
+      "description": "Delete the dropped 'ka' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ka" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ka" },
+      "paths": ["/usr/local/hestia/web/locale/ka"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ko",
+      "description": "Delete the dropped 'ko' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ko" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ko" },
+      "paths": ["/usr/local/hestia/web/locale/ko"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ku",
+      "description": "Delete the dropped 'ku' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ku" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ku" },
+      "paths": ["/usr/local/hestia/web/locale/ku"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-no",
+      "description": "Delete the dropped 'no' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/no" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/no" },
+      "paths": ["/usr/local/hestia/web/locale/no"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-pl",
+      "description": "Delete the dropped 'pl' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/pl" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/pl" },
+      "paths": ["/usr/local/hestia/web/locale/pl"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-pt-br",
+      "description": "Delete the dropped 'pt-br' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/pt-br" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/pt-br" },
+      "paths": ["/usr/local/hestia/web/locale/pt-br"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ro",
+      "description": "Delete the dropped 'ro' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ro" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ro" },
+      "paths": ["/usr/local/hestia/web/locale/ro"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-sk",
+      "description": "Delete the dropped 'sk' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/sk" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/sk" },
+      "paths": ["/usr/local/hestia/web/locale/sk"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-sq",
+      "description": "Delete the dropped 'sq' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/sq" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/sq" },
+      "paths": ["/usr/local/hestia/web/locale/sq"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-sr",
+      "description": "Delete the dropped 'sr' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/sr" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/sr" },
+      "paths": ["/usr/local/hestia/web/locale/sr"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-sv",
+      "description": "Delete the dropped 'sv' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/sv" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/sv" },
+      "paths": ["/usr/local/hestia/web/locale/sv"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-th",
+      "description": "Delete the dropped 'th' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/th" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/th" },
+      "paths": ["/usr/local/hestia/web/locale/th"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-tr",
+      "description": "Delete the dropped 'tr' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/tr" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/tr" },
+      "paths": ["/usr/local/hestia/web/locale/tr"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-uk",
+      "description": "Delete the dropped 'uk' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/uk" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/uk" },
+      "paths": ["/usr/local/hestia/web/locale/uk"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-ur",
+      "description": "Delete the dropped 'ur' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ur" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ur" },
+      "paths": ["/usr/local/hestia/web/locale/ur"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-vi",
+      "description": "Delete the dropped 'vi' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/vi" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/vi" },
+      "paths": ["/usr/local/hestia/web/locale/vi"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-zh-cn",
+      "description": "Delete the dropped 'zh-cn' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/zh-cn" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/zh-cn" },
+      "paths": ["/usr/local/hestia/web/locale/zh-cn"],
+      "reversible": false
+    },
+    {
+      "id": "locale-drop-zh-tw",
+      "description": "Delete the dropped 'zh-tw' catalog: an update overlay never deletes, and h-list-sys-languages offers every directory it finds",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/zh-tw" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/zh-tw" },
+      "paths": ["/usr/local/hestia/web/locale/zh-tw"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-da",
+      "description": "Delete the 'da' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/da/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/da/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/da/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-de",
+      "description": "Delete the 'de' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/de/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/de/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/de/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-es",
+      "description": "Delete the 'es' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/es/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/es/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/es/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-fr",
+      "description": "Delete the 'fr' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/fr/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/fr/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/fr/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-nl",
+      "description": "Delete the 'nl' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/nl/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/nl/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/nl/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-pt",
+      "description": "Delete the 'pt' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/pt/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/pt/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/pt/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-domain-ru",
+      "description": "Delete the 'ru' catalog of the old gettext domain: the panel binds 'hestia' now, and an update overlay never deletes",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/ru/LC_MESSAGES/hestiacp.mo" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/ru/LC_MESSAGES/hestiacp.mo" },
+      "paths": ["/usr/local/hestia/web/locale/ru/LC_MESSAGES/hestiacp.mo"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-template",
+      "description": "Delete the template of the old gettext domain: the catalog sources no longer ship",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hestiacp.pot" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hestiacp.pot" },
+      "paths": ["/usr/local/hestia/web/locale/hestiacp.pot"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-hst-scan-i18n",
+      "description": "Delete hst_scan_i18n.sh: .gitea/tools/i18n.sh replaces it and never ships",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hst_scan_i18n.sh" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hst_scan_i18n.sh" },
+      "paths": ["/usr/local/hestia/web/locale/hst_scan_i18n.sh"],
+      "reversible": false
+    },
+    {
+      "id": "locale-old-hst-convert-po2mo",
+      "description": "Delete hst_convert_po2mo.sh: .gitea/tools/i18n.sh replaces it and never ships",
+      "conditions": [{ "type": "path_exists", "path": "/usr/local/hestia/web/locale/hst_convert_po2mo.sh" }],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/web/locale/hst_convert_po2mo.sh" },
+      "paths": ["/usr/local/hestia/web/locale/hst_convert_po2mo.sh"],
+      "reversible": false
+    },
+    {
+      "id": "panel-locale",
+      "description": "Generate en_US.UTF-8 for the panel: glibc 2.39+ ignores LANGUAGE under C.UTF-8, so every panel language showed English (#1157)",
+      "conditions": [{ "type": "locale_missing", "name": "en_US.UTF-8" }],
+      "action": { "type": "function_call", "function": "panel_locale_apply" },
+      "paths": ["/etc/locale.gen"],
+      "reversible": false
+    }
+  ]
+}

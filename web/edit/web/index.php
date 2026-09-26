@@ -159,6 +159,7 @@ if ($v_proxy_cache == "yes") {
 	}
 }
 $v_offline = $data[$v_domain]["OFFLINE"] ?? "";
+$v_allow_users = $data[$v_domain]["ALLOW_USERS"] ?? "";
 $v_proxy = $data[$v_domain]["PROXY"];
 $v_proxy_template = $data[$v_domain]["PROXY"];
 $v_proxy_ext = str_replace(",", ", ", $data[$v_domain]["PROXY_EXT"]);
@@ -310,6 +311,13 @@ $offer_web_template = empty($v_docker) && $can_edit_templates && is_array($templ
 $offer_backend = empty($v_docker) && !empty($_SESSION["WEB_BACKEND"]);
 // rendered unconditionally today - the gate exists so the reader follows the file's rule
 $offer_offline = true;
+// Sharing only means something while ownership is enforced (the box-wide 'no' lets every account already), and only
+// on a base domain, which h-add-web-domain-allow-users decides against the public suffix list. Offered here on two
+// labels, where that answer is certain, or while it is on, so it can be switched off. Not covered: a base domain with
+// a two-part suffix (example.co.uk) is shared through the CLI only.
+$offer_allow_users =
+	($_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"] ?? "yes") != "no" &&
+	(substr_count($v_domain, ".") == 1 || $v_allow_users == "yes");
 // A managed WordPress lives IN the document root - pointing the domain elsewhere would orphan
 // its files, its wp-config artefact and the guards that read them. Redirects stay available:
 // forwarding a domain while the installation waits (migration, move) is a real case.
@@ -703,6 +711,19 @@ if (!empty($_POST["save"])) {
 		check_return_code($return_var, $output);
 		unset($output);
 		$restart_web = "yes";
+	}
+
+	// Share the domain: other accounts may add subdomains of it, web and mail. The owner's namespace, so the owner's switch.
+	$v_allow_users_check = $v_allow_users == "yes" ? "on" : "";
+	$post_allow_users = post_checkbox("v_allow_users", $offer_allow_users, $v_allow_users_check, "on", "");
+	if ($v_allow_users_check != $post_allow_users && empty($_SESSION["error_msg"])) {
+		$allow_cmd = $post_allow_users == "on" ? "h-add-web-domain-allow-users" : "h-delete-web-domain-allow-users";
+		exec(HESTIA_CMD . $allow_cmd . " " . $user . " " . quoteshellarg($v_domain), $output, $return_var);
+		check_return_code($return_var, $output);
+		unset($output);
+		if (empty($_SESSION["error_msg"])) {
+			$v_allow_users = $post_allow_users == "on" ? "yes" : "no";
+		}
 	}
 
 	// Change aliases
@@ -1340,26 +1361,25 @@ if (!empty($_POST["save"])) {
 			$_SESSION["error_msg"] = sprintf(_('Field "%s" can not be blank.'), $error_msg);
 		} else {
 			$v_stats_user = quoteshellarg($_POST["v_stats_user"]);
-			$v_stats_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_stats_password, "w");
-			fwrite($fp, $_POST["v_stats_password"] . "\n");
-			fclose($fp);
-			exec(
-				HESTIA_CMD .
-					"h-add-web-domain-stats-user " .
-					$user .
-					" " .
-					quoteshellarg($v_domain) .
-					" " .
-					$v_stats_user .
-					" " .
-					$v_stats_password,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			unlink($v_stats_password);
+			$v_stats_password = secret_tmpfile($_POST["v_stats_password"]);
+			if ($v_stats_password !== false) {
+				exec(
+					HESTIA_CMD .
+						"h-add-web-domain-stats-user " .
+						$user .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						$v_stats_user .
+						" " .
+						$v_stats_password,
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+				unlink($v_stats_password);
+			}
 			$v_stats_password = quoteshellarg($_POST["v_stats_password"]);
 		}
 	}
@@ -1384,26 +1404,25 @@ if (!empty($_POST["save"])) {
 			(!empty($_POST["v_stats_password"]) && empty($_SESSION["error_msg"]))
 		) {
 			$v_stats_user = quoteshellarg($_POST["v_stats_user"]);
-			$v_stats_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_stats_password, "w");
-			fwrite($fp, $_POST["v_stats_password"] . "\n");
-			fclose($fp);
-			exec(
-				HESTIA_CMD .
-					"h-add-web-domain-stats-user " .
-					$user .
-					" " .
-					quoteshellarg($v_domain) .
-					" " .
-					$v_stats_user .
-					" " .
-					$v_stats_password,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			unlink($v_stats_password);
+			$v_stats_password = secret_tmpfile($_POST["v_stats_password"]);
+			if ($v_stats_password !== false) {
+				exec(
+					HESTIA_CMD .
+						"h-add-web-domain-stats-user " .
+						$user .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						$v_stats_user .
+						" " .
+						$v_stats_password,
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+				unlink($v_stats_password);
+			}
 			$v_stats_password = quoteshellarg($_POST["v_stats_password"]);
 		}
 	}
@@ -1453,10 +1472,9 @@ if (!empty($_POST["save"])) {
 				$v_ftp_user = quoteshellarg($v_ftp_username);
 				$v_ftp_path = quoteshellarg(trim($v_ftp_user_data["v_ftp_path"]));
 				if (empty($_SESSION["error_msg"])) {
-					$v_ftp_password = tempnam("/tmp", "vst");
-					$fp = fopen($v_ftp_password, "w");
-					fwrite($fp, $v_ftp_user_data["v_ftp_password"] . "\n");
-					fclose($fp);
+					$v_ftp_password = secret_tmpfile($v_ftp_user_data["v_ftp_password"]);
+				}
+				if (empty($_SESSION["error_msg"])) {
 					exec(
 						HESTIA_CMD .
 							"h-add-web-domain-ftp " .
@@ -1623,26 +1641,25 @@ if (!empty($_POST["save"])) {
 				}
 				// Change FTP account password
 				if (!empty($v_ftp_user_data["v_ftp_password"])) {
-					$v_ftp_password = tempnam("/tmp", "vst");
-					$fp = fopen($v_ftp_password, "w");
-					fwrite($fp, $v_ftp_user_data["v_ftp_password"] . "\n");
-					fclose($fp);
-					exec(
-						HESTIA_CMD .
-							"h-change-web-domain-ftp-password " .
-							$user .
-							" " .
-							quoteshellarg($v_domain) .
-							" " .
-							$v_ftp_username .
-							" " .
-							$v_ftp_password,
-						$output,
-						$return_var,
-					);
-					check_return_code($return_var, $output);
-					unset($output);
-					unlink($v_ftp_password);
+					$v_ftp_password = secret_tmpfile($v_ftp_user_data["v_ftp_password"]);
+					if ($v_ftp_password !== false) {
+						exec(
+							HESTIA_CMD .
+								"h-change-web-domain-ftp-password " .
+								$user .
+								" " .
+								quoteshellarg($v_domain) .
+								" " .
+								$v_ftp_username .
+								" " .
+								$v_ftp_password,
+							$output,
+							$return_var,
+						);
+						check_return_code($return_var, $output);
+						unset($output);
+						unlink($v_ftp_password);
+					}
 				}
 				if (!empty($v_ftp_user_data["v_ftp_email"]) && empty($_SESSION["error_msg"])) {
 					$to = $v_ftp_user_data["v_ftp_email"];

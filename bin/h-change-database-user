@@ -4,7 +4,8 @@
 #
 # example: h-change-database-user admin my_db joe_user
 #
-# This function for changing database user. It uses the
+# This function for changing database user. A DBUSER another MySQL database of the user already has is
+# reused with its password, so DBPASS must be empty then.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -39,23 +40,55 @@ is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
-is_object_new 'db' 'DBUSER' "$dbuser"
 is_object_unsuspended 'db' 'DB' "$database"
 is_password_valid
 dbpass="$password"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # Compare old and new user
 old_dbuser=$(get_object_value 'db' 'DB' "$database" '$DBUSER')
 if [ "$old_dbuser" = "$dbuser" ]; then
 	exit
 fi
+get_database_values
+[ "$dbuser" != "$DBUSER_SECOND" ] || check_result "$E_INVALID" "$dbuser is already the second user of $database"
+
+# A name another database holds is reused (#725): same server, and its password stays the one it has.
+reuse=''
+db_user_in_use "$dbuser" '*' '*' "$database"
+case $? in
+	0)
+		[ "$TYPE" = 'mysql' ] || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+		[ -z "$dbpass" ] || check_result "$E_INVALID" "$dbuser is used by another database, its password changes with h-change-database-password"
+		[ "$(db_user_host "$dbuser" mysql)" = "$HOST" ] || check_result "$E_INVALID" "$dbuser lives on another database server"
+		reuse='yes'
+		;;
+	2) check_result "$E_PARSING" "cannot read the databases of $user" ;;
+esac
+if [ -z "$reuse" ]; then
+	! db_user_foreign "$dbuser" "$user" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	# The rebuild creates the user IF NOT EXISTS, so a leftover one would be taken over as it is.
+	if [ "$TYPE" = 'mysql' ]; then
+		mysql_connect "$HOST"
+		! mysql_user_exists "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	fi
+fi
+# The old user's password lives in this record: whoever else uses it would be left with a user nobody can re-create.
+if [ "$TYPE" = 'mysql' ] && [ -n "$MD5" ]; then
+	db_user_in_use "$old_dbuser" mysql "$HOST" "$database"
+	[ $? -eq 1 ] || check_result "$E_INUSE" "$old_dbuser is used by another database; give that one its own user first"
+fi
+# Renaming carries this record's hash to the new user; without one it would arrive without a password.
+if [ -z "$reuse" ] && [ -z "$MD5" ] && [ -z "$dbpass" ]; then
+	check_result "$E_INVALID" "$database holds no password of its own for $dbuser, give DBPASS"
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
 
 # Set new dbuser
 update_object_value 'db' 'DB' "$database" '$DBUSER' "$dbuser"
+[ -z "$reuse" ] || update_object_value 'db' 'DB' "$database" '$MD5' ''
 
 # Get database values
 get_database_values
@@ -70,6 +103,7 @@ if [ "$TYPE" = "pgsql" ]; then
 fi
 
 # Rebuild database
+[ -z "$dbpass" ] || REBUILD_DB_PASS_FOLLOWS='yes'
 case $TYPE in
 	mysql) rebuild_mysql_database ;;
 	pgsql) rebuild_pgsql_database ;;
@@ -86,14 +120,14 @@ if [ -n "$dbpass" ]; then
 	update_object_value 'db' 'DB' "$database" '$MD5' "$md5"
 fi
 
-# Remove old user
-check_old_dbuser=$(grep "DBUSER='$old_dbuser'" $USER_DATA/db.conf)
-if [ -z "$check_old_dbuser" ]; then
-	case $TYPE in
-		mysql) delete_mysql_user ;;
-		pgsql) delete_pgsql_user ;;
-	esac
-fi
+# Remove old user. mysql revokes its rights here even when another database keeps the user.
+case $TYPE in
+	mysql) delete_mysql_user ;;
+	pgsql)
+		db_user_in_use "$old_dbuser" pgsql "$HOST"
+		[ $? -ne 1 ] || delete_pgsql_user
+		;;
+esac
 
 #----------------------------------------------------------#
 #                       Hestia                             #

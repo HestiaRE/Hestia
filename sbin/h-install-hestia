@@ -301,6 +301,8 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 		caddy \
 		libphp-phpmailer \
 		$panel_php_pkgs
+	# Not fatal: without it the panel works, only in English, and the smoke says so.
+	panel_locale_apply || echo "[ ! ] en_US.UTF-8 could not be generated, the panel shows English only (#1157)" >&2
 	echo "[ * ] Configuring panel PHP-FPM..."
 	mkdir -p /etc/php/hestia/fpm/pool.d /etc/php/hestia/cli
 	cp -f "$HESTIA/share/panel-php/php-fpm.conf" /etc/php/hestia/fpm/
@@ -388,22 +390,11 @@ install_web() {
 
 	local web_pkgs=()
 	if web_model_uses_nginx "$web_model"; then web_pkgs+=(nginx); fi
-	echo "[ * ] Installing web packages ($(web_model_label "$web_model"), PHP $PHP_VER extensions)..."
-	local web_php_pkgs
-	web_php_pkgs="php${PHP_VER} php${PHP_VER}-apcu php${PHP_VER}-bz2 php${PHP_VER}-cgi \
-php${PHP_VER}-cli php${PHP_VER}-common php${PHP_VER}-gd php${PHP_VER}-imagick php${PHP_VER}-imap \
-php${PHP_VER}-intl php${PHP_VER}-ldap php${PHP_VER}-pgsql php${PHP_VER}-pspell \
-php${PHP_VER}-readline php${PHP_VER}-xml"
-	# Unconditional for the same reason as the panel stage (#857): 8.4+ unbundled
-	# imap, 8.5 folded opcache into core - the raw list is only valid for older PHP.
-	# shellcheck disable=SC2086
-	if ! web_php_pkgs=$(filter_installable_php_pkgs "imap:8.4 opcache:8.5 exif" $web_php_pkgs); then
-		exit 1
+	# The PHP extensions come with h-add-web-php below, one set for every version and mode.
+	if [ "${#web_pkgs[@]}" -gt 0 ]; then
+		echo "[ * ] Installing web packages ($(web_model_label "$web_model"))..."
+		hestia_apt -y install "${web_pkgs[@]}"
 	fi
-	# shellcheck disable=SC2086
-	hestia_apt -y install \
-		"${web_pkgs[@]}" \
-		$web_php_pkgs
 
 	if web_model_uses_nginx "$web_model"; then
 		echo "[ * ] Configuring nginx..."
@@ -480,39 +471,32 @@ php${PHP_VER}-readline php${PHP_VER}-xml"
 	wcv "STATS_SYSTEM" "awstats"
 	wcv "WEB_BACKEND" "php-fpm"
 
-	# sury_multi only. The reference version goes through the same h-add-web-php as customer versions, so it
-	# gets the full extension set even when the preset did not pre-select it; deduped (#196, #272).
+	# Every mode, os_single too (#1069): skipping it there left the distro php.ini, with exec() open to
+	# customers, and the www pool running. The reference version gets the full set even when the preset did
+	# not pre-select it; deduped (#196, #272). The status says the source, not the count (#934).
+	local php_versions="$PHP_VER" v
 	if [ "${COMPONENT_PHP_MODE:-sury_multi}" = "sury_multi" ]; then
-		# The status says the source, not the count (#934); the versions come from h-add-web-php below.
 		wcv "PHP_SOURCE" "sury"
-		local php_versions="${COMPONENT_PHP_MULTIPHP_VERSIONS:-}"
+		php_versions="${COMPONENT_PHP_MULTIPHP_VERSIONS:-}"
 		case " $php_versions " in
 			*" $PHP_VER "*) ;;
 			*) php_versions="$PHP_VER $php_versions" ;;
 		esac
-		echo "[ * ] Installing PHP versions: $php_versions"
-		local v
-		for v in $php_versions; do
-			echo "  php$v..."
-			# reference version failure aborts; an extra customer version only warns
-			if ! "$BIN/h-add-web-php" "$v" >> "$LOG" 2>&1; then
-				if [ "$v" = "$PHP_VER" ]; then
-					echo "ERROR: reference PHP $v failed to install — see $LOG" >&2
-					exit 1
-				fi
-				echo "[ ! ] WARNING: PHP $v failed to install — skipping (see $LOG)" >&2
-			fi
-		done
 	else
-		echo "[ * ] Skipping multi-PHP (PHP_MODE=${COMPONENT_PHP_MODE:-?})"
-		# OS PHP: h-add-web-php does not run here, so the stage records the one version itself, through the
-		# token function like every other writer of a token key (#933/#934).
 		wcv "PHP_SOURCE" "os"
-		sys_key_token_set PHP_VERSIONS add "$PHP_VER" > /dev/null || {
-			echo "ERROR: PHP_VERSIONS: could not record $PHP_VER" >&2
-			exit 1
-		}
 	fi
+	echo "[ * ] Installing PHP versions: $php_versions"
+	for v in $php_versions; do
+		echo "  php$v..."
+		# reference version failure aborts; an extra customer version only warns
+		if ! "$BIN/h-add-web-php" "$v" >> "$LOG" 2>&1; then
+			if [ "$v" = "$PHP_VER" ]; then
+				echo "ERROR: reference PHP $v failed to install, see $LOG" >&2
+				exit 1
+			fi
+			echo "[ ! ] WARNING: PHP $v failed to install, skipping (see $LOG)" >&2
+		fi
+	done
 
 	echo "[ * ] Ensuring PHP $PHP_VER FPM pool..."
 	# no shared www pool: each version needs its dummy placeholder pool so php-fpm
@@ -814,7 +798,7 @@ install_security() {
 }
 
 # ════════════════════════════════════════════════════════════════════════════
-# Stage: addons — proftpd / docker / filemanager (per components)
+# Stage: addons: proftpd / docker / filemanager / restic / ioncube (per components)
 # ════════════════════════════════════════════════════════════════════════════
 install_addons() {
 	stage_done addons && {
@@ -836,6 +820,10 @@ install_addons() {
 	if is_on "${COMPONENT_ADDON_RESTIC:-}"; then
 		echo "[ * ] Installing restic (incremental backup mode)..."
 		addon_install restic
+	fi
+	if is_on "${COMPONENT_ADDON_IONCUBE:-}"; then
+		echo "[ * ] Installing the ionCube loader..."
+		addon_install ioncube
 	fi
 	stage_mark addons
 	# stage-level only: each || true above swallows a flaky addon failure, and the closing
@@ -1166,6 +1154,12 @@ finalize_install() {
 	else
 		HESTIA_PASS="(not found — use h-change-user-password $HESTIA_ADMIN <newpass>)"
 	fi
+
+	# Last, so the whole run saw one environment; it takes effect at the reboot asked for below (#1164).
+	if [ "${SYSTEM_LOCALE:-keep}" != keep ] && ! "$BIN/h-change-sys-locale" "$SYSTEM_LOCALE"; then
+		echo "[ ! ] System locale $SYSTEM_LOCALE could not be set, the box keeps its own" >&2
+	fi
+	panel_language_follow_system
 
 	echo "[ * ] Restarting panel services (Caddy + hestia-php)..."
 	# restart both so configure-stage changes (SSL cert, panel port) take effect

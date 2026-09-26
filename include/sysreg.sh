@@ -1,6 +1,6 @@
 #!/bin/bash
 # The system key registry (share/hestia/sys-keys.json): readers and the schema guard. jq only, no other
-# include, so the smoke on a box and CI on a checkout run the same code. A broken registry fails loudly,
+# include, so the readers on a box and the CI guard on a checkout run the same code. A broken registry fails loudly,
 # never as an empty set: the login feeds its session from here.
 
 # $HESTIA on a box, the checkout otherwise; SYSREG_FILE overrides.

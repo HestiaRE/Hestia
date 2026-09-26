@@ -15,7 +15,7 @@ if (empty($_GET["object"])) {
 exec(HESTIA_CMD . "h-schedule-user-backup-restic " . $user, $output, $return_var);
 
 if ($return_var == 0) {
-	$_SESSION["error_msg"] = _("Snapshot has been sheduled");
+	$_SESSION["error_msg"] = _("Snapshot has been scheduled");
 } else {
 	$_SESSION["error_msg"] = implode("\n", $output);
 }

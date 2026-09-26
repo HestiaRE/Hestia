@@ -267,8 +267,8 @@ function secret_tmpfile(string $value)
 /**
  * Create an empty 0600 tempfile for content that is written by the caller (a service config on
  * its way to an h-* command). Returns false and sets error_msg when it cannot - as a value, so
- * the caller has to branch: fopen() on an unset path writes into the filesystem root, under the
- * panel user and world-readable, and the command then runs against a path that does not exist.
+ * the caller has to branch: fopen() on the false path throws under PHP 8, so the save ends in a blank
+ * HTTP 500 with nothing said and the command never run (measured for #1158).
  *
  * The shutdown handler covers a request that dies before the caller's own unlink; a caller that
  * never unlinks at all is covered too.
@@ -292,7 +292,8 @@ function private_tmpfile(string $prefix = "hst-tmp-")
 /**
  * Create a private temporary directory for files that must not be world-readable (certificates
  * on their way to a command). Returns false and sets error_msg when it cannot - as a value, so
- * the caller has to branch: writing into an unset path puts those files in the filesystem root.
+ * the caller has to branch: an empty directory turns $dir . "/x.crt" into /x.crt, and only the
+ * root-owned / keeps the panel user from writing the certificate there.
  */
 function private_tmpdir()
 {

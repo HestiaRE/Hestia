@@ -34,8 +34,11 @@
 					<?= tohtml(_("Username")) ?>
 					<em><small>(<?= tohtml(sprintf(_("Maximum %s characters length, including prefix"), 32)) ?>)</small></em>
 				</label>
-				<input type="text" class="form-control js-db-hint-username" name="v_dbuser" id="v_dbuser" value="<?= tohtml(trim($v_dbuser, "'")) ?>">
+				<input type="text" class="form-control js-db-hint-username" name="v_dbuser" id="v_dbuser" value="<?= tohtml(trim($v_dbuser, "'")) ?>"<?php if ($offer_second) { ?> list="v_db_users"<?php } ?>>
 				<small class="hint"></small>
+				<?php if (!empty($shared_main)) { ?>
+					<p class="hint u-mt5"><?= tohtml(sprintf(_("Shared with %s, a new password applies there too."), implode(", ", $shared_main))) ?></p>
+				<?php } ?>
 			</div>
 			<div class="u-mb10">
 				<label for="v_password" class="form-label">
@@ -52,6 +55,48 @@
 				</div>
 			</div>
 			<?php require $_SERVER["HESTIA"] . "/web/templates/includes/password-requirements.php"; ?>
+			<?php if ($offer_second) { ?>
+				<datalist id="v_db_users">
+					<?php foreach ($db_users as $db_user) { ?>
+						<option value="<?= tohtml($db_user) ?>">
+					<?php } ?>
+				</datalist>
+				<h2 class="u-mt20 u-mb10"><?= tohtml(_("Second User")) ?></h2>
+				<p class="hint u-mb10"><?= tohtml(_("An existing user is shared and keeps its password, a new one needs a password. Empty the name to remove the second user.")) ?></p>
+				<div class="u-mb10">
+					<label for="v_dbuser_second" class="form-label u-side-by-side">
+						<?= tohtml(_("Username")) ?>
+						<em><small>(<?= tohtml(sprintf(_("Maximum %s characters length, including prefix"), 32)) ?>)</small></em>
+					</label>
+					<input type="text" class="form-control js-db-hint-username" name="v_dbuser_second" id="v_dbuser_second" value="<?= tohtml($v_dbuser_second) ?>" list="v_db_users">
+					<small class="hint"></small>
+					<?php if (!empty($shared_second)) { ?>
+						<p class="hint u-mt5"><?= tohtml(sprintf(_("Shared with %s, a new password applies there too."), implode(", ", $shared_second))) ?></p>
+					<?php } ?>
+				</div>
+				<div class="u-mb10">
+					<label for="v_password_second" class="form-label">
+						<?= tohtml(_("Password")) ?>
+						<button type="button" title="<?= tohtml(_("Generate")) ?>" class="u-unstyled-button u-ml5 js-generate-password">
+							<i class="fas fa-arrows-rotate icon-green"></i>
+						</button>
+					</label>
+					<div class="u-pos-relative u-mb10">
+						<input type="text" class="form-control js-password-input" name="v_password_second" id="v_password_second" value="">
+						<div class="password-meter">
+							<meter max="4" class="password-meter-input js-password-meter"></meter>
+						</div>
+					</div>
+				</div>
+				<div class="form-check u-mb20">
+					<input class="form-check-input" type="checkbox" name="v_dbuser_second_ro" id="v_dbuser_second_ro" <?php if ($v_dbuser_second_ro === "yes") {
+						echo "checked";
+					} ?>>
+					<label for="v_dbuser_second_ro">
+						<?= tohtml(_("Read-only (SELECT, SHOW VIEW)")) ?>
+					</label>
+				</div>
+			<?php } ?>
 			<div class="u-mb10">
 				<label for="v_type" class="form-label"><?= tohtml(_("Type")) ?></label>
 				<input type="text" class="form-control" name="v_type" id="v_type" value="<?= tohtml(trim($v_type, "'")) ?>" disabled>

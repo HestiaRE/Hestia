@@ -160,7 +160,7 @@ if (!$impersonatingAdmin) { ?>
 						class="top-bar-menu-link u-hide-tablet"
 						x-on:click="open = !open">
 						<i class="fas fa-bars"></i>
-						<span class="u-hidden" x-text="open ? '<?= _("Close menu") ?>' : '<?= _("Open menu") ?>'">
+						<span class="u-hidden" x-text="open ? <?= tohtml(json_encode(_("Close menu"), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR)) ?> : <?= tohtml(json_encode(_("Open menu"), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR)) ?>">
 							<?= _("Open menu") ?>
 						</span>
 					</button>
@@ -275,7 +275,7 @@ if (!$impersonatingAdmin) { ?>
 			<button x-on:click="open = !open" type="button" class="main-menu-toggle">
 				<i class="fas fa-bars"></i>
 				<span
-					x-text="open ? '<?= _("Collapse main menu") ?>' : '<?= _("Expand main menu") ?>'"
+					x-text="open ? <?= tohtml(json_encode(_("Collapse main menu"), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR)) ?> : <?= tohtml(json_encode(_("Expand main menu"), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR)) ?>"
 					class="main-menu-toggle-label"
 				>
 					<?= _("Expand main menu") ?>

@@ -88,6 +88,26 @@ upd_cond_path_exists() {
 	[ -e "$1" ] || [ -L "$1" ]
 }
 
+# True while an account or the box default names a language the panel no longer ships (#1160). Read
+# from languages.json, which the overlay has replaced, so it holds before the dropped catalogs are deleted.
+upd_cond_language_unlisted() {
+	local out
+	out=$(languages_unlisted) || {
+		echo "update: languages.json is unusable - language_unlisted cannot decide" >&2
+		return 2
+	}
+	[ -n "$out" ]
+}
+
+# locale_missing NAME, answered by locale -a: a line in /etc/locale.gen says nothing about the archive.
+upd_cond_locale_missing() {
+	[ -n "$1" ] || {
+		echo "update: locale_missing needs a name" >&2
+		return 2
+	}
+	! locale_present "$1"
+}
+
 # command_exists NAME
 upd_cond_command_exists() {
 	[ -n "$1" ] || {
@@ -155,19 +175,40 @@ upd_cond_file_patch_pending() {
 	return 2
 }
 
+# Files that sit one per account and domain, so the path is a pattern; true when one of them carries a bit outside
+# the mode. Expanded with compgen, not a for-loop, so a pattern that matches nothing is simply no match.
+upd_cond_file_mode_wider() {
+	local f m
+	[ -n "$1" ] && [[ "$2" =~ ^[0-7]{3,4}$ ]] || {
+		echo "update: file_mode_wider needs a path pattern and an octal mode" >&2
+		return 2
+	}
+	while read -r f; do
+		[ -n "$f" ] || continue
+		m=$(stat -L -c '%a' "$f" 2> /dev/null) || continue
+		(((8#$m & ~8#$2) != 0)) && return 0
+	done < <(compgen -G "$1")
+	return 1
+}
+
 # For a file the box generates: no tree source to compare against, so the marker is what the OLD
-# version wrote. That is what makes this false once the file has been rewritten.
+# version wrote. That is what makes this false once the file has been rewritten. The path may be a
+# pattern, for a file that sits once per PHP version; true when one of the matches carries the marker.
 upd_cond_file_contains() {
+	local f
 	[ -n "$1" ] && [ -n "$2" ] || {
 		echo "update: file_contains needs a path and a value" >&2
 		return 2
 	}
-	[ -f "$1" ] || return 1
-	[ -r "$1" ] || {
-		echo "update: $1 exists but cannot be read - file_contains cannot decide" >&2
-		return 2
-	}
-	grep -qF -- "$2" "$1"
+	while read -r f; do
+		[ -f "$f" ] || continue
+		[ -r "$f" ] || {
+			echo "update: $f exists but cannot be read, so file_contains cannot decide" >&2
+			return 2
+		}
+		grep -qF -- "$2" "$f" && return 0
+	done < <(compgen -G "$1")
+	return 1
 }
 
 # The complement of file_contains, for an entry that has to ADD a marker rather than replace one.
@@ -279,7 +320,9 @@ upd_action_reversible() {
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
 	cron_locale_apply system_repair_cron_write sieve_redirect_apply sieve_vacation_apply fail2ban_panel_action_apply
-	exim_autoreply_apply exim_spam_header_apply)
+	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply
+	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply language_fallback_apply
+	panel_locale_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -386,7 +429,10 @@ upd_condition() {
 			;;
 		# A second arm, not a wrapped first one: check_update_dispatcher reads an arm as ONE line ending
 		# in ")", so a continuation drops every name before it out of the set it compares.
-		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending)
+		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending | file_mode_wider)
+			"upd_cond_$t" "$@"
+			;;
+		language_unlisted | locale_missing)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -577,12 +623,12 @@ UPD_ARGS_JQ='
 def argv(t):
   if t=="key_empty" or t=="command_exists" or t=="package_installed" or t=="key_clear"
      or t=="package_install" or t=="package_remove" or t=="service_restart"
-     or t=="php_ext_missing" then [.name // ""]
+     or t=="php_ext_missing" or t=="locale_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
   elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
-  elif t=="file_contains" or t=="file_lacks" then [.path // "", .value // ""]
+  elif t=="file_contains" or t=="file_lacks" or t=="file_mode_wider" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
   elif t=="file_differs" or t=="file_patch_pending"
     then [.source // "", .target // ""]
@@ -593,7 +639,7 @@ argv(.type // "")[]
 '
 
 # Evaluating a condition is read-only, and every rc 2 in one comes from the tree (unknown key, value
-# outside the vocabulary), never from the box. So this one call serves the smoke and the derivation.
+# outside the vocabulary), never from the box. So this one call serves the CI tree check and the derivation.
 # The argv a building block takes, one per line. $2 is a jq selector from our own code, never data.
 upd_argv() { jq -r "$2 | $UPD_ARGS_JQ" <<< "$1"; }
 
@@ -635,6 +681,9 @@ upd_entry_check() {
 		echo "update: $ident: needs at least one condition, so a second run can see it is done" >&2
 		return 2
 	}
+	# Stops at the first false one, as upd_entry_applies does: a gate (key_is MAIL_SYSTEM) is what keeps a
+	# patch condition off a box where the file is not ours, the stock exim template of a nomail box (#1132).
+	# Not covered: a condition behind a false gate is checked only on the boxes where the gate holds.
 	for ((i = 0; i < n; i++)); do
 		t=$(jq -r ".conditions[$i].type // \"\"" <<< "$entry")
 		mapfile -t _argv < <(upd_argv "$entry" ".conditions[$i]")
@@ -644,6 +693,7 @@ upd_entry_check() {
 			echo "update: $ident: ${msg#update: }" >&2
 			return 2
 		}
+		[ "$rc" -eq 1 ] && break
 	done
 	return 0
 }

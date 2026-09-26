@@ -618,7 +618,8 @@ if (!empty($_POST["save"])) {
 				}
 			}
 		}
-		if ($offer_mail && !isset($_POST["v_smtp_relay"]) && $v_smtp_relay == true) {
+		// The record holds the string 'false', which == true in PHP: every save without the box deleted a relay (#1140).
+		if ($offer_mail && !isset($_POST["v_smtp_relay"]) && $v_smtp_relay == "true") {
 			$v_smtp_relay = false;
 			$v_smtp_relay_host = $v_smtp_relay_user = $v_smtp_relay_pass = $v_smtp_relay_port = "";
 			exec(HESTIA_CMD . "h-delete-sys-smtp-relay", $output, $return_var);
@@ -1160,11 +1161,7 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_inactive_session_timeout = $_POST["v_inactive_session_timeout"];
-				}
 			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1180,29 +1177,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_csrf_strictness = $_POST["v_inactive_session_timeout"];
-			}
-			$v_security_adv = "yes";
-		}
-	}
-
-	// Change ENFORCE_SUBDOMAIN_OWNERSHIP
-	if (empty($_SESSION["error_msg"])) {
-		if ($_POST["v_enforce_subdomain_ownership"] != $_SESSION["ENFORCE_SUBDOMAIN_OWNERSHIP"]) {
-			exec(
-				HESTIA_CMD .
-					"h-change-sys-config-value ENFORCE_SUBDOMAIN_OWNERSHIP " .
-					quoteshellarg($_POST["v_enforce_subdomain_ownership"]),
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_enforce_subdomain_ownership = $_POST["v_enforce_subdomain_ownership"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1218,10 +1192,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_edit_details = $_POST["v_policy_user_edit_details"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1240,10 +1210,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_edit_details = $_POST["v_policy_user_edit_web_templates"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1259,10 +1225,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_view_logs = $_POST["v_policy_user_view_logs"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1278,10 +1240,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_delete_logs = $_POST["v_policy_user_delete_logs"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1297,10 +1255,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_system_password_reset = $_POST["v_policy_system_password_reset"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1320,10 +1274,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_system_protected_admin = $_POST["v_policy_system_protected_admin"];
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1344,10 +1294,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_user_view_suspended = $post_view_suspended;
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1376,9 +1322,6 @@ if (!empty($_POST["save"])) {
 				unset($_SESSION["userTheme"]);
 				$require_refresh = true;
 			}
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_user_change_theme = $_POST["v_policy_user_change_theme"];
-			}
 		}
 	}
 
@@ -1395,10 +1338,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_system_hide_admin = $_POST["v_policy_system_hide_admin"];
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1418,10 +1357,6 @@ if (!empty($_POST["save"])) {
 				);
 				check_return_code($return_var, $output);
 				unset($output);
-				if (empty($_SESSION["error_msg"])) {
-					$v_policy_system_hide_services = $_POST["v_policy_system_hide_services"];
-				}
-				$v_security_adv = "yes";
 			}
 		}
 	}
@@ -1439,10 +1374,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_system_hide_services = $_POST["v_policy_backup_suspended_users"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1457,10 +1388,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_sync_error_documents = $_POST["v_policy_sync_error_documents"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 	if (empty($_SESSION["error_msg"])) {
@@ -1474,10 +1401,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_policy_sync_skeleton = $_POST["v_policy_sync_skeleton"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1493,10 +1416,6 @@ if (!empty($_POST["save"])) {
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			if (empty($_SESSION["error_msg"])) {
-				$v_login_style = $_POST["v_login_style"];
-			}
-			$v_security_adv = "yes";
 		}
 	}
 
@@ -1561,6 +1480,9 @@ if (!empty($_POST["save"])) {
 	// test for the whole box.
 	if (empty($_SESSION["error_msg"]) && is_array($_POST["v_bl_fam"] ?? null)) {
 		$bl_touched = false;
+		// A row as stored is left alone: every save re-wrote all families and reloaded the web server (#1140).
+		$bl_stored = cli_json("h-list-sys-botfamily json");
+		$bl_stored = is_array($bl_stored) ? $bl_stored : [];
 		// Bounded by the slot count: the CLI rejects the surplus anyway, but only after this loop had
 		// forked a command per row.
 		foreach (array_slice(array_keys($_POST["v_bl_fam"]), 0, $bl_slots_max, true) as $bl_i) {
@@ -1583,6 +1505,15 @@ if (!empty($_POST["save"])) {
 				$bl_touched = true;
 			}
 			if ($bl_name === "" || $bl_match === "") {
+				continue;
+			}
+			$bl_was = $bl_stored[$bl_name] ?? null;
+			if (
+				$bl_name === $bl_orig &&
+				is_array($bl_was) &&
+				[$bl_match, $bl_len, $bl_str, $bl_en] ===
+					[$bl_was["MATCH"] ?? "", $bl_was["LENIENT"] ?? "", $bl_was["STRICT"] ?? "", $bl_was["ENABLED"] ?? "no"]
+			) {
 				continue;
 			}
 			exec(

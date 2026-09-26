@@ -6,6 +6,10 @@
 # #
 #===========================================================================#
 
+# A floor, not a ceiling: the panel (sudo) and cron already run under 022, a root shell under 077 built accounts that
+# could not be served and restores that lost their data (#1134). A command that writes tighter sets its own after this.
+umask 022
+
 # First, so a lone --help is answered before anything below runs.
 # shellcheck source=/usr/local/hestia/include/help.sh
 source "$HESTIA/include/help.sh"
@@ -408,8 +412,8 @@ get_user_owner() {
 
 # github.com has no AAAA, so on a v6-only box the two upstream repos below are reachable only
 # through the mirror (assets under /wp-cli and /tachyon). Twin literal in install.sh, which runs
-# before this tree exists; a smoke check holds the two together. Every caller verifies the payload
-# against a manifest pin, which is what makes a second host acceptable at all.
+# before this tree exists. Every caller verifies the payload against a manifest pin, which is what
+# makes a second host acceptable at all.
 HESTIA_RELEASE_MIRROR="https://hestiare.com"
 
 # Bounded fetch, mirror as the second try. $1 = route below the mirror, $2 = github.com release URL,
@@ -457,8 +461,8 @@ ensure_panel_sqlite_driver() {
 	ls /etc/php/hestia/fpm/conf.d/*-pdo_sqlite.ini > /dev/null 2>&1
 }
 
-# The webmail clients this codebase ships, in ONE list: the write path reads it and the smoke check
-# asserts every shipped template appears here. A client added by template alone would otherwise have
+# The webmail clients this codebase ships, in ONE list: the write path reads it and the CI tree check
+# (.gitea/tools/check-tree.sh) asserts every shipped template appears here. A client added by template alone would otherwise have
 # its records normalized to 'disabled' while everything else works.
 WEBMAIL_KNOWN_CLIENTS='roundcube tachyon'
 
@@ -1047,6 +1051,78 @@ update_user_value() {
 		# before $lnr addresses past EOF and writes nothing.
 		sed -i "${lnr}c\\$key='${3}'" $CONF_DIR/users/$1/user.conf
 	fi
+}
+
+# Is a locale generated? locale -a spells the codeset "utf8", a name like en_US.UTF-8 does not.
+locale_present() {
+	local want
+	want=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed 's/utf-8$/utf8/')
+	[ -n "$want" ] || return 1
+	locale -a 2> /dev/null | tr '[:upper:]' '[:lower:]' | grep -qxF "$want"
+}
+
+# Ubuntu's images ship without it: no locale.gen, no locale-gen, no update-locale (#1157).
+locales_install() {
+	[ -f /etc/locale.gen ] && command -v update-locale > /dev/null && return 0
+	dpkg --configure -a > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Options::="--force-confold" \
+		install locales > /dev/null 2>&1
+}
+
+# A UTF-8 locale by name. Only /etc/locale.gen counts: Debian's locale-gen ignores a name argument and returns 0.
+locale_generate() {
+	local name=$1 re
+	locale_present "$name" && return 0
+	locales_install || return 1
+	re=${name//./\\.}
+	if grep -qE "^#[[:space:]]*${re} UTF-8[[:space:]]*\$" /etc/locale.gen; then
+		sed -i -E "s/^#[[:space:]]*(${re} UTF-8)[[:space:]]*\$/\1/" /etc/locale.gen || return 1
+	elif ! grep -qE "^${re} UTF-8" /etc/locale.gen; then
+		echo "$name UTF-8" >> /etc/locale.gen || return 1
+	fi
+	locale-gen > /dev/null 2>&1
+	locale_present "$name"
+}
+# rc 0 offered, 1 not, 2 the list is unusable: an empty reference set must not turn every account to en.
+# Asked of languages.json, not of the catalog directories: an update reads it after the overlay while
+# the catalogs of a dropped language are still on disk (#1160).
+language_offered() {
+	local list="$HESTIA/web/locale/languages.json"
+	[ "$1" = en ] && return 0
+	jq -e 'type == "object" and length > 0' "$list" > /dev/null 2>&1 || return 2
+	[[ "$1" == *_locale ]] && return 1
+	jq -e --arg l "$1" 'has($l)' "$list" > /dev/null 2>&1
+}
+
+# Every non-empty LANGUAGE the panel does not offer, as "<user> <lang>", "-" for the box default.
+# An empty value is left alone: the panel reads it as en already.
+languages_unlisted() {
+	local conf lang
+	language_offered ""
+	[ $? -eq 2 ] && return 2
+	lang=$(grep -m1 "^LANGUAGE=" "$HESTIA/conf/hestia.conf" 2> /dev/null | cut -d "'" -f 2)
+	[ -n "$lang" ] && ! language_offered "$lang" && echo "- $lang"
+	for conf in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$conf" ] || continue
+		lang=$(grep -m1 "^LANGUAGE=" "$conf" | cut -d "'" -f 2)
+		[ -n "$lang" ] && ! language_offered "$lang" && echo "$(basename "$(dirname "$conf")") $lang"
+	done
+	return 0
+}
+
+# Update building block (#1160): moves every account and the box default off a dropped language.
+language_fallback_apply() {
+	local who lang out rc=0
+	out=$(languages_unlisted) || return 1
+	while read -r who lang; do
+		[ -n "$who" ] || continue
+		if [ "$who" = - ]; then
+			$BIN/h-change-sys-language en > /dev/null 2>&1 || rc=1
+		else
+			$BIN/h-change-user-language "$who" en > /dev/null 2>&1 || rc=1
+		fi
+	done <<< "$out"
+	return $rc
 }
 
 # Increase user counter
@@ -2253,6 +2329,21 @@ multiphp_default_version() {
 	echo "$sys_phpversion"
 }
 
+# php_ini_path [VERSION]: the ONE php.ini the panel edits, the fpm one of a customer version (default: the
+# system default); rc 1 and no output for anything else. A find over /etc/php took cli, cgi and the panel's
+# own pool as well, and a save copied one file over all of them (#1144).
+php_ini_path() {
+	local v="${1:-$(multiphp_default_version)}"
+	$BIN/h-list-sys-php plain | grep -qxF -- "$v" || return 1
+	[ -f "/etc/php/$v/fpm/php.ini" ] || return 1
+	echo "/etc/php/$v/fpm/php.ini"
+}
+
+php_ini_version() { # PATH from php_ini_path
+	local v="${1#/etc/php/}"
+	echo "${v%%/*}"
+}
+
 is_hestia_package() {
 	check=false
 	for pkg in $1; do
@@ -2310,9 +2401,10 @@ is_username_format_valid() {
 change_sys_value() {
 	local _key="$1" _value="$2" _conf="$HESTIA/conf/hestia.conf" _tmp _prev_trap
 	# check_result exits; the returns behind it keep the write unreachable even where it does not
+	# The record grammar (record_line_valid), so the smoke cannot go red on a value written here (#1143).
 	case "$_value" in
-		*\'* | *$'\n'*)
-			check_result "$E_INVALID" "invalid value for $_key: a quote or a line break cannot be stored"
+		*\'* | *\"* | *\\* | *\`* | *$'\n'*)
+			check_result "$E_INVALID" "invalid value for $_key: a quote, backslash, backtick or line break cannot be stored"
 			return "$E_INVALID"
 			;;
 	esac

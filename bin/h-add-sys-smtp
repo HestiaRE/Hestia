@@ -47,8 +47,9 @@ change_sys_value "USE_SERVER_SMTP" 'true'
 change_sys_value "SERVER_SMTP_HOST" "$domain"
 change_sys_value "SERVER_SMTP_PORT" "$port"
 change_sys_value "SERVER_SMTP_SECURITY" "$smtp_security"
-change_sys_value "SERVER_SMTP_USER" "$username"
-change_sys_value "SERVER_SMTP_PASSWD" "$password"
+# Encoded, as change_sys_value refuses a \ or ` that DOMAIN\user or a password may carry (#1143).
+change_sys_value "SERVER_SMTP_USER" "$(record_value_encode "$username")"
+change_sys_value "SERVER_SMTP_PASSWD" "$(record_value_encode "$password")"
 change_sys_value "SERVER_SMTP_ADDR" "$email"
 
 #----------------------------------------------------------#

@@ -6,7 +6,7 @@
 # is no actions/checkout here: it is a node20 action), no package manager, no language runtime. The
 # job installs nothing; if a tool is missing it says which and stops.
 #
-# What it is allowed to do: read a temporary clone and run two static analysers over it. It writes
+# What it is allowed to do: read a temporary clone and run static analysers and the tree guards over it. It writes
 # only inside that clone, pushes nothing, publishes nothing, and holds no credential - the single
 # secret is the same local repo path mirror-on-release already uses. The runner it calls never
 # rewrites a file, so this job cannot produce a commit even by accident.
@@ -62,6 +62,6 @@ jobs:
           cd "$workdir/repo"
           git checkout --quiet --detach "${HEAD_SHA:-HEAD}"
           .gitea/tools/lint-shell.sh --base "origin/${BASE_REF:-dev}"
-          # The system key registry: every JSON under share/ parses, and sys-keys.json passes the same
-          # sysreg_check the smoke runs on a box (#932). jq is the one dependency this adds.
-          .gitea/tools/check-sys-registry.sh
+          # The guards whose answer depends on the tree alone, the system key registry among them (#932,
+          # #1147). jq is the one dependency this adds.
+          .gitea/tools/check-tree.sh

@@ -1,0 +1,66 @@
+#!/bin/bash
+# info: remove the second user of a database
+# options: USER DATABASE
+#
+# example: h-delete-database-second-user admin shop_db
+#
+# This function takes the second user off a MySQL database; the user itself goes once no other database has it.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Argument definition
+user=$1
+database=$2
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '2' "$#" 'USER DATABASE'
+is_format_valid 'user' 'database'
+is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
+is_object_valid 'user' 'USER' "$user"
+is_object_valid 'db' 'DB' "$database"
+
+get_database_values
+[ -n "$DBUSER_SECOND" ] || check_result "$E_NOTEXIST" "$database has no second user"
+# Refused rather than handed to another record: the customer decides which database keeps the user.
+if [ -n "$MD5_SECOND" ]; then
+	db_user_in_use "$DBUSER_SECOND" mysql "$HOST" "$database"
+	[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER_SECOND is used by another database; give that one its own user first"
+fi
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+# Record first, the user drops only once none names it; old2 because update_object_value re-parses the globals.
+old2="$DBUSER_SECOND"
+update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND' ''
+update_object_value 'db' 'DB' "$database" '$MD5_SECOND' ''
+update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND_RO' ''
+mysql_connect "$HOST"
+mysql_revoke_slot "$old2" "$database"
+mysql_drop_user_if_free "$old2"
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+# Logging
+$BIN/h-log-action "$user" "Info" "Database" "Second database user removed (Database: $database, User: $old2)"
+log_event "$OK" "$ARGUMENTS"
+
+exit

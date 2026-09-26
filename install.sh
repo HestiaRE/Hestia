@@ -20,6 +20,7 @@
 #   bash install.sh <preset> -a      # fully unattended: also take the default
 #                                    #   hostname/port/admin/email, no prompts
 #   bash install.sh <preset> -a --port=9443   # unattended on a non-default panel port
+#   bash install.sh <preset> -a --locale=en_US.UTF-8   # unattended, and set the system locale
 #   bash install.sh --profile=<p>    # same as positional preset arg
 #   bash install.sh --force          # re-run on a box that is already installed
 #                                    #   (the wizard REPLACES install.conf, see below)
@@ -58,6 +59,7 @@ RELEASE_MIRROR="https://hestiare.com"
 OS=""
 FASTTRACK_PRESET=""
 PANEL_PORT=""
+LOCALE=""
 AUTO_MODE=false
 FORCE_MODE=false
 
@@ -81,6 +83,7 @@ for _arg in "$@"; do
 	case $_arg in
 		--profile=*) FASTTRACK_PRESET="${_arg#*=}" ;;
 		--port=*) PANEL_PORT="${_arg#*=}" ;;
+		--locale=*) LOCALE="${_arg#*=}" ;;
 		-a | --auto) AUTO_MODE=true ;;
 		--force) FORCE_MODE=true ;;
 		-*) ;;
@@ -234,6 +237,7 @@ main() {
 	bash "${INSTALL_DIR}/include/wizard.sh" --os="${OS}" \
 		${FASTTRACK_PRESET:+--preset="${FASTTRACK_PRESET}"} \
 		${PANEL_PORT:+--port="${PANEL_PORT}"} \
+		${LOCALE:+--locale="${LOCALE}"} \
 		$([ "$AUTO_MODE" = true ] && echo --auto) \
 		$([ "$FORCE_MODE" = true ] && echo --force)
 

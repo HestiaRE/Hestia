@@ -370,7 +370,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 			if ($spam_sensitivity === "custom") {
 				$new_spam_score = trim($_POST["v_spam_score"] ?? "");
 				if (!preg_match('/^\d{1,2}(\.\d)?$/', $new_spam_score)) {
-					$_SESSION["error_msg"] = _("Invalid spam score threshold.");
+					$_SESSION["error_msg"] = _("Invalid spam mark threshold.");
 				}
 			}
 			if (empty($_SESSION["error_msg"]) && $new_spam_score !== "" && !$spam_is_admin) {
@@ -378,7 +378,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				$score_max = (float) ($_SESSION["POLICY_SPAM_SCORE_MAX"] ?? "10.0");
 				if ((float) $new_spam_score < $score_min || (float) $new_spam_score > $score_max) {
 					$_SESSION["error_msg"] = sprintf(
-						_("Spam score threshold must be between %s and %s."),
+						_("Spam mark threshold must be between %s and %s."),
 						$score_min,
 						$score_max,
 					);
@@ -1051,26 +1051,25 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		if (!validate_password($_POST["v_password"])) {
 			$_SESSION["error_msg"] = _("Password does not match the minimum requirements.");
 		} else {
-			$v_password = tempnam("/tmp", "vst");
-			$fp = fopen($v_password, "w");
-			fwrite($fp, $_POST["v_password"] . "\n");
-			fclose($fp);
-			exec(
-				HESTIA_CMD .
-					"h-change-mail-account-password " .
-					$v_username .
-					" " .
-					quoteshellarg($v_domain) .
-					" " .
-					quoteshellarg($v_account) .
-					" " .
-					$v_password,
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			unlink($v_password);
+			$v_password = secret_tmpfile($_POST["v_password"]);
+			if ($v_password !== false) {
+				exec(
+					HESTIA_CMD .
+						"h-change-mail-account-password " .
+						$v_username .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						quoteshellarg($v_account) .
+						" " .
+						$v_password,
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+				unlink($v_password);
+			}
 			$v_password = quoteshellarg($_POST["v_password"]);
 		}
 	}

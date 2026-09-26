@@ -34,8 +34,10 @@ is_object_valid 'user' 'USER' "$user"
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Starting delete loop
-for database in $(search_objects 'db' 'SUSPENDED' "no" 'DB'); do
+# The whole run is handed down, so a shared user's password holder is not refused over databases that go with it.
+DB_DELETE_SET=$(search_objects 'db' 'SUSPENDED' "no" 'DB' | tr '\n' ' ')
+export DB_DELETE_SET
+for database in $DB_DELETE_SET; do
 	$BIN/h-delete-database "$user" "$database"
 done
 

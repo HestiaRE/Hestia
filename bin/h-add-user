@@ -110,12 +110,14 @@ else
 fi
 setfacl -m "g:hestia-users:---" "$HOMEDIR/$user"
 
-# Building directory tree
+# Building directory tree. The modes are set, not left to the caller's umask: under 077 conf and web came out 700,
+# so dovecot could not read the mailbox and every web domain answered 403 (#1134). Same modes as rebuild_user_conf.
 mkdir $HOMEDIR/$user/conf
+chmod 755 $HOMEDIR/$user/conf
 
 if [ -n "$WEB_SYSTEM" ]; then
 	mkdir $HOMEDIR/$user/conf/web $HOMEDIR/$user/web $HOMEDIR/$user/tmp
-	chmod 751 $HOMEDIR/$user/conf/web
+	chmod 751 $HOMEDIR/$user/conf/web $HOMEDIR/$user/web
 	chmod 700 $HOMEDIR/$user/tmp
 	chown $user:$user $HOMEDIR/$user/tmp
 	chown root:$user $HOMEDIR/$user/web/

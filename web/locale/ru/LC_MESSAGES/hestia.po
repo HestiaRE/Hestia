@@ -1,0 +1,4059 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: HestiaRE\n"
+"Report-Msgid-Bugs-To: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=((n%10==1 && n%100!=11) ? 0 : ((n%10 >= 2 && n%10 <=4 && (n%100 < 12 || n%100 > 14)) ? 1 : ((n%10 == 0 || (n%10 >= 5 && n%10 <=9)) || (n%100 >= 11 && n%100 <= 14)) ? 2 : 3));\n"
+
+#: bin/h-list-sys-services
+msgid "brute-force protection"
+msgstr "Защита от brute-force атак"
+
+#: bin/h-list-sys-services
+msgid "database server"
+msgstr "Сервер БД"
+
+#: bin/h-list-sys-services
+msgid "email anti-virus"
+msgstr "антивирус электронной почты"
+
+#: bin/h-list-sys-services
+msgid "email spam filter"
+msgstr "спам-фильтр электронной почты"
+
+#: bin/h-list-sys-services
+msgid "firewall"
+msgstr "файрвол"
+
+#: bin/h-list-sys-services
+msgid "ftp server"
+msgstr "FTP сервер"
+
+#: bin/h-list-sys-services
+msgid "imap/pop3 server"
+msgstr "imap/pop3 сервер"
+
+#: bin/h-list-sys-services
+msgid "job scheduler"
+msgstr "планировщик задач"
+
+#: bin/h-list-sys-services
+msgid "mail server"
+msgstr "почтовый сервер"
+
+#: bin/h-list-sys-services
+msgid "php interpreter"
+msgstr "интерпретатор PHP"
+
+#: bin/h-list-sys-services
+msgid "reverse proxy"
+msgstr "реверс-прокси"
+
+#: bin/h-list-sys-services
+msgid "ssh server"
+msgstr "ssh сервер"
+
+#: bin/h-list-sys-services
+msgid "web server"
+msgstr "вебсервер"
+
+#: web/add/cron/index.php web/templates/pages/add_cron.php
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Command"
+msgstr "Команда"
+
+#: web/add/cron/index.php
+msgid "Cron job has been created successfully."
+msgstr "Задание Cron успешно создано."
+
+#: web/add/cron/index.php web/templates/pages/add_cron.php
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Day"
+msgstr "День"
+
+#: web/add/cron/index.php web/templates/pages/add_cron.php
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Day of Week"
+msgstr "День недели"
+
+#: web/add/cron/index.php web/add/db/index.php
+#: web/add/firewall/banlist/index.php web/add/firewall/exclude/index.php
+#: web/add/firewall/index.php web/add/firewall/ipset/index.php
+#: web/add/firewall/mesh/index.php web/add/ip/index.php web/add/key/index.php
+#: web/add/mail/index.php web/add/package/index.php web/add/user/index.php
+#: web/add/web/index.php web/edit/firewall/index.php web/edit/mail/index.php
+#: web/edit/package/index.php web/edit/web/index.php web/generate/ssl/index.php
+#, php-format
+msgid "Field \"%s\" can not be blank."
+msgstr "Поле \"%s\" не может быть пустым."
+
+#: web/add/cron/index.php web/templates/pages/add_cron.php
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Hour"
+msgstr "Часы"
+
+#: web/add/cron/index.php web/templates/pages/add_cron.php
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Minute"
+msgstr "Минуты"
+
+#: web/add/cron/index.php web/templates/pages/add_cron.php
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Month"
+msgstr "Месяц"
+
+#: web/add/db/index.php
+msgid "An existing user keeps its password, leave the password empty."
+msgstr "Существующий пользователь сохраняет свой пароль, оставьте пароль пустым."
+
+#: web/add/db/index.php web/templates/pages/add_db.php
+#: web/templates/pages/edit_db.php web/templates/pages/list_db.php
+msgid "Charset"
+msgstr "Кодировка"
+
+#: web/add/db/index.php web/templates/pages/add_db.php
+#: web/templates/pages/edit_db.php web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Database"
+msgstr "База данных"
+
+#: web/add/db/index.php
+#, php-format
+msgid "Database Credentials: %s"
+msgstr "Учётные данные базы данных: %s"
+
+#: web/add/db/index.php
+msgid ""
+"Database has been created.\n"
+"\n"
+"Database: {{database}}\n"
+"Username: {{username}}\n"
+"Password: {{password}}\n"
+"SQL Manager: {{dbadmin}}\n"
+"\n"
+"Best regards,\n"
+"\n"
+"--\n"
+"{{appname}}"
+msgstr ""
+"База данных создана.\n"
+"\n"
+"База данных: {{database}}\n"
+"Имя пользователя: {{username}}\n"
+"Пароль: {{password}}\n"
+"Менеджер SQL: {{dbadmin}}\n"
+"\n"
+"С уважением,\n"
+"\n"
+"--\n"
+"{{appname}}"
+
+#: web/add/db/index.php
+#, php-format
+msgid "Database {%s} has been created successfully. / {Open %s}"
+msgstr "База данных {%s} успешно создана. / {Открыть %s}"
+
+#: web/add/db/index.php web/templates/pages/add_db.php
+#: web/templates/pages/add_mail.php web/templates/pages/edit_db.php
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/list_db.php
+msgid "Host"
+msgstr "Адрес сервера"
+
+#: web/add/db/index.php web/add/mail/index.php web/add/user/index.php
+#: web/templates/includes/email-settings-panel.php
+#: web/templates/pages/add_db.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_user.php
+#: web/templates/pages/edit_db.php web/templates/pages/edit_mail.php
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
+#: web/templates/pages/login/login_1.php web/templates/pages/login/login_a.php
+msgid "Password"
+msgstr "Пароль"
+
+#: web/add/db/index.php web/add/mail/index.php web/add/user/index.php
+#: web/edit/db/index.php web/edit/mail/index.php web/edit/user/index.php
+msgid "Password does not match the minimum requirements."
+msgstr "Пароль не соответствует минимальным требованиям."
+
+#: web/add/db/index.php web/add/mail/index.php web/add/user/index.php
+#: web/edit/mail/index.php web/edit/user/index.php web/edit/web/index.php
+msgid "Please enter a valid email address."
+msgstr "Пожалуйста, введите правильный адрес электронной почты."
+
+#: web/add/db/index.php web/templates/pages/add_db.php
+#: web/templates/pages/edit_db.php web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_exclusions.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_db.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_mail_dns.php web/templates/pages/list_search.php
+msgid "Type"
+msgstr "Тип"
+
+#: web/add/db/index.php web/add/user/index.php web/edit/web/index.php
+#: web/templates/includes/email-settings-panel.php
+#: web/templates/pages/add_db.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_user.php web/templates/pages/edit_db.php
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
+#: web/templates/pages/list_db.php web/templates/pages/login/login.php
+#: web/templates/pages/login/login_a.php web/templates/pages/login/reset2fa.php
+#: web/templates/pages/login/reset_1.php
+msgid "Username"
+msgstr "Имя пользователя"
+
+#: web/add/db/index.php
+msgid "the existing password of this user"
+msgstr "текущий пароль этого пользователя"
+
+#: web/add/firewall/banlist/index.php
+#: web/templates/pages/add_firewall_banlist.php
+msgid "Banlist"
+msgstr "Черный список"
+
+#: web/add/firewall/banlist/index.php web/add/firewall/exclude/index.php
+#: web/add/firewall/index.php web/add/ip/index.php web/add/web/index.php
+#: web/edit/firewall/index.php web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_firewall_exclude.php web/templates/pages/add_ip.php
+#: web/templates/pages/add_web.php web/templates/pages/edit_ip.php
+#: web/templates/pages/edit_web.php web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_ip.php web/templates/pages/list_log_auth.php
+#: web/templates/pages/list_web.php
+msgid "IP Address"
+msgstr "IP адрес"
+
+#: web/add/firewall/banlist/index.php
+msgid "IP address has been banned successfully."
+msgstr "IP-адрес успешно заблокирован."
+
+#: web/add/firewall/exclude/index.php
+msgid "IP address has been added to the whitelist successfully."
+msgstr "IP-адрес добавлен в белый список."
+
+#: web/add/firewall/index.php web/edit/firewall/index.php
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+#: web/templates/pages/list_firewall.php
+msgid "Action"
+msgstr "Реакция"
+
+#: web/add/firewall/index.php web/edit/firewall/index.php
+#: web/templates/includes/email-settings-panel.php
+#: web/templates/pages/add_firewall.php web/templates/pages/add_mail.php
+#: web/templates/pages/edit_firewall.php web/templates/pages/edit_mail.php
+#: web/templates/pages/edit_server.php web/templates/pages/list_firewall.php
+msgid "Port"
+msgstr "Порт"
+
+#: web/add/firewall/index.php web/edit/firewall/index.php
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+#: web/templates/pages/edit_server.php web/templates/pages/list_firewall.php
+msgid "Protocol"
+msgstr "Протокол"
+
+#: web/add/firewall/index.php
+msgid "Rule has been created successfully."
+msgstr "Правило успешно создано."
+
+#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/list_firewall_ipset.php
+msgid "Auto Update"
+msgstr "Автоматическое обновление"
+
+#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
+msgid "Data Source"
+msgstr "Источник данных"
+
+#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/list_firewall_ipset.php
+msgid "IP Version"
+msgstr "IP-версия"
+
+#: web/add/firewall/ipset/index.php
+msgid "IP list has been created successfully."
+msgstr "Список IP-адресов успешно создан."
+
+#: web/add/firewall/ipset/index.php web/templates/pages/edit_user.php
+#: web/templates/pages/list_db.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_search.php
+#: web/templates/pages/list_server_preview.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Name"
+msgstr "Имя"
+
+#: web/add/firewall/mesh/index.php web/templates/pages/list_firewall_mesh.php
+msgid "CrowdSec Fleet Mesh is not enabled on this server."
+msgstr "CrowdSec Fleet Mesh не включён на этом сервере."
+
+#: web/add/firewall/mesh/index.php
+#: web/templates/includes/email-settings-panel.php
+#: web/templates/pages/add_firewall_mesh.php
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_db.php
+msgid "Hostname"
+msgstr "Имя Хоста"
+
+#: web/add/firewall/mesh/index.php web/templates/pages/add_firewall_mesh.php
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Pairing Code"
+msgstr "Код сопряжения"
+
+#: web/add/firewall/mesh/index.php
+msgid "Peer has been paired successfully."
+msgstr "Узел успешно сопряжён."
+
+#: web/add/ip/index.php web/templates/pages/add_ip.php
+#: web/templates/pages/edit_ip.php
+msgid "Assigned User"
+msgstr "Закреплённый пользователь"
+
+#: web/add/ip/index.php
+#, php-format
+msgid "IP address {%s} has been created successfully."
+msgstr "IP-адрес {%s} успешно создан."
+
+#: web/add/ip/index.php web/templates/pages/add_ip.php
+#: web/templates/pages/edit_ip.php web/templates/pages/list_ip.php
+msgid "Interface"
+msgstr "Интерфейс"
+
+#: web/add/ip/index.php web/templates/pages/add_ip.php
+#: web/templates/pages/edit_ip.php web/templates/pages/list_ip.php
+msgid "Netmask"
+msgstr "Маска подсети"
+
+#: web/add/key/index.php web/templates/pages/add_key.php
+#: web/templates/pages/list_key.php
+msgid "SSH Key"
+msgstr "SSH-ключ"
+
+#: web/add/key/index.php
+msgid "SSH Key already exists."
+msgstr "Ключ SSH уже существует."
+
+#: web/add/key/index.php
+msgid "SSH Key has been created successfully."
+msgstr "Ключ SSH успешно создан."
+
+#: web/add/mail/index.php web/templates/pages/add_mail_acc.php
+#: web/templates/pages/edit_mail_acc.php
+msgid "Account"
+msgstr "Учётная запись"
+
+#: web/add/mail/index.php web/add/web/index.php web/generate/ssl/index.php
+#: web/templates/pages/add_mail.php web/templates/pages/add_mail_acc.php
+#: web/templates/pages/add_web.php web/templates/pages/edit_mail.php
+#: web/templates/pages/edit_web.php web/templates/pages/generate_ssl.php
+msgid "Domain"
+msgstr "Домен"
+
+#: web/add/mail/index.php web/edit/mail/index.php
+#, php-format
+msgid "Email Credentials: %s@%s"
+msgstr "Учетные данные электронной почты: %s@%s"
+
+#: web/add/mail/index.php web/edit/mail/index.php
+msgid ""
+"Mail account has been created.\n"
+"\n"
+"Common Account Settings:\n"
+"Username: {{account}}@{{domain}}\n"
+"Password: {{password}}\n"
+"Webmail: {{webmail}}\n"
+"Hostname: {{hostname}}\n"
+"\n"
+"IMAP Settings\n"
+"Authentication: Normal Password\n"
+"SSL/TLS: Port 993\n"
+"STARTTLS: Port 143\n"
+"No encryption: Port 143\n"
+"\n"
+"POP3 Settings\n"
+"Authentication: Normal Password\n"
+"SSL/TLS: Port 995\n"
+"STARTTLS: Port 110\n"
+"No encryption: Port 110\n"
+"\n"
+"SMTP Settings\n"
+"Authentication: Normal Password\n"
+"SSL/TLS: Port 465\n"
+"STARTTLS: Port 587\n"
+"No encryption: Port 25\n"
+"\n"
+"Best regards,\n"
+"\n"
+"--\n"
+"{{appname}}"
+msgstr ""
+"Учетная запись электронной почты создана.\n"
+"\n"
+"Общие настройки учетной записи:\n"
+"Имя пользователя: {{account}}@{{domain}}\n"
+"Пароль: {{password}}\n"
+"Веб-почта: {{webmail}}\n"
+"Имя почтового сервера: {{hostname}}\n"
+"\n"
+"Настройки IMAP\n"
+"Аутентификация: Обычный пароль\n"
+"SSL/TLS: Порт 993\n"
+"STARTTLS: Порт 143\n"
+"Без шифрования: Порт 143\n"
+"\n"
+"Настройки POP3\n"
+"Аутентификация: Обычный пароль\n"
+"SSL/TLS: Порт 995\n"
+"STARTTLS: Порт 110\n"
+"Без шифрования: Порт 110\n"
+"\n"
+"Настройки SMTP\n"
+"Аутентификация: Обычный пароль\n"
+"SSL/TLS: Порт 465\n"
+"STARTTLS: Порт 587\n"
+"Без шифрования: Порт 25\n"
+"\n"
+"С уважением,\n"
+"\n"
+"--\n"
+"{{appname}}"
+
+#: web/add/mail/index.php
+#, php-format
+msgid "Mail account {%s@%s} has been created successfully."
+msgstr "Учетная запись электронной почты {%s@%s} успешно создана."
+
+#: web/add/mail/index.php
+#, php-format
+msgid "Mail domain {%s} has been created successfully."
+msgstr "Почтовый домен {%s} успешно создан."
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Backend Template"
+msgstr "Шаблон панели управления"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Backup Mode"
+msgstr "Режим резервного копирования"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/includes/panel.php web/templates/pages/add_package.php
+#: web/templates/pages/edit_package.php web/templates/pages/edit_server.php
+#: web/templates/pages/list_backup.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_stats.php web/templates/pages/list_user.php
+msgid "Backups"
+msgstr "Резервные копии"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/includes/panel.php web/templates/pages/add_package.php
+#: web/templates/pages/edit_package.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_stats.php web/templates/pages/list_user.php
+#: web/templates/pages/list_web.php
+msgid "Bandwidth"
+msgstr "Трафик"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/edit_package.php
+#: web/templates/pages/list_backup_detail.php web/templates/pages/list_cron.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_stats.php
+msgid "Cron Jobs"
+msgstr "Задания Cron"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/includes/panel.php web/templates/pages/add_package.php
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/edit_package.php web/templates/pages/edit_server.php
+#: web/templates/pages/list_db.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_stats.php web/templates/pages/list_user.php
+msgid "Databases"
+msgstr "Базы данных"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_stats.php
+msgid "Mail Accounts"
+msgstr "Почтовые аккаунты"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/edit_package.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_stats.php
+#: web/templates/pages/list_user.php
+msgid "Mail Domains"
+msgstr "Почтовые домены"
+
+#: web/add/package/index.php web/add/user/index.php web/edit/package/index.php
+#: web/templates/pages/add_user.php web/templates/pages/edit_user.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_user.php
+msgid "Package"
+msgstr "Пакет"
+
+#: web/add/package/index.php
+#, php-format
+msgid "Package {%s} has been created successfully."
+msgstr "Пакет {%s} успешно создан."
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/edit_web.php
+msgid "Proxy Template"
+msgstr "Шаблон прокси"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/edit_package.php
+#: web/templates/pages/list_mail_acc.php web/templates/pages/list_packages.php
+msgid "Quota"
+msgstr "Лимит"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_mail_acc.php
+#: web/templates/pages/edit_package.php
+msgid "Rate Limit"
+msgstr "Ограничение скорости"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/list_packages.php
+msgid "Shell"
+msgstr "Оболочка команд"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_stats.php
+msgid "Web Aliases"
+msgstr "Веб алиасы"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/edit_package.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_stats.php web/templates/pages/list_user.php
+#: web/templates/pages/list_web.php
+msgid "Web Domains"
+msgstr "Веб домены"
+
+#: web/add/package/index.php web/edit/package/index.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/edit_web.php
+msgid "Web Template"
+msgstr "Веб-шаблон"
+
+#: web/add/user/index.php web/templates/pages/add_user.php
+#: web/templates/pages/edit_user.php
+msgid "Contact Name"
+msgstr "Контактное лицо"
+
+#: web/add/user/index.php web/templates/pages/add_user.php
+#: web/templates/pages/edit_user.php web/templates/pages/generate_ssl.php
+#: web/templates/pages/list_user.php web/templates/pages/login/reset_1.php
+msgid "Email"
+msgstr "Адрес эл. почты"
+
+#: web/add/user/index.php
+msgid ""
+"Hello {{name}},\n"
+"\n"
+"Your account has been created and ready to use.\n"
+"\n"
+"https://{{hostname}}/login/\n"
+"Username: {{user}}\n"
+"Password: {{password}}\n"
+"\n"
+"Best regards,\n"
+"\n"
+"--\n"
+"{{appname}}"
+msgstr ""
+"Привет {{name}},\n"
+"\n"
+"Ваша учетная запись создана и готова к использованию.\n"
+"\n"
+"https://{{hostname}}/login/\n"
+"Имя пользователя: {{user}}\n"
+"Пароль: {{password}}\n"
+"\n"
+"С уважением,\n"
+"\n"
+"--\n"
+"{{appname}}"
+
+#: web/add/user/index.php
+#, php-format
+msgid "User {%s} has been created successfully. / {Log in as %s}"
+msgstr "Пользователь {%s} успешно создан. / {Войти как %s}"
+
+#: web/add/user/index.php web/templates/pages/login/login.php
+#: web/templates/pages/login/login_a.php
+#, php-format
+msgid "Welcome to %s"
+msgstr "Добро пожаловать на %s"
+
+#: web/add/web/index.php
+#, php-format
+msgid "Domain {%s} has been created successfully."
+msgstr "Домен {%s} успешно создан."
+
+#: web/add/web/index.php web/templates/pages/edit_web.php
+msgid "IPv6 Address"
+msgstr "IPv6-адрес"
+
+#: web/bulk/backup/incremental/index.php web/bulk/restore/index.php
+#: web/download/backup/index.php web/schedule/backup/index.php
+#: web/schedule/restore/incremental/index.php web/schedule/restore/index.php
+#: web/unsuspend/mail/index.php
+msgid "Error: Hestia did not return any output."
+msgstr "Ошибка: По неизвестной Hestia причине."
+
+#: web/bulk/cron/index.php
+msgid "Cron job email reporting has been successfully disabled."
+msgstr "Рассылка отчётов о заданиях Cron по электронной почте успешно отключена."
+
+#: web/bulk/cron/index.php
+msgid "Cron job email reporting has been successfully enabled."
+msgstr "Рассылка отчётов о заданиях Cron по электронной почте успешно включена."
+
+#: web/bulk/restore/incremental/index.php web/bulk/restore/index.php
+#: web/schedule/restore/incremental/index.php web/schedule/restore/index.php
+msgid "Task has been added to the queue. You will receive an email notification when your restore has been completed."
+msgstr "Задача добавлена ​​в очередь. Когда восстановление данных будет завершено, Вы получите уведомление по электронной почте."
+
+#: web/bulk/restore/index.php web/schedule/restore/incremental/index.php
+#: web/schedule/restore/index.php
+msgid "An existing restoration task is already running. Please wait for it to finish before launching it again."
+msgstr "Одна из задач восстановления данных уже запущена. Пожалуйста, подождите, пока эта задача завершится, прежде чем запустить новую."
+
+#: web/bulk/service/index.php web/restart/system/index.php
+msgid "The system is going down for reboot NOW!"
+msgstr "Система перезагрузится СЕЙЧАС!"
+
+#: web/copy/package/index.php
+msgid "Error: unable to copy package."
+msgstr "Ошибка: невозможно скопировать пакет."
+
+#: web/delete/web/cache/index.php
+msgid "NGINX cache has been purged successfully."
+msgstr "Кэш памяти NGINX был успешно очищен."
+
+#: web/download/backup/index.php
+msgid "Download of remote backup file has been scheduled."
+msgstr "Загрузка файла удаленного резервного копирования запланирована."
+
+#: web/download/backup/index.php
+msgid "You are not allowed to access this backup."
+msgstr "У вас нет доступа к этой резервной копии."
+
+#: web/edit/backup/exclusions/index.php web/edit/cron/index.php
+#: web/edit/db/index.php web/edit/firewall/index.php web/edit/ip/index.php
+#: web/edit/mail/index.php web/edit/package/index.php
+#: web/edit/server/apache2/index.php web/edit/server/clamav-daemon/index.php
+#: web/edit/server/dovecot/index.php web/edit/server/exim/index.php
+#: web/edit/server/exim4/index.php web/edit/server/fail2ban/index.php
+#: web/edit/server/httpd/index.php web/edit/server/index.php
+#: web/edit/server/mariadb/index.php web/edit/server/mysql/index.php
+#: web/edit/server/mysqld/index.php web/edit/server/nginx/index.php
+#: web/edit/server/php/index.php web/edit/server/postgresql/index.php
+#: web/edit/server/proftpd/index.php web/edit/server/ssh/index.php
+#: web/edit/user/index.php web/edit/web/index.php
+msgid "Changes have been saved."
+msgstr "Изменения были сохранены."
+
+#: web/edit/mail/index.php
+msgid "Invalid spam mark threshold."
+msgstr "Недопустимый порог пометки спама."
+
+#: web/edit/mail/index.php
+msgid "Invalid spam reject threshold."
+msgstr "Недопустимый порог отклонения спама."
+
+#: web/edit/mail/index.php
+msgid "Invalid spam subject tag."
+msgstr "Недопустимая метка темы для спама."
+
+#: web/edit/mail/index.php
+#, php-format
+msgid "Spam mark threshold must be between %s and %s."
+msgstr "Порог пометки спама должен быть от %s до %s."
+
+#: web/edit/mail/index.php
+#, php-format
+msgid "Spam reject threshold must be between %s and %s."
+msgstr "Порог отклонения спама должен быть от %s до %s."
+
+#: web/edit/server/cron/index.php web/edit/server/crond/index.php
+msgid "Info (read-only mode): Crontab can only be edited via SSH."
+msgstr "Информация (режим только для чтения): Таблицу заданий Cron можно редактировать только через SSH."
+
+#: web/edit/server/hestia/index.php web/templates/pages/edit_server.php
+msgid "Panel Cronjobs"
+msgstr "Cron задания панели"
+
+#: web/edit/server/index.php
+msgid "Inactive session timeout can not lower than 1 minute."
+msgstr "Тайм-аут неактивного сеанса не может быть меньше 1 минуты."
+
+#: web/edit/server/index.php
+msgid "Repository can not be empty"
+msgstr "Хранилище не может быть пустым"
+
+#: web/edit/user/index.php
+#, php-format
+msgid "Disabling Docker deletes the containers, images and volumes of %s. Confirm by typing the user name."
+msgstr "Отключение Docker удалит контейнеры, образы и тома пользователя %s. Для подтверждения введите имя пользователя."
+
+#: web/edit/user/index.php
+#, php-format
+msgid "Not an IP address or network: %s"
+msgstr "Не IP-адрес и не сеть: %s"
+
+#: web/edit/user/index.php
+msgid "Please enter a valid contact name."
+msgstr "Пожалуйста, введите правильные контактные данные."
+
+#: web/edit/web/index.php
+msgid "Container address must end in a number between 1 and 254."
+msgstr "Адрес контейнера должен оканчиваться числом от 1 до 254."
+
+#: web/edit/web/index.php
+msgid "Container port must be a number between 1024 and 65535."
+msgstr "Порт контейнера должен быть числом от 1024 до 65535."
+
+#: web/edit/web/index.php
+msgid "Deletion was not confirmed."
+msgstr "Удаление не подтверждено."
+
+#: web/edit/web/index.php
+#, php-format
+msgid "FTP Account Credentials: %s"
+msgstr "Данные учётной записи FTP: %s"
+
+#: web/edit/web/index.php
+msgid ""
+"FTP account has been created and ready to use.\n"
+"\n"
+"Hostname: {{domain}}\n"
+"Username: {{username}}\n"
+"Password: {{password}}\n"
+"\n"
+"Best regards,\n"
+"\n"
+"--\n"
+"{{appname}}"
+msgstr ""
+"Учетная запись FTP создана и готова к использованию.\n"
+"\n"
+"FTP сервер: {{domain}}\n"
+"Имя пользователя: {{username}}\n"
+"Пароль: {{password}}\n"
+"\n"
+"С уважением,\n"
+"\n"
+"--\n"
+"{{appname}}"
+
+#: web/edit/web/index.php
+msgid "Only an administrator can select this template."
+msgstr "Этот шаблон может выбрать только администратор."
+
+#: web/edit/web/index.php
+msgid "WordPress has been deleted."
+msgstr "WordPress удалён."
+
+#: web/generate/ssl/index.php
+msgid "Certificate has been generated successfully."
+msgstr "Сертификат успешно создан."
+
+#: web/generate/ssl/index.php
+msgid "City"
+msgstr "Город / Населенный пункт"
+
+#: web/generate/ssl/index.php web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/generate_ssl.php
+msgid "Country"
+msgstr "Страна"
+
+#: web/generate/ssl/index.php web/inc/main.php web/list/server/index.php
+#, php-format
+msgid "Error code: %s"
+msgstr "Код ошибки: %s"
+
+#: web/generate/ssl/index.php web/templates/pages/generate_ssl.php
+msgid "Organization"
+msgstr "Организация"
+
+#: web/generate/ssl/index.php
+msgid "State"
+msgstr "Область / Регион"
+
+#: web/inc/helpers.php web/login/index.php web/reset/index.php
+msgid "An internal error occurred"
+msgstr "Произошла внутренняя ошибка"
+
+#: web/inc/main.php
+#, php-format
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d день"
+msgstr[1] "%d дня"
+msgstr[2] "%d дней"
+msgstr[3] "%d дней"
+
+#: web/inc/main.php
+#, php-format
+msgid "%d hour"
+msgid_plural "%d hours"
+msgstr[0] "%d час"
+msgstr[1] "%d часа"
+msgstr[2] "%d часов"
+msgstr[3] "%d часов"
+
+#: web/inc/main.php
+#, php-format
+msgid "%d minute"
+msgid_plural "%d minutes"
+msgstr[0] "%d минута"
+msgstr[1] "%d минуты"
+msgstr[2] "%d минут"
+msgstr[3] "%d минут"
+
+#: web/inc/main.php
+#, php-format
+msgid "%d of %d failed: %s"
+msgstr "%d из %d с ошибкой: %s"
+
+#: web/inc/main.php
+msgid "You are logged out, please log in again."
+msgstr "Вы вышли из системы. Пожалуйста, войдите снова."
+
+#: web/list/backup/incremental/index.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Directory"
+msgstr "Каталог"
+
+#: web/list/backup/incremental/index.php
+msgid "File"
+msgstr "Файл"
+
+#: web/list/backup/incremental/index.php
+msgid "Symlink"
+msgstr "Символическая ссылка"
+
+#: web/list/backup/incremental/index.php
+msgid "Unknown"
+msgstr "Неизвестно"
+
+#: web/login/index.php
+msgid "Account has been suspended"
+msgstr "Аккаунт отключён"
+
+#: web/login/index.php
+msgid "Invalid or missing 2FA token"
+msgstr "Неверный или отсутствующий токен ДФА"
+
+#: web/login/index.php
+msgid "Invalid username or password"
+msgstr "Неверный логин или пароль"
+
+#: web/login/index.php
+msgid "Unsupported hash method"
+msgstr "Неподдерживаемый метод хеширования"
+
+#: web/reset/index.php
+msgid "Code has been expired"
+msgstr "Время действия кода истекло"
+
+#: web/reset/index.php
+msgid ""
+"Hello {{name}},\n"
+"\n"
+"To reset your {{appname}} password, please follow this link:\n"
+"https://{{hostname}}/reset/?action=confirm&user={{user}}&code={{resetcode}}\n"
+"\n"
+"Alternatively, you may go to https://{{hostname}}/reset/?action=code&user={{user}} and enter the following reset code:\n"
+"{{resetcode}}\n"
+"\n"
+"If you did not request password reset, please ignore this message and accept our apologies.\n"
+"\n"
+"Best regards,\n"
+"\n"
+"--\n"
+"{{appname}}"
+msgstr ""
+"Здравствуйте, {{name}}!\n"
+"\n"
+"Для того, чтобы сбросить Ваш {{appname}} пароль, воспользуйтесь следующей ссылкой:\n"
+"https://{{hostname}}/reset/?action=confirm&user={{user}}&code={{resetcode}}\n"
+"\n"
+"Либо перейдите по ссылке на https://{{hostname}}/reset/?action=code&user={{user}} и введите указанный ниже код сброса:\n"
+"{{resetcode}}\n"
+"\n"
+"Если Вы не запрашивали сброс пароля, то проигнорируйте это сообщение и примите наши извинения за причинённые неудобства.\n"
+"\n"
+"С уважением,\n"
+"\n"
+"--\n"
+"{{appname}}"
+
+#: web/reset/index.php
+msgid "Invalid username or code"
+msgstr "Неверное имя пользователя или код"
+
+#: web/reset/index.php
+#, php-format
+msgid "Password Reset at %s"
+msgstr "Сброс пароля в %s"
+
+#: web/reset/index.php
+msgid "Password reset instructions have been sent to the email address associated with this account."
+msgstr "Инструкции для восстановления пароля высланы на электронный адрес аккаунта пользователя."
+
+#: web/reset/index.php
+msgid "Passwords do not match"
+msgstr "Пароли не совпадают"
+
+#: web/reset/index.php
+msgid "Please wait 15 minutes before sending a new request."
+msgstr "Пожалуйста, подождите 15 минут перед отправкой нового запроса."
+
+#: web/restart/service/index.php
+#, php-format
+msgid "Restart \"%s\" failed"
+msgstr "Перезапуск \"%s\" не удался"
+
+#: web/schedule/backup/incremental/index.php
+msgid "Snapshot has been scheduled"
+msgstr "Снепшот запланирован"
+
+#: web/schedule/backup/index.php
+msgid "An existing backup task is already running, please wait for it to complete."
+msgstr "Текущая задача резервного копирования уже выполняется, пожалуйста, дождитесь ее завершения."
+
+#: web/schedule/backup/index.php
+msgid "Task has been added to the queue. You will receive an email notification when your backup is ready for download."
+msgstr "Задача добавлена ​​в очередь. Вы получите уведомление по электронной почте, когда ваша резервная копия будет готова для загрузки."
+
+#: web/sso/phpmyadmin/index.php
+msgid "Unable to open phpMyAdmin session"
+msgstr "Не удалось открыть сеанс phpMyAdmin"
+
+#: web/start/service/index.php
+#, php-format
+msgid "Start \"%s\" failed"
+msgstr "Запуск \"%s\" не удался"
+
+#: web/stop/service/index.php
+#, php-format
+msgid "Stop \"%s\" failed"
+msgstr "Остановка службы %s не удалась"
+
+#: web/templates/footer.php
+msgid "Add new object"
+msgstr "Добавить новый объект"
+
+#: web/templates/footer.php
+msgid "Display / Hide shortcuts"
+msgstr "Показать / Скрыть ярлыки"
+
+#: web/templates/footer.php
+msgid "Enter focused element"
+msgstr "Перейти в активный пункт меню"
+
+#: web/templates/footer.php
+msgid "Focus on search"
+msgstr "Сфокусироваться на поиске"
+
+#: web/templates/footer.php
+msgid "Go to BACKUP list"
+msgstr "Перейти к списку резервных копий"
+
+#: web/templates/footer.php
+msgid "Go to CRON list"
+msgstr "Перейти к списку заданий CRON"
+
+#: web/templates/footer.php
+msgid "Go to DB list"
+msgstr "Перейти к списку баз данных"
+
+#: web/templates/footer.php
+msgid "Go to DNS list"
+msgstr "Перейти к списку DNS"
+
+#: web/templates/footer.php
+msgid "Go to MAIL list"
+msgstr "Перейти к списку адресов электронной почты"
+
+#: web/templates/footer.php
+msgid "Go to WEB list"
+msgstr "Перейти к веб-списку"
+
+#: web/templates/footer.php
+msgid "Move backward through top menu"
+msgstr "Переместить назад через верхнее меню"
+
+#: web/templates/footer.php
+msgid "Move down through elements list"
+msgstr "Переместить вниз по списку элементов"
+
+#: web/templates/footer.php
+msgid "Move forward through top menu"
+msgstr "Переместить вперед через верхнее меню"
+
+#: web/templates/footer.php
+msgid "Move up through elements list"
+msgstr "Переместить вверх вдоль списка элементов"
+
+#: web/templates/footer.php
+msgid "Save form"
+msgstr "Сохранить форму"
+
+#: web/templates/footer.php
+msgid "Shortcuts"
+msgstr "Горячие клавиши"
+
+#: web/templates/footer.php
+msgid "Unsave form"
+msgstr "Удалить форму"
+
+#: web/templates/header.php
+msgid "Your browser version is not supported. Please update your browser to use the control panel."
+msgstr "Версия вашего браузера не поддерживается. Обновите браузер, чтобы пользоваться панелью управления."
+
+#: web/templates/includes/email-settings-panel.php
+msgid "Authentication"
+msgstr "Аутентификация"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "Common Account Settings"
+msgstr "Общие настройки учетной записи"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "Connect to this account using credentials:"
+msgstr "Подключиться к этому аккаунту, используя учетные данные:"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "Copy to clipboard"
+msgstr "Скопировать в буфер"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "IMAP Settings"
+msgstr "Настройки IMAP"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "No encryption"
+msgstr "Без шифрования"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "Normal password"
+msgstr "Обычный пароль"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "POP3 Settings"
+msgstr "Настройки POP3"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "SMTP Settings"
+msgstr "Настройки SMTP"
+
+#: web/templates/includes/email-settings-panel.php
+msgid "Webmail"
+msgstr "Веб-почта"
+
+#: web/templates/includes/js.php
+msgid "Are you sure you want to leave the page?"
+msgstr "Вы уверены, что хотите покинуть эту страницу?"
+
+#: web/templates/includes/js.php
+msgid "BLACKLIST"
+msgstr "Чёрный список"
+
+#: web/templates/includes/js.php web/templates/includes/panel.php
+msgid "Delete all notifications"
+msgstr "Удалить все уведомления"
+
+#: web/templates/includes/js.php
+msgid "IPVERSE"
+msgstr "IPVERSE"
+
+#: web/templates/includes/js.php web/templates/includes/panel.php
+msgid "No notifications"
+msgstr "Нет уведомлений"
+
+#: web/templates/includes/js.php web/templates/pages/add_mail_acc.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_mail_acc.php
+#: web/templates/pages/edit_package.php
+msgid "Unlimited"
+msgstr "Неограниченно"
+
+#: web/templates/includes/jump-to-top-link.php
+msgid "Top"
+msgstr "Вверх"
+
+#: web/templates/includes/panel.php web/templates/pages/list_mail.php
+msgid "Accounts"
+msgstr "Аккаунты"
+
+#: web/templates/includes/panel.php web/templates/pages/add_mail_acc.php
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/edit_web.php
+#: web/templates/pages/generate_ssl.php web/templates/pages/list_mail_acc.php
+msgid "Aliases"
+msgstr "Алиасы"
+
+#: web/templates/includes/panel.php
+msgid "BACKUP"
+msgstr "РЕЗЕРВНОЕ КОПИРОВАНИЕ"
+
+#: web/templates/includes/panel.php
+msgid "CRON"
+msgstr "CRON"
+
+#: web/templates/includes/panel.php web/templates/pages/list_server_info.php
+#: web/templates/pages/list_weblog.php
+msgid "Close menu"
+msgstr "Свернуть меню"
+
+#: web/templates/includes/panel.php
+msgid "Collapse main menu"
+msgstr "Свернуть главное меню"
+
+#: web/templates/includes/panel.php
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/list_server_info.php
+msgid "DB"
+msgstr "База данных"
+
+#: web/templates/includes/panel.php
+msgid "Delete notification"
+msgstr "Удалить уведомление"
+
+#: web/templates/includes/panel.php web/templates/pages/list_db.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Disk"
+msgstr "Диск"
+
+#: web/templates/includes/panel.php web/templates/pages/list_ip.php
+msgid "Domains"
+msgstr "Домены"
+
+#: web/templates/includes/panel.php
+msgid "Expand main menu"
+msgstr "Развернуть главное меню"
+
+#: web/templates/includes/panel.php
+msgid "File manager"
+msgstr "Менеджер файлов"
+
+#: web/templates/includes/panel.php
+msgid "Help"
+msgstr "Справка"
+
+#: web/templates/includes/panel.php web/templates/pages/list_backup_detail.php
+msgid "Jobs"
+msgstr "Задания"
+
+#: web/templates/includes/panel.php
+msgid "Limit"
+msgstr "Лимит"
+
+#: web/templates/includes/panel.php
+msgid "Loading..."
+msgstr "Загружается..."
+
+#: web/templates/includes/panel.php web/templates/pages/list_server_info.php
+#: web/templates/pages/list_weblog.php
+msgid "Log out"
+msgstr "Выход"
+
+#: web/templates/includes/panel.php
+msgid "Logged in as"
+msgstr "Вошел как"
+
+#: web/templates/includes/panel.php web/templates/pages/edit_user.php
+#: web/templates/pages/list_log.php web/templates/pages/list_services.php
+msgid "Logs"
+msgstr "Журнал событий"
+
+#: web/templates/includes/panel.php
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "MAIL"
+msgstr "ПОЧТА"
+
+#: web/templates/includes/panel.php
+msgid "Notifications"
+msgstr "Уведомления"
+
+#: web/templates/includes/panel.php web/templates/pages/list_server_info.php
+#: web/templates/pages/list_weblog.php
+msgid "Open menu"
+msgstr "Развернуть меню"
+
+#: web/templates/includes/panel.php
+msgid "Server settings"
+msgstr "Настройки Сервера"
+
+#: web/templates/includes/panel.php web/templates/pages/list_web.php
+msgid "Statistics"
+msgstr "Статистика"
+
+#: web/templates/includes/panel.php
+msgid "Suspended"
+msgstr "Заблокирован(ы)"
+
+#: web/templates/includes/panel.php
+msgid "USER"
+msgstr "ПОЛЬЗОВАТЕЛЬ"
+
+#: web/templates/includes/panel.php web/templates/pages/edit_server.php
+#: web/templates/pages/list_user.php
+msgid "Users"
+msgstr "Пользователи"
+
+#: web/templates/includes/panel.php
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "WEB"
+msgstr "ВЕБ"
+
+#: web/templates/includes/password-requirements.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "1 number"
+msgstr "1 цифра"
+
+#: web/templates/includes/password-requirements.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "1 uppercase & 1 lowercase character"
+msgstr "1 заглавная и 1 строчная буква"
+
+#: web/templates/includes/password-requirements.php
+msgid "8 characters minimum"
+msgstr "Минимум 8 символов"
+
+#: web/templates/includes/password-requirements.php
+msgid "Password must include"
+msgstr "Пароль должен содержать"
+
+#: web/templates/pages/add_cron.php web/templates/pages/list_cron.php
+msgid "Add Cron Job"
+msgstr "Добавить задание"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Apr"
+msgstr "Апр"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Aug"
+msgstr "Авг"
+
+#: web/templates/pages/add_cron.php web/templates/pages/add_db.php
+#: web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_firewall_exclude.php
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_mesh.php web/templates/pages/add_ip.php
+#: web/templates/pages/add_key.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
+#: web/templates/pages/add_user.php web/templates/pages/add_web.php
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/edit_cron.php web/templates/pages/edit_db.php
+#: web/templates/pages/edit_firewall.php web/templates/pages/edit_ip.php
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_mail_acc.php
+#: web/templates/pages/edit_package.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_server_dovecot.php
+#: web/templates/pages/edit_server_httpd.php
+#: web/templates/pages/edit_server_mysql.php
+#: web/templates/pages/edit_server_nginx.php
+#: web/templates/pages/edit_server_pgsql.php
+#: web/templates/pages/edit_server_php.php
+#: web/templates/pages/edit_server_service.php
+#: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
+#: web/templates/pages/edit_whitelabel.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_exclusions.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_firewall_ipset.php
+#: web/templates/pages/list_firewall_jail.php
+#: web/templates/pages/list_firewall_mesh.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_key.php web/templates/pages/list_log.php
+#: web/templates/pages/list_log_auth.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_mail_dns.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_rrd.php web/templates/pages/list_rspamd.php
+#: web/templates/pages/list_search.php web/templates/pages/list_server_info.php
+#: web/templates/pages/list_server_preview.php
+#: web/templates/pages/list_weblog.php web/templates/pages/login/login_1.php
+#: web/templates/pages/login/login_2.php web/templates/pages/login/reset2fa.php
+#: web/templates/pages/login/reset_1.php web/templates/pages/login/reset_2.php
+#: web/templates/pages/login/reset_3.php
+msgid "Back"
+msgstr "Назад"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#: web/templates/pages/list_rrd.php
+msgid "Daily"
+msgstr "Ежедневно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Dec"
+msgstr "Дек"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#, php-format
+msgid "Every %s days"
+msgstr "Каждые %s дней"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#, php-format
+msgid "Every %s hours"
+msgstr "Каждые %s часов"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#, php-format
+msgid "Every %s minutes"
+msgstr "Каждые %s минут"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#, php-format
+msgid "Every %s months"
+msgstr "Каждые %s месяцев"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every day"
+msgstr "Ежедневно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every even day"
+msgstr "Каждый чётный день"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every even month"
+msgstr "Каждый чётный месяц"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every hour"
+msgstr "Ежечасно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every minute"
+msgstr "Ежеминутно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every month"
+msgstr "Ежемесячно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every odd day"
+msgstr "Каждый нечётный день"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Every odd month"
+msgstr "Каждый нечётный месяц"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Feb"
+msgstr "Фев"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Friday"
+msgstr "пятница"
+
+#: web/templates/pages/add_cron.php web/templates/pages/add_db.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_user.php
+#: web/templates/pages/edit_cron.php web/templates/pages/edit_db.php
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/edit_user.php
+#: web/templates/pages/edit_web.php web/templates/pages/generate_ssl.php
+msgid "Generate"
+msgstr "Создать"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Hourly"
+msgstr "Ежечасно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Jan"
+msgstr "Янв"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Jul"
+msgstr "Июл"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Jun"
+msgstr "Июн"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Mar"
+msgstr "Мар"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "May"
+msgstr "Май"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#: web/templates/pages/edit_server.php
+msgid "Minutes"
+msgstr "Минуты"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Monday"
+msgstr "понедельник"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#: web/templates/pages/list_rrd.php
+msgid "Monthly"
+msgstr "Ежемесячно"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Nov"
+msgstr "Ноя"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Oct"
+msgstr "Окт"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Run Command"
+msgstr "Выполнить команду"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Saturday"
+msgstr "суббота"
+
+#: web/templates/pages/add_cron.php web/templates/pages/add_db.php
+#: web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_firewall_exclude.php
+#: web/templates/pages/add_firewall_ipset.php web/templates/pages/add_ip.php
+#: web/templates/pages/add_key.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
+#: web/templates/pages/add_user.php web/templates/pages/add_web.php
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/edit_cron.php web/templates/pages/edit_db.php
+#: web/templates/pages/edit_firewall.php web/templates/pages/edit_ip.php
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_mail_acc.php
+#: web/templates/pages/edit_package.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_server_dovecot.php
+#: web/templates/pages/edit_server_httpd.php
+#: web/templates/pages/edit_server_mysql.php
+#: web/templates/pages/edit_server_nginx.php
+#: web/templates/pages/edit_server_pgsql.php
+#: web/templates/pages/edit_server_php.php
+#: web/templates/pages/edit_server_service.php
+#: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
+#: web/templates/pages/edit_whitelabel.php
+msgid "Save"
+msgstr "Сохранить"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Sep"
+msgstr "Сен"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Sunday"
+msgstr "воскресенье"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "System time"
+msgstr "Системное время"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Thursday"
+msgstr "четверг"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Tuesday"
+msgstr "вторник"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Wednesday"
+msgstr "среда"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Weekdays (5 days)"
+msgstr "В будние дни (5 дней)"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+msgid "Weekend (2 days)"
+msgstr "В выходные (2 дня)"
+
+#: web/templates/pages/add_cron.php web/templates/pages/edit_cron.php
+#: web/templates/pages/list_rrd.php
+msgid "Weekly"
+msgstr "Еженедельно"
+
+#: web/templates/pages/add_db.php
+msgid "A MySQL user you already have is shared: leave the password empty, it keeps its own."
+msgstr "Существующий пользователь MySQL используется совместно: оставьте пароль пустым, он сохранит свой."
+
+#: web/templates/pages/add_db.php web/templates/pages/list_db.php
+msgid "Add Database"
+msgstr "Добавить базу данных"
+
+#: web/templates/pages/add_db.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_user.php web/templates/pages/add_web.php
+#: web/templates/pages/list_user.php
+msgid "Add User"
+msgstr "Добавить пользователя"
+
+#: web/templates/pages/add_db.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_web.php
+msgid "Continue"
+msgstr "Продолжить"
+
+#: web/templates/pages/add_db.php web/templates/pages/add_mail_acc.php
+#: web/templates/pages/add_user.php web/templates/pages/edit_mail_acc.php
+msgid "Email login credentials to:"
+msgstr "Отправить учетные данные для входа на адрес электронной почты:"
+
+#: web/templates/pages/add_db.php web/templates/pages/add_mail.php
+#: web/templates/pages/add_web.php
+#, php-format
+msgid "It is strongly advised to {create a standard user account} before adding %s to the server due to the increased privileges the admin account possesses and potential security risks."
+msgstr "Особые привилегии администратора приводят к потенциальным угрозами безопасности системы. В связи с этим настоятельно рекомендуется {create a standard user account} перед добавлением %s на сервер."
+
+#: web/templates/pages/add_db.php web/templates/pages/edit_db.php
+#, php-format
+msgid "Maximum %s characters length, including prefix"
+msgstr "Максимальная длина символов: %s, включая префикс"
+
+#: web/templates/pages/add_db.php
+#, php-format
+msgid "Prefix %s will be automatically added to database name and database user"
+msgstr "Префикс %s будет автоматически добавлен к названию базы данных и к имени пользователя базы данных"
+
+#: web/templates/pages/add_db.php
+msgid "a database"
+msgstr "база данных"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+msgid "ACCEPT"
+msgstr "ПРИНЯТЬ"
+
+#: web/templates/pages/add_firewall.php
+msgid "Add Firewall Rule"
+msgstr "Добавить правило файрвол"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+msgid "All ports: 0, Range: 80-82, List: 80,443,8080,8443"
+msgstr "Всё порты: 0, Диапазоны: 80-82, Список: 80,443,8080,8443"
+
+#: web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/edit_firewall.php
+msgid "Clear"
+msgstr "Очистить"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+#: web/templates/pages/list_firewall.php
+msgid "Comment"
+msgstr "Коментарий"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+msgid "DROP"
+msgstr "ВЫБРОСИТЬ"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+msgid "IP Address / IPset IP List"
+msgstr "IP-адрес / список IP-адресов IPset"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/add_ip.php
+#: web/templates/pages/edit_firewall.php web/templates/pages/edit_ip.php
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_web.php
+#: web/templates/pages/generate_ssl.php
+msgid "Optional"
+msgstr "Опционально"
+
+#: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
+msgid "Ranges and lists are acceptable"
+msgstr "Допустимы диапазоны и списки"
+
+#: web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/add_firewall_exclude.php
+#: web/templates/pages/edit_firewall.php
+msgid "Support CIDR format"
+msgstr "Поддержка формата CIDR"
+
+#: web/templates/pages/add_firewall_banlist.php
+msgid "Add IP Address to Banlist"
+msgstr "Добавить IP-адрес в список заблокированных"
+
+#: web/templates/pages/add_firewall_banlist.php
+#: web/templates/pages/edit_web.php
+msgid "FTP"
+msgstr "FTP"
+
+#: web/templates/pages/add_firewall_banlist.php
+msgid "HESTIA"
+msgstr "HESTIA"
+
+#: web/templates/pages/add_firewall_banlist.php
+msgid "RECIDIVE"
+msgstr "RECIDIVE"
+
+#: web/templates/pages/add_firewall_banlist.php
+msgid "SSH"
+msgstr "SSH"
+
+#: web/templates/pages/add_firewall_banlist.php
+msgid "WEBSCAN"
+msgstr "WEBSCAN"
+
+#: web/templates/pages/add_firewall_exclude.php
+msgid "Add IP Address to Whitelist"
+msgstr "Добавить IP-адрес в белый список"
+
+#: web/templates/pages/add_firewall_exclude.php
+msgid "The address is exempted from every ban and removed from the ban list if it is currently banned. It is also mirrored into fail2ban, so its jails stop counting the address entirely."
+msgstr "Адрес исключается из любых блокировок и удаляется из чёрного списка, если сейчас заблокирован. Он также передаётся в fail2ban, и его jails перестают учитывать этот адрес."
+
+#: web/templates/pages/add_firewall_ipset.php
+msgid "Add IPset IP List for Firewall"
+msgstr "Добавить IP-адреса в IPset для файрвола"
+
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/list_firewall_ipset.php
+msgid "IP List Name"
+msgstr "Имя списка IP-адресов"
+
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
+msgid "No"
+msgstr "Нет"
+
+#: web/templates/pages/add_firewall_ipset.php
+msgid "URL, script or file"
+msgstr "URL, скрипт или файл"
+
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
+msgid "Yes"
+msgstr "Да"
+
+#: web/templates/pages/add_firewall_ipset.php
+msgid "level"
+msgstr "уровень"
+
+#: web/templates/pages/add_firewall_mesh.php
+msgid "Get a pairing code from the other server's Fleet Mesh page. Both servers then share their web bans and open their panel port to each other only."
+msgstr "Получите код сопряжения на странице Fleet Mesh другого сервера. После этого оба сервера обмениваются веб-блокировками и открывают порт панели только друг для друга."
+
+#: web/templates/pages/add_firewall_mesh.php
+msgid "Join a Mesh Peer"
+msgstr "Подключиться к узлу mesh"
+
+#: web/templates/pages/add_firewall_mesh.php
+msgid "Pair"
+msgstr "Сопрячь"
+
+#: web/templates/pages/add_firewall_mesh.php
+msgid "Panel Port"
+msgstr "Порт панели"
+
+#: web/templates/pages/add_ip.php web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_ip.php
+msgid "Add IP Address"
+msgstr "Добавить IP-адрес"
+
+#: web/templates/pages/add_ip.php web/templates/pages/edit_ip.php
+msgid "Assigned Domain"
+msgstr "Закреплённый домен"
+
+#: web/templates/pages/add_ip.php
+msgid "IPv4 netmask or IPv6 prefix length"
+msgstr "Маска IPv4 или длина префикса IPv6"
+
+#: web/templates/pages/add_ip.php web/templates/pages/edit_ip.php
+msgid "NAT IP Association"
+msgstr "Ассоциация NAT IP-адресов"
+
+#: web/templates/pages/add_ip.php web/templates/pages/edit_ip.php
+msgid "Shared"
+msgstr "Общий"
+
+#: web/templates/pages/add_key.php web/templates/pages/list_key.php
+msgid "Add SSH Key"
+msgstr "Добавить SSH ключ"
+
+#: web/templates/pages/add_mail.php web/templates/pages/list_mail.php
+msgid "Add Mail Domain"
+msgstr "Добавить домен"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+#: web/templates/pages/edit_server.php web/templates/pages/list_mail.php
+msgid "Anti-Virus"
+msgstr "Антивирус"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+msgid "DKIM Support"
+msgstr "DKIM"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/list_firewall_ipset.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_web.php
+msgid "Disabled"
+msgstr "Отключено"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+msgid "Reject Spam"
+msgstr "Отклонить спам"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+msgid "SMTP Relay"
+msgstr "SMTP переадресовщик"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+#: web/templates/pages/edit_server.php web/templates/pages/list_mail.php
+msgid "Spam Filter"
+msgstr "Спам-фильтр"
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+msgid "Webmail Client"
+msgstr "Webmail клиент"
+
+#: web/templates/pages/add_mail.php
+msgid "a mail domain"
+msgstr "почтовый домен"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "8 characters long"
+msgstr "8 символов"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_mail_acc.php
+msgid "Add Mail Account"
+msgstr "Добавить аккаунт"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "Discard all mail"
+msgstr "Отбрасывать всю почту"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "Do not store forwarded mail"
+msgstr "Не сохранять перенаправленные письма"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "Forward to"
+msgstr "Пересылка"
+
+#: web/templates/pages/add_mail_acc.php
+msgid "One or more email addresses"
+msgstr "Один или несколько адресов электронной почты"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "Use local-part without domain name"
+msgstr "Использовать локальную часть без имени домена"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "Your password must have at least"
+msgstr "Ваш пароль должен содержать как минимум"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
+msgid "email / hour"
+msgstr "почта / час"
+
+#: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/edit_package.php
+msgid "in MB"
+msgstr "в МБ"
+
+#: web/templates/pages/add_package.php web/templates/pages/list_packages.php
+msgid "Add Package"
+msgstr "Добавить пакет"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Caps the customer's Docker companion: the daemon and all of their containers together. Percentages are of the host: 100% CPU is one core."
+msgstr "Ограничивает Docker-компаньон клиента: демон и все его контейнеры вместе. Проценты считаются от хоста: 100% CPU это одно ядро."
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "DOCKER"
+msgstr "DOCKER"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Differential"
+msgstr "Дифференциальная"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Full"
+msgstr "Полная"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Package Name"
+msgstr "Имя пакета"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "Resource cap"
+msgstr "Лимит ресурсов"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/edit_user.php web/templates/pages/list_packages.php
+msgid "SSH Access"
+msgstr "Доступ по SSH"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/list_server_preview.php
+msgid "System"
+msgstr "Система"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "per account / hour"
+msgstr "аккаунт / час"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "per domain"
+msgstr "на домен"
+
+#: web/templates/pages/add_package.php web/templates/pages/edit_package.php
+msgid "restic (addon)"
+msgstr "restic (дополнение)"
+
+#: web/templates/pages/add_user.php web/templates/pages/edit_user.php
+msgid "Administrator"
+msgstr "Администратор"
+
+#: web/templates/pages/add_user.php web/templates/pages/edit_user.php
+msgid "Do not allow user to log in to Control Panel"
+msgstr "Запретить пользователю вход в Панель"
+
+#: web/templates/pages/add_user.php web/templates/pages/edit_user.php
+msgid "Language"
+msgstr "Язык"
+
+#: web/templates/pages/add_user.php web/templates/pages/edit_user.php
+msgid "Role"
+msgstr "Роль"
+
+#: web/templates/pages/add_user.php
+msgid "Send welcome email"
+msgstr "Отправить приветственное письмо"
+
+#: web/templates/pages/add_user.php web/templates/pages/edit_user.php
+msgid "User"
+msgstr "Пользователь"
+
+#: web/templates/pages/add_web.php web/templates/pages/list_web.php
+msgid "Add Web Domain"
+msgstr "Добавить веб-домен"
+
+#: web/templates/pages/add_web.php
+msgid "Mail Support"
+msgstr "Поддержка почты"
+
+#: web/templates/pages/add_web.php
+msgid "Share: other accounts on this server may add subdomains of this domain (web and mail)"
+msgstr "Общий доступ: другие учётные записи на этом сервере могут добавлять поддомены этого домена (веб и почта)"
+
+#: web/templates/pages/add_web.php
+msgid "a web domain"
+msgstr "веб-домен"
+
+#: web/templates/pages/debug_panel.php
+msgid "Close debug panel"
+msgstr "Закрыть панель отладки"
+
+#: web/templates/pages/debug_panel.php
+msgid "Open debug panel"
+msgstr "Открыть панель отладки"
+
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/list_backup_exclusions.php
+msgid "Edit Backup Exclusions"
+msgstr "Изменить исключения для резервного копирования"
+
+#: web/templates/pages/edit_backup_exclusions.php
+msgid "Only * is honoured here: all cron jobs, or none. Single jobs cannot be excluded."
+msgstr "Здесь учитывается только *: все задания cron или ни одного. Отдельные задания исключить нельзя."
+
+#: web/templates/pages/edit_backup_exclusions.php
+msgid "Type directory name, one per line. To exclude all dirs use *"
+msgstr "Введите имя каталога (по одному в строке). Чтобы исключить все каталоги, используйте *"
+
+#: web/templates/pages/edit_backup_exclusions.php
+msgid "Type domain name, one per line. To exclude all domains use *. To exclude specific accounts use following format: domain.tld:info:support:postmaster"
+msgstr "Введите доменное имя (по одному в строке). Чтобы исключить все домены, используйте *. Чтобы исключить определенные учетные записи, используйте следующий формат: domain.tld:info:support:postmaster."
+
+#: web/templates/pages/edit_backup_exclusions.php
+msgid "Type domain name, one per line. To exclude all domains use *. To exclude specific dirs use following format: domain.tld:public_html/cache:public_html/tmp"
+msgstr "Введите название доменов (по одному в строке). Чтобы исключить все домены, используйте *. Чтобы исключить определенные каталоги, используйте следующий формат: domain.tld:public_html/cache:public_html/tmp."
+
+#: web/templates/pages/edit_backup_exclusions.php
+msgid "Type full database name, one per line. To exclude all databases use *"
+msgstr "Введите полное имя базы данных (по одному в строке). Чтобы исключить все базы данных, используйте *"
+
+#: web/templates/pages/edit_backup_exclusions.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_stats.php
+msgid "User Directory"
+msgstr "Каталог пользователя"
+
+#: web/templates/pages/edit_cron.php web/templates/pages/list_cron.php
+msgid "Edit Cron Job"
+msgstr "Изменить задание Cron"
+
+#: web/templates/pages/edit_db.php
+msgid "An existing user is shared and keeps its password, a new one needs a password. Empty the name to remove the second user."
+msgstr "Существующий пользователь используется совместно и сохраняет свой пароль, новому нужен пароль. Очистите имя, чтобы удалить второго пользователя."
+
+#: web/templates/pages/edit_db.php web/templates/pages/list_db.php
+msgid "Edit Database"
+msgstr "Редактировать базу данных"
+
+#: web/templates/pages/edit_db.php
+msgid "Read-only (SELECT, SHOW VIEW)"
+msgstr "Только чтение (SELECT, SHOW VIEW)"
+
+#: web/templates/pages/edit_db.php
+msgid "Second User"
+msgstr "Второй пользователь"
+
+#: web/templates/pages/edit_db.php
+#, php-format
+msgid "Shared with %s, a new password applies there too."
+msgstr "Используется совместно с %s, новый пароль действует и там."
+
+#: web/templates/pages/edit_firewall.php web/templates/pages/list_firewall.php
+msgid "Edit Firewall Rule"
+msgstr "Изменить правило файрвол"
+
+#: web/templates/pages/edit_ip.php web/templates/pages/list_ip.php
+msgid "Edit IP Address"
+msgstr "Изменить IP-адрес"
+
+#: web/templates/pages/edit_mail.php
+#, php-format
+msgid "Allowed range: %s to %s."
+msgstr "Допустимый диапазон: от %s до %s."
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Alternate"
+msgstr "Альтернативный"
+
+#: web/templates/pages/edit_mail.php
+msgid "Always treated as spam; rejected while Reject Spam is enabled. Same format as the whitelist, which wins on conflict."
+msgstr "Всегда считается спамом; отклоняется, пока включено «Отклонить спам». Формат как у белого списка, который имеет приоритет при конфликте."
+
+#: web/templates/pages/edit_mail.php
+msgid "Catch-All Email"
+msgstr "Универсальная электронная почта (Catch-All)"
+
+#: web/templates/pages/edit_mail.php
+msgid "Custom threshold"
+msgstr "Свой порог"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_mail_acc.php
+msgid "Edit Mail Domain"
+msgstr "Изменить почтовый домен"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_web.php
+msgid "Enable SSL for this domain"
+msgstr "Включить SSL для этого домена"
+
+#: web/templates/pages/edit_mail.php
+msgid "Excluded Recipient Domains"
+msgstr "Исключённые домены получателей"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php web/templates/pages/generate_ssl.php
+#: web/templates/pages/list_ssl.php
+msgid "Generate Self-Signed SSL Certificate"
+msgstr "Создать самозаверяющий SSL-сертификат"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Issued By"
+msgstr "Издатель"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Issued To"
+msgstr "Адресован к"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Key Size"
+msgstr "Размер ключа"
+
+#: web/templates/pages/edit_mail.php
+msgid "Mail scoring above the threshold is marked as spam; lower means stricter."
+msgstr "Письма с оценкой выше порога помечаются как спам; чем ниже порог, тем строже."
+
+#: web/templates/pages/edit_mail.php
+msgid "Mark Threshold"
+msgstr "Порог пометки"
+
+#: web/templates/pages/edit_mail.php
+msgid "Never treated as spam. One sender per line: user@example.com, *@example.com, example.com or *.example.com."
+msgstr "Никогда не считается спамом. Один отправитель на строку: user@example.com, *@example.com, example.com или *.example.com."
+
+#: web/templates/pages/edit_mail.php
+msgid "Normal"
+msgstr "Обычный"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Not After"
+msgstr "действителен до"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Not Before"
+msgstr "действителен от"
+
+#: web/templates/pages/edit_mail.php
+msgid "One recipient domain per line, wildcards like *.example.com allowed. Delivered directly instead of via the relay; requires valid SPF and DKIM for this server."
+msgstr "Один домен получателя на строку, допускаются маски вида *.example.com. Доставляется напрямую, а не через релей; нужны действующие SPF и DKIM для этого сервера."
+
+#: web/templates/pages/edit_mail.php
+msgid "Only applies while Reject Spam is enabled. Empty = server default."
+msgstr "Действует, только пока включено «Отклонить спам». Пусто = значение сервера по умолчанию."
+
+#: web/templates/pages/edit_mail.php
+msgid "Prepended to the subject of mail classified as spam."
+msgstr "Добавляется в начало темы писем, распознанных как спам."
+
+#: web/templates/pages/edit_mail.php
+msgid "Reject Threshold"
+msgstr "Порог отклонения"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php web/templates/pages/list_ssl.php
+msgid "SSL Certificate"
+msgstr "SSL сертификат"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_web.php
+msgid "SSL Certificate Authority / Intermediate"
+msgstr "Центр сертификации SSL / Промежуточный"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php web/templates/pages/list_ssl.php
+msgid "SSL Private Key"
+msgstr "Закрытый ключ SSL"
+
+#: web/templates/pages/edit_mail.php
+msgid "Sender Blacklist"
+msgstr "Чёрный список отправителей"
+
+#: web/templates/pages/edit_mail.php
+msgid "Sender Whitelist"
+msgstr "Белый список отправителей"
+
+#: web/templates/pages/edit_mail.php
+msgid "Server default"
+msgstr "По умолчанию сервера"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Signature"
+msgstr "Сигнатура"
+
+#: web/templates/pages/edit_mail.php
+msgid "Spam Filter Sensitivity"
+msgstr "Чувствительность спам-фильтра"
+
+#: web/templates/pages/edit_mail.php
+msgid "Spam Subject Tag"
+msgstr "Метка темы для спама"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
+#: web/templates/pages/edit_web.php
+msgid "Strict"
+msgstr "строгая политика"
+
+#: web/templates/pages/edit_mail.php
+#, php-format
+msgid "To enable Let's Encrypt SSL, ensure that DNS records exist for mail.%s and %s!"
+msgstr "Чтобы включить Let's Encrypt SSL, убедитесь, что записи DNS существуют для mail.%s и %s!"
+
+#: web/templates/pages/edit_mail.php
+msgid "Tolerant"
+msgstr "Мягкий"
+
+#: web/templates/pages/edit_mail.php web/templates/pages/edit_web.php
+msgid "Use Let's Encrypt to obtain SSL certificate"
+msgstr "Использовать Let’s Encrypt для получения SSL-сертификата"
+
+#: web/templates/pages/edit_mail.php
+msgid "email / hour / account"
+msgstr "почта / час / учётная запись"
+
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/list_mail_acc.php
+msgid "Auto Reply"
+msgstr "Автоответчик"
+
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/list_mail_acc.php
+msgid "Edit Mail Account"
+msgstr "Изменить учетную запись почты"
+
+#: web/templates/pages/edit_mail_acc.php web/templates/pages/list_log.php
+msgid "Message"
+msgstr "Сообщение"
+
+#: web/templates/pages/edit_mail_acc.php
+msgid "Shared with the vacation filter in the webmail."
+msgstr "Общий с фильтром автоответа в веб-почте."
+
+#: web/templates/pages/edit_mail_acc.php
+msgid "The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, or several vacation rules). Change it in the webmail."
+msgstr "Автоответ этого ящика находится в скрипте Sieve, которым панель не управляет (собственный скрипт или несколько правил автоответа). Измените его в веб-почте."
+
+#: web/templates/pages/edit_mail_acc.php
+msgid "one or more email addresses"
+msgstr "один или несколько email-адресов"
+
+#: web/templates/pages/edit_package.php web/templates/pages/edit_user.php
+msgid "(current)"
+msgstr "(текущая)"
+
+#: web/templates/pages/edit_package.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_user.php
+msgid "Edit Package"
+msgstr "Редактировать пакет"
+
+#: web/templates/pages/edit_server.php web/templates/pages/edit_web.php
+#, php-format
+msgid "%d active"
+msgstr "активно: %d"
+
+#: web/templates/pages/edit_server.php
+msgid "Advanced (config file only)"
+msgstr "Расширенные (только в файле конфигурации)"
+
+#: web/templates/pages/edit_server.php
+msgid "Allow suspended users to create new backups"
+msgstr "Разрешить заблокированным пользователям создавать новые резервные копии"
+
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/list_server_preview.php
+msgid "Allow suspended users to log in with read-only access"
+msgstr "Разрешить заблокированным пользователям входить в режиме \"только чтение\""
+
+#: web/templates/pages/edit_server.php
+msgid "Allow users to change templates when editing web domains"
+msgstr "Разрешить пользователям изменять шаблоны при правке веб доменов"
+
+#: web/templates/pages/edit_server.php
+msgid "Allow users to delete log history"
+msgstr "Разрешить пользователям удалять историю логов"
+
+#: web/templates/pages/edit_server.php
+msgid "Allow users to edit their account details"
+msgstr "Разрешить пользователям изменять их аккаунт"
+
+#: web/templates/pages/edit_server.php
+msgid "Allow users to reset their passwords"
+msgstr "Разрешить пользователям сброс их паролей"
+
+#: web/templates/pages/edit_server.php
+msgid "Allow users to view action and login history logs"
+msgstr "Разрешить пользователям просматривать журналы входов и операций"
+
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/edit_server_mysql.php
+#: web/templates/pages/edit_server_nginx.php
+#: web/templates/pages/edit_server_php.php
+msgid "Basic Options"
+msgstr "Основные настройки"
+
+#: web/templates/pages/edit_server.php web/templates/pages/edit_web.php
+#: web/templates/pages/list_services.php
+msgid "Bot Rate Limiting"
+msgstr "Ограничение ботов"
+
+#: web/templates/pages/edit_server.php
+msgid "Bots are matched by User-Agent family and throttled to the rate below (HTTP 429); humans never are, malicious traffic is CrowdSec's job. Nothing is throttled until a domain opts in."
+msgstr "Боты распознаются по семейству User-Agent и ограничиваются до скорости ниже (HTTP 429); люди никогда, вредоносный трафик задача CrowdSec. Ничего не ограничивается, пока домен это не включит."
+
+#: web/templates/pages/edit_server.php
+msgid "Brute-force protection (Fail2Ban)"
+msgstr "Защита от перебора (Fail2Ban)"
+
+#: web/templates/pages/edit_server.php
+msgid "Compression"
+msgstr "Сжатие"
+
+#: web/templates/pages/edit_server.php
+msgid "Compression Level"
+msgstr "Уровень компримирования"
+
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/edit_server_dovecot.php
+#: web/templates/pages/edit_server_httpd.php
+#: web/templates/pages/edit_server_mysql.php
+#: web/templates/pages/edit_server_nginx.php
+#: web/templates/pages/edit_server_pgsql.php
+#: web/templates/pages/edit_server_php.php
+#: web/templates/pages/edit_server_service.php
+msgid "Configure Server"
+msgstr "Настроить сервер"
+
+#: web/templates/pages/edit_server.php
+msgid "Current Number of Databases"
+msgstr "Текущее количество баз данных"
+
+#: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
+msgid "Default"
+msgstr "По умолчанию"
+
+#: web/templates/pages/edit_server.php
+msgid "Default Language"
+msgstr "Язык по умолчанию"
+
+#: web/templates/pages/edit_server.php
+msgid "Disabling or removing a family also stops it being applied to any domain that used it."
+msgstr "Отключённое или удалённое семейство перестаёт применяться и к доменам, которые его использовали."
+
+#: web/templates/pages/edit_server.php
+msgid "Do not allow other administrators to access Server Settings"
+msgstr "Запретить администраторам доступ к Настройкам Сервера"
+
+#: web/templates/pages/edit_server.php
+msgid "Enable debug mode"
+msgstr "Включить режим отладки"
+
+#: web/templates/pages/edit_server.php
+msgid "Enable incremental backup"
+msgstr "Включить инкрементные бекапы"
+
+#: web/templates/pages/edit_server.php
+msgid "Enable preview features"
+msgstr "Включить предварительный просмотр"
+
+#: web/templates/pages/edit_server.php
+#: web/templates/pages/list_firewall_ipset.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_web.php
+msgid "Enabled"
+msgstr "Включено"
+
+#: web/templates/pages/edit_server.php
+msgid "Enabled PHP Versions"
+msgstr "Включенные версии PHP"
+
+#: web/templates/pages/edit_server.php
+msgid "Family"
+msgstr "Семейство"
+
+#: web/templates/pages/edit_server.php web/templates/pages/list_services.php
+msgid "Firewall"
+msgstr "Брандмауэр"
+
+#: web/templates/pages/edit_server.php
+msgid "Global SMTP Relay"
+msgstr "Глобальный SMTP Relay"
+
+#: web/templates/pages/edit_server.php
+msgid "Hide account from other administrators"
+msgstr "Скрыть аккаунт от других администраторов"
+
+#: web/templates/pages/edit_server.php
+msgid "Host is the name of an rclone remote configured as root (rclone config)."
+msgstr "Хост это имя удалённого хранилища rclone, настроенного от root (rclone config)."
+
+#: web/templates/pages/edit_server.php
+msgid "Inactive session timeout"
+msgstr "Таймаут неактивной сессии"
+
+#: web/templates/pages/edit_server.php
+msgid "Incremental Backups"
+msgstr "Инкрементальные резервные копии"
+
+#: web/templates/pages/edit_server.php
+msgid "It may take a few minutes to save your changes. Please wait until the process has completed and do not refresh the page."
+msgstr "Сохранение изменений может занять несколько минут. Пожалуйста, дождитесь завершения процесса и не обновляйте эту страницу."
+
+#: web/templates/pages/edit_server.php
+msgid "Keep last daily backups"
+msgstr "Хранить последние ежедневные бекапы"
+
+#: web/templates/pages/edit_server.php
+msgid "Keep last monthly backups"
+msgstr "Хранить последние ежемесячные бекапы"
+
+#: web/templates/pages/edit_server.php
+msgid "Keep last weekly backups"
+msgstr "Хранить последние еженедельные бекапы"
+
+#: web/templates/pages/edit_server.php
+msgid "Keep last yearly backups"
+msgstr "Хранить последние годовые бекапы"
+
+#: web/templates/pages/edit_server.php web/templates/pages/edit_web.php
+msgid "Lenient"
+msgstr "Щадящий"
+
+#: web/templates/pages/edit_server.php
+msgid "Local Backup"
+msgstr "Локальное резервное копирование"
+
+#: web/templates/pages/edit_server.php web/templates/pages/login/login_1.php
+#: web/templates/pages/login/login_2.php
+msgid "Login"
+msgstr "Вход"
+
+#: web/templates/pages/edit_server.php
+msgid "Login screen style"
+msgstr "Стиль страницы входа"
+
+#: web/templates/pages/edit_server.php
+msgid "Mail Server"
+msgstr "Почтовый сервер"
+
+#: web/templates/pages/edit_server.php
+msgid "Mail is installed: without Fail2Ban, mail brute force goes undetected (CrowdSec does not cover mail)."
+msgstr "Почта установлена: без Fail2Ban перебор паролей почты остаётся незамеченным (CrowdSec почту не охватывает)."
+
+#: web/templates/pages/edit_server.php
+msgid "Maximum Number of Databases"
+msgstr "Максимальное количество баз данных"
+
+#: web/templates/pages/edit_server.php
+msgid "More info"
+msgstr "Подробнее"
+
+#: web/templates/pages/edit_server.php
+msgid "MySQL Support"
+msgstr "Поддержка MySQL"
+
+#: web/templates/pages/edit_server.php web/templates/pages/list_server_info.php
+msgid "Network"
+msgstr "Сеть"
+
+#: web/templates/pages/edit_server.php
+msgid "Old Style"
+msgstr "Старый стиль"
+
+#: web/templates/pages/edit_server.php
+msgid "Options"
+msgstr "Параметры"
+
+#: web/templates/pages/edit_server.php
+msgid "PHP Interpreter"
+msgstr "Интерпретатор PHP"
+
+#: web/templates/pages/edit_server.php
+msgid "Plugins"
+msgstr "Плагины"
+
+#: web/templates/pages/edit_server.php
+msgid "Policies"
+msgstr "Политики"
+
+#: web/templates/pages/edit_server.php
+msgid "PostgreSQL Support"
+msgstr "Поддержка PostgreSQL"
+
+#: web/templates/pages/edit_server.php
+msgid "Prevent CSRF"
+msgstr "Предотвращать CSRF"
+
+#: web/templates/pages/edit_server.php
+msgid "Preview"
+msgstr "Предварительный просмотр"
+
+#: web/templates/pages/edit_server.php
+msgid "Proxy Server"
+msgstr "Прокси-сервер"
+
+#: web/templates/pages/edit_server.php
+msgid "Release"
+msgstr "Релиз"
+
+#: web/templates/pages/edit_server.php
+msgid "Remote Backup"
+msgstr "Удаленное резервное копирование"
+
+#: web/templates/pages/edit_server.php
+msgid "Repository"
+msgstr "Репозиторий"
+
+#: web/templates/pages/edit_server.php
+msgid "Restrict access to read-only for other administrators"
+msgstr "Включить режим \"только чтение\" для других администраторов"
+
+#: web/templates/pages/edit_server.php
+msgid "Retained sets on this target"
+msgstr "Хранимые резервные копии в этом месте"
+
+#: web/templates/pages/edit_server.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_web.php
+msgid "SSL"
+msgstr "SSL"
+
+#: web/templates/pages/edit_server.php
+msgid "Security"
+msgstr "Безопасность"
+
+#: web/templates/pages/edit_server.php
+msgid "Send email notification when an update has been installed"
+msgstr "Отправить уведомление по электронной почте после установки обновления"
+
+#: web/templates/pages/edit_server.php
+msgid "Send update installation log by email"
+msgstr "Отправить журнал установки обновления по электронной почте"
+
+#: web/templates/pages/edit_server.php
+msgid "Set as default language for all users"
+msgstr "Установить язык по-умолчанию для всех пользователей"
+
+#: web/templates/pages/edit_server.php
+msgid "Set as selected theme for all users"
+msgstr "Установить тему для всех пользователей"
+
+#: web/templates/pages/edit_server.php web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_incremental.php
+msgid "Snapshots"
+msgstr "Снимки"
+
+#: web/templates/pages/edit_server.php
+msgid "Sync Error document templates on user rebuild"
+msgstr "Синхронизировать шаблоны документов ошибок при пересборке пользователя"
+
+#: web/templates/pages/edit_server.php
+msgid "Sync Skeleton templates"
+msgstr "Синхронизировать шаблоны скелета"
+
+#: web/templates/pages/edit_server.php
+msgid "System Administrator account"
+msgstr "Аккаунт Системного Администратора"
+
+#: web/templates/pages/edit_server.php
+msgid "System PHP Version"
+msgstr "Системная версия PHP"
+
+#: web/templates/pages/edit_server.php
+msgid "System Protection"
+msgstr "Защита системы"
+
+#: web/templates/pages/edit_server.php web/templates/pages/edit_user.php
+msgid "Theme"
+msgstr "Тема оформления"
+
+#: web/templates/pages/edit_server.php
+msgid "Time Zone"
+msgstr "Часовой Пояс"
+
+#: web/templates/pages/edit_server.php
+msgid "Updates"
+msgstr "Обновления"
+
+#: web/templates/pages/edit_server.php
+msgid "User-Agent Match"
+msgstr "Шаблон User-Agent"
+
+#: web/templates/pages/edit_server.php
+msgid "Version"
+msgstr "Версия"
+
+#: web/templates/pages/edit_server.php
+msgid "View"
+msgstr "Вид"
+
+#: web/templates/pages/edit_server.php
+msgid "Web Server"
+msgstr "Веб-сервер"
+
+#: web/templates/pages/edit_server.php
+msgid "Webmail Alias"
+msgstr "Алиас для Webmail"
+
+#: web/templates/pages/edit_server.php
+msgid "White Label"
+msgstr "Белая этикетка"
+
+#: web/templates/pages/edit_server.php
+msgid "empty = follow the package limit"
+msgstr "пусто = по лимиту пакета"
+
+#: web/templates/pages/edit_server.php
+msgid "empty to remove"
+msgstr "пусто, чтобы удалить"
+
+#: web/templates/pages/edit_server.php
+msgid "no"
+msgstr "нет"
+
+#: web/templates/pages/edit_server.php
+msgid "phpMyAdmin Alias"
+msgstr "Алиас для phpMyAdmin"
+
+#: web/templates/pages/edit_server.php
+msgid "phpMyAdmin Single Sign On"
+msgstr "Единая точка входа phpMyAdmin"
+
+#: web/templates/pages/edit_server.php
+msgid "tokens separated by |"
+msgstr "слова через |"
+
+#: web/templates/pages/edit_server.php
+msgid "unused slot"
+msgstr "свободный слот"
+
+#: web/templates/pages/edit_server.php
+msgid "yes"
+msgstr "да"
+
+#: web/templates/pages/edit_server.php
+msgid "zstd only"
+msgstr "только zstd "
+
+#: web/templates/pages/edit_server_dovecot.php
+#: web/templates/pages/edit_server_httpd.php
+#: web/templates/pages/edit_server_mysql.php
+#: web/templates/pages/edit_server_nginx.php
+#: web/templates/pages/edit_server_pgsql.php
+#: web/templates/pages/edit_server_php.php
+#: web/templates/pages/edit_server_service.php
+#: web/templates/pages/list_services.php
+msgid "Restart"
+msgstr "Перезапуск"
+
+#: web/templates/pages/edit_server_httpd.php
+#: web/templates/pages/edit_server_nginx.php web/templates/pages/edit_web.php
+#: web/templates/pages/list_services.php
+msgid "Configure"
+msgstr "Настроить"
+
+#: web/templates/pages/edit_server_mysql.php
+#: web/templates/pages/edit_server_nginx.php
+#: web/templates/pages/edit_server_php.php web/templates/pages/edit_user.php
+#: web/templates/pages/edit_web.php
+msgid "Advanced Options"
+msgstr "Расширенные настройки"
+
+#: web/templates/pages/edit_server_php.php web/templates/pages/edit_web.php
+msgid "PHP Version"
+msgstr "Версия PHP"
+
+#: web/templates/pages/edit_user.php
+msgid "2FA QR Code"
+msgstr "2FA QR код"
+
+#: web/templates/pages/edit_user.php
+msgid "Account Recovery Code"
+msgstr "Код восстановления учетной записи"
+
+#: web/templates/pages/edit_user.php web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_firewall_ipset.php
+#: web/templates/pages/list_firewall_mesh.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_log.php web/templates/pages/list_log_auth.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_search.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Date"
+msgstr "Дата"
+
+#: web/templates/pages/edit_user.php
+msgid "Default List Sort Order"
+msgstr "Порядок сортировки списка по умолчанию"
+
+#: web/templates/pages/edit_user.php
+#, php-format
+msgid "Disable Docker for %s?"
+msgstr "Отключить Docker для %s?"
+
+#: web/templates/pages/edit_user.php web/templates/pages/list_user.php
+msgid "Edit User"
+msgstr "Изменить пользователя"
+
+#: web/templates/pages/edit_user.php
+msgid "Enable Docker"
+msgstr "Включить Docker"
+
+#: web/templates/pages/edit_user.php
+msgid "Enable File Manager"
+msgstr "Включить файловый менеджер"
+
+#: web/templates/pages/edit_user.php
+msgid "Enable two-factor authentication"
+msgstr "Включить двухфакторную аутентификацию"
+
+#: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
+msgid "For example"
+msgstr "Например"
+
+#: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
+msgid "Hide Advanced Options"
+msgstr "Скрыть расширенные настройки"
+
+#: web/templates/pages/edit_user.php
+msgid "Manage SSH Keys"
+msgstr "Управление ключами SSH"
+
+#: web/templates/pages/edit_user.php
+msgid "PHP CLI Version"
+msgstr "Версия PHP для CLI"
+
+#: web/templates/pages/edit_user.php
+msgid "Please scan the code below in your 2FA application"
+msgstr "Отсканируйте приведенный ниже код в Вашем приложении двухфакторной аутентификации (2FA)."
+
+#: web/templates/pages/edit_user.php
+msgid "This removes the companion account and deletes every container, image and volume of this customer. Turning Docker back on later creates an empty companion; nothing comes back. Their docker domains revert to normal vhosts."
+msgstr "Это удалит учётную запись-компаньон и все контейнеры, образы и тома этого клиента. Повторное включение Docker создаст пустой компаньон; ничего не вернётся. Его Docker-домены снова станут обычными vhost."
+
+#: web/templates/pages/edit_user.php
+#, php-format
+msgid "Type %s to confirm."
+msgstr "Введите %s для подтверждения."
+
+#: web/templates/pages/edit_user.php
+msgid "Use IP address allow list for login attempts"
+msgstr "Использовать список IP, разрешенных для входа"
+
+#: web/templates/pages/edit_user.php
+msgid "turning this off removes the containers and their volumes"
+msgstr "отключение удалит контейнеры и их тома"
+
+#: web/templates/pages/edit_web.php
+msgid "Add FTP account"
+msgstr "Добавить учетную запись FTP"
+
+#: web/templates/pages/edit_web.php
+msgid "Additional FTP account(s)"
+msgstr "Дополнительные учетные записи FTP"
+
+#: web/templates/pages/edit_web.php
+msgid "Admin login"
+msgstr "Вход администратора"
+
+#: web/templates/pages/edit_web.php
+msgid "Cache Duration"
+msgstr "Время жизни кеша"
+
+#: web/templates/pages/edit_web.php
+msgid "Container address and port"
+msgstr "Адрес и порт контейнера"
+
+#: web/templates/pages/edit_web.php
+msgid "Custom document root"
+msgstr "Пользовательский document root"
+
+#: web/templates/pages/edit_web.php web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_firewall_ipset.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_key.php web/templates/pages/list_log.php
+#: web/templates/pages/list_log_auth.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_mail_acc.php web/templates/pages/list_packages.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Delete"
+msgstr "Удалить"
+
+#: web/templates/pages/edit_web.php
+msgid "Delete installation"
+msgstr "Удалить установку"
+
+#: web/templates/pages/edit_web.php
+msgid "Delete the WordPress installation?"
+msgstr "Удалить установку WordPress?"
+
+#: web/templates/pages/edit_web.php
+msgid "Detach"
+msgstr "Отвязать"
+
+#: web/templates/pages/edit_web.php
+msgid "Detach WordPress?"
+msgstr "Отвязать WordPress?"
+
+#: web/templates/pages/edit_web.php
+msgid "Docker Proxy"
+msgstr "Docker-прокси"
+
+#: web/templates/pages/edit_web.php
+msgid "Docker Template"
+msgstr "Шаблон Docker"
+
+#: web/templates/pages/edit_web.php
+msgid "Edit Web Domain"
+msgstr "Изменить веб-домен"
+
+#: web/templates/pages/edit_web.php
+msgid "Enable FastCGI cache"
+msgstr "Включить кеш FastCGI"
+
+#: web/templates/pages/edit_web.php
+msgid "Enable HTTP Strict Transport Security (HSTS)"
+msgstr "Включить строгую транспортную безопасность HTTP (HSTS)"
+
+#: web/templates/pages/edit_web.php
+msgid "Enable HTTP/3 (QUIC)"
+msgstr "Включить HTTP/3 (QUIC)"
+
+#: web/templates/pages/edit_web.php
+msgid "Enable automatic HTTPS redirection"
+msgstr "Включить автоматическое перенаправление на HTTPS"
+
+#: web/templates/pages/edit_web.php
+msgid "Enable domain redirection"
+msgstr "Включить переадресацию домена"
+
+#: web/templates/pages/edit_web.php
+msgid "Enable proxy cache"
+msgstr "Включить кеш прокси"
+
+#: web/templates/pages/edit_web.php
+msgid "Files and database are removed for good. Type the domain name to confirm."
+msgstr "Файлы и база данных будут удалены безвозвратно. Для подтверждения введите имя домена."
+
+#: web/templates/pages/edit_web.php
+msgid "Hide Certificate"
+msgstr "Скрыть сертификат"
+
+#: web/templates/pages/edit_web.php
+msgid "If the aliases changes, Let's Encrypt will obtain a new SSL certificate."
+msgstr "Если алиасы изменятся, Let's Encrypt-у потребуется новый SSL-сертификат."
+
+#: web/templates/pages/edit_web.php
+msgid "None (no PHP)"
+msgstr "Нет (без PHP)"
+
+#: web/templates/pages/edit_web.php
+msgid "Off"
+msgstr "Выкл."
+
+#: web/templates/pages/edit_web.php
+msgid "PHP Pool Size"
+msgstr "Размер пула PHP"
+
+#: web/templates/pages/edit_web.php
+msgid "Path"
+msgstr "Путь"
+
+#: web/templates/pages/edit_web.php
+msgid "Point to"
+msgstr "Указывает на "
+
+#: web/templates/pages/edit_web.php
+#, php-format
+msgid "Prefix %s will be added to username automatically"
+msgstr "Префикс %s будет добавлен к имени пользователя автоматически"
+
+#: web/templates/pages/edit_web.php
+msgid "Proxy Extensions"
+msgstr "Расширения прокси"
+
+#: web/templates/pages/edit_web.php
+msgid "Proxy Support"
+msgstr "Поддержка Proxy"
+
+#: web/templates/pages/edit_web.php
+msgid "Purge NGINX Cache"
+msgstr "Очистить кэш памяти NGINX"
+
+#: web/templates/pages/edit_web.php
+#, php-format
+msgid "Redirect visitors to %s"
+msgstr "Перенаправлять посетителей на %s"
+
+#: web/templates/pages/edit_web.php
+msgid "Redirect visitors to a custom domain or web address"
+msgstr "Перенаправить посетителей на пользовательский домен или веб-адрес"
+
+#: web/templates/pages/edit_web.php
+msgid "Send FTP credentials to email"
+msgstr "Отправить данные FTP аккаунта на эл. почту"
+
+#: web/templates/pages/edit_web.php
+#, php-format
+msgid "Share: other accounts on this server may add subdomains of %s (web and mail)"
+msgstr "Общий доступ: другие учётные записи на этом сервере могут добавлять поддомены %s (веб и почта)"
+
+#: web/templates/pages/edit_web.php
+msgid "Show Certificate"
+msgstr "Показать сертификат"
+
+#: web/templates/pages/edit_web.php
+msgid "Statistics Authorization"
+msgstr "Авторизация статистики"
+
+#: web/templates/pages/edit_web.php
+msgid "Status code"
+msgstr "Статус-код"
+
+#: web/templates/pages/edit_web.php
+msgid "Take website temporarily offline (visitors see a maintenance page, HTTP 503)"
+msgstr "Временно отключить сайт (посетители видят страницу обслуживания, HTTP 503)"
+
+#: web/templates/pages/edit_web.php
+msgid "Target domain or URL"
+msgstr "Целевой домен или URL"
+
+#: web/templates/pages/edit_web.php
+msgid "The site keeps running and its files and database stay untouched; only the panel stops managing it. Re-enabling later is not possible while the document root is in use."
+msgstr "Сайт продолжает работать, его файлы и база данных не затрагиваются; панель лишь перестаёт им управлять. Позже включить снова нельзя, пока корневой каталог используется."
+
+#: web/templates/pages/edit_web.php
+msgid "Throttle crawlers by family (HTTP 429). Humans are never limited, and malicious traffic is CrowdSec's job. Rates come from the server-wide family table."
+msgstr "Ограничивать поисковых роботов по семействам (HTTP 429). Люди никогда не ограничиваются, вредоносный трафик задача CrowdSec. Скорости берутся из общей таблицы семейств сервера."
+
+#: web/templates/pages/edit_web.php
+msgid "Update WordPress"
+msgstr "Обновить WordPress"
+
+#: web/templates/pages/edit_web.php
+msgid "Web Statistics"
+msgstr "Веб-статистика"
+
+#: web/templates/pages/edit_web.php
+msgid "WordPress"
+msgstr "WordPress"
+
+#: web/templates/pages/edit_web.php
+msgid "off"
+msgstr "выкл."
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Application Name"
+msgstr "Имя приложения"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Custom Logo"
+msgstr "Пользовательский логотип"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Email Subject"
+msgstr "Тема электронного письма"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "General"
+msgstr "Общий"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Hide link to Documentation"
+msgstr "Скрыть ссылку на документацию"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Reset Logo"
+msgstr "Сброс логотипа"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Sender Email Address"
+msgstr "Адрес электронной почты отправителя"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Sender Name"
+msgstr "Имя отправителя"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Supported variables"
+msgstr "Поддерживаемые переменные"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Title"
+msgstr "Заголовок"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "Update logo"
+msgstr "Обновить логотип"
+
+#: web/templates/pages/edit_whitelabel.php
+#, php-format
+msgid "Upload the files to %s"
+msgstr "Загрузить файлы на %s"
+
+#: web/templates/pages/edit_whitelabel.php
+msgid "White Label Options"
+msgstr "Настройки \"Белой Этикетки\""
+
+#: web/templates/pages/generate_ssl.php
+msgid "City / Locality"
+msgstr "Город / Населенный пункт"
+
+#: web/templates/pages/generate_ssl.php
+msgid "ISO 3166-1 alpha-2 two-letter code"
+msgstr "Двухбуквенный код ISO 3166-1 alpha-2"
+
+#: web/templates/pages/generate_ssl.php
+msgid "State / Province"
+msgstr "Область"
+
+#: web/templates/pages/list_backup.php
+#, php-format
+msgid "%d backup"
+msgid_plural "%d backups"
+msgstr[0] "%d резервная копия"
+msgstr[1] "%d резервные копии"
+msgstr[2] "%d резервных копий"
+msgstr[3] "%d резервных копий"
+
+#: web/templates/pages/list_backup.php
+msgid "(no local copy)"
+msgstr "(нет локальной копии)"
+
+#: web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_firewall_ipset.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_services.php
+#: web/templates/pages/list_stats.php web/templates/pages/list_user.php
+#: web/templates/pages/list_web.php
+msgid "Apply to selected"
+msgstr "Применить к выбранному"
+
+#: web/templates/pages/list_backup.php
+#, php-format
+msgid "Are you sure you want to delete backup %s?"
+msgstr "Вы уверены, что хотите удалить резервную копию данных %s?"
+
+#: web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_exclusions.php
+msgid "Backup Exclusions"
+msgstr "Исключения резервного копирования"
+
+#: web/templates/pages/list_backup.php
+#, php-format
+msgid "Base: %s"
+msgstr "Основа: %s"
+
+#: web/templates/pages/list_backup.php
+msgid "Create Backup"
+msgstr "Создать Бэкап"
+
+#: web/templates/pages/list_backup.php web/templates/pages/list_ssl.php
+#: web/templates/pages/list_weblog.php
+msgid "Download"
+msgstr "Скачать"
+
+#: web/templates/pages/list_backup.php
+msgid "File Name"
+msgstr "Имя файла"
+
+#: web/templates/pages/list_backup.php
+msgid "Kept until deleted; retention does not rotate exports"
+msgstr "Хранятся до удаления; политика хранения экспорты не ротирует"
+
+#: web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_files_incremental.php
+msgid "Restore"
+msgstr "Восстановить"
+
+#: web/templates/pages/list_backup.php
+msgid "Runtime"
+msgstr "Время выполенения"
+
+#: web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_exclusions.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_search.php web/templates/pages/list_stats.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Search"
+msgstr "Поиск"
+
+#: web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_firewall_ipset.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_services.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Select"
+msgstr "Выбрать"
+
+#: web/templates/pages/list_backup.php
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_backup_incremental.php
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_files_incremental.php
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_exclude.php
+#: web/templates/pages/list_firewall_ipset.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_services.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Select all"
+msgstr "Выбрать все"
+
+#: web/templates/pages/list_backup.php
+msgid "Size"
+msgstr "Размер"
+
+#: web/templates/pages/list_backup.php
+msgid "differential"
+msgstr "дифференциальная"
+
+#: web/templates/pages/list_backup.php
+msgid "export"
+msgstr "экспорт"
+
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+#: web/templates/pages/list_files_incremental.php
+#, php-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] "%d элемент"
+msgstr[1] "%d элемента"
+msgstr[2] "%d элементов"
+msgstr[3] "%d элементов"
+
+#: web/templates/pages/list_backup_detail.php
+#, php-format
+msgid "Are you sure you want to restore %s?"
+msgstr "Вы уверены, что хотите восстановить %s?"
+
+#: web/templates/pages/list_backup_detail.php
+msgid "Are you sure you want to restore cron jobs?"
+msgstr "Вы уверены, что хотите восстановить задания cron?"
+
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Backup Details"
+msgstr "Параметры резервного копирования"
+
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Details"
+msgstr "Детали"
+
+#: web/templates/pages/list_backup_detail.php
+#, php-format
+msgid "Fall back to PHP %s"
+msgstr "Откат на PHP %s"
+
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Mail Domain"
+msgstr "Почтовый домен"
+
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Restore All"
+msgstr "Восстановить все"
+
+#: web/templates/pages/list_backup_detail.php
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Web Domain"
+msgstr "Веб-домен"
+
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Cronjob"
+msgstr "Cronjob"
+
+#: web/templates/pages/list_backup_detail_incremental.php
+msgid "Restore Snapshot"
+msgstr "Восстановить Снепшот"
+
+#: web/templates/pages/list_backup_exclusions.php
+msgid "No exclusions"
+msgstr "Без исключений"
+
+#: web/templates/pages/list_backup_exclusions.php
+msgid "Value"
+msgstr "Значение"
+
+#: web/templates/pages/list_backup_incremental.php
+#, php-format
+msgid "%d snapshot"
+msgid_plural "%d snapshots"
+msgstr[0] "%d снимок"
+msgstr[1] "%d снимка"
+msgstr[2] "%d снимков"
+msgstr[3] "%d снимков"
+
+#: web/templates/pages/list_backup_incremental.php
+msgid "Archives & Exports"
+msgstr "Архивы и экспорты"
+
+#: web/templates/pages/list_backup_incremental.php
+msgid "Browse"
+msgstr "Обзор"
+
+#: web/templates/pages/list_backup_incremental.php
+msgid "Create Snapshot"
+msgstr "Создание снимка"
+
+#: web/templates/pages/list_backup_incremental.php
+msgid "Snapshot"
+msgstr "Снимок"
+
+#: web/templates/pages/list_cron.php
+#, php-format
+msgid "%d cron job"
+msgid_plural "%d cron jobs"
+msgstr[0] "%d задача cron"
+msgstr[1] "%d задачи cron"
+msgstr[2] "%d задач cron"
+msgstr[3] "%d задач cron"
+
+#: web/templates/pages/list_cron.php
+#, php-format
+msgid "Are you sure you want to delete this cron job?"
+msgstr "Вы уверены, что хотите удалить данное правило?"
+
+#: web/templates/pages/list_cron.php
+msgid "Are you sure you want to suspend this cron job?"
+msgstr "Вы уверены, что хотите заморозить действие данного правила?"
+
+#: web/templates/pages/list_cron.php
+msgid "Are you sure you want to unsuspend this cron job?"
+msgstr "Вы уверены, что хотите восстановить действие данного правила?"
+
+#: web/templates/pages/list_cron.php
+msgid "Disable Notifications"
+msgstr "Отключить уведомления"
+
+#: web/templates/pages/list_cron.php web/templates/pages/list_services.php
+msgid "Edit"
+msgstr "Изменить"
+
+#: web/templates/pages/list_cron.php
+msgid "Enable Notifications"
+msgstr "Включить уведомления"
+
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_firewall.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_search.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Sort by"
+msgstr "Сортировать по"
+
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_firewall.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+#: web/templates/pages/list_packages.php web/templates/pages/list_search.php
+#: web/templates/pages/list_user.php web/templates/pages/list_web.php
+msgid "Sort items"
+msgstr "Сортировать элементы"
+
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_firewall.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_mail_acc.php web/templates/pages/list_user.php
+#: web/templates/pages/list_web.php
+msgid "Suspend"
+msgstr "Заблокировать"
+
+#: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_firewall.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_mail_acc.php web/templates/pages/list_user.php
+#: web/templates/pages/list_web.php
+msgid "Unsuspend"
+msgstr "Разблокировать"
+
+#: web/templates/pages/list_db.php
+#, php-format
+msgid "%d database"
+msgid_plural "%d databases"
+msgstr[0] "%d база данных"
+msgstr[1] "%d базы данных"
+msgstr[2] "%d баз данных"
+msgstr[3] "%d баз данных"
+
+#: web/templates/pages/list_db.php
+#, php-format
+msgid "Are you sure you want to delete database %s?"
+msgstr "Вы уверены, что хотите удалить базу данных %s?"
+
+#: web/templates/pages/list_db.php
+#, php-format
+msgid "Are you sure you want to suspend database %s?"
+msgstr "Вы уверены, что хотите приостановить базу данных %s?"
+
+#: web/templates/pages/list_db.php
+#, php-format
+msgid "Are you sure you want to unsuspend database %s?"
+msgstr "Вы уверены, что хотите возобновить работу базы данных %s?"
+
+#: web/templates/pages/list_db.php
+msgid "Download Database"
+msgstr "Загрузить базу данных"
+
+#: web/templates/pages/list_db.php web/templates/pages/list_mail.php
+#: web/templates/pages/list_user.php
+msgid "Rebuild All"
+msgstr "Пересоздать все"
+
+#: web/templates/pages/list_db.php
+msgid "Suspend All"
+msgstr "Приостановить все"
+
+#: web/templates/pages/list_db.php
+msgid "Unsuspend All"
+msgstr "Возобновить все"
+
+#: web/templates/pages/list_db.php
+msgid "read-only"
+msgstr "только чтение"
+
+#: web/templates/pages/list_files_incremental.php
+msgid "Date / Time"
+msgstr "Дата / время"
+
+#: web/templates/pages/list_files_incremental.php
+msgid "Files"
+msgstr "Файлы"
+
+#: web/templates/pages/list_files_incremental.php
+msgid "Restore Files"
+msgstr "Восстановить Файлы"
+
+#: web/templates/pages/list_firewall.php
+#, php-format
+msgid "%d firewall rule"
+msgid_plural "%d firewall rules"
+msgstr[0] "%d правило файрвол"
+msgstr[1] "%d правила файрвол"
+msgstr[2] "%d правил файрвол"
+msgstr[3] "%d правил файрвол"
+
+#: web/templates/pages/list_firewall.php
+msgid "Add Rule"
+msgstr "Добавить правило"
+
+#: web/templates/pages/list_firewall.php
+#, php-format
+msgid "Are you sure you want to delete rule #%s?"
+msgstr "Вы уверены, что хотите удалить правило № %s?"
+
+#: web/templates/pages/list_firewall.php
+#, php-format
+msgid "Are you sure you want to move rule #%s down?"
+msgstr "Вы уверены, что хотите переместить правило #%s вниз?"
+
+#: web/templates/pages/list_firewall.php
+#, php-format
+msgid "Are you sure you want to move rule #%s up?"
+msgstr "Вы уверены, что хотите переместить правило #%s вверх?"
+
+#: web/templates/pages/list_firewall.php
+#, php-format
+msgid "Are you sure you want to suspend rule #%s?"
+msgstr "Вы уверены, что хотите приостановить действие правила #%s?"
+
+#: web/templates/pages/list_firewall.php
+#, php-format
+msgid "Are you sure you want to unsuspend rule #%s?"
+msgstr "Вы уверены, что хотите восстановить действие правила #%s?"
+
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_jail.php
+msgid "Banned IP Addresses"
+msgstr "Заблокированные IP-адреса"
+
+#: web/templates/pages/list_firewall.php
+msgid "Firewall Rules"
+msgstr "Правила файрвол"
+
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Fleet Mesh"
+msgstr "Fleet Mesh"
+
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_ipset.php
+msgid "IPset IP Lists"
+msgstr "Списки IP-адресов IPset"
+
+#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_jail.php
+msgid "Jail Status"
+msgstr "Состояние jails"
+
+#: web/templates/pages/list_firewall.php
+msgid "Move Down"
+msgstr "Вниз"
+
+#: web/templates/pages/list_firewall.php
+msgid "Move Firewall Rule Down"
+msgstr "Переместить правило файрвола вниз"
+
+#: web/templates/pages/list_firewall.php
+msgid "Move Firewall Rule Up"
+msgstr "Переместить правило файрвола вверх"
+
+#: web/templates/pages/list_firewall.php
+msgid "Move Up"
+msgstr "Вверх"
+
+#: web/templates/pages/list_firewall.php
+msgid "Pos"
+msgstr "Поз."
+
+#: web/templates/pages/list_firewall.php
+msgid "Position"
+msgstr "Позиция"
+
+#: web/templates/pages/list_firewall.php
+msgid "Whitelist"
+msgstr "Белый список"
+
+#: web/templates/pages/list_firewall_banlist.php
+#, php-format
+msgid "%d banned IP address"
+msgid_plural "%d banned IP addresses"
+msgstr[0] "%d заблокированный IP-адрес"
+msgstr[1] "%d заблокированных IP-адреса"
+msgstr[2] "%d заблокированных IP-адресов"
+msgstr[3] "%d заблокированных IP-адресов"
+
+#: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Are you sure you want to delete IP address %s?"
+msgstr "Вы уверены, что хотите удалить IP-адрес %s?"
+
+#: web/templates/pages/list_firewall_banlist.php
+msgid "Ban IP Address"
+msgstr "Заблокировать IP"
+
+#: web/templates/pages/list_firewall_banlist.php
+msgid "Chain / Scenario"
+msgstr "Цепочка / сценарий"
+
+#: web/templates/pages/list_firewall_banlist.php
+msgid "Source"
+msgstr "Источник"
+
+#: web/templates/pages/list_firewall_banlist.php
+msgid "There are currently no banned IP addresses."
+msgstr "Сейчас нет заблокированных IP-адресов."
+
+#: web/templates/pages/list_firewall_banlist.php
+msgid "When"
+msgstr "Когда"
+
+#: web/templates/pages/list_firewall_exclude.php
+#, php-format
+msgid "%d whitelisted IP address"
+msgid_plural "%d whitelisted IP addresses"
+msgstr[0] "%d IP-адрес в белом списке"
+msgstr[1] "%d IP-адреса в белом списке"
+msgstr[2] "%d IP-адресов в белом списке"
+msgstr[3] "%d IP-адресов в белом списке"
+
+#: web/templates/pages/list_firewall_exclude.php
+msgid "A whitelisted address is accepted ahead of every ban and can no longer be banned. Add your own address here to recover from a lockout."
+msgstr "Адрес из белого списка пропускается раньше любой блокировки и больше не может быть заблокирован. Добавьте сюда свой адрес, чтобы снять блокировку."
+
+#: web/templates/pages/list_firewall_exclude.php
+#, php-format
+msgid "Are you sure you want to remove IP address %s from the whitelist?"
+msgstr "Вы уверены, что хотите удалить IP-адрес %s из белого списка?"
+
+#: web/templates/pages/list_firewall_exclude.php
+msgid "There are currently no whitelisted IP addresses."
+msgstr "Сейчас в белом списке нет IP-адресов."
+
+#: web/templates/pages/list_firewall_exclude.php
+msgid "Whitelisted IP Addresses"
+msgstr "IP-адреса в белом списке"
+
+#: web/templates/pages/list_firewall_ipset.php
+#, php-format
+msgid "%d IP list"
+msgid_plural "%d IP lists"
+msgstr[0] "%d список IP-адресов"
+msgstr[1] "%d списка IP-адресов"
+msgstr[2] "%d списков IP-адресов"
+msgstr[3] "%d списков IP-адресов"
+
+#: web/templates/pages/list_firewall_ipset.php
+msgid "Add IP list"
+msgstr "Добавить список IP-адресов"
+
+#: web/templates/pages/list_firewall_ipset.php
+#, php-format
+msgid "Are you sure you want to delete IP list %s?"
+msgstr "Вы уверены, что хотите удалить список IP-адресов %s?"
+
+#: web/templates/pages/list_firewall_ipset.php
+msgid "There are currently no IP lists defined."
+msgstr "В настоящее время списки IP-адресов не заданы."
+
+#: web/templates/pages/list_firewall_ipset.php web/templates/pages/list_log.php
+#: web/templates/pages/list_log_auth.php
+msgid "Time"
+msgstr "Время"
+
+#: web/templates/pages/list_firewall_jail.php
+#, php-format
+msgid "%d jail"
+msgid_plural "%d jails"
+msgstr[0] "%d jail"
+msgstr[1] "%d jails"
+msgstr[2] "%d jails"
+msgstr[3] "%d jails"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "Banned"
+msgstr "Заблокировано"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "Every jail this server configures, and what it is doing. A jail listed as stopped is configured but not running, which means it is protecting nothing."
+msgstr "Все jails, настроенные на этом сервере, и что они делают. Jail в состоянии «остановлена» настроена, но не запущена, а значит ничего не защищает."
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "Failures"
+msgstr "Неудачи"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "Jail"
+msgstr "Jail"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "Log File"
+msgstr "Файл журнала"
+
+#: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
+#: web/templates/pages/list_server_preview.php
+msgid "Status"
+msgstr "Статус"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "There are currently no jails configured."
+msgstr "Сейчас не настроено ни одной jail."
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "current / total since the service started"
+msgstr "текущее / всего с запуска службы"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "running"
+msgstr "работает"
+
+#: web/templates/pages/list_firewall_jail.php
+msgid "stopped"
+msgstr "остановлена"
+
+#: web/templates/pages/list_firewall_mesh.php
+#, php-format
+msgid "%d peer"
+msgid_plural "%d peers"
+msgstr[0] "%d узел"
+msgstr[1] "%d узла"
+msgstr[2] "%d узлов"
+msgstr[3] "%d узлов"
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Address"
+msgstr "Адрес"
+
+#: web/templates/pages/list_firewall_mesh.php
+#, php-format
+msgid "Are you sure you want to unpair %s? Run the same action on that server too."
+msgstr "Вы уверены, что хотите разорвать сопряжение с %s? Выполните то же действие и на том сервере."
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Generate Pairing Code"
+msgstr "Создать код сопряжения"
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Join a Peer"
+msgstr "Подключиться к узлу"
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "No peers paired yet. Generate a pairing code here for the other server, or join with a code from its Fleet Mesh page."
+msgstr "Узлов пока нет. Создайте здесь код сопряжения для другого сервера или подключитесь по коду с его страницы Fleet Mesh."
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Peer"
+msgstr "Узел"
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Shared Bans"
+msgstr "Общие блокировки"
+
+#: web/templates/pages/list_firewall_mesh.php
+msgid "Unpair"
+msgstr "Разорвать сопряжение"
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "%d IP address"
+msgid_plural "%d IP addresses"
+msgstr[0] "%d IP адрес"
+msgstr[1] "%d IP адреса"
+msgstr[2] "%d IP адресов"
+msgstr[3] "%d IP адресов"
+
+#: web/templates/pages/list_ip.php web/templates/pages/list_stats.php
+msgid "IP Addresses"
+msgstr "IP-адреса"
+
+#: web/templates/pages/list_ip.php web/templates/pages/list_search.php
+msgid "Owner"
+msgstr "Владелец"
+
+#: web/templates/pages/list_ip.php
+msgid "Refresh IP Addresses"
+msgstr "Обновить IP-адреса"
+
+#: web/templates/pages/list_key.php
+#, php-format
+msgid "%d SSH key"
+msgid_plural "%d SSH keys"
+msgstr[0] "%d SSH-ключ"
+msgstr[1] "%d SSH-ключа"
+msgstr[2] "%d SSH-ключей"
+msgstr[3] "%d SSH-ключей"
+
+#: web/templates/pages/list_key.php
+#, php-format
+msgid "Are you sure you want to delete SSH key %s?"
+msgstr "Вы уверены, что хотите удалить SSH-ключ %s?"
+
+#: web/templates/pages/list_key.php
+msgid "SSH ID"
+msgstr "SSH-идентификатор"
+
+#: web/templates/pages/list_key.php
+msgid "SSH Keys"
+msgstr "Ключи SSH"
+
+#: web/templates/pages/list_log.php web/templates/pages/list_log_auth.php
+#, php-format
+msgid "%d log record"
+msgid_plural "%d log records"
+msgstr[0] "%d запись журнала"
+msgstr[1] "%d записи журнала"
+msgstr[2] "%d записей журнала"
+msgstr[3] "%d записей журнала"
+
+#: web/templates/pages/list_log.php web/templates/pages/list_log_auth.php
+msgid "Are you sure you want to delete the logs?"
+msgstr "Вы уверены, что хотите удалить журналы?"
+
+#: web/templates/pages/list_log.php web/templates/pages/list_server_preview.php
+msgid "Category"
+msgstr "Категория"
+
+#: web/templates/pages/list_log.php
+msgid "Error"
+msgstr "Ошибка"
+
+#: web/templates/pages/list_log.php
+msgid "Information"
+msgstr "Информация"
+
+#: web/templates/pages/list_log.php
+msgid "Login History"
+msgstr "Журнал посещений"
+
+#: web/templates/pages/list_log.php web/templates/pages/list_log_auth.php
+#: web/templates/pages/list_search.php web/templates/pages/list_server_info.php
+#: web/templates/pages/list_weblog.php
+msgid "Refresh"
+msgstr "Обновить"
+
+#: web/templates/pages/list_log.php
+msgid "Warning"
+msgstr "Предупреждение"
+
+#: web/templates/pages/list_log_auth.php
+msgid "Auth Log"
+msgstr "Журнал авторизации"
+
+#: web/templates/pages/list_log_auth.php
+msgid "Browser"
+msgstr "Браузер"
+
+#: web/templates/pages/list_log_auth.php
+msgid "Failed"
+msgstr "Не удалось"
+
+#: web/templates/pages/list_log_auth.php
+msgid "Success"
+msgstr "Успех"
+
+#: web/templates/pages/list_mail.php
+#, php-format
+msgid "%d mail domain"
+msgid_plural "%d mail domains"
+msgstr[0] "%d почтовый домен"
+msgstr[1] "%d почтовых домена"
+msgstr[2] "%d почтовых доменов"
+msgstr[3] "%d почтовых доменов"
+
+#: web/templates/pages/list_mail.php web/templates/pages/list_web.php
+#, php-format
+msgid "Are you sure you want to delete domain %s?"
+msgstr "Вы уверены, что хотите удалить домен %s?"
+
+#: web/templates/pages/list_mail.php web/templates/pages/list_web.php
+#, php-format
+msgid "Are you sure you want to suspend domain %s?"
+msgstr "Вы уверены, что хотите приостановить действие домена %s?"
+
+#: web/templates/pages/list_mail.php web/templates/pages/list_web.php
+#, php-format
+msgid "Are you sure you want to unsuspend domain %s?"
+msgstr "Вы уверены, что хотите восстановить действие домена %s?"
+
+#: web/templates/pages/list_mail.php
+#, php-format
+msgid "Bad Request: parameter q must be scalar, got %s."
+msgstr "Неверный запрос: параметр q должен быть скаляром, получено %s."
+
+#: web/templates/pages/list_mail.php
+msgid "DKIM"
+msgstr "DKIM"
+
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_dns.php
+msgid "DNS Records"
+msgstr "Записи DNS"
+
+#: web/templates/pages/list_mail.php
+msgid "Not installed"
+msgstr "Не установлено"
+
+#: web/templates/pages/list_mail.php web/templates/pages/list_mail_acc.php
+msgid "Open Webmail"
+msgstr "Открыть веб-почту"
+
+#: web/templates/pages/list_mail_acc.php
+#, php-format
+msgid "%d mail account"
+msgid_plural "%d mail accounts"
+msgstr[0] "%d учётная запись электронной почты"
+msgstr[1] "%d учётные записи электронной почты"
+msgstr[2] "%d учётных записей электронной почты"
+msgstr[3] "%d учётных записей электронной почты"
+
+#: web/templates/pages/list_mail_acc.php
+msgid "Aliases used"
+msgstr "Использовано алиасов"
+
+#: web/templates/pages/list_mail_acc.php
+#, php-format
+msgid "Are you sure you want to delete %s?"
+msgstr "Вы уверены, что хотите удалить %s?"
+
+#: web/templates/pages/list_mail_acc.php
+#, php-format
+msgid "Are you sure you want to suspend %s?"
+msgstr "Вы уверены, что хотите приостановить действие %s?"
+
+#: web/templates/pages/list_mail_acc.php
+#, php-format
+msgid "Are you sure you want to unsuspend %s?"
+msgstr "Вы уверены, что хотите разблокировать %s?"
+
+#: web/templates/pages/list_mail_acc.php
+msgid "Forwarding"
+msgstr "Переадресация"
+
+#: web/templates/pages/list_mail_acc.php
+msgid "No aliases"
+msgstr "Нет алиасов"
+
+#: web/templates/pages/list_mail_dns.php
+msgid "IP or Value"
+msgstr "IP адрес или значение"
+
+#: web/templates/pages/list_mail_dns.php
+msgid "Priority"
+msgstr "Приоритет"
+
+#: web/templates/pages/list_mail_dns.php
+msgid "Record"
+msgstr "Запись"
+
+#: web/templates/pages/list_mail_dns.php
+msgid "TTL"
+msgstr "TTL"
+
+#: web/templates/pages/list_packages.php
+#, php-format
+msgid "%d package"
+msgid_plural "%d packages"
+msgstr[0] "%d пакет"
+msgstr[1] "%d пакета"
+msgstr[2] "%d пакетов"
+msgstr[3] "%d пакетов"
+
+#: web/templates/pages/list_packages.php
+#, php-format
+msgid "Are you sure you want to delete package %s?"
+msgstr "Вы уверены, что хотите удалить пакет %s?"
+
+#: web/templates/pages/list_packages.php
+msgid "Duplicate"
+msgstr "Дублировать"
+
+#: web/templates/pages/list_packages.php web/templates/pages/list_user.php
+msgid "Packages"
+msgstr "Пакеты"
+
+#: web/templates/pages/list_rrd.php
+msgid "Advanced Details"
+msgstr "Дополнительные сведения"
+
+#: web/templates/pages/list_rrd.php
+msgid "Biennially"
+msgstr "Двухгодично"
+
+#: web/templates/pages/list_rrd.php
+msgid "Triennially"
+msgstr "Трехгодично"
+
+#: web/templates/pages/list_rrd.php
+msgid "Yearly"
+msgstr "Ежегодно"
+
+#: web/templates/pages/list_rspamd.php
+msgid "Open in new tab"
+msgstr "Открыть в новой вкладке"
+
+#: web/templates/pages/list_search.php
+#, php-format
+msgid "%d object"
+msgid_plural "%d objects"
+msgstr[0] "%d объект"
+msgstr[1] "%d объекта"
+msgstr[2] "%d объектов"
+msgstr[3] "%d объектов"
+
+#: web/templates/pages/list_search.php web/templates/pages/list_user.php
+msgid "Log in as"
+msgstr "Войти как"
+
+#: web/templates/pages/list_search.php
+msgid "Search Results"
+msgstr "Результаты поиска"
+
+#: web/templates/pages/list_server_info.php
+#: web/templates/pages/list_services.php
+msgid "CPU"
+msgstr "Процессор"
+
+#: web/templates/pages/list_server_info.php
+msgid "Hestia Control Panel"
+msgstr "Панель управления Hestia"
+
+#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
+msgid "Mail"
+msgstr "Почта"
+
+#: web/templates/pages/list_server_info.php
+msgid "RAM"
+msgstr "ОЗУ"
+
+#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
+msgid "Web"
+msgstr "Веб"
+
+#: web/templates/pages/list_server_preview.php
+msgid "Partially implemented"
+msgstr "Частично реализовано"
+
+#: web/templates/pages/list_server_preview.php
+msgid "Policy"
+msgstr "Ограничение"
+
+#: web/templates/pages/list_server_preview.php
+msgid "Preview Features"
+msgstr "Функции предпросмотра"
+
+#: web/templates/pages/list_services.php
+#, php-format
+msgid "Are you sure you want to restart the %s service?"
+msgstr "Вы уверены, что хотите перезапустить %s?"
+
+#: web/templates/pages/list_services.php
+msgid "Are you sure you want to restart the server?"
+msgstr "Вы уверены, что хотите перезагрузить сервер?"
+
+#: web/templates/pages/list_services.php
+#, php-format
+msgid "Are you sure you want to start the %s service?"
+msgstr "Вы уверены, что хотите запустить %s?"
+
+#: web/templates/pages/list_services.php
+#, php-format
+msgid "Are you sure you want to stop the %s service?"
+msgstr "Вы уверены, что хотите остановить %s?"
+
+#: web/templates/pages/list_services.php
+msgid "Description"
+msgstr "Описание"
+
+#: web/templates/pages/list_services.php
+msgid "Load Average"
+msgstr "Средняя загрузка"
+
+#: web/templates/pages/list_services.php
+msgid "MB"
+msgstr "МБ"
+
+#: web/templates/pages/list_services.php
+msgid "Memory"
+msgstr "Память"
+
+#: web/templates/pages/list_services.php
+msgid "Operating System"
+msgstr "Операционная система"
+
+#: web/templates/pages/list_services.php
+msgid "Production Release"
+msgstr "Версия продукта"
+
+#: web/templates/pages/list_services.php
+msgid "Service"
+msgstr "Служба"
+
+#: web/templates/pages/list_services.php
+msgid "Services"
+msgstr "Службы"
+
+#: web/templates/pages/list_services.php
+msgid "Start"
+msgstr "Запустить"
+
+#: web/templates/pages/list_services.php
+msgid "Stop"
+msgstr "Остановить"
+
+#: web/templates/pages/list_services.php
+msgid "Task Monitor"
+msgstr "Монитор задач"
+
+#: web/templates/pages/list_services.php
+msgid "Uptime"
+msgstr "Запущен"
+
+#: web/templates/pages/list_ssl.php
+msgid "SSL CSR"
+msgstr "SSL CSR запрос"
+
+#: web/templates/pages/list_stats.php
+#, php-format
+msgid "%d month"
+msgid_plural "%d months"
+msgstr[0] "%d месяц"
+msgstr[1] "%d месяца"
+msgstr[2] "%d месяцев"
+msgstr[3] "%d месяцев"
+
+#: web/templates/pages/list_stats.php web/templates/pages/list_user.php
+msgid "IPs"
+msgstr "IP адрес(а)"
+
+#: web/templates/pages/list_stats.php
+msgid "Overall Statistics"
+msgstr "Сводная статистика"
+
+#: web/templates/pages/list_stats.php
+msgid "SSL Domains"
+msgstr "SSL Домены"
+
+#: web/templates/pages/list_stats.php
+msgid "Show Per User"
+msgstr "Показать относительно каждого пользователя"
+
+#: web/templates/pages/list_user.php
+#, php-format
+msgid "%d user account"
+msgid_plural "%d user accounts"
+msgstr[0] "%d учётная запись пользователя"
+msgstr[1] "%d учётные записи пользователя"
+msgstr[2] "%d учётных записей пользователя"
+msgstr[3] "%d учётных записей пользователя"
+
+#: web/templates/pages/list_user.php
+#, php-format
+msgid "Are you sure you want to delete user %s?"
+msgstr "Вы уверены, что хотите удалить пользователя %s?"
+
+#: web/templates/pages/list_user.php
+#, php-format
+msgid "Are you sure you want to suspend user %s?"
+msgstr "Вы уверены, что хотите приостановить действие пользователя %s?"
+
+#: web/templates/pages/list_user.php
+#, php-format
+msgid "Are you sure you want to unsuspend user %s?"
+msgstr "Вы уверены, что хотите разблокировать пользователя %s?"
+
+#: web/templates/pages/list_user.php
+msgid "Rebuild Cron Jobs"
+msgstr "Пересоздать задания Cron"
+
+#: web/templates/pages/list_user.php
+msgid "Rebuild Databases"
+msgstr "Пересоздать базы данных"
+
+#: web/templates/pages/list_user.php
+msgid "Rebuild Mail Domains"
+msgstr "Пересоздать почтовые домены"
+
+#: web/templates/pages/list_user.php
+msgid "Rebuild User Profile"
+msgstr "Пересоздать профиль пользователя"
+
+#: web/templates/pages/list_user.php
+msgid "Rebuild Web Domains"
+msgstr "Пересоздать веб-домены"
+
+#: web/templates/pages/list_user.php
+msgid "Update Usage Counters"
+msgstr "Обновление счетчиков использования"
+
+#: web/templates/pages/list_web.php
+#, php-format
+msgid "%d web domain"
+msgid_plural "%d web domains"
+msgstr[0] "%d веб-домен"
+msgstr[1] "%d веб-домена"
+msgstr[2] "%d веб-доменов"
+msgstr[3] "%d веб-доменов"
+
+#: web/templates/pages/list_web.php
+msgid "Download Site"
+msgstr "Загрузить сайт"
+
+#: web/templates/pages/list_web.php
+msgid "Edit Domain"
+msgstr "Изменить домен"
+
+#: web/templates/pages/list_web.php
+msgid "Purge Nginx Cache"
+msgstr "Очистить кэш памяти NGINX"
+
+#: web/templates/pages/list_web.php
+msgid "Rebuild"
+msgstr "Пересоздать"
+
+#: web/templates/pages/list_web.php web/templates/pages/list_weblog.php
+msgid "View Logs"
+msgstr "Просмотреть логи"
+
+#: web/templates/pages/list_web.php
+msgid "Visit"
+msgstr "Посещение"
+
+#: web/templates/pages/list_weblog.php
+msgid "Error Log"
+msgstr "Журнал ошибок"
+
+#: web/templates/pages/list_weblog.php
+#, php-format
+msgid "Last 70 lines of %s.%s.log"
+msgstr "Последние 70 строк файла %s.%s.log"
+
+#: web/templates/pages/login/login.php web/templates/pages/login/login_a.php
+msgid "Next"
+msgstr "Далее"
+
+#: web/templates/pages/login/login_1.php web/templates/pages/login/login_a.php
+#: web/templates/pages/login/reset_1.php web/templates/pages/login/reset_2.php
+#: web/templates/pages/login/reset_3.php
+msgid "Forgot Password"
+msgstr "Забыли пароль"
+
+#: web/templates/pages/login/login_1.php
+msgid "Welcome"
+msgstr "Добро пожаловать"
+
+#: web/templates/pages/login/login_2.php
+msgid "2FA Token"
+msgstr "Токен 2FA"
+
+#: web/templates/pages/login/login_2.php
+msgid "Forgot Token"
+msgstr "Забыл токен"
+
+#: web/templates/pages/login/login_2.php
+msgid "Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#: web/templates/pages/login/reset2fa.php
+msgid "2FA Reset Code"
+msgstr "Код сброса 2FA"
+
+#: web/templates/pages/login/reset2fa.php
+msgid "Account Unlocked"
+msgstr "Учётная запись разблокирована"
+
+#: web/templates/pages/login/reset2fa.php
+msgid "Log in"
+msgstr "Вход"
+
+#: web/templates/pages/login/reset2fa.php web/templates/pages/login/reset_1.php
+msgid "Submit"
+msgstr "Отправить"
+
+#: web/templates/pages/login/reset2fa.php
+msgid "Two-factor authentication is now turned off for your account.<br><br>You may now proceed to log in."
+msgstr "Двухфакторная аутентификация отключена для вашей учетной записи.<br><br>Теперь вы можете войти в систему."
+
+#: web/templates/pages/login/reset2fa.php
+msgid "Unlock Account"
+msgstr "Разблокировать аккаунт"
+
+#: web/templates/pages/login/reset_2.php
+msgid "Confirm"
+msgstr "Подтвердить"
+
+#: web/templates/pages/login/reset_2.php
+msgid "Password reset code has been sent to your email address"
+msgstr "Код сброса пароля был отправлен на Ваш адрес электронной почты"
+
+#: web/templates/pages/login/reset_2.php
+msgid "Reset Code"
+msgstr "Код сброса пароля"
+
+#: web/templates/pages/login/reset_3.php
+msgid "Confirm Password"
+msgstr "Подтверждение пароля"
+
+#: web/templates/pages/login/reset_3.php
+msgid "New Password"
+msgstr "Новый пароль"
+
+#: web/templates/pages/login/reset_3.php
+msgid "Reset"
+msgstr "Сбросить"

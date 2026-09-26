@@ -1,10 +1,11 @@
 #!/bin/bash
 # info: list php config parameters
-# options: [FORMAT]
+# options: [FORMAT] [VERSION]
 #
-# example: h-list-sys-php-config
+# example: h-list-sys-php-config json 8.3
 #
-# This function for obtaining the list of php config parameters.
+# This function for obtaining the list of php config parameters of one fpm version, the system default
+# when VERSION is left out.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -12,6 +13,7 @@
 
 # Argument definition
 format=${1-shell}
+version=$2
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -25,7 +27,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 json_list() {
 	parse_object_kv_list "$(echo "$config" | egrep "$keys" \
 		| sed -e "s/[ ]*=/=/" -e "s/=[ ]*/=\'/" -e "s/$/'/")"
-	json_escape memory_limit max_execution_time max_input_time upload_max_filesize post_max_size display_errors error_reporting config_path
+	json_escape memory_limit max_execution_time max_input_time upload_max_filesize post_max_size display_errors error_reporting config_path version
 	echo '{'
 	echo '    "CONFIG": {'
 	printf '        "memory_limit": "%s",\n' "$memory_limit"
@@ -35,7 +37,8 @@ json_list() {
 	printf '        "post_max_size": "%s",\n' "$post_max_size"
 	printf '        "display_errors": "%s",\n' "$display_errors"
 	printf '        "error_reporting": "%s",\n' "$error_reporting"
-	printf '        "config_path": "%s"\n' "$config_path"
+	printf '        "config_path": "%s",\n' "$config_path"
+	printf '        "version": "%s"\n' "$version"
 	echo '        }'
 	echo '}'
 }
@@ -44,29 +47,22 @@ json_list() {
 shell_list() {
 	echo "$config" | egrep "$keys" | tr -d '='
 	echo "config_path $config_path"
+	echo "version $version"
 }
 
 # PLAIN list function
 plain_list() {
 	echo "$config" | egrep "$keys" | tr -d '='
 	echo "config_path $config_path"
+	echo "version $version"
 }
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Defining config path
-config_path=$(find /etc/php* -name php.ini)
-config_count=$(echo "$config_path" | wc -l)
-if [ "$config_count" -gt 1 ]; then
-	multiphp_versions=$(ls -d /etc/php/*/fpm/pool.d 2> /dev/null | wc -l)
-	if [ "$WEB_BACKEND" = 'php-fpm' ] || [ "$multiphp_versions" -gt 0 ]; then
-		config_path=$(echo "$config_path" | grep fpm)
-	else
-		config_path=$(echo "$config_path" | grep apache)
-	fi
-fi
+config_path=$(php_ini_path "$version") || check_result "$E_NOTEXIST" "php ${version:-default} has no fpm php.ini"
+version=$(php_ini_version "$config_path")
 
 # Defining keys
 keys="memory_limit |max_execution_time |max_input_time"

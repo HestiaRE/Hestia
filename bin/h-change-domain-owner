@@ -21,6 +21,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -229,13 +231,7 @@ if [ -n "$mail_data" ]; then
 		ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
 		ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
 
-		# Set correct permissions on certificates
-		chmod 750 $HOMEDIR/$user/conf/mail/$domain/ssl
-		chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/ssl
-		chmod 0644 $HOMEDIR/$user/conf/mail/$domain/ssl/*
-		chown -h $user:mail $HOMEDIR/$user/conf/mail/$domain/ssl/*
-		chmod -R 0644 $MAIL_SNI_DIR/*
-		chown -h $user:mail $MAIL_SNI_DIR/*
+		mail_ssl_modes "$user" "$domain"
 	fi
 
 	# Move data

@@ -82,14 +82,15 @@ and that is what `key_empty` is for.
 
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
-`pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`. Actions:
+`pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
+`file_mode_wider`, `language_unlisted`, `locale_missing`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
 Fields per type: `name` and `value` for the key types, `name` for a command, package, service or a
 PHP extension, `source` (tree-relative) and `target` for `file_patch_pending`, `path` for
-`path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`
-and `file_lacks`, `name` (a key under `software_versions` in `share/manifest.json`) and `path` (the
+`path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`,
+`file_lacks` and `file_mode_wider`, `name` (a key under `software_versions` in `share/manifest.json`) and `path` (the
 marker file the component wrote) for `pin_differs`, `source` (tree-relative) and `target` for
 `file_differs` and `file_copy` (`mode` optional), `function` for `function_call` (only names in
 `UPDATE_CALLABLE`).
@@ -124,6 +125,11 @@ The condition is deliberately **three-way**, and that is the whole point:
 A two-way condition would report the third case as "nothing to do" and the change would silently
 never arrive. `-F0` throughout: a hunk that only roughly matches is drift, not a hit.
 
+**Gate it when the file is not always ours.** On a box without mail the exim template is Debian's stock
+file, and the patch condition reads it as edited. So a key condition goes in front (`key_is` `MAIL_SYSTEM`
+`exim4`): the check stops at the first false condition, as the plan does, and never reaches the patch.
+The price is that a condition behind a false gate is only checked on the boxes where the gate holds.
+
 **Not every shipped file needs this.** A file under `/etc` that the panel does not expose and no
 addon rewrites can still be a plain `file_copy`; the patch form is for the ones somebody else owns
 a say in. Decide per file, and say which it is in the entry's `description`.
@@ -135,6 +141,9 @@ The four late conditions exist because a state outside the tree cannot be compar
 `file_differs` needs a tree source, so a file the box *generates* is out of its reach:
 `file_contains` looks for what the older version wrote instead, and goes false once it is rewritten.
 `file_lacks` is its complement, for the entry that has to ADD the marker rather than replace one.
+`file_contains` also takes a pattern, as `file_mode_wider` does, for a file that sits once per PHP version; one
+match carrying the marker is enough. `file_lacks` stays literal: "one of them lacks it" is a different
+question from "it is missing", and no entry has needed it yet.
 `pin_differs` reads the pin from the manifest rather than carrying a version of its own. `dir_clear`
 empties a directory and leaves it standing, because its owner and mode are part of what it is.
 `php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a
@@ -142,6 +151,17 @@ second list here; its `name` takes a comma list, because an action that repairs 
 asked about that set. `dir_has_secret_value` asks whether a file in the directory still holds a
 registry-secret with a real value: a condition on the directory merely being full describes a normal
 steady state and would put its entry in every future plan.
+`file_mode_wider` takes a `path` that is a pattern (`/home/*/conf/mail/*/ssl/*`) and a `value` that is
+an octal mode, and is true while one matching file carries a bit outside it: for files that sit one
+per account or domain, where no single path could be named. A pattern that matches nothing is false.
+`language_unlisted` takes no field and is true while an account or the box default names a language
+that `web/locale/languages.json` does not list. It reads the list and not the catalog directories: the
+overlay has already replaced the list when the plan is derived, while a dropped catalog is still on
+disk until its own entry deletes it.
+`locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
+there says nothing about whether the locale was generated.
+Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin
+(the installer's answer or `h-change-sys-locale`), and no entry ever changes it (#1164).
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

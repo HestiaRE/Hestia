@@ -152,10 +152,18 @@ tmpdir=$(mktemp -p $BACKUP_TEMP -d) || {
 # behind, pam material included. ONE trap owner - later stages add work via flags, never via a
 # second `trap ... EXIT` (replaces silently, and only in its own branch).
 quota_cap_lifted=''
+counters_recount=''
 restore_cleanup() {
 	rm -rf "$tmpdir"
 	# an aborted restore must not leave the customer unlimited
 	[ "$quota_cap_lifted" = 'yes' ] && "$BIN/h-update-user-quota" "$user" > /dev/null 2>&1
+	# Also after an abort: the account and domains exist from the first write on, and a later h-delete-user
+	# subtracts what was never counted (#1137).
+	if [ "$counters_recount" = 'yes' ]; then
+		[ -e "$USER_DATA/user.conf" ] && "$BIN/h-update-user-counters" "$user" > /dev/null 2>&1
+		"$BIN/h-update-user-counters" "$ROOT_USER" > /dev/null 2>&1
+		"$BIN/h-update-sys-ip-counters" > /dev/null 2>&1
+	fi
 }
 trap restore_cleanup EXIT
 
@@ -343,6 +351,7 @@ if [ -n "$restore_refused" ]; then
 	restore_suggest=$(tr ' ' ',' <<< "${restore_refused# }")
 	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version."
 fi
+counters_recount='yes'
 
 # Restoring user account
 if [ "$create_user" = 'yes' ]; then
@@ -370,6 +379,16 @@ if [ "$create_user" = 'yes' ]; then
 	# Filtered, not copied: the archive is hostile input (#807).
 	copy_record_filtered "$tmpdir/$BACKUP_CONTAINER/user.conf" "$USER_DATA/user.conf" user \
 		|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"
+	# A language this panel does not offer (one dropped in #1160, or any of HestiaCP's) becomes en.
+	# rc 2, an unusable list, leaves the value alone rather than resetting every restored account.
+	_lang=$(grep -m1 "^LANGUAGE=" "$USER_DATA/user.conf" | cut -d "'" -f 2)
+	if [ -n "$_lang" ]; then
+		language_offered "$_lang"
+		if [ $? -eq 1 ]; then
+			update_user_value "$user" '$LANGUAGE' 'en'
+			echo "Note: the archived language '$_lang' is not offered here, $user uses en" | tee -a $tmpdir/restore.log
+		fi
+	fi
 	cp -r $tmpdir/$BACKUP_CONTAINER/ssl $USER_DATA/ > /dev/null 2>&1
 
 	# Everything else the container holds. Skipped: BACKUP_USER_DATA_CORE and BACKUP_CONTAINER_META
@@ -979,13 +998,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
 			ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
 
-			# Set correct permissions on certificates
-			chmod 750 $HOMEDIR/$user/conf/mail/$domain/ssl
-			chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/ssl
-			chmod 0644 $HOMEDIR/$user/conf/mail/$domain/ssl/*
-			chown -h $user:mail $HOMEDIR/$user/conf/mail/$domain/ssl/*
-			chmod -R 0644 $MAIL_SNI_DIR/*
-			chown -h $user:mail $MAIL_SNI_DIR/*
+			mail_ssl_modes "$user" "$domain"
 		fi
 
 		# Restoring email accounts
@@ -1103,6 +1116,15 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		databases=$(echo "$backup_databases" | grep -E -x -f $tmpdir/selected.txt)
 	fi
 
+	# Shared users (#725): a slot whose user is not here yet waits for the database holding the password, and
+	# the databases of this run do not count as keeping a user's live password.
+	REBUILD_DB_DEFER='yes'
+	REBUILD_DB_DEFERRED=''
+	REBUILD_DB_RUN_SET=''
+	while IFS= read -r database; do
+		[ -n "$database" ] && REBUILD_DB_RUN_SET="$REBUILD_DB_RUN_SET ${user}_${database#"${old_user}_"}"
+	done <<< "$databases"
+
 	# Restoring database - same reasoning as the web loop.
 	while IFS= read -r -u 3 database; do
 		[ -n "$database" ] || continue
@@ -1164,7 +1186,8 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			fi
 			restore_parse_record prev_db_keys "$archived_record"
 
-			if [ -z "$MD5" ]; then
+			# mysql judges this in the rebuild: a slot on a shared user has no hash of its own by design (#725).
+			if [ -z "$MD5" ] && [ "$TYPE" != 'mysql' ]; then
 				echo "Warning!: Database ${DB} backup does not contain a password for user ${DBUSER}."
 				echo "- Please use the web interface to set a password after the restore process finishes."
 			fi
@@ -1172,7 +1195,25 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			# The same name the existence check used, not a second derivation of it.
 			DB="$target_db"
 			DBUSER="${user}_${DBUSER#"${old_user}_"}"
+			# Another customer's user: the rebuild would hand it this archive's password and grants.
+			if db_user_foreign "$DBUSER" "$user"; then
+				echo "Warning!: $target_db skipped - its user $DBUSER belongs to another customer" | tee -a $tmpdir/restore.log
+				restore_failures="$restore_failures$(printf '\n  database %s (its user %s belongs to another customer)' "$target_db" "$DBUSER")"
+				continue
+			fi
 			str="$archived_record"
+			# The second slot comes back without a user that is not this customer's; the database itself still does.
+			if [ -n "${DBUSER_SECOND:-}" ]; then
+				DBUSER_SECOND="${user}_${DBUSER_SECOND#"${old_user}_"}"
+				if db_user_foreign "$DBUSER_SECOND" "$user"; then
+					echo "Warning!: $target_db comes back without its second user $DBUSER_SECOND - it belongs to another customer" | tee -a $tmpdir/restore.log
+					restore_failures="$restore_failures$(printf '\n  database %s (its second user %s belongs to another customer, left out)' "$target_db" "$DBUSER_SECOND")"
+					DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
+				fi
+				record_set_field str DBUSER_SECOND "$DBUSER_SECOND"
+				record_set_field str MD5_SECOND "$MD5_SECOND"
+				record_set_field str DBUSER_SECOND_RO "$DBUSER_SECOND_RO"
+			fi
 			# DB and DBUSER carry the old user prefix into the new one.
 			record_set_field str DB "$DB"
 			record_set_field str DBUSER "$DBUSER"
@@ -1248,6 +1289,22 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			fi
 		fi
 	done 3< <(printf '%s\n' "$databases")
+
+	# The waiting slots, now that every database of the run has created what it holds.
+	REBUILD_DB_DEFER=''
+	for deferred in $REBUILD_DB_DEFERRED; do
+		target_db="${deferred%:*}"
+		restore_forget_record prev_db_keys
+		restore_parse_record prev_db_keys "$(grep -F "DB='$target_db'" $USER_DATA/db.conf)"
+		REBUILD_DB_UNUSABLE=''
+		rebuild_mysql_database_user "${deferred##*:}"
+		slot_user="$DBUSER"
+		[ "${deferred##*:}" != 2 ] || slot_user="$DBUSER_SECOND"
+		if [ -n "$REBUILD_DB_UNUSABLE" ]; then
+			restore_failures="$restore_failures$(printf '\n  database %s (its user %s came with no password, neither in this backup nor on this host)' "$target_db" "$slot_user")"
+		fi
+	done
+	REBUILD_DB_RUN_SET=''
 fi
 
 # Restoring cron jobs
@@ -1458,11 +1515,6 @@ if ! grep -qF "BACKUP='$backup'" "$USER_DATA/backup.conf" 2> /dev/null; then
 		echo "Warning: $backup could not be adopted - it stays unlisted and, in $BACKUP/$user, rotatable"
 	fi
 fi
-
-# Update user counters
-$BIN/h-update-user-counters "$user"
-$BIN/h-update-user-counters "$ROOT_USER"
-$BIN/h-update-sys-ip-counters
 
 # Logging
 # A restore is the one path that creates domains without the add commands (rebuild-based),

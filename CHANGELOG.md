@@ -123,6 +123,11 @@ opens above it.
   and the two package forms still wrote their tempfile by hand, and PHP 8 answered the failed `tempnam()`
   with an uncaught error: HTTP 500, nothing saved, nothing said. They now use the same helpers as the rest of
   the panel, which report the error and remove the file even when the request ends early.
+- **Renaming a package in the panel left its customers on a package that no longer existed** (#1158).
+  `h-rename-user-package` called `h-get-user-value` without `$BIN`, and sudo's path does not carry it, so no
+  customer was moved. "Acknowledge all" notifications did nothing and a first ssh key file ended up owned by
+  root for the same reason. A root shell has the path, which is why it held there. Edit package also stops
+  now when the package file was refused, instead of renaming it anyway.
 
 ## v0.22 (2026-09-24)
 

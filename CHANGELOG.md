@@ -68,6 +68,10 @@ opens above it.
 
 ### Fixed
 
+- **The panel showed English on Debian 13 and both Ubuntu releases, whatever the language** (#1157). Only
+  Debian 12 translated: glibc 2.39 and later ignore `LANGUAGE` under `C.UTF-8`, and `en_US.UTF-8`, which the
+  panel asks for first, existed on no box. The installer and an update now generate it (on Ubuntu together
+  with the `locales` package); the system default locale stays as it is. Notification mails translate as well.
 - **A customer could take over another customer's database user** (#725). Database users are server-wide, and
   the customer prefix does not keep names apart: customer `a` with user `b_x` and customer `a_b` with user `x`
   are both `a_b_x`. The second one's GRANT reset the password of the first one's user, which lost its access

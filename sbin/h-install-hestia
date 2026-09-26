@@ -301,6 +301,8 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 		caddy \
 		libphp-phpmailer \
 		$panel_php_pkgs
+	# Not fatal: without it the panel works, only in English, and the smoke says so.
+	panel_locale_apply || echo "[ ! ] en_US.UTF-8 could not be generated, the panel shows English only (#1157)" >&2
 	echo "[ * ] Configuring panel PHP-FPM..."
 	mkdir -p /etc/php/hestia/fpm/pool.d /etc/php/hestia/cli
 	cp -f "$HESTIA/share/panel-php/php-fpm.conf" /etc/php/hestia/fpm/

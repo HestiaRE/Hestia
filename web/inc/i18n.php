@@ -4,6 +4,7 @@
 // I18N support information here
 
 putenv("LANGUAGE=" . detect_user_language());
+// Not C first: glibc 2.39+ ignores LANGUAGE under C.UTF-8 (#1157), panel_locale_apply generates en_US.UTF-8.
 setlocale(LC_ALL, "en_US.UTF-8", "C.UTF-8", "C");
 
 // Also named in .gitea/tools/i18n.sh and the smoke's check_panel_languages.

@@ -83,7 +83,7 @@ and that is what `key_empty` is for.
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
-`file_mode_wider`, `language_unlisted`. Actions:
+`file_mode_wider`, `language_unlisted`, `locale_missing`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
@@ -158,6 +158,8 @@ per account or domain, where no single path could be named. A pattern that match
 that `web/locale/languages.json` does not list. It reads the list and not the catalog directories: the
 overlay has already replaced the list when the plan is derived, while a dropped catalog is still on
 disk until its own entry deletes it.
+`locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
+there says nothing about whether the locale was generated.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

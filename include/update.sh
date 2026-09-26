@@ -99,6 +99,15 @@ upd_cond_language_unlisted() {
 	[ -n "$out" ]
 }
 
+# locale_missing NAME, answered by locale -a: a line in /etc/locale.gen says nothing about the archive.
+upd_cond_locale_missing() {
+	[ -n "$1" ] || {
+		echo "update: locale_missing needs a name" >&2
+		return 2
+	}
+	! locale_present "$1"
+}
+
 # command_exists NAME
 upd_cond_command_exists() {
 	[ -n "$1" ] || {
@@ -312,7 +321,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	php_db_drivers_apply tachyon_pin_apply sieve_lmtp_apply exim_lmtp_apply cron_update_check_apply
 	cron_locale_apply system_repair_cron_write sieve_redirect_apply sieve_vacation_apply fail2ban_panel_action_apply
 	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply
-	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply language_fallback_apply)
+	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply language_fallback_apply
+	panel_locale_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -422,7 +432,7 @@ upd_condition() {
 		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending | file_mode_wider)
 			"upd_cond_$t" "$@"
 			;;
-		language_unlisted)
+		language_unlisted | locale_missing)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -613,7 +623,7 @@ UPD_ARGS_JQ='
 def argv(t):
   if t=="key_empty" or t=="command_exists" or t=="package_installed" or t=="key_clear"
      or t=="package_install" or t=="package_remove" or t=="service_restart"
-     or t=="php_ext_missing" then [.name // ""]
+     or t=="php_ext_missing" or t=="locale_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
   elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"

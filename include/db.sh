@@ -386,9 +386,12 @@ add_mysql_database() {
 	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 
-	# Checked before the database exists: the record alone does not prove the server still has the user.
-	if [ -n "${reuse:-}" ] && [ "$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$dbuser'" | tail -n1)" = '0' ]; then
-		check_result "$E_NOTEXIST" "database user $dbuser does not exist on $host"
+	# Checked before the database exists. A reused user must be there; a new one must not, or the GRANT below
+	# would take it over with this password, another customer's included.
+	if [ -n "${reuse:-}" ]; then
+		mysql_user_exists "$dbuser" || check_result "$E_NOTEXIST" "database user $dbuser does not exist on $host"
+	elif mysql_user_exists "$dbuser"; then
+		check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 	fi
 
 	query="CREATE DATABASE \`$database\` CHARACTER SET $charset"
@@ -671,6 +674,27 @@ db_user_hash_elsewhere() {
 		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then return 0; fi
 	done < "$USER_DATA/db.conf"
 	return 1
+}
+
+# db_user_foreign DBUSER USER: does another customer's record hold DBUSER in a slot? Database users are server-wide,
+# and the customer prefix does not keep names apart: customer a with b_x and customer a_b with x are both a_b_x.
+db_user_foreign() {
+	local conf line
+	for conf in "$CONF_DIR"/users/*/db.conf; do
+		[ -e "$conf" ] || continue
+		[ "$conf" != "$CONF_DIR/users/$2/db.conf" ] || continue
+		while IFS= read -r line || [ -n "$line" ]; do
+			if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER2)" = "$1" ]; then
+				return 0
+			fi
+		done < "$conf"
+	done
+	return 1
+}
+
+# mysql_user_exists DBUSER: the server's own answer, which also knows users no record names any more.
+mysql_user_exists() {
+	[ "$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$1'" | tail -n1)" != '0' ]
 }
 
 db_record_matches() {

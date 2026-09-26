@@ -1185,6 +1185,12 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			# The same name the existence check used, not a second derivation of it.
 			DB="$target_db"
 			DBUSER="${user}_${DBUSER#"${old_user}_"}"
+			# Another customer's user: the rebuild would hand it this archive's password and grants.
+			if db_user_foreign "$DBUSER" "$user"; then
+				echo "Warning!: $target_db skipped - its user $DBUSER belongs to another customer" | tee -a $tmpdir/restore.log
+				restore_failures="$restore_failures$(printf '\n  database %s (its user %s belongs to another customer)' "$target_db" "$DBUSER")"
+				continue
+			fi
 			str="$archived_record"
 			# DB and DBUSER carry the old user prefix into the new one.
 			record_set_field str DB "$DB"

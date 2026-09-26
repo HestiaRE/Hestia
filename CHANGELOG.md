@@ -45,6 +45,11 @@ opens above it.
 
 ### Fixed
 
+- **A customer could take over another customer's database user** (#725). Database users are server-wide, and
+  the customer prefix does not keep names apart: customer `a` with user `b_x` and customer `a_b` with user `x`
+  are both `a_b_x`. The second one's GRANT reset the password of the first one's user, which lost its access
+  while the second customer got into its database. Creating, renaming, moving and restoring a database now
+  refuse a user name another customer or the server already has.
 - **A database restored without a password hash got a user without a password** (#725). The warning said
   nothing could connect, but any local process could log in as that user, another customer's PHP included.
   Such a user now gets a random password nobody knows, and `h-add-database` and `h-change-database-password`

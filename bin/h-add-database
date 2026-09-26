@@ -71,6 +71,7 @@ if [ -z "$password" ]; then
 else
 	db_user_in_use "$dbuser" '*' '*'
 	[ $? -eq 1 ] || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	! db_user_foreign "$dbuser" "$user" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 fi
 get_next_dbhost
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"

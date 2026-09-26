@@ -63,6 +63,14 @@ case $? in
 		;;
 	2) check_result "$E_PARSING" "cannot read the databases of $user" ;;
 esac
+if [ -z "$reuse" ]; then
+	! db_user_foreign "$dbuser" "$user" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	# The rebuild creates the user IF NOT EXISTS, so a leftover one would be taken over as it is.
+	if [ "$TYPE" = 'mysql' ]; then
+		mysql_connect "$HOST"
+		! mysql_user_exists "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	fi
+fi
 # The old user's password lives in this record: whoever else uses it would be left with a user nobody can re-create.
 if [ "$TYPE" = 'mysql' ] && [ -n "$MD5" ]; then
 	db_user_in_use "$old_dbuser" mysql "$HOST" "$database"

@@ -81,6 +81,12 @@ new_dbuser=$(echo "$DBUSER" | sed "s/^${owner}_/${usersmall}_/")
 # no command could remove. Measured, and it took the source database with it.
 is_database_format_valid "$new_db" 'database'
 is_dbuser_format_valid "$new_dbuser" 'dbuser'
+# The renamed user must be free server-wide: the prefix swap alone can land on another customer's user.
+! db_user_foreign "$new_dbuser" "$owner" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"
+if [ "$TYPE" = 'mysql' ]; then
+	mysql_connect "$HOST"
+	! mysql_user_exists "$new_dbuser" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"
+fi
 check_db=$(grep -F "DB='$new_db'" $CONF_DIR/users/$user/db.conf)
 if [ -n "$check_db" ]; then
 	echo "Error: $new_db database exists"

@@ -929,7 +929,7 @@ msgid "Restart \"%s\" failed"
 msgstr "Herstart \"%s\" mislukt"
 
 #: web/schedule/backup/incremental/index.php
-msgid "Snapshot has been sheduled"
+msgid "Snapshot has been scheduled"
 msgstr "Snapshot is ingeplaned"
 
 #: web/schedule/backup/index.php
@@ -1881,7 +1881,7 @@ msgid "Only * is honoured here: all cron jobs, or none. Single jobs cannot be ex
 msgstr ""
 
 #: web/templates/pages/edit_backup_exclusions.php
-msgid "Type directory name, one per line. To exlude all dirs use *"
+msgid "Type directory name, one per line. To exclude all dirs use *"
 msgstr "Typ de map naam één per regel. Om alle mappen uit te sluiten, gebruik *"
 
 #: web/templates/pages/edit_backup_exclusions.php

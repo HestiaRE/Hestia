@@ -59,7 +59,9 @@ opens above it.
 - **German covers the whole panel** (#1160). The 166 strings the catalog lacked, among them the firewall, Fleet
   Mesh, WordPress, Docker and spam filter pages, are translated, and `.gitea/tools/i18n.sh check` now holds
   German complete. Sixteen English texts were shortened or corrected on the way; "Archives & Exports" no longer
-  shows a literal `&amp;`.
+  shows a literal `&amp;`. The existing German was reviewed as well: wrong meanings fixed (a CSRF policy read
+  "CSRF deaktiviert", a firewall rule was "excluded" instead of suspended), and one term each for Domain, Backup,
+  sperren, Passwort, Zugangsdaten and Cronjob.
 
 ### Removed
 

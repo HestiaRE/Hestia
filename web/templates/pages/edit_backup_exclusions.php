@@ -42,7 +42,7 @@
 			</div>
 			<div class="u-mb10">
 				<label for="v_userdir" class="form-label"><?= tohtml(_("User Directory")) ?></label>
-				<textarea class="form-control" name="v_userdir" id="v_userdir" placeholder="<?= tohtml(_("Type directory name, one per line. To exlude all dirs use *")) ?>"><?= tohtml(trim($v_userdir, "'")) ?></textarea>
+				<textarea class="form-control" name="v_userdir" id="v_userdir" placeholder="<?= tohtml(_("Type directory name, one per line. To exclude all dirs use *")) ?>"><?= tohtml(trim($v_userdir, "'")) ?></textarea>
 			</div>
 		</div>
 

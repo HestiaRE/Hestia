@@ -935,7 +935,7 @@ msgid "Restart \"%s\" failed"
 msgstr "Перезапуск \"%s\" не удался"
 
 #: web/schedule/backup/incremental/index.php
-msgid "Snapshot has been sheduled"
+msgid "Snapshot has been scheduled"
 msgstr "Снепшот запланирован"
 
 #: web/schedule/backup/index.php
@@ -1887,7 +1887,7 @@ msgid "Only * is honoured here: all cron jobs, or none. Single jobs cannot be ex
 msgstr ""
 
 #: web/templates/pages/edit_backup_exclusions.php
-msgid "Type directory name, one per line. To exlude all dirs use *"
+msgid "Type directory name, one per line. To exclude all dirs use *"
 msgstr "Введите имя каталога (по одному в строке). Чтобы исключить все каталоги, используйте *"
 
 #: web/templates/pages/edit_backup_exclusions.php

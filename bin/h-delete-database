@@ -52,9 +52,9 @@ if [ "$TYPE" = 'mysql' ]; then
 		db_user_in_use "$DBUSER" mysql "$HOST" "$database" "${DB_DELETE_SET:-}"
 		[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database; give that one its own user first"
 	fi
-	if [ -n "$DBUSER2" ] && [ -n "$MD5_2" ]; then
-		db_user_in_use "$DBUSER2" mysql "$HOST" "$database" "${DB_DELETE_SET:-}"
-		[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER2 is used by another database; give that one its own user first"
+	if [ -n "$DBUSER_SECOND" ] && [ -n "$MD5_SECOND" ]; then
+		db_user_in_use "$DBUSER_SECOND" mysql "$HOST" "$database" "${DB_DELETE_SET:-}"
+		[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER_SECOND is used by another database; give that one its own user first"
 	fi
 fi
 

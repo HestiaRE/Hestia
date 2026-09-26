@@ -1193,16 +1193,16 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			fi
 			str="$archived_record"
 			# The second slot comes back without a user that is not this customer's; the database itself still does.
-			if [ -n "${DBUSER2:-}" ]; then
-				DBUSER2="${user}_${DBUSER2#"${old_user}_"}"
-				if db_user_foreign "$DBUSER2" "$user"; then
-					echo "Warning!: $target_db comes back without its second user $DBUSER2 - it belongs to another customer" | tee -a $tmpdir/restore.log
-					restore_failures="$restore_failures$(printf '\n  database %s (its second user %s belongs to another customer, left out)' "$target_db" "$DBUSER2")"
-					DBUSER2='' MD5_2='' DBUSER2_RO=''
+			if [ -n "${DBUSER_SECOND:-}" ]; then
+				DBUSER_SECOND="${user}_${DBUSER_SECOND#"${old_user}_"}"
+				if db_user_foreign "$DBUSER_SECOND" "$user"; then
+					echo "Warning!: $target_db comes back without its second user $DBUSER_SECOND - it belongs to another customer" | tee -a $tmpdir/restore.log
+					restore_failures="$restore_failures$(printf '\n  database %s (its second user %s belongs to another customer, left out)' "$target_db" "$DBUSER_SECOND")"
+					DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
 				fi
-				record_set_field str DBUSER2 "$DBUSER2"
-				record_set_field str MD5_2 "$MD5_2"
-				record_set_field str DBUSER2_RO "$DBUSER2_RO"
+				record_set_field str DBUSER_SECOND "$DBUSER_SECOND"
+				record_set_field str MD5_SECOND "$MD5_SECOND"
+				record_set_field str DBUSER_SECOND_RO "$DBUSER_SECOND_RO"
 			fi
 			# DB and DBUSER carry the old user prefix into the new one.
 			record_set_field str DB "$DB"
@@ -1289,7 +1289,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		REBUILD_DB_UNUSABLE=''
 		rebuild_mysql_database_user "${deferred##*:}"
 		slot_user="$DBUSER"
-		[ "${deferred##*:}" != 2 ] || slot_user="$DBUSER2"
+		[ "${deferred##*:}" != 2 ] || slot_user="$DBUSER_SECOND"
 		if [ -n "$REBUILD_DB_UNUSABLE" ]; then
 			restore_failures="$restore_failures$(printf '\n  database %s (its user %s came with no password, neither in this backup nor on this host)' "$target_db" "$slot_user")"
 		fi

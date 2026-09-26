@@ -543,7 +543,7 @@ is_dbhost_new() {
 # Get database values
 get_database_values() {
 	# A record from before #725 has no slot-2 keys, so a loop over databases would carry the last one's over.
-	DBUSER2='' MD5_2='' DBUSER2_RO=''
+	DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
 	parse_object_kv_list "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
 }
 
@@ -632,7 +632,7 @@ db_user_in_use() {
 		fi
 		[[ "$ignore" == *" $db "* ]] && continue
 		db_record_matches "$line" "$type" "$host" || continue
-		if [ "$(db_record_field "$line" DBUSER)" = "$u" ] || [ "$(db_record_field "$line" DBUSER2)" = "$u" ]; then
+		if [ "$(db_record_field "$line" DBUSER)" = "$u" ] || [ "$(db_record_field "$line" DBUSER_SECOND)" = "$u" ]; then
 			found=yes
 		fi
 	done < "$USER_DATA/db.conf"
@@ -650,7 +650,7 @@ db_user_hash_elsewhere() {
 		[ "$db" != "$4" ] && [[ "$ignore" != *" $db "* ]] || continue
 		db_record_matches "$line" "$2" "$3" || continue
 		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] && [ -n "$(db_record_field "$line" MD5)" ]; then return 0; fi
-		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then return 0; fi
+		if [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_SECOND)" ]; then return 0; fi
 	done < "$USER_DATA/db.conf"
 	return 1
 }
@@ -663,7 +663,7 @@ db_user_foreign() {
 		[ -e "$conf" ] || continue
 		[ "$conf" != "$CONF_DIR/users/$2/db.conf" ] || continue
 		while IFS= read -r line || [ -n "$line" ]; do
-			if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER2)" = "$1" ]; then
+			if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ]; then
 				return 0
 			fi
 		done < "$conf"
@@ -687,7 +687,7 @@ db_user_host() {
 	[ -n "$1" ] && [ -r "$USER_DATA/db.conf" ] || return 1
 	while IFS= read -r line || [ -n "$line" ]; do
 		db_record_matches "$line" "$2" '*' || continue
-		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER2)" = "$1" ]; then
+		if [ "$(db_record_field "$line" DBUSER)" = "$1" ] || [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ]; then
 			db_record_field "$line" HOST
 			return 0
 		fi
@@ -695,7 +695,7 @@ db_user_host() {
 	return 1
 }
 
-# db_user_canonical DBUSER TYPE HOST: "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_2). rc 1 none,
+# db_user_canonical DBUSER TYPE HOST: "DB KEY" of the slot carrying DBUSER's hash (KEY is MD5 or MD5_SECOND). rc 1 none,
 # rc 2 more than one: two records claiming one password is a state no command may build on.
 db_user_canonical() {
 	local line hit=''
@@ -706,9 +706,9 @@ db_user_canonical() {
 			[ -z "$hit" ] || return 2
 			hit="$(db_record_field "$line" DB) MD5"
 		fi
-		if [ "$(db_record_field "$line" DBUSER2)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_2)" ]; then
+		if [ "$(db_record_field "$line" DBUSER_SECOND)" = "$1" ] && [ -n "$(db_record_field "$line" MD5_SECOND)" ]; then
 			[ -z "$hit" ] || return 2
-			hit="$(db_record_field "$line" DB) MD5_2"
+			hit="$(db_record_field "$line" DB) MD5_SECOND"
 		fi
 	done < "$USER_DATA/db.conf"
 	[ -n "$hit" ] || return 1
@@ -806,9 +806,9 @@ delete_mysql_database() {
 		query="DROP USER '$DBUSER'@'localhost'"
 		mysql_query "$query" > /dev/null
 	fi
-	if [ -n "${DBUSER2:-}" ]; then
-		mysql_revoke_slot "$DBUSER2" "$database"
-		mysql_drop_user_if_free "$DBUSER2" "$database"
+	if [ -n "${DBUSER_SECOND:-}" ]; then
+		mysql_revoke_slot "$DBUSER_SECOND" "$database"
+		mysql_drop_user_if_free "$DBUSER_SECOND" "$database"
 	fi
 	# Explicit, so a non-zero return means the guard refused and nothing else. Without it the status
 	# is whatever the last REVOKE happened to give, which no caller could have read as an answer.
@@ -882,7 +882,7 @@ is_dbhost_free() {
 suspend_mysql_database() {
 	mysql_connect $HOST
 	mysql_revoke_slot "$DBUSER" "$database"
-	[ -z "${DBUSER2:-}" ] || mysql_revoke_slot "$DBUSER2" "$database"
+	[ -z "${DBUSER_SECOND:-}" ] || mysql_revoke_slot "$DBUSER_SECOND" "$database"
 }
 
 # Suspend PostgreSQL database
@@ -896,9 +896,9 @@ suspend_pgsql_database() {
 unsuspend_mysql_database() {
 	mysql_connect $HOST
 	mysql_grant_slot "$DBUSER" "$database" '' || echo "Warning!: $DBUSER did not get its rights on $database back"
-	if [ -n "${DBUSER2:-}" ]; then
-		mysql_grant_slot "$DBUSER2" "$database" "${DBUSER2_RO:-}" \
-			|| echo "Warning!: $DBUSER2 did not get its rights on $database back"
+	if [ -n "${DBUSER_SECOND:-}" ]; then
+		mysql_grant_slot "$DBUSER_SECOND" "$database" "${DBUSER_SECOND_RO:-}" \
+			|| echo "Warning!: $DBUSER_SECOND did not get its rights on $database back"
 	fi
 }
 

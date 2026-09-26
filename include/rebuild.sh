@@ -888,7 +888,7 @@ rebuild_mysql_database_user() {
 		rebuild_mysql_slot "$1"
 	else
 		rebuild_mysql_slot 1
-		[ -z "${DBUSER2:-}" ] || rebuild_mysql_slot 2
+		[ -z "${DBUSER_SECOND:-}" ] || rebuild_mysql_slot 2
 	fi
 	mysql_query "FLUSH PRIVILEGES" > /dev/null
 }
@@ -896,10 +896,10 @@ rebuild_mysql_database_user() {
 rebuild_mysql_slot() {
 	local slot="$1" u="$DBUSER" hash="$MD5" key='MD5' ro='' existed shared_outside='' auth='' ident query query2=''
 	if [ "$slot" = 2 ]; then
-		u="$DBUSER2"
-		hash="${MD5_2:-}"
-		key='MD5_2'
-		ro="${DBUSER2_RO:-}"
+		u="$DBUSER_SECOND"
+		hash="${MD5_SECOND:-}"
+		key='MD5_SECOND'
+		ro="${DBUSER_SECOND_RO:-}"
 	fi
 	# Before the CREATE USERs: only "was this user already here" tells a kept credential from one
 	# that never arrived.

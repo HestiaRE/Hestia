@@ -2,8 +2,8 @@
 # info: set the second user of a database
 # options: USER DATABASE DBUSER [DBPASS] [RO]
 #
-# example: h-change-database-slot2 admin shop_db reader 'Pa55w0rd' yes
-# example: h-change-database-slot2 admin shop_db matt '' no
+# example: h-change-database-second-user admin shop_db reader 'Pa55w0rd' yes
+# example: h-change-database-second-user admin shop_db matt '' no
 #
 # This function gives a MySQL database a second user next to its main one. A DBUSER another database of the user
 # already has is reused with its password, so DBPASS stays empty then; a new one needs DBPASS. Naming the current
@@ -55,8 +55,8 @@ get_database_values
 [ "$dbuser" != "$DBUSER" ] || check_result "$E_INVALID" "$dbuser is already the main user of $database"
 
 # Held apart: update_object_value parses the record it writes back into these globals.
-old2="$DBUSER2"
-old_ro="$DBUSER2_RO"
+old2="$DBUSER_SECOND"
+old_ro="$DBUSER_SECOND_RO"
 case "$ro" in
 	yes) new_ro='yes' ;;
 	no) new_ro='' ;;
@@ -69,7 +69,7 @@ if [ "$dbuser" = "$old2" ]; then
 	if [ -n "$dbpass" ]; then
 		hash_at=$(db_user_canonical "$dbuser" mysql "$HOST")
 		case $? in
-			1) hash_at="$database MD5_2" ;;
+			1) hash_at="$database MD5_SECOND" ;;
 			2) check_result "$E_INVALID" "more than one database claims the password of $dbuser" ;;
 		esac
 	fi
@@ -90,7 +90,7 @@ else
 	esac
 	# The old second user's password lives in this record: whoever else uses it would be left with a user nobody
 	# can re-create.
-	if [ -n "$old2" ] && [ -n "$MD5_2" ]; then
+	if [ -n "$old2" ] && [ -n "$MD5_SECOND" ]; then
 		db_user_in_use "$old2" mysql "$HOST" "$database"
 		[ $? -eq 1 ] || check_result "$E_INUSE" "$old2 is used by another database; give that one its own user first"
 	fi
@@ -105,7 +105,7 @@ fi
 #----------------------------------------------------------#
 
 # Records from before #725 carry no slot-2 keys, and update_object_value only rewrites keys that are there.
-for key in DBUSER2 MD5_2 DBUSER2_RO; do
+for key in DBUSER_SECOND MD5_SECOND DBUSER_SECOND_RO; do
 	add_object_key 'db' 'DB' "$database" "$key" 'HOST'
 done
 
@@ -116,7 +116,7 @@ if [ "$dbuser" = "$old2" ]; then
 	fi
 	if [ "$new_ro" != "$old_ro" ]; then
 		mysql_grant_slot "$dbuser" "$database" "$new_ro" || check_result "$E_DB" "$dbuser did not get the rights asked for on $database"
-		update_object_value 'db' 'DB' "$database" '$DBUSER2_RO' "$new_ro"
+		update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND_RO' "$new_ro"
 	fi
 else
 	# The new user holds its rights before the old one loses them, so the slot is never without a working user.
@@ -132,9 +132,9 @@ else
 		fi
 		check_result "$E_DB" "$dbuser did not get the rights asked for on $database"
 	fi
-	update_object_value 'db' 'DB' "$database" '$DBUSER2' "$dbuser"
-	update_object_value 'db' 'DB' "$database" '$MD5_2' "$md5"
-	update_object_value 'db' 'DB' "$database" '$DBUSER2_RO' "$new_ro"
+	update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND' "$dbuser"
+	update_object_value 'db' 'DB' "$database" '$MD5_SECOND' "$md5"
+	update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND_RO' "$new_ro"
 	if [ -n "$old2" ]; then
 		mysql_revoke_slot "$old2" "$database"
 		mysql_drop_user_if_free "$old2"

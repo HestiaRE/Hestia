@@ -26,12 +26,12 @@ source_conf "$HESTIA/conf/hestia.conf"
 # JSON list function
 json_list() {
 	echo '{'
-	json_escape database DB DBUSER DBUSER2 DBUSER2_RO HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
+	json_escape database DB DBUSER DBUSER_SECOND DBUSER_SECOND_RO HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
 	printf '    "%s": {\n' "$database"
 	printf '        "DATABASE": "%s",\n' "$DB"
 	printf '        "DBUSER": "%s",\n' "$DBUSER"
-	printf '        "DBUSER2": "%s",\n' "$DBUSER2"
-	printf '        "DBUSER2_RO": "%s",\n' "$DBUSER2_RO"
+	printf '        "DBUSER_SECOND": "%s",\n' "$DBUSER_SECOND"
+	printf '        "DBUSER_SECOND_RO": "%s",\n' "$DBUSER_SECOND_RO"
 	printf '        "HOST": "%s",\n' "$HOST"
 	printf '        "TYPE": "%s",\n' "$TYPE"
 	printf '        "CHARSET": "%s",\n' "$CHARSET"
@@ -47,7 +47,7 @@ json_list() {
 shell_list() {
 	echo "DATABASE:       $DB"
 	echo "DB USER:        $DBUSER"
-	echo "DB USER 2:      $DBUSER2${DBUSER2_RO:+ (read-only)}"
+	echo "SECOND USER:    $DBUSER_SECOND${DBUSER_SECOND_RO:+ (read-only)}"
 	echo "HOST:           $HOST"
 	echo "TYPE:           $TYPE"
 	echo "CHARSET:        $CHARSET"

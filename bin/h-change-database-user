@@ -50,6 +50,7 @@ if [ "$old_dbuser" = "$dbuser" ]; then
 	exit
 fi
 get_database_values
+[ "$dbuser" != "$DBUSER_SECOND" ] || check_result "$E_INVALID" "$dbuser is already the second user of $database"
 
 # A name another database holds is reused (#725): same server, and its password stays the one it has.
 reuse=''

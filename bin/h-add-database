@@ -111,7 +111,7 @@ time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 # Adding db to db conf
-str="DB='$database' DBUSER='$dbuser' MD5='$md5' HOST='$host' TYPE='$type'"
+str="DB='$database' DBUSER='$dbuser' MD5='$md5' DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO='' HOST='$host' TYPE='$type'"
 str="$str CHARSET='$charset' U_DISK='0' SUSPENDED='no' TIME='$time'"
 str="$str DATE='$date'"
 echo "$str" >> $USER_DATA/db.conf

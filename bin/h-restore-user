@@ -1192,6 +1192,18 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 				continue
 			fi
 			str="$archived_record"
+			# The second slot comes back without a user that is not this customer's; the database itself still does.
+			if [ -n "${DBUSER_SECOND:-}" ]; then
+				DBUSER_SECOND="${user}_${DBUSER_SECOND#"${old_user}_"}"
+				if db_user_foreign "$DBUSER_SECOND" "$user"; then
+					echo "Warning!: $target_db comes back without its second user $DBUSER_SECOND - it belongs to another customer" | tee -a $tmpdir/restore.log
+					restore_failures="$restore_failures$(printf '\n  database %s (its second user %s belongs to another customer, left out)' "$target_db" "$DBUSER_SECOND")"
+					DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
+				fi
+				record_set_field str DBUSER_SECOND "$DBUSER_SECOND"
+				record_set_field str MD5_SECOND "$MD5_SECOND"
+				record_set_field str DBUSER_SECOND_RO "$DBUSER_SECOND_RO"
+			fi
 			# DB and DBUSER carry the old user prefix into the new one.
 			record_set_field str DB "$DB"
 			record_set_field str DBUSER "$DBUSER"
@@ -1270,13 +1282,16 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 
 	# The waiting slots, now that every database of the run has created what it holds.
 	REBUILD_DB_DEFER=''
-	for target_db in $REBUILD_DB_DEFERRED; do
+	for deferred in $REBUILD_DB_DEFERRED; do
+		target_db="${deferred%:*}"
 		restore_forget_record prev_db_keys
 		restore_parse_record prev_db_keys "$(grep -F "DB='$target_db'" $USER_DATA/db.conf)"
 		REBUILD_DB_UNUSABLE=''
-		rebuild_mysql_database_user
+		rebuild_mysql_database_user "${deferred##*:}"
+		slot_user="$DBUSER"
+		[ "${deferred##*:}" != 2 ] || slot_user="$DBUSER_SECOND"
 		if [ -n "$REBUILD_DB_UNUSABLE" ]; then
-			restore_failures="$restore_failures$(printf '\n  database %s (its user %s came with no password, neither in this backup nor on this host)' "$target_db" "$DBUSER")"
+			restore_failures="$restore_failures$(printf '\n  database %s (its user %s came with no password, neither in this backup nor on this host)' "$target_db" "$slot_user")"
 		fi
 	done
 	REBUILD_DB_RUN_SET=''

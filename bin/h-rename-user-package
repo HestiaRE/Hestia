@@ -61,12 +61,12 @@ if [ -e "$CONF_DIR/packages/$old_name.pkg" ]; then
 	# FIELD of every row - package names, counters, dates - and asked h-get-user-value about
 	# each. It only looked harmless because a lookup on a non-user answers with nothing.
 	for user in $($BIN/h-list-users list); do
-		OLD_PACKAGE=$(h-get-user-value "$user" 'PACKAGE')
+		OLD_PACKAGE=$($BIN/h-get-user-value "$user" 'PACKAGE')
 		if [ "$old_name" = "$OLD_PACKAGE" ]; then
 			if [ "$mode" == "yes" ]; then
 				echo "Successfully renamed package $old_name to $new_name."
 			fi
-			h-change-user-package "$user" "$new_name"
+			$BIN/h-change-user-package "$user" "$new_name"
 		fi
 	done
 	if [ "$mode" == "yes" ]; then

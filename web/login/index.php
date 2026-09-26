@@ -180,8 +180,8 @@ function authenticate_user($user, $password, $twofa = "")
 			// Send hash via tmp file
 			$v_hash = secret_tmpfile($hash);
 			if ($v_hash === false) {
-				// No file, no login attempt: the old fopen() on an unset path wrote the password
-				// hash into the filesystem root and handed the command an empty argument.
+				// No file, no login attempt: the old fopen() on an unset path threw under PHP 8, and
+				// the login died with a blank HTTP 500.
 				//
 				// Says "internal error", not "invalid password": the credentials may well be
 				// right, and blaming them sends the legitimate user into a password reset for a

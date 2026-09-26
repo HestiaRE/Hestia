@@ -34,10 +34,12 @@ if (!empty($_POST["user"]) && empty($_POST["code"])) {
 			if ($email !== "" && $email === ($data[$user]["CONTACT"] ?? "")) {
 				$rkey = substr(password_hash("", PASSWORD_DEFAULT), 8, 12);
 				$hash = password_hash($rkey, PASSWORD_DEFAULT);
-				$v_rkey = tempnam("/tmp", "vst");
-				$fp = fopen($v_rkey, "w");
-				fwrite($fp, $hash . "\n");
-				fclose($fp);
+				$v_rkey = secret_tmpfile($hash);
+				if ($v_rkey === false) {
+					// No tempfile, no key on record: the same dead end as a failed store below.
+					header("Location: /reset/");
+					exit();
+				}
 				exec(
 					HESTIA_CMD . "h-change-user-rkey " . $v_user . " " . $v_rkey . "",
 					$output,
@@ -180,16 +182,19 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 				// null = failed call or no expiry, both mean "do not honour" (cli_value)
 				$v_rkeyexp = cli_value("h-get-user-value " . $v_user . " RKEYEXP");
 				if ($v_rkeyexp !== null && $v_rkeyexp > time() - 900) {
-					$v_password = tempnam("/tmp", "vst");
-					$fp = fopen($v_password, "w");
-					fwrite($fp, $_POST["password"] . "\n");
-					fclose($fp);
-					exec(
-						HESTIA_CMD . "h-change-user-password " . $v_user . " " . $v_password,
-						$output,
-						$return_var,
-					);
-					unlink($v_password);
+					$v_password = secret_tmpfile($_POST["password"]);
+					if ($v_password === false) {
+						// Reported through $error below; this page never shows the session copy, a later one would.
+						unset($_SESSION["error_msg"]);
+						$return_var = 1;
+					} else {
+						exec(
+							HESTIA_CMD . "h-change-user-password " . $v_user . " " . $v_password,
+							$output,
+							$return_var,
+						);
+						unlink($v_password);
+					}
 					if ($return_var > 0) {
 						sleep(5);
 						$error = _("An internal error occurred");

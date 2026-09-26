@@ -44,7 +44,7 @@ AUTHKEY_FILE="$HOMEDIR/$user/.ssh/authorized_keys"
 
 # Check if file exits
 if [ ! -f "$AUTHKEY_FILE" ]; then
-	h-add-fs-file "$user" "${AUTHKEY_FILE}"
+	$BIN/h-add-fs-file "$user" "${AUTHKEY_FILE}"
 fi
 
 [ -z "$key" ] && check_result "$E_NOTEXIST" "Empty ssh public key"

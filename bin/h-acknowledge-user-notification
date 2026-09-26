@@ -40,7 +40,7 @@ is_object_valid 'user' 'USER' "$user"
 
 # Updating notification
 if [ "$id" = 'all' ]; then
-	for id in $(h-list-user-notifications "$user" plain | cut -f1); do
+	for id in $($BIN/h-list-user-notifications "$user" plain | cut -f1); do
 		update_object_value 'notifications' 'NID' "$id" '$ACK' 'yes' 2> /dev/null
 	done
 else

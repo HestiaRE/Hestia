@@ -24,6 +24,10 @@ opens above it.
   read-only (`SELECT, SHOW VIEW`) without a gap in SELECT, and changes its password;
   `h-delete-database-second-user` removes it. Suspend, unsuspend, rebuild, backup and restore carry the second
   user. A rebuild no longer hands a suspended database its rights back.
+- **The panel offers shared and second database users** (#725). Add and Edit Database suggest the MySQL users the
+  customer already has; picking one shares it and takes no password. Edit Database carries a second user with a
+  read-only box, and names the databases a user is shared with, since a new password applies there too. Renaming
+  a user now takes the password field along instead of dropping it.
 - **ionCube loader as an installer addon** (#1069), preselected on standard and compact, offered wherever the
   box runs customer PHP. The loader archive is pinned with a sha256 per architecture (x86-64 and aarch64) and
   comes through a mirror on v6-only boxes. Every customer PHP version gets it, a version added later too;
@@ -59,6 +63,8 @@ opens above it.
   nothing could connect, but any local process could log in as that user, another customer's PHP included.
   Such a user now gets a random password nobody knows, and `h-add-database` and `h-change-database-password`
   no longer accept an empty DBPASS as a password.
+- **Add Database said "Prefix %s will be added"** (#725). The hint encoded the placeholder before filling it in,
+  so the customer prefix never showed.
 - **On a PHP 8.5 panel, phpMyAdmin or Roundcube answered 500** (#1149). The Roundcube pool disables the new
   native `array_first()`/`array_last()` so Roundcube 1.6 can declare its own, but the OPcache is shared by the
   whole panel master, and code compiled in one pool called the wrong function in the other. Whichever app came

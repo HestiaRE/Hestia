@@ -8,6 +8,22 @@ $TAB = "DB";
 // Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
+// MySQL users the customer already has (#725): reusing one takes no password, the user keeps its own.
+$db_users = [];
+exec(HESTIA_CMD . "h-list-databases " . $user . " json", $output, $return_var);
+$all_dbs = $return_var === 0 ? json_decode(implode("", $output), true) : null;
+unset($output);
+foreach (is_array($all_dbs) ? $all_dbs : [] as $db) {
+	if ($db["TYPE"] !== "mysql") {
+		continue;
+	}
+	foreach (array_filter([$db["DBUSER"], $db["DBUSER_SECOND"] ?? ""]) as $slot_user) {
+		$db_users[preg_replace("/^" . $user_plain . "_/", "", $slot_user)] = true;
+	}
+}
+$db_users = array_keys($db_users);
+sort($db_users);
+
 // Check POST request
 if (!empty($_POST["ok"])) {
 	// Check token
@@ -20,7 +36,8 @@ if (!empty($_POST["ok"])) {
 	if (empty($_POST["v_dbuser"])) {
 		$errors[] = _("Username");
 	}
-	if (empty($_POST["v_password"])) {
+	$reuse = ($_POST["v_type"] ?? "") === "mysql" && in_array($_POST["v_dbuser"] ?? "", $db_users, true);
+	if (empty($_POST["v_password"]) && !$reuse) {
 		$errors[] = _("Password");
 	}
 	if (empty($_POST["v_type"])) {
@@ -52,7 +69,9 @@ if (!empty($_POST["ok"])) {
 
 	// Check password length
 	if (empty($_SESSION["error_msg"])) {
-		if (!validate_password($_POST["v_password"])) {
+		if ($reuse && !empty($_POST["v_password"])) {
+			$_SESSION["error_msg"] = _("An existing user keeps its password, leave the password empty.");
+		} elseif (!$reuse && !validate_password($_POST["v_password"])) {
 			$_SESSION["error_msg"] = _("Password does not match the minimum requirements.");
 		}
 	}
@@ -70,10 +89,14 @@ if (!empty($_POST["ok"])) {
 		$v_type = quoteshellarg($_POST["v_type"]);
 		$v_charset = quoteshellarg($_POST["v_charset"]);
 		$v_host = quoteshellarg($_POST["v_host"]);
-		$v_password = tempnam("/tmp", "vst");
-		$fp = fopen($v_password, "w");
-		fwrite($fp, $_POST["v_password"] . "\n");
-		fclose($fp);
+		if ($reuse) {
+			$v_password = "''";
+		} else {
+			$v_password = tempnam("/tmp", "vst");
+			$fp = fopen($v_password, "w");
+			fwrite($fp, $_POST["v_password"] . "\n");
+			fclose($fp);
+		}
 		exec(
 			HESTIA_CMD .
 				"h-add-database " .
@@ -95,7 +118,9 @@ if (!empty($_POST["ok"])) {
 		);
 		check_return_code($return_var, $output);
 		unset($output);
-		unlink($v_password);
+		if (!$reuse) {
+			unlink($v_password);
+		}
 		$v_password = quoteshellarg($_POST["v_password"]);
 		$v_type = $_POST["v_type"];
 		$v_host = $_POST["v_host"];
@@ -182,7 +207,7 @@ if (!empty($_POST["ok"])) {
 		$mailtext = translate_email($template, [
 			"database" => htmlentities($user_plain . "_" . $_POST["v_database"]),
 			"username" => htmlentities($user_plain . "_" . $_POST["v_dbuser"]),
-			"password" => htmlentities($_POST["v_password"]),
+			"password" => $reuse ? _("the existing password of this user") : htmlentities($_POST["v_password"]),
 			"dbadmin" => $db_admin_link,
 			"appname" => $_SESSION["APP_NAME"],
 		]);

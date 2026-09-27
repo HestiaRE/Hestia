@@ -12,6 +12,20 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
+### Added
+
+- **A mail password change gives the other devices of the network time to catch up** (#1155). For 12 hours
+  dovecot failures of that account from that network do not count towards a ban, and for one hour no exim failure
+  from it does; an IPv6 address stands for its /64, and a ban the network already has is lifted. The panel,
+  Roundcube and Tachyon set it with the client address, `h-add-mail-account-grace` lets an admin set it by hand,
+  and `MAIL_PW_GRACE` / `MAIL_PW_GRACE_SMTP` in `hestia.conf` set the minutes (`0` is off).
+
+### Security
+
+- **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171). The distribution's filter does not
+  know dovecot 2.4's `Login aborted`, so IMAP and POP3 had no protection against password guessing there. Our own
+  filter reads 2.3 and 2.4 and counts a failure once; the stock one counted every 2.3 failure twice.
+
 ### Fixed
 
 - **Adding a mail domain left its webmail unreachable until some later reload** (#1172), and every restart after

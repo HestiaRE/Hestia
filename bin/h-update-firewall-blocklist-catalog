@@ -1,0 +1,104 @@
+#!/bin/bash
+# info: fetch the FireHOL blocklist catalogue for the panel picker
+# options:
+# labels: internal
+# caller: web/add/firewall/ipset/firehol
+#
+# example: h-update-firewall-blocklist-catalog
+#
+# Writes /var/cache/hestia/firehol-catalog.json, which the FireHOL page reads (#510). On demand only: the page is
+# opened a few times in a box's life, and hestia-blocklist.timer exists only once a first list does. The index lacks
+# entries and file names, so every candidate's own JSON is fetched too (about 90 files, 2 s from a box).
+# Offered: attacks, abuse, reputation, spam and malware, updated within 5 days, 10 to 200000 entries. Above that a
+# set costs seconds and hundreds of MB on every refresh (2.5M entries: 21 s, ~420 MB). A catalogue with no list in
+# it is an error and leaves the previous one in place.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+site="https://iplists.firehol.org"
+cache_dir=/var/cache/hestia
+catalog="$cache_dir/firehol-catalog.json"
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+curl -sSf --max-time 20 -o "$work/index.json" "$site/all-ipsets.json" 2> /dev/null
+check_result $? "cannot fetch $site/all-ipsets.json" "$E_CONNECT"
+
+now=$(date +%s)
+# The names end up in URLs and file names, so only the plain ones are taken.
+jq -r --argjson now "$now" '.[]
+	| select((.ipset | type) == "string" and (.ipset | test("^[A-Za-z0-9][A-Za-z0-9_.-]*$")))
+	| select(.category | IN("attacks", "abuse", "reputation", "spam", "malware"))
+	| select((.updated | type) == "number" and ($now - .updated / 1000) < 5 * 86400)
+	| .ipset' "$work/index.json" > "$work/names" 2> /dev/null
+check_result $? "unreadable catalogue index" "$E_PARSING"
+
+mkdir "$work/lists"
+xargs -r -P4 -I{} curl -sSf --max-time 15 -o "$work/lists/{}.json" "$site/{}.json" < "$work/names" 2> /dev/null
+
+# A list whose JSON did not arrive or does not parse is simply not offered, it must not sink the rest. Nor is one
+# without file_local: FireHOL does not publish those (15 of 16 answered 404 at /files/).
+for f in "$work"/lists/*.json; do
+	[ -e "$f" ] || continue
+	jq -c . "$f" 2> /dev/null
+done > "$work/lists.jsonl"
+
+# Only a combined set names its members, as "(includes: a b c)" in info; prose that merely says "includes" is no list.
+jq -s --argjson now "$now" '{
+	fetched: $now,
+	lists: [.[]
+		| select(.ipv == "ipv4" and (.entries | type) == "number" and .entries >= 10 and .entries <= 200000)
+		| select((.file_local | type) == "string" and (.file_local | test("^https://iplists\\.firehol\\.org/files/[A-Za-z0-9_.-]+$")))
+		| {
+			name,
+			category,
+			maintainer: (.maintainer // ""),
+			entries,
+			updated: ((.updated // 0) / 1000 | floor),
+			url: .file_local,
+			info: ((.info // "") | gsub("<[^>]*>"; "") | .[0:300]),
+			includes: ((.info // "") | (capture("\\(includes: (?<i>[A-Za-z0-9_. ]+)\\)").i // "") | [splits(" +")] | map(select(. != "")))
+		}]
+}' "$work/lists.jsonl" > "$work/catalog.json" 2> /dev/null
+check_result $? "unreadable catalogue entries" "$E_PARSING"
+
+count=$(jq '.lists | length' "$work/catalog.json" 2> /dev/null)
+if ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -eq 0 ]; then
+	check_result "$E_NOTEXIST" "FireHOL catalogue came back empty, the previous one stays"
+fi
+
+mkdir -p "$cache_dir"
+tmp=$(mktemp "$catalog.XXXXXX")
+cp "$work/catalog.json" "$tmp"
+chmod 644 "$tmp"
+mv -f "$tmp" "$catalog"
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+$BIN/h-log-action "system" "Info" "Firewall" "FireHOL blocklist catalogue fetched ($count lists)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

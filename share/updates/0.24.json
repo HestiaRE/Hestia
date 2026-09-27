@@ -2,6 +2,30 @@
   "version": "0.24",
   "entries": [
     {
+      "id": "firewall-keep-private",
+      "description": "A DROP rule over an IP list no longer drops loopback and the private ranges; the rules already on the box get it with one new render",
+      "conditions": [
+        {
+          "type": "file_contains",
+          "path": "/etc/hestia/firewall/rules.conf",
+          "value": "IP='ipset:"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/hestia/firewall/ruleset.nft",
+          "value": "# keep-private"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "firewall_keep_private_apply"
+      },
+      "paths": [
+        "/etc/hestia/firewall/ruleset.nft"
+      ],
+      "reversible": false
+    },
+    {
       "id": "fail2ban-mail-grace",
       "description": "The dovecot jail gets a filter that reads dovecot 2.4 and counts a failure once, and both mail jails ask the mail password grace before they count",
       "conditions": [

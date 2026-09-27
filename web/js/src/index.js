@@ -16,6 +16,7 @@ import focusFirstInput from './focusFirstInput.js';
 import handleFormSubmit from './formSubmit.js';
 import handleFtpAccountHints from './ftpAccountHints.js';
 import handleFtpAccounts from './ftpAccounts.js';
+import handleFireholPicker from './fireholPicker.js';
 import handleIpListDataSource from './ipListDataSource.js';
 import handleListSorting from './listSorting.js';
 import handleListUnitSelect from './listUnitSelect.js';
@@ -44,6 +45,7 @@ function initListeners() {
 	handleEditWebListeners();
 	handleFormSubmit();
 	handleFtpAccounts();
+	handleFireholPicker();
 	handleListSorting();
 	handleListUnitSelect();
 	handlePasswordInput();

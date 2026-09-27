@@ -64,6 +64,13 @@ fi
 if ! echo "$data_source" | grep -Eq '^(https?|script|file):'; then
 	check_result "$E_INVALID" "invalid ipset source, valid: (http[s]://|script:|file:)"
 fi
+# Several sources make one combined set (#510): only https, and nothing that would break the record's quoting.
+read -ra sources <<< "$data_source"
+if [ "${#sources[@]}" -gt 1 ]; then
+	for url in "${sources[@]}"; do
+		[[ "$url" =~ ^https://[^\'\"]+$ ]] || check_result "$E_INVALID" "a combined ipset takes https:// sources only :: $url"
+	done
+fi
 
 IPSET_FILE="${ip_name}.${ip_version}"
 IPSET_MIN_SIZE=5
@@ -79,8 +86,20 @@ if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 
 	if [[ "$data_source" =~ ^https?:// ]]; then
 
-		wget --tries=3 --timeout=15 --read-timeout=15 --waitretry=3 --no-dns-cache --quiet "$data_source" -O "$iplist_tempfile"
-		check_result $? "Downloading ip list"
+		# A source that fails is skipped and logged: lists do die, and a set that stays on its old state for good
+		# is worse than one that loses a source. Only when every source fails does the set keep its last load.
+		fetched=0
+		for url in "${sources[@]}"; do
+			if wget --tries=3 --timeout=15 --read-timeout=15 --waitretry=3 --no-dns-cache --quiet "$url" -O "$iplist_tempfile.part"; then
+				cat "$iplist_tempfile.part" >> "$iplist_tempfile"
+				echo >> "$iplist_tempfile"
+				fetched=$((fetched + 1))
+			else
+				$BIN/h-log-action "system" "Warning" "Firewall" "IPset $ip_name: source skipped, download failed ($url)."
+			fi
+		done
+		rm -f "$iplist_tempfile.part"
+		[ "$fetched" -gt 0 ] || check_result "$E_CONNECT" "Downloading ip list: no source could be fetched"
 
 		# Advanced: a script with the same basename gets to pre-process the downloaded list.
 		if [ -x "${IPSET_PATH}/${IPSET_FILE}.sh" ]; then

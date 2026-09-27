@@ -25,6 +25,10 @@ FW_INPUT_POLICY="drop"
 FW_ADDR_RE='^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$'
 # Deliberately loose: a sanity filter, not a parser - nft validates, this only keeps its grammar out.
 FW_ADDR6_RE='^[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*(/[0-9]{1,3})?$'
+# What no blocklist and no CrowdSec ban may drop: loopback and the private ranges. FireHOL level1 carries 10/8 through
+# fullbogons, and a DROP on it locked the admin network out of a NAT'd box (#510).
+FW_KEEP_V4=(127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16)
+FW_KEEP_V6=(::1 fe80::/10 fc00::/7)
 
 #----------------------------------------------------------#
 #                     Batch handling                       #
@@ -60,6 +64,9 @@ fw_sec() {
 # idempotent on a box with no table yet; without it the delete fails and takes the transaction with it.
 fw_batch_render() {
 	local f
+	# The update path reads this line to find a ruleset rendered before the backstop existed. A fixed string: the
+	# callers run with IFS set to a newline, and an expanded list broke the comment over several lines (#510).
+	echo "# keep-private"
 	echo "table $FW_FAMILY $FW_TABLE {}"
 	echo "delete table $FW_FAMILY $FW_TABLE"
 	echo "table $FW_FAMILY $FW_TABLE {"
@@ -172,6 +179,11 @@ fw_accept_excludes() {
 	fw_set_declare excludes6 v6interval
 	fw_sec exclude "		ip saddr @excludes accept"
 	fw_sec exclude "		ip6 saddr @excludes6 accept"
+}
+
+fw_join() {
+	local IFS=,
+	echo "$*" | sed 's/,/, /g'
 }
 
 fw_return_source() {
@@ -381,9 +393,11 @@ fw_rule() {
 			if [ "$(fw_ipset_family "${source#ipset:}")" = 6 ]; then
 				fw_set_declare "${source#ipset:}" v6interval
 				expr="ip6 saddr @$(fw_set_id "${source#ipset:}") "
+				[ "$action" = 'DROP' ] && expr="${expr}ip6 saddr != { $(fw_join "${FW_KEEP_V6[@]}") } "
 			else
 				fw_set_declare "${source#ipset:}" interval
 				expr="ip saddr @$(fw_set_id "${source#ipset:}") "
+				[ "$action" = 'DROP' ] && expr="${expr}ip saddr != { $(fw_join "${FW_KEEP_V4[@]}") } "
 			fi
 			;;
 		0.0.0.0/0 | ::/0 | '') ;; # match everything: no family qualifier, so the rule covers v4 and v6
@@ -638,6 +652,11 @@ fw_blocklist_interval_apply() {
 	[[ "$1" =~ ^[0-9]+(s|m|min|h|d|w)$ ]] || return 1
 	sed -i "s|^OnUnitActiveSec=.*|OnUnitActiveSec=${1}|" "$unit"
 	return 0
+}
+
+# The update path of the private-range backstop (#510): the rules a box already has only get it with a new render.
+firewall_keep_private_apply() {
+	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }
 
 fw_blocklist_timer_remove() {

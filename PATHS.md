@@ -175,6 +175,14 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Mail password grace check | `/usr/local/hestia/sbin/hestia-mail-grace` (`ignorecommand` of the dovecot and exim jails, #1155) |
 | Mail password grace state | `/run/hestia/mail-grace/` (root 700, one file per grace, gone at reboot) |
 
+### Firewall
+
+| Item | Path |
+|------|------|
+| Rendered ruleset | `/etc/hestia/firewall/ruleset.nft` (loaded at boot by `hestia-nftables.service`, first line `# keep-private`) |
+| IP list cache | `/etc/hestia/firewall/ipset/<name>.v4.iplist` / `.v6.iplist` |
+| FireHOL catalogue | `/var/cache/hestia/firehol-catalog.json` (root 644, fetched on demand by the FireHOL page, #510) |
+
 ### Cron (hestia crontab)
 
 | Item | Path |

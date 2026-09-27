@@ -262,6 +262,24 @@ msgstr "Protocolo"
 msgid "Rule has been created successfully."
 msgstr "A regra foi criada com êxito."
 
+#: web/add/firewall/ipset/firehol/index.php
+#, php-format
+msgid "IP list %s has been saved."
+msgstr ""
+
+#: web/add/firewall/ipset/firehol/index.php
+msgid "Select at least one list."
+msgstr ""
+
+#: web/add/firewall/ipset/firehol/index.php
+msgid "The FireHOL catalogue has been updated."
+msgstr ""
+
+#: web/add/firewall/ipset/firehol/index.php
+#, php-format
+msgid "The IP list %s exists and does not come from FireHOL."
+msgstr ""
+
 #: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
 #: web/templates/pages/list_firewall_ipset.php
 msgid "Auto Update"
@@ -1260,6 +1278,7 @@ msgstr "Ago"
 #: web/templates/pages/add_firewall_banlist.php
 #: web/templates/pages/add_firewall_exclude.php
 #: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_ipset_firehol.php
 #: web/templates/pages/add_firewall_mesh.php web/templates/pages/add_ip.php
 #: web/templates/pages/add_key.php web/templates/pages/add_mail.php
 #: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
@@ -1436,10 +1455,12 @@ msgstr "Sábado"
 #: web/templates/pages/add_firewall.php
 #: web/templates/pages/add_firewall_banlist.php
 #: web/templates/pages/add_firewall_exclude.php
-#: web/templates/pages/add_firewall_ipset.php web/templates/pages/add_ip.php
-#: web/templates/pages/add_key.php web/templates/pages/add_mail.php
-#: web/templates/pages/add_mail_acc.php web/templates/pages/add_package.php
-#: web/templates/pages/add_user.php web/templates/pages/add_web.php
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#: web/templates/pages/add_ip.php web/templates/pages/add_key.php
+#: web/templates/pages/add_mail.php web/templates/pages/add_mail_acc.php
+#: web/templates/pages/add_package.php web/templates/pages/add_user.php
+#: web/templates/pages/add_web.php
 #: web/templates/pages/edit_backup_exclusions.php
 #: web/templates/pages/edit_cron.php web/templates/pages/edit_db.php
 #: web/templates/pages/edit_firewall.php web/templates/pages/edit_ip.php
@@ -1625,6 +1646,7 @@ msgid "Add IPset IP List for Firewall"
 msgstr "Adicionar lista IPset à Firewall"
 
 #: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_ipset_firehol.php
 #: web/templates/pages/list_firewall_ipset.php
 msgid "IP List Name"
 msgstr "Nome da lista de IPs"
@@ -1646,6 +1668,96 @@ msgstr "Sim"
 #: web/templates/pages/add_firewall_ipset.php
 msgid "level"
 msgstr "nível"
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "%d day ago"
+msgid_plural "%d days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "%d entry"
+msgid_plural "%d entries"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "%d hour ago"
+msgid_plural "%d hours ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "%d minute ago"
+msgid_plural "%d minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "Catalogue from %s."
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "Combined lists"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "Contains %s"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#: web/templates/pages/list_firewall_ipset.php
+msgid "FireHOL Blocklists"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "Largest lists"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "Load FireHOL catalogue"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "More than 200,000 entries cost seconds and memory on every refresh."
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "No FireHOL catalogue has been loaded on this server yet. Loading it asks iplists.firehol.org for its current lists."
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "No longer offered, dropped on the next save: %s"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "Refresh catalogue"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "Selected: %d entries before merging"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#, php-format
+msgid "Show small lists (%d)"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "Small lists"
+msgstr ""
+
+#: web/templates/pages/add_firewall_ipset_firehol.php
+msgid "The ticked lists become one IP list with one DROP rule for TCP. Loopback and private networks are never dropped. Overlaps merge when it loads, so the kernel set holds fewer elements than the sum shown."
+msgstr ""
 
 #: web/templates/pages/add_firewall_mesh.php
 msgid "Get a pairing code from the other server's Fleet Mesh page. Both servers then share their web bans and open their panel port to each other only."

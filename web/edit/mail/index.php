@@ -1069,6 +1069,24 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				check_return_code($return_var, $output);
 				unset($output);
 				unlink($v_password);
+				// The other devices of this network still poll with the old password (#1155). Best effort: the
+				// change itself has succeeded, and a grace that fails to land must not turn it into an error.
+				if ($return_var == 0) {
+					exec(
+						HESTIA_CMD .
+							"h-add-mail-account-grace " .
+							$v_username .
+							" " .
+							quoteshellarg($v_domain) .
+							" " .
+							quoteshellarg($v_account) .
+							" " .
+							quoteshellarg(get_real_user_ip()),
+						$output,
+						$return_var,
+					);
+					unset($output);
+				}
 			}
 			$v_password = quoteshellarg($_POST["v_password"]);
 		}

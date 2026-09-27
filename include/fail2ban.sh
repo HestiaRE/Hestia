@@ -45,6 +45,27 @@ fail2ban_panel_action_apply() {
 	systemctl restart fail2ban
 }
 
+# The update path of the dovecot filter (#1171) and the mail password grace (#1155): hestia.local is only copied on a
+# box without one, so the two mail jails are edited in place. Substitutions and appends only, never a delete in a range.
+fail2ban_mail_grace_apply() {
+	local grace="/usr/local/hestia/sbin/hestia-mail-grace"
+	[ -f "$F2B_OURS" ] || return 1
+	cp -f "$HESTIA/share/fail2ban/filter.d/hestia-dovecot.conf" "$F2B_DIR/filter.d/" || return 1
+	sed -i '/^\[dovecot-iptables\]/,/^\[/s/^filter[[:space:]]*=[[:space:]]*dovecot[[:space:]]*$/filter   = hestia-dovecot/' "$F2B_OURS" || return 1
+	if ! grep -q "^ignorecommand = $grace mailbox " "$F2B_OURS"; then
+		sed -i "/^\[dovecot-iptables\]/,/^\[/{/^logpath[[:space:]]*=/a ignorecommand = $grace mailbox <ip> <F-USER>
+}" "$F2B_OURS" || return 1
+	fi
+	if ! grep -q "^ignorecommand = $grace ip " "$F2B_OURS"; then
+		sed -i "/^\[exim-iptables\]/,/^\[/{/^logpath[[:space:]]*=/a ignorecommand = $grace ip <ip>
+}" "$F2B_OURS" || return 1
+	fi
+	[ "$(sed -n '/^\[dovecot-iptables\]/,/^\[/p' "$F2B_OURS" | grep -c "^filter   = hestia-dovecot$\|^ignorecommand = $grace mailbox ")" = 2 ] || return 1
+	[ "$(sed -n '/^\[exim-iptables\]/,/^\[/p' "$F2B_OURS" | grep -c "^ignorecommand = $grace ip ")" = 1 ] || return 1
+	systemctl -q is-active fail2ban 2> /dev/null || return 0
+	systemctl restart fail2ban
+}
+
 # From our own config, not by deleting the dpkg conffile jail.d/defaults-debian.conf, which an update restores.
 fail2ban_disable_distro_jails() {
 	grep -q '^\[sshd\]' "$F2B_OURS" 2> /dev/null && return 0

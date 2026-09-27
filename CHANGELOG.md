@@ -19,12 +19,21 @@ before v0.20.0 are folded into one section by theme.
   from it does; a global IPv6 address stands for its /64, and a ban the network already has is lifted. The panel,
   Roundcube and Tachyon set it with the client address, `h-add-mail-account-grace` lets an admin set it by hand,
   and `MAIL_PW_GRACE` / `MAIL_PW_GRACE_SMTP` in `hestia.conf` set the minutes (`0` is off).
+- **FireHOL blocklists can be picked from the live catalogue** (#510). A new page next to the IP lists shows
+  FireHOL's lists with category, entries and age, combined lists first and the 25 largest below; ticking a
+  combined list hides what it already contains. The ticked lists become one IP list with one DROP rule, and a
+  list FireHOL stops serving is skipped on refresh instead of freezing the set. The catalogue is fetched only on
+  the button, never on page load.
 
 ### Security
 
 - **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171). The distribution's filter does not
   know dovecot 2.4's `Login aborted`, so IMAP and POP3 had no protection against password guessing there. Our own
   filter reads 2.3 and 2.4 and counts a failure once; the stock one counted every 2.3 failure twice.
+- **A DROP rule over an IP list could lock out the admin network** (#510). FireHOL Level 1, offered since #481,
+  contains 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16, so on a server behind NAT it dropped every new connection
+  from the LAN, SSH and panel included. Such a rule now leaves loopback and the private ranges alone, as the
+  CrowdSec chain already did; an update re-renders the firewall of a box that has one.
 
 ### Fixed
 

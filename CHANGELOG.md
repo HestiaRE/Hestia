@@ -12,7 +12,11 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **Adding a mail domain left its webmail unreachable until some later reload** (#1172), and every restart after
+  a command that reads a customer record was skipped the same way. The freeze check ran `$SHELL`, which the record's
+  `SHELL='nologin'` had replaced, and read the refusal as a web-model switch in progress.
 
 ## v0.23 (2026-09-27)
 

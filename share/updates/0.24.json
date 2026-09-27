@@ -13,7 +13,7 @@
         {
           "type": "file_lacks",
           "path": "/etc/hestia/firewall/ruleset.nft",
-          "value": "# keep-private:"
+          "value": "# keep-private"
         }
       ],
       "action": {

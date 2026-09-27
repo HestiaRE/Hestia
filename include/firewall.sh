@@ -64,8 +64,9 @@ fw_sec() {
 # idempotent on a box with no table yet; without it the delete fails and takes the transaction with it.
 fw_batch_render() {
 	local f
-	# The update path reads this line to find a ruleset rendered before the backstop existed.
-	echo "# keep-private: ${FW_KEEP_V4[*]} ${FW_KEEP_V6[*]}"
+	# The update path reads this line to find a ruleset rendered before the backstop existed. A fixed string: the
+	# callers run with IFS set to a newline, and an expanded list broke the comment over several lines (#510).
+	echo "# keep-private"
 	echo "table $FW_FAMILY $FW_TABLE {}"
 	echo "delete table $FW_FAMILY $FW_TABLE"
 	echo "table $FW_FAMILY $FW_TABLE {"

@@ -179,7 +179,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 
 | Item | Path |
 |------|------|
-| Rendered ruleset | `/etc/hestia/firewall/ruleset.nft` (loaded at boot by `hestia-nftables.service`, first line `# keep-private:`) |
+| Rendered ruleset | `/etc/hestia/firewall/ruleset.nft` (loaded at boot by `hestia-nftables.service`, first line `# keep-private`) |
 | IP list cache | `/etc/hestia/firewall/ipset/<name>.v4.iplist` / `.v6.iplist` |
 | FireHOL catalogue | `/var/cache/hestia/firehol-catalog.json` (root 644, fetched on demand by the FireHOL page, #510) |
 

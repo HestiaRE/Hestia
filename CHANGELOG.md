@@ -16,7 +16,7 @@ before v0.20.0 are folded into one section by theme.
 
 - **A mail password change gives the other devices of the network time to catch up** (#1155). For 12 hours
   dovecot failures of that account from that network do not count towards a ban, and for one hour no exim failure
-  from it does; an IPv6 address stands for its /64, and a ban the network already has is lifted. The panel,
+  from it does; a global IPv6 address stands for its /64, and a ban the network already has is lifted. The panel,
   Roundcube and Tachyon set it with the client address, `h-add-mail-account-grace` lets an admin set it by hand,
   and `MAIL_PW_GRACE` / `MAIL_PW_GRACE_SMTP` in `hestia.conf` set the minutes (`0` is off).
 

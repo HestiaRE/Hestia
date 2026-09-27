@@ -3,30 +3,29 @@
 #   hestia-mail-grace mailbox IP MAILBOX   dovecot jail: exit 0 = this mailbox from this network does not count
 #   hestia-mail-grace ip IP                exim jail: exit 0 = nothing from this network counts
 #   hestia-mail-grace key mailbox|ip IP [MAILBOX]   the state file h-add-mail-account-grace writes
+#   hestia-mail-grace net IP               the network a grace covers, to find the bans it lifts
 # MAILBOX comes from a log line and this runs as root, so it is only ever hashed, never a path or a word.
 # Forked on every failure, so plain bash without includes. /run is tmpfs: a reboot ends every grace.
 
 GRACE_DIR=/run/hestia/mail-grace
 
-# v4 as it is, v6 as its /64, since the devices of one home network share the prefix, not the address.
+# v4 as it is, a global v6 as its /64, since the devices of one home network share the prefix, not the address. As for
+# the panel's session pin (#894), where a /64 holds strangers (ULA, link-local, NAT64, Teredo) the address decides.
 grace_net() {
 	local ip=${1,,} head tail g i
-	local -a h=() t=() all=()
-	case "$ip" in
-		*:*) ;;
-		*)
-			[[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
-			echo "$ip"
-			return 0
-			;;
-	esac
-	ip=${ip%%\%*}
-	# A mapped address is reported by fail2ban as its v4 form.
-	if [[ "$ip" =~ ^::ffff:([0-9]{1,3}(\.[0-9]{1,3}){3})$ ]]; then
-		echo "${BASH_REMATCH[1]}"
-		return 0
+	local -a h=() t=() all=() o=()
+	if [[ "$ip" != *:* ]]; then
+		grace_v4 "$ip"
+		return
 	fi
-	[[ "$ip" == *::*::* || "$ip" == *.* ]] && return 1
+	ip=${ip%%\%*}
+	# A dotted tail is the last 32 bits (64:ff9b::192.0.2.1), so it is the same address as its two hex groups.
+	if [[ "$ip" == *.* ]]; then
+		grace_v4 "${ip##*:}" > /dev/null || return 1
+		IFS=. read -ra o <<< "${ip##*:}"
+		ip="${ip%:*}:$(printf '%x:%x' $((10#${o[0]} * 256 + 10#${o[1]})) $((10#${o[2]} * 256 + 10#${o[3]})))"
+	fi
+	[[ "$ip" == *::*::* ]] && return 1
 	if [[ "$ip" == *::* ]]; then
 		head=${ip%%::*} tail=${ip#*::}
 	else
@@ -42,10 +41,33 @@ grace_net() {
 	all=("${h[@]}")
 	for ((i = ${#h[@]} + ${#t[@]}; i < 8; i++)); do all+=(0); done
 	all+=("${t[@]}")
-	for g in "${all[@]}"; do
+	for i in "${!all[@]}"; do
+		g=${all[i]}
 		[[ "$g" =~ ^[0-9a-f]{1,4}$ ]] || return 1
+		all[i]=$((16#$g))
 	done
-	printf '%x:%x:%x:%x::/64\n' $((16#${all[0]})) $((16#${all[1]})) $((16#${all[2]})) $((16#${all[3]}))
+	# A mapped address is the v4 client itself, and fail2ban reports it in that form.
+	if (((all[0] | all[1] | all[2] | all[3] | all[4]) == 0 && all[5] == 0xffff)); then
+		echo "$((all[6] >> 8)).$((all[6] & 255)).$((all[7] >> 8)).$((all[7] & 255))"
+		return 0
+	fi
+	# 2000::/3 without Teredo (2001:0::/32), whose first 64 bits name the relay, not the client.
+	if (((all[0] & 0xe000) == 0x2000 && !(all[0] == 0x2001 && all[1] == 0))); then
+		printf '%x:%x:%x:%x::/64\n' "${all[@]:0:4}"
+	else
+		printf '%x:%x:%x:%x:%x:%x:%x:%x\n' "${all[@]}"
+	fi
+}
+
+grace_v4() {
+	local i
+	local -a o=()
+	[[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
+	IFS=. read -ra o <<< "$1"
+	for i in "${o[@]}"; do
+		[ $((10#$i)) -le 255 ] || return 1
+	done
+	echo "$1"
 }
 
 grace_key() {
@@ -74,8 +96,9 @@ case "$1" in
 	mailbox) grace_active mailbox "$2" "$3" ;;
 	ip) grace_active ip "$2" ;;
 	key) grace_key "$2" "$3" "$4" ;;
+	net) grace_net "$2" ;;
 	*)
-		echo "usage: $0 mailbox IP MAILBOX | ip IP | key mailbox|ip IP [MAILBOX]" >&2
+		echo "usage: $0 mailbox IP MAILBOX | ip IP | key mailbox|ip IP [MAILBOX] | net IP" >&2
 		exit 2
 		;;
 esac

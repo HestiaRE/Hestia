@@ -6,8 +6,8 @@
 #
 # After a password change the other devices of the network keep polling with the old one until each is updated, and
 # fail2ban bans the network for it (#1155). For MAIL_PW_GRACE minutes their dovecot failures for THIS account are not
-# counted, and for MAIL_PW_GRACE_SMTP minutes no exim failure from the network is; an IPv6 address stands for its /64.
-# A ban the network already has in the two mail jails is lifted. The panel and both webmail password changes call it
+# counted, and for MAIL_PW_GRACE_SMTP minutes no exim failure from the network is; a global IPv6 address stands for its
+# /64. A ban the network already has in the two mail jails is lifted. The panel and both webmail password changes call it
 # with the client address; an admin calls it for a customer who is locked out. /run is tmpfs, a reboot ends it.
 
 #----------------------------------------------------------#
@@ -74,13 +74,21 @@ grace_write() {
 grace_write "${MAIL_PW_GRACE:-720}" mailbox
 grace_write "${MAIL_PW_GRACE_SMTP:-60}" ip
 
-# Expired files count for nothing, but they would pile up on a box that is never rebooted.
-find "$grace_dir" -maxdepth 1 -type f -mmin +$((${MAIL_PW_GRACE:-720} + 60)) -delete 2> /dev/null
+# Expired files count for nothing, but they would pile up on a box that is never rebooted. The longer grace sets the age,
+# or a SMTP grace set above the mailbox one would be swept while it still runs.
+keep=${MAIL_PW_GRACE:-720}
+[ "${MAIL_PW_GRACE_SMTP:-60}" -gt "$keep" ] && keep=${MAIL_PW_GRACE_SMTP:-60}
+find "$grace_dir" -maxdepth 1 -type f -mmin +$((keep + 60)) -delete 2> /dev/null
 
+# By network, not by address: in v6 the device that got banned is rarely the one the change came from.
+net=$("$SBIN/hestia-mail-grace" net "$ip")
 for jail in dovecot-iptables exim-iptables; do
-	if fail2ban-client get "$jail" banip 2> /dev/null | tr ' ' '\n' | grep -qxF "$ip"; then
-		fail2ban-client set "$jail" unbanip "$ip" > /dev/null 2>&1
-	fi
+	read -ra banned <<< "$(fail2ban-client get "$jail" banip 2> /dev/null)"
+	for addr in "${banned[@]}"; do
+		if [ "$("$SBIN/hestia-mail-grace" net "$addr")" = "$net" ]; then
+			fail2ban-client set "$jail" unbanip "$addr" > /dev/null 2>&1
+		fi
+	done
 done
 
 #----------------------------------------------------------#

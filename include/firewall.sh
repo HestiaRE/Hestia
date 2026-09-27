@@ -64,6 +64,8 @@ fw_sec() {
 # idempotent on a box with no table yet; without it the delete fails and takes the transaction with it.
 fw_batch_render() {
 	local f
+	# The update path reads this line to find a ruleset rendered before the backstop existed.
+	echo "# keep-private: ${FW_KEEP_V4[*]} ${FW_KEEP_V6[*]}"
 	echo "table $FW_FAMILY $FW_TABLE {}"
 	echo "delete table $FW_FAMILY $FW_TABLE"
 	echo "table $FW_FAMILY $FW_TABLE {"
@@ -649,6 +651,11 @@ fw_blocklist_interval_apply() {
 	[[ "$1" =~ ^[0-9]+(s|m|min|h|d|w)$ ]] || return 1
 	sed -i "s|^OnUnitActiveSec=.*|OnUnitActiveSec=${1}|" "$unit"
 	return 0
+}
+
+# The update path of the private-range backstop (#510): the rules a box already has only get it with a new render.
+firewall_keep_private_apply() {
+	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }
 
 fw_blocklist_timer_remove() {

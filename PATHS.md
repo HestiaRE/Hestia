@@ -171,6 +171,9 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Jail config | `/etc/fail2ban/jail.d/hestia.local` (ours, re-rendered); `jail.local` stays the admin's |
 | Panel ban action | `/etc/fail2ban/action.d/hestia-panel.conf` (panel port plus 80/443, #878) |
 | Auth log watched | `/var/log/hestia/auth.log` |
+| dovecot filter | `/etc/fail2ban/filter.d/hestia-dovecot.conf` (dovecot 2.3 and 2.4, one line per failure, #1171) |
+| Mail password grace check | `/usr/local/hestia/sbin/hestia-mail-grace` (`ignorecommand` of the dovecot and exim jails, #1155) |
+| Mail password grace state | `/run/hestia/mail-grace/` (root 700, one file per grace, gone at reboot) |
 
 ### Cron (hestia crontab)
 

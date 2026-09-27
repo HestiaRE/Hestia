@@ -1,0 +1,73 @@
+{
+  "version": "0.24",
+  "entries": [
+    {
+      "id": "fail2ban-mail-grace",
+      "description": "The dovecot jail gets a filter that reads dovecot 2.4 and counts a failure once, and both mail jails ask the mail password grace before they count",
+      "conditions": [
+        {
+          "type": "file_lacks",
+          "path": "/etc/fail2ban/jail.d/hestia.local",
+          "value": "hestia-mail-grace"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "fail2ban_mail_grace_apply"
+      },
+      "paths": [
+        "/etc/fail2ban/jail.d/hestia.local",
+        "/etc/fail2ban/filter.d/hestia-dovecot.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "roundcube-password-client-ip",
+      "description": "The Roundcube password driver names the client, so the mail password grace reaches the devices of a webmail password change",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/roundcube/hestia.php",
+          "target": "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/roundcube/hestia.php",
+        "target": "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+      },
+      "paths": [
+        "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "tachyon-password-client-ip",
+      "description": "The same for Tachyon: our change-password-hestia driver replaces the pinned one",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/tachyon/plugins/change-password-hestia/driver.php",
+          "target": "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/tachyon/plugins/change-password-hestia/driver.php",
+        "target": "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+      },
+      "paths": [
+        "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+      ],
+      "reversible": true
+    }
+  ]
+}

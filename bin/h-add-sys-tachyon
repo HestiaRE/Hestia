@@ -191,6 +191,9 @@ if [ "$UPDATE" == "no" ]; then
 		tar -xzf "${tx_plugin_tmp[$p]}" -C "$TX_CONFIG_DIR/data/_data_/_default_/plugins/"
 		rm -f "${tx_plugin_tmp[$p]}"
 	done
+	# Ours on top of the pinned driver: it names the client, for the mail password grace (#1155).
+	cp -f "$HESTIA/share/tachyon/plugins/change-password-hestia/driver.php" \
+		"$TX_CONFIG_DIR/data/_data_/_default_/plugins/change-password-hestia/driver.php"
 
 	chown -R www-data:www-data ./data
 

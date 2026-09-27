@@ -117,6 +117,24 @@ exec(
 );
 fclose($fp);
 if ($return_var == 0) {
+	// The webmail drivers name the client that changed it (#1155); only a local caller reaches this line, and it has
+	// just proven the old password, so the grace it asks for covers nothing it could not log into anyway.
+	$client_ip = $_POST["ip"] ?? "";
+	if (filter_var($client_ip, FILTER_VALIDATE_IP) !== false) {
+		exec(
+			HESTIA_CMD .
+				"h-add-mail-account-grace " .
+				quoteshellarg($v_user) .
+				" " .
+				$v_domain .
+				" " .
+				$v_account .
+				" " .
+				quoteshellarg($client_ip),
+			$output,
+			$return_var,
+		);
+	}
 	echo "==ok==";
 	exit();
 }

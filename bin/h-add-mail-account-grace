@@ -1,0 +1,101 @@
+#!/bin/bash
+# info: let a mail account's devices catch up after a password change
+# options: USER DOMAIN ACCOUNT IP
+#
+# example: h-add-mail-account-grace admin example.com info 203.0.113.7
+#
+# After a password change the other devices of the network keep polling with the old one until each is updated, and
+# fail2ban bans the network for it (#1155). For MAIL_PW_GRACE minutes their dovecot failures for THIS account are not
+# counted, and for MAIL_PW_GRACE_SMTP minutes no exim failure from the network is; a global IPv6 address stands for its
+# /64. A ban the network already has in the two mail jails is lifted. The panel and both webmail password changes call it
+# with the client address; an admin calls it for a customer who is locked out. /run is tmpfs, a reboot ends it.
+
+#----------------------------------------------------------#
+#                Variables & Functions                     #
+#----------------------------------------------------------#
+
+# Argument definition
+user=$1
+domain=$2
+account=$3
+ip=$4
+
+# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
+# load config file
+source_conf "$HESTIA/conf/hestia.conf"
+
+format_domain
+format_domain_idn
+
+#----------------------------------------------------------#
+#                    Verifications                         #
+#----------------------------------------------------------#
+
+check_args '4' "$#" 'USER DOMAIN ACCOUNT IP'
+is_format_valid 'user' 'domain' 'account'
+is_ip46_format_valid "$ip"
+is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
+is_object_valid 'user' 'USER' "$user"
+is_object_valid 'mail' 'DOMAIN' "$domain"
+is_object_valid "mail/$domain" 'ACCOUNT' "$account"
+
+for minutes in "${MAIL_PW_GRACE:-720}" "${MAIL_PW_GRACE_SMTP:-60}"; do
+	[[ "$minutes" =~ ^[0-9]+$ ]] || check_result "$E_INVALID" "MAIL_PW_GRACE and MAIL_PW_GRACE_SMTP are minutes, 0 is off"
+done
+
+# Without fail2ban nothing bans, so there is nothing to hold back.
+[ "$FIREWALL_EXTENSION" = 'fail2ban' ] || exit 0
+
+#----------------------------------------------------------#
+#                       Action                             #
+#----------------------------------------------------------#
+
+mailbox="$account@$domain_idn"
+grace_dir=/run/hestia/mail-grace
+mkdir -p /run/hestia
+[ -d "$grace_dir" ] || mkdir -m 700 "$grace_dir"
+now=$(date +%s)
+
+# One file per grace, written whole and renamed, so the check never reads half of one.
+grace_write() {
+	local minutes="$1" key tmp
+	[ "$minutes" -gt 0 ] || return 0
+	key=$("$SBIN/hestia-mail-grace" key "$2" "$ip" "$mailbox") || check_result "$E_INVALID" "no grace key for $ip"
+	tmp=$(mktemp "$grace_dir/.tmp.XXXXXX") || check_result "$E_DISK" "cannot write in $grace_dir"
+	echo "$((now + minutes * 60)) $ip $mailbox" > "$tmp"
+	mv -f "$tmp" "$grace_dir/$key"
+}
+grace_write "${MAIL_PW_GRACE:-720}" mailbox
+grace_write "${MAIL_PW_GRACE_SMTP:-60}" ip
+
+# Expired files count for nothing, but they would pile up on a box that is never rebooted. The longer grace sets the age,
+# or a SMTP grace set above the mailbox one would be swept while it still runs.
+keep=${MAIL_PW_GRACE:-720}
+[ "${MAIL_PW_GRACE_SMTP:-60}" -gt "$keep" ] && keep=${MAIL_PW_GRACE_SMTP:-60}
+find "$grace_dir" -maxdepth 1 -type f -mmin +$((keep + 60)) -delete 2> /dev/null
+
+# By network, not by address: in v6 the device that got banned is rarely the one the change came from.
+net=$("$SBIN/hestia-mail-grace" net "$ip")
+for jail in dovecot-iptables exim-iptables; do
+	read -ra banned <<< "$(fail2ban-client get "$jail" banip 2> /dev/null)"
+	for addr in "${banned[@]}"; do
+		if [ "$("$SBIN/hestia-mail-grace" net "$addr")" = "$net" ]; then
+			fail2ban-client set "$jail" unbanip "$addr" > /dev/null 2>&1
+		fi
+	done
+done
+
+#----------------------------------------------------------#
+#                       Hestia                             #
+#----------------------------------------------------------#
+
+$BIN/h-log-action "$user" "Info" "Mail" "Password grace for $mailbox from $ip (${MAIL_PW_GRACE:-720} min, SMTP ${MAIL_PW_GRACE_SMTP:-60} min)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

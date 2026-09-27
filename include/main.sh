@@ -2536,9 +2536,9 @@ WEB_MODEL_LOCK="/run/hestia/web-model.lock"
 web_freeze_held() {
 	[ "${HESTIA_WEB_LOCK_HELD:-}" = "1" ] && return 1
 	[ -e "$WEB_MODEL_LOCK" ] || return 1
-	# The command form, never -c: that runs $SHELL, and a user record carries SHELL='nologin', which then read as
-	# "held" and silently skipped every restart after it (#1172).
-	if flock -n -x "$WEB_MODEL_LOCK" true > /dev/null 2>&1; then
+	# On a descriptor, so the lock alone decides: the -c form ran $SHELL, and a user record carries SHELL='nologin',
+	# which then read as "held" and silently skipped every restart after it (#1172).
+	if flock -n -x 9 2> /dev/null 9< "$WEB_MODEL_LOCK"; then
 		return 1 # acquired freely -> nobody holds it
 	fi
 	return 0 # busy -> a switch holds it

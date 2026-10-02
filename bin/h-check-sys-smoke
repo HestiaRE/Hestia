@@ -526,7 +526,8 @@ check_banner() {
 	fi
 }
 
-# check_no_v_aliases: the v-* aliases are gone, and the update entry that removes them fires only on v-add-user.
+# check_no_v_aliases: every v-* link in $HESTIA/bin is a leftover. The update entry fires only on v-add-user, so an
+# own alias set without it stays and fails here: own aliases belong outside $HESTIA/bin.
 # The same find has to see the h-* commands, or an empty answer means it looked nowhere.
 check_no_v_aliases() {
 	local left seen

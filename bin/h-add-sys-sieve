@@ -13,7 +13,6 @@
 # and lands in .Spam directly, so customer sieve rules never see it (spam foldering
 # is exim's job). Over-quota behaviour is identical on both paths (defer, not bounce)
 # via quota_full_tempfail + return_fail_output.
-# New h-* command — no v-* symlink.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

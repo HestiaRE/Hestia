@@ -9,7 +9,7 @@
 # critical markers are in the key logs. Preset-independent, it derives what to
 # expect from hestia.conf: the status says what the box HAS. The recipe is read for
 # exactly one check, the addon recount, whose whole question is "chosen but absent".
-# Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise. No v-* symlink.
+# Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise.
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env

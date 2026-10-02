@@ -9,7 +9,7 @@
 # fail2ban's actioncheck. Exits 0 while the jail chain exists and the base chain still jumps to it.
 #
 # Replaces a grep of the backend's own output, which goes stale with the renderer. A wrong "missing" is
-# expensive: fail2ban answers a failed actioncheck with actionstop + actionstart. No v-* symlink.
+# expensive: fail2ban answers a failed actioncheck with actionstop + actionstart.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

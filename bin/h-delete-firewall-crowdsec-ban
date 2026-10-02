@@ -5,7 +5,7 @@
 # example: h-delete-firewall-crowdsec-ban 203.0.113.5
 #
 # The panel unban path: delete the decision, then refresh the feeder so the drop lifts at once rather than
-# after ~45s. A CAPI decision is not locally deletable and is not shown in the panel. No v-* symlink.
+# after ~45s. A CAPI decision is not locally deletable and is not shown in the panel.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

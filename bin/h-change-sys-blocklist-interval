@@ -4,7 +4,7 @@
 #
 # example: h-change-sys-blocklist-interval 12h
 #
-# INTERVAL is a systemd time span (30min, 6h, 1d). One for all lists - per-list would be rework. No v-* symlink.
+# INTERVAL is a systemd time span (30min, 6h, 1d). One for all lists - per-list would be rework.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

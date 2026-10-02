@@ -5,7 +5,7 @@
 # example: h-list-firewall-jail json
 #
 # Configured UNION running, so a jail that is configured but NOT running reports STATE='stopped' instead of
-# vanishing from the list - that gap is the whole reason this exists. No v-* symlink.
+# vanishing from the list - that gap is the whole reason this exists.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

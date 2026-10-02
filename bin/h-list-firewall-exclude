@@ -5,7 +5,7 @@
 # example: h-list-firewall-exclude json
 #
 # The whitelist is a bare address per line, so there is no object model to parse - the formats exist to
-# match the other h-list-firewall-* commands rather than because the data needs them. No v-* symlink.
+# match the other h-list-firewall-* commands rather than because the data needs them.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

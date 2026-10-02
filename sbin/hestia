@@ -3,7 +3,7 @@
 # options: install | configure | update | uninstall | status
 #
 # Thin, friendly dispatcher to the underlying h-* lifecycle commands.
-# (Deliberate exception to the h-* convention — the brand command; no v-* alias.)
+# (Deliberate exception to the h-* convention: the brand command.)
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
 BIN="$HESTIA/bin"

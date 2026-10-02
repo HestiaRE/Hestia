@@ -904,9 +904,8 @@ configure_hestia() {
 	deploy_hestia_sudoers
 	cp -f "$HESTIA/share/hestia/logrotate" /etc/logrotate.d/hestia 2> /dev/null || true
 
-	# committed v-* symlinks ship in the tarball; don't blanket-create (orphans native
-	# commands) — just prune dangling ones left by a renamed/removed h-*
-	find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -xtype l -delete 2> /dev/null || true
+	# A reinstall over an older tree still carries the v-* aliases.
+	v_aliases_remove_apply || echo "[ ! ] a v-* alias in $HESTIA/bin could not be removed, h-check-sys-smoke names it" >&2
 
 	echo "[ * ] Installing firewall data; seeding hosting packages..."
 	# Seed the shipped packages into the instance dir (#663), per file and only when absent: configure

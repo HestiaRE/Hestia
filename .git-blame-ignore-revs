@@ -1,0 +1,3 @@
+# Comment-only commits (#1176). GitHub and Gitea read this file; locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+45bae9f1f6b35b00af6c564eb156f176d4bff5c0
+9b75ad472d1282d5c003bbe7adfa769fec3f7435

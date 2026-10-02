@@ -34,7 +34,7 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# h-* only: the v-* aliases listed every command twice. Internal ones are machinery, not operator tools.
+# Internal ones are machinery, not operator tools.
 commands=$(
 	for f in "$BIN"/h-* "$SBIN"/h-*; do
 		[ -e "$f" ] || continue

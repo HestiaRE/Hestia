@@ -8,8 +8,6 @@
 # live pg_database check). Datadir kept by default. Packages are versioned, so the
 # installed major (server + client) is purged explicitly, not just the metapackage.
 # Opt-ins: FORCE=yes skips the DB check; PURGE_DATA=yes drops the datadir + config.
-#
-# New h-* command — no v-* symlink.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

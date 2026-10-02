@@ -66,7 +66,7 @@ grep -q '^indent_style *= *tab' .editorconfig || {
 FMT=(-i 0 -ci -sr -bn)
 
 # The shell surface: the CLI, the sourced libraries, the bootstrap, the installer family, the
-# scripts we ship. v-* are symlinks (skipped by -f).
+# scripts we ship.
 is_shell() { [[ "$1" =~ ^(bin/h-|sbin/|include/.*\.sh$|install\.sh$|update\.sh$|update\.sh$|\.gitea/tools/.*\.sh$|share/.*\.sh$|share/apache2/httpd-prerotate/awstats$|share/bubblewrap/jailbash$|share/security/hestia-jail\.init$|share/quota/initramfs/hestia-quota\.(hook|premount)$|share/dovecot/sieve-learn/hestia-rspamd-learn$|web/locale/.*\.sh$) ]]; }
 
 # A path list goes stale on a move, and silently: func/ -> include/ was carried over, sbin/ was not,

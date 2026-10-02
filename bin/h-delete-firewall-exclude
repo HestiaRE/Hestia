@@ -4,7 +4,7 @@
 #
 # example: h-delete-firewall-exclude 203.0.113.10
 #
-# Removing an address only stops it being exempt; it does not ban it. No v-* symlink.
+# Removing an address only stops it being exempt; it does not ban it.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

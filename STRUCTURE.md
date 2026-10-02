@@ -40,7 +40,7 @@ PHP pools all run as `caddy` - because app state (`/var/lib/roundcube` etc.) is
 
 | Concern | Upstream: web / PHP-pool | HestiaRE: web / PHP-pool | Access boundary |
 |---|---|---|---|
-| Panel UI | `hestiaweb` / `hestiaweb` | `caddy` / **`hestia`** | `hestia` owns `/etc/hestia`, `/backup`; may `exec` h-*/v-* |
+| Panel UI | `hestiaweb` / `hestiaweb` | `caddy` / **`hestia`** | `hestia` owns `/etc/hestia`, `/backup`; may `exec` h-* |
 | phpMyAdmin / Adminer | `hestiaweb` / **`hestiamail`** | `caddy` / `caddy` | app-login gated |
 | Roundcube / Tachyon (upstream: SnappyMail) | `hestiaweb` / **`hestiamail`** | `caddy` / `caddy` | pool-user == `caddy:caddy` app state (#234) |
 | Customer domains | nginx/apache / **the customer** | nginx/apache / **the customer** | kernel UID |
@@ -477,6 +477,7 @@ These are settled decisions (`README.md:53-59`, registry `CODEMAP.json` `removed
 | **bind9 / DNS** (#58/#283) | ~50 `*-dns-*` commands, `templates/dns`, `edit_dns` page | No DNS zone-management code path. DNS is external/managed. Only `h-list-mail-domain-dkim-dns` kept - it formats mail-stack data for somebody else's DNS. The last leftovers went in #619: `DNSTPL`, the package fields (`DNS_TEMPLATE`/`DNS_DOMAINS`/`DNS_RECORDS`/`NS`), the `U_DNS_*` counters and `h-list-user-ns`. The firewall seed keeps the original rule ids, so **6 and 7 are absent** where upstream opens port 53 - a gap, not a missing rule. Renumbering would move every later rule, and a firewall rule id is its precedence. |
 | **REST API** (#146) | `v-*-api-*`, web API endpoint, key auth | No programmatic surface. Entry points are the panel UI and `h-*` CLI only; integrations shell out to `h-*`. |
 | **Web Terminal** (#59) | node sidecar service, `list_terminal` page, `/_shell/` | No browser->shell bridge; `/_shell/` absent by design. Operators use SSH. Closed GHSA-gh6f. |
+| **`v-*` command names** (#22/#1176) | the HestiaCP CLI, kept as 421 symlinks to `h-*` | Every command is `h-*` only, with HestiaCP's arguments. Scripts written against HestiaCP call `h-*` or bring their own aliases. A HestiaCP archive from before 1.9 can carry the old system cron jobs (`sudo /usr/local/hestia/bin/v-...`); the restore names them in its log and leaves them failing rather than rewriting them into a second set of system jobs. |
 | **vsftpd** (#213) | `install/deb/vsftpd` | FTP is **ProFTPd only** (`share/proftpd/`); `FTP_SYSTEM` must not branch on vsftpd. |
 | **SpamAssassin / spamd** (#284) | spamd config + panel spam-editor | **rspamd is the sole filter**; `ANTISPAM_SYSTEM` has no spamassassin branch. Config targets `/etc/rspamd/`. |
 | **Software Installer** (#56) | webapp catalog, Node build chain | No one-click app-install surface. Composer/WP-CLI exist as CLI tools; there is no panel installer to extend. |

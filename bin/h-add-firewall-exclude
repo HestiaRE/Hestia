@@ -5,7 +5,7 @@
 # example: h-add-firewall-exclude 203.0.113.10
 #
 # Accepted ahead of every ban match, which is what makes this the recovery primitive: adding your own
-# address releases an EXISTING lockout, not just future ones. No v-* symlink.
+# address releases an EXISTING lockout, not just future ones.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

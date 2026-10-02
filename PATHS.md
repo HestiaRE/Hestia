@@ -20,7 +20,7 @@
 
 ```
 /usr/local/hestia/
-├── bin/               CLI commands (h-*, v-* symlinks)
+├── bin/               CLI commands (h-*)
 ├── conf -> /etc/hestia/conf   Symlink — instance config lives in /etc/hestia (§5a)
 ├── share/             Shipped install-time assets: manifest.json, panel-caddy/,
 │                      panel-php/, dovecot/, firewall/ (consumed by the installer)
@@ -294,7 +294,7 @@ All former residents were migrated (see §5a) or removed.
 The naming conflict between the two `hestia.conf` files has been resolved:
 
 1. **`/etc/hestia/hestia.env`** — Bootstrap file (renamed from `/etc/hestia/hestia.conf`).
-   Sourced as the very first action by every `h-*`/`v-*` command. Sets `$HESTIA` and `$PATH`.
+   Sourced as the very first action by every `h-*` command. Sets `$HESTIA` and `$PATH`.
    Content: `export HESTIA='/usr/local/hestia'` + sources `local.conf`.
 
 2. **`/usr/local/hestia/conf/hestia.conf`** — Panel instance config. Contains all

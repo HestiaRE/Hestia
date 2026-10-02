@@ -37,8 +37,7 @@ if [ -z "$homedir" ]; then
 fi
 
 # Checking destination path
-rpath=$(readlink -f "$dst_dir")
-if [ -z "$(echo $rpath | egrep "^/tmp|^$homedir")" ]; then
+if ! path_within "$dst_dir" "$homedir" /tmp; then
 	echo "Error: invalid destination path $dst_dir"
 	exit 1
 fi

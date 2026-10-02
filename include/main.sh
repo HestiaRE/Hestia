@@ -2366,6 +2366,20 @@ user_exec() {
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
 }
 
+# path_within PATH BASE...: PATH, resolved, is one of the BASEs or lies below one. A prefix match would let
+# /home/fsa admit /home/fsab. Second line only: the fs commands act through user_exec, the UID is the boundary.
+path_within() {
+	local p b
+	p=$(readlink -f -- "$1") && [ -n "$p" ] || return 1
+	shift
+	for b in "$@"; do
+		[ -n "$b" ] || continue
+		b=$(readlink -f -- "$b") && [ -n "$b" ] || continue
+		case "$p" in "$b" | "$b"/*) return 0 ;; esac
+	done
+	return 1
+}
+
 # Simple chmod wrapper that skips symlink files after glob expand
 no_symlink_chmod() {
 	local filemode=$1

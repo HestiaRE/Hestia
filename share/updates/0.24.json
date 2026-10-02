@@ -324,6 +324,78 @@
         "/usr/local/hestia/bin/h-search-fs-object"
       ],
       "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-httpd",
+      "description": "The httpd config editor page is gone: httpd is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/httpd"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/httpd"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/httpd"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-exim",
+      "description": "The exim config editor page is gone: exim is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/exim"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/exim"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/exim"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-crond",
+      "description": "The crond config editor page is gone: crond is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/crond"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/crond"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/crond"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-mysqld",
+      "description": "The mysqld config editor page is gone: mysqld is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/mysqld"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/mysqld"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/mysqld"
+      ],
+      "reversible": false
     }
   ]
 }

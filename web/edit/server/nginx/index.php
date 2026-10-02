@@ -58,11 +58,10 @@ $v_client_max_body_size = $data["CONFIG"]["client_max_body_size"];
 $v_gzip = $data["CONFIG"]["gzip"];
 $v_gzip_comp_level = $data["CONFIG"]["gzip_comp_level"];
 $v_charset = $data["CONFIG"]["charset"];
-$v_config_path = $data["CONFIG"]["config_path"];
 $v_service_name = strtoupper("nginx");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("nginx");
 
 // Render page
 render_page($user, $TAB, "edit_server_nginx");

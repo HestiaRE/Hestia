@@ -46,11 +46,10 @@ if (!empty($_POST["save"])) {
 	}
 }
 
-$v_config_path = "/etc/apache2/apache2.conf";
 $v_service_name = strtoupper("apache2");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("apache2");
 
 // Render page
 render_page($user, $TAB, "edit_server_httpd");

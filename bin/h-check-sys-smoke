@@ -542,6 +542,43 @@ check_no_v_aliases() {
 	fi
 }
 
+# check_config_editor: every file the editor offers passes the path gate, h-open-fs-config reads by key and by path,
+# and refuses the secrets next to them with rc 2. ssh, cron and hestia exist on every profile, so a derivation that
+# yields nothing fails here instead of passing as "all refused". Not covered: whether a lister names the right file.
+check_config_editor() {
+	local key p n=0 bad='' gone='' neg=0 leak='' rc
+	sys_config_preload
+	for key in $(sys_config_keys); do
+		p=$(sys_config_path "$key") || continue
+		n=$((n + 1))
+		[ "$(sys_config_offered "$p")" = "$p" ] || bad="$bad $p"
+	done
+	for key in ssh cron hestia; do
+		sys_config_path "$key" > /dev/null || gone="$gone $key"
+	done
+	"$BIN/h-open-fs-config" ssh > /dev/null 2>&1 || bad="$bad ssh"
+	"$BIN/h-open-fs-config" /etc/ssh/sshd_config > /dev/null 2>&1 || bad="$bad /etc/ssh/sshd_config"
+	set -- "$CONF_DIR"/users/*/user.conf
+	for p in /etc/ssh/ssh_host_ed25519_key "$HESTIA/conf/mysql.conf" "$1" /etc/nginx/../ssh/ssh_host_ed25519_key; do
+		[ -e "$p" ] || continue
+		neg=$((neg + 1))
+		"$BIN/h-open-fs-config" "$p" > /dev/null 2>&1
+		rc=$?
+		[ "$rc" -eq 2 ] || leak="$leak $p:$rc"
+	done
+	if [ -n "$gone" ]; then
+		no "config editor offers no file for" "${gone# }"
+	elif [ -n "$bad" ]; then
+		no "config editor refuses an offered file" "${bad# }"
+	elif [ "$neg" -lt 3 ]; then
+		no "config editor refusal not verifiable" "only $neg of the secret files exist"
+	elif [ -n "$leak" ]; then
+		no "config editor hands out a secret" "${leak# }"
+	else
+		ok "config editor offers $n files, reads by key and path, refuses $neg secrets"
+	fi
+}
+
 # Two lists describe the panel's languages: the catalog directories (what h-list-sys-languages offers)
 # and languages.json (their names, and what an update and a restore ask). A catalog without a name, a
 # name without a catalog, or an account on neither drifts silently (#1160). An empty list fails.
@@ -1825,6 +1862,7 @@ fi
 echo "-- invariants --"
 check_sudo_secret_leak
 check_no_v_aliases
+check_config_editor
 check_panel_languages
 check_panel_translates
 # a policy fragment (crowdsec Layer A, bot rate limiting) missing from one template is a silent bypass.

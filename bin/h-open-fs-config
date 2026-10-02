@@ -9,10 +9,6 @@
 # Prints a file the server config editor offers. CONFIG is its key (nginx, dovecot-3, php-8.3, see sys_config_path)
 # or its path; anything else is refused with rc 2. FORMAT json answers {"path", "content"} for the panel.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
 config=$1
 format=$2
 
@@ -20,10 +16,6 @@ format=$2
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'CONFIG [FORMAT]'
 
@@ -57,10 +49,6 @@ else
 			;;
 	esac
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if [ ! -e "$path" ]; then
 	# Offered but not yet created (fail2ban's jail.local): empty, the first save makes it.

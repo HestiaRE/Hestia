@@ -4,7 +4,7 @@
 #
 # example: h-extract-fs-archive admin latest.tar.gz /home/admin
 #
-# This function extracts archive into directory on the file system
+# Extracts a .tar.zst or .tar.gz into the user's home or /tmp, as the user; the restore's unpacker.
 
 user=$1
 src_file=$2
@@ -12,34 +12,25 @@ dst_dir=$3
 selected_dir=$4
 strip=$5
 test=$6
-# NUL-separated list of members to extract (#712): the first pass of a differential restore lays
-# down only what the base still shares with the current map. Absent means "everything", as before.
+# NUL-separated members to extract: a differential restore lays down only what the base shares with the current map.
 filelist=$7
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER ARCHIVE DIRECTORY [SELECTED_DIR] [STRIP] [TEST] [FILELIST]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-# Checking user homedir
 homedir=$(grep "^$user:" /etc/passwd | cut -f 6 -d :)
 if [ -z "$homedir" ]; then
 	echo "Error: user home directory doesn't exist"
 	exit 12
 fi
 
-# Checking source dir
 if [ ! -e "$src_file" ]; then
 	echo "Error: source file $src_file doesn't exist"
 	exit 3
@@ -66,8 +57,7 @@ if [ -n "$filelist" ]; then
 		echo "Error: file list $filelist doesn't exist"
 		exit 3
 	}
-	# --no-recursion first: the list names directories as the archive stores them, and without it
-	# each one is unpacked recursively - which brings deleted files back on a differential restore.
+	# --no-recursion first: a listed directory would unpack whole and bring deleted files back.
 	tar_select=(--no-recursion --null -T "$filelist")
 fi
 # Our backups and HestiaCP's write these two, nothing else reaches this command.
@@ -88,11 +78,9 @@ else
 	rc=$?
 fi
 
-# Checking result
 if [ "$rc" -ne 0 ]; then
 	echo "Error: $src_file was not extracted"
 	exit 3
 fi
 
-# Exiting
 exit

@@ -4,48 +4,35 @@
 #
 # example: h-add-fs-directory admin mybar
 #
-# This function creates new directory on the file system
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Creates a directory in the user's home or /tmp, as the user.
 
 user=$1
 dst_dir=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER DIRECTORY'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-# Checking user homedir
 homedir=$(grep "^$user:" /etc/passwd | cut -f 6 -d :)
 if [ -z "$homedir" ]; then
 	echo "Error: user home directory doesn't exist"
 	exit 12
 fi
 
-# Checking destination path
 if ! path_within "$dst_dir" "$homedir" /tmp; then
 	echo "Error: invalid destination path $dst_dir"
 	exit 2
 fi
 
-# Adding directory
 user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
 	echo "Error: directory $dst_dir was not created"
 	exit 3
 fi
 
-# Exiting
 exit

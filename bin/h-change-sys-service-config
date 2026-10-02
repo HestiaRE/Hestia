@@ -7,26 +7,15 @@
 # Replaces the file the config editor offers under SERVICE (sys_config_path) with CONFIG and restarts the service
 # unless RESTART is no; a failed restart puts the old file back. php is the default fpm php.ini, php-X.Y that of X.Y.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 src=$1
 service=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'CONFIG SERVICE [RESTART]'
 is_format_valid 'service' 'restart'
@@ -38,10 +27,6 @@ case $? in
 	*) check_result "$E_NOTEXIST" "$service has no config file on this server" ;;
 esac
 [ "$service" != cron ] || check_result "$E_FORBIDEN" "the cron config is read-only"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # Read as the caller: root copying a file the caller cannot read would hand it out through the editor.
 new=$(mktemp) || check_result "$E_NOTEXIST" "no temporary file"
@@ -83,11 +68,6 @@ elif [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

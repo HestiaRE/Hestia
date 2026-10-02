@@ -4,48 +4,35 @@
 #
 # example: h-add-fs-file admin readme.md
 #
-# This function creates new files on file system
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Creates an empty file in the user's home or /tmp, as the user.
 
 user=$1
 dst_file=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER FILE'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-# Checking user homedir
 homedir=$(grep "^$user:" /etc/passwd | cut -f 6 -d :)
 if [ -z "$homedir" ]; then
 	echo "Error: user home directory doesn't exist"
 	exit 12
 fi
 
-# Checking destination path
 if ! path_within "$dst_file" "$homedir" /tmp; then
 	echo "Error: invalid destination path $dst_file"
 	exit 2
 fi
 
-# Creating file
 user_exec touch "$dst_file" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
 	echo "Error: file $dst_file was not created"
 	exit 3
 fi
 
-# Exiting
 exit

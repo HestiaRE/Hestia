@@ -36,8 +36,17 @@ if [ ! -e "$src_file" ]; then
 	exit 3
 fi
 
-# Restore unpacks from its temp dir, which lies in BACKUP_TEMP when that is set.
-if ! path_within "$src_file" "$homedir" /tmp "$BACKUP" "$BACKUP_TEMP"; then
+# Besides home and /tmp only the restore's own mktemp dir, tmp.* directly under BACKUP_TEMP or BACKUP:
+# the customers' archive folders there are no source.
+src_ok=''
+path_within "$src_file" "$homedir" /tmp && src_ok='yes'
+src_real=$(readlink -f -- "$src_file")
+for base in "$BACKUP" "$BACKUP_TEMP"; do
+	[ -n "$base" ] && [ -d "$base" ] || continue
+	base=$(readlink -f -- "$base")
+	case "$src_real" in "$base"/tmp.*/*) src_ok='yes' ;; esac
+done
+if [ "$src_ok" != 'yes' ]; then
 	echo "Error: invalid source path $src_file"
 	exit 2
 fi

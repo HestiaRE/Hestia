@@ -537,7 +537,7 @@ check_no_v_aliases() {
 	elif [ -z "$left" ]; then
 		ok "no v-* aliases left ($seen h-* commands seen)"
 	else
-		no "v-* alias(es) left" "$(echo "$left" | head -n1 | xargs basename)"
+		no "v-* alias(es) left in $HESTIA/bin, own aliases belong outside it" "$(echo "$left" | head -n1 | xargs basename)"
 	fi
 }
 

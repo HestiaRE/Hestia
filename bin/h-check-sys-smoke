@@ -543,19 +543,36 @@ check_no_v_aliases() {
 }
 
 # check_config_editor: every file the editor offers passes the path gate, h-open-fs-config reads by key and by path,
-# and refuses the secrets next to them with rc 2. ssh, cron and hestia exist on every profile, so a derivation that
-# yields nothing fails here instead of passing as "all refused". Not covered: whether a lister names the right file.
+# and refuses the secrets next to them with rc 2. The expected keys are those the page of each installed service
+# reads, plus hestia, so a lister that stops naming a file fails here instead of leaving an empty page.
+# Not covered: whether a lister names the right file, and page keys built at runtime other than php-X.Y.
 check_config_editor() {
-	local key p n=0 bad='' gone='' neg=0 leak='' rc
+	local key p n=0 bad='' gone='' neg=0 leak='' rc svc want='hestia' page exp
 	sys_config_preload
+	for svc in $("$BIN/h-list-sys-services" plain 2> /dev/null | cut -f1); do
+		case "$svc" in
+			php[0-9]*-fpm)
+				p=${svc#php}
+				want="$want php-${p%-fpm}"
+				;;
+			*)
+				page="$HESTIA/web/edit/server/$svc/index.php"
+				[ -f "$page" ] || continue
+				want="$want $(grep -o 'server_config("[^"]*")' "$page" | sed 's/^server_config("//; s/")$//' | tr '\n' ' ')"
+				;;
+		esac
+	done
 	for key in $(sys_config_keys); do
 		p=$(sys_config_path "$key") || continue
 		n=$((n + 1))
 		[ "$(sys_config_offered "$p")" = "$p" ] || bad="$bad $p"
 	done
-	for key in ssh cron hestia; do
+	set -- $want
+	for key in "$@"; do
 		sys_config_path "$key" > /dev/null || gone="$gone $key"
 	done
+	exp=$#
+	[ "$exp" -ge 3 ] || gone="$gone (only $exp expected keys: ssh, cron or the service list missing)"
 	"$BIN/h-open-fs-config" ssh > /dev/null 2>&1 || bad="$bad ssh"
 	"$BIN/h-open-fs-config" /etc/ssh/sshd_config > /dev/null 2>&1 || bad="$bad /etc/ssh/sshd_config"
 	set -- "$CONF_DIR"/users/*/user.conf
@@ -575,7 +592,7 @@ check_config_editor() {
 	elif [ -n "$leak" ]; then
 		no "config editor hands out a secret" "${leak# }"
 	else
-		ok "config editor offers $n files, reads by key and path, refuses $neg secrets"
+		ok "config editor offers $n files, all $exp the service pages read, by key and path, refuses $neg secrets"
 	fi
 }
 

@@ -40,16 +40,34 @@ if [ $? -ne 0 ]; then
 	check_result "$E_NOTEXIST" "$src cannot be read"
 fi
 
+# A failed restart takes back exactly this write: a file it created goes, an older .vst.back is not ours.
+created=''
 if ! cmp -s "$new" "$dst"; then
 	if [ -e "$dst" ]; then
 		cp "$dst" "$dst.vst.back"
 	else
 		install -m 644 /dev/null "$dst"
+		created='yes'
 	fi
 	cp "$new" "$dst"
 	update="yes"
 fi
 rm -f "$new"
+
+restart_ok() {
+	local i
+	# fail2ban takes a config it cannot parse with restart rc 0 and dies after: test first, then ask the server.
+	if [ "$1" = 'fail2ban' ]; then
+		fail2ban-client -t > /dev/null 2>&1 || return 1
+	fi
+	$BIN/h-restart-service "$1" > /dev/null 2>&1 || return 1
+	[ "$1" = 'fail2ban' ] || return 0
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		sleep 1
+		fail2ban-client ping > /dev/null 2>&1 && return 0
+	done
+	return 1
+}
 
 if [ "$update" = 'yes' ] && [ "$service" = 'hestia' ]; then
 	rm -f "$dst.vst.back"
@@ -57,13 +75,15 @@ elif [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
 	# dovecot-3, postgresql-hba and php-8.3 restart dovecot, postgresql and that version's fpm.
 	service=${service%-*}
 	[ "$service" != 'php' ] || service="php$(php_ini_version "$dst")-fpm"
-	if ! $BIN/h-restart-service "$service" > /dev/null 2>&1; then
-		if [ -e "$dst.vst.back" ]; then
+	if ! restart_ok "$service"; then
+		if [ "$created" = 'yes' ]; then
+			rm -f "$dst"
+		else
 			cat "$dst.vst.back" > "$dst"
 			rm -f "$dst.vst.back"
-		else
-			rm -f "$dst"
 		fi
+		# The failed restart may have stopped the service; back on the old file it has to run again.
+		$BIN/h-restart-service "$service" > /dev/null 2>&1
 		check_result "$E_RESTART" "ERROR: $service failed to start with new configuration."
 	fi
 fi

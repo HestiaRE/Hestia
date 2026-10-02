@@ -34,6 +34,15 @@ before v0.20.0 are folded into one section by theme.
   contains 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16, so on a server behind NAT it dropped every new connection
   from the LAN, SSH and panel included. Such a rule now leaves loopback and the private ranges alone, as the
   CrowdSec chain already did; an update re-renders the firewall of a box that has one.
+- **The server config editor read and wrote more than it offers** (#1176). `h-open-fs-config` admitted any path
+  under `/etc` that contained a word like `ssh` or `hestia`, so it handed out the SSH host keys, the MariaDB root
+  password in `mysql.conf` and a customer's `user.conf`; `h-change-sys-service-config` copied any file as root into
+  a service config, where the editor then showed it. Both now work on one set of files, derived at run time from the
+  installed services and compared as the whole path, and the writer reads its source with the caller's rights. The
+  editor pages for RHEL service names (`httpd`, `exim`, `crond`, `mysqld`) are gone.
+- **The fs commands compare whole path components** (#1176). The check was a prefix, so `/home/ab` passed for
+  customer `a`; only the customer's own rights, which the commands run under, still stopped the write.
+  `h-extract-fs-archive` takes `.tar.zst` and `.tar.gz`, an unknown type ran into an error that returned success.
 
 ### Removed
 
@@ -52,6 +61,11 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **The fail2ban page of the config editor could never save** (#1176). It edits `jail.local`, which belongs to the
+  admin and does not exist until somebody writes it, and both the reader and the writer refused a missing file. The
+  first save now creates it, and a failed restart removes it again.
+- **A restore broke off at the mail and home archives when `BACKUP_TEMP` was set** (#1176). The restore unpacks
+  from there, and `h-extract-fs-archive` accepted a source only under the home, `/tmp` or the backup directory.
 - **Adding a mail domain left its webmail unreachable until some later reload** (#1172), and every restart after
   a command that reads a customer record was skipped the same way. The freeze check ran `$SHELL`, which the record's
   `SHELL='nologin'` had replaced, and read the refusal as a web-model switch in progress.

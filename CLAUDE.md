@@ -89,8 +89,16 @@ sweep for it opportunistically in code/comment cleanup rounds over the panel and
 **Verification (mechanical):** `shfmt -mn` of every touched shell file is identical before and after. A
 line pattern like `^\s*#` is not enough: it passes a deleted `#` line inside a heredoc, and that is
 content. A comment inside an awk/sed string makes the comparison differ - a false alarm, checked by hand.
-Each run carries its control: delete one heredoc line on purpose, `shfmt -mn` must differ. Plus
-`json.tool` on JSON and a smoke run.
+Each run carries its control: delete one heredoc line on purpose, `shfmt -mn` must differ.
+PHP under `web/`: the token stream without comments and whitespace is identical before and after. `php -w`
+alone is not enough, a removed comment leaves a space behind (measured), so compare the tokens:
+```
+php -r 'foreach (token_get_all(file_get_contents($argv[1])) as $t) { if (is_array($t) && in_array($t[0],
+  [T_COMMENT, T_DOC_COMMENT, T_WHITESPACE])) continue; echo is_array($t) ? token_name($t[0])." ".$t[1] : $t, "\n"; }' F
+```
+Same control: delete one heredoc or inline-HTML line, the stream must differ. ini and Caddy files have no
+such tool, so there and only there the proof is the line pattern: every added or removed line matches
+`^\s*(;|#|//)`. Plus `json.tool` on JSON and a smoke run.
 
 ---
 
@@ -109,8 +117,10 @@ h-*    HestiaRE commands (renamed from v-* in Issue #22)
 ```
 
 - There are no v-* aliases (removed in #1176). Upstream changes are reimplemented, never
-  cherry-picked, so nothing needs the old names; whoever wants them creates them in a fork.
-  `configure_hestia` and the 0.24 update entry remove leftovers, `h-check-sys-smoke` fails on one.
+  cherry-picked, so nothing needs the old names. Own aliases belong outside `$HESTIA/bin` (e.g.
+  `/usr/local/bin`), and `--help` does not work under them. Every v-* symlink in `$HESTIA/bin` is a
+  leftover: `configure_hestia` removes all of them, `h-check-sys-smoke` fails on any, the 0.24 update
+  entry fires only while `v-add-user` exists.
 - Removal verb is `h-delete-*` across the board (upstream `v-delete-*` parity).
 
 ### Panel webserver

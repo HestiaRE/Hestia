@@ -64,9 +64,9 @@
         "bin/h-update-sys-queue"
       ],
       "language": "bash",
-      "total_commands": 475,
+      "total_commands": 542,
       "command_prefixes": {
-        "h-*": 468
+        "h-*": 542
       },
       "domains": {
         "user": {
@@ -748,7 +748,7 @@
       "panel": "the family table is inline on Server Settings (web/edit/server/, admin-only, 10 slots saved with the settings form: APPLY=no per row + a single apply at the end; placement provisional pending the panel overhaul) + the Bot Rate Limiting section in web/edit/web/ (per-domain off/lenient/strict for the admin-ENABLED families, customer-editable and also settable by an admin while impersonating; only the family table stays admin-only. A customer cannot reach another tenant: the panel passes the effective session user and the CLI validates the domain against that user's own object file. Disabled families and unused slots never appear). h-list-web-domain exposes BOTLIMIT so the panel can see a domain's own levels.",
       "templates": "templates/web/nginx/* include nginx.botlimit.conf*; templates/web/apache2/* include botlimit.apache2.conf* (Layer A keeps its own nginx.crowdsec.conf*)",
       "rebuild": "include/rebuild.sh calls botpolicy_render_domain_fragment beside the CrowdSec Layer-A fragment",
-            "upstream_ref": "hestiare-native"
+      "upstream_ref": "hestiare-native"
     },
     "crowdsec": {
       "description": "CrowdSec integration (#186), nginx-front only, in four layers. Layer A (L7): own dependency-free LuaJIT ban-bouncer that queries the local LAPI live and answers 403; rendered per web model + a per-domain fragment. L3: own cscli->ipset feeder (bin/h-update-firewall-crowdsec, timer-driven) fills a hestia-crowdsec DROP chain via h-update-firewall - the OS crowdsec-firewall-bouncer 0.0.25 is fleet-unusable (nil-panics in nftablesConfig). The feeder DENYLISTS scenario tokens so only web-tier bans normally reach the firewall; the auth families (ssh/ftp/mail/db) are denied only while fail2ban is present (FIREWALL_EXTENSION) - in the crowdsec-only model they reach L3 too (best-effort SSH/web enforcement, #498), while req-limit stays denied in every model so a Layer-B 429 never escalates. Fleet-mesh: peer-mesh shared blocklist, no central LAPI - each box publishes its own local bans and imports the union of its peers' as L7-only mesh bans (origin cscli-import, scenario hestia-mesh:<peer>); enforcement falls out for free (the L7 bouncer sees imported decisions, the L3 feeder filters origin==crowdsec). Packaged as a removable addon (#123). The LAPI is loopback-only (127.0.0.1:8054) throughout. Layer-B bot rate-limiting was decoupled into its own always-available subsystem (include/botpolicy.sh, #482) - CrowdSec bans, botpolicy throttles, and the two never overlap. crowdsec_apply removes crowdsecurity/nginx-req-limit-exceeded on purpose: it would escalate our own 429s into bans.",
@@ -775,7 +775,7 @@
       "panel": "web/list/firewall/mesh/ + web/add/firewall/mesh/ + web/delete/firewall/mesh/ + web/generate/mesh-pairing/ (admin-only Fleet Mesh page: peers, shared-ban counts, generate/enter a pairing code)",
       "timers": "hestia-crowdsec-l3.timer (ipset feeder), hestia-crowdsec-mesh.timer (publish + pull + swap-import; the import is skipped while the union is unchanged and the decisions' TTL is still fresh)",
       "smoke_guards": "bin/h-check-sys-smoke (L3 + mesh timer checks, both artefact-gated)",
-            "upstream_ref": "hestiare-native"
+      "upstream_ref": "hestiare-native"
     },
     "firewall": {
       "description": "Host firewall, rebuilt on nftables in #495. include/firewall.sh is the sole owner of backend syntax and bin/h-update-firewall the sole full-ruleset writer: it renders one inet hestia table and applies it as a single atomic nft -f document, validated with nft -c -f first. Base chains carry hook + priority so foreign tables (fail2ban's own, a future bouncer's) coexist instead of fighting over INPUT. Sets render from their source files rather than from the live set, so a wholesale table replace cannot lose contents. iptables is xtables-nft-multi on all four targets, which means a leftover iptables ruleset is STILL EVALUATED by the same kernel backend - legacy teardown is mandatory, not housekeeping. inet covers v4 and v6 and loads on a host with no IPv6 configured, which is what lays the v6 groundwork without presupposing it.",
@@ -885,7 +885,7 @@
       "freeze_touchpoints": "bin/h-restart-web|-proxy|-service, share/apache2/logrotate, bin/h-update-letsencrypt-ssl, 47 web/mail-domain mutators",
       "backup_restore": "bin/h-backup-user (model marker), bin/h-restore-user (visible warnings + cross-model banner)",
       "smoke_guards": "bin/h-check-sys-smoke (check_web_model_sentinel)",
-            "upstream_ref": "hestiare-native"
+      "upstream_ref": "hestiare-native"
     },
     "web_switches": {
       "description": "Per-domain switches replacing selectable templates (#219): admin suspension + customer offline render from share/web/suspend/{admin,offline}/ (nginx/proxy/apache2 tpl+stpl, all three web models share one path via WEBTPL_OVERRIDE in prepare_web_domain_values); proxy caching writes a fragment into the domain's nginx.location.d/ (read inside location / of the default proxy vhost) plus one zone file per domain under /etc/nginx/conf.d/cache-zone.<domain>.conf.",

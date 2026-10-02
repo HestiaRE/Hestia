@@ -44,6 +44,11 @@ before v0.20.0 are folded into one section by theme.
   ones from the box (symlinks only). A restore of a HestiaCP archive from before 1.9 names any cron job that still
   calls `/usr/local/hestia/bin/v-*` in its log; such a job is HestiaCP's own system job and is left failing on
   purpose.
+- **Twelve file commands without a caller are gone** (#1176): `h-add-fs-archive`, `h-change-fs-file-permission`,
+  `h-check-fs-permission`, `h-copy-fs-directory`, `h-copy-fs-file`, `h-delete-fs-file`, `h-get-fs-file-type`,
+  `h-list-fs-directory`, `h-move-fs-directory`, `h-move-fs-file`, `h-open-fs-file` and `h-search-fs-object`. They
+  served HestiaCP's app installer and the old VestaCP file manager; the File Manager here runs in the customer's own
+  pool. An update deletes them from the box.
 
 ### Fixed
 

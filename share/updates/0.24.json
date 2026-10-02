@@ -108,6 +108,222 @@
       },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "remove-h-add-fs-archive",
+      "description": "h-add-fs-archive is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-fs-archive"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-fs-archive"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-fs-archive"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-change-fs-file-permission",
+      "description": "h-change-fs-file-permission is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-change-fs-file-permission"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-change-fs-file-permission"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-change-fs-file-permission"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-check-fs-permission",
+      "description": "h-check-fs-permission is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-check-fs-permission"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-check-fs-permission"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-check-fs-permission"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-copy-fs-directory",
+      "description": "h-copy-fs-directory is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-copy-fs-directory"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-copy-fs-directory"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-copy-fs-directory"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-copy-fs-file",
+      "description": "h-copy-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-copy-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-copy-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-copy-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-delete-fs-file",
+      "description": "h-delete-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-delete-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-delete-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-delete-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-get-fs-file-type",
+      "description": "h-get-fs-file-type is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-get-fs-file-type"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-get-fs-file-type"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-get-fs-file-type"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-list-fs-directory",
+      "description": "h-list-fs-directory is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-list-fs-directory"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-list-fs-directory"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-list-fs-directory"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-move-fs-directory",
+      "description": "h-move-fs-directory is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-move-fs-directory"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-move-fs-directory"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-move-fs-directory"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-move-fs-file",
+      "description": "h-move-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-move-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-move-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-move-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-open-fs-file",
+      "description": "h-open-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-open-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-open-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-open-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-search-fs-object",
+      "description": "h-search-fs-object is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-search-fs-object"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-search-fs-object"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-search-fs-object"
+      ],
+      "reversible": false
     }
   ]
 }

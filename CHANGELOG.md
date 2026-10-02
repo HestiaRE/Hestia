@@ -35,6 +35,14 @@ before v0.20.0 are folded into one section by theme.
   from the LAN, SSH and panel included. Such a rule now leaves loopback and the private ranges alone, as the
   CrowdSec chain already did; an update re-renders the firewall of a box that has one.
 
+### Removed
+
+- **The `v-*` command names are gone** (#1176). They were 421 symlinks to the `h-*` commands, kept for picking
+  changes from HestiaCP, and every adoption is a reimplementation by now. Call `h-*` with the same arguments, or
+  create the aliases yourself. An update removes them from the box (symlinks only). A restore of a HestiaCP archive
+  from before 1.9 names any cron job that still calls `/usr/local/hestia/bin/v-*` in its log; such a job is
+  HestiaCP's own system job and is left failing on purpose.
+
 ### Fixed
 
 - **Adding a mail domain left its webmail unreachable until some later reload** (#1172), and every restart after

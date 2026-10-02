@@ -526,15 +526,18 @@ check_banner() {
 	fi
 }
 
-# check_v_symlinks_resolve, no v-* compat alias may dangle (catches a rename/
-# removal the install-time prune should have cleared). Extra aliases are fine.
-check_v_symlinks_resolve() {
-	local dangling first
-	dangling=$(find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -xtype l 2> /dev/null)
-	if [ -z "$dangling" ]; then
-		ok "no dangling v-* symlinks"
+# check_no_v_aliases: the v-* aliases are gone, and the update entry that removes them fires only on v-add-user.
+# The same find has to see the h-* commands, or an empty answer means it looked nowhere.
+check_no_v_aliases() {
+	local left seen
+	seen=$(find "$HESTIA/bin" -maxdepth 1 -name 'h-*' -type f 2> /dev/null | grep -c '')
+	left=$(find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -type l 2> /dev/null)
+	if [ "$seen" -lt 400 ]; then
+		no "the v-* sweep saw only $seen h-* command(s) in $HESTIA/bin"
+	elif [ -z "$left" ]; then
+		ok "no v-* aliases left ($seen h-* commands seen)"
 	else
-		no "dangling v-* symlink(s)" "$(echo "$dangling" | head -n1 | xargs basename)"
+		no "v-* alias(es) left" "$(echo "$left" | head -n1 | xargs basename)"
 	fi
 }
 
@@ -1820,8 +1823,7 @@ fi
 # --- Invariants of this box (live state and records; the tree-only guards run in CI, check-tree.sh) ---
 echo "-- invariants --"
 check_sudo_secret_leak
-# v-* compat symlinks must all resolve (no dangling alias left by a rename).
-check_v_symlinks_resolve
+check_no_v_aliases
 check_panel_languages
 check_panel_translates
 # a policy fragment (crowdsec Layer A, bot rate limiting) missing from one template is a silent bypass.

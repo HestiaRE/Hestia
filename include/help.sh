@@ -27,7 +27,7 @@ cmd_usage() {
 # only argument is therefore a no-op, and every check a login rests on takes two arguments or more.
 # Only commands: update.sh sourcing main.sh keeps its own arguments.
 case "${0##*/}" in
-	h-* | v-* | hestia-*)
+	h-* | hestia-*)
 		if [ "$#" -eq 1 ] && { [ "$1" = '--help' ] || [ "$1" = '-h' ]; }; then
 			cmd_usage ''
 			exit 0

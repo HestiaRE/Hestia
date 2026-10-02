@@ -1328,6 +1328,10 @@ if [ "$cron" != 'no' ] && [ -n "$CRON_SYSTEM" ]; then
 	else
 		echo -e "$(date "+%F %T") $jobs cron jobs" | tee -a $tmpdir/restore.log
 	fi
+	# HestiaCP before 1.9 kept its system jobs here; named, never rewritten, a rewrite would arm them twice.
+	for job in $(sed -n "s|^JOB='\([0-9]*\)'.*/usr/local/hestia/bin/v-.*|\1|p" "$tmpdir/cron/cron.conf"); do
+		echo "$(date "+%F %T") cron job $job calls a HestiaCP command that does not exist here" | tee -a $tmpdir/restore.log
+	done
 
 	# Restoring cron jobs
 	cp $tmpdir/cron/cron.conf $USER_DATA/cron.conf

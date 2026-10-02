@@ -63,12 +63,17 @@ convention, not security-relevant and not smoke-enforced (the check was dropped)
 sweep for it opportunistically in code/comment cleanup rounds over the panel and CLI
 (`bin/`, `web/` minus `web/locale/`).
 
-**Keep verbatim (do NOT condense):**
-- A comment explaining a **non-obvious edge/precondition**, or referencing an
-  **issue / advisory / distro quirk** (e.g. why proftpd-basic fails, why
-  mod-crypto is needed, why the AppArmor hook exists, why a guard is artefact-
-  not flag-based). If a long rationale genuinely intrudes, move it to the file
-  **header** or **CODEMAP** — never delete it.
+**The header carries the file, the code carries itself (#1176).**
+- **Header:** the directives below plus at most two or three lines saying what the command is for. No history.
+- **Inline:** nothing that tells a story - no issue numbers, no measurements, no derivation, no "first we tried".
+  At most one line with a *why* where the code would otherwise look arbitrary. What falls out of the code
+  this way lives in `git log`/`blame` and the issues.
+- **Guard comments stay**, one line each: a *why not otherwise* at a spot someone would otherwise "fix"
+  (sftp `\[` because of Tcl, ftp with a bare address, a variable name that is a dispatch contract), and a
+  line naming a file this one has to keep in step with.
+- **No section banners.** The upstream `#---# Variables & Functions #---#` blocks go; a blank line separates.
+- **Never restate the code.** Above `pm.max_children = 8` the only thing worth writing is *why 8*.
+- **Line width: up to 120 columns.** One wide line beats three narrow ones.
 
 **Do NOT touch (these are API/tooling, not prose):**
 - Header directives parsed by `include/help.sh` for `--help` and `check_args`: `# info:`, `# options:`,
@@ -78,27 +83,14 @@ sweep for it opportunistically in code/comment cleanup rounds over the panel and
 - `# shellcheck disable=…` / `# shellcheck source=…`, editor modelines,
   license/attribution headers from the upstream heritage.
 
-**Condense:**
-- **Inline** comments that merely restate *what* the code does → one line, or drop.
-- **Never restate the code.** A comment above `pm.max_children = 8` that says "set
-  max children to 8" is noise — the only thing worth writing is *why 8*. Same for a
-  value/var assignment: the value is visible, the reason is not.
-- **Line width: up to 120 columns** (not 80 — nothing here is bound to an 80-col
-  terminal). Prefer one wide line over three narrow ones; wrap only past 120. Fewer
-  lines beats a tall stack of short ones.
-- **conf/ini keys:** a one- or two-line option change rarely needs more than a
-  one-line *why*. Don't top it with a four-line banner; if the rationale genuinely
-  needs a paragraph, it belongs in the file **header**, not inline above the key.
-- Keep short (≤5-word) upstream scaffolding as-is (`# Includes`, section banners);
-  don't churn near-verbatim upstream files.
-- Drop `#NNN` refs in prose (keep a bare number only as a rare useful anchor).
+**A comment change is its own commit**, never inside a change of behaviour, and its hash goes into
+`.git-blame-ignore-revs` so blame keeps pointing at the commit that made the code.
 
-**Verification (mechanical — the invariant is comment-only):** every added/removed
-diff line must match `^\s*(#|;|//)` (shell/JSON `#`, ini/fpm `;`, PHP/Caddy `//`
-and `#`); any line that doesn't is a hit to inspect. Never regex-strip a trailing
-`#` (it is not a comment in `$#`, `${v#p}`, heredocs, awk). So make every change a
-**full-line** comment change, not a trailing one. Plus `bash -n` on touched scripts,
-`json.tool` on JSON, and a smoke run.
+**Verification (mechanical):** `shfmt -mn` of every touched shell file is identical before and after. A
+line pattern like `^\s*#` is not enough: it passes a deleted `#` line inside a heredoc, and that is
+content. A comment inside an awk/sed string makes the comparison differ - a false alarm, checked by hand.
+Each run carries its control: delete one heredoc line on purpose, `shfmt -mn` must differ. Plus
+`json.tool` on JSON and a smoke run.
 
 ---
 
@@ -114,15 +106,11 @@ and `#`); any line that doesn't is a hit to inspect. Never regex-strip a trailin
 ### CLI conventions
 ```
 h-*    HestiaRE commands (renamed from v-* in Issue #22)
-v-*    symlinks only — HestiaCP CLI compatibility
 ```
 
-Symlink rules (non-negotiable):
-- Committed v-* symlinks ship in the tarball; they exist only where upstream has the
-  v-* command. New HestiaRE-native h-* commands get NO symlink.
-- The installer does NOT blanket-create symlinks — `configure_hestia` only prunes
-  dangling v-* (an alias whose h-* target was renamed/removed). `h-check-sys-smoke`
-  guards that none dangle.
+- There are no v-* aliases (removed in #1176). Upstream changes are reimplemented, never
+  cherry-picked, so nothing needs the old names; whoever wants them creates them in a fork.
+  `configure_hestia` and the 0.24 update entry remove leftovers, `h-check-sys-smoke` fails on one.
 - Removal verb is `h-delete-*` across the board (upstream `v-delete-*` parity).
 
 ### Panel webserver
@@ -178,7 +166,7 @@ CLAUDE.md         this file
 
 ### Directories (HestiaCP origin, being refined)
 ```
-bin/              CLI commands (h-*; v-* symlinks via Issue #23)
+bin/              CLI commands (h-*)
 include/          shared bash function libraries
 share/            install-time service configs + assets (absorbed the old install/ tree, #119)
 web/              panel UI (plain PHP, no framework)
@@ -367,7 +355,7 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
 
 This is non-negotiable and permanent:
 - Keep `/home/$user/web|mail|conf|backup` paths
-- Keep `h-*` command signatures exactly (renamed from v-*; v-* symlinks provide HestiaCP compat)
+- Keep `h-*` command signatures exactly (renamed from v-*, arguments unchanged)
 - Keep backup format bidirectional forever
 
 When reimplementing HestiaCP functionality:

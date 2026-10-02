@@ -751,6 +751,16 @@ cron_update_check_apply() {
 	mv -f "$tmp" "$ct"
 }
 
+# Only symlinks: a regular file named v-* would be somebody's own and stays.
+v_aliases_remove_apply() {
+	local f
+	for f in "$HESTIA/bin"/v-*; do
+		[ -e "$f" ] || [ -L "$f" ] || continue
+		[ -L "$f" ] && rm -f -- "$f"
+	done
+	[ -z "$(find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -type l -print -quit 2> /dev/null)" ]
+}
+
 # The panel translates only under a locale that is not C: glibc 2.39+ ignores LANGUAGE under C.UTF-8 (#1157),
 # and web/inc/i18n.php asks for en_US.UTF-8 first. Ubuntu's image lacks the locales package. The line goes into
 # /etc/locale.gen because a locales upgrade regenerates from there, and Debian's locale-gen ignores an argument

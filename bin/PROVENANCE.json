@@ -12,7 +12,6 @@
       "derived": "Reimplemented or diverged from upstream on purpose (churn >3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
-    "symlink_policy": "v-* aliases are committed symlinks (HestiaCP CLI compatibility); they are NOT listed here - only real files carry provenance.",
     "aggregate": {
       "upstream_mapped_files": 425,
       "eigenbau_files": 114,

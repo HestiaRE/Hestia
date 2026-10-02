@@ -43,6 +43,7 @@ before v0.20.0 are folded into one section by theme.
 - **The fs commands compare whole path components** (#1176). The check was a prefix, so `/home/ab` passed for
   customer `a`; only the customer's own rights, which the commands run under, still stopped the write.
   `h-extract-fs-archive` takes `.tar.zst` and `.tar.gz`, an unknown type ran into an error that returned success.
+  Below the backup directory it unpacks only from a restore's own `tmp.*` dir, no longer from a customer's archives.
 
 ### Removed
 
@@ -63,9 +64,10 @@ before v0.20.0 are folded into one section by theme.
 
 - **The fail2ban page of the config editor could never save** (#1176). It edits `jail.local`, which belongs to the
   admin and does not exist until somebody writes it, and both the reader and the writer refused a missing file. The
-  first save now creates it, and a failed restart removes it again.
+  first save now creates it. A jail.local that fail2ban cannot run on is rolled back before the restart, or after
+  it when the server does not answer, since the restart reports success either way.
 - **A restore broke off at the mail and home archives when `BACKUP_TEMP` was set** (#1176). The restore unpacks
-  from there, and `h-extract-fs-archive` accepted a source only under the home, `/tmp` or the backup directory.
+  from there, and `h-extract-fs-archive` accepted a source only under the home, `/tmp` or `$BACKUP/tmp.*`.
 - **Adding a mail domain left its webmail unreachable until some later reload** (#1172), and every restart after
   a command that reads a customer record was skipped the same way. The freeze check ran `$SHELL`, which the record's
   `SHELL='nologin'` had replaced, and read the refusal as a web-model switch in progress.

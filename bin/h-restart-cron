@@ -4,7 +4,8 @@
 #
 # example: h-restart-cron
 #
-# RESTART: yes restarts cron now, scheduled queues it, no does nothing; empty follows SCHEDULED_RESTART.
+# RESTART no, or empty, does nothing; anything else restarts cron now. Under SCHEDULED_RESTART=yes an
+# empty or scheduled RESTART queues the restart instead.
 
 restart=$1
 

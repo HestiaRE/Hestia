@@ -1332,7 +1332,7 @@ check_web_templates_resolvable() {
 check_record_grammar() {
 	local f n=0 bad=0 first="" line
 	if ! declare -F record_line_valid > /dev/null 2>&1; then
-		no "record grammar not checkable" "record_line_valid missing - include/backup.sh not sourced"
+		no "record grammar not checkable" "record_line_valid missing - include/main.sh not sourced"
 		return
 	fi
 	for f in "$CONF_DIR/users"/*/user.conf "$CONF_DIR/users"/*/*.conf "$CONF_DIR/users"/*/mail/*.conf \

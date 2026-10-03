@@ -1928,50 +1928,45 @@ is_comment_format_valid() {
 }
 
 # Cron validator
+# The WHOLE field against a grammar, element by element: the old form said ok as soon as one
+# comma part was a number and never looked at the rest, so a part carrying a quote or a newline
+# rode along into the record. Only numeric cron syntax within the field's own bounds: *, */S, N,
+# N-M, N-M/S and comma lists of those. Names (mon, jan) are refused on purpose - the panel never
+# emits them and allowing letters would widen the charset this gate exists to keep narrow.
 is_cron_format_valid() {
-	limit=59
-	check_format=''
-	if [ "$2" = 'hour' ]; then
-		limit=23
-	fi
-
-	if [ "$2" = 'day' ]; then
-		limit=31
-	fi
-	if [ "$2" = 'month' ]; then
-		limit=12
-	fi
-	if [ "$2" = 'wday' ]; then
-		limit=7
-	fi
-	if [ "$1" = '*' ]; then
-		check_format='ok'
-	fi
-	if [[ "$1" =~ ^[\*]+[/]+[0-9] ]]; then
-		if [ "$(echo $1 | cut -f 2 -d /)" -lt $limit ]; then
-			check_format='ok'
-		fi
-	fi
-	if [[ "$1" =~ ^[0-9][-,0-9]{0,70}[\/][0-9]$ ]]; then
-		check_format='ok'
-		crn_values=${1//,/ }
-		crn_values=${crn_values//-/ }
-		crn_values=${crn_values//\// }
-		for crn_vl in $crn_values; do
-			if [ "$crn_vl" -gt $limit ]; then
-				check_format='invalid'
-			fi
-		done
-	fi
-	crn_values=$(echo $1 | tr "," " " | tr "-" " ")
-	for crn_vl in $crn_values; do
-		if [[ "$crn_vl" =~ ^[0-9]+$ ]] && [ "$crn_vl" -le $limit ]; then
-			check_format='ok'
+	local value="$1" field="$2" floor=0 limit=59 part a b s parts=()
+	case "$field" in
+		hour) limit=23 ;;
+		day) floor=1 limit=31 ;;
+		month) floor=1 limit=12 ;;
+		wday) limit=7 ;;
+	esac
+	# One charset check kills a quote, a space, a newline or a letter before any structure is read.
+	[[ "$value" =~ ^[0-9*/,-]+$ ]] || check_result "$E_INVALID" "invalid $field format :: $value"
+	case "$value" in ,* | *, | *,,*) check_result "$E_INVALID" "invalid $field format :: $value" ;; esac
+	# read into an array, not `for part in $value`: an unquoted * would glob to filenames. The
+	# charset check above already forbids the newline that would truncate the read.
+	IFS=',' read -ra parts <<< "$value"
+	for part in "${parts[@]}"; do
+		# 10# so a leading zero (08) is decimal, not a bad octal; S never 0, a range never reversed.
+		if [ "$part" = '*' ]; then
+			continue
+		elif [[ "$part" =~ ^\*/([0-9]+)$ ]]; then
+			s=$((10#${BASH_REMATCH[1]}))
+			[ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || check_result "$E_INVALID" "invalid $field format :: $value"
+		elif [[ "$part" =~ ^([0-9]+)$ ]]; then
+			a=$((10#${BASH_REMATCH[1]}))
+			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || check_result "$E_INVALID" "invalid $field format :: $value"
+		elif [[ "$part" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]}))
+			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] || check_result "$E_INVALID" "invalid $field format :: $value"
+		elif [[ "$part" =~ ^([0-9]+)-([0-9]+)/([0-9]+)$ ]]; then
+			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]})) s=$((10#${BASH_REMATCH[3]}))
+			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] && [ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || check_result "$E_INVALID" "invalid $field format :: $value"
+		else
+			check_result "$E_INVALID" "invalid $field format :: $value"
 		fi
 	done
-	if [ "$check_format" != 'ok' ]; then
-		check_result "$E_INVALID" "invalid $2 format :: $1"
-	fi
 }
 
 is_object_name_format_valid() {

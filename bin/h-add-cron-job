@@ -4,14 +4,8 @@
 #
 # example: h-add-cron-job admin * * * * * sudo /usr/local/hestia/bin/h-backup-users
 #
-# This function adds a job to cron daemon. When executing commands, any output
-# is mailed to user's email if parameter REPORTS is set to 'yes'.
+# Adds a cron job for the user; with CRON_REPORTS on, its output is mailed to the contact address.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 min=$2
 hour=$3
@@ -22,23 +16,16 @@ cron_command=$7
 job=$8
 restart=$9
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# After the includes, not in the argument block: the encoder is a shell function, and a command
-# substitution that calls it before main.sh is sourced silently yields an empty command (#1002).
+# After the includes: the encoder lives in main.sh, and called earlier it yields an empty command.
 cron_command=$(record_value_encode "$cron_command")
 
 HIDE=7
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '7' "$#" 'USER MIN HOUR DAY MONTH WDAY CRON_COMMAND [JOB] [RESTART]'
 is_format_valid 'user' 'min' 'hour' 'day' 'month' 'wday' 'cron_command'
@@ -51,47 +38,29 @@ is_format_valid 'job'
 is_format_valid 'restart'
 is_object_new 'cron' 'JOB' "$job"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Concatenating cron string
 str="JOB='$job' MIN='$min' HOUR='$hour' DAY='$day' MONTH='$month' WDAY='$wday'"
 str="$str CMD='$cron_command' SUSPENDED='no' TIME='$time' DATE='$date'"
 
-# The same predicate the reader applies before storing: a line it could not read back is not written,
-# so a field that slipped past the format checks cannot leave a record the reader then trusts.
+# Never store a line the readers cannot parse back, whatever slipped past the field checks.
 record_line_valid "$str" || check_result "$E_INVALID" "refusing to store an unreadable cron record"
 
-# Adding to crontab
 echo "$str" >> $CONF_DIR/users/$user/cron.conf
 
-# Changing permissions
 chmod 660 $CONF_DIR/users/$user/cron.conf
 
-# Sort jobs by id number
 sort_cron_jobs
 
-# Sync cronjobs with system crond
 sync_cron_jobs
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Increasing cron value
 increase_user_value $user '$U_CRON_JOBS'
 
-# Restarting cron
 $BIN/h-restart-cron "$restart"
 check_result $? "Cron restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Cron Jobs" "Cron job added (ID: $job, Command: $cron_command)"
 log_event "$OK" "$ARGUMENTS"
 

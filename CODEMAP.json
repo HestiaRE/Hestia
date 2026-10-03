@@ -64,9 +64,9 @@
         "bin/h-update-sys-queue"
       ],
       "language": "bash",
-      "total_commands": 530,
+      "total_commands": 528,
       "command_prefixes": {
-        "h-*": 530
+        "h-*": 528
       },
       "domains": {
         "user": {
@@ -99,7 +99,7 @@
           "pattern": "bin/h-*-firewall*"
         },
         "cron": {
-          "count": 20,
+          "count": 16,
           "pattern": "bin/h-*-cron*"
         },
         "backup": {

@@ -4,50 +4,28 @@
 #
 # example: h-rebuild-cron-jobs admin yes
 #
-# This function rebuilds system cron config file for specified user.
+# Renders the user's system crontab again from cron.conf.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
 is_system_enabled "$CRON_SYSTEM" 'CRON_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Rebuild cron jobs
 sync_cron_jobs
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting crond
 $BIN/h-restart-cron "$restart"
 check_result $? "Cron restart failed" > /dev/null
 $BIN/h-log-action "system" "Info" "System" "Rebuilt cron jobs (User: $user)."
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

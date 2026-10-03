@@ -22,8 +22,9 @@ PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCN
 HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
-# one (the archive name).
-RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user"
+# one (the archive name). user and crontab are the lowercase globals a root record reader drives
+# (sync_cron_jobs chowns $crontab to $user), so a record must never bind them.
+RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user crontab"
 
 # The schema of a cron.conf record (#1176). The cron reader parses with this as HESTIA_RECORD_SCHEMA,
 # so an injected key - a lowercase user= that would retarget chown, anything else - is refused at the

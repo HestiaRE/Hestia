@@ -33,7 +33,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '7' "$#" 'USER JOB MIN HOUR DAY MONTH WDAY CRON_COMMAND'
+check_args '8' "$#" 'USER JOB MIN HOUR DAY MONTH WDAY CRON_COMMAND'
 is_format_valid 'user' 'job' 'min' 'hour' 'day' 'month' 'wday' 'cron_command'
 is_system_enabled "$CRON_SYSTEM" 'CRON_SYSTEM'
 is_object_valid 'user' 'USER' "$user"

@@ -672,9 +672,12 @@ declare(strict_types=1);
 // - Key names must match: [a-zA-Z][a-zA-Z0-9_]*
 // - Inside single quotes, every character is literal except the closing single quote.
 // - Outside single quotes, backslash escapes the next character.
+// php://stderr, not the STDERR constant: the CLI defines STDERR only for a script given as a file,
+// and this body arrives on stdin, so the constant is undefined and the intended message turned into
+// an "Undefined constant STDERR" fatal instead. It still failed closed, but said the wrong thing.
 function fail(string $message): never
 {
-    fwrite(STDERR, $message . PHP_EOL);
+    fwrite(fopen('php://stderr', 'w'), $message . PHP_EOL);
     exit(2);
 }
 
@@ -791,7 +794,7 @@ while ($unparsed !== '') {
                 'new_value' => $key_value,
             ], true);
         }
-        fwrite(STDERR, $msg . PHP_EOL);
+        fwrite(fopen('php://stderr', 'w'), $msg . PHP_EOL);
     }
     $result[$key_name] = $key_value;
 }

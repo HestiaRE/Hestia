@@ -2003,42 +2003,38 @@ is_comment_format_valid() {
 }
 
 # Cron validator
-# The whole field, element by element: the old form passed as soon as one comma part was a number.
-# Numeric cron syntax only (*, */S, N, N-M, N-M/S, comma lists), each within the field's bounds.
+# A positive grammar of cron tokens only: a quote, a space or a key= cannot match, so a schedule
+# field cannot smuggle a second record key (the old form passed as soon as one comma part was a
+# number). Names are the one non-numeric atom, and only in wday/month, where vixie cron allows them.
+# The regex carries the shape; arithmetic the regex cannot do (upper bound, range order) runs after,
+# on the numeric parts only - a named atom is already constrained to a real name by the regex.
 cron_field_valid() {
-	local value="$1" field="$2" floor=0 limit=59 part a b s parts=()
+	local value="$1" field="$2" floor=0 limit=59 names='' part a b parts=()
 	case "$field" in
 		hour) limit=23 ;;
 		day) floor=1 limit=31 ;;
-		month) floor=1 limit=12 ;;
-		wday) limit=7 ;;
+		month) floor=1 limit=12 names='jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec' ;;
+		wday) limit=7 names='sun|mon|tue|wed|thu|fri|sat' ;;
 	esac
-	[[ "$value" =~ ^[0-9*/,-]+$ ]] || return 1
-	case "$value" in ,* | *, | *,,*) return 1 ;; esac
-	# An array, not `for part in $value`: an unquoted * globs to filenames.
-	IFS=',' read -ra parts <<< "$value"
-	# Two digits at most: a longer number overflows the arithmetic below and comes back small.
+	# Lowercase a local copy for the name match, rather than set nocasematch: the shopt is global and
+	# an abort would not restore it (the nullglob lesson). The stored value is untouched.
+	local lc="${value,,}"
+	local atom="[0-9]{1,2}"
+	[ -n "$names" ] && atom="($atom|$names)"
+	local elem="($atom(-$atom)?|\\*)"
+	local term="$elem(/[1-9][0-9]?)?" # step >=1; /0 never matches
+	[[ $lc =~ ^$term(,$term)*$ ]] || return 1
+	# read, not `for part in $lc`: an unquoted * would glob to filenames.
+	IFS=',' read -ra parts <<< "$lc"
 	for part in "${parts[@]}"; do
-		if [ "$part" = '*' ]; then
-			continue
-		elif [[ "$part" =~ ^\*/([0-9]{1,2})$ ]]; then
-			s=$((10#${BASH_REMATCH[1]}))
-			[ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || return 1
-		elif [[ "$part" =~ ^([0-9]{1,2})$ ]]; then
-			a=$((10#${BASH_REMATCH[1]}))
-			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || return 1
-		elif [[ "$part" =~ ^([0-9]{1,2})/([0-9]{1,2})$ ]]; then
-			# N/S, a common form vixie cron reads as "from N, every S to the field max".
-			a=$((10#${BASH_REMATCH[1]})) s=$((10#${BASH_REMATCH[2]}))
-			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] && [ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || return 1
-		elif [[ "$part" =~ ^([0-9]{1,2})-([0-9]{1,2})$ ]]; then
+		part="${part%%/*}"
+		[ "$part" = '*' ] && continue
+		if [[ $part =~ ^([0-9]{1,2})-([0-9]{1,2})$ ]]; then
 			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]}))
 			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] || return 1
-		elif [[ "$part" =~ ^([0-9]{1,2})-([0-9]{1,2})/([0-9]{1,2})$ ]]; then
-			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]})) s=$((10#${BASH_REMATCH[3]}))
-			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] && [ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || return 1
-		else
-			return 1
+		elif [[ $part =~ ^([0-9]{1,2})$ ]]; then
+			a=$((10#${BASH_REMATCH[1]}))
+			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || return 1
 		fi
 	done
 	return 0

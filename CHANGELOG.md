@@ -27,6 +27,11 @@ before v0.20.0 are folded into one section by theme.
 
 ### Security
 
+- **Database names stay within their account** (#1176). A database or database user whose name lies in another
+  account's names is refused when it is created, moved or restored, and an account is not created into names another
+  one already holds. PostgreSQL statements are checked for errors. Also: the server status page escapes what it
+  shows, a database download is readable by the panel only, and database names refuse whitespace and control
+  characters.
 - **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171). The distribution's filter does not
   know dovecot 2.4's `Login aborted`, so IMAP and POP3 had no protection against password guessing there. Our own
   filter reads 2.3 and 2.4 and counts a failure once; the stock one counted every 2.3 failure twice.

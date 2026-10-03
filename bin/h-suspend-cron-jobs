@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: Suspending sys cron jobs
+# info: suspend cron jobs
 # options: USER [RESTART]
 #
 # example: h-suspend-cron-jobs admin

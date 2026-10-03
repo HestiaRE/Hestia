@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: restart cron service
-# options: NONE
+# options: [RESTART]
 #
 # example: h-restart-cron
 #

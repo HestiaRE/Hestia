@@ -1,8 +1,8 @@
 #!/bin/bash
-# info: restore single cron job
+# info: restore cron jobs from a restic snapshot
 # options: USER SNAPSHOT [NOTIFY]
 #
-# example: h-restore-cron-job USER BACKUP [NOTIFY]
+# example: h-restore-cron-job-restic user snapshot
 #
 # This function allows the user to restore a cron jobs
 # from a snapshot.

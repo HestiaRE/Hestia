@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: unsuspend sys cron
+# info: unsuspend cron jobs
 # options: USER [RESTART]
 #
 # example: h-unsuspend-cron-jobs admin no

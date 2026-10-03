@@ -23,7 +23,12 @@ HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTE
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
 # one (the archive name).
-RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
+RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user"
+
+# The schema of a cron.conf record (#1176). The cron reader parses with this as HESTIA_RECORD_SCHEMA,
+# so an injected key - a lowercase user= that would retarget chown, anything else - is refused at the
+# parser instead of becoming a shell variable. Keep in step with the writers' field order.
+CRON_RECORD_SCHEMA="JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE"
 
 # Storage encoding for record VALUES (record_line_valid refuses ' " ` and \ inside one). One encoder
 # and one decoder, or a fifth writer knows half the set.
@@ -44,6 +49,38 @@ record_value_decode() {
 	_v="${_v//%backtick%/\`}"
 	_v="${_v//%backslash%/\\}"
 	printf '%s' "$_v"
+}
+
+# Record lines are edited AS TEXT, never re-emitted from a key list: an unknown field would be
+# dropped, and the field ORDER is load-bearing. A value with a literal ' is not representable.
+
+# Not optional: the line lands in a live *.conf that sed, grep/cut and the JSON emitters read
+# directly, and the cron reader trusts it as its skip gate. $ stays allowed (crypt hashes); banning '
+# is what lets record_set_field find one. Moved here from backup.sh so main.sh's own readers share it.
+record_line_valid() {
+	local _line="$1" _rest _q="'" _dq='"' _bt='`' _bs='\'
+	local -A _seen_key=()
+	[ -n "$_line" ] || return 1
+	# A newline would make the "one record per line" assumption a lie for every reader below.
+	[[ "$_line" == *$'\n'* ]] && return 1
+	local _re="^([A-Z][A-Z0-9_]*)=${_q}([^${_q}${_dq}${_bt}${_bs}]*)${_q}( |$)"
+	# Trailing blanks are trimmed rather than rejected: some writers emit one and it carries
+	# nothing. Everything else has to match the grammar exactly.
+	_rest="${_line%"${_line##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		# A repeated key is refused: the readers disagree about which wins - eval keeps the last,
+		# sed and grep -o the first - so one line would carry two truths, invisibly.
+		[ -z "${_seen_key[${BASH_REMATCH[1]}]:-}" ] || return 1
+		_seen_key[${BASH_REMATCH[1]}]=1
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 0
+}
+
+# The keys of a record line, one per line, in the order they appear.
+record_keys() {
+	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
 }
 
 is_protected_key() {
@@ -1273,31 +1310,50 @@ sort_cron_jobs() {
 
 # Sync cronjobs with system cron
 sync_cron_jobs() {
+	# Owner and target captured before any record is read: the parser sets record fields as globals,
+	# so a line that smuggled a key could otherwise redirect the chown or the write path below.
+	local _user="$user" crontab line key ok
 	source_conf "$USER_DATA/user.conf"
 	if [ -e "/var/spool/cron/crontabs" ]; then
-		crontab="/var/spool/cron/crontabs/$user"
+		crontab="/var/spool/cron/crontabs/$_user"
 	else
-		crontab="/var/spool/cron/$user"
+		crontab="/var/spool/cron/$_user"
 	fi
 
 	# remove file if exists
 	if [ -e "$crontab" ]; then
-		rm -f $crontab
+		rm -f "$crontab"
 	fi
 
 	# touch new crontab file
-	touch $crontab
+	touch "$crontab"
 
 	if [ "$CRON_REPORTS" = 'yes' ]; then
-		echo "MAILTO=$CONTACT" > $crontab
-		echo 'CONTENT_TYPE="text/plain; charset=utf-8"' >> $crontab
+		echo "MAILTO=$CONTACT" > "$crontab"
+		echo 'CONTENT_TYPE="text/plain; charset=utf-8"' >> "$crontab"
 	else
-		echo 'MAILTO=""' > $crontab
+		echo 'MAILTO=""' > "$crontab"
 	fi
 
 	# read -r, or a backslash in a stored CMD field is consumed as an escape while the crontab is
 	# assembled (GHSA-5fpv).
 	while read -r line; do
+		# Clear the record fields first: a skipped or half line would otherwise inherit the one before.
+		JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
+		# The shared predicate the writers pass before storing: a line the reader cannot trust is named
+		# and skipped, never handed to the parser (which aborts the whole run) or let set root's target.
+		if ! record_line_valid "$line"; then
+			echo "Warning: $_user cron.conf has an unreadable line, skipped" >&2
+			continue
+		fi
+		ok=1
+		for key in $(record_keys "$line"); do
+			case " $CRON_RECORD_SCHEMA " in *" $key "*) ;; *) ok=0 ;; esac
+		done
+		if [ "$ok" -ne 1 ]; then
+			echo "Warning: $_user cron.conf line carries a key outside the cron schema, skipped" >&2
+			continue
+		fi
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
 			# The command alone: a schedule field carries no placeholder, and decoding the assembled
@@ -1305,9 +1361,9 @@ sync_cron_jobs() {
 			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
 				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
-	done < $USER_DATA/cron.conf
-	chown $user:$user $crontab
-	chmod 600 $crontab
+	done < "$USER_DATA/cron.conf"
+	chown "$_user:$_user" "$crontab"
+	chmod 600 "$crontab"
 }
 
 # The one hestia crontab, rendered here so a second copy cannot drift from it. The renewal time is

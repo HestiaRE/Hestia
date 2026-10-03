@@ -83,6 +83,19 @@ record_keys() {
 	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
 }
 
+# A cron.conf line is safe to parse when it is one line and every key it would set is a cron schema
+# field (#1176). The reader needs this and NOT record_line_valid: a migrated job legitimately carries
+# a " in its command, which record_line_valid forbids but the command field may hold. Keys of either
+# case are read, so a smuggled lowercase user= (invisible to record_keys) is caught.
+cron_record_safe() {
+	local _line="$1" _k
+	[[ "$_line" == *$'\n'* ]] && return 1
+	for _k in $(grep -oE "[A-Za-z_][A-Za-z0-9_]*='" <<< "$_line" | sed "s/='$//"); do
+		case " $CRON_RECORD_SCHEMA " in *" $_k "*) ;; *) return 1 ;; esac
+	done
+	return 0
+}
+
 is_protected_key() {
 	case " ${SOURCE_CONF_PROTECTED//$'\n'/ } " in *" $1 "*) return 0 ;; esac
 	return 1
@@ -1312,7 +1325,7 @@ sort_cron_jobs() {
 sync_cron_jobs() {
 	# Owner and target captured before any record is read: the parser sets record fields as globals,
 	# so a line that smuggled a key could otherwise redirect the chown or the write path below.
-	local _user="$user" crontab line key ok
+	local _user="$user" crontab line
 	source_conf "$USER_DATA/user.conf"
 	if [ -e "/var/spool/cron/crontabs" ]; then
 		crontab="/var/spool/cron/crontabs/$_user"
@@ -1340,18 +1353,10 @@ sync_cron_jobs() {
 	while read -r line; do
 		# Clear the record fields first: a skipped or half line would otherwise inherit the one before.
 		JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
-		# The shared predicate the writers pass before storing: a line the reader cannot trust is named
-		# and skipped, never handed to the parser (which aborts the whole run) or let set root's target.
-		if ! record_line_valid "$line"; then
-			echo "Warning: $_user cron.conf has an unreadable line, skipped" >&2
-			continue
-		fi
-		ok=1
-		for key in $(record_keys "$line"); do
-			case " $CRON_RECORD_SCHEMA " in *" $key "*) ;; *) ok=0 ;; esac
-		done
-		if [ "$ok" -ne 1 ]; then
-			echo "Warning: $_user cron.conf line carries a key outside the cron schema, skipped" >&2
+		# A line that would set a key outside the cron schema (a smuggled user=) is named and skipped,
+		# never handed to the parser, which would abort the whole run or let the key set root's target.
+		if ! cron_record_safe "$line"; then
+			echo "Warning: $_user cron.conf has a line the reader cannot trust, skipped" >&2
 			continue
 		fi
 		parse_object_kv_list "$line"
@@ -1987,12 +1992,9 @@ is_comment_format_valid() {
 }
 
 # Cron validator
-# The WHOLE field against a grammar, element by element: the old form said ok as soon as one
-# comma part was a number and never looked at the rest, so a part carrying a quote or a newline
-# rode along into the record. Only numeric cron syntax within the field's own bounds: *, */S, N,
-# N-M, N-M/S and comma lists of those. Names (mon, jan) are refused on purpose - the panel never
-# emits them and allowing letters would widen the charset this gate exists to keep narrow.
-is_cron_format_valid() {
+# The whole field, element by element: the old form passed as soon as one comma part was a number.
+# Numeric cron syntax only (*, */S, N, N-M, N-M/S, comma lists), each within the field's bounds.
+cron_field_valid() {
 	local value="$1" field="$2" floor=0 limit=59 part a b s parts=()
 	case "$field" in
 		hour) limit=23 ;;
@@ -2000,32 +2002,39 @@ is_cron_format_valid() {
 		month) floor=1 limit=12 ;;
 		wday) limit=7 ;;
 	esac
-	# One charset check kills a quote, a space, a newline or a letter before any structure is read.
-	[[ "$value" =~ ^[0-9*/,-]+$ ]] || check_result "$E_INVALID" "invalid $field format :: $value"
-	case "$value" in ,* | *, | *,,*) check_result "$E_INVALID" "invalid $field format :: $value" ;; esac
-	# read into an array, not `for part in $value`: an unquoted * would glob to filenames. The
-	# charset check above already forbids the newline that would truncate the read.
+	[[ "$value" =~ ^[0-9*/,-]+$ ]] || return 1
+	case "$value" in ,* | *, | *,,*) return 1 ;; esac
+	# An array, not `for part in $value`: an unquoted * globs to filenames.
 	IFS=',' read -ra parts <<< "$value"
+	# Two digits at most: a longer number overflows the arithmetic below and comes back small.
 	for part in "${parts[@]}"; do
-		# 10# so a leading zero (08) is decimal, not a bad octal; S never 0, a range never reversed.
 		if [ "$part" = '*' ]; then
 			continue
-		elif [[ "$part" =~ ^\*/([0-9]+)$ ]]; then
+		elif [[ "$part" =~ ^\*/([0-9]{1,2})$ ]]; then
 			s=$((10#${BASH_REMATCH[1]}))
-			[ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || check_result "$E_INVALID" "invalid $field format :: $value"
-		elif [[ "$part" =~ ^([0-9]+)$ ]]; then
+			[ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || return 1
+		elif [[ "$part" =~ ^([0-9]{1,2})$ ]]; then
 			a=$((10#${BASH_REMATCH[1]}))
-			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || check_result "$E_INVALID" "invalid $field format :: $value"
-		elif [[ "$part" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || return 1
+		elif [[ "$part" =~ ^([0-9]{1,2})/([0-9]{1,2})$ ]]; then
+			# N/S, a common form vixie cron reads as "from N, every S to the field max".
+			a=$((10#${BASH_REMATCH[1]})) s=$((10#${BASH_REMATCH[2]}))
+			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] && [ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || return 1
+		elif [[ "$part" =~ ^([0-9]{1,2})-([0-9]{1,2})$ ]]; then
 			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]}))
-			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] || check_result "$E_INVALID" "invalid $field format :: $value"
-		elif [[ "$part" =~ ^([0-9]+)-([0-9]+)/([0-9]+)$ ]]; then
+			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] || return 1
+		elif [[ "$part" =~ ^([0-9]{1,2})-([0-9]{1,2})/([0-9]{1,2})$ ]]; then
 			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]})) s=$((10#${BASH_REMATCH[3]}))
-			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] && [ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || check_result "$E_INVALID" "invalid $field format :: $value"
+			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] && [ "$s" -ge 1 ] && [ "$s" -le "$limit" ] || return 1
 		else
-			check_result "$E_INVALID" "invalid $field format :: $value"
+			return 1
 		fi
 	done
+	return 0
+}
+
+is_cron_format_valid() {
+	cron_field_valid "$1" "$2" || check_result "$E_INVALID" "invalid $2 format :: $1"
 }
 
 is_object_name_format_valid() {

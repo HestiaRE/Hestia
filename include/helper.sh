@@ -751,40 +751,31 @@ cron_update_check_apply() {
 	mv -f "$tmp" "$ct"
 }
 
-# Report-only (#1176): the hardened cron reader skips a cron.conf line it cannot read back, so a
-# record from before this update that carried an injected or malformed field stops producing its
-# job. Name the affected users once at update time; never edit a customer's file from here. The
-# marker makes the run idempotent, so a second pass of the manifest finds nothing to do.
+# Report only, never edits a customer's file. Two classes: a line the cron reader skips, and a line
+# outside the schedule grammar, which keeps running but whose next save is refused. The marker makes
+# a second manifest pass a no-op.
 cron_record_review_apply() {
-	local marker='/etc/hestia/.cron-record-review-1176' conf user line key n hits=0
-	local -a keys
+	local marker='/etc/hestia/.cron-record-review-1176' conf user line key skipped legacy
 	for conf in "$CONF_DIR"/users/*/cron.conf; do
 		[ -f "$conf" ] || continue
 		user=$(basename "$(dirname "$conf")")
-		n=0
+		skipped=0 legacy=0
 		while IFS= read -r line; do
 			[ -n "$line" ] || continue
-			if ! record_line_valid "$line"; then
-				n=$((n + 1))
+			if ! cron_record_safe "$line"; then
+				skipped=$((skipped + 1))
 				continue
 			fi
-			mapfile -t keys < <(record_keys "$line")
-			for key in "${keys[@]}"; do
-				case " $CRON_RECORD_SCHEMA " in
-					*" $key "*) ;;
-					*)
-						n=$((n + 1))
-						break
-						;;
-				esac
+			for key in MIN HOUR DAY MONTH WDAY; do
+				if ! [[ " $line" =~ \ $key=\'([^\']*)\' ]] || ! cron_field_valid "${BASH_REMATCH[1]}" "${key,,}"; then
+					legacy=$((legacy + 1))
+					break
+				fi
 			done
 		done < "$conf"
-		if [ "$n" -gt 0 ]; then
-			echo "[ ! ] $user: $n cron job(s) the reader can no longer apply, review $conf" >&2
-			hits=$((hits + 1))
-		fi
+		[ "$skipped" -eq 0 ] || echo "[ ! ] $user: $skipped cron job(s) the reader skips as unreadable, review $conf" >&2
+		[ "$legacy" -eq 0 ] || echo "[ ! ] $user: $legacy cron job(s) outside the schedule grammar keep running, saving them is refused until rewritten" >&2
 	done
-	[ "$hits" -eq 0 ] || echo "[ ! ] review the cron jobs named above; the panel can re-save them once corrected" >&2
 	: > "$marker" 2> /dev/null || true
 	return 0
 }

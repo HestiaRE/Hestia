@@ -26,9 +26,9 @@ HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTE
 # (sync_cron_jobs chowns $crontab to $user), so a record must never bind them.
 RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user crontab"
 
-# The schema of a cron.conf record (#1176). The cron reader parses with this as HESTIA_RECORD_SCHEMA,
-# so an injected key - a lowercase user= that would retarget chown, anything else - is refused at the
-# parser instead of becoming a shell variable. Keep in step with the writers' field order.
+# The schema of a cron.conf record (#1176). cron_record_safe checks each stored line against this before
+# it reaches the parser; a line that would set a key outside the schema (a smuggled lowercase user= that
+# would retarget chown) is named and skipped, never parsed. Keep in step with the writers' field order.
 CRON_RECORD_SCHEMA="JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE"
 
 # Storage encoding for record VALUES (record_line_valid refuses ' " ` and \ inside one). One encoder

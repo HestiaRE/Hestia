@@ -120,22 +120,6 @@
       "note": ""
     },
     {
-      "path": "h-add-cron-restart-job",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-cron-restart-job",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 46,
-        "our_lines": 43,
-        "added": 7,
-        "removed": 10,
-        "pct": 19,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
       "path": "h-add-database",
       "source_type": "derived",
       "upstream_path": "bin/v-add-database",
@@ -2652,22 +2636,6 @@
         "added": 7,
         "removed": 10,
         "pct": 14,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-delete-cron-restart-job",
-      "source_type": "derived",
-      "upstream_path": "bin/v-delete-cron-restart-job",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 46,
-        "our_lines": 43,
-        "added": 7,
-        "removed": 10,
-        "pct": 19,
         "measured_at": "2026-09-26"
       },
       "note": ""

@@ -418,6 +418,42 @@
         "/etc/hestia/.cron-record-review-1176"
       ],
       "reversible": false
+    },
+    {
+      "id": "remove-h-add-cron-restart-job",
+      "description": "h-add-cron-restart-job is gone: the hestia crontab renderer writes the restart queue line on every box, so it added nothing",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-cron-restart-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-cron-restart-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-cron-restart-job"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-delete-cron-restart-job",
+      "description": "h-delete-cron-restart-job is gone: it removed the restart queue line, after which queued restarts were never run",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-delete-cron-restart-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-delete-cron-restart-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-delete-cron-restart-job"
+      ],
+      "reversible": false
     }
   ]
 }

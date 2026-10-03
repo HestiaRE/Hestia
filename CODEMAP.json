@@ -64,9 +64,9 @@
         "bin/h-update-sys-queue"
       ],
       "language": "bash",
-      "total_commands": 530,
+      "total_commands": 528,
       "command_prefixes": {
-        "h-*": 530
+        "h-*": 528
       },
       "domains": {
         "user": {

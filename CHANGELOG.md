@@ -64,6 +64,9 @@ before v0.20.0 are folded into one section by theme.
   `h-list-fs-directory`, `h-move-fs-directory`, `h-move-fs-file`, `h-open-fs-file` and `h-search-fs-object`. They
   served HestiaCP's app installer and the old VestaCP file manager; the File Manager here runs in the customer's own
   pool. An update deletes them from the box.
+- **`h-add-cron-restart-job` and `h-delete-cron-restart-job` are gone** (#1176). The first added a line the hestia
+  crontab always carries; the second removed it, and queued service restarts then never ran. Neither had a caller.
+  An update deletes them from the box.
 
 ### Fixed
 

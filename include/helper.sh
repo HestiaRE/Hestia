@@ -775,6 +775,7 @@ cron_record_review_apply() {
 		[ "$skipped" -eq 0 ] || echo "[ ! ] $user: $skipped cron job(s) the reader skips as unreadable, review $conf" >&2
 		[ "$legacy" -eq 0 ] || echo "[ ! ] $user: $legacy cron job(s) outside the schedule grammar keep running, saving them is refused until rewritten" >&2
 	done
+	# The marker is the path_absent gate of cron-record-review in share/updates/0.24.json; keep the paths in step.
 	: > "$marker" 2> /dev/null || true
 	return 0
 }

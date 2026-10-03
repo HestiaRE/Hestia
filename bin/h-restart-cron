@@ -4,9 +4,10 @@
 #
 # example: h-restart-cron
 #
-# RESTART no, or empty, does nothing; anything else restarts cron now. Under SCHEDULED_RESTART=yes an
-# empty or scheduled RESTART queues the restart instead.
+# RESTART no, or empty, does nothing; yes, scheduled, now and the other shared restart values restart cron at
+# once, anything else is refused. Under SCHEDULED_RESTART=yes an empty or scheduled RESTART queues it instead.
 
+# Assigned, not left to $1: is_format_valid reads restart by name, and an unassigned variable validates nothing.
 restart=$1
 
 # shellcheck source=/etc/hestia/hestia.env

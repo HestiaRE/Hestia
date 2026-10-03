@@ -29,7 +29,7 @@ if (isset($_GET["cpu"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo $file . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
 	}
 	end_html();
 	exit();
@@ -44,7 +44,7 @@ if (isset($_GET["mem"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo $file . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
 	}
 	end_html();
 	exit();
@@ -59,7 +59,7 @@ if (isset($_GET["disk"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo $file . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
 	}
 	end_html();
 	exit();
@@ -74,13 +74,13 @@ if (isset($_GET["net"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo $file . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
 	}
 	end_html();
 	exit();
 }
 
-// Web info
+// Web info: h-list-sys-web-status is HTML on purpose, every other tab is plain text and escaped.
 if (isset($_GET["web"])) {
 	$TAB = "WEB";
 	include $_SERVER["DOCUMENT_ROOT"] . "/templates/pages/list_server_info.php";
@@ -109,7 +109,7 @@ if (isset($_GET["mail"])) {
 	exec(HESTIA_CMD . "h-list-sys-mail-status", $output, $return_var);
 	if ($return_var == 0) {
 		foreach ($output as $file) {
-			echo $file . "\n";
+			echo htmlspecialchars($file, ENT_QUOTES) . "\n";
 		}
 	}
 	end_html();
@@ -123,7 +123,7 @@ if (isset($_GET["db"])) {
 	exec(HESTIA_CMD . "h-list-sys-db-status", $output, $return_var);
 	if ($return_var == 0) {
 		foreach ($output as $file) {
-			echo $file . "\n";
+			echo htmlspecialchars($file, ENT_QUOTES) . "\n";
 		}
 	}
 	end_html();

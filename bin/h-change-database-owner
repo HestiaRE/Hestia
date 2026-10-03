@@ -84,6 +84,13 @@ is_database_format_valid "$new_db" 'database'
 is_dbuser_format_valid "$new_dbuser" 'dbuser'
 # The renamed user must be free server-wide: the prefix swap alone can land on another customer's user.
 ! db_user_foreign "$new_dbuser" "$owner" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"
+db_names_free "$new_db" "$new_dbuser" "$TYPE" "$user" \
+	|| check_result "$E_EXISTS" "$new_db or $new_dbuser is not available: the name belongs to another account"
+if [ "$TYPE" = 'pgsql' ]; then
+	psql_connect "$HOST"
+	! pgsql_object_exists database "$new_db" || check_result "$E_EXISTS" "database $new_db already exists"
+	! pgsql_object_exists role "$new_dbuser" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"
+fi
 if [ "$TYPE" = 'mysql' ]; then
 	mysql_connect "$HOST"
 	! mysql_user_exists "$new_dbuser" || check_result "$E_EXISTS" "DBUSER=$new_dbuser already exists"

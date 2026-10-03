@@ -22,13 +22,10 @@ PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCN
 HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
-# one (the archive name). user and crontab are the lowercase globals a root record reader drives
-# (sync_cron_jobs chowns $crontab to $user), so a record must never bind them.
+# one (the archive name). user and crontab: sync_cron_jobs chowns $crontab to $user as root.
 RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user crontab"
 
-# The schema of a cron.conf record (#1176). cron_record_safe checks each stored line against this before
-# it reaches the parser; a line that would set a key outside the schema (a smuggled lowercase user= that
-# would retarget chown) is named and skipped, never parsed. Keep in step with the writers' field order.
+# cron_record_safe skips a stored line that sets any other key. Keep in step with the writers.
 CRON_RECORD_SCHEMA="JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE"
 
 # Storage encoding for record VALUES (record_line_valid refuses ' " ` and \ inside one). One encoder
@@ -56,8 +53,7 @@ record_value_decode() {
 # dropped, and the field ORDER is load-bearing. A value with a literal ' is not representable.
 
 # Not optional: the line lands in a live *.conf that sed, grep/cut and the JSON emitters read
-# directly, and the cron reader trusts it as its skip gate. $ stays allowed (crypt hashes); banning '
-# is what lets record_set_field find one. Moved here from backup.sh so main.sh's own readers share it.
+# directly. $ stays allowed (crypt hashes); banning ' is what lets record_set_field find one.
 record_line_valid() {
 	local _line="$1" _rest _q="'" _dq='"' _bt='`' _bs='\'
 	local -A _seen_key=()
@@ -84,18 +80,13 @@ record_keys() {
 	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
 }
 
-# A cron.conf line is safe to parse when it is one line and every key it would set is a cron schema
-# field (#1176). The reader needs this and NOT record_line_valid: a migrated job legitimately carries
-# a " in its command, which record_line_valid forbids but the command field may hold. Keys of either
-# case are read, so a smuggled lowercase user= (invisible to record_keys) is caught.
+# The cron reader's gate, not record_line_valid: a migrated command may hold a ". Keys of either case
+# are read, so a lowercase key outside the schema is caught too.
 cron_record_safe() {
 	local _line="$1" _rest _k
 	[ -n "$_line" ] || return 1
 	[[ "$_line" == *$'\n'* ]] && return 1
-	# A full token parse, not just a key scan: a KEY=' without its closing quote (a truncated or
-	# newline-split line) must fail here, or the parser aborts the whole run on it. The value class
-	# is [^'] - a stored value never holds a raw ' (it is encoded), but it may hold a " (a quoted
-	# command), which record_line_valid forbids and the reader must keep.
+	# A token parse, not a key scan: a KEY=' without its closing quote must fail here, not in the parser.
 	local _re="^([A-Za-z_][A-Za-z0-9_]*)='[^']*'( |\$)"
 	_rest="${_line%"${_line##*[! ]}"}"
 	while [ -n "$_rest" ]; do
@@ -1334,8 +1325,7 @@ sort_cron_jobs() {
 
 # Sync cronjobs with system cron
 sync_cron_jobs() {
-	# Owner and target captured before any record is read: the parser sets record fields as globals,
-	# so a line that smuggled a key could otherwise redirect the chown or the write path below.
+	# Captured before any record is read: the parser sets globals, and these steer root's chown.
 	local _user="$user" crontab line
 	source_conf "$USER_DATA/user.conf"
 	if [ -e "/var/spool/cron/crontabs" ]; then
@@ -1344,12 +1334,10 @@ sync_cron_jobs() {
 		crontab="/var/spool/cron/$_user"
 	fi
 
-	# remove file if exists
 	if [ -e "$crontab" ]; then
 		rm -f "$crontab"
 	fi
 
-	# touch new crontab file
 	touch "$crontab"
 
 	if [ "$CRON_REPORTS" = 'yes' ]; then
@@ -1359,22 +1347,19 @@ sync_cron_jobs() {
 		echo 'MAILTO=""' > "$crontab"
 	fi
 
-	# read -r, or a backslash in a stored CMD field is consumed as an escape while the crontab is
-	# assembled (GHSA-5fpv).
+	# read -r, or a backslash in a stored command is eaten as an escape.
 	while read -r line; do
 		# Clear the record fields first: a skipped or half line would otherwise inherit the one before.
 		JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
 		[ -n "$line" ] || continue
-		# A line that would set a key outside the cron schema (a smuggled user=) is named and skipped,
-		# never handed to the parser, which would abort the whole run or let the key set root's target.
+		# Skipped, never parsed: the parser would abort the run, or a foreign key would set root's target.
 		if ! cron_record_safe "$line"; then
 			echo "Warning: $_user cron.conf has a line the reader cannot trust, skipped" >&2
 			continue
 		fi
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
-			# The command alone: a schedule field carries no placeholder, and decoding the assembled
-			# line rewrites parts of the command that were never encoded.
+			# Decode the command alone: decoding the whole line rewrites text that was never encoded.
 			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
 				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
@@ -2004,11 +1989,8 @@ is_comment_format_valid() {
 }
 
 # Cron validator
-# A positive grammar of cron tokens only: a quote, a space or a key= cannot match, so a schedule
-# field cannot smuggle a second record key (the old form passed as soon as one comma part was a
-# number). Names are the one non-numeric atom, and only in wday/month, where vixie cron allows them.
-# The regex carries the shape; arithmetic the regex cannot do (upper bound, range order) runs after,
-# on the numeric parts only - a named atom is already constrained to a real name by the regex.
+# Cron tokens only, so a quote, a space or a key= never matches. Names only in wday and month, as
+# vixie cron has them; the arithmetic after the regex checks bounds and order of the numeric parts.
 cron_field_valid() {
 	local value="$1" field="$2" floor=0 limit=59 names='' part a b parts=()
 	case "$field" in
@@ -2017,8 +1999,7 @@ cron_field_valid() {
 		month) floor=1 limit=12 names='jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec' ;;
 		wday) limit=7 names='sun|mon|tue|wed|thu|fri|sat' ;;
 	esac
-	# Lowercase a local copy for the name match, rather than set nocasematch: the shopt is global and
-	# an abort would not restore it (the nullglob lesson). The stored value is untouched.
+	# A lowercased copy, not nocasematch: that shopt is global and an abort would not restore it.
 	local lc="${value,,}"
 	local atom="[0-9]{1,2}"
 	[ -n "$names" ] && atom="($atom|$names)"

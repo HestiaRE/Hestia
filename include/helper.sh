@@ -751,9 +751,8 @@ cron_update_check_apply() {
 	mv -f "$tmp" "$ct"
 }
 
-# Report only, never edits a customer's file. Two classes: a line the cron reader skips, and a line
-# outside the schedule grammar, which keeps running but whose next save is refused. The marker makes
-# a second manifest pass a no-op.
+# Report only, never edits a customer's file: lines the reader skips, and jobs outside the grammar,
+# which keep running but cannot be saved again until rewritten.
 cron_record_review_apply() {
 	local marker='/etc/hestia/.cron-record-review-1176' conf user line key skipped legacy
 	for conf in "$CONF_DIR"/users/*/cron.conf; do

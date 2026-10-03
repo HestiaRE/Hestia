@@ -4,26 +4,18 @@
 #
 # example: h-list-cron-job admin 7
 #
-# This function of obtaining cron job parameters.
+# One job of the user, as json, shell or plain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 job=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	echo "{"
 	local CMD="$CMD_RAW"
@@ -44,7 +36,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "MINUTE:         $MIN"
 	echo "HOUR:           $HOUR"
@@ -57,56 +48,35 @@ shell_list() {
 	echo "DATE:           $DATE"
 }
 
-# PLAIN list function
 plain_list() {
-	# printf, not echo -e: a command may now carry a backslash, and echo -e turned `echo a\b` into
-	# a literal backspace in the output (#1002).
+	# printf, not echo -e: a command may carry a backslash.
 	printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
 		"$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" "$CMD" "$SUSPENDED" "$TIME" "$DATE"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER JOB [FORMAT]'
 is_format_valid 'user'
 is_number_format_valid "$job" "job_id"
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining config
 conf=$USER_DATA/cron.conf
 
-# Checking job id
 cron_line=$(grep -F "JOB='$job'" $conf)
 if [ -z "$cron_line" ]; then
 	check_result "$E_NOTEXIST" "cron job $job doesn't exist"
 fi
 
-# Parsing cron job
 parse_object_kv_list "$cron_line"
 
-# %quote% is the storage encoding for ' (the record delimiter); every format needs it decoded.
 CMD_RAW=$(record_value_decode "$CMD")
-# The " escaping belongs to JSON alone. It stays here for shell and plain, which have always
-# printed the value this way, while json_list takes CMD_RAW and lets json_escape do the whole
-# encoding - in front of json_escape this line doubled every escape it had already made.
+# For shell and plain only: json_list escapes CMD_RAW itself, and both together doubled every escape.
 CMD=$(echo "$CMD_RAW" | sed -e 's/"/\\"/g')
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

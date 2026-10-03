@@ -444,9 +444,8 @@ function syshealth_repair_system_config() {
 }
 # The hestia crontab is OPERATOR SURFACE, so the repair restores a MISSING file and never touches a
 # present one. The panel edits it (web/edit/server/hestia -> h-change-sys-service-config hestia,
-# measured: a hand-added line survives a save), h-add-cron-letsencrypt-job and h-add-letsencrypt-domain
-# append to it, and h-delete-cron-restart-job removes a baseline line on purpose. A repair that
-# rewrote a file that is there would undo all four (#972).
+# measured: a hand-added line survives a save), and h-add-cron-letsencrypt-job and h-add-letsencrypt-domain
+# append to it. A repair that rewrote a file that is there would undo all three (#972).
 #
 # The list itself is not here any more. It lived twice and had already drifted; system_crontab_write
 # in include/main.sh is now the only renderer, and the installer uses the same one.

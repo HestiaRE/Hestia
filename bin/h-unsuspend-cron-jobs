@@ -4,50 +4,28 @@
 #
 # example: h-unsuspend-cron-jobs admin no
 #
-# This function unsuspends all suspended cron jobs.
+# Unsuspends every job of the user, as h-unsuspend-user does.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Unsuspendning jobs
 for job in $(search_objects 'cron' 'SUSPENDED' 'yes' 'JOB'); do
 	$BIN/h-unsuspend-cron-job "$user" "$job" 'no'
 done
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting crond
 $BIN/h-restart-cron "$restart"
 check_result $? "Cron restart failed" > /dev/null
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

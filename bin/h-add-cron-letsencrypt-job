@@ -2,42 +2,22 @@
 # info: add cron job for Let's Encrypt certificates
 # options: NONE
 #
-# This function adds a new cron job for Let's Encrypt.
+# Adds the queue line that runs scheduled Let's Encrypt orders to the hestia crontab.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 is_system_enabled "$CRON_SYSTEM" 'CRON_SYSTEM'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Add cron job
 cmd="bin/h-update-sys-queue letsencrypt"
 check_cron=$(grep "$cmd" "/var/spool/cron/crontabs/hestia" 2> /dev/null)
 if [ -z "$check_cron" ] && [ -n "$CRON_SYSTEM" ]; then
 	sed -i -e "\$a*/5 * * * * sudo /usr/local/hestia/bin/h-update-sys-queue letsencrypt" "/var/spool/cron/crontabs/hestia"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

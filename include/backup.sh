@@ -6,8 +6,7 @@
 #                                                                           #
 #===========================================================================#
 
-# record_line_valid and record_keys moved to include/main.sh (#1176): the cron reader there shares
-# the same predicate, and main.sh is sourced before this file everywhere backup.sh is used.
+# record_line_valid and record_keys live in include/main.sh, which is sourced before this file.
 
 # record_set_field VAR KEY VALUE - replace KEY's value in the record held in VAR, keeping its
 # position; append the field at the end when it is not there yet.

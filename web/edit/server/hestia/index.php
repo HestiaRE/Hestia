@@ -44,11 +44,10 @@ if (!empty($_POST["save"])) {
 	}
 }
 
-$v_config_path = "/var/spool/cron/crontabs/hestia";
 $v_service_name = _("Panel Cronjobs");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("hestia");
 
 // Render page
 render_page($user, $TAB, "edit_server_service");

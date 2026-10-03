@@ -46,11 +46,10 @@ if (!empty($_POST["save"])) {
 	}
 }
 
-$v_config_path = "/etc/exim4/exim4.conf.template";
 $v_service_name = strtoupper("exim");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("exim4");
 
 // Render page
 render_page($user, $TAB, "edit_server_service");

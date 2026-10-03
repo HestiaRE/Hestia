@@ -17,11 +17,10 @@ if (!empty($_POST["save"])) {
 	$_SESSION["ok_msg"] = _("Info (read-only mode): Crontab can only be edited via SSH.");
 }
 
-$v_config_path = "/etc/crontab";
 $v_service_name = strtoupper("cron");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("cron");
 
 // Render page
 render_page($user, $TAB, "edit_server_service");

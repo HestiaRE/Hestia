@@ -13,12 +13,12 @@
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
     "aggregate": {
-      "upstream_mapped_files": 425,
+      "upstream_mapped_files": 413,
       "eigenbau_files": 114,
       "weighted_pct": 26,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 539,
-      "files_mapped": 425
+      "files_total": 527,
+      "files_mapped": 413
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -293,22 +293,6 @@
         "added": 20,
         "removed": 22,
         "pct": 19,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-add-fs-archive",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-fs-archive",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 85,
-        "our_lines": 82,
-        "added": 10,
-        "removed": 13,
-        "pct": 13,
         "measured_at": "2026-09-26"
       },
       "note": ""
@@ -1651,22 +1635,6 @@
       "note": ""
     },
     {
-      "path": "h-change-fs-file-permission",
-      "source_type": "derived",
-      "upstream_path": "bin/v-change-fs-file-permission",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 62,
-        "our_lines": 59,
-        "added": 6,
-        "removed": 9,
-        "pct": 12,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
       "path": "h-change-mail-account-password",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-account-password",
@@ -2527,22 +2495,6 @@
       "note": ""
     },
     {
-      "path": "h-check-fs-permission",
-      "source_type": "derived",
-      "upstream_path": "bin/v-check-fs-permission",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 59,
-        "our_lines": 56,
-        "added": 5,
-        "removed": 8,
-        "pct": 11,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
       "path": "h-check-mail-account-hash",
       "source_type": "derived",
       "upstream_path": "bin/v-check-mail-account-hash",
@@ -2619,38 +2571,6 @@
         "our_lines": 132,
         "added": 14,
         "removed": 12,
-        "pct": 9,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-copy-fs-directory",
-      "source_type": "derived",
-      "upstream_path": "bin/v-copy-fs-directory",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 69,
-        "our_lines": 66,
-        "added": 5,
-        "removed": 8,
-        "pct": 9,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-copy-fs-file",
-      "source_type": "derived",
-      "upstream_path": "bin/v-copy-fs-file",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 69,
-        "our_lines": 66,
-        "added": 5,
-        "removed": 8,
         "pct": 9,
         "measured_at": "2026-09-26"
       },
@@ -2951,22 +2871,6 @@
         "added": 5,
         "removed": 8,
         "pct": 11,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-delete-fs-file",
-      "source_type": "derived",
-      "upstream_path": "bin/v-delete-fs-file",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 55,
-        "our_lines": 52,
-        "added": 5,
-        "removed": 8,
-        "pct": 12,
         "measured_at": "2026-09-26"
       },
       "note": ""
@@ -4258,22 +4162,6 @@
       "note": ""
     },
     {
-      "path": "h-get-fs-file-type",
-      "source_type": "derived",
-      "upstream_path": "bin/v-get-fs-file-type",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 46,
-        "our_lines": 46,
-        "added": 5,
-        "removed": 5,
-        "pct": 10,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
       "path": "h-get-mail-account-value",
       "source_type": "derived",
       "upstream_path": "bin/v-get-mail-account-value",
@@ -4650,22 +4538,6 @@
         "added": 19,
         "removed": 24,
         "pct": 24,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-list-fs-directory",
-      "source_type": "derived",
-      "upstream_path": "bin/v-list-fs-directory",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 51,
-        "our_lines": 51,
-        "added": 6,
-        "removed": 6,
-        "pct": 11,
         "measured_at": "2026-09-26"
       },
       "note": ""
@@ -5858,38 +5730,6 @@
       "note": ""
     },
     {
-      "path": "h-move-fs-directory",
-      "source_type": "derived",
-      "upstream_path": "bin/v-move-fs-directory",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 68,
-        "our_lines": 65,
-        "added": 5,
-        "removed": 8,
-        "pct": 9,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-move-fs-file",
-      "source_type": "derived",
-      "upstream_path": "bin/v-move-fs-file",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 66,
-        "our_lines": 63,
-        "added": 5,
-        "removed": 8,
-        "pct": 10,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
       "path": "h-open-fs-config",
       "source_type": "derived",
       "upstream_path": "bin/v-open-fs-config",
@@ -5901,22 +5741,6 @@
         "added": 13,
         "removed": 7,
         "pct": 15,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-open-fs-file",
-      "source_type": "derived",
-      "upstream_path": "bin/v-open-fs-file",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 55,
-        "our_lines": 55,
-        "added": 5,
-        "removed": 5,
-        "pct": 9,
         "measured_at": "2026-09-26"
       },
       "note": ""
@@ -6598,22 +6422,6 @@
         "added": 12,
         "removed": 13,
         "pct": 20,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-search-fs-object",
-      "source_type": "derived",
-      "upstream_path": "bin/v-search-fs-object",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 72,
-        "our_lines": 57,
-        "added": 12,
-        "removed": 27,
-        "pct": 30,
         "measured_at": "2026-09-26"
       },
       "note": ""

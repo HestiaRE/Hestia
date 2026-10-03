@@ -190,46 +190,18 @@ if (!empty($_POST["save"])) {
 	}
 }
 
-// List config
-$data = cli_json("h-list-sys-dovecot-config json");
-
-$v_config_path = $data["CONFIG"]["config_path"];
-$v_config_path1 = $data["CONFIG"]["config_path1"];
-$v_config_path2 = $data["CONFIG"]["config_path2"];
-$v_config_path3 = $data["CONFIG"]["config_path3"];
-$v_config_path4 = $data["CONFIG"]["config_path4"];
-$v_config_path5 = $data["CONFIG"]["config_path5"];
-$v_config_path6 = $data["CONFIG"]["config_path6"];
-$v_config_path7 = $data["CONFIG"]["config_path7"];
-$v_config_path8 = $data["CONFIG"]["config_path8"];
 $v_service_name = strtoupper("dovecot");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
-if (!empty($v_config_path1)) {
-	$v_config1 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path1);
-}
-if (!empty($v_config_path2)) {
-	$v_config2 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path2);
-}
-if (!empty($v_config_path3)) {
-	$v_config3 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path3);
-}
-if (!empty($v_config_path4)) {
-	$v_config4 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path4);
-}
-if (!empty($v_config_path5)) {
-	$v_config5 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path5);
-}
-if (!empty($v_config_path6)) {
-	$v_config6 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path6);
-}
-if (!empty($v_config_path7)) {
-	$v_config7 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path7);
-}
-if (!empty($v_config_path8)) {
-	$v_config8 = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path8);
-}
+[$v_config_path, $v_config] = server_config("dovecot");
+[$v_config_path1, $v_config1] = server_config("dovecot-1");
+[$v_config_path2, $v_config2] = server_config("dovecot-2");
+[$v_config_path3, $v_config3] = server_config("dovecot-3");
+[$v_config_path4, $v_config4] = server_config("dovecot-4");
+[$v_config_path5, $v_config5] = server_config("dovecot-5");
+[$v_config_path6, $v_config6] = server_config("dovecot-6");
+[$v_config_path7, $v_config7] = server_config("dovecot-7");
+[$v_config_path8, $v_config8] = server_config("dovecot-8");
 
 // Render page
 render_page($user, $TAB, "edit_server_dovecot");

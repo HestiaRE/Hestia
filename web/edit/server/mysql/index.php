@@ -53,11 +53,10 @@ $v_max_connections = $data["CONFIG"]["max_connections"];
 $v_wait_timeout = $data["CONFIG"]["wait_timeout"];
 $v_interactive_timeout = $data["CONFIG"]["interactive_timeout"];
 $v_max_allowed_packet = $data["CONFIG"]["max_allowed_packet"];
-$v_config_path = $data["CONFIG"]["config_path"];
 $v_service_name = strtoupper("mysql");
 
 # Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("mysql");
 
 // Render page
 render_page($user, $TAB, "edit_server_mysql");

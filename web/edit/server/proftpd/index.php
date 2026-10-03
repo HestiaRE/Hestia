@@ -46,11 +46,10 @@ if (!empty($_POST["save"])) {
 	}
 }
 
-$v_config_path = shell_exec(HESTIA_CMD . "h-list-sys-proftpd-config plain");
 $v_service_name = strtoupper("proftpd");
 
 // Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_config_path, $v_config] = server_config("proftpd");
 
 // Render page
 render_page($user, $TAB, "edit_server_service");

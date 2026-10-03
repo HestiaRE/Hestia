@@ -72,10 +72,9 @@ $v_upload_max_filesize = $data["CONFIG"]["upload_max_filesize"];
 $v_post_max_size = $data["CONFIG"]["post_max_size"];
 $v_display_errors = $data["CONFIG"]["display_errors"];
 $v_error_reporting = $data["CONFIG"]["error_reporting"];
-$v_config_path = $data["CONFIG"]["config_path"];
 
 # Read config
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . quoteshellarg($v_config_path));
+[$v_config_path, $v_config] = server_config("php-" . $v_version);
 
 // Render page
 render_page($user, $TAB, "edit_server_php");

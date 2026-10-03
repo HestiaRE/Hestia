@@ -14,12 +14,12 @@
     },
     "third_party_note": "Third-party vendored code is tracked in VENDORED.json, not here; those paths are excluded to keep the two manifests disjoint.",
     "aggregate": {
-      "upstream_mapped_files": 301,
+      "upstream_mapped_files": 297,
       "eigenbau_files": 49,
       "weighted_pct": 31,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 350,
-      "files_mapped": 301
+      "files_total": 346,
+      "files_mapped": 297
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -1157,22 +1157,6 @@
       "note": ""
     },
     {
-      "path": "edit/server/crond/index.php",
-      "source_type": "verbatim",
-      "upstream_path": "web/edit/server/crond/index.php",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 31,
-        "our_lines": 31,
-        "added": 1,
-        "removed": 1,
-        "pct": 3,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
       "path": "edit/server/dovecot/index.php",
       "source_type": "derived",
       "upstream_path": "web/edit/server/dovecot/index.php",
@@ -1184,22 +1168,6 @@
         "added": 136,
         "removed": 129,
         "pct": 56,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "edit/server/exim/index.php",
-      "source_type": "derived",
-      "upstream_path": "web/edit/server/exim/index.php",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 59,
-        "our_lines": 60,
-        "added": 15,
-        "removed": 14,
-        "pct": 24,
         "measured_at": "2026-09-26"
       },
       "note": ""
@@ -1243,22 +1211,6 @@
       "upstream_ref": null,
       "last_reconciled": "2026-08-12",
       "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "edit/server/httpd/index.php",
-      "source_type": "derived",
-      "upstream_path": "web/edit/server/httpd/index.php",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 59,
-        "our_lines": 60,
-        "added": 15,
-        "removed": 14,
-        "pct": 24,
-        "measured_at": "2026-09-26"
-      },
       "note": ""
     },
     {
@@ -1313,22 +1265,6 @@
       "path": "edit/server/mysql/index.php",
       "source_type": "derived",
       "upstream_path": "web/edit/server/mysql/index.php",
-      "upstream_ref": "e6bd2f1a",
-      "last_reconciled": "2026-09-26",
-      "divergence": {
-        "upstream_lines": 68,
-        "our_lines": 67,
-        "added": 16,
-        "removed": 17,
-        "pct": 24,
-        "measured_at": "2026-09-26"
-      },
-      "note": ""
-    },
-    {
-      "path": "edit/server/mysqld/index.php",
-      "source_type": "derived",
-      "upstream_path": "web/edit/server/mysqld/index.php",
       "upstream_ref": "e6bd2f1a",
       "last_reconciled": "2026-09-26",
       "divergence": {

@@ -2334,7 +2334,7 @@ multiphp_default_version() {
 # own pool as well, and a save copied one file over all of them (#1144).
 php_ini_path() {
 	local v="${1:-$(multiphp_default_version)}"
-	$BIN/h-list-sys-php plain | grep -qxF -- "$v" || return 1
+	printf '%s\n' "${SYS_CONFIG_PHP:-$("$BIN/h-list-sys-php" plain)}" | grep -qxF -- "$v" || return 1
 	[ -f "/etc/php/$v/fpm/php.ini" ] || return 1
 	echo "/etc/php/$v/fpm/php.ini"
 }
@@ -2342,6 +2342,86 @@ php_ini_path() {
 php_ini_version() { # PATH from php_ini_path
 	local v="${1#/etc/php/}"
 	echo "${v%%/*}"
+}
+
+# sys_config_path KEY: the one file the server config editor offers under KEY, for h-open-fs-config and
+# h-change-sys-service-config alike. rc 1: KEY is not offered. rc 2: its component yields no single existing file.
+sys_config_path() {
+	local p
+	case "$1" in
+		apache2) p=/etc/apache2/apache2.conf ;;
+		cron) p=/etc/crontab ;;
+		exim4) p=/etc/exim4/exim4.conf.template ;;
+		fail2ban)
+			# The admin's own file, never rendered by us: absent until the first save creates it.
+			[ -d /etc/fail2ban/jail.d ] || return 2
+			echo /etc/fail2ban/jail.local
+			return 0
+			;;
+		hestia) p=/var/spool/cron/crontabs/hestia ;;
+		ssh) p=/etc/ssh/sshd_config ;;
+		nginx | proftpd | clamd) p=$(sys_config_lister "$1" config_path) ;;
+		mysql | mariadb) p=$(sys_config_lister mysql config_path) ;;
+		postgresql) p=$(sys_config_lister pgsql config_path) ;;
+		postgresql-hba) p=$(sys_config_lister pgsql pg_hba_path) ;;
+		dovecot) p=$(sys_config_lister dovecot config_path) ;;
+		dovecot-[1-8]) p=$(sys_config_lister dovecot "config_path${1#dovecot-}") ;;
+		php) p=$(php_ini_path) || return 2 ;;
+		php-?*) p=$(php_ini_path "${1#php-}") || return 2 ;;
+		*) return 1 ;;
+	esac
+	# A lister answering with nothing, two lines or a relative path contributes nothing.
+	case "$p" in /*) ;; *) return 2 ;; esac
+	[ "$(printf '%s\n' "$p" | wc -l)" -eq 1 ] && [ -f "$p" ] || return 2
+	echo "$p"
+}
+
+sys_config_lister() {
+	declare -gA SYS_CONFIG_FIELD
+	[ -n "${SYS_CONFIG_FIELD["$1"]-}" ] || sys_config_fill "$1"
+	echo "${SYS_CONFIG_FIELD["$1/$2"]-}"
+}
+
+# One lister run and one jq per lister, jq alone costs 30 ms a start. A value travels as JSON text, so one that
+# holds a newline stays a single line and fails the file test instead of splitting into two paths.
+sys_config_fill() {
+	local k v
+	declare -gA SYS_CONFIG_FIELD
+	SYS_CONFIG_FIELD["$1"]='read'
+	while IFS=$'\t' read -r k v; do
+		[ -n "$k" ] || continue
+		v=${v#\"}
+		SYS_CONFIG_FIELD["$1/$k"]=${v%\"}
+	done < <("$BIN/h-list-sys-$1-config" json 2> /dev/null | jq -r '.CONFIG // {} | to_entries[] | "\(.key)\t\(.value | tojson)"' 2> /dev/null)
+}
+
+# For whoever asks every key: the listers once here, not once per subshell.
+sys_config_preload() {
+	local l
+	for l in nginx proftpd clamd mysql pgsql dovecot; do sys_config_fill "$l"; done
+	SYS_CONFIG_PHP=$("$BIN/h-list-sys-php" plain 2> /dev/null)
+}
+
+# sys_config_offered PATH: the offered file PATH is, compared as the whole canonical string; rc 1 when none is.
+sys_config_offered() {
+	local want key p
+	want=$(readlink -f -- "$1") && [ -n "$want" ] || return 1
+	for key in $(sys_config_keys); do
+		p=$(sys_config_path "$key") || continue
+		[ "$(readlink -f -- "$p")" != "$want" ] || {
+			echo "$p"
+			return 0
+		}
+	done
+	return 1
+}
+
+# Every key sys_config_path answers, a php-X.Y per installed version, whether or not its file exists here.
+sys_config_keys() {
+	local v
+	echo apache2 cron exim4 fail2ban hestia ssh nginx proftpd clamd mysql mariadb postgresql postgresql-hba
+	echo dovecot dovecot-1 dovecot-2 dovecot-3 dovecot-4 dovecot-5 dovecot-6 dovecot-7 dovecot-8 php
+	for v in ${SYS_CONFIG_PHP:-$("$BIN/h-list-sys-php" plain 2> /dev/null)}; do echo "php-$v"; done
 }
 
 is_hestia_package() {
@@ -2364,6 +2444,20 @@ user_exec() {
 	user_groups=${user_groups//\ /,}
 
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
+}
+
+# path_within PATH BASE...: PATH, resolved, is one of the BASEs or lies below one. A prefix match would let
+# /home/fsa admit /home/fsab. Second line only: the fs commands act through user_exec, the UID is the boundary.
+path_within() {
+	local p b
+	p=$(readlink -f -- "$1") && [ -n "$p" ] || return 1
+	shift
+	for b in "$@"; do
+		[ -n "$b" ] || continue
+		b=$(readlink -f -- "$b") && [ -n "$b" ] || continue
+		case "$p" in "$b" | "$b"/*) return 0 ;; esac
+	done
+	return 1
 }
 
 # Simple chmod wrapper that skips symlink files after glob expand

@@ -68,16 +68,11 @@ if (!empty($_POST["save"])) {
 	}
 }
 
-// List config
-$data = cli_json("h-list-sys-pgsql-config json");
-
-$v_options_path = $data["CONFIG"]["pg_hba_path"];
-$v_config_path = $data["CONFIG"]["config_path"];
 $v_service_name = strtoupper("postgresql");
 
 // Read config
-$v_options = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_options_path);
-$v_config = shell_exec(HESTIA_CMD . "h-open-fs-config " . $v_config_path);
+[$v_options_path, $v_options] = server_config("postgresql-hba");
+[$v_config_path, $v_config] = server_config("postgresql");
 
 // Render page
 render_page($user, $TAB, "edit_server_pgsql");

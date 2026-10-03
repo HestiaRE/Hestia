@@ -13,12 +13,12 @@
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
     "aggregate": {
-      "upstream_mapped_files": 413,
+      "upstream_mapped_files": 411,
       "eigenbau_files": 114,
       "weighted_pct": 26,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 527,
-      "files_mapped": 413
+      "files_total": 525,
+      "files_mapped": 411
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },

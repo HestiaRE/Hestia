@@ -99,7 +99,7 @@
           "pattern": "bin/h-*-firewall*"
         },
         "cron": {
-          "count": 20,
+          "count": 16,
           "pattern": "bin/h-*-cron*"
         },
         "backup": {

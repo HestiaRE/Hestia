@@ -38,8 +38,10 @@ before v0.20.0 are folded into one section by theme.
   under `/etc` that contained a word like `ssh` or `hestia`, so it handed out the SSH host keys, the MariaDB root
   password in `mysql.conf` and a customer's `user.conf`; `h-change-sys-service-config` copied any file as root into
   a service config, where the editor then showed it. Both now work on one set of files, derived at run time from the
-  installed services and compared as the whole path, and the writer reads its source with the caller's rights. The
-  editor pages for RHEL service names (`httpd`, `exim`, `crond`, `mysqld`) are gone.
+  installed services and compared as the whole path, and the writer reads its source with the caller's rights. A
+  failed restart puts the old config back and starts the service on it; a config the service's own test rejects is
+  never applied, so the running instance is left untouched, and each outcome says which happened. The editor pages
+  for RHEL service names (`httpd`, `exim`, `crond`, `mysqld`) are gone.
 - **The fs commands compare whole path components** (#1176). The check was a prefix, so `/home/ab` passed for
   customer `a`; only the customer's own rights, which the commands run under, still stopped the write.
   `h-extract-fs-archive` takes `.tar.zst` and `.tar.gz`, an unknown type ran into an error that returned success.

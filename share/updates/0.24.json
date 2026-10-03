@@ -396,6 +396,28 @@
         "/usr/local/hestia/web/edit/server/mysqld"
       ],
       "reversible": false
+    },
+    {
+      "id": "cron-record-review",
+      "description": "The hardened cron reader skips a cron.conf line it cannot read back; name the users whose jobs an injected or malformed record stops, without touching any file",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/users"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/hestia/.cron-record-review-1176"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "cron_record_review_apply"
+      },
+      "paths": [
+        "/etc/hestia/.cron-record-review-1176"
+      ],
+      "reversible": false
     }
   ]
 }

@@ -22,8 +22,14 @@ PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCN
 HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
-# one (the archive name).
-RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
+# one (the archive name). user and crontab are the lowercase globals a root record reader drives
+# (sync_cron_jobs chowns $crontab to $user), so a record must never bind them.
+RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user crontab"
+
+# The schema of a cron.conf record (#1176). cron_record_safe checks each stored line against this before
+# it reaches the parser; a line that would set a key outside the schema (a smuggled lowercase user= that
+# would retarget chown) is named and skipped, never parsed. Keep in step with the writers' field order.
+CRON_RECORD_SCHEMA="JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE"
 
 # Storage encoding for record VALUES (record_line_valid refuses ' " ` and \ inside one). One encoder
 # and one decoder, or a fifth writer knows half the set.
@@ -44,6 +50,61 @@ record_value_decode() {
 	_v="${_v//%backtick%/\`}"
 	_v="${_v//%backslash%/\\}"
 	printf '%s' "$_v"
+}
+
+# Record lines are edited AS TEXT, never re-emitted from a key list: an unknown field would be
+# dropped, and the field ORDER is load-bearing. A value with a literal ' is not representable.
+
+# Not optional: the line lands in a live *.conf that sed, grep/cut and the JSON emitters read
+# directly, and the cron reader trusts it as its skip gate. $ stays allowed (crypt hashes); banning '
+# is what lets record_set_field find one. Moved here from backup.sh so main.sh's own readers share it.
+record_line_valid() {
+	local _line="$1" _rest _q="'" _dq='"' _bt='`' _bs='\'
+	local -A _seen_key=()
+	[ -n "$_line" ] || return 1
+	# A newline would make the "one record per line" assumption a lie for every reader below.
+	[[ "$_line" == *$'\n'* ]] && return 1
+	local _re="^([A-Z][A-Z0-9_]*)=${_q}([^${_q}${_dq}${_bt}${_bs}]*)${_q}( |$)"
+	# Trailing blanks are trimmed rather than rejected: some writers emit one and it carries
+	# nothing. Everything else has to match the grammar exactly.
+	_rest="${_line%"${_line##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		# A repeated key is refused: the readers disagree about which wins - eval keeps the last,
+		# sed and grep -o the first - so one line would carry two truths, invisibly.
+		[ -z "${_seen_key[${BASH_REMATCH[1]}]:-}" ] || return 1
+		_seen_key[${BASH_REMATCH[1]}]=1
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 0
+}
+
+# The keys of a record line, one per line, in the order they appear.
+record_keys() {
+	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
+}
+
+# A cron.conf line is safe to parse when it is one line and every key it would set is a cron schema
+# field (#1176). The reader needs this and NOT record_line_valid: a migrated job legitimately carries
+# a " in its command, which record_line_valid forbids but the command field may hold. Keys of either
+# case are read, so a smuggled lowercase user= (invisible to record_keys) is caught.
+cron_record_safe() {
+	local _line="$1" _rest _k
+	[ -n "$_line" ] || return 1
+	[[ "$_line" == *$'\n'* ]] && return 1
+	# A full token parse, not just a key scan: a KEY=' without its closing quote (a truncated or
+	# newline-split line) must fail here, or the parser aborts the whole run on it. The value class
+	# is [^'] - a stored value never holds a raw ' (it is encoded), but it may hold a " (a quoted
+	# command), which record_line_valid forbids and the reader must keep.
+	local _re="^([A-Za-z_][A-Za-z0-9_]*)='[^']*'( |\$)"
+	_rest="${_line%"${_line##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		_k="${BASH_REMATCH[1]}"
+		case " $CRON_RECORD_SCHEMA " in *" $_k "*) ;; *) return 1 ;; esac
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 0
 }
 
 is_protected_key() {
@@ -672,9 +733,12 @@ declare(strict_types=1);
 // - Key names must match: [a-zA-Z][a-zA-Z0-9_]*
 // - Inside single quotes, every character is literal except the closing single quote.
 // - Outside single quotes, backslash escapes the next character.
+// php://stderr, not the STDERR constant: the CLI defines STDERR only for a script given as a file,
+// and this body arrives on stdin, so the constant is undefined and the intended message turned into
+// an "Undefined constant STDERR" fatal instead. It still failed closed, but said the wrong thing.
 function fail(string $message): never
 {
-    fwrite(STDERR, $message . PHP_EOL);
+    fwrite(fopen('php://stderr', 'w'), $message . PHP_EOL);
     exit(2);
 }
 
@@ -791,7 +855,7 @@ while ($unparsed !== '') {
                 'new_value' => $key_value,
             ], true);
         }
-        fwrite(STDERR, $msg . PHP_EOL);
+        fwrite(fopen('php://stderr', 'w'), $msg . PHP_EOL);
     }
     $result[$key_name] = $key_value;
 }
@@ -1270,31 +1334,43 @@ sort_cron_jobs() {
 
 # Sync cronjobs with system cron
 sync_cron_jobs() {
+	# Owner and target captured before any record is read: the parser sets record fields as globals,
+	# so a line that smuggled a key could otherwise redirect the chown or the write path below.
+	local _user="$user" crontab line
 	source_conf "$USER_DATA/user.conf"
 	if [ -e "/var/spool/cron/crontabs" ]; then
-		crontab="/var/spool/cron/crontabs/$user"
+		crontab="/var/spool/cron/crontabs/$_user"
 	else
-		crontab="/var/spool/cron/$user"
+		crontab="/var/spool/cron/$_user"
 	fi
 
 	# remove file if exists
 	if [ -e "$crontab" ]; then
-		rm -f $crontab
+		rm -f "$crontab"
 	fi
 
 	# touch new crontab file
-	touch $crontab
+	touch "$crontab"
 
 	if [ "$CRON_REPORTS" = 'yes' ]; then
-		echo "MAILTO=$CONTACT" > $crontab
-		echo 'CONTENT_TYPE="text/plain; charset=utf-8"' >> $crontab
+		echo "MAILTO=$CONTACT" > "$crontab"
+		echo 'CONTENT_TYPE="text/plain; charset=utf-8"' >> "$crontab"
 	else
-		echo 'MAILTO=""' > $crontab
+		echo 'MAILTO=""' > "$crontab"
 	fi
 
 	# read -r, or a backslash in a stored CMD field is consumed as an escape while the crontab is
 	# assembled (GHSA-5fpv).
 	while read -r line; do
+		# Clear the record fields first: a skipped or half line would otherwise inherit the one before.
+		JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
+		[ -n "$line" ] || continue
+		# A line that would set a key outside the cron schema (a smuggled user=) is named and skipped,
+		# never handed to the parser, which would abort the whole run or let the key set root's target.
+		if ! cron_record_safe "$line"; then
+			echo "Warning: $_user cron.conf has a line the reader cannot trust, skipped" >&2
+			continue
+		fi
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
 			# The command alone: a schedule field carries no placeholder, and decoding the assembled
@@ -1302,9 +1378,9 @@ sync_cron_jobs() {
 			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
 				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
-	done < $USER_DATA/cron.conf
-	chown $user:$user $crontab
-	chmod 600 $crontab
+	done < "$USER_DATA/cron.conf"
+	chown "$_user:$_user" "$crontab"
+	chmod 600 "$crontab"
 }
 
 # The one hestia crontab, rendered here so a second copy cannot drift from it. The renewal time is
@@ -1928,50 +2004,45 @@ is_comment_format_valid() {
 }
 
 # Cron validator
-is_cron_format_valid() {
-	limit=59
-	check_format=''
-	if [ "$2" = 'hour' ]; then
-		limit=23
-	fi
-
-	if [ "$2" = 'day' ]; then
-		limit=31
-	fi
-	if [ "$2" = 'month' ]; then
-		limit=12
-	fi
-	if [ "$2" = 'wday' ]; then
-		limit=7
-	fi
-	if [ "$1" = '*' ]; then
-		check_format='ok'
-	fi
-	if [[ "$1" =~ ^[\*]+[/]+[0-9] ]]; then
-		if [ "$(echo $1 | cut -f 2 -d /)" -lt $limit ]; then
-			check_format='ok'
-		fi
-	fi
-	if [[ "$1" =~ ^[0-9][-,0-9]{0,70}[\/][0-9]$ ]]; then
-		check_format='ok'
-		crn_values=${1//,/ }
-		crn_values=${crn_values//-/ }
-		crn_values=${crn_values//\// }
-		for crn_vl in $crn_values; do
-			if [ "$crn_vl" -gt $limit ]; then
-				check_format='invalid'
-			fi
-		done
-	fi
-	crn_values=$(echo $1 | tr "," " " | tr "-" " ")
-	for crn_vl in $crn_values; do
-		if [[ "$crn_vl" =~ ^[0-9]+$ ]] && [ "$crn_vl" -le $limit ]; then
-			check_format='ok'
+# A positive grammar of cron tokens only: a quote, a space or a key= cannot match, so a schedule
+# field cannot smuggle a second record key (the old form passed as soon as one comma part was a
+# number). Names are the one non-numeric atom, and only in wday/month, where vixie cron allows them.
+# The regex carries the shape; arithmetic the regex cannot do (upper bound, range order) runs after,
+# on the numeric parts only - a named atom is already constrained to a real name by the regex.
+cron_field_valid() {
+	local value="$1" field="$2" floor=0 limit=59 names='' part a b parts=()
+	case "$field" in
+		hour) limit=23 ;;
+		day) floor=1 limit=31 ;;
+		month) floor=1 limit=12 names='jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec' ;;
+		wday) limit=7 names='sun|mon|tue|wed|thu|fri|sat' ;;
+	esac
+	# Lowercase a local copy for the name match, rather than set nocasematch: the shopt is global and
+	# an abort would not restore it (the nullglob lesson). The stored value is untouched.
+	local lc="${value,,}"
+	local atom="[0-9]{1,2}"
+	[ -n "$names" ] && atom="($atom|$names)"
+	local elem="($atom(-$atom)?|\\*)"
+	local term="$elem(/[1-9][0-9]?)?" # step >=1; /0 never matches
+	[[ $lc =~ ^$term(,$term)*$ ]] || return 1
+	# read, not `for part in $lc`: an unquoted * would glob to filenames.
+	IFS=',' read -ra parts <<< "$lc"
+	for part in "${parts[@]}"; do
+		part="${part%%/*}"
+		[ "$part" = '*' ] && continue
+		if [[ $part =~ ^([0-9]{1,2})-([0-9]{1,2})$ ]]; then
+			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]}))
+			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] || return 1
+		elif [[ $part =~ ^([0-9]{1,2})$ ]]; then
+			a=$((10#${BASH_REMATCH[1]}))
+			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || return 1
 		fi
 	done
-	if [ "$check_format" != 'ok' ]; then
-		check_result "$E_INVALID" "invalid $2 format :: $1"
-	fi
+	return 0
+}
+
+is_cron_format_valid() {
+	cron_field_valid "$1" "$2" || check_result "$E_INVALID" "invalid $2 format :: $1"
 }
 
 is_object_name_format_valid() {

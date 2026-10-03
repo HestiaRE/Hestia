@@ -55,6 +55,10 @@ cron_command=$(record_value_encode "$cron_command")
 str="JOB='$job' MIN='$min' HOUR='$hour' DAY='$day' MONTH='$month' WDAY='$wday'"
 str="$str CMD='$cron_command' SUSPENDED='no' TIME='$time' DATE='$date'"
 
+# Validate before touching the file: the delete below must not land if the new record is one the
+# reader would reject, or the job is gone with nothing in its place.
+record_line_valid "$str" || check_result "$E_INVALID" "refusing to store an unreadable cron record"
+
 # Deleting old job
 sed -i "/JOB='$job' /d" $USER_DATA/cron.conf
 

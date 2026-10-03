@@ -64,6 +64,10 @@ date=$(echo "$time_n_date" | cut -f 2 -d \ )
 str="JOB='$job' MIN='$min' HOUR='$hour' DAY='$day' MONTH='$month' WDAY='$wday'"
 str="$str CMD='$cron_command' SUSPENDED='no' TIME='$time' DATE='$date'"
 
+# The same predicate the reader applies before storing: a line it could not read back is not written,
+# so a field that slipped past the format checks cannot leave a record the reader then trusts.
+record_line_valid "$str" || check_result "$E_INVALID" "refusing to store an unreadable cron record"
+
 # Adding to crontab
 echo "$str" >> $CONF_DIR/users/$user/cron.conf
 

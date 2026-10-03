@@ -1325,14 +1325,14 @@ check_web_templates_resolvable() {
 }
 
 # check_record_grammar: every record line against record_line_valid, the one place that defines
-# the grammar (include/backup.sh). A line that loses its quotes stays READABLE - source_conf takes
+# the grammar (include/main.sh). A line that loses its quotes stays READABLE - source_conf takes
 # KEY=value just fine - while every writer looks for KEY='...' and silently finds nothing. The
 # record then shows a value that no change can move, and the panel looks correct while saving
 # nothing. Cheap, and it catches hand edits, ours included.
 check_record_grammar() {
 	local f n=0 bad=0 first="" line
 	if ! declare -F record_line_valid > /dev/null 2>&1; then
-		no "record grammar not checkable" "record_line_valid missing - include/backup.sh not sourced"
+		no "record grammar not checkable" "record_line_valid missing - include/main.sh not sourced"
 		return
 	fi
 	for f in "$CONF_DIR/users"/*/user.conf "$CONF_DIR/users"/*/*.conf "$CONF_DIR/users"/*/mail/*.conf \

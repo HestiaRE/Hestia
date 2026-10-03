@@ -6,36 +6,8 @@
 #                                                                           #
 #===========================================================================#
 
-# Edited AS TEXT, never re-emitted from a key list: an unknown field would be dropped, and the
-# field ORDER is load-bearing. A value with a literal ' is not representable.
-
-# Not optional: the archived line lands in a live *.conf that sed, grep/cut and the JSON emitters
-# read directly. $ stays allowed (crypt hashes); banning ' is what lets record_set_field find one.
-record_line_valid() {
-	local _line="$1" _rest _q="'" _dq='"' _bt='`' _bs='\'
-	local -A _seen_key=()
-	[ -n "$_line" ] || return 1
-	# A newline would make the "one record per line" assumption a lie for every reader below.
-	[[ "$_line" == *$'\n'* ]] && return 1
-	local _re="^([A-Z][A-Z0-9_]*)=${_q}([^${_q}${_dq}${_bt}${_bs}]*)${_q}( |$)"
-	# Trailing blanks are trimmed rather than rejected: some writers emit one and it carries
-	# nothing. Everything else has to match the grammar exactly.
-	_rest="${_line%"${_line##*[! ]}"}"
-	while [ -n "$_rest" ]; do
-		[[ "$_rest" =~ $_re ]] || return 1
-		# A repeated key is refused: the readers disagree about which wins - eval keeps the last,
-		# sed and grep -o the first - so one line would carry two truths, invisibly.
-		[ -z "${_seen_key[${BASH_REMATCH[1]}]:-}" ] || return 1
-		_seen_key[${BASH_REMATCH[1]}]=1
-		_rest="${_rest#"${BASH_REMATCH[0]}"}"
-	done
-	return 0
-}
-
-# The keys of a record line, one per line, in the order they appear.
-record_keys() {
-	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
-}
+# record_line_valid and record_keys moved to include/main.sh (#1176): the cron reader there shares
+# the same predicate, and main.sh is sourced before this file everywhere backup.sh is used.
 
 # record_set_field VAR KEY VALUE - replace KEY's value in the record held in VAR, keeping its
 # position; append the field at the end when it is not there yet.

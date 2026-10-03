@@ -46,6 +46,9 @@ before v0.20.0 are folded into one section by theme.
   customer `a`; only the customer's own rights, which the commands run under, still stopped the write.
   `h-extract-fs-archive` takes `.tar.zst` and `.tar.gz`, an unknown type ran into an error that returned success.
   Below the backup directory it unpacks only from a restore's own `tmp.*` dir, no longer from a customer's archives.
+- **Record parsing refuses to bind a reserved control name** like `user` or `crontab` (#1176). These are shell
+  variables a reading command runs on, so a record must never set them; the writer likewise stores only a record
+  it can read back.
 
 ### Removed
 

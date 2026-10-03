@@ -88,10 +88,20 @@ record_keys() {
 # a " in its command, which record_line_valid forbids but the command field may hold. Keys of either
 # case are read, so a smuggled lowercase user= (invisible to record_keys) is caught.
 cron_record_safe() {
-	local _line="$1" _k
+	local _line="$1" _rest _k
+	[ -n "$_line" ] || return 1
 	[[ "$_line" == *$'\n'* ]] && return 1
-	for _k in $(grep -oE "[A-Za-z_][A-Za-z0-9_]*='" <<< "$_line" | sed "s/='$//"); do
+	# A full token parse, not just a key scan: a KEY=' without its closing quote (a truncated or
+	# newline-split line) must fail here, or the parser aborts the whole run on it. The value class
+	# is [^'] - a stored value never holds a raw ' (it is encoded), but it may hold a " (a quoted
+	# command), which record_line_valid forbids and the reader must keep.
+	local _re="^([A-Za-z_][A-Za-z0-9_]*)='[^']*'( |\$)"
+	_rest="${_line%"${_line##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		_k="${BASH_REMATCH[1]}"
 		case " $CRON_RECORD_SCHEMA " in *" $_k "*) ;; *) return 1 ;; esac
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
 	done
 	return 0
 }
@@ -1353,6 +1363,7 @@ sync_cron_jobs() {
 	while read -r line; do
 		# Clear the record fields first: a skipped or half line would otherwise inherit the one before.
 		JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
+		[ -n "$line" ] || continue
 		# A line that would set a key outside the cron schema (a smuggled user=) is named and skipped,
 		# never handed to the parser, which would abort the whole run or let the key set root's target.
 		if ! cron_record_safe "$line"; then

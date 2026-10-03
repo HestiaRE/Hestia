@@ -84,14 +84,15 @@ elif [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
 			cat "$dst.vst.back" > "$dst"
 			rm -f "$dst.vst.back"
 		fi
-		# Refused by the test, the running instance never saw the file: nothing to start again.
+		# elif/else, so the three outcomes stay mutually exclusive by structure, not by check_result exiting.
 		if [ "$rc" -eq 2 ]; then
+			# Refused by the test, the running instance never saw the file: nothing to start again.
 			check_result "$E_RESTART" "$service rejects the new configuration, the old one is back, nothing was restarted."
-		fi
-		if restart_ok "$service"; then
+		elif restart_ok "$service"; then
 			check_result "$E_RESTART" "$service failed to start with new configuration, it runs again on the old one."
+		else
+			check_result "$E_RESTART" "$service is down: it failed with the new configuration and again with the old one, which is back in place."
 		fi
-		check_result "$E_RESTART" "$service is down: it failed with the new configuration and again with the old one, which is back in place."
 	fi
 fi
 

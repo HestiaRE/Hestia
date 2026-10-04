@@ -4,33 +4,22 @@
 #
 # example: h-delete-sys-mariadb
 #
-# Counterpart to h-add-sys-mariadb. Refuses while the local host still carries
-# customer DBs (counter + live SHOW DATABASES cross-check). Datadir /var/lib/mysql
-# is kept by default; phpMyAdmin (+SSO) is torn down first.
-# Opt-ins: FORCE=yes skips the customer-DB check; PURGE_DATA=yes also wipes the datadir.
+# Counterpart to h-add-sys-mariadb; phpMyAdmin goes with it. Refuses while customer databases remain.
+# The datadir is kept. FORCE=yes skips the database check; PURGE_DATA=yes also wipes /var/lib/mysql.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# Not installed?
 if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: MariaDB is not installed."
 	# a key without the package is drift; the delete owns the key, so it clears it before leaving
@@ -38,58 +27,68 @@ if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 	exit "$E_NOTEXIST"
 fi
 
-# refuse while customer DBs exist (unless FORCE=yes): counter, then a live check
+records_unread=''
+records=$(db_host_records mysql localhost) || records_unread='yes'
+# unix_socket lets root in without /root/.my.cnf
+databases_unread=''
+databases=$(mariadb -N -e "SHOW DATABASES;" 2> /dev/null) || databases_unread='yes'
+webmail_dbs=$(grep -xE 'roundcube|tachyon' <<< "$databases" | tr '\n' ' ')
 if [ "${FORCE:-}" != "yes" ]; then
-	u_db_bases=$(grep -o "U_DB_BASES='[0-9]*'" "$HESTIA/conf/mysql.conf" 2> /dev/null | grep -o '[0-9]*' | head -1)
-	live_db=0
-	if [ -f /root/.my.cnf ]; then
-		# exclude system schemas AND app-owned DBs (pma/roundcube/tachyon) — keep
-		# this safelist in sync if a new bundled app grows its own MySQL DB
-		live_db=$(mariadb -N -e "SHOW DATABASES;" 2> /dev/null \
-			| grep -vxE 'information_schema|performance_schema|mysql|sys|phpmyadmin|roundcube|tachyon' \
-			| grep -c .)
-		live_db=${live_db:-0}
+	# A stopped server is the state after a failed upgrade; counting 0 there would let the guard pass blind.
+	if [ -n "$databases_unread" ]; then
+		echo "ERROR: MariaDB does not answer, so its databases cannot be counted."
+		echo "       Start it, or re-run with FORCE=yes."
+		exit "$E_CONNECT"
 	fi
-	if [ "${u_db_bases:-0}" != "0" ] || [ "${live_db:-0}" != "0" ]; then
-		echo "ERROR: MariaDB still hosts customer databases (counter=${u_db_bases:-0}, live=${live_db:-0})."
+	if [ -n "$records_unread" ]; then
+		echo "ERROR: no customer records could be read, so the databases on localhost cannot be counted."
+		echo "       Re-run with FORCE=yes."
+		exit "$E_PARSING"
+	fi
+	# system schemas and app-owned databases; keep this list in step when a bundled app gets its own database
+	live_db=$(grep -vxE 'information_schema|performance_schema|mysql|sys|phpmyadmin|roundcube|tachyon' <<< "$databases" \
+		| grep -c .)
+	if [ "$records" != "0" ] || [ "${live_db:-0}" != "0" ]; then
+		echo "ERROR: MariaDB still hosts customer databases (records=$records, live=${live_db:-0})."
 		echo "       Delete them first, or re-run with FORCE=yes."
 		exit "$E_INUSE"
 	fi
+	if [ "${PURGE_DATA:-}" = "yes" ] && [ -n "$webmail_dbs" ]; then
+		echo "ERROR: PURGE_DATA=yes would wipe the webmail database(s) ${webmail_dbs% }."
+		echo "       Remove the webmail first, or re-run with FORCE=yes."
+		exit "$E_INUSE"
+	fi
 fi
+[ -z "$webmail_dbs" ] || echo "[ ! ] Webmail keeps its database here (${webmail_dbs% }); it is down until MariaDB is added back."
+dlm_repo=''
+[ ! -f /etc/apt/sources.list.d/mariadb.list ] || dlm_repo='yes'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# phpMyAdmin teardown (SSO before the app)
+# SSO first: h-delete-sys-phpmyadmin refuses while it is on
 $BIN/h-delete-sys-pma-sso > /dev/null 2>&1 || true
 $BIN/h-delete-sys-phpmyadmin > /dev/null 2>&1 || true
 
-# deregister the local host (strips DB_SYSTEM's mysql token)
-$BIN/h-delete-database-host mysql localhost > /dev/null 2>&1 || true
+# h-delete-database-host refuses while database records point at localhost
+if ! host_out=$($BIN/h-delete-database-host mysql localhost 2>&1); then
+	echo "[ ! ] localhost stays registered, its database records stay until MariaDB is added back: $(head -n1 <<< "$host_out")"
+fi
 
-# purge packages (no autoremove — it would rip out shared-stack siblings)
+# no autoremove: it would take shared-stack siblings with it
 echo "[ * ] Removing MariaDB packages..."
 systemctl disable --now mariadb > /dev/null 2>&1 || true
-# The client stays. A registered remote host survives this command, and h-add-database-host and every
-# backup dump reach it through these binaries.
+# The client stays: a registered remote host survives, and h-add-database-host and backup dumps need it.
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq purge \
 	mariadb-server > /dev/null 2>&1 || true
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mariadb-client > /dev/null 2>&1 || true
 
-# external repo cleanup (harmless on an OS-package install)
 rm -f /etc/apt/sources.list.d/mariadb.list /usr/share/keyrings/mariadb-keyring.gpg
+[ -z "$dlm_repo" ] || echo "[ ! ] mariadb-client stays on its MariaDB.org version, which gets no updates without that repository."
 rm -f /root/.my.cnf
 
-# datadir kept by default so a re-add finds the DBs; opt-in wipe
+# kept by default so a re-add finds the databases
 if [ "${PURGE_DATA:-}" = "yes" ]; then
 	echo "[ * ] PURGE_DATA=yes — wiping /var/lib/mysql..."
 	rm -rf /var/lib/mysql
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-change-sys-config-value 'DB_PMA_ALIAS' '' > /dev/null 2>&1 || true
 mariadb_status_record

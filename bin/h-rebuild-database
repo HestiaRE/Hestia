@@ -4,17 +4,11 @@
 #
 # example: h-rebuild-database user user_wordpress
 #
-# This function for rebuilding a single database for a user
+# Recreates one database of USER and its users on the host, from the record.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,12 +19,7 @@ source $HESTIA/include/db.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DATABASE'
 is_format_valid 'user'
@@ -38,27 +27,15 @@ is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get database values
 get_database_values
 
-# Switching on db type
 case $TYPE in
 	mysql) rebuild_mysql_database ;;
 	pgsql) rebuild_pgsql_database ;;
 esac
 
-# No counter is written here: this rebuilds ONE database, and the totals are per customer. The
-# plural form owns the counting, the disk queue owns U_DISK_DB.
+# No counters here: h-rebuild-databases owns the per-user totals, the disk queue owns U_DISK_DB.
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Rebuilt database (User: $user, Database: $database)."
 log_event "$OK" "$ARGUMENTS"
 

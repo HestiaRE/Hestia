@@ -454,6 +454,78 @@
         "/usr/local/hestia/bin/h-delete-cron-restart-job"
       ],
       "reversible": false
+    },
+    {
+      "id": "adminer-core",
+      "description": "Adminer as shipped: h-add-sys-adminer stops at an existing install, so a new pin reaches a box only through this entry",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/adminer/index.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/adminer/adminer.php",
+          "target": "/usr/share/adminer/index.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/adminer/adminer.php",
+        "target": "/usr/share/adminer/index.php"
+      },
+      "paths": [
+        "/usr/share/adminer/index.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "adminer-plugins",
+      "description": "Adminer as shipped: h-add-sys-adminer stops at an existing install, so a new pin reaches a box only through this entry",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/adminer/adminer-plugins.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/adminer/adminer-plugins.php",
+          "target": "/usr/share/adminer/adminer-plugins.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/adminer/adminer-plugins.php",
+        "target": "/usr/share/adminer/adminer-plugins.php"
+      },
+      "paths": [
+        "/usr/share/adminer/adminer-plugins.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "adminer-login-servers",
+      "description": "Adminer as shipped: h-add-sys-adminer stops at an existing install, so a new pin reaches a box only through this entry",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/adminer/adminer-plugins/login-servers.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/adminer/plugins/login-servers.php",
+          "target": "/usr/share/adminer/adminer-plugins/login-servers.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/adminer/plugins/login-servers.php",
+        "target": "/usr/share/adminer/adminer-plugins/login-servers.php"
+      },
+      "paths": [
+        "/usr/share/adminer/adminer-plugins/login-servers.php"
+      ],
+      "reversible": true
     }
   ]
 }

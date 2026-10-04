@@ -5,20 +5,10 @@
 # example: h-add-database admin wordpress_db matt qwerty123
 # example: h-add-database admin shop_db matt ''
 #
-# This function creates the database concatenating username and user_db.
-# An empty DBPASS reuses DBUSER when another MySQL database of the user already has it.
-# Supported types of databases you can get using h-list-sys-config script.
-# If the host isn't stated and there are few hosts configured on the server,
-# then the host will be defined by one of three algorithms. "First" will choose
-# the first host in the list. "Random" will chose the host by a chance.
-# "Weight" will distribute new database through hosts evenly. Algorithm and
-# types of supported databases is designated in the main configuration file.
+# Creates the database USER_DATABASE for USER_DBUSER. An empty DBPASS reuses DBUSER when another MySQL database
+# of the user already has it. TYPE is one of h-list-database-types; without HOST (or with 'default') the unsuspended
+# host with the lowest share of its MAX_DB is taken, as long as that share is below 100%.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database="$user"_"$2"
 dbuser="$user"_"$3"
@@ -29,14 +19,12 @@ host=$6
 charset=${7-UTF8MB4}
 charset=$(echo "$charset" | tr '[:lower:]' '[:upper:]')
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 if [ "$type" = "pgsql" ]; then
@@ -44,20 +32,15 @@ if [ "$type" = "pgsql" ]; then
 	dbuser=$(echo "$user"_"$3" | tr '[:upper:]' '[:lower:]')
 fi
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '4' "$#" 'USER DATABASE DBUSER DBPASS [TYPE] [HOST] [CHARSET]'
-is_format_valid 'user' 'database' 'dbuser' 'charset'
+is_format_valid 'user' 'database' 'dbuser' 'charset' 'host'
 is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_type_valid "$DB_SYSTEM" "$type"
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_new 'db' 'DB' "$database"
 is_password_valid
-# An empty DBPASS reuses a user another database of this customer holds (#725); anything else would be a user
-# without a password.
+# An empty DBPASS can only reuse an existing user; anything else would be a user without a password.
 reuse=''
 if [ -z "$password" ]; then
 	[ "$type" = 'mysql' ] || check_result "$E_INVALID" "DBPASS is empty: only a MySQL database can reuse a user"
@@ -77,8 +60,7 @@ db_names_free "$database" "$dbuser" "$type" "$user" \
 	|| check_result "$E_EXISTS" "$database or $dbuser is not available: the name belongs to another account"
 get_next_dbhost
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
-is_object_unsuspended "$HESTIA/conf/$type" 'DBHOST' "$host"
-#is_charset_valid
+is_object_unsuspended "$HESTIA/conf/$type" 'HOST' "$host"
 is_package_full 'DATABASES'
 
 if [ "$type" = "pgsql" ]; then
@@ -93,37 +75,24 @@ fi
 
 dbpass="$password"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on db type
 case $type in
 	mysql) add_mysql_database ;;
 	pgsql) add_pgsql_database ;;
 esac
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Adding db to db conf
 str="DB='$database' DBUSER='$dbuser' MD5='$md5' DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO='' HOST='$host' TYPE='$type'"
 str="$str CHARSET='$charset' U_DISK='0' SUSPENDED='no' TIME='$time'"
 str="$str DATE='$date'"
 echo "$str" >> $USER_DATA/db.conf
 chmod 660 $USER_DATA/db.conf
 
-# Increasing counters
 increase_dbhost_values
 increase_user_value "$user" '$U_DATABASES'
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Databases" "Added new database $database ($type)."
 log_event "$OK" "$ARGUMENTS"
 

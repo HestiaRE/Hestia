@@ -2,18 +2,13 @@
 # info: set the second user of a database
 # options: USER DATABASE DBUSER [DBPASS] [RO]
 #
-# example: h-change-database-second-user admin shop_db reader 'Pa55w0rd' yes
-# example: h-change-database-second-user admin shop_db matt '' no
+# example: h-change-database-second-user admin admin_shop_db reader 'Pa55w0rd' yes
+# example: h-change-database-second-user admin admin_shop_db matt '' no
 #
 # This function gives a MySQL database a second user. A DBUSER the user already has is reused with an empty DBPASS,
 # a new one needs DBPASS; naming the current one again changes its password or rights. RO yes is read-only (SELECT,
 # SHOW VIEW), no full rights, empty keeps what the slot has.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 dbuser="$user"_"$3"
@@ -21,19 +16,13 @@ password=$4
 ro=$5
 HIDE=4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DATABASE DBUSER [DBPASS] [RO]'
 is_format_valid 'user' 'database' 'dbuser'
@@ -98,11 +87,7 @@ if [ -z "$reuse" ] && [ "$dbuser" != "$old2" ]; then
 	! mysql_user_exists "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Records from before #725 carry no slot-2 keys, and update_object_value only rewrites keys that are there.
+# Older records carry no slot-2 keys, and update_object_value only rewrites keys that are there.
 for key in DBUSER_SECOND MD5_SECOND DBUSER_SECOND_RO; do
 	add_object_key 'db' 'DB' "$database" "$key" 'HOST'
 done
@@ -139,11 +124,6 @@ else
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Database" "Second database user set (Database: $database, User: $dbuser, Read-only: ${new_ro:-no})"
 log_event "$OK" "$ARGUMENTS"
 

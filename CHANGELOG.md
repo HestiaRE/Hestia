@@ -79,6 +79,10 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **Database commands do what they report** (#1176). A database that cannot be dropped keeps its record, a
+  suspended PostgreSQL database stays closed, a host password change reaches the server, and phpMyAdmin's
+  temporary logins go with their database. A restored database counts on its host again, and an unreachable
+  database host fails after 10 seconds instead of hanging.
 - **Record helpers read a record field by field** (#1176). The disk and traffic recount, adding a key to a record,
   the restore's record rewrite, the web alias check and the vacation rule format could misread a record; the recount
   then stopped for the whole run.

@@ -1,10 +1,7 @@
-# Adminer - served by Panel-Caddy via the dedicated caddy FPM pool.
-# Deployed to /etc/caddy/apps/adminer.conf by h-add-sys-adminer (imported
-# inside the :8083 site block). Fixed alias /adminer/. Same exposure model as
-# phpMyAdmin: served on the panel port, NOT behind forward_auth - the gate is
-# Adminer's own login (DB credentials required) plus firewall on :8083. The
-# unauthenticated login form can reach arbitrary DB hosts (SSRF); restricting
-# that is the #350 follow-up. Removed by h-delete-sys-adminer.
+# Adminer, served by Panel-Caddy from its own caddy FPM pool at the fixed /adminer/; h-add-sys-adminer deploys it
+# to /etc/caddy/apps/adminer.conf, imported inside the :8083 site block. Not behind forward_auth, like phpMyAdmin:
+# the gate is Adminer's own DB login plus the firewall on :8083. The login-servers plugin limits the login form to
+# the local servers, so it cannot be pointed at another host; h-add-sys-adminer refuses to install without it.
 redir /adminer /adminer/ 308
 handle_path /adminer/* {
     root * /usr/share/adminer

@@ -877,15 +877,14 @@ rebuild_mail_domain_conf() {
 	recalc_user_disk_usage
 }
 
-# Rebuild MySQL
 rebuild_mysql_database() {
 	mysql_connect $HOST
 	mysql_query "CREATE DATABASE \`$DB\` CHARACTER SET $CHARSET" > /dev/null
 	rebuild_mysql_database_user
 }
 
-# The user half, per slot (SLOT limits it to one). REBUILD_DB_DEFER (restore): a hashless slot whose user is not here
-# yet waits in REBUILD_DB_DEFERRED as DB:SLOT. REBUILD_DB_RUN_SET: that run's databases, not counted as elsewhere.
+# rebuild_mysql_database_user [SLOT]: the user half, per slot. REBUILD_DB_DEFER (restore): a hashless slot whose user
+# is not here yet waits in REBUILD_DB_DEFERRED as DB:SLOT. REBUILD_DB_RUN_SET: that run's databases, not "elsewhere".
 # shellcheck disable=SC2120  # the slot argument comes from h-restore-user
 rebuild_mysql_database_user() {
 	mysql_connect $HOST
@@ -906,8 +905,7 @@ rebuild_mysql_slot() {
 		key='MD5_SECOND'
 		ro="${DBUSER_SECOND_RO:-}"
 	fi
-	# Before the CREATE USERs: only "was this user already here" tells a kept credential from one
-	# that never arrived.
+	# Before the CREATE USERs: only "was this user already here" tells a kept credential from one that never arrived.
 	existed=$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$u'" 2> /dev/null | tail -n1)
 	[ "$existed" = '0' ] && existed=''
 	if [ -n "${REBUILD_DB_DEFER:-}" ] && [ -z "$hash" ] && [ -z "$existed" ]; then
@@ -926,14 +924,12 @@ rebuild_mysql_slot() {
 	ident="IDENTIFIED BY PASSWORD '$hash'"
 	[ -n "$hash" ] || ident="${auth# }"
 	if [ "$mysql_fork" = "mysql" ]; then
-		# mysql
 		mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 		mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
-			# mysql >= 5.7
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`$auth" > /dev/null
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost$auth" > /dev/null
-			# mysql >= 8, with enabled Print identified with as hex feature
+			# mysql_read_md5 reads mysql 8 hashes with print_identified_with_as_hex.
 			if [[ "$mysql_ver_sub" -ge 8 && "$hash" =~ ^0x.* ]]; then
 				query="UPDATE mysql.user SET authentication_string=UNHEX('${hash:2}')"
 			else
@@ -941,28 +937,22 @@ rebuild_mysql_slot() {
 			fi
 			query="$query WHERE User='$u'"
 		else
-			# mysql < 5.7
 			query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 		fi
 	else
-		# mariadb
 		mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 		mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 		if [ "$mysql_ver_sub" -eq 5 ]; then
-			# mariadb = 5
 			mysql_query "CREATE USER \`$u\`$auth" > /dev/null
 			mysql_query "CREATE USER \`$u\`@localhost$auth" > /dev/null
 			query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 		else
-			# mariadb = 10
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\` $ident" > /dev/null
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost $ident" > /dev/null
-			if [ "$mysql_ver_sub_sub" -ge 4 ]; then
-				#mariadb >= 10.4
+			if [ "$mysql_ver_sub" -gt 10 ] || [ "$mysql_ver_sub_sub" -ge 4 ]; then
 				query="SET PASSWORD FOR '$u'@'%' = '$hash';"
 				query2="SET PASSWORD FOR '$u'@'localhost' = '$hash';"
 			else
-				#mariadb < 10.4
 				query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 			fi
 		fi
@@ -975,8 +965,7 @@ rebuild_mysql_slot() {
 		echo "Info: another database of $user holds the password of $u - it is kept, $DB now points at it"
 		update_object_value 'db' 'DB' "$DB" "\$$key" ''
 		printf -v "$key" '%s' ''
-	# An empty hash would blank a working password; mysql survives today only because its own read
-	# path happens to work. Guards an EXISTING credential - CREATE USER above is IF NOT EXISTS.
+	# Only with a hash: an empty one would blank the working password of a user that already existed.
 	elif [ -n "$hash" ]; then
 		mysql_query "$query" > /dev/null
 		if [ -n "$query2" ]; then
@@ -993,11 +982,10 @@ rebuild_mysql_slot() {
 	fi
 }
 
-# Rebuild PostgreSQL
 rebuild_pgsql_database() {
 
 	unset PORT TLS
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"
@@ -1024,21 +1012,17 @@ rebuild_pgsql_database() {
 		exit "$E_CONNECT"
 	fi
 
-	# Asked before anything is created: afterwards the two cases look identical, and "kept
-	# unchanged" on a host where the role was just made claims a credential that never existed.
+	# Asked before the CREATE ROLE: afterwards a kept credential and a role just made look identical.
 	role_existed=$(psql_value "SELECT 1 FROM pg_authid WHERE rolname='$DBUSER'")
 
 	if [ -n "$MD5" ]; then
-		# Bare CREATE ROLE is NOLOGIN, so a restored database was unreachable whatever its password
-		# said. Granted only together with a password: a passwordless login role would be open
-		# wherever pg_hba.conf carries a trust line, which nothing here can read. The ALTER repairs
-		# roles the old bare form left behind.
+		# Bare CREATE ROLE is NOLOGIN; the ALTER covers a role that exists without it. LOGIN only with a password:
+		# a passwordless login role is open wherever pg_hba.conf has a trust line, which nothing here can read.
 		query="CREATE ROLE $DBUSER WITH LOGIN"
 		psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
 		query="ALTER ROLE $DBUSER WITH LOGIN"
 		psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
-		# Through psql_query's temp file, never -c: a SCRAM verifier is credential-equivalent and
-		# argv is readable through /proc. The only statement here that carries a secret.
+		# psql_query's temp file, never -c: a SCRAM verifier is credential-equivalent and argv is readable in /proc.
 		psql_query "UPDATE pg_authid SET rolpassword='$MD5' WHERE rolname='$DBUSER'" > /dev/null
 	else
 		# An empty hash is the absence of a password: it may neither replace a working one nor pose as one.
@@ -1066,25 +1050,23 @@ rebuild_pgsql_database() {
 	query="GRANT CONNECT ON DATABASE template1 to $DBUSER"
 	psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
 
-	# CREATE DATABASE skips an existing one, so h-change-database-user needs this too, and it makes
-	# h-rebuild-databases the repair. Only a warning, or one bad database would stop the whole run.
+	# Also for a database that already exists (h-change-database-user, h-rebuild-databases as the repair).
+	# Only a warning, or one bad database would stop the whole run.
 	psql_owner_apply "$DB" "$DBUSER" || true
 }
 
-# Import MySQL dump
 import_mysql_database() {
 
 	unset PORT
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/mysql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
 		echo "Error: mysql config parsing failed"
 		log_event "$E_PARSING" "$ARGUMENTS"
 		exit "$E_PARSING"
 	fi
-	# Through a pipe, not -p on argv (the process list) and not a file: the callers own the EXIT trap, so
-	# a file of ours would outlive an abort with the admin password in it. mysql_connect exits on a failed
-	# connection, and the callers need the return code.
+	# Through a pipe: -p is on argv, and a file would outlive an abort, as the callers own the EXIT trap.
+	# Not mysql_connect: it exits on a failed connection, and the callers need the return code.
 	_import_mysql_cnf() { printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" "$HOST" "$USER" "$PASSWORD" "${PORT:-3306}"; }
 	if [ -f '/usr/bin/mariadb' ]; then
 		mariadb --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
@@ -1093,12 +1075,11 @@ import_mysql_database() {
 	fi
 }
 
-# Import PostgreSQL dump
 import_pgsql_database() {
 
 	local _rc
 	unset PORT TLS
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"
@@ -1110,11 +1091,10 @@ import_pgsql_database() {
 		exit "$E_PARSING"
 	fi
 
-	psql -h $HOST -U $USER -p $PORT $DB < $1 > /dev/null 2>&1
+	psql -h $HOST -U $USER -p $PORT "$DB" < "$1" > /dev/null 2>&1
 	_rc=$?
 
-	# Only a warning: the rows are there, and a failed import would make h-change-database-owner undo
-	# a restore that worked.
+	# Only a warning: the rows are there, and a failed import would make h-change-database-owner roll it back.
 	[ "$_rc" -eq 0 ] && psql_owner_apply "$DB" "$DBUSER"
 	return "$_rc"
 }

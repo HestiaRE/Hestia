@@ -108,6 +108,7 @@ for db in "${databases[@]}"; do
 				esac
 			done
 			echo "$str" >> $USER_DATA/db.conf
+			dbhost_count_record "$TYPE" "$HOST"
 		else
 			parse_object_kv_list "$(grep -F "DB='$db'" $USER_DATA/db.conf)"
 		fi

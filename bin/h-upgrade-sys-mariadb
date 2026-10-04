@@ -7,38 +7,26 @@
 # example: h-upgrade-sys-mariadb 11.4      # e.g. pin to what Magento supports
 # example: h-upgrade-sys-mariadb __os__    # distribution package
 #
-# No argument = LIST the curated targets with the version each would actually
-# deliver here (live from the repos) and whether it is reachable.
+# No argument lists the curated targets with what each would deliver here and whether it is reachable.
+# A target upgrades in place, majors skipped directly: forced full dump to /root, repo switch, package upgrade,
+# mariadb-upgrade. Downgrades are refused, since a newer datadir cannot be reopened.
 #
-# In-place version switch: forced full dump -> repo switch (same dispatch as
-# h-add-sys-mariadb) -> package upgrade -> restart -> mariadb-upgrade -> record.
-# DBs stay in place. Multi-major jumps go direct (MariaDB supports skipping majors).
-#
-# DOWNGRADES ARE REFUSED (a newer datadir can't be reopened); the repo is restored.
-#
-# ROLLBACK (manual, not undoable in place). Using the dump this forces to /root (0600):
-#   1. h-delete-sys-mariadb (FORCE=yes) && PURGE_DATA=yes   # drop new-format datadir
+# ROLLBACK (manual, not undoable in place), from that dump:
+#   1. FORCE=yes PURGE_DATA=yes h-delete-sys-mariadb         # drop new-format datadir
 #   2. h-add-sys-mariadb <old-version>                      # reinstall old version
 #   3. zcat <backup>.sql.gz | mariadb                       # restore the dump
 #   4. mariadb -e "FLUSH PRIVILEGES;"
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
 target="$1"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 REPO_LIST="/etc/apt/sources.list.d/mariadb.list"
 
-# restore the pre-upgrade repo definition (used on refusal/abort before install)
 _restore_repo() {
 	if [ -f "${REPO_LIST}.bak" ]; then
 		mv -f "${REPO_LIST}.bak" "$REPO_LIST"
@@ -48,16 +36,11 @@ _restore_repo() {
 	apt-get -qq update > /dev/null 2>&1 || true
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# list mode: what each curated target would deliver here + whether it's reachable
 if [ -z "$target" ]; then
 	if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 		echo "ERROR: MariaDB is not installed (use h-add-sys-mariadb)."
@@ -65,9 +48,7 @@ if [ -z "$target" ]; then
 		exit "$E_NOTEXIST"
 	fi
 	current=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
-	# Both halves from the status, and each from its own key: DB_MARIADB_SYSTEM is the channel,
-	# DB_MARIADB_VERSION the major.minor on the box. The recipe stood here and could say neither
-	# (it carries __os__ unresolved, and it is the answer given at install time) (#945, #935).
+	# From the status, not install.conf: the recipe carries __os__ unresolved and only the install-time answer.
 	echo "Running:  MariaDB ${current:-unknown}  (pin: ${DB_MARIADB_VERSION:-?}, source: ${DB_MARIADB_SYSTEM:-?})"
 	echo ""
 	echo "Available upgrade targets:"
@@ -83,12 +64,12 @@ if [ -z "$target" ]; then
 	while IFS=$'\t' read -r _val _src _descr; do
 		_cand=""
 		if [ "$_val" = "__os__" ]; then
-			# OS candidate: highest non-dlm version apt knows about
+			# without dlm lines: a MariaDB.org repo still configured here is not the OS candidate
 			_cand=$(LC_ALL=C apt-cache madison mariadb-server 2> /dev/null \
 				| grep -v 'dlm.mariadb' | awk -F'|' 'NR==1{gsub(/ /,"",$2); print $2}' \
 				| sed 's/^[0-9]*://' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
 		else
-			# external candidate: parse the repo Packages index (missing = not published here)
+			# the repo's own index: apt only knows the repo configured now
 			_cand=$(curl -fsSL --max-time 10 \
 				"https://dlm.mariadb.com/repo/mariadb-server/${_val}/repo/${_os_id}/dists/${_codename}/main/binary-${_arch}/Packages" 2> /dev/null \
 				| awk '/^Package: mariadb-server$/{f=1} f&&/^Version:/{print $2; exit}' \
@@ -121,7 +102,7 @@ esac
 
 if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: MariaDB is not installed (use h-add-sys-mariadb)."
-	# no package: a key that still claims one is drift, cleared here (Halt 1b build rule)
+	# no package: a key that still claims one is drift, cleared here
 	mariadb_status_record
 	exit "$E_NOTEXIST"
 fi
@@ -136,35 +117,29 @@ current=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0
 	exit "$E_INVALID"
 }
 
-# Against the package on the box, not the recipe. The recipe answer never changes, and on an __os__ box
-# it never equalled a concrete target at all: the guard could not fire, and where it did it announced an
-# upgrade that had not happened (#945). DB_MARIADB_VERSION is major.minor, the same shape as $target.
+# The box's major.minor, not the recipe, which on an __os__ install never equals a concrete target.
 if [ "$target" = "${DB_MARIADB_VERSION:-}" ]; then
 	echo "INFO: MariaDB is already on '$target', nothing to do."
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# 1. forced pre-upgrade dump (hard precondition) -> /root (0600), abort on error
 backup="/root/mariadb-upgrade-backup-$(date +%F-%H%M%S).sql.gz"
 echo "[ * ] Dumping all databases to $backup (forced pre-upgrade backup)..."
-if ! mariadb-dump --all-databases --events --routines --triggers 2> /tmp/mdb-dump.err | gzip > "$backup"; then
+dump_err=$(mktemp)
+# pipefail: the pipeline's status is otherwise gzip's, and a dump that died wrote a valid, truncated archive.
+if ! (
+	set -o pipefail
+	umask 077
+	mariadb-dump --all-databases --events --routines --triggers 2> "$dump_err" | gzip > "$backup"
+) || ! zcat "$backup" 2> /dev/null | tail -n1 | grep -q '^-- Dump completed'; then
 	echo "ERROR: backup dump failed, upgrade aborted."
-	sed 's/^/       | /' /tmp/mdb-dump.err 2> /dev/null | head -5
-	rm -f "$backup"
+	sed 's/^/       | /' "$dump_err" | head -5
+	rm -f "$backup" "$dump_err"
 	exit "$E_INVALID"
 fi
-chmod 600 "$backup"
-[ -s "$backup" ] || {
-	echo "ERROR: backup file is empty, upgrade aborted."
-	rm -f "$backup"
-	exit "$E_INVALID"
-}
+rm -f "$dump_err"
 
-# 2. repo switch, keeping the old state for restore-on-refusal
+# kept so a refusal can put the old repo back
 [ -f "$REPO_LIST" ] && cp -f "$REPO_LIST" "${REPO_LIST}.bak"
 ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
 OS_ID="$(
@@ -181,14 +156,15 @@ case "$target" in
 		printf 'deb [arch=%s signed-by=/usr/share/keyrings/mariadb-keyring.gpg] https://dlm.mariadb.com/repo/mariadb-server/%s/repo/%s %s main\n' \
 			"$ARCH" "$target" "$OS_ID" "$CODENAME" > "$REPO_LIST"
 		if [ ! -s /usr/share/keyrings/mariadb-keyring.gpg ]; then
-			curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o /tmp/mariadb_signing.asc \
+			key_asc=$(mktemp)
+			curl -fsSL --max-time 30 https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
 				|| {
 					echo "ERROR: failed to download MariaDB signing key"
 					_restore_repo
 					exit 1
 				}
-			gpg --dearmor < /tmp/mariadb_signing.asc > /usr/share/keyrings/mariadb-keyring.gpg
-			rm -f /tmp/mariadb_signing.asc
+			gpg --dearmor < "$key_asc" > /usr/share/keyrings/mariadb-keyring.gpg
+			rm -f "$key_asc"
 		fi
 		;;
 	__os__)
@@ -198,8 +174,7 @@ case "$target" in
 esac
 apt-get -qq update
 
-# 3. downgrade refusal: compare apt's candidate to the running version
-#    (LC_ALL=C so the localized "Candidate:" line still matches)
+# LC_ALL=C: apt localizes the "Candidate:" label
 candidate=$(LC_ALL=C apt-cache policy mariadb-server 2> /dev/null | awk '/Candidate:/{print $2}' \
 	| sed 's/^[0-9]*://' | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
 if [ -z "$candidate" ]; then
@@ -208,8 +183,7 @@ if [ -z "$candidate" ]; then
 	rm -f "$backup" # nothing was changed, drop the unused pre-upgrade dump
 	exit "$E_INVALID"
 fi
-# an older-only target makes apt's candidate fall back to the installed version, so
-# both downgrade and no-newer cases land here
+# an older-only target leaves apt's candidate at the installed version, so equal is refused too
 if [ "$(printf '%s\n%s\n' "$current" "$candidate" | sort -V | tail -1)" != "$candidate" ] \
 	|| [ "$current" = "$candidate" ]; then
 	echo "ERROR: target '$target' offers nothing newer than the running $current"
@@ -222,7 +196,6 @@ if [ "$(printf '%s\n%s\n' "$current" "$candidate" | sort -V | tail -1)" != "$can
 fi
 echo "[ * ] Upgrading MariaDB $current -> $candidate..."
 
-# 4. package upgrade (apt bounces the service via maintainer scripts)
 if ! DEBIAN_FRONTEND=noninteractive apt-get -y -qq \
 	-o Dpkg::Options::="--force-confold" \
 	install mariadb-server mariadb-client mariadb-common > /dev/null 2>&1; then
@@ -232,7 +205,6 @@ if ! DEBIAN_FRONTEND=noninteractive apt-get -y -qq \
 fi
 rm -f "${REPO_LIST}.bak"
 
-# 5. Restart + system-table migration.
 systemctl restart mariadb
 if ! systemctl is-active --quiet mariadb; then
 	echo "ERROR: MariaDB failed to start after upgrade."
@@ -240,19 +212,17 @@ if ! systemctl is-active --quiet mariadb; then
 	exit "$E_RESTART"
 fi
 echo "[ * ] Running mariadb-upgrade (system table migration)..."
-mariadb-upgrade > /dev/null 2>&1 || mariadb-upgrade --force > /dev/null 2>&1 || true
+if ! { mariadb-upgrade > /dev/null 2>&1 || mariadb-upgrade --force > /dev/null 2>&1; }; then
+	echo "[ ! ] mariadb-upgrade failed; the system tables may still be in the old format. Run it by hand."
+fi
 
-# 6. Verify the panel path still works (socket auth + host registration).
+# the login the panel depends on: root over the socket
 if ! mariadb -e "SELECT 1;" > /dev/null 2>&1; then
 	echo "ERROR: post-upgrade login check failed."
 	echo "       Backup for recovery: $backup"
 	exit "$E_INVALID"
 fi
 new_version=$(mariadb -N -e "SELECT VERSION();" 2> /dev/null | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 mariadb_status_record
 

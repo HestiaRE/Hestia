@@ -4,17 +4,11 @@
 # labels: internal
 # caller: h-add-database-sso-token
 #
-# example: h-add-database-temp-user wordress wordpress_db mysql
+# example: h-add-database-temp-user admin admin_wp_db mysql
 #
-# This function creates an temporary database user mysql_sso_db_XXXXXXXX and a random password
-# The user has an limited validity and only granted access to the specific database
-# Returns json to be read SSO Script
+# Creates a MySQL user hestia_sso_XXXXXXXX with a random password and access to DATABASE only; an at job drops it
+# after TTL minutes (default 60, 0 keeps it). Prints the login as JSON for h-add-database-sso-token.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database="$2"
 type=${3-mysql}
@@ -25,19 +19,13 @@ if [ "$ttl" == '' ]; then
 	ttl=60
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DATABASE [TYPE] [HOST] [TTL]'
 is_format_valid 'user' 'database' 'ttl'
@@ -47,16 +35,13 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
 is_object_unsuspended 'db' 'DB' "$database"
-get_next_dbhost
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get database values
 get_database_values
+# The login only works on the server that holds the database.
+[ -z "$host" ] || [ "$host" = 'default' ] || [ "$host" = "$HOST" ] \
+	|| check_result "$E_INVALID" "database $database is on $HOST, not on $host"
+host="$HOST"
 
-#generate password and unique user
 dbpass=$(generate_password)
 dbuser="hestia_sso_$(generate_password)"
 
@@ -80,11 +65,6 @@ printf '        "password": "%s"\n' "$json_dbpass"
 echo '    }'
 echo '}'
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Databases" "Granted user $dbuser access to database $database."
 log_event "$OK" "$ARGUMENTS"
 exit

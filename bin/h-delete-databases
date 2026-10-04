@@ -4,48 +4,31 @@
 #
 # example: h-delete-databases admin
 #
-# This function deletes all user databases.
+# Deletes all databases of USER.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# The whole run is handed down, so a shared user's password holder is not refused over databases that go with it.
-DB_DELETE_SET=$(search_objects 'db' 'SUSPENDED' "no" 'DB' | tr '\n' ' ')
+# Handed down whole, so a shared user's password holder is not refused over databases that go with it.
+DB_DELETE_SET=$(search_objects 'db' 'SUSPENDED' "*" 'DB' | tr '\n' ' ')
 export DB_DELETE_SET
+failed=''
 for database in $DB_DELETE_SET; do
-	$BIN/h-delete-database "$user" "$database"
+	$BIN/h-delete-database "$user" "$database" || failed="$failed $database"
 done
+# h-delete-user goes on to remove the account, so one database left behind must fail the run.
+[ -z "$failed" ] || check_result "$E_DB" "not deleted:$failed"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

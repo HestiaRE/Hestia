@@ -56,14 +56,16 @@ plain_list() {
 #----------------------------------------------------------#
 
 # Defining config path
-config_path=$(find /etc/my* -name my.cnf)
+# The file h-add-sys-mariadb writes. A search found none or several, and an empty path made cat read stdin.
+config_path=/etc/mysql/my.cnf
+[ -f "$config_path" ] || check_result "$E_NOTEXIST" "$config_path not found"
 
 # Defining keys
 keys="max_user_connections|max_connections|wait_timeout|interactive_timeout"
 keys="${keys}|max_allowed_packet"
 
 # Reading config
-config=$(cat $config_path | grep -v "^;")
+config=$(grep -v "^;" "$config_path")
 
 # Listing data
 case $format in

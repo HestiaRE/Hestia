@@ -40,14 +40,15 @@ fi
 # Refuse while customer databases exist (unless FORCE=yes). Counter + live check
 # (templates and the default 'postgres' maintenance DB are not customer data).
 if [ "${FORCE:-}" != "yes" ]; then
-	u_db_bases=$(grep -o "U_DB_BASES='[0-9]*'" "$HESTIA/conf/pgsql.conf" 2> /dev/null | grep -o '[0-9]*' | head -1)
-	live_db=0
-	if command -v psql > /dev/null 2>&1 && pg_isready -q 2> /dev/null; then
-		live_db=$(sudo -u postgres psql -tAc \
-			"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'postgres';" 2> /dev/null \
-			| grep -c .)
-		live_db=${live_db:-0}
+	u_db_bases=$(record_field "$(grep "^HOST='localhost' " "$HESTIA/conf/pgsql.conf" 2> /dev/null)" U_DB_BASES)
+	# A cluster that is not ready would count 0 and let the guard pass without having looked.
+	if ! live_dbs=$(cd /tmp && sudo -u postgres psql -tAXc \
+		"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'postgres';" 2> /dev/null); then
+		echo "ERROR: PostgreSQL does not answer, so its databases cannot be counted."
+		echo "       Start it, or re-run with FORCE=yes."
+		exit "$E_CONNECT"
 	fi
+	live_db=$(grep -c . <<< "$live_dbs")
 	if [ "${u_db_bases:-0}" != "0" ] || [ "${live_db:-0}" != "0" ]; then
 		echo "ERROR: PostgreSQL still hosts customer databases (counter=${u_db_bases:-0}, live=${live_db:-0})."
 		echo "       Delete them first, or re-run with FORCE=yes."
@@ -59,8 +60,10 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# deregister the local host (strips DB_SYSTEM's pgsql token)
-$BIN/h-delete-database-host pgsql localhost > /dev/null 2>&1 || true
+# deregister the local host (strips DB_SYSTEM's pgsql token); it refuses while database records point at it
+if ! host_out=$($BIN/h-delete-database-host pgsql localhost 2>&1); then
+	echo "[ ! ] localhost stays registered, its database records stay until PostgreSQL is added back: $(head -n1 <<< "$host_out")"
+fi
 
 # purge the installed major explicitly (versioned packages — the metapackage isn't enough)
 echo "[ * ] Removing PostgreSQL packages..."

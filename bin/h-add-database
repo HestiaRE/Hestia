@@ -73,6 +73,8 @@ else
 	[ $? -eq 1 ] || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 	! db_user_foreign "$dbuser" "$user" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 fi
+db_names_free "$database" "$dbuser" "$type" "$user" \
+	|| check_result "$E_EXISTS" "$database or $dbuser is not available: the name belongs to another account"
 get_next_dbhost
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
 is_object_unsuspended "$HESTIA/conf/$type" 'DBHOST' "$host"

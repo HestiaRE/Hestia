@@ -92,6 +92,9 @@ for db in "${databases[@]}"; do
 				check_result "$E_PARSING" "$db db record is not a KEY='VALUE' line - refusing to restore it"
 			fi
 			restore_parse_record prev_db_keys "$archived_record"
+			# Clearing it below would drop another customer's live database of the same name.
+			db_names_free "$db" "$DBUSER" "$TYPE" "$user" \
+				|| check_result "$E_EXISTS" "database $db belongs to another customer - refusing to restore it"
 			# @todo add support for renaming user
 			str="$archived_record"
 			record_set_field str SUSPENDED 'no'

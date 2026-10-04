@@ -44,12 +44,18 @@ is_object_unsuspended 'db' 'DB' "$database"
 is_password_valid
 dbpass="$password"
 
+get_database_values
+# Before the record is written: pgsql folds the unquoted name, and the record has to carry the one the server has.
+if [ "$TYPE" = 'pgsql' ]; then
+	dbuser=${dbuser,,}
+	[[ "$dbuser" != *-* ]] || check_result "$E_INVALID" "invalid database user format"
+fi
+
 # Compare old and new user
 old_dbuser=$(get_object_value 'db' 'DB' "$database" '$DBUSER')
 if [ "$old_dbuser" = "$dbuser" ]; then
 	exit
 fi
-get_database_values
 [ "$dbuser" != "$DBUSER_SECOND" ] || check_result "$E_INVALID" "$dbuser is already the second user of $database"
 
 # A name another database holds is reused (#725): same server, and its password stays the one it has.
@@ -70,6 +76,12 @@ if [ -z "$reuse" ]; then
 	if [ "$TYPE" = 'mysql' ]; then
 		mysql_connect "$HOST"
 		! mysql_user_exists "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	fi
+	if [ "$TYPE" = 'pgsql' ]; then
+		db_namespace_foreign "$dbuser" "$user"
+		[ $? -eq 1 ] || check_result "$E_EXISTS" "$dbuser is not available: the name belongs to another account"
+		psql_connect "$HOST"
+		! pgsql_object_exists role "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 	fi
 fi
 # The old user's password lives in this record: whoever else uses it would be left with a user nobody can re-create.
@@ -92,15 +104,6 @@ update_object_value 'db' 'DB' "$database" '$DBUSER' "$dbuser"
 
 # Get database values
 get_database_values
-
-#Fix issue #1084 with "Upper case not allowed with PGSQL"
-if [ "$TYPE" = "pgsql" ]; then
-	dbuser=$(echo "$dbuser" | tr '[:upper:]' '[:lower:]')
-	exclude="-"
-	if [[ "$dbuser" =~ $exclude ]]; then
-		check_result "$E_INVALID" "invalid database user format"
-	fi
-fi
 
 # Rebuild database
 [ -z "$dbpass" ] || REBUILD_DB_PASS_FOLLOWS='yes'

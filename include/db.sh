@@ -189,10 +189,14 @@ psql_connect() {
 }
 
 psql_query() {
+	local rc
 	sql_tmp=$(mktemp)
 	echo "$1" > $sql_tmp
-	psql -h $HOST -U $USER -p $PORT -f "$sql_tmp" 2> /dev/null
+	# ON_ERROR_STOP: without it psql exits 0 on a failed statement.
+	psql -h $HOST -U $USER -p $PORT -v ON_ERROR_STOP=1 -f "$sql_tmp" 2> /dev/null
+	rc=$?
 	rm -f $sql_tmp
+	return $rc
 }
 
 # psql_value QUERY - the value of a one-column, one-row SELECT, nothing else.
@@ -473,9 +477,14 @@ add_mysql_database() {
 add_pgsql_database() {
 	psql_connect $host
 
+	# Checked before anything is created: the GRANT below would hand an existing database or role to this customer.
+	! pgsql_object_exists role "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+	! pgsql_object_exists database "$database" || check_result "$E_EXISTS" "database $database already exists"
+
 	dbpass_esc=$(sql_escape "$dbpass")
 	query="CREATE ROLE $dbuser WITH LOGIN PASSWORD '$dbpass_esc'"
 	psql_query "$query" > /dev/null
+	check_result $? "Unable to create database user $dbuser"
 
 	query="CREATE DATABASE $database OWNER $dbuser"
 	if [ "$TPL" = 'template0' ]; then
@@ -483,7 +492,10 @@ add_pgsql_database() {
 	else
 		query="$query TEMPLATE $TPL"
 	fi
-	psql_query "$query" > /dev/null
+	if ! psql_query "$query" > /dev/null; then
+		psql_query "DROP ROLE $dbuser" > /dev/null
+		check_result "$E_DB" "Unable to create database $database"
+	fi
 
 	query="GRANT ALL PRIVILEGES ON DATABASE $database TO $dbuser"
 	psql_query "$query" > /dev/null
@@ -666,6 +678,81 @@ db_user_foreign() {
 		done < "$conf"
 	done
 	return 1
+}
+
+# db_name_foreign DB USER: does another customer's record hold the database name DB? rc 2 when USER's own directory
+# was not among those read: a set without it is not the one this was asked about. Records only, the server's own
+# names are pgsql_object_exists' and mysql_user_exists' part.
+db_name_foreign() {
+	local dir seen=''
+	for dir in "$CONF_DIR"/users/*/; do
+		[ -e "$dir" ] || continue
+		if [ "$(basename "$dir")" = "$2" ]; then
+			seen=yes
+			continue
+		fi
+		[ -e "$dir/db.conf" ] || continue
+		cut -d' ' -f1 "$dir/db.conf" | grep -qxF "DB='$1'" && return 0
+	done
+	[ -n "$seen" ] || return 2
+	return 1
+}
+
+# db_namespace_foreign NAME USER: is the pgsql NAME inside the name space of another customer? A name belongs to
+# the longest customer name that prefixes it with '_': a_b_x is customer a_b's, so customer a may not create it.
+# rc 2 as in db_name_foreign.
+db_namespace_foreign() {
+	local dir other seen=''
+	for dir in "$CONF_DIR"/users/*/; do
+		[ -e "$dir" ] || continue
+		other=$(basename "$dir")
+		[ "$other" != "$2" ] || seen=yes
+		[ "${#other}" -gt "${#2}" ] || continue
+		[[ "${1,,}" != "${other,,}_"* ]] || return 0
+	done
+	[ -n "$seen" ] || return 2
+	return 1
+}
+
+# db_names_free DB DBUSER TYPE USER: 0 only when DB and DBUSER are free of every rule above; a doubt (rc 2) is not free.
+db_names_free() {
+	db_name_foreign "$1" "$4"
+	[ $? -eq 1 ] || return 1
+	[ "$3" = 'pgsql' ] || return 0
+	db_namespace_foreign "$1" "$4"
+	[ $? -eq 1 ] || return 1
+	db_namespace_foreign "$2" "$4"
+	[ $? -eq 1 ]
+}
+
+# db_namespace_taken USER: does a shorter customer already hold pgsql names in USER's name space? Asked before USER
+# exists, the same rule as db_namespace_foreign from the other side.
+db_namespace_taken() {
+	local dir other line key val
+	for dir in "$CONF_DIR"/users/*/; do
+		[ -e "$dir" ] || continue
+		other=$(basename "$dir")
+		[ "${#other}" -lt "${#1}" ] && [[ "${1,,}" == "${other,,}_"* ]] || continue
+		[ -e "$dir/db.conf" ] || continue
+		while IFS= read -r line || [ -n "$line" ]; do
+			[ "$(db_record_field "$line" TYPE)" = 'pgsql' ] || continue
+			for key in DB DBUSER DBUSER_SECOND; do
+				val=$(db_record_field "$line" "$key")
+				[[ -z "$val" || "${val,,}" != "${1,,}_"* ]] || return 0
+			done
+		done < "$dir/db.conf"
+	done
+	return 1
+}
+
+# pgsql_object_exists KIND NAME: the server's own answer (KIND database or role), which also knows names no record has.
+# Lowercased: the names are created unquoted, and pgsql folds those.
+pgsql_object_exists() {
+	case "$1" in
+		database) [ -n "$(psql_value "SELECT 1 FROM pg_database WHERE datname='${2,,}'")" ] ;;
+		role) [ -n "$(psql_value "SELECT 1 FROM pg_roles WHERE rolname='${2,,}'")" ] ;;
+		*) return 2 ;;
+	esac
 }
 
 # mysql_user_exists DBUSER: the server's own answer, which also knows users no record names any more.

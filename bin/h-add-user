@@ -31,6 +31,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/identity.sh
 source $HESTIA/include/identity.sh
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -45,6 +47,8 @@ is_user_free() {
 	if getent group "$user" > /dev/null 2>&1; then
 		check_result "$E_EXISTS" "group $user exists"
 	fi
+	! db_namespace_taken "$user" \
+		|| check_result "$E_EXISTS" "user $user is not available: another account holds database names starting with ${user}_"
 }
 
 #----------------------------------------------------------#

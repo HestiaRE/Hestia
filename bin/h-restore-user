@@ -112,6 +112,8 @@ if [ -z "$check_user" ]; then
 else
 	create_user="yes"
 	email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f2 -d \')
+	! db_namespace_taken "$user" \
+		|| check_result "$E_EXISTS" "user $user is not available: another account holds database names starting with ${user}_"
 fi
 
 # Checking available disk space
@@ -1195,6 +1197,13 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			# The same name the existence check used, not a second derivation of it.
 			DB="$target_db"
 			DBUSER="${user}_${DBUSER#"${old_user}_"}"
+			# Another customer's database, or a pgsql name in another customer's name space: clearing it below would
+			# drop that customer's live database.
+			if ! db_names_free "$DB" "$DBUSER" "$TYPE" "$user"; then
+				echo "Warning!: $target_db skipped - the name belongs to another customer" | tee -a $tmpdir/restore.log
+				restore_failures="$restore_failures$(printf '\n  database %s (the name belongs to another customer)' "$target_db")"
+				continue
+			fi
 			# Another customer's user: the rebuild would hand it this archive's password and grants.
 			if db_user_foreign "$DBUSER" "$user"; then
 				echo "Warning!: $target_db skipped - its user $DBUSER belongs to another customer" | tee -a $tmpdir/restore.log

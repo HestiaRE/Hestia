@@ -1881,7 +1881,8 @@ is_cron_command_valid_format() {
 is_database_format_valid() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|@|#|$|^|&|*|(|)|+|=|{|}|:|,|<|>|?|/|\|\"|'|;|%|\`| ]"
-	if [[ "$1" =~ $exclude ]] || [ 64 -le ${#1} ]; then
+	# Whitespace and control characters too: pgsql takes the name unquoted.
+	if [[ "$1" =~ $exclude ]] || [[ "$1" =~ [[:space:][:cntrl:]] ]] || [ 64 -le ${#1} ]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
 	is_no_new_line_format "$1"
@@ -1901,7 +1902,7 @@ is_dbuser_format_valid() {
 	if [ 33 -le ${#1} ]; then
 		check_result "$E_INVALID" "mysql username can be up to 32 characters long"
 	fi
-	if [[ "$1" =~ $exclude ]]; then
+	if [[ "$1" =~ $exclude ]] || [[ "$1" =~ [[:space:][:cntrl:]] ]]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
 	is_no_new_line_format "$1"

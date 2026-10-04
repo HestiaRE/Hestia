@@ -356,46 +356,31 @@ is_charset_valid() {
 	fi
 }
 
-# Increase database host value
+# Increase database host value. Per line: a file-wide replace also counted every other host that
+# happened to hold the same value.
 increase_dbhost_values() {
-	host_str=$(grep "HOST='$host'" $HESTIA/conf/$type.conf)
+	host_str=$(grep -F "HOST='$host'" $HESTIA/conf/$type.conf)
 	parse_object_kv_list "$host_str"
-
-	old_dbbases="U_DB_BASES='$U_DB_BASES'"
-	new_dbbases="U_DB_BASES='$((U_DB_BASES + 1))'"
 	if [ -z "$U_SYS_USERS" ]; then
-		old_users="U_SYS_USERS=''"
-		new_users="U_SYS_USERS='$user'"
-	else
-		old_users="U_SYS_USERS='$U_SYS_USERS'"
-		new_users="U_SYS_USERS='$U_SYS_USERS'"
-		if [ -z "$(echo $U_SYS_USERS | sed "s/,/\n/g" | grep -w $user)" ]; then
-			old_users="U_SYS_USERS='$U_SYS_USERS'"
-			new_users="U_SYS_USERS='$U_SYS_USERS,$user'"
-		fi
+		U_SYS_USERS="$user"
+	elif [ -z "$(echo $U_SYS_USERS | sed "s/,/\n/g" | grep -w $user)" ]; then
+		U_SYS_USERS="$U_SYS_USERS,$user"
 	fi
-
-	sed -i "s/$old_dbbases/$new_dbbases/g" $HESTIA/conf/$type.conf
-	sed -i "s/$old_users/$new_users/g" $HESTIA/conf/$type.conf
+	update_object_value "$HESTIA/conf/$type" 'HOST' "$host" '$U_SYS_USERS' "$U_SYS_USERS"
+	update_object_value "$HESTIA/conf/$type" 'HOST' "$host" '$U_DB_BASES' "$((U_DB_BASES + 1))"
 }
 
 # Decrease database host value
 decrease_dbhost_values() {
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/$TYPE.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/$TYPE.conf)
 	parse_object_kv_list "$host_str"
-
-	old_dbbases="U_DB_BASES='$U_DB_BASES'"
-	new_dbbases="U_DB_BASES='$((U_DB_BASES - 1))'"
-	old_users="U_SYS_USERS='$U_SYS_USERS'"
 	U_SYS_USERS=$(echo "$U_SYS_USERS" \
 		| sed "s/,/\n/g" \
 		| sed "s/^$user$//g" \
 		| sed "/^$/d" \
 		| sed ':a;N;$!ba;s/\n/,/g')
-	new_users="U_SYS_USERS='$U_SYS_USERS'"
-
-	sed -i "s/$old_dbbases/$new_dbbases/g" $HESTIA/conf/$TYPE.conf
-	sed -i "s/$old_users/$new_users/g" $HESTIA/conf/$TYPE.conf
+	update_object_value "$HESTIA/conf/$TYPE" 'HOST' "$HOST" '$U_SYS_USERS' "$U_SYS_USERS"
+	update_object_value "$HESTIA/conf/$TYPE" 'HOST' "$HOST" '$U_DB_BASES' "$((U_DB_BASES - 1))"
 }
 
 # mysql_read_md5 DBUSER: the hash the server keeps for DBUSER, into $md5, in the form each fork prints it.

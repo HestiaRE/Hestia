@@ -151,18 +151,19 @@ fi
 # 1. forced pre-upgrade dump (hard precondition) -> /root (0600), abort on error
 backup="/root/mariadb-upgrade-backup-$(date +%F-%H%M%S).sql.gz"
 echo "[ * ] Dumping all databases to $backup (forced pre-upgrade backup)..."
-if ! mariadb-dump --all-databases --events --routines --triggers 2> /tmp/mdb-dump.err | gzip > "$backup"; then
+dump_err=$(mktemp)
+# pipefail: the pipeline's status is otherwise gzip's, and a dump that died wrote a valid, truncated archive.
+if ! (
+	set -o pipefail
+	umask 077
+	mariadb-dump --all-databases --events --routines --triggers 2> "$dump_err" | gzip > "$backup"
+) || ! zcat "$backup" 2> /dev/null | tail -n1 | grep -q '^-- Dump completed'; then
 	echo "ERROR: backup dump failed, upgrade aborted."
-	sed 's/^/       | /' /tmp/mdb-dump.err 2> /dev/null | head -5
-	rm -f "$backup"
+	sed 's/^/       | /' "$dump_err" | head -5
+	rm -f "$backup" "$dump_err"
 	exit "$E_INVALID"
 fi
-chmod 600 "$backup"
-[ -s "$backup" ] || {
-	echo "ERROR: backup file is empty, upgrade aborted."
-	rm -f "$backup"
-	exit "$E_INVALID"
-}
+rm -f "$dump_err"
 
 # 2. repo switch, keeping the old state for restore-on-refusal
 [ -f "$REPO_LIST" ] && cp -f "$REPO_LIST" "${REPO_LIST}.bak"

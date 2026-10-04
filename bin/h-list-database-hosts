@@ -42,8 +42,9 @@ json_list() {
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
 			for str in $(cat $HESTIA/conf/$type.conf); do
 				# A record without the key (every mysql one, a pgsql one from before) is TLS-bound.
-				unset TLS
+				unset TLS PORT TPL
 				parse_object_kv_list "$str"
+				database_set_default_ports
 				json_escape HOST PORT type CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL TLS SUSPENDED TIME DATE
 				echo '    {'
 				printf '        "HOST": "%s",\n' "$HOST"
@@ -78,10 +79,11 @@ shell_list() {
 	echo "----   ----   ----   ------   -------   ----   ----   ----"
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
-			# Set default port values if they don't exist in database configuration file.
-			database_set_default_ports
 			for str in $(cat $HESTIA/conf/$type.conf); do
+				# Keys a record leaves out would otherwise carry over from the one before.
+				unset PORT TPL
 				parse_object_kv_list "$str"
+				database_set_default_ports
 				echo "$HOST $PORT $type $MAX_DB $U_DB_BASES $SUSPENDED $TIME $DATE"
 			done
 		fi
@@ -93,10 +95,11 @@ plain_list() {
 	IFS=$'\n'
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
-			# Set default port values if they don't exist in database configuration file.
-			database_set_default_ports
 			for str in $(cat $HESTIA/conf/$type.conf); do
+				# Keys a record leaves out would otherwise carry over from the one before.
+				unset PORT TPL
 				parse_object_kv_list "$str"
+				database_set_default_ports
 				echo -ne "$HOST\t$PORT\t$type\t$CHARSETS\t$MAX_DB\t$U_SYS_USERS\t"
 				echo -e "$U_DB_BASES\t$TPL\t$SUSPENDED\t$TIME\t$DATE"
 			done

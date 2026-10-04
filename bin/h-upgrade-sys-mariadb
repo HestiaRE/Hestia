@@ -17,7 +17,7 @@
 # DOWNGRADES ARE REFUSED (a newer datadir can't be reopened); the repo is restored.
 #
 # ROLLBACK (manual, not undoable in place). Using the dump this forces to /root (0600):
-#   1. h-delete-sys-mariadb (FORCE=yes) && PURGE_DATA=yes   # drop new-format datadir
+#   1. FORCE=yes PURGE_DATA=yes h-delete-sys-mariadb         # drop new-format datadir
 #   2. h-add-sys-mariadb <old-version>                      # reinstall old version
 #   3. zcat <backup>.sql.gz | mariadb                       # restore the dump
 #   4. mariadb -e "FLUSH PRIVILEGES;"

@@ -2,7 +2,7 @@
 # info: update database disk usage
 # options: USER DATABASE
 #
-# example: h-update-database-disk admin wp_db
+# example: h-update-database-disk admin admin_wp_db
 #
 # This function recalculates disk usage for specific database.
 

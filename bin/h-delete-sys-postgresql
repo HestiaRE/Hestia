@@ -6,7 +6,7 @@
 #
 # Counterpart to h-add-sys-postgresql. Refuses while customer DBs exist (counter +
 # live pg_database check). Datadir kept by default. Packages are versioned, so the
-# installed major (server + client) is purged explicitly, not just the metapackage.
+# installed server major is purged explicitly, not just the metapackage; the client stays.
 # Opt-ins: FORCE=yes skips the DB check; PURGE_DATA=yes drops the datadir + config.
 
 #----------------------------------------------------------#

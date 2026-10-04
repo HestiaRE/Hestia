@@ -2,7 +2,7 @@
 # info: change database username
 # options: USER DATABASE DBUSER [DBPASS]
 #
-# example: h-change-database-user admin my_db joe_user
+# example: h-change-database-user admin admin_wp_db joe
 #
 # This function for changing database user. A DBUSER another MySQL database of the user already has is
 # reused with its password, so DBPASS must be empty then.

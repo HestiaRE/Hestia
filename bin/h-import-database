@@ -2,9 +2,10 @@
 # info: import database
 # options: USER DATABASE DUMP
 #
-# example: h-import-database alice mydb /full/path/to.sql
+# example: h-import-database admin admin_wp_db /root/admin_wp_db.sql
 #
-# This function for importing database.
+# This function imports a dump into the database. It runs with the host's admin account and its
+# statements are not limited to DATABASE, so the dump has to be trusted.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

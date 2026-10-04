@@ -1,10 +1,10 @@
 #!/bin/bash
-# info: list supported database types
+# info: list the database types that have a registered host
 # options: [FORMAT]
 #
 # example: h-list-database-types json
 #
-# This function for obtaining the list of database types.
+# DB_SYSTEM as h-add-database-host composes it; h-add-database takes only these types.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

@@ -2,7 +2,7 @@
 # info: remove the second user of a database
 # options: USER DATABASE
 #
-# example: h-delete-database-second-user admin shop_db
+# example: h-delete-database-second-user admin admin_shop_db
 #
 # This function takes the second user off a MySQL database; the user itself goes once no other database has it.
 

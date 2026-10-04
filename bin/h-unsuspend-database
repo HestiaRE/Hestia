@@ -2,7 +2,7 @@
 # info: unsuspend database
 # options: USER DATABASE
 #
-# example: h-unsuspend-database admin mydb
+# example: h-unsuspend-database admin admin_wordpress_db
 #
 # This function for unsuspending database.
 

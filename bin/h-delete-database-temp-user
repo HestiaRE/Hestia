@@ -4,7 +4,7 @@
 # labels: internal
 # caller: the at job h-add-database-temp-user schedules
 #
-# example: h-delete-database-temp-user wordpress hestia_sso_user mysql
+# example: h-delete-database-temp-user admin admin_wp_db hestia_sso_XXXXXXXX mysql
 #
 # Revokes "temp user" access to a database and removes the user
 # To be used in combination with h-add-database-temp-user

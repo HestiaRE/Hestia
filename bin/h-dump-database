@@ -2,11 +2,12 @@
 # info: Dumps database contents in STDIN or file optional file can be compressed
 # options: USER DATABASE [FILE] [COMPRESSION]
 #
-# example: h-dump-database user user_databse > test.sql
-# example: h-dump-database user user_databse file gzip
-# example: h-dump-database user user_databse file zstd
+# example: h-dump-database admin admin_wp_db > admin_wp_db.sql
+# example: h-dump-database admin admin_wp_db file gzip
+# example: h-dump-database admin admin_wp_db file zstd
 #
-# Dumps database in STDIN or file (/backup/user.database.type.sql)
+# Dumps the database to STDOUT, or with FILE to $BACKUP/USER_DATABASE_TYPE_TIMESTAMP.sql[.gz|.zst],
+# which is removed after an hour.
 # For compression gzip or zstd is supported by default plain sql is used
 
 #----------------------------------------------------------#

@@ -7,12 +7,8 @@
 #
 # This function creates the database concatenating username and user_db.
 # An empty DBPASS reuses DBUSER when another MySQL database of the user already has it.
-# Supported types of databases you can get using h-list-sys-config script.
-# If the host isn't stated and there are few hosts configured on the server,
-# then the host will be defined by one of three algorithms. "First" will choose
-# the first host in the list. "Random" will chose the host by a chance.
-# "Weight" will distribute new database through hosts evenly. Algorithm and
-# types of supported databases is designated in the main configuration file.
+# TYPE is one of h-list-database-types. Without HOST (or with 'default') the unsuspended host with the
+# lowest share of its MAX_DB is taken, as long as that share is below 100%.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

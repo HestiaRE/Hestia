@@ -2,7 +2,7 @@
 # info: list database
 # options: USER DATABASE [FORMAT]
 #
-# example: h-list-database wp_db
+# example: h-list-database admin admin_wp_db
 #
 # This function for obtaining of all database's parameters.
 

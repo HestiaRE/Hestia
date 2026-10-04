@@ -2,7 +2,7 @@
 # info: change database owner
 # options: DATABASE USER
 #
-# example: h-change-database-owner mydb alice
+# example: h-change-database-owner admin_wp_db alice
 #
 # This function for changing database owner.
 

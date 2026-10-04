@@ -2,8 +2,8 @@
 # info: set the second user of a database
 # options: USER DATABASE DBUSER [DBPASS] [RO]
 #
-# example: h-change-database-second-user admin shop_db reader 'Pa55w0rd' yes
-# example: h-change-database-second-user admin shop_db matt '' no
+# example: h-change-database-second-user admin admin_shop_db reader 'Pa55w0rd' yes
+# example: h-change-database-second-user admin admin_shop_db matt '' no
 #
 # This function gives a MySQL database a second user. A DBUSER the user already has is reused with an empty DBPASS,
 # a new one needs DBPASS; naming the current one again changes its password or rights. RO yes is read-only (SELECT,

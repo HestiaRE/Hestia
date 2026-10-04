@@ -32,7 +32,9 @@ if [ "$(id -u)" != '0' ]; then
 	exit 10
 fi
 
-if [ ! -f "$PMA_INSTALL/hestia-sso.php" ]; then
+# Any remnant counts: h-delete-sys-phpmyadmin refuses while the include or the key is there.
+if [ ! -f "$PMA_INSTALL/hestia-sso.php" ] && [ ! -f "$PMA_CONFIG/conf.d/hestia-sso.inc.php" ] \
+	&& [ -z "${PHPMYADMIN_KEY:-}" ]; then
 	echo 'Error: PMA Single Sign On already disabled'
 	exit 1
 fi

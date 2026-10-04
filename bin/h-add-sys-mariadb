@@ -189,7 +189,6 @@ mariadb_status_record
 # register the local host (sole writer of DB_SYSTEM's mysql token); MUST precede
 # phpMyAdmin, whose guard needs 'mysql' in DB_SYSTEM
 $BIN/h-add-database-host mysql localhost root "$MPASS" > /dev/null 2>&1 || true
-$BIN/h-change-sys-db-alias pma phpmyadmin > /dev/null 2>&1 || true
 
 if [ "${COMPONENT_DB_PHPMYADMIN:-}" = "true" ]; then
 	echo "[ * ] Installing phpMyAdmin..."

@@ -11,6 +11,8 @@
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 if [ "x$(id -u)" != 'x0' ]; then
@@ -26,7 +28,11 @@ fi
 
 # templates and the postgres maintenance database are not customer data
 if [ "${FORCE:-}" != "yes" ]; then
-	u_db_bases=$(record_field "$(grep "^HOST='localhost' " "$HESTIA/conf/pgsql.conf" 2> /dev/null)" U_DB_BASES)
+	if ! records=$(db_host_records pgsql localhost); then
+		echo "ERROR: no customer records could be read, so the databases on localhost cannot be counted."
+		echo "       Re-run with FORCE=yes."
+		exit "$E_PARSING"
+	fi
 	# A cluster that is not ready would count 0 and let the guard pass without having looked.
 	if ! live_dbs=$(cd /tmp && sudo -u postgres psql -tAXc \
 		"SELECT datname FROM pg_database WHERE datistemplate=false AND datname<>'postgres';" 2> /dev/null); then
@@ -35,8 +41,8 @@ if [ "${FORCE:-}" != "yes" ]; then
 		exit "$E_CONNECT"
 	fi
 	live_db=$(grep -c . <<< "$live_dbs")
-	if [ "${u_db_bases:-0}" != "0" ] || [ "${live_db:-0}" != "0" ]; then
-		echo "ERROR: PostgreSQL still hosts customer databases (counter=${u_db_bases:-0}, live=${live_db:-0})."
+	if [ "$records" != "0" ] || [ "${live_db:-0}" != "0" ]; then
+		echo "ERROR: PostgreSQL still hosts customer databases (records=$records, live=${live_db:-0})."
 		echo "       Delete them first, or re-run with FORCE=yes."
 		exit "$E_INUSE"
 	fi

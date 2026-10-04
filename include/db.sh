@@ -888,11 +888,27 @@ dump_pgsql_database() {
 	echo -e "$pw_str\n$gr_str" >> $grants
 }
 
+# db_host_records TYPE HOST: how many records of all customers point at HOST. Counted from the records, since the host
+# counter drifts. rc 2 when no customer directory was read: a count over nothing is not 0.
+db_host_records() {
+	local dir line n=0 seen=''
+	for dir in "$CONF_DIR"/users/*/; do
+		[ -e "$dir" ] || continue
+		seen=yes
+		[ -e "$dir/db.conf" ] || continue
+		while IFS= read -r line || [ -n "$line" ]; do
+			! db_record_matches "$line" "$1" "$2" || n=$((n + 1))
+		done < "$dir/db.conf"
+	done
+	echo "$n"
+	[ -n "$seen" ] || return 2
+}
+
 is_dbhost_free() {
-	host_str=$(grep "HOST='$host'" $HESTIA/conf/$type.conf)
-	parse_object_kv_list "$host_str"
-	if [ 0 -ne "$U_DB_BASES" ]; then
-		echo "Error: host $HOST is used"
+	local n
+	n=$(db_host_records "$type" "$host") || check_result "$E_PARSING" "no customer records readable, host $host not checked"
+	if [ "$n" -ne 0 ]; then
+		echo "Error: host $host is used by $n database(s)"
 		log_event "$E_INUSE" "$ARGUMENTS"
 		exit $E_INUSE
 	fi

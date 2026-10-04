@@ -46,12 +46,13 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
+# Connected before the record changes: a host that does not answer would leave a user nothing tracks.
+mysql_connect "$HOST"
 # Record first, the user drops only once none names it; old2 because update_object_value re-parses the globals.
 old2="$DBUSER_SECOND"
 update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND' ''
 update_object_value 'db' 'DB' "$database" '$MD5_SECOND' ''
 update_object_value 'db' 'DB' "$database" '$DBUSER_SECOND_RO' ''
-mysql_connect "$HOST"
 mysql_revoke_slot "$old2" "$database"
 mysql_drop_user_if_free "$old2"
 

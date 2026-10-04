@@ -500,10 +500,17 @@ add_mysql_database_temp_user() {
 
 delete_mysql_database_temp_user() {
 	mysql_connect $host
-	query="REVOKE ALL ON \`$database\`.* FROM \`$dbuser\`@localhost"
-	mysql_query "$query" > /dev/null
-	query="DROP USER '$dbuser'@'localhost'"
-	mysql_query "$query" > /dev/null
+	mysql_query "DROP USER IF EXISTS \`$dbuser\`@localhost" > /dev/null
+}
+
+# mysql_drop_sso_users DB: SSO logins hold their own grant on DB, which neither a suspend nor DROP DATABASE takes back.
+mysql_drop_sso_users() {
+	local u
+	mysql_query "SELECT User FROM mysql.db WHERE Db='$1' AND Host='localhost' AND User LIKE 'hestia\\_sso\\_%'" \
+		| tail -n +2 | while IFS= read -r u; do
+		[[ "$u" =~ ^hestia_sso_[[:alnum:]]+$ ]] || continue
+		mysql_query "DROP USER IF EXISTS \`$u\`@localhost" > /dev/null
+	done
 }
 
 is_dbhost_new() {
@@ -828,6 +835,7 @@ delete_mysql_database() {
 	# IF EXISTS: a record whose database is already gone must stay deletable.
 	query="DROP DATABASE IF EXISTS \`$database\`"
 	mysql_query "$query" || return 2
+	mysql_drop_sso_users "$database"
 
 	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@\`%\`"
 	mysql_query "$query" > /dev/null
@@ -926,6 +934,7 @@ is_dbhost_free() {
 
 suspend_mysql_database() {
 	mysql_connect $HOST
+	mysql_drop_sso_users "$database"
 	mysql_revoke_slot "$DBUSER" "$database"
 	[ -z "${DBUSER_SECOND:-}" ] || mysql_revoke_slot "$DBUSER_SECOND" "$database"
 }

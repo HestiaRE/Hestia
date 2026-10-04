@@ -41,7 +41,9 @@ is_dbhost_free
 #----------------------------------------------------------#
 
 # Deleting server
-sed -i "/HOST='$host' /d" "$HESTIA/conf/$type.conf"
+remove_line_by_prefix "$HESTIA/conf/$type.conf" "HOST='$host'"
+# The client file with the admin password for this host.
+rm -f "$HESTIA/conf/.mysql.$host"
 # Delete RRD database
 rm -fr $HESTIA'/web/rrd/db/'$type'_'$host'.rrd'
 rm -fr $HESTIA'/web/rrd/db/'*-$type'_'$host'.*'

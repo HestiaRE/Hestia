@@ -338,6 +338,16 @@ increase_dbhost_values() {
 	update_object_value "$HESTIA/conf/$type" 'HOST' "$host" '$U_DB_BASES' "$((U_DB_BASES + 1))"
 }
 
+# dbhost_count_record TYPE HOST: count a restored record on its host, as h-add-database counts a new one. Only on a
+# registered host, since update_object_value without a line rewrites every line. A subshell: the parse overwrites HOST.
+dbhost_count_record() {
+	grep -qsF "HOST='$2'" "$HESTIA/conf/$1.conf" || return 0
+	(
+		type="$1" host="$2"
+		increase_dbhost_values
+	)
+}
+
 decrease_dbhost_values() {
 	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/$TYPE.conf)
 	parse_object_kv_list "$host_str"

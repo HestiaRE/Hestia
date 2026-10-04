@@ -1236,6 +1236,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 				esac
 			done
 			echo "$str" >> $USER_DATA/db.conf
+			dbhost_count_record "$TYPE" "$HOST"
 		else
 			restore_parse_record prev_db_keys "$(grep -F "DB='$target_db'" $USER_DATA/db.conf)"
 		fi

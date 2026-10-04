@@ -71,6 +71,8 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **A restore read parts of a password hash as record keys** (#1176). About every second PostgreSQL database user
+  showed up in the restore preview with a made-up key. The keys of a record now come from reading it field by field.
 - **The fail2ban page of the config editor could never save** (#1176). It edits `jail.local`, which belongs to the
   admin and does not exist until somebody writes it, and both the reader and the writer refused a missing file. The
   first save now creates it. A jail.local that fail2ban cannot run on is rolled back before the restart, or after

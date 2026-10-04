@@ -466,6 +466,12 @@ rebuild_web_domain_conf() {
 				| grep "^$position:" | cut -f 2 -d :)
 			ftp_md5=$(echo $FTP_MD5 | tr ':' '\n' | grep -n '' \
 				| grep "^$position:" | cut -f 2 -d :)
+			# A path stored before the character check would be refused after the delete, and the account would leave
+			# the record as well. Kept, so the customer can give it a new path.
+			if ! record_path_ok "$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")" "$HOMEDIR/$user/web/$domain"; then
+				echo "Warning!: FTP account $ftp_user of $domain is not re-created, its path is not accepted any more"
+				continue
+			fi
 			# rebuild S/FTP users
 			$BIN/h-delete-web-domain-ftp "$user" "$domain" "$ftp_user"
 			# Generate temporary password to add user but update afterwards

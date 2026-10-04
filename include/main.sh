@@ -1895,6 +1895,25 @@ is_date_format_valid() {
 	fi
 }
 
+# is_record_path_valid PATH BASE NAME: PATH is BASE or below it, and what it adds comes from a closed set. Records and
+# server configs take the path as it is, and the customer names the directories. BASE is built from checked names only.
+is_record_path_valid() {
+	record_path_ok "$1" "$2" \
+		|| check_result "$E_INVALID" "invalid $3 :: below $2 only letters, digits and ._/+@~- are allowed"
+}
+
+record_path_ok() {
+	local _tail
+	[ "$1" != "$2" ] || return 0
+	_tail="${1#"$2"/}"
+	[ "$_tail" != "$1" ] && [[ "$_tail" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$_tail" = "${_tail//[^[:ascii:]]/}" ]
+}
+
+# A name in a record's comma list (UDIR): the same set without the slash.
+is_record_list_item() {
+	[[ "$1" =~ ^[[:alnum:]._+@~-]+$ ]] && [ "$1" = "${1//[^[:ascii:]]/}" ]
+}
+
 # Database user validator
 is_dbuser_format_valid() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.

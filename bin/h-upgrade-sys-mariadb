@@ -157,7 +157,7 @@ case "$target" in
 			"$ARCH" "$target" "$OS_ID" "$CODENAME" > "$REPO_LIST"
 		if [ ! -s /usr/share/keyrings/mariadb-keyring.gpg ]; then
 			key_asc=$(mktemp)
-			curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
+			curl -fsSL --max-time 30 https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
 				|| {
 					echo "ERROR: failed to download MariaDB signing key"
 					_restore_repo

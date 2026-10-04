@@ -63,7 +63,7 @@ case "$MARIADB_VER" in
 		printf 'deb [arch=%s signed-by=/usr/share/keyrings/mariadb-keyring.gpg] https://dlm.mariadb.com/repo/mariadb-server/%s/repo/%s %s main\n' \
 			"$ARCH" "$MARIADB_VER" "$OS_ID" "$CODENAME" > /etc/apt/sources.list.d/mariadb.list
 		key_asc=$(mktemp)
-		curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
+		curl -fsSL --max-time 30 https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
 			|| {
 				echo "ERROR: failed to download MariaDB signing key"
 				exit 1

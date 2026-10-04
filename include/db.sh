@@ -35,6 +35,20 @@ database_set_default_ports() {
 }
 
 # MySQL
+# mysql_cnf_sync: $mycnf for the host just parsed. It carries the admin password, so it is 0600 from its
+# creation; rewritten when the stored password changed.
+mysql_cnf_sync() {
+	mycnf="$HESTIA/conf/.mysql.$HOST"
+	if [ ! -e "$mycnf" ] || [ "$(grep password "$mycnf" | cut -f 2 -d \')" != "$PASSWORD" ]; then
+		(
+			umask 077
+			printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" \
+				"$HOST" "$USER" "$PASSWORD" "${PORT:-3306}" > "$mycnf"
+			chmod 600 "$mycnf"
+		)
+	fi
+}
+
 mysql_connect() {
 	unset PORT
 	host_str=$(grep "HOST='$1'" $HESTIA/conf/mysql.conf)
@@ -45,25 +59,7 @@ mysql_connect() {
 		log_event "$E_PARSING" "$ARGUMENTS"
 		exit $E_PARSING
 	fi
-	mycnf="$HESTIA/conf/.mysql.$HOST"
-	if [ ! -e "$mycnf" ]; then
-		echo "[client]" > $mycnf
-		echo "host='$HOST'" >> $mycnf
-		echo "user='$USER'" >> $mycnf
-		echo "password='$PASSWORD'" >> $mycnf
-		echo "port='$PORT'" >> $mycnf
-		chmod 600 $mycnf
-	else
-		mypw=$(grep password $mycnf | cut -f 2 -d \')
-		if [ "$mypw" != "$PASSWORD" ]; then
-			echo "[client]" > $mycnf
-			echo "host='$HOST'" >> $mycnf
-			echo "user='$USER'" >> $mycnf
-			echo "password='$PASSWORD'" >> $mycnf
-			echo "port='$PORT'" >> $mycnf
-			chmod 660 $mycnf
-		fi
-	fi
+	mysql_cnf_sync
 	mysql_out=$(mktemp)
 	if [ -f '/usr/bin/mariadb' ]; then
 		mariadb --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1

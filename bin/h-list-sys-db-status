@@ -48,25 +48,7 @@ for db in $(echo $DB_SYSTEM | tr ',' '\n'); do
 
 			# Checking MySQL
 			if [ "$db" = 'mysql' ]; then
-				mycnf="$HESTIA/conf/.mysql.$HOST"
-				if [ ! -e "$mycnf" ]; then
-					echo "[client]" > $mycnf
-					echo "host='$HOST'" >> $mycnf
-					echo "user='$USER'" >> $mycnf
-					echo "password='$PASSWORD'" >> $mycnf
-					echo "port='${PORT:-3306}'" >> $mycnf
-					chmod 600 $mycnf
-				else
-					mypw=$(grep password $mycnf | cut -f 2 -d \')
-					if [ "$mypw" != "$PASSWORD" ]; then
-						echo "[client]" > $mycnf
-						echo "host='$HOST'" >> $mycnf
-						echo "user='$USER'" >> $mycnf
-						echo "password='$PASSWORD'" >> $mycnf
-						echo "port='${PORT:-3306}'" >> $mycnf
-						chmod 660 $mycnf
-					fi
-				fi
+				mysql_cnf_sync
 				if [ -f '/usr/bin/mariadb-admin' ]; then
 					echo "MySQL $HOST status"
 					mariadb-admin --defaults-file=$mycnf status | sed -e "s/  /\n/g"

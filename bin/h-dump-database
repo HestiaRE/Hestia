@@ -40,7 +40,7 @@ is_object_unsuspended 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 # Create timestamp in Y-M-D_h-m-s format
-timestamp=$(date +'%G-%m-%d_%H-%M-%S')
+timestamp=$(date +'%Y-%m-%d_%H-%M-%S')
 
 # Check db existence
 db_data=$(grep -F "DB='$database'" $CONF_DIR/users/$user/db.conf)
@@ -63,21 +63,29 @@ case $TYPE in
 	pgsql) dump_pgsql_database ;;
 esac
 
+pack_rc=0
 if [ "$compression" = 'zstd' ]; then
 	extension="sql.zst"
-	pzstd --rm $dump
+	pzstd --rm $dump || pack_rc=$?
 	dump="$tmpdir/$database.$TYPE.sql.zst"
 elif [ "$compression" = 'gzip' ]; then
 	extension="sql.gz"
-	gzip $dump
+	gzip $dump || pack_rc=$?
 	dump="$tmpdir/$database.$TYPE.sql.gz"
 else
 	extension="sql"
 fi
+if [ "$pack_rc" -ne 0 ]; then
+	rm -fr $tmpdir
+	check_result "$E_DISK" "the dump of $database could not be compressed"
+fi
 
 if [ "$output" = "file" ]; then
 	# Only the panel reads it: /backup lets through anyone who knows a file name.
-	(umask 077 && cp $dump $BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension})
+	if ! (umask 077 && cp $dump $BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}); then
+		rm -fr $tmpdir $BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}
+		check_result "$E_DISK" "the dump of $database could not be written to $BACKUP"
+	fi
 	chown hestia $BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}
 	# echo file location for use in the php
 	echo "$BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}"

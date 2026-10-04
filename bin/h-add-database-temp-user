@@ -35,9 +35,12 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
 is_object_unsuspended 'db' 'DB' "$database"
-get_next_dbhost
 
 get_database_values
+# The login only works on the server that holds the database.
+[ -z "$host" ] || [ "$host" = 'default' ] || [ "$host" = "$HOST" ] \
+	|| check_result "$E_INVALID" "database $database is on $HOST, not on $host"
+host="$HOST"
 
 dbpass=$(generate_password)
 dbuser="hestia_sso_$(generate_password)"

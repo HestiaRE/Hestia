@@ -871,8 +871,9 @@ delete_mysql_database() {
 	fi
 	mysql_connect $HOST
 
-	query="DROP DATABASE \`$database\`"
-	mysql_query "$query"
+	# IF EXISTS: a record whose database is already gone must stay deletable.
+	query="DROP DATABASE IF EXISTS \`$database\`"
+	mysql_query "$query" || return 2
 
 	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@\`%\`"
 	mysql_query "$query" > /dev/null
@@ -892,8 +893,7 @@ delete_mysql_database() {
 		mysql_revoke_slot "$DBUSER_SECOND" "$database"
 		mysql_drop_user_if_free "$DBUSER_SECOND" "$database"
 	fi
-	# Explicit, so a non-zero return means the guard refused and nothing else. Without it the status
-	# is whatever the last REVOKE happened to give, which no caller could have read as an answer.
+	# Explicit: 1 is the guard, 2 the DROP; otherwise the status is whatever the last REVOKE gave.
 	return 0
 }
 
@@ -906,11 +906,9 @@ delete_pgsql_database() {
 	fi
 	psql_connect $HOST
 
-	query="REVOKE ALL PRIVILEGES ON DATABASE $database FROM $DBUSER"
-	psql_query "$query" > /dev/null
-
-	query="DROP DATABASE $database"
-	psql_query "$query" > /dev/null
+	# No REVOKE first: a DROP refused for an open connection would leave the owner locked out.
+	query="DROP DATABASE IF EXISTS $database"
+	psql_query "$query" > /dev/null || return 2
 
 	db_user_in_use "$DBUSER" pgsql "$HOST" "$database"
 	if [ $? -eq 1 ]; then

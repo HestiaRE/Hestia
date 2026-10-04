@@ -63,13 +63,15 @@ case $TYPE in
 	mysql) delete_mysql_database ;;
 	pgsql) delete_pgsql_database ;;
 esac
+# Before the record goes: a database left on the server needs its record to be deleted again.
+check_result $? "database $database was not dropped"
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
 
 # Deleting database
-sed -i "/DB='$database' /d" $USER_DATA/db.conf
+remove_line_by_prefix "$USER_DATA/db.conf" "DB='$database'"
 
 # Decreasing counters
 decrease_dbhost_values

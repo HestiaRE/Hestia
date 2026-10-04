@@ -40,6 +40,16 @@ is_common_format_valid "$alias" "Alias"
 if [ -z "$alias" ]; then
 	check_result "$E_INVALID" "alias cannot be empty - to switch the editor off use h-delete-sys-phpmyadmin"
 fi
+case "$type" in
+	pma | PMA | phpmyadmin) ;;
+	*) check_result "$E_INVALID" "unknown TYPE '$type', only pma has an alias" ;;
+esac
+# Before anything is written: without it the customer-domain proxy would have no target.
+if [ -z "$BACKEND_PORT" ]; then
+	echo "Error: BACKEND_PORT is empty - the phpMyAdmin proxy would have no target"
+	log_event "$E_NOTEXIST" "$ARGUMENTS"
+	exit "$E_NOTEXIST"
+fi
 
 #----------------------------------------------------------#
 #                       Action                             #
@@ -68,11 +78,6 @@ if [ "$type" = "pma" ] || [ "$type" = "PMA" ] || [ "$type" = "phpmyadmin" ]; the
 	# 2. Customer-domain alias -> transparent proxy into the Panel-Caddy. The port is a
 	# placeholder, not a literal: a moved panel port has to reach these two files or
 	# phpMyAdmin on every customer domain proxies into nothing.
-	if [ -z "$BACKEND_PORT" ]; then
-		echo "Error: BACKEND_PORT is empty - the phpMyAdmin proxy would have no target"
-		log_event "$E_NOTEXIST" "$ARGUMENTS"
-		exit "$E_NOTEXIST"
-	fi
 	if [ -d /etc/nginx/conf.d ]; then
 		cp -f "$HESTIA/share/nginx/apps/phpmyadmin.inc" /etc/nginx/conf.d/phpmyadmin.inc
 		sed -i -e "s|%pma_alias%|$alias|g" -e "s|%panel_port%|$BACKEND_PORT|g" /etc/nginx/conf.d/phpmyadmin.inc

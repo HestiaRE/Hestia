@@ -29,7 +29,7 @@ if (isset($_GET["cpu"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES | ENT_SUBSTITUTE) . "\n";
 	}
 	end_html();
 	exit();
@@ -44,7 +44,7 @@ if (isset($_GET["mem"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES | ENT_SUBSTITUTE) . "\n";
 	}
 	end_html();
 	exit();
@@ -59,7 +59,7 @@ if (isset($_GET["disk"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES | ENT_SUBSTITUTE) . "\n";
 	}
 	end_html();
 	exit();
@@ -74,7 +74,7 @@ if (isset($_GET["net"])) {
 		echo sprintf(_("Error code: %s"), $return_var) . "\n";
 	}
 	foreach ($output as $file) {
-		echo htmlspecialchars($file, ENT_QUOTES) . "\n";
+		echo htmlspecialchars($file, ENT_QUOTES | ENT_SUBSTITUTE) . "\n";
 	}
 	end_html();
 	exit();
@@ -109,7 +109,7 @@ if (isset($_GET["mail"])) {
 	exec(HESTIA_CMD . "h-list-sys-mail-status", $output, $return_var);
 	if ($return_var == 0) {
 		foreach ($output as $file) {
-			echo htmlspecialchars($file, ENT_QUOTES) . "\n";
+			echo htmlspecialchars($file, ENT_QUOTES | ENT_SUBSTITUTE) . "\n";
 		}
 	}
 	end_html();
@@ -123,7 +123,7 @@ if (isset($_GET["db"])) {
 	exec(HESTIA_CMD . "h-list-sys-db-status", $output, $return_var);
 	if ($return_var == 0) {
 		foreach ($output as $file) {
-			echo htmlspecialchars($file, ENT_QUOTES) . "\n";
+			echo htmlspecialchars($file, ENT_QUOTES | ENT_SUBSTITUTE) . "\n";
 		}
 	}
 	end_html();

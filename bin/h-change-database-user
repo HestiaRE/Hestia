@@ -72,10 +72,10 @@ if [ -z "$reuse" ]; then
 		! mysql_user_exists "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 	fi
 	if [ "$TYPE" = 'pgsql' ]; then
-		db_namespace_foreign "${dbuser,,}" "$user"
+		db_namespace_foreign "$dbuser" "$user"
 		[ $? -eq 1 ] || check_result "$E_EXISTS" "$dbuser is not available: the name belongs to another account"
 		psql_connect "$HOST"
-		! pgsql_object_exists role "${dbuser,,}" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
+		! pgsql_object_exists role "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 	fi
 fi
 # The old user's password lives in this record: whoever else uses it would be left with a user nobody can re-create.

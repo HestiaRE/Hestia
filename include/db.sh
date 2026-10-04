@@ -746,10 +746,11 @@ db_namespace_taken() {
 }
 
 # pgsql_object_exists KIND NAME: the server's own answer (KIND database or role), which also knows names no record has.
+# Lowercased: the names are created unquoted, and pgsql folds those.
 pgsql_object_exists() {
 	case "$1" in
-		database) [ -n "$(psql_value "SELECT 1 FROM pg_database WHERE datname='$2'")" ] ;;
-		role) [ -n "$(psql_value "SELECT 1 FROM pg_roles WHERE rolname='$2'")" ] ;;
+		database) [ -n "$(psql_value "SELECT 1 FROM pg_database WHERE datname='${2,,}'")" ] ;;
+		role) [ -n "$(psql_value "SELECT 1 FROM pg_roles WHERE rolname='${2,,}'")" ] ;;
 		*) return 2 ;;
 	esac
 }

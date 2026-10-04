@@ -33,10 +33,12 @@ database_set_default_ports() {
 # mysql_cnf_sync: $mycnf for the host just parsed, 0600 from creation as it holds the admin password.
 mysql_cnf_sync() {
 	mycnf="$HESTIA/conf/.mysql.$HOST"
-	if [ ! -e "$mycnf" ] || [ "$(grep password "$mycnf" | cut -f 2 -d \')" != "$PASSWORD" ]; then
+	if [ ! -e "$mycnf" ] || [ "$(grep password "$mycnf" | cut -f 2 -d \')" != "$PASSWORD" ] \
+		|| ! grep -q '^connect-timeout=' "$mycnf"; then
 		(
 			umask 077
-			printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" \
+			# The timeout sits under [mysql]: mariadb-dump reads [client] too and rejects the option.
+			printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n[mysql]\nconnect-timeout=10\n" \
 				"$HOST" "$USER" "$PASSWORD" "${PORT:-3306}" > "$mycnf"
 			chmod 600 "$mycnf"
 		)
@@ -136,7 +138,7 @@ mysql_dump() {
 # else libpq falls back to plaintext unasked; the CA bundle as libpq 15 (Debian 12) lacks sslrootcert=system.
 # PGDATABASE: libpq would take the admin's name instead.
 psql_env() {
-	export PGDATABASE=postgres
+	export PGDATABASE=postgres PGCONNECT_TIMEOUT=10
 	case "$1" in
 		'' | localhost | 127.* | ::1 | /*) unset PGSSLMODE PGSSLROOTCERT ;;
 		*)

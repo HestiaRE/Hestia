@@ -34,6 +34,7 @@ is_mysql_host_alive() {
 	echo "user='$dbuser'" >> $mycnf
 	echo "password='$password'" >> $mycnf
 	echo "port='$port'" >> $mycnf
+	printf '[mysql]\nconnect-timeout=10\n' >> $mycnf
 
 	chmod 600 $mycnf
 	mysql_out=$(mktemp)

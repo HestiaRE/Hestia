@@ -163,14 +163,14 @@ is_web_domain_new() {
 # customer. The owner needs its own variable: reusing $user here compares the caller with itself,
 # which makes the foreign-owner half of the check dead.
 is_web_alias_new() {
-	local alias_name="$1" alias_type="$2" conf alias_user aliases a
+	local alias_name="$1" alias_type="$2" conf alias_user aliases a line
 	for conf in "$CONF_DIR"/users/*/web.conf; do
 		[ -f "$conf" ] || continue
 		grep -qF -- "$alias_name" "$conf" || continue
 		alias_user=$(basename "$(dirname "$conf")")
-		# read ALIAS directly: parse_object_kv_list would eval the whole record into the caller's
-		# scope, and the leading space keeps WEBMAIL_ALIAS out of the match
-		while IFS= read -r aliases; do
+		# read ALIAS directly: parse_object_kv_list would eval the whole record into the caller's scope
+		while IFS= read -r line || [ -n "$line" ]; do
+			aliases=$(record_field "$line" ALIAS) || continue
 			local -a _a_list
 			IFS=, read -ra _a_list <<< "$aliases"
 			for a in "${_a_list[@]}"; do
@@ -180,7 +180,7 @@ is_web_alias_new() {
 					check_result "$E_EXISTS" "Web alias $alias_name exists"
 				fi
 			done
-		done < <(sed -n "s/.* ALIAS='\([^']*\)'.*/\1/p" "$conf")
+		done < "$conf"
 	done
 }
 

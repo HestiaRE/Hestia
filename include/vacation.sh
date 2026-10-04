@@ -26,7 +26,7 @@ vacation_state() { # USER DOMAIN_IDN ACCOUNT -> JSON
 # A mailbox without a script gets its rule in the format of the webmail its domain uses.
 vacation_new_format() { # USER DOMAIN
 	local w
-	w=$(grep -F "DOMAIN='$2'" "$CONF_DIR/users/$1/mail.conf" 2> /dev/null | sed -n "s/.* WEBMAIL='\([^']*\)'.*/\1/p")
+	w=$(record_field "$(grep -F "DOMAIN='$2'" "$CONF_DIR/users/$1/mail.conf" 2> /dev/null | head -n1)" WEBMAIL)
 	[ "$w" = 'tachyon' ] && echo 'tachyon' || echo 'roundcube'
 }
 

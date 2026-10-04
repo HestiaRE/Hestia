@@ -1110,7 +1110,7 @@ import_pgsql_database() {
 		exit "$E_PARSING"
 	fi
 
-	psql -h $HOST -U $USER -p $PORT $DB < $1 > /dev/null 2>&1
+	psql -h $HOST -U $USER -p $PORT "$DB" < "$1" > /dev/null 2>&1
 	_rc=$?
 
 	# Only a warning: the rows are there, and a failed import would make h-change-database-owner undo

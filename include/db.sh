@@ -278,6 +278,14 @@ SQL
 		echo "Warning!: $_db was not handed to $_role, the customer has no rights to the data: $(head -n1 "$_err")"
 	fi
 	rm -f "$_tmp" "$_err"
+	# The handover ends a suspension, so a suspended record gets it back. Read from the record, not
+	# $SUSPENDED: the host line overwrites that.
+	if [ "$_rc" -eq 0 ] && [ "$(record_field "$(grep -F "DB='$_db'" "$USER_DATA/db.conf")" SUSPENDED)" = 'yes' ]; then
+		psql_suspend_apply "$_db" "$_role" || {
+			echo "Warning!: $_db is suspended, but the suspension was not applied again"
+			_rc=1
+		}
+	fi
 	return "$_rc"
 }
 
@@ -968,8 +976,17 @@ suspend_mysql_database() {
 # Suspend PostgreSQL database
 suspend_pgsql_database() {
 	psql_connect $HOST
-	query="REVOKE ALL PRIVILEGES ON $database FROM $DBUSER"
-	psql_query "$query" > /dev/null
+	psql_suspend_apply "$database" "$DBUSER"
+}
+
+# psql_suspend_apply DATABASE ROLE: the role owns the database and could grant itself back in, so the
+# database goes to the admin first. Its tables stay the role's, which is all unsuspend has to undo.
+psql_suspend_apply() {
+	psql_query "BEGIN;
+ALTER DATABASE $1 OWNER TO $USER;
+REVOKE ALL ON DATABASE $1 FROM $2, PUBLIC;
+COMMIT;
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$1' AND usename = '$2';" > /dev/null
 }
 
 # Unsuspend MySQL database
@@ -985,8 +1002,12 @@ unsuspend_mysql_database() {
 # Unsuspend PostgreSQL database
 unsuspend_pgsql_database() {
 	psql_connect $HOST
-	query="GRANT ALL PRIVILEGES ON DATABASE $database TO $DBUSER"
-	psql_query "$query" > /dev/null
+	# PUBLIC gets back the CONNECT and TEMP a new database has, so the state is the one before the suspend.
+	psql_query "BEGIN;
+ALTER DATABASE $database OWNER TO $DBUSER;
+GRANT ALL ON DATABASE $database TO $DBUSER;
+GRANT CONNECT, TEMPORARY ON DATABASE $database TO PUBLIC;
+COMMIT;" > /dev/null
 }
 
 # Get MySQL disk usage

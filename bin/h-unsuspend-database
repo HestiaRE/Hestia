@@ -45,7 +45,7 @@ get_database_values
 # Switching on db type
 case $TYPE in
 	mysql) unsuspend_mysql_database ;;
-	pgsql) unsuspend_pgsql_database ;;
+	pgsql) unsuspend_pgsql_database || check_result "$E_DB" "database $database was not unsuspended" ;;
 esac
 
 #----------------------------------------------------------#

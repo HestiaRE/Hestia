@@ -75,16 +75,75 @@ record_line_valid() {
 	return 0
 }
 
+# One KEY='VALUE' field at the start of what is left of a line. The helpers below walk a record field by field with
+# it: a value may end in KEY=, and a search for the text finds that before the real field.
+RECORD_FIELD_RE="^([A-Z][A-Z0-9_]*)='([^']*)'( |\$)"
+
 # The keys of a record line, one per line, in the order they appear; rc 1 where the line stops being KEY='VALUE'.
-# A token walk, not a search: a value ending in KEY= reads as a key to a pattern, and the restore unsets every name.
 record_keys() {
-	local _rest _re="^([A-Z][A-Z0-9_]*)='[^']*'( |\$)"
+	local _rest
 	_rest="${1%"${1##*[! ]}"}"
 	while [ -n "$_rest" ]; do
-		[[ "$_rest" =~ $_re ]] || return 1
+		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
 		printf '%s\n' "${BASH_REMATCH[1]}"
 		_rest="${_rest#"${BASH_REMATCH[0]}"}"
 	done
+}
+
+# record_field LINE KEY: the value of KEY in a record line; rc 1 when the line has no such field.
+record_field() {
+	local _rest
+	_rest="${1%"${1##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
+		if [ "${BASH_REMATCH[1]}" = "$2" ]; then
+			printf '%s' "${BASH_REMATCH[2]}"
+			return 0
+		fi
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 1
+}
+
+# record_rewrite OUTVAR LINE set KEY VALUE | del KEY | insert KEY BEFORE: LINE with KEY set (appended when it is not
+# there), removed, or inserted empty in front of the field BEFORE. rc 1 when LINE stops being KEY='VALUE', rc 2 when
+# BEFORE is not a field; OUTVAR is then left alone.
+record_rewrite() {
+	local -n _rw_out="$1"
+	local _rest _new='' _hit=''
+	_rest="${2%"${2##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
+		if [ -z "$_hit" ] && [ "$3" = insert ] && [ "${BASH_REMATCH[1]}" = "$5" ]; then
+			_hit=1
+			_new="$_new${_new:+ }$4=''"
+		fi
+		if [ -z "$_hit" ] && [ "$3" != insert ] && [ "${BASH_REMATCH[1]}" = "$4" ]; then
+			_hit=1
+			[ "$3" = del ] || _new="$_new${_new:+ }$4='$5'"
+		else
+			_new="$_new${_new:+ }${BASH_REMATCH[1]}='${BASH_REMATCH[2]}'"
+		fi
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	if [ -z "$_hit" ]; then
+		[ "$3" != insert ] || return 2
+		[ "$3" != set ] || _new="$_new${_new:+ }$4='$5'"
+	fi
+	_rw_out="$_new"
+}
+
+# record_sum_field FILE KEY: the sum of KEY over the records in FILE. A value that is not a whole number counts 0,
+# it would end the caller's arithmetic, and with it the script.
+record_sum_field() {
+	local _line _v _sum=0
+	if [ -f "$1" ]; then
+		while IFS= read -r _line || [ -n "$_line" ]; do
+			_v=$(record_field "$_line" "$2") || continue
+			[[ "$_v" =~ ^[0-9]+$ ]] && _sum=$((_sum + 10#$_v))
+		done < "$1"
+	fi
+	echo "$_sum"
 }
 
 # The cron reader's gate, not record_line_valid: a migrated command may hold a ". Keys of either case
@@ -1026,7 +1085,7 @@ update_object_value() {
 
 # Add object key
 add_object_key() {
-	local row lnr object varname old
+	local row lnr object new
 	row=$(grep -nF "$2='$3'" "$(_object_conf "$1")")
 	lnr=$(echo "$row" | cut -f 1 -d ':')
 	object=$(echo "$row" | sed "s/^$lnr://")
@@ -1035,14 +1094,16 @@ add_object_key() {
 	if [[ -z "$lnr" || -z "$5" ]]; then
 		return 1
 	fi
-	# Anchored on a separator and on the opening quote. Unanchored, a key that is a SUFFIX of one
-	# already present counts as present and is silently not added (LIST into a record holding
-	# DIR_LIST). No caller pairs like that today; it goes sharp the moment the registry grows one.
-	if [[ "$object" != "$4='"* && "$object" != *" $4='"* ]]; then
-		local varname="${4#\$}"
-		old="${!varname}"
-		sed -i "$lnr s/$5='/$4='' $5='/" "$(_object_conf "$1")"
-	fi
+	# By field, not by text: a key that is a SUFFIX of one present (LIST and DIR_LIST) or a value ending in KEY=
+	# would otherwise count as present, or take the new field.
+	record_field "$object" "$4" > /dev/null && return 0
+	record_rewrite new "$object" insert "$4" "$5"
+	case $? in
+		1) return 1 ;;
+		2) return 0 ;;
+	esac
+	new=$(echo "$new" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
+	sed -i "$lnr s/.*/$new/" "$(_object_conf "$1")"
 }
 
 # Literal match on the full keys_zone prefix: a dot in the domain is a regex wildcard, so a.b.com
@@ -1263,36 +1324,21 @@ send_notice() {
 recalc_user_disk_usage() {
 	u_usage=0
 	if [ -f "$USER_DATA/web.conf" ]; then
-		usage=0
-		dusage=$(grep 'U_DISK=' $USER_DATA/web.conf \
-			| awk -F "U_DISK='" '{print $2}' | cut -f 1 -d \')
-		for disk_usage in $dusage; do
-			usage=$((usage + disk_usage))
-		done
+		usage=$(record_sum_field "$USER_DATA/web.conf" U_DISK)
 		d=$(grep "U_DISK_WEB='" $USER_DATA/user.conf | cut -f 2 -d \')
 		sed -i "s/U_DISK_WEB='$d'/U_DISK_WEB='$usage'/g" $USER_DATA/user.conf
 		u_usage=$((u_usage + usage))
 	fi
 
 	if [ -f "$USER_DATA/mail.conf" ]; then
-		usage=0
-		dusage=$(grep 'U_DISK=' $USER_DATA/mail.conf \
-			| awk -F "U_DISK='" '{print $2}' | cut -f 1 -d \')
-		for disk_usage in $dusage; do
-			usage=$((usage + disk_usage))
-		done
+		usage=$(record_sum_field "$USER_DATA/mail.conf" U_DISK)
 		d=$(grep "U_DISK_MAIL='" $USER_DATA/user.conf | cut -f 2 -d \')
 		sed -i "s/U_DISK_MAIL='$d'/U_DISK_MAIL='$usage'/g" $USER_DATA/user.conf
 		u_usage=$((u_usage + usage))
 	fi
 
 	if [ -f "$USER_DATA/db.conf" ]; then
-		usage=0
-		dusage=$(grep 'U_DISK=' $USER_DATA/db.conf \
-			| awk -F "U_DISK='" '{print $2}' | cut -f 1 -d \')
-		for disk_usage in $dusage; do
-			usage=$((usage + disk_usage))
-		done
+		usage=$(record_sum_field "$USER_DATA/db.conf" U_DISK)
 		d=$(grep "U_DISK_DB='" $USER_DATA/user.conf | cut -f 2 -d \')
 		sed -i "s/U_DISK_DB='$d'/U_DISK_DB='$usage'/g" $USER_DATA/user.conf
 		u_usage=$((u_usage + usage))
@@ -1305,12 +1351,7 @@ recalc_user_disk_usage() {
 
 # Recalculate U_BANDWIDTH value
 recalc_user_bandwidth_usage() {
-	usage=0
-	bandwidth_usage=$(grep 'U_BANDWIDTH=' $USER_DATA/web.conf \
-		| awk -F "U_BANDWIDTH='" '{print $2}' | cut -f 1 -d \')
-	for bandwidth in $bandwidth_usage; do
-		usage=$((usage + bandwidth))
-	done
+	usage=$(record_sum_field "$USER_DATA/web.conf" U_BANDWIDTH)
 	old=$(grep "U_BANDWIDTH='" $USER_DATA/user.conf | cut -f 2 -d \')
 	sed -i "s/U_BANDWIDTH='$old'/U_BANDWIDTH='$usage'/g" $USER_DATA/user.conf
 }

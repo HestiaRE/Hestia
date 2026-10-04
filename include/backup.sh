@@ -6,35 +6,15 @@
 #                                                                           #
 #===========================================================================#
 
-# record_line_valid and record_keys live in include/main.sh, which is sourced before this file.
+# record_line_valid, record_keys and record_rewrite live in include/main.sh, which is sourced before this file.
 
-# record_set_field VAR KEY VALUE - replace KEY's value in the record held in VAR, keeping its
-# position; append the field at the end when it is not there yet.
+# record_set_field VAR KEY VALUE: replace KEY's value in the record held in VAR, keeping its position; append the
+# field at the end when it is not there yet. rc 1, VAR unchanged, when the record is not KEY='VALUE' fields.
 record_set_field() {
 	local -n _rec_ref="$1"
-	local _key="$2" _val="$3" _pre _post
-	if [[ "$_rec_ref" == "$_key='"* ]]; then
-		_pre=''
-		_post="${_rec_ref#"$_key='"}"
-	elif [[ "$_rec_ref" == *" $_key='"* ]]; then
-		_pre="${_rec_ref%%" $_key='"*}"
-		_post="${_rec_ref#*" $_key='"}"
-	else
-		# No separator in front of the first field: a leading blank is what record_line_valid
-		# refuses, and a helper must not be able to build what the gate beside it rejects.
-		if [ -z "$_rec_ref" ]; then
-			_rec_ref="$_key='$_val'"
-		else
-			_rec_ref="$_rec_ref $_key='$_val'"
-		fi
-		return
-	fi
-	_post="${_post#*\'}"
-	if [ -z "$_pre" ]; then
-		_rec_ref="$_key='$_val'$_post"
-	else
-		_rec_ref="$_pre $_key='$_val'$_post"
-	fi
+	local _rsf_new
+	record_rewrite _rsf_new "$_rec_ref" set "$2" "$3" || return 1
+	_rec_ref="$_rsf_new"
 }
 
 # restore_parse_record KEYVAR LINE - parse a record and remember, in KEYVAR, which keys it set.
@@ -53,20 +33,12 @@ restore_forget_record() {
 	_keys_ref=''
 }
 
-# record_del_field VAR KEY - remove KEY from the record held in VAR.
+# record_del_field VAR KEY: remove KEY from the record held in VAR; rc 1 as in record_set_field.
 record_del_field() {
 	local -n _rec_ref="$1"
-	local _key="$2" _pre _post
-	if [[ "$_rec_ref" == "$_key='"* ]]; then
-		_post="${_rec_ref#"$_key='"}"
-		_post="${_post#*\'}"
-		_rec_ref="${_post# }"
-	elif [[ "$_rec_ref" == *" $_key='"* ]]; then
-		_pre="${_rec_ref%%" $_key='"*}"
-		_post="${_rec_ref#*" $_key='"}"
-		_post="${_post#*\'}"
-		_rec_ref="$_pre$_post"
-	fi
+	local _rdf_new
+	record_rewrite _rdf_new "$_rec_ref" del "$2" || return 1
+	_rec_ref="$_rdf_new"
 }
 
 # Read the archive ONCE, before anything is written: backup_probe says what is IN it, backup_report

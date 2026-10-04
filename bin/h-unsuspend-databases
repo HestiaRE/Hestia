@@ -35,9 +35,11 @@ is_object_valid 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 # Starting unsuspend loop
+failed=''
 for database in $(search_objects 'db' 'SUSPENDED' "yes" 'DB'); do
-	$BIN/h-unsuspend-database "$user" "$database"
+	$BIN/h-unsuspend-database "$user" "$database" || failed="$failed $database"
 done
+[ -z "$failed" ] || check_result "$E_DB" "not unsuspended:$failed"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

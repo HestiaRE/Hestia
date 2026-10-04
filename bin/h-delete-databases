@@ -37,9 +37,12 @@ is_object_valid 'user' 'USER' "$user"
 # The whole run is handed down, so a shared user's password holder is not refused over databases that go with it.
 DB_DELETE_SET=$(search_objects 'db' 'SUSPENDED' "no" 'DB' | tr '\n' ' ')
 export DB_DELETE_SET
+failed=''
 for database in $DB_DELETE_SET; do
-	$BIN/h-delete-database "$user" "$database"
+	$BIN/h-delete-database "$user" "$database" || failed="$failed $database"
 done
+# A caller like h-delete-user goes on to remove the account, so one database left behind must fail the run.
+[ -z "$failed" ] || check_result "$E_DB" "not deleted:$failed"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

@@ -257,7 +257,7 @@ backup_report_count() {
 # Keys this host can write for KIND. Three sources because each alone under-reports: the registry lags,
 # live records show only what is in use, the command sweep is the population-independent one.
 backup_local_keys() {
-	local _kind="$1" _f
+	local _kind="$1" _f _line
 	# A missing user directory is the wrong place, not "no keys" - the other two sources cannot stand in.
 	if [ ! -d "$CONF_DIR/users" ]; then
 		echo "Warning!: $CONF_DIR/users is not there - the live-record key source read nothing" >&2
@@ -266,7 +266,9 @@ backup_local_keys() {
 		syshealth_known_keys "$_kind" 2> /dev/null | tr ' ' '\n'
 		for _f in "$CONF_DIR"/users/*/"$_kind.conf"; do
 			[ -f "$_f" ] || continue
-			grep -o "[A-Z][A-Z0-9_]*='" "$_f" | sed "s/='$//"
+			while IFS= read -r _line || [ -n "$_line" ]; do
+				record_keys "$_line"
+			done < "$_f"
 		done
 		# What any command on this box could add to such a record, independent of who uses it today.
 		grep -ho "add_object_key[^#]*'\([A-Z][A-Z0-9_]*\)'[[:space:]]*'" "$BIN"/h-* 2> /dev/null \

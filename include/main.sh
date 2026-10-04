@@ -75,9 +75,16 @@ record_line_valid() {
 	return 0
 }
 
-# The keys of a record line, one per line, in the order they appear.
+# The keys of a record line, one per line, in the order they appear; rc 1 where the line stops being KEY='VALUE'.
+# A token walk, not a search: a value ending in KEY= reads as a key to a pattern, and the restore unsets every name.
 record_keys() {
-	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
+	local _rest _re="^([A-Z][A-Z0-9_]*)='[^']*'( |\$)"
+	_rest="${1%"${1##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		printf '%s\n' "${BASH_REMATCH[1]}"
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
 }
 
 # The cron reader's gate, not record_line_valid: a migrated command may hold a ". Keys of either case

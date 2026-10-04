@@ -11,7 +11,8 @@
 # more about templates in official PostgreSQL documentation.
 #
 # A remote PostgreSQL host must offer TLS with a certificate this box trusts. TLS=no allows a
-# plaintext connection on purpose; it exists only for pgsql, the MariaDB client enforces TLS itself.
+# plaintext connection on purpose; it exists only for pgsql. The MariaDB client enforces TLS itself from
+# 11.4 on; an older client (10.11, the OS package on Debian 12 and Ubuntu 24.04) does not.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #

@@ -949,7 +949,7 @@ rebuild_mysql_slot() {
 		else
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\` $ident" > /dev/null
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost $ident" > /dev/null
-			if [ "$mysql_ver_sub_sub" -ge 4 ]; then
+			if [ "$mysql_ver_sub" -gt 10 ] || [ "$mysql_ver_sub_sub" -ge 4 ]; then
 				query="SET PASSWORD FOR '$u'@'%' = '$hash';"
 				query2="SET PASSWORD FOR '$u'@'localhost' = '$hash';"
 			else

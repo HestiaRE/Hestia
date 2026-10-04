@@ -1007,7 +1007,13 @@ get_mysql_disk_usage() {
 	mysql_connect $HOST
 	query="SELECT SUM( data_length + index_length ) / 1024 / 1024 'Size'
         FROM information_schema.TABLES WHERE table_schema='$database'"
-	usage=$(mysql_query "$query" | tail -n1)
+	# A failed query is unreadable, as on the pgsql side; NULL is a database without tables.
+	if ! usage=$(mysql_query "$query"); then
+		echo "Error: cannot read the size of $database" >&2
+		usage=''
+		return 1
+	fi
+	usage=$(tail -n1 <<< "$usage")
 	if [ "$usage" == '' ] || [ "$usage" == 'NULL' ] || [ "${usage:0:1}" -eq '0' ]; then
 		usage=1
 	fi

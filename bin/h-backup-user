@@ -184,7 +184,7 @@ get_user_disk_usage() {
 				# An unreadable part makes the sum unreadable, it does not drop out of it.
 				# TYPE is this database's engine; DB_SYSTEM is a token list and matches no arm.
 				case $TYPE in
-					mysql) get_mysql_disk_usage ;;
+					mysql) get_mysql_disk_usage || return 1 ;;
 					pgsql) get_pgsql_disk_usage || return 1 ;;
 				esac
 				add_usage "$usage" || return 1

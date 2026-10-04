@@ -44,7 +44,7 @@ get_database_values
 # Switching on db type
 # An unreadable size leaves U_DISK as it is: a stale figure is visibly old, an invented one is not.
 case $TYPE in
-	mysql) get_mysql_disk_usage ;;
+	mysql) get_mysql_disk_usage || check_result "$E_DB" "cannot read the size of $database" ;;
 	pgsql) get_pgsql_disk_usage || check_result "$E_DB" "cannot read the size of $database" ;;
 esac
 

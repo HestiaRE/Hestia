@@ -78,7 +78,6 @@ db_names_free "$database" "$dbuser" "$type" "$user" \
 get_next_dbhost
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
 is_object_unsuspended "$HESTIA/conf/$type" 'HOST' "$host"
-#is_charset_valid
 is_package_full 'DATABASES'
 
 if [ "$type" = "pgsql" ]; then

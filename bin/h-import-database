@@ -48,12 +48,6 @@ fi
 db_data=$(grep -F "DB='$database'" $CONF_DIR/users/$user/db.conf)
 
 parse_object_kv_list "$db_data"
-#Fix issue #1084 with "Upper case not allowed with PGSQL"
-if [ "$TYPE" == "pgsql" ]; then
-	usersmall=$(echo "$user" | tr '[:upper:]' '[:lower:]')
-else
-	usersmall=$user
-fi
 
 #----------------------------------------------------------#
 #                       Action                             #

@@ -344,18 +344,6 @@ get_next_dbhost() {
 	fi
 }
 
-# Database charset validation
-is_charset_valid() {
-	host_str=$(grep "HOST='$host'" $HESTIA/conf/$type.conf)
-	parse_object_kv_list "$host_str"
-
-	if [ -z "$(echo $CHARSETS | grep -wi $charset)" ]; then
-		echo "Error: charset $charset not exist"
-		log_event "$E_NOTEXIST" "$ARGUMENTS"
-		exit $E_NOTEXIST
-	fi
-}
-
 # Increase database host value. Per line: a file-wide replace also counted every other host that
 # happened to hold the same value.
 increase_dbhost_values() {

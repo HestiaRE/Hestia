@@ -58,7 +58,8 @@ fi
 # No recommends (#1069): pma runs in the panel pool, and the php-* metas plus tcpdf's php-mcrypt put the newest
 # Sury version's cli and common on a box that runs none of it. tcpdf itself is the PDF export, so it stays.
 # shellcheck disable=SC2086  # deliberately unquoted: empty must expand to no argument at all
-DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install phpmyadmin php-tcpdf $pma_no_apache
+DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install phpmyadmin php-tcpdf $pma_no_apache \
+	|| check_result "$E_UPDATE" "apt could not install phpmyadmin"
 
 # Generate blowfish secret and write to expected location
 blowfish="$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)"

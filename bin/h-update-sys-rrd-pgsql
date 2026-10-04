@@ -92,7 +92,7 @@ for host in $hosts; do
 		# into variables with neither the name nor the value checked - the last place in the tree
 		# with that shape (#807 hardened the parser for exactly this).
 		unset TLS PORT
-		host_str=$(grep "HOST='$host'" $conf)
+		host_str=$(grep -F "HOST='$host'" $conf)
 		parse_object_kv_list "$host_str"
 
 		export PGPASSWORD="$PASSWORD"

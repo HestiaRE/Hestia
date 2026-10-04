@@ -45,7 +45,7 @@ mysql_cnf_sync() {
 
 mysql_connect() {
 	unset PORT
-	host_str=$(grep "HOST='$1'" $HESTIA/conf/mysql.conf)
+	host_str=$(grep -F "HOST='$1'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $PORT ]; then PORT=3306; fi
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
@@ -152,7 +152,7 @@ psql_env() {
 
 psql_connect() {
 	unset PORT TLS
-	host_str=$(grep "HOST='$1'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$1'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"
@@ -508,7 +508,7 @@ delete_mysql_database_temp_user() {
 
 is_dbhost_new() {
 	if [ -e "$HESTIA/conf/$type.conf" ]; then
-		check_host=$(grep "HOST='$host'" $HESTIA/conf/$type.conf)
+		check_host=$(grep -F "HOST='$host'" $HESTIA/conf/$type.conf)
 		if [ "$check_host" ]; then
 			echo "Error: db host exist"
 			log_event "$E_EXISTS" "$ARGUMENTS"

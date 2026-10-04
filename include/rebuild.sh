@@ -985,7 +985,7 @@ rebuild_mysql_slot() {
 rebuild_pgsql_database() {
 
 	unset PORT TLS
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"
@@ -1058,7 +1058,7 @@ rebuild_pgsql_database() {
 import_mysql_database() {
 
 	unset PORT
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/mysql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
 		echo "Error: mysql config parsing failed"
@@ -1079,7 +1079,7 @@ import_pgsql_database() {
 
 	local _rc
 	unset PORT TLS
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"

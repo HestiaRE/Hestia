@@ -72,7 +72,7 @@ is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
 
 database_set_default_ports
 
-parse_object_kv_list "$(grep "HOST='$host'" $HESTIA/conf/$type.conf)"
+parse_object_kv_list "$(grep -F "HOST='$host'" $HESTIA/conf/$type.conf)"
 
 case $format in
 	json) json_list ;;

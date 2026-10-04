@@ -32,6 +32,9 @@ before v0.20.0 are folded into one section by theme.
   one already holds. PostgreSQL statements are checked for errors. Also: the server status page escapes what it
   shows, a database download is readable by the panel only, and database names refuse whitespace and control
   characters.
+- **Directory names a customer chooses are held to a closed set where they reach records and configs** (#1176).
+  FTP paths, custom document roots and the home entries listed in a backup record take letters, digits and
+  `._/+@~-`. Entries outside it are still archived, just not listed.
 - **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171). The distribution's filter does not
   know dovecot 2.4's `Login aborted`, so IMAP and POP3 had no protection against password guessing there. Our own
   filter reads 2.3 and 2.4 and counts a failure once; the stock one counted every 2.3 failure twice.

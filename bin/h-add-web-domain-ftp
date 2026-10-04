@@ -73,11 +73,7 @@ if [ -z "$ftp_path" ]; then
 else
 	# Validating absolute path
 	ftp_path_a=$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")
-	if [ -z "$(echo $ftp_path_a | grep $HOMEDIR/$user/web/$domain)" ]; then
-		echo "Error: absolute path $ftp_path_a is invalid"
-		log_event "$E_INVALID" "$ARGUMENTS"
-		exit "$E_INVALID"
-	fi
+	is_record_path_valid "$ftp_path_a" "$HOMEDIR/$user/web/$domain" 'ftp path'
 
 	# Creating ftp user home directory
 	if [ ! -e "$ftp_path_a" ]; then

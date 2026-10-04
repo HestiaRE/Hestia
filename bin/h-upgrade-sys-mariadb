@@ -212,7 +212,9 @@ if ! systemctl is-active --quiet mariadb; then
 	exit "$E_RESTART"
 fi
 echo "[ * ] Running mariadb-upgrade (system table migration)..."
-mariadb-upgrade > /dev/null 2>&1 || mariadb-upgrade --force > /dev/null 2>&1 || true
+if ! { mariadb-upgrade > /dev/null 2>&1 || mariadb-upgrade --force > /dev/null 2>&1; }; then
+	echo "[ ! ] mariadb-upgrade failed; the system tables may still be in the old format. Run it by hand."
+fi
 
 # the login the panel depends on: root over the socket
 if ! mariadb -e "SELECT 1;" > /dev/null 2>&1; then

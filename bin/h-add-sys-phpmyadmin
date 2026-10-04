@@ -95,7 +95,7 @@ $db_client -e "CREATE DATABASE IF NOT EXISTS \`phpmyadmin\` DEFAULT CHARACTER SE
 		echo "ERROR: Failed to create phpmyadmin database"
 		exit 1
 	}
-$db_client -e "CREATE USER IF NOT EXISTS 'pma'@'localhost' IDENTIFIED BY '$dbpass'" \
+$db_client <<< "CREATE USER IF NOT EXISTS 'pma'@'localhost' IDENTIFIED BY '$dbpass'" \
 	|| {
 		echo "ERROR: Failed to create pma database user"
 		exit 1

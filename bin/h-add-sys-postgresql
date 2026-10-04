@@ -78,7 +78,7 @@ fi
 echo "[ * ] Setting management credentials..."
 # password for the panel's loopback TCP login (socket peer-auth is unaffected)
 PGPASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16 || true)
-sudo -u postgres psql -qc "ALTER ROLE postgres WITH PASSWORD '$PGPASS';" > /dev/null 2>&1
+sudo -u postgres psql -q <<< "ALTER ROLE postgres WITH PASSWORD '$PGPASS';" > /dev/null 2>&1
 
 #----------------------------------------------------------#
 #                       Hestia                             #

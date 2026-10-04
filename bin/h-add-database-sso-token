@@ -70,9 +70,10 @@ find "$SSO_DIR" -type f -mmin +2 -delete 2> /dev/null
 
 token=$(openssl rand -hex 32)
 umask 037
-jq -n --arg u "$dbuser" --arg p "$dbpass" --arg ip "$client_ip" \
+# The password through the environment: argv is readable for every local user.
+SSO_PASS="$dbpass" jq -n --arg u "$dbuser" --arg ip "$client_ip" \
 	--argjson t "$(date +%s)" \
-	'{user: $u, password: $p, ip: $ip, time: $t}' > "$SSO_DIR/$token"
+	'{user: $u, password: env.SSO_PASS, ip: $ip, time: $t}' > "$SSO_DIR/$token"
 chown root:caddy "$SSO_DIR/$token"
 
 echo "$token"

@@ -159,7 +159,7 @@ echo "[ * ] Securing MariaDB..."
 # the rest need, left the remaining five refused one after another while the stage still marked itself
 # done: a box with a root MariaDB nobody had secured.
 secure_db() {
-	mariadb -e "$1" || {
+	mariadb <<< "$1" || {
 		echo "ERROR: securing MariaDB failed at: $2"
 		echo "       the root account is NOT in the state this installer guarantees."
 		exit "$E_DB"

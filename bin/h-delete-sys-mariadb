@@ -39,23 +39,36 @@ if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 fi
 
 # refuse while customer DBs exist (unless FORCE=yes): counter, then a live check
+u_db_bases=$(record_field "$(grep "^HOST='localhost' " "$HESTIA/conf/mysql.conf" 2> /dev/null)" U_DB_BASES)
+# unix_socket lets root in without /root/.my.cnf
+databases_unread=''
+databases=$(mariadb -N -e "SHOW DATABASES;" 2> /dev/null) || databases_unread='yes'
+webmail_dbs=$(grep -xE 'roundcube|tachyon' <<< "$databases" | tr '\n' ' ')
 if [ "${FORCE:-}" != "yes" ]; then
-	u_db_bases=$(grep -o "U_DB_BASES='[0-9]*'" "$HESTIA/conf/mysql.conf" 2> /dev/null | grep -o '[0-9]*' | head -1)
-	live_db=0
-	if [ -f /root/.my.cnf ]; then
-		# exclude system schemas AND app-owned DBs (pma/roundcube/tachyon) — keep
-		# this safelist in sync if a new bundled app grows its own MySQL DB
-		live_db=$(mariadb -N -e "SHOW DATABASES;" 2> /dev/null \
-			| grep -vxE 'information_schema|performance_schema|mysql|sys|phpmyadmin|roundcube|tachyon' \
-			| grep -c .)
-		live_db=${live_db:-0}
+	# A stopped server is the state after a failed upgrade; counting 0 there would let the guard pass blind.
+	if [ -n "$databases_unread" ]; then
+		echo "ERROR: MariaDB does not answer, so its databases cannot be counted."
+		echo "       Start it, or re-run with FORCE=yes."
+		exit "$E_CONNECT"
 	fi
+	# exclude system schemas AND app-owned DBs (pma/roundcube/tachyon) - keep
+	# this safelist in sync if a new bundled app grows its own MySQL DB
+	live_db=$(grep -vxE 'information_schema|performance_schema|mysql|sys|phpmyadmin|roundcube|tachyon' <<< "$databases" \
+		| grep -c .)
 	if [ "${u_db_bases:-0}" != "0" ] || [ "${live_db:-0}" != "0" ]; then
 		echo "ERROR: MariaDB still hosts customer databases (counter=${u_db_bases:-0}, live=${live_db:-0})."
 		echo "       Delete them first, or re-run with FORCE=yes."
 		exit "$E_INUSE"
 	fi
+	if [ "${PURGE_DATA:-}" = "yes" ] && [ -n "$webmail_dbs" ]; then
+		echo "ERROR: PURGE_DATA=yes would wipe the webmail database(s) ${webmail_dbs% }."
+		echo "       Remove the webmail first, or re-run with FORCE=yes."
+		exit "$E_INUSE"
+	fi
 fi
+[ -z "$webmail_dbs" ] || echo "[ ! ] Webmail keeps its database here (${webmail_dbs% }); it is down until MariaDB is added back."
+dlm_repo=''
+[ ! -f /etc/apt/sources.list.d/mariadb.list ] || dlm_repo='yes'
 
 #----------------------------------------------------------#
 #                       Action                             #
@@ -65,8 +78,10 @@ fi
 $BIN/h-delete-sys-pma-sso > /dev/null 2>&1 || true
 $BIN/h-delete-sys-phpmyadmin > /dev/null 2>&1 || true
 
-# deregister the local host (strips DB_SYSTEM's mysql token)
-$BIN/h-delete-database-host mysql localhost > /dev/null 2>&1 || true
+# deregister the local host (strips DB_SYSTEM's mysql token); it refuses while database records point at it
+if ! host_out=$($BIN/h-delete-database-host mysql localhost 2>&1); then
+	echo "[ ! ] localhost stays registered, its database records stay until MariaDB is added back: $(head -n1 <<< "$host_out")"
+fi
 
 # purge packages (no autoremove — it would rip out shared-stack siblings)
 echo "[ * ] Removing MariaDB packages..."
@@ -79,6 +94,7 @@ DEBIAN_FRONTEND=noninteractive apt-get -y -qq install mariadb-client > /dev/null
 
 # external repo cleanup (harmless on an OS-package install)
 rm -f /etc/apt/sources.list.d/mariadb.list /usr/share/keyrings/mariadb-keyring.gpg
+[ -z "$dlm_repo" ] || echo "[ ! ] mariadb-client stays on its MariaDB.org version, which gets no updates without that repository."
 rm -f /root/.my.cnf
 
 # datadir kept by default so a re-add finds the DBs; opt-in wipe

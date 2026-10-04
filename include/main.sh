@@ -106,23 +106,29 @@ record_field() {
 }
 
 # record_rewrite OUTVAR LINE set KEY VALUE | del KEY | insert KEY BEFORE: LINE with KEY set (appended when it is not
-# there), removed, or inserted empty in front of the field BEFORE. rc 1 when LINE stops being KEY='VALUE', rc 2 when
-# BEFORE is not a field; OUTVAR is then left alone.
+# there), removed, or inserted empty in front of the field BEFORE. OUTVAR is left alone when the rc is not 0: 1 when
+# LINE is not KEY='VALUE' fields or names a key twice (which one counts is a guess), 2 when BEFORE is not a field,
+# 3 when insert finds KEY already there.
 record_rewrite() {
 	local -n _rw_out="$1"
-	local _rest _new='' _hit=''
+	local _rest _new='' _hit='' _k
+	local -A _rw_seen=()
 	_rest="${2%"${2##*[! ]}"}"
 	while [ -n "$_rest" ]; do
 		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
-		if [ -z "$_hit" ] && [ "$3" = insert ] && [ "${BASH_REMATCH[1]}" = "$5" ]; then
+		_k="${BASH_REMATCH[1]}"
+		[ -z "${_rw_seen[$_k]:-}" ] || return 1
+		_rw_seen[$_k]=1
+		[ "$3" != insert ] || [ "$_k" != "$4" ] || return 3
+		if [ "$3" = insert ] && [ "$_k" = "$5" ]; then
 			_hit=1
 			_new="$_new${_new:+ }$4=''"
 		fi
-		if [ -z "$_hit" ] && [ "$3" != insert ] && [ "${BASH_REMATCH[1]}" = "$4" ]; then
+		if [ "$3" != insert ] && [ "$_k" = "$4" ]; then
 			_hit=1
 			[ "$3" = del ] || _new="$_new${_new:+ }$4='$5'"
 		else
-			_new="$_new${_new:+ }${BASH_REMATCH[1]}='${BASH_REMATCH[2]}'"
+			_new="$_new${_new:+ }$_k='${BASH_REMATCH[2]}'"
 		fi
 		_rest="${_rest#"${BASH_REMATCH[0]}"}"
 	done
@@ -1095,12 +1101,11 @@ add_object_key() {
 		return 1
 	fi
 	# By field, not by text: a key that is a SUFFIX of one present (LIST and DIR_LIST) or a value ending in KEY=
-	# would otherwise count as present, or take the new field.
-	record_field "$object" "$4" > /dev/null && return 0
+	# would otherwise count as present, or take the new field. Present already, or no BEFORE: nothing to do.
 	record_rewrite new "$object" insert "$4" "$5"
 	case $? in
 		1) return 1 ;;
-		2) return 0 ;;
+		2 | 3) return 0 ;;
 	esac
 	new=$(echo "$new" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
 	sed -i "$lnr s/.*/$new/" "$(_object_conf "$1")"

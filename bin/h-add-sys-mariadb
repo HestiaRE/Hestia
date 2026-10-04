@@ -83,12 +83,13 @@ case "$MARIADB_VER" in
 		echo "[ * ] Adding MariaDB $MARIADB_VER repo..."
 		printf 'deb [arch=%s signed-by=/usr/share/keyrings/mariadb-keyring.gpg] https://dlm.mariadb.com/repo/mariadb-server/%s/repo/%s %s main\n' \
 			"$ARCH" "$MARIADB_VER" "$OS_ID" "$CODENAME" > /etc/apt/sources.list.d/mariadb.list
-		curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o /tmp/mariadb_signing.asc \
+		key_asc=$(mktemp)
+		curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
 			|| {
 				echo "ERROR: failed to download MariaDB signing key"
 				exit 1
 			}
-		gpg --dearmor < /tmp/mariadb_signing.asc > /usr/share/keyrings/mariadb-keyring.gpg \
+		gpg --dearmor < "$key_asc" > /usr/share/keyrings/mariadb-keyring.gpg \
 			|| {
 				echo "ERROR: failed to dearmor MariaDB signing key"
 				exit 1
@@ -97,7 +98,7 @@ case "$MARIADB_VER" in
 			echo "ERROR: MariaDB keyring empty"
 			exit 1
 		}
-		rm -f /tmp/mariadb_signing.asc
+		rm -f "$key_asc"
 		;;
 	*)
 		echo "[ * ] MariaDB: using OS package (distribution default)"

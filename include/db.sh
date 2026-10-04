@@ -118,7 +118,8 @@ mysql_query() {
 }
 
 mysql_dump() {
-	err="/tmp/e.mysql"
+	local err
+	err=$(mktemp)
 	mysqldmp="mysqldump"
 	if [ -f '/usr/bin/mariadb-dump' ]; then
 		mysqldmp="/usr/bin/mariadb-dump"
@@ -134,11 +135,13 @@ mysql_dump() {
 				echo -e "Can't dump database $database\n$(cat $err)" \
 					| $SENDMAIL -s "$subj" $email
 			fi
+			rm -f "$err"
 			echo "Error: dump $database failed"
 			log_event "$E_DB" "$ARGUMENTS"
 			exit "$E_DB"
 		fi
 	fi
+	rm -f "$err"
 }
 
 # PostgreSQL
@@ -174,18 +177,22 @@ psql_connect() {
 		exit $E_PARSING
 	fi
 
-	psql -h $HOST -U $USER -p $PORT -c "SELECT VERSION()" > /dev/null 2> /tmp/e.psql
+	local err
+	err=$(mktemp)
+	psql -h $HOST -U $USER -p $PORT -c "SELECT VERSION()" > /dev/null 2> "$err"
 	if [ '0' -ne "$?" ]; then
 		if [ "$notify" != 'no' ]; then
 			email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f 2 -d \')
 			subj="PostgreSQL connection error on $(hostname)"
-			echo -e "Can't connect to PostgreSQL $HOST:$PORT\n$(cat /tmp/e.psql)" \
+			echo -e "Can't connect to PostgreSQL $HOST:$PORT\n$(cat "$err")" \
 				| $SENDMAIL -s "$subj" $email
 		fi
+		rm -f "$err"
 		echo "Error: Connection to $HOST failed"
 		log_event "$E_CONNECT" "$ARGUMENTS"
 		exit "$E_CONNECT"
 	fi
+	rm -f "$err"
 }
 
 psql_query() {
@@ -290,19 +297,23 @@ SQL
 }
 
 psql_dump() {
-	pg_dump -h $HOST -U $USER -p $PORT -c --inserts -O -x -f $1 $2 2> /tmp/e.psql
+	local err
+	err=$(mktemp)
+	pg_dump -h $HOST -U $USER -p $PORT -c --inserts -O -x -f $1 $2 2> "$err"
 	if [ '0' -ne "$?" ]; then
 		rm -rf $tmpdir
 		if [ "$notify" != 'no' ]; then
 			email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f 2 -d \')
 			subj="PostgreSQL error on $(hostname)"
-			echo -e "Can't dump database $database\n$(cat /tmp/e.psql)" \
+			echo -e "Can't dump database $database\n$(cat "$err")" \
 				| $SENDMAIL -s "$subj" $email
 		fi
+		rm -f "$err"
 		echo "Error: dump $database failed"
 		log_event "$E_DB" "$ARGUMENTS"
 		exit "$E_DB"
 	fi
+	rm -f "$err"
 }
 
 # Get database host

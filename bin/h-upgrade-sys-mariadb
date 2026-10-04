@@ -182,14 +182,15 @@ case "$target" in
 		printf 'deb [arch=%s signed-by=/usr/share/keyrings/mariadb-keyring.gpg] https://dlm.mariadb.com/repo/mariadb-server/%s/repo/%s %s main\n' \
 			"$ARCH" "$target" "$OS_ID" "$CODENAME" > "$REPO_LIST"
 		if [ ! -s /usr/share/keyrings/mariadb-keyring.gpg ]; then
-			curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o /tmp/mariadb_signing.asc \
+			key_asc=$(mktemp)
+			curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
 				|| {
 					echo "ERROR: failed to download MariaDB signing key"
 					_restore_repo
 					exit 1
 				}
-			gpg --dearmor < /tmp/mariadb_signing.asc > /usr/share/keyrings/mariadb-keyring.gpg
-			rm -f /tmp/mariadb_signing.asc
+			gpg --dearmor < "$key_asc" > /usr/share/keyrings/mariadb-keyring.gpg
+			rm -f "$key_asc"
 		fi
 		;;
 	__os__)

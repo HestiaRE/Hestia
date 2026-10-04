@@ -46,8 +46,8 @@ fi
 #----------------------------------------------------------#
 
 # Remove packages
-DEBIAN_FRONTEND=noninteractive apt-get -y purge phpmyadmin
-DEBIAN_FRONTEND=noninteractive apt-get -y autoremove
+# No autoremove: it takes every orphan on the box, not only phpMyAdmin's. php-tcpdf is installed by name.
+DEBIAN_FRONTEND=noninteractive apt-get -y purge phpmyadmin php-tcpdf
 
 # Drop configuration storage database and user
 db_client="mysql"

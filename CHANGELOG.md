@@ -79,6 +79,9 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **Record helpers read a record field by field** (#1176). The disk and traffic recount, adding a key to a record,
+  the restore's record rewrite, the web alias check and the vacation rule format could misread a record; the recount
+  then stopped for the whole run.
 - **A restore read parts of a password hash as record keys** (#1176). About every second PostgreSQL database user
   showed up in the restore preview with a made-up key. The keys of a record now come from reading it field by field.
 - **The fail2ban page of the config editor could never save** (#1176). It edits `jail.local`, which belongs to the

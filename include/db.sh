@@ -6,16 +6,12 @@
 #                                                                           #
 #===========================================================================#
 
-# Global
 database_set_default_ports() {
 
-	# Set default ports for MySQL and PostgreSQL
 	mysql_default="3306"
 	pgsql_default="5432"
 
-	# Handle missing values for both $PORT and $port
-	# however don't override both at once or custom ports will be overridden.
-
+	# $PORT and $port each only when empty, so a host's custom port is kept.
 	if [ -z "$PORT" ]; then
 		if [ "$type" = 'mysql' ]; then
 			PORT="$mysql_default"
@@ -34,9 +30,7 @@ database_set_default_ports() {
 	fi
 }
 
-# MySQL
-# mysql_cnf_sync: $mycnf for the host just parsed. It carries the admin password, so it is 0600 from its
-# creation; rewritten when the stored password changed.
+# mysql_cnf_sync: $mycnf for the host just parsed, 0600 from creation as it holds the admin password.
 mysql_cnf_sync() {
 	mycnf="$HESTIA/conf/.mysql.$HOST"
 	if [ ! -e "$mycnf" ] || [ "$(grep password "$mycnf" | cut -f 2 -d \')" != "$PASSWORD" ]; then
@@ -87,14 +81,12 @@ mysql_connect() {
 	rm -f $mysql_out
 }
 
-# escape a value for a MariaDB/MySQL single-quoted string literal (GHSA-8w7m):
-# double backslashes first, then single quotes (backslash is an escape char here)
+# A value for a MariaDB/MySQL '...' literal: backslash is an escape character there, so it is doubled too.
 mysql_sql_escape() {
 	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e "s/'/''/g"
 }
 
-# escape a value for a PostgreSQL single-quoted string literal (standard-conforming
-# strings: backslash is NOT an escape char, so only quotes are doubled)
+# A value for a PostgreSQL '...' literal: standard-conforming strings, backslash is no escape, only quotes double.
 sql_escape() {
 	printf '%s' "$1" | sed "s/'/''/g"
 }
@@ -140,11 +132,9 @@ mysql_dump() {
 	rm -f "$err"
 }
 
-# PostgreSQL
-
-# psql_env HOST [TLS] - the connection settings every psql of this layer shares.
-# A remote host must speak TLS with a trusted certificate (#980), else libpq falls back to plaintext unasked; the
-# bundle, as libpq 15 (Debian 12) lacks sslrootcert=system. PGDATABASE: libpq would take the admin's name instead.
+# psql_env HOST [TLS]: the connection settings every psql here shares. A remote host gets verify-full unless TLS=no,
+# else libpq falls back to plaintext unasked; the CA bundle as libpq 15 (Debian 12) lacks sslrootcert=system.
+# PGDATABASE: libpq would take the admin's name instead.
 psql_env() {
 	export PGDATABASE=postgres
 	case "$1" in
@@ -202,11 +192,8 @@ psql_query() {
 	return $rc
 }
 
-# psql_value QUERY - the value of a one-column, one-row SELECT, nothing else.
-#
-# Not psql_query: its heading, ruler and row-count footer are a display format, and the footer is
-# translated. Reading values out of it cost every pgsql password, then the pgsql size on a German
-# box. Nothing parses that output any more; keep it that way. -tAX drops heading, padding, .psqlrc.
+# psql_value QUERY: the value of a one-column, one-row SELECT, nothing else.
+# Never read values out of psql_query: its heading and footer are a display format, and the footer is translated.
 psql_value() {
 	local _tmp
 	_tmp=$(mktemp)
@@ -215,13 +202,9 @@ psql_value() {
 	rm -f "$_tmp"
 }
 
-# psql_owner_apply DATABASE ROLE - hand every object to the role the record names.
-#
-# The dump carries no owner (-O) and imports run as the admin role, so without this the customer
-# cannot read a restored database (#1113). Enumerated, not REASSIGN OWNED BY, which would also take
-# the admin's extensions; what another object carries (a serial's sequence) follows it and is skipped.
-# NOT covered: extensions, event triggers, large objects, default privileges, and grants to other
-# roles, which -x drops on purpose: a grant names a cluster-wide role with no record behind it.
+# psql_owner_apply DATABASE ROLE: hand every object to the role the record names; dumps carry no owner (-O) and
+# imports run as admin. Not REASSIGN OWNED BY, it would take the admin's extensions too; dependent objects follow.
+# NOT covered: extensions, event triggers, large objects, default privileges, grants to other roles (-x drops them).
 psql_owner_apply() {
 	local _db="$1" _role="$2" _tmp _err _rc
 	if [ -z "$_db" ] || [ -z "$_role" ]; then
@@ -281,8 +264,7 @@ SQL
 		echo "Warning!: $_db was not handed to $_role, the customer has no rights to the data: $(head -n1 "$_err")"
 	fi
 	rm -f "$_tmp" "$_err"
-	# The handover ends a suspension, so a suspended record gets it back. Read from the record, not
-	# $SUSPENDED: the host line overwrites that.
+	# The handover ends a suspension, so it is applied again; read from the record, the host line overwrites $SUSPENDED.
 	if [ "$_rc" -eq 0 ] && [ "$(record_field "$(grep -F "DB='$_db'" "$USER_DATA/db.conf")" SUSPENDED)" = 'yes' ]; then
 		psql_suspend_apply "$_db" "$_role" || {
 			echo "Warning!: $_db is suspended, but the suspension was not applied again"
@@ -312,7 +294,6 @@ psql_dump() {
 	rm -f "$err"
 }
 
-# Get database host
 get_next_dbhost() {
 	if [ -z "$host" ] || [ "$host" == 'default' ]; then
 		IFS=$'\n'
@@ -344,8 +325,7 @@ get_next_dbhost() {
 	fi
 }
 
-# Increase database host value. Per line: a file-wide replace also counted every other host that
-# happened to hold the same value.
+# Per host line: a file-wide replace would also count every other host holding the same value.
 increase_dbhost_values() {
 	host_str=$(grep -F "HOST='$host'" $HESTIA/conf/$type.conf)
 	parse_object_kv_list "$host_str"
@@ -358,7 +338,6 @@ increase_dbhost_values() {
 	update_object_value "$HESTIA/conf/$type" 'HOST' "$host" '$U_DB_BASES' "$((U_DB_BASES + 1))"
 }
 
-# Decrease database host value
 decrease_dbhost_values() {
 	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/$TYPE.conf)
 	parse_object_kv_list "$host_str"
@@ -376,10 +355,8 @@ mysql_read_md5() {
 	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 	if [ "$mysql_fork" = "mysql" ]; then
-		# mysql
 		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
 			if [ "$mysql_ver_sub" -ge 8 ]; then
-				# mysql >= 8
 
 				md5=$(mysql_query "SET print_identified_with_as_hex=ON; SHOW CREATE USER \`$1\`" 2> /dev/null)
 
@@ -389,31 +366,26 @@ mysql_read_md5() {
 					md5=$(echo "$md5" | grep password | cut -f4 -d \')
 				fi
 			else
-				# mysql < 8
 				md5=$(mysql_query "SHOW CREATE USER \`$1\`" 2> /dev/null)
 				md5=$(echo "$md5" | grep password | cut -f8 -d \')
 			fi
 		else
-			# mysql < 5.7
 			md5=$(mysql_query "SHOW GRANTS FOR \`$1\`" 2> /dev/null)
 			md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
 		fi
 	else
-		# mariadb
 		md5=$(mysql_query "SHOW GRANTS FOR \`$1\`" 2> /dev/null)
 		md5=$(echo "$md5" | grep PASSW | tr ' ' '\n' | tail -n1 | cut -f 2 -d \')
 	fi
 }
 
-# Create MySQL database
 add_mysql_database() {
 	mysql_connect $host
 
 	mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 	mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 
-	# Checked before the database exists. A reused user must be there; a new one must not, or the GRANT below
-	# would take it over with this password, another customer's included.
+	# Before the CREATE: a user taken as new must not exist, or the GRANT below takes it over, another customer's too.
 	if [ -n "${reuse:-}" ]; then
 		mysql_user_exists "$dbuser" || check_result "$E_NOTEXIST" "database user $dbuser does not exist on $host"
 	elif mysql_user_exists "$dbuser"; then
@@ -461,11 +433,10 @@ add_mysql_database() {
 	mysql_read_md5 "$dbuser"
 }
 
-# Create PostgreSQL database
 add_pgsql_database() {
 	psql_connect $host
 
-	# Checked before anything is created: the GRANT below would hand an existing database or role to this customer.
+	# Before anything is created, so a taken name fails as E_EXISTS with nothing to roll back.
 	! pgsql_object_exists role "$dbuser" || check_result "$E_EXISTS" "DBUSER=$dbuser already exists"
 	! pgsql_object_exists database "$database" || check_result "$E_EXISTS" "database $database already exists"
 
@@ -525,7 +496,6 @@ delete_mysql_database_temp_user() {
 	mysql_query "$query" > /dev/null
 }
 
-# Check if database host do not exist in config
 is_dbhost_new() {
 	if [ -e "$HESTIA/conf/$type.conf" ]; then
 		check_host=$(grep "HOST='$host'" $HESTIA/conf/$type.conf)
@@ -537,14 +507,12 @@ is_dbhost_new() {
 	fi
 }
 
-# Get database values
 get_database_values() {
-	# A record from before #725 has no slot-2 keys, so a loop over databases would carry the last one's over.
+	# An older record has no slot-2 keys, so a loop over databases would carry the previous one's over.
 	DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
 	parse_object_kv_list "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
 }
 
-# Change MySQL database password
 change_mysql_password() {
 	mysql_connect $HOST
 
@@ -554,15 +522,12 @@ change_mysql_password() {
 	dbpass_esc=$(mysql_sql_escape "$dbpass")
 
 	if [ "$mysql_fork" = "mysql" ]; then
-		# mysql
 		if [ "$mysql_ver_sub" -ge 8 ]; then
-			# mysql >= 8
 			query="SET PASSWORD FOR \`$DBUSER\`@\`%\` = '$dbpass_esc'"
 			mysql_query "$query" > /dev/null
 			query="SET PASSWORD FOR \`$DBUSER\`@localhost = '$dbpass_esc'"
 			mysql_query "$query" > /dev/null
 		else
-			# mysql < 8
 			query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@\`%\`
                   IDENTIFIED BY '$dbpass_esc'"
 			mysql_query "$query" > /dev/null
@@ -572,7 +537,6 @@ change_mysql_password() {
 			mysql_query "$query" > /dev/null
 		fi
 	else
-		# mariadb
 		query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@\`%\`
               IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
@@ -585,7 +549,6 @@ change_mysql_password() {
 	mysql_read_md5 "$DBUSER"
 }
 
-# Change PostgreSQL database password
 change_pgsql_password() {
 	psql_connect $HOST
 	dbpass_esc=$(sql_escape "$dbpass")
@@ -596,17 +559,11 @@ change_pgsql_password() {
 	md5=$(psql_value "$query")
 }
 
-# db_is_owned_by_user DB - is this database one of the customer whose data directory is in play?
-#
-# Asked by the delete functions themselves, not by their callers. On the restore path the name in
-# $database is the one out of the ARCHIVE, so a restore under a different customer name dropped the
-# SOURCE customer's live database on the same box - and reported success. A guard placed in the
-# callers is missing again at the next caller.
+# db_is_owned_by_user DB: is DB a record of the customer in $USER_DATA? Asked by the delete functions, not their
+# callers: on restore $database comes from the archive, and a guard in the callers is missing at the next one.
 db_is_owned_by_user() {
 	[ -n "$1" ] || return 1
-	# Field-anchored and literal. A record's first field is DB='<name>', so matching it whole holds
-	# on its own rather than on the quoting around it happening to bound the match; -F because the
-	# name can come out of an archive, where a regex metacharacter would widen it.
+	# The whole first field, literal: the name can come from an archive, where a regex metacharacter would widen it.
 	cut -d' ' -f1 "$USER_DATA/db.conf" 2> /dev/null | grep -qxF "DB='$1'"
 }
 
@@ -787,7 +744,7 @@ db_user_canonical() {
 	echo "$hit"
 }
 
-# Read-only (#725): no EXECUTE, DEFINER routines run with their creator's rights; no LOCK TABLES, a reader could stall
+# Read-only: no EXECUTE, DEFINER routines run with their creator's rights; no LOCK TABLES, a reader could stall
 # the app. One REVOKE per privilege, so a name this server version does not know fails alone.
 MYSQL_WRITE_PRIVS=(INSERT UPDATE DELETE CREATE DROP REFERENCES INDEX ALTER 'CREATE TEMPORARY TABLES' 'LOCK TABLES'
 	EXECUTE 'CREATE VIEW' 'CREATE ROUTINE' 'ALTER ROUTINE' EVENT TRIGGER 'DELETE HISTORY' 'SHOW CREATE ROUTINE')
@@ -850,7 +807,6 @@ mysql_set_password() {
 	[ -n "$md5" ]
 }
 
-# Delete MySQL database
 delete_mysql_database() {
 	local database="${1:-$database}"
 	if ! db_is_owned_by_user "$database"; then
@@ -885,7 +841,6 @@ delete_mysql_database() {
 	return 0
 }
 
-# Delete PostgreSQL database
 delete_pgsql_database() {
 	local database="${1:-$database}"
 	if ! db_is_owned_by_user "$database"; then
@@ -909,7 +864,6 @@ delete_pgsql_database() {
 	return 0
 }
 
-# Dump MySQL database
 dump_mysql_database() {
 	mysql_connect $HOST
 
@@ -922,7 +876,6 @@ dump_mysql_database() {
 	mysql_query "$query" | grep -v "Grants for" > $grants
 }
 
-# Dump PostgreSQL database
 dump_pgsql_database() {
 	psql_connect $HOST
 
@@ -935,7 +888,6 @@ dump_pgsql_database() {
 	echo -e "$pw_str\n$gr_str" >> $grants
 }
 
-# Check if database server is in use
 is_dbhost_free() {
 	host_str=$(grep "HOST='$host'" $HESTIA/conf/$type.conf)
 	parse_object_kv_list "$host_str"
@@ -946,14 +898,12 @@ is_dbhost_free() {
 	fi
 }
 
-# Suspend MySQL database
 suspend_mysql_database() {
 	mysql_connect $HOST
 	mysql_revoke_slot "$DBUSER" "$database"
 	[ -z "${DBUSER_SECOND:-}" ] || mysql_revoke_slot "$DBUSER_SECOND" "$database"
 }
 
-# Suspend PostgreSQL database
 suspend_pgsql_database() {
 	psql_connect $HOST
 	psql_suspend_apply "$database" "$DBUSER"
@@ -969,7 +919,6 @@ COMMIT;
 SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$1' AND usename = '$2';" > /dev/null
 }
 
-# Unsuspend MySQL database
 unsuspend_mysql_database() {
 	mysql_connect $HOST
 	mysql_grant_slot "$DBUSER" "$database" '' || echo "Warning!: $DBUSER did not get its rights on $database back"
@@ -979,7 +928,6 @@ unsuspend_mysql_database() {
 	fi
 }
 
-# Unsuspend PostgreSQL database
 unsuspend_pgsql_database() {
 	psql_connect $HOST
 	# PUBLIC gets back the CONNECT and TEMP a new database has, so the state is the one before the suspend.
@@ -990,7 +938,6 @@ GRANT CONNECT, TEMPORARY ON DATABASE $database TO PUBLIC;
 COMMIT;" > /dev/null
 }
 
-# Get MySQL disk usage
 get_mysql_disk_usage() {
 	mysql_connect $HOST
 	query="SELECT SUM( data_length + index_length ) / 1024 / 1024 'Size'
@@ -1009,14 +956,11 @@ get_mysql_disk_usage() {
 	usage=$(printf "%0.f\n" $usage)
 }
 
-# Get PostgreSQL disk usage
 get_pgsql_disk_usage() {
 	psql_connect $HOST
 
-	# Not the aligned table: its footer is translated ("(1 Zeile)"), so a filter on "row" left it.
 	usage=$(psql_value "SELECT pg_database_size('$database');")
-	# Unreadable stays unreadable: an invented megabyte would let a space check pass on a number
-	# nobody measured, and a bad one would end the caller's whole command substitution.
+	# Unreadable stays unreadable: an invented 1 MB would pass a space check, a non-number ends the caller's $( ).
 	case "$usage" in
 		'' | *[!0-9]*)
 			echo "Error: cannot read the size of $database" >&2
@@ -1030,7 +974,6 @@ get_pgsql_disk_usage() {
 	fi
 }
 
-# Delete MySQL user
 delete_mysql_user() {
 	mysql_connect $HOST
 
@@ -1051,7 +994,6 @@ delete_mysql_user() {
 	mysql_query "$query" > /dev/null
 }
 
-# Delete PostgreSQL user
 delete_pgsql_user() {
 	psql_connect $HOST
 

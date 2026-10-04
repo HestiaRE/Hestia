@@ -4,26 +4,18 @@
 #
 # example: h-list-database admin admin_wp_db
 #
-# This function for obtaining of all database's parameters.
+# Prints the record of one database.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	echo '{'
 	json_escape database DB DBUSER DBUSER_SECOND DBUSER_SECOND_RO HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
@@ -43,7 +35,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "DATABASE:       $DB"
 	echo "DB USER:        $DBUSER"
@@ -57,38 +48,23 @@ shell_list() {
 	echo "DATE:           $DATE"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -ne "$DB\t$DBUSER\t$HOST\t$TYPE\t$CHARSET\t$U_DISK\t"
 	echo -e "$SUSPENDED\t$TIME\t$DATE"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DATABASE [FORMAT]'
 is_format_valid 'user' 'database'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing database
 parse_object_kv_list "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

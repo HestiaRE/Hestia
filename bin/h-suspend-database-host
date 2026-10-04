@@ -4,27 +4,16 @@
 #
 # example: h-suspend-database-host mysql localhost
 #
-# This function for suspending a database server.
+# Suspends a database host: it takes no new databases, the ones on it keep running.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 host=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'TYPE HOST'
 is_format_valid 'type' 'host'
@@ -33,18 +22,8 @@ is_type_valid "$DB_SYSTEM" "$type"
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
 is_object_unsuspended "$HESTIA/conf/$type" 'HOST' "$host"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Suspend database creation on a server
 update_object_value "$HESTIA/conf/$type" 'HOST' "$host" '$SUSPENDED' 'yes'
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

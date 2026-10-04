@@ -4,33 +4,24 @@
 #
 # example: h-list-database-hosts json
 #
-# This function for obtaining the list of all configured database hosts.
+# Lists the registered hosts of every type in DB_SYSTEM.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=0
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
-			# Set default port values if they don't exist in database configuration file.
 			database_set_default_ports
 			db_hosts=$(grep HOST $HESTIA/conf/$type.conf | wc -l)
 			objects=$((objects + db_hosts))
@@ -41,7 +32,7 @@ json_list() {
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
 			for str in $(cat $HESTIA/conf/$type.conf); do
-				# A record without the key (every mysql one, a pgsql one from before) is TLS-bound.
+				# Keys a record leaves out would otherwise carry over; one without TLS (every mysql one) is TLS-bound.
 				unset TLS PORT TPL
 				parse_object_kv_list "$str"
 				database_set_default_ports
@@ -72,7 +63,6 @@ json_list() {
 	echo ']'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "HOST   PORT   TYPE   MAX_DB   DB_USED   SPND   TIME   DATE"
@@ -90,7 +80,6 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
@@ -107,7 +96,6 @@ plain_list() {
 	done
 }
 
-# Type format validator
 is_type_format_valid() {
 	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|@|<|>|?|/|\|\"|'|;|%|\`| ]|\."
 	if [[ "$1" =~ $exclude ]]; then
@@ -115,20 +103,11 @@ is_type_format_valid() {
 	fi
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

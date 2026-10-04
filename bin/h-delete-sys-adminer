@@ -4,19 +4,12 @@
 #
 # example: h-delete-sys-adminer
 #
-# Reverses h-add-sys-adminer: removes the route, FPM pool, webroot and temp dir,
-# then reloads. Vendored single file — nothing is purged via apt.
+# Reverses h-add-sys-adminer. Adminer is vendored, so nothing goes through apt.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 WEBROOT="/usr/share/adminer"
@@ -24,38 +17,23 @@ POOL="/etc/php/hestia/fpm/pool.d/adminer.conf"
 ROUTE="/etc/caddy/apps/adminer.conf"
 TMPDIR="/var/lib/adminer"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 if [ "$(id -u)" != '0' ]; then
 	echo "ERROR: h-delete-sys-adminer must be run as root"
 	exit 10
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 echo "[ * ] Removing Adminer..."
 
-# 1. Panel-Caddy route first, so the endpoint stops answering
+# route first, so the endpoint stops answering before its files go
 rm -f "$ROUTE"
 $BIN/h-restart-service caddy > /dev/null 2>&1 || true
 
-# 2. FPM pool
 rm -f "$POOL"
 systemctl reload hestia-php 2> /dev/null || systemctl restart hestia-php 2> /dev/null || true
 
-# 3. Webroot + temp dir
 rm -rf "$WEBROOT"
 rm -rf "$TMPDIR"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# clear the panel marker so the DB list drops the Adminer button
 $BIN/h-change-sys-config-value 'DB_ADMINER_ALIAS' ''
 
 echo "[ OK ] Adminer removed."

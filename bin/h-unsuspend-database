@@ -4,29 +4,18 @@
 #
 # example: h-unsuspend-database admin admin_wordpress_db
 #
-# This function for unsuspending database.
+# Unsuspends one database of USER.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DATABASE'
 is_format_valid 'user' 'database'
@@ -35,28 +24,16 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
 is_object_suspended 'db' 'DB' "$database"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get database values
 get_database_values
 
-# Switching on db type
 case $TYPE in
 	mysql) unsuspend_mysql_database ;;
 	pgsql) unsuspend_pgsql_database || check_result "$E_DB" "database $database was not unsuspended" ;;
 esac
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating db value
 update_object_value 'db' 'DB' "$database" '$SUSPENDED' 'no'
 decrease_user_value "$user" '$SUSPENDED_DB'
 
-# Logging
 $BIN/h-log-action "system" "Info" "Database" "Unsuspended database (User: $user, Database: $database)."
 log_event "$OK" "$ARGUMENTS"
 

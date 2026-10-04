@@ -6,33 +6,21 @@
 #
 # example: h-delete-database-temp-user admin admin_wp_db hestia_sso_XXXXXXXX mysql
 #
-# Revokes "temp user" access to a database and removes the user
-# To be used in combination with h-add-database-temp-user
+# Revokes a hestia_sso_ user's access to DATABASE and drops the user; the counterpart of h-add-database-temp-user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 dbuser=$3
 type=${4-mysql}
 host=$5
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DATABASE DBUSER [TYPE] [HOST]'
 is_format_valid 'user' 'database' 'dbuser'
@@ -48,20 +36,10 @@ if [[ $dbuser != *"hestia_sso"* ]]; then
 	exit "$E_INVALID"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get database values
 get_database_values
 
 delete_mysql_database_temp_user
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Database" "Revoked user access (Database: $database, User: $dbuser)."
 log_event "$OK" "$ARGUMENTS"
 

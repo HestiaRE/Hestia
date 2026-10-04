@@ -4,16 +4,10 @@
 #
 # example: h-rebuild-databases admin
 #
-# This function for rebuilding of all databases of a single user.
+# Recreates all databases of USER and recounts the user's database totals.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -24,37 +18,24 @@ source $HESTIA/include/db.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Flush counters
 U_DATABASES=0
 SUSPENDED_DB=0
 U_DISK_DB=0
 
-# Starting rebuild loop
 for database in $(search_objects 'db' 'SUSPENDED' "*" 'DB'); do
 
-	# Get database values
 	get_database_values
 	# Before the rebuild: connecting reads the host line, whose SUSPENDED overwrites the record's.
 	db_suspended="$SUSPENDED"
 	U_DISK_DB=$((U_DISK_DB + U_DISK))
 
-	# Switching on db type
 	case $TYPE in
 		mysql) rebuild_mysql_database ;;
 		pgsql) rebuild_pgsql_database ;;
@@ -70,11 +51,6 @@ update_user_value "$user" '$SUSPENDED_DB' "$SUSPENDED_DB"
 update_user_value "$user" '$U_DATABASES' "$U_DATABASES"
 update_user_value "$user" '$U_DISK_DB' "$U_DISK_DB"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Rebuilt databases (User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

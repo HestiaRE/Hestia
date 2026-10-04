@@ -4,17 +4,11 @@
 #
 # example: h-change-database-owner admin_wp_db alice
 #
-# This function for changing database owner.
+# Moves a database and its user to another user, swapping the owner prefix of both names.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 database=$1
 user=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -23,12 +17,7 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/rebuild.sh
 source $HESTIA/include/rebuild.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'DATABASE USER'
 is_format_valid 'database' 'user'
@@ -36,7 +25,6 @@ is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-# Check owner existence
 owner=$(echo "$database" | cut -f 1 -d '_')
 if [ ! -d "$CONF_DIR/users/$owner" ]; then
 	echo "Error: database owner doesn't exist"
@@ -44,12 +32,10 @@ if [ ! -d "$CONF_DIR/users/$owner" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-# Check if owner is the same as the dst user
 if [ "$owner" = "$user" ]; then
 	exit
 fi
 
-# Check db existence
 db_data=$(grep -F "DB='$database'" $CONF_DIR/users/$owner/db.conf)
 if [ -z "$db_data" ]; then
 	echo "Error: database $database doesn't exist"
@@ -58,7 +44,7 @@ if [ -z "$db_data" ]; then
 fi
 
 parse_object_kv_list "$db_data"
-# A shared user cannot follow one of its databases to another customer (#725).
+# A shared user cannot follow one of its databases to another customer.
 [ -z "${DBUSER_SECOND:-}" ] || check_result "$E_INUSE" "$database has a second user, remove it with h-delete-database-second-user first"
 if [ "$TYPE" = 'mysql' ]; then
 	(
@@ -67,19 +53,16 @@ if [ "$TYPE" = 'mysql' ]; then
 	)
 	[ $? -eq 1 ] || check_result "$E_INUSE" "$DBUSER is used by another database of $owner"
 fi
-#Fix issue #1084 with "Upper case not allowed with PGSQL"
+# pgsql folds unquoted names to lower case.
 if [ "$TYPE" == "pgsql" ]; then
 	usersmall=$(echo "$user" | tr '[:upper:]' '[:lower:]')
 else
 	usersmall=$user
 fi
 
-# Check if database name is uniqe
 new_db=$(echo "$database" | sed "s/^${owner}_/${usersmall}_/")
 new_dbuser=$(echo "$DBUSER" | sed "s/^${owner}_/${usersmall}_/")
-# A longer owner name makes both derived names longer, and nothing re-validated them: the move wrote
-# a record over the length limit that h-delete-database then refused for the same reason - an object
-# no command could remove. Measured, and it took the source database with it.
+# A longer owner prefix can push the new names past the length limit, into a record no command can remove.
 is_database_format_valid "$new_db" 'database'
 is_dbuser_format_valid "$new_dbuser" 'dbuser'
 # The renamed user must be free server-wide: the prefix swap alone can land on another customer's user.
@@ -102,19 +85,12 @@ if [ -n "$check_db" ]; then
 	exit "$E_EXISTS"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Creating temporary directory. One owner for the cleanup, so no exit path can litter $BACKUP with a
-# dump directory - the refusals above, a failing dump, and the rollback below all leave through it.
+# One trap owns the cleanup, so no exit path leaves a dump directory in $BACKUP.
 tmpdir=$(mktemp -p $BACKUP -d "tmp.$database.XXXXXXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT
 
-# Suspend database
 $BIN/h-suspend-database $owner $database > /dev/null 2>&1
 
-# Dump database
 dump="$tmpdir/$database.$TYPE.sql"
 grants="$tmpdir/$database.$TYPE.$DBUSER"
 case $TYPE in
@@ -122,19 +98,15 @@ case $TYPE in
 	pgsql) dump_pgsql_database ;;
 esac
 
-# Import configuration
 db_data=$(echo "$db_data" | sed "s/'${owner}_/'${usersmall}_/g")
 echo "$db_data" >> $CONF_DIR/users/$user/db.conf
 parse_object_kv_list "$db_data"
 
-# Unsuspend db
 $BIN/h-unsuspend-database "$user" "$new_db" > /dev/null 2>&1
 
-# Rebuild databases
 $BIN/h-rebuild-databases "$user"
 
-# Import dump. Unchecked, the two steps below deleted the dump and then the source database, so a
-# rejected import lost both copies and still reported success.
+# Checked: after a failed import the steps below would delete the dump and the source database.
 import_rc=0
 import_why=''
 case $TYPE in
@@ -146,12 +118,11 @@ case $TYPE in
 		;;
 esac
 if [ "$import_rc" -ne 0 ]; then
-	# Undo what this run created and hand the source back before anything is deleted.
+	# The source comes back before anything is deleted.
 	$BIN/h-unsuspend-database "$owner" "$database" > /dev/null 2>&1
 	$BIN/h-delete-database "$user" "$new_db" > /dev/null 2>&1
 	echo "Error: import into $new_db failed (${import_why:-client exit $import_rc})"
-	# The dump is worth keeping only where the source did NOT come back - otherwise the customer's
-	# data sits untouched in its own database and a kept copy is just litter nobody clears.
+	# The dump is kept only when the source did not come back; otherwise it is litter nobody clears.
 	src_line=$(grep -F "DB='$database'" "$CONF_DIR/users/$owner/db.conf" 2> /dev/null)
 	if [[ "$src_line" == *"SUSPENDED='no'"* ]]; then
 		echo "$database stays with $owner and is usable again"
@@ -166,19 +137,12 @@ if [ "$import_rc" -ne 0 ]; then
 	exit "$E_DB"
 fi
 
-# Remove old database
 $BIN/h-unsuspend-database "$owner" "$database" > /dev/null 2>&1
 $BIN/h-delete-database "$owner" "$database" > /dev/null 2>&1
 
-# Update counters
 $BIN/h-update-user-counters "$owner"
 $BIN/h-update-user-counters "$user"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

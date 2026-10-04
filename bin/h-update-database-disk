@@ -4,29 +4,18 @@
 #
 # example: h-update-database-disk admin admin_wp_db
 #
-# This function recalculates disk usage for specific database.
+# Recalculates the disk usage of one database and the user's total.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DATABASE'
 is_format_valid 'user' 'database'
@@ -34,29 +23,17 @@ is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'db' 'DB' "$database"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get database values
 get_database_values
 
-# Switching on db type
 # An unreadable size leaves U_DISK as it is: a stale figure is visibly old, an invented one is not.
 case $TYPE in
 	mysql) get_mysql_disk_usage || check_result "$E_DB" "cannot read the size of $database" ;;
 	pgsql) get_pgsql_disk_usage || check_result "$E_DB" "cannot read the size of $database" ;;
 esac
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating disk usage
 update_object_value 'db' 'DB' "$database" '$U_DISK' "$usage"
 recalc_user_disk_usage
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

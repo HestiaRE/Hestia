@@ -2,26 +2,15 @@
 # info: Remove phpMyAdmin database administration tool
 # options: NONE
 #
-# This function removes phpMyAdmin packages, drops the configuration
-# storage database and user, and removes credentials files.
+# Removes phpMyAdmin with its configuration storage database, credentials and routes. SSO has to go first.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 PMA_CONFIG="/etc/phpmyadmin"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$(id -u)" != '0' ]; then
 	echo "ERROR: h-delete-sys-phpmyadmin must be run as root"
@@ -35,21 +24,15 @@ if [ ! -f "$PMA_CONFIG/config-db.php" ] && [ ! -f "/usr/share/phpmyadmin/index.p
 	exit 1
 fi
 
-# SSO must be disabled first — hestia-sso.php would be left orphaned
+# the purge would leave hestia-sso.php behind in the webroot
 if [ -f "$PMA_CONFIG/conf.d/hestia-sso.inc.php" ] || [ -n "$PHPMYADMIN_KEY" ]; then
 	echo "ERROR: Disable SSO first: h-delete-sys-pma-sso"
 	exit 2
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Remove packages
 # No autoremove: it takes every orphan on the box, not only phpMyAdmin's. php-tcpdf is installed by name.
 DEBIAN_FRONTEND=noninteractive apt-get -y purge phpmyadmin php-tcpdf
 
-# Drop configuration storage database and user
 db_client="mysql"
 [ -x /usr/bin/mariadb ] && db_client="mariadb"
 
@@ -57,17 +40,15 @@ $db_client -e "DROP DATABASE IF EXISTS \`phpmyadmin\`"
 $db_client -e "DROP USER IF EXISTS 'pma'@'localhost'"
 $db_client -e "FLUSH PRIVILEGES"
 
-# Remove credentials and secrets (contain sensitive data)
+# not package files, so the purge leaves them
 rm -f "$PMA_CONFIG/config-db.php"
 rm -f /var/lib/phpmyadmin/blowfish_secret.inc.php
 
-# Remove the Panel-Caddy delivery (dedicated FPM pool + route snippet)
 rm -f /etc/php/hestia/fpm/pool.d/phpmyadmin.conf
 rm -f /etc/caddy/apps/phpmyadmin.conf
 systemctl reload hestia-php 2> /dev/null || true
 $BIN/h-restart-service caddy 2> /dev/null || true
 
-# Remove the customer-domain alias (nginx/apache proxy include)
 if [ -f /etc/nginx/conf.d/phpmyadmin.inc ]; then
 	rm -f /etc/nginx/conf.d/phpmyadmin.inc
 	$BIN/h-restart-service nginx 2> /dev/null || true
@@ -77,12 +58,7 @@ if [ -f /etc/apache2/conf.d/phpmyadmin.inc ]; then
 	$BIN/h-restart-service apache2 2> /dev/null || true
 fi
 
-# Remove DB_PMA_ALIAS from hestia.conf
 $BIN/h-change-sys-config-value 'DB_PMA_ALIAS' ''
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Plugins" "phpMyAdmin removed."
 log_event "$OK" "$ARGUMENTS"

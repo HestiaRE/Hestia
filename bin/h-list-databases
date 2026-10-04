@@ -4,32 +4,24 @@
 #
 # example: h-list-databases user json
 #
-# This function for obtaining the list of all user's databases.
+# Lists the databases of USER.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep "DB=" $USER_DATA/db.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		# Records from before #725 have no slot-2 keys; the last record's would carry over.
+		# Older records have no slot-2 keys, so the previous record's would carry over.
 		DBUSER_SECOND='' DBUSER_SECOND_RO=''
 		parse_object_kv_list "$str"
 		json_escape DB DBUSER DBUSER_SECOND DBUSER_SECOND_RO HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
@@ -56,7 +48,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "DATABASE   USER   HOST   TYPE   DISK   SPND   DATE"
@@ -67,7 +58,6 @@ shell_list() {
 	done < <(cat $USER_DATA/db.conf)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
@@ -77,28 +67,15 @@ plain_list() {
 	done < <(cat $USER_DATA/db.conf)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

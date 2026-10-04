@@ -4,30 +4,18 @@
 #
 # example: h-delete-database-host pgsql localhost
 #
-# This function for deleting the database host from hestia configuration. It will
-# be deleted if there are no databases created on it only.
+# Removes a database server from the pool, refused while databases remain on it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 host=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'TYPE HOST'
 is_format_valid 'type' 'host'
@@ -36,32 +24,18 @@ is_type_valid "$DB_SYSTEM" "$type"
 is_object_valid "$HESTIA/conf/$type" 'HOST' "$host"
 is_dbhost_free
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting server
 remove_line_by_prefix "$HESTIA/conf/$type.conf" "HOST='$host'"
 # The client file with the admin password for this host.
 rm -f "$HESTIA/conf/.mysql.$host"
-# Delete RRD database
 rm -fr $HESTIA'/web/rrd/db/'$type'_'$host'.rrd'
 rm -fr $HESTIA'/web/rrd/db/'*-$type'_'$host'.*'
 
-# Decompose DB_SYSTEM when the LAST host of this type is gone (counterpart to the
-# compose in h-add-database-host). Without this the type stayed listed forever
-# even after its last host was removed (#121), so the panel kept offering an
-# engine with no host. Keep the token while any host of the type remains.
+# Only the last host of a type takes it out of DB_SYSTEM; the counterpart of h-add-database-host.
 if ! grep -qs "HOST=" "$HESTIA/conf/$type.conf"; then
 	rm -f "$HESTIA/conf/$type.conf"
 	sys_key_token_set DB_SYSTEM remove "$type" > /dev/null || check_result "$E_UPDATE" "DB_SYSTEM: could not drop $type"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Database" "Removed remote database host (Host: $host, Type: $type)."
 log_event "$OK" "$ARGUMENTS"
 

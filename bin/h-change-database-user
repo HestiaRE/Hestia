@@ -4,21 +4,15 @@
 #
 # example: h-change-database-user admin admin_wp_db joe
 #
-# This function for changing database user. A DBUSER another MySQL database of the user already has is
-# reused with its password, so DBPASS must be empty then.
+# Gives DATABASE another main user. A DBUSER another MySQL database of the user already has is reused with its
+# password, so DBPASS must be empty then.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 dbuser="$user"_"$3"
 password=$4
 HIDE=4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,12 +21,7 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/rebuild.sh
 source $HESTIA/include/rebuild.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DATABASE DBUSER [DBPASS]'
 is_format_valid 'user' 'database' 'dbuser'
@@ -51,14 +40,13 @@ if [ "$TYPE" = 'pgsql' ]; then
 	[[ "$dbuser" != *-* ]] || check_result "$E_INVALID" "invalid database user format"
 fi
 
-# Compare old and new user
 old_dbuser=$(get_object_value 'db' 'DB' "$database" '$DBUSER')
 if [ "$old_dbuser" = "$dbuser" ]; then
 	exit
 fi
 [ "$dbuser" != "$DBUSER_SECOND" ] || check_result "$E_INVALID" "$dbuser is already the second user of $database"
 
-# A name another database holds is reused (#725): same server, and its password stays the one it has.
+# A name another database holds is reused: same server, and its password stays the one it has.
 reuse=''
 db_user_in_use "$dbuser" '*' '*' "$database"
 case $? in
@@ -94,36 +82,27 @@ if [ -z "$reuse" ] && [ -z "$MD5" ] && [ -z "$dbpass" ]; then
 	check_result "$E_INVALID" "$database holds no password of its own for $dbuser, give DBPASS"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Set new dbuser
 update_object_value 'db' 'DB' "$database" '$DBUSER' "$dbuser"
 [ -z "$reuse" ] || update_object_value 'db' 'DB' "$database" '$MD5' ''
 
-# Get database values
 get_database_values
 
-# Rebuild database
 [ -z "$dbpass" ] || REBUILD_DB_PASS_FOLLOWS='yes'
 case $TYPE in
 	mysql) rebuild_mysql_database ;;
 	pgsql) rebuild_pgsql_database ;;
 esac
 
-# Change password
 if [ -n "$dbpass" ]; then
 	case $TYPE in
 		mysql) change_mysql_password ;;
 		pgsql) change_pgsql_password ;;
 	esac
 
-	# Update config value
 	update_object_value 'db' 'DB' "$database" '$MD5' "$md5"
 fi
 
-# Remove old user. mysql revokes its rights here even when another database keeps the user.
+# mysql revokes the old user's rights here even when another database keeps the user.
 case $TYPE in
 	mysql) delete_mysql_user ;;
 	pgsql)
@@ -132,11 +111,6 @@ case $TYPE in
 		;;
 esac
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Database" "Database user changed (Database: $database, User: $dbuser)"
 log_event "$OK" "$ARGUMENTS"
 

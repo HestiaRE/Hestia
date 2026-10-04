@@ -4,48 +4,27 @@
 #
 # example: h-suspend-databases admin
 #
-# This function for suspending of all databases of a single user.
+# Suspends all databases of USER.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Starting suspend loop
 failed=''
 for database in $(search_objects 'db' 'SUSPENDED' "no" 'DB'); do
 	$BIN/h-suspend-database "$user" "$database" || failed="$failed $database"
 done
 [ -z "$failed" ] || check_result "$E_DB" "not suspended:$failed"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

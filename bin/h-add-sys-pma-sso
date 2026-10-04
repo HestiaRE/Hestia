@@ -4,83 +4,52 @@
 #
 # example: h-add-sys-pma-sso
 #
-# This function enables support for SSO to phpMyAdmin. The SSO flow is local
-# (#145, no REST API): the panel creates a temp DB user plus a one-time
-# handoff token (h-add-database-sso-token, via the panel's sudo) and redirects
-# to hestia-sso.php in the phpMyAdmin webroot, which consumes the token from
-# /run/hestia-sso/ and opens the signon session. The phpMyAdmin FPM pool
-# (caddy) needs no sudo rule and holds no secrets.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# The panel creates a temporary DB user and a one-time token (h-add-database-sso-token) and redirects to
+# hestia-sso.php in the phpMyAdmin webroot, which consumes it from /run/hestia-sso/ and opens the signon session.
+# The phpMyAdmin pool needs no sudo rule and holds no secrets.
 
 MODE=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 PMA_INSTALL="/usr/share/phpmyadmin"
 PMA_CONFIG="/etc/phpmyadmin"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$(id -u)" != '0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# Three different answers used to share two exit codes, and the middle one was indistinguishable from
-# the last (both bare `exit 2`), so a caller could not tell "already there" from "cannot install here".
-# Separated one by one, deliberately not by a blanket rule (E13, #945).
-
-# Already at the target state: the key IS the installation, so nothing is left to do and nothing to write.
+# the key IS the installation
 if [ -n "$PHPMYADMIN_KEY" ]; then
 	echo "INFO: phpMyAdmin SSO is already installed."
 	exit 0
 fi
 
-# Not installable as things stand: our record says no SSO, yet the file is there. That is debris from an
-# interrupted install, and overwriting it silently would hide how the box got here. Named, with the way out.
+# no key but the file: debris from an interrupted install, and overwriting it would hide how the box got here
 if [ -f "$PMA_INSTALL/hestia-sso.php" ]; then
 	echo "ERROR: $PMA_INSTALL/hestia-sso.php exists, but PHPMYADMIN_KEY is empty: a half-finished install."
 	echo "       Clear it with h-delete-sys-pma-sso, then run this again."
 	exit "$E_EXISTS"
 fi
 
-# Not installable: a precondition is missing. Its own code, so it cannot be mistaken for the case above.
+# its own exit code, so a missing precondition cannot be mistaken for the debris above
 if [ ! -f "$PMA_CONFIG/config-db.php" ]; then
 	echo "ERROR: phpMyAdmin not configured. Run h-add-sys-phpmyadmin first"
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deploy hestia-sso.php into the PMA webroot (readable by the pool user caddy;
-# contains no secrets — it only consumes one-time tokens from /run/hestia-sso/)
+# no secrets in it: it only consumes one-time tokens from /run/hestia-sso/
 cp -f $HESTIA/share/phpmyadmin/hestia-sso.php $PMA_INSTALL/hestia-sso.php
 chmod 640 $PMA_INSTALL/hestia-sso.php
 chown root:caddy $PMA_INSTALL/hestia-sso.php
 
-# Write SSO config into conf.d — loaded by OS package config.inc.php glob.
-# Uses $cfg['Servers'][1] directly (not $i): the OS config.inc.php increments
-# $i twice before the conf.d glob runs (once on init, once after config-db.php),
-# so $i would equal 2 at that point — not the active server slot.
-# BRITTLE RISK: if a phpMyAdmin package update restructures config.inc.php and
-# changes the number of $i increments before the glob, this hardcoded [1] will
-# silently misconfigure SSO (auth_type switches but targets the wrong server).
-# To verify after a PMA upgrade: count $i increments in
-# /etc/phpmyadmin/config.inc.php above the "foreach glob(...conf.d...)" line —
-# if the count changes from 2, update [1] here accordingly.
+# [1], not $i: the OS config.inc.php increments $i twice before its conf.d glob, so $i is 2 there.
+# Keep in step with that file: after a phpMyAdmin upgrade recount, or signon silently targets the wrong server.
 mkdir -p "$PMA_CONFIG/conf.d"
 cat > "$PMA_CONFIG/conf.d/hestia-sso.inc.php" << 'PHP'
 <?php
@@ -94,15 +63,8 @@ PHP
 chmod 640 "$PMA_CONFIG/conf.d/hestia-sso.inc.php"
 chown root:caddy "$PMA_CONFIG/conf.d/hestia-sso.inc.php"
 
-# PHPMYADMIN_KEY has no cryptographic role anymore — a non-empty value only
-# marks SSO as enabled (panel button in list_db.php, toggle in edit/server,
-# guard in h-delete-sys-phpmyadmin). Kept random to avoid meaning being
-# attached to the value.
+# PHPMYADMIN_KEY only marks SSO as enabled for the panel and h-delete-sys-phpmyadmin; random so no meaning attaches.
 $BIN/h-change-sys-config-value 'PHPMYADMIN_KEY' "$(generate_password)"
-
-#----------------------------------------------------------#
-#                       Logging                            #
-#----------------------------------------------------------#
 
 if [ "$MODE" != "quiet" ]; then
 	echo "PMA Hestia-SSO plugin has been successfully installed"

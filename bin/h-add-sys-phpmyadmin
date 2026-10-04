@@ -2,26 +2,15 @@
 # info: Install phpMyAdmin database administration tool
 # options: NONE
 #
-# This function installs phpMyAdmin from OS repositories, sets up the
-# configuration storage database, and integrates with the panel.
+# Installs phpMyAdmin from the OS package with its configuration storage database, served by Panel-Caddy.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 PMA_CONFIG="/etc/phpmyadmin"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$(id -u)" != '0' ]; then
 	echo "ERROR: h-add-sys-phpmyadmin must be run as root"
@@ -35,33 +24,26 @@ if ! echo "$DB_SYSTEM" | grep -qw 'mysql'; then
 	exit 2
 fi
 
-# Already installed?
 if [ -f "$PMA_CONFIG/config-db.php" ] && [ -f "/var/lib/phpmyadmin/blowfish_secret.inc.php" ]; then
 	echo "INFO: phpMyAdmin is already installed and configured."
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# preseed debconf so dbconfig-common doesn't auto-configure a DB (no interactive prompt)
+# keep dbconfig-common out: it would prompt, and the storage database is set up below
 echo "phpmyadmin phpmyadmin/dbconfig-install boolean false" \
 	| debconf-set-selections
 
-# The php-* metas resolve to libapache2-mod-phpX on some targets, which drags in apache2; it then
-# holds *:80 and nginx cannot bind. Only refused where absent - apache2- would REMOVE a real one.
+# The php-* metas resolve to libapache2-mod-phpX on some targets, dragging in apache2, which takes *:80 from nginx.
+# Refused only where absent: apache2- would REMOVE a real one.
 pma_no_apache=""
 if ! dpkg-query -W -f='${Status}' apache2 2> /dev/null | grep -q "install ok installed"; then
 	pma_no_apache="apache2-"
 fi
-# No recommends (#1069): pma runs in the panel pool, and the php-* metas plus tcpdf's php-mcrypt put the newest
-# Sury version's cli and common on a box that runs none of it. tcpdf itself is the PDF export, so it stays.
+# No recommends: they pull the newest Sury PHP onto a box that runs none of it. php-tcpdf is the PDF export.
 # shellcheck disable=SC2086  # deliberately unquoted: empty must expand to no argument at all
 DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install phpmyadmin php-tcpdf $pma_no_apache \
 	|| check_result "$E_UPDATE" "apt could not install phpmyadmin"
 
-# Generate blowfish secret and write to expected location
 blowfish="$(openssl rand -base64 32 | tr -d '/+=' | cut -c1-32)"
 mkdir -p /var/lib/phpmyadmin
 cat > /var/lib/phpmyadmin/blowfish_secret.inc.php << 'PHP'
@@ -72,18 +54,15 @@ sed -i "s/_BLOWFISH_/$blowfish/" /var/lib/phpmyadmin/blowfish_secret.inc.php
 chmod 640 /var/lib/phpmyadmin/blowfish_secret.inc.php
 chown root:caddy /var/lib/phpmyadmin/blowfish_secret.inc.php
 
-# Ensure tmp directory is writable (phpMyAdmin FPM pool runs as caddy)
 mkdir -p /var/lib/phpmyadmin/tmp
 chown caddy:caddy /var/lib/phpmyadmin/tmp
 chmod 770 /var/lib/phpmyadmin/tmp
 
-# Create configuration storage database and user
 dbpass=$(generate_password)
 db_client="mysql"
 [ -x /usr/bin/mariadb ] && db_client="mariadb"
 
-# Guard against name collision: bail if a 'phpmyadmin' database already exists
-# from a source not managed by this HestiaRE instance.
+# a phpmyadmin database this install did not create belongs to someone else
 if $db_client -e "SHOW DATABASES LIKE 'phpmyadmin'" 2> /dev/null | grep -q 'phpmyadmin'; then
 	echo "ERROR: Database 'phpmyadmin' already exists but is not managed by this HestiaRE instance."
 	echo "       Remove it manually first, or run h-delete-sys-phpmyadmin if it was a previous install."
@@ -112,7 +91,7 @@ $db_client phpmyadmin < /usr/share/phpmyadmin/sql/create_tables.sql \
 		exit 1
 	}
 
-# config-db.php (read by the OS config.inc.php for config storage)
+# the OS config.inc.php reads it for the configuration storage
 mkdir -p "$PMA_CONFIG"
 cat > "$PMA_CONFIG/config-db.php" << 'PHP'
 <?php
@@ -126,24 +105,18 @@ sed -i "s/_PMAPASS_/$dbpass/" "$PMA_CONFIG/config-db.php"
 chmod 640 "$PMA_CONFIG/config-db.php"
 chown root:caddy "$PMA_CONFIG/config-db.php"
 
-# Ensure conf.d directory exists for SSO and future extensions
+# h-add-sys-pma-sso writes its include here
 mkdir -p "$PMA_CONFIG/conf.d"
 chmod 750 "$PMA_CONFIG/conf.d"
 chown root:caddy "$PMA_CONFIG/conf.d"
 
-# Set panel alias
 if ! grep -q "^DB_PMA_ALIAS=" "$HESTIA/conf/hestia.conf"; then
 	$BIN/h-change-sys-config-value 'DB_PMA_ALIAS' 'phpmyadmin'
 fi
 
-# dedicated caddy FPM pool + Panel-Caddy route (served on :8083, not nginx/apache)
 cp -f "$HESTIA/share/panel-php/pool.d/phpmyadmin.conf" /etc/php/hestia/fpm/pool.d/phpmyadmin.conf
 systemctl reload hestia-php 2> /dev/null || systemctl restart hestia-php 2> /dev/null || true
 $BIN/h-change-sys-db-alias pma "${DB_PMA_ALIAS:-phpmyadmin}" > /dev/null 2>&1 || true
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Plugins" "phpMyAdmin installed (OS package)."
 log_event "$OK" "$ARGUMENTS"

@@ -4,41 +4,27 @@
 #
 # example: h-delete-sys-postgresql
 #
-# Counterpart to h-add-sys-postgresql. Refuses while customer DBs exist (counter +
-# live pg_database check). Datadir kept by default. Packages are versioned, so the
-# installed server major is purged explicitly, not just the metapackage; the client stays.
-# Opt-ins: FORCE=yes skips the DB check; PURGE_DATA=yes drops the datadir + config.
+# Counterpart to h-add-sys-postgresql; the client stays. Refuses while customer databases remain.
+# The datadir is kept. FORCE=yes skips the database check; PURGE_DATA=yes also drops the datadir and config.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# Not installed?
 if ! dpkg -l postgresql 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: PostgreSQL is not installed."
 	change_sys_value "DB_POSTGRESQL_SYSTEM" ""
 	exit "$E_NOTEXIST"
 fi
 
-# Refuse while customer databases exist (unless FORCE=yes). Counter + live check
-# (templates and the default 'postgres' maintenance DB are not customer data).
+# templates and the postgres maintenance database are not customer data
 if [ "${FORCE:-}" != "yes" ]; then
 	u_db_bases=$(record_field "$(grep "^HOST='localhost' " "$HESTIA/conf/pgsql.conf" 2> /dev/null)" U_DB_BASES)
 	# A cluster that is not ready would count 0 and let the guard pass without having looked.
@@ -56,16 +42,12 @@ if [ "${FORCE:-}" != "yes" ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# deregister the local host (strips DB_SYSTEM's pgsql token); it refuses while database records point at it
+# h-delete-database-host refuses while database records point at localhost
 if ! host_out=$($BIN/h-delete-database-host pgsql localhost 2>&1); then
 	echo "[ ! ] localhost stays registered, its database records stay until PostgreSQL is added back: $(head -n1 <<< "$host_out")"
 fi
 
-# purge the installed major explicitly (versioned packages — the metapackage isn't enough)
+# the server packages are versioned, so purging the metapackage alone would leave the server
 echo "[ * ] Removing PostgreSQL packages..."
 PG_MAJOR=$(pg_lsclusters -h 2> /dev/null | awk 'NR==1{print $1}')
 systemctl disable --now "postgresql@${PG_MAJOR}-main" > /dev/null 2>&1 || true
@@ -77,15 +59,11 @@ _pkgs="postgresql postgresql-contrib"
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq purge $_pkgs > /dev/null 2>&1 || true
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq install postgresql-client > /dev/null 2>&1 || true
 
-# datadir/config kept by default (a re-add reuses the cluster); opt-in wipe
+# kept by default so a re-add reuses the cluster
 if [ "${PURGE_DATA:-}" = "yes" ]; then
 	echo "[ * ] PURGE_DATA=yes — dropping cluster datadir + config..."
 	rm -rf /var/lib/postgresql /etc/postgresql
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 change_sys_value "DB_POSTGRESQL_SYSTEM" ""
 

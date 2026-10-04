@@ -6,28 +6,21 @@
 # example: h-dump-database admin admin_wp_db file gzip
 # example: h-dump-database admin admin_wp_db file zstd
 #
-# Dumps the database to STDOUT, or with FILE to $BACKUP/USER_DATABASE_TYPE_TIMESTAMP.sql[.gz|.zst],
-# which is removed after an hour.
-# For compression gzip or zstd is supported by default plain sql is used
+# Dumps the database to STDOUT, or with FILE given as the word 'file' to
+# $BACKUP/USER_DATABASE_TYPE_TIMESTAMP.sql[.gz|.zst], which is removed after an hour.
+# COMPRESSION is gzip or zstd; without it the dump is plain SQL.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 output=$3
 compression=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '2' "$#" 'USER DATABASE [FILE] [COMPRESSION]'
@@ -36,14 +29,8 @@ is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Create timestamp in Y-M-D_h-m-s format
 timestamp=$(date +'%Y-%m-%d_%H-%M-%S')
 
-# Check db existence
 db_data=$(grep -F "DB='$database'" $CONF_DIR/users/$user/db.conf)
 if [ -z "$db_data" ]; then
 	echo "Error: database $database doesn't exist"
@@ -53,10 +40,8 @@ fi
 
 parse_object_kv_list "$db_data"
 
-# Creating temporary directory
 tmpdir=$(mktemp -p $BACKUP -d "tmp.$database.XXXXXXXXXX")
 
-# Dump database
 dump="$tmpdir/$database.$TYPE.sql"
 grants="$tmpdir/$database.$TYPE.$DBUSER"
 case $TYPE in
@@ -88,10 +73,9 @@ if [ "$output" = "file" ]; then
 		check_result "$E_DISK" "the dump of $database could not be written to $BACKUP"
 	fi
 	chown hestia $BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}
-	# echo file location for use in the php
+	# The panel's download serves the file named on this first output line.
 	echo "$BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}"
 
-	# cleanup
 	echo "rm $BACKUP/${user}_${database}_${TYPE}_${timestamp}.${extension}" | at now + 1 hour > /dev/null 2>&1
 else
 	cat $dump
@@ -99,11 +83,6 @@ fi
 
 rm -fr $tmpdir
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -210,40 +210,15 @@ if [ -n "$mail_data" ]; then
 		mv $ssl_ca $CONF_DIR/users/$user/ssl/ >> /dev/null 2>&1
 		mv $ssl_pem $CONF_DIR/users/$user/ssl/ >> /dev/null 2>&1
 
-		# Add certificate to user home directory
-		cp -f $CONF_DIR/users/$user/ssl/mail.$domain.crt $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.crt
-		cp -f $CONF_DIR/users/$user/ssl/mail.$domain.key $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key
-		cp -f $CONF_DIR/users/$user/ssl/mail.$domain.pem $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem
-		if [ -e "$CONF_DIR/users/$user/ssl/mail.$domain.ca" ]; then
-			cp -f $CONF_DIR/users/$user/ssl/mail.$domain.ca $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.ca
-		fi
-
-		# Add domain SSL configuration to dovecot
-		if [ -f "/etc/dovecot/conf.d/domains/$domain.conf" ]; then
-			rm -f /etc/dovecot/conf.d/domains/$domain.conf
-		fi
-
-		dovecot_version="$(dovecot --version | cut -f -2 -d .)"
-		if [[ "$dovecot_version" = "2.4" ]]; then
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
-		else
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
-		fi
-
-		# Add domain SSL configuration to exim4
 		# Cleanup symlinks
 		find $MAIL_SNI_DIR -xtype l -delete
-
-		ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
-		ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
+		# The SNI links still point into the old owner's conf dir, and the writer below does not replace a link.
+		sni=$(mail_sni_name "$domain")
+		for link in "$MAIL_SNI_DIR/$sni.crt" "$MAIL_SNI_DIR/$sni.key" "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key"; do
+			[[ "$(readlink "$link")" == "$HOMEDIR/$owner/conf/mail/$domain/"* ]] && rm -f "$link"
+		done
+		ssl_dir=''
+		add_mail_ssl_config
 
 		mail_ssl_modes "$user" "$domain"
 	fi

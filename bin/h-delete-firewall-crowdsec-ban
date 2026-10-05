@@ -46,7 +46,7 @@ command -v cscli > /dev/null 2>&1 || check_result "$E_NOTEXIST" "CrowdSec is not
 #                       Action                             #
 #----------------------------------------------------------#
 
-cscli decisions delete -i "$ip" > /dev/null 2>&1
+cscli decisions delete -i "$ip" > /dev/null 2>&1 || check_result "$E_INVALID" "CrowdSec did not remove the ban on $ip"
 
 # Refresh L3 now (both families) so the set drops it immediately rather than after the feeder timer.
 [ -f "$CONF_DIR/firewall/crowdsec.conf" ] && $BIN/h-update-firewall-crowdsec

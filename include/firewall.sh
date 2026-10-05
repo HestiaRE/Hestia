@@ -143,8 +143,7 @@ fw_chain_id() {
 	echo "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-# No-ops: replacing the table is the flush, and chains are declared by being written to.
-fw_flush() { :; }
+# Chains are declared by being written to; replacing the table is the flush.
 fw_chain_create() { [ "$(fw_chain_id "$1")" = 'input' ] || touch "$FW_WORK/chain.$(fw_chain_id "$1")"; }
 
 # Schema-versioned JSON, not the text rendering, whose layout shifts between nft versions. jq is a prereq.
@@ -400,11 +399,10 @@ fw_restrict_docker_nets() {
 	done
 }
 
-# fw_rule <action> <protocol> <port> <source> [type] [conntrack_ftp] - one rules.conf record. Two iptables
-# carry-overs kept: 0.0.0.0/0 renders no qualifier, and `type` mirrors $TYPE which nothing sets, so the FTP
-# conntrack branch never fires and custom PassivePorts get neither range.
+# fw_rule <action> <protocol> <port> <source> [conntrack_ftp] - one rules.conf record. 0.0.0.0/0 renders no
+# qualifier, an iptables carry-over; custom PassivePorts get neither range.
 fw_rule() {
-	local action="$1" protocol="$2" port_val="$3" source="$4" type="${5:-}" conntrack_ftp="${6:-}"
+	local action="$1" protocol="$2" port_val="$3" source="$4" conntrack_ftp="${5:-}"
 	local proto expr=""
 
 	proto="$(echo "$protocol" | tr '[:upper:]' '[:lower:]')"
@@ -441,7 +439,7 @@ fw_rule() {
 	# meta l4proto, not ip protocol: that one is v4 only, and after an ip6 saddr nft rejects the whole document.
 	if [ "$proto" = 'icmp' ] || [ "$port_val" = '0' ]; then
 		expr="${expr}meta l4proto $proto "
-	elif [ "$type" = 'FTP' ] || [ "$port_val" = '21' ]; then
+	elif [ "$port_val" = '21' ]; then
 		if [ "$conntrack_ftp" != 'no' ]; then
 			expr="${expr}${proto} dport $(fw_port_expr "$port_val") ct state new "
 		else
@@ -719,6 +717,6 @@ fw_legacy_teardown() {
 		rm -f /lib/systemd/system/hestia-iptables.service
 		systemctl -q daemon-reload
 	fi
-	rm -f /etc/iptables.rules /etc/sysconfig/iptables
+	rm -f /etc/iptables.rules
 	return 0
 }

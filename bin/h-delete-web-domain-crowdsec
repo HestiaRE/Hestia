@@ -40,8 +40,6 @@ is_object_valid 'web' 'DOMAIN' "$domain"
 #                       Action                             #
 #----------------------------------------------------------#
 
-parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
-
 update_object_value 'web' 'DOMAIN' "$domain" '$CROWDSEC' 'no'
 
 crowdsec_render_domain_fragment "$user" "$domain"

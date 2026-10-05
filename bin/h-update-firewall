@@ -72,9 +72,7 @@ fi
 # Opening the batch
 fw_batch_begin
 
-# Flushing INPUT chain
 fw_policy INPUT ACCEPT
-fw_flush INPUT
 
 # Enabling stateful support
 if [ "$conntrack" != 'no' ] || grep --quiet container=lxc /proc/1/environ; then
@@ -106,7 +104,6 @@ fw_accept_excludes
 # before, and a false-positive ban on an internal address would otherwise be enforced box-wide.
 if [ -f "$CONF_DIR/firewall/crowdsec.conf" ]; then
 	fw_chain_create hestia-crowdsec
-	fw_flush hestia-crowdsec
 	for net in "${FW_KEEP_V4[@]}"; do
 		fw_return_source hestia-crowdsec "$net"
 	done
@@ -132,15 +129,12 @@ for line in $(sort -r -n -k 2 -t \' $rules); do
 			fi
 		fi
 
-		fw_rule "$ACTION" "$PROTOCOL" "$PORT" "$IP" "${TYPE:-}" "$conntrack_ftp"
+		fw_rule "$ACTION" "$PROTOCOL" "$PORT" "$IP" "$conntrack_ftp"
 	fi
 done
 
 # Switching chain policy to DROP
 fw_policy INPUT DROP
-
-# Adding hestia chain
-fw_chain_create hestia
 
 # Jails and bans go in the SAME batch as the base ruleset: under iptables these were three separate applies,
 # which is exactly what left a window with the jails detached.

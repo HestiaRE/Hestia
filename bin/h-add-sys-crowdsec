@@ -20,10 +20,6 @@ source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 source "$HESTIA/include/crowdsec.sh"
 
-# public-facing web server ('both' fronts with nginx); CrowdSec is offered only for nginx.
-cs_pub="$PROXY_SYSTEM"
-[ -z "$cs_pub" ] && cs_pub="$WEB_SYSTEM"
-
 #----------------------------------------------------------#
 #                    Verifications                         #
 #----------------------------------------------------------#

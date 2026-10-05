@@ -114,20 +114,6 @@ botpolicy_render_apache() {
 	chmod 644 "$out"
 }
 
-# Re-render the active web front's Layer-B server config + reload. nginx fronts in nginx-only/both;
-# apache-only is the only model where apache does Layer B.
-botpolicy_apply() {
-	local pub
-	if [ -n "$PROXY_SYSTEM" ]; then pub="$PROXY_SYSTEM"; else pub="$WEB_SYSTEM"; fi
-	if [ "$pub" = "nginx" ]; then
-		botpolicy_render_nginx
-		nginx -t > /dev/null 2>&1 && { systemctl reload nginx > /dev/null 2>&1 || systemctl restart nginx > /dev/null 2>&1; }
-	elif [ "$WEB_SYSTEM" = "apache2" ]; then
-		botpolicy_render_apache
-		apache2ctl configtest > /dev/null 2>&1 && { systemctl reload apache2 > /dev/null 2>&1 || systemctl restart apache2 > /dev/null 2>&1; }
-	fi
-}
-
 # Render the per-domain Layer-B fragment (nginx.botlimit.conf / botlimit.apache2.conf) from the
 # domain's BOTLIMIT field ("fam:level,fam:level"; level = lenient|strict, absent = off). Removed
 # when empty, so the vhost's IncludeOptional/include glob is a no-op for unthrottled domains.

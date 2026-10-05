@@ -14,7 +14,7 @@
 user=$1
 domain=$2
 account=$3
-quota=$4
+quota=${4:-unlimited}
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -39,6 +39,8 @@ check_args '4' "$#" 'USER DOMAIN ACCOUNT QUOTA'
 is_format_valid 'user' 'domain' 'account'
 if [ "$quota" != 'unlimited' ]; then
 	is_format_valid 'quota'
+	# Every later test would read 08 as a broken octal number.
+	quota=$((10#$quota))
 fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"

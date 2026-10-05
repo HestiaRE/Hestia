@@ -25,7 +25,9 @@ fi
 check_args '3' "$#" 'USER DOMAIN TAG'
 is_format_valid 'user' 'domain'
 # No quotes (mail.conf format), no newline or backslash (header injection), no edge whitespace.
-tag_re='^[][()*+._:!#=[:alnum:]-]([][()*+._:!#= [:alnum:]-]{0,30}[][()*+._:!#=[:alnum:]-])?$'
+# Letters spelled out: under de_DE both [:alnum:] and A-Z also match umlauts.
+an='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+tag_re="^[][()*+._:!#=${an}-]([][()*+._:!#= ${an}-]{0,30}[][()*+._:!#=${an}-])?\$"
 if ! [[ "$tag" =~ $tag_re ]]; then
 	check_result "$E_INVALID" "invalid tag :: max 32 chars, letters/digits/[]()*+._:!#=- and inner spaces only"
 fi

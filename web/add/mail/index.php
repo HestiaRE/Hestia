@@ -261,7 +261,12 @@ if (!empty($_POST["ok_acc"])) {
 
 	// Add Mail Account
 	if (empty($_SESSION["error_msg"])) {
-		$v_password = secret_tmpfile($_POST["v_password"]);
+		// Forward-only still has a login, and an empty password would open it to anyone.
+		$v_new_password = $_POST["v_password"];
+		if ($v_new_password === "" && !empty($_POST["v_fwd_only"])) {
+			$v_new_password = bin2hex(random_bytes(16));
+		}
+		$v_password = secret_tmpfile($v_new_password);
 	}
 	if (empty($_SESSION["error_msg"])) {
 		exec(

@@ -6,13 +6,8 @@
 # example: h-add-mail-domain-webmail user domain.com tachyon
 # example: h-add-mail-domain-webmail user domain.com roundcube
 #
-# This function enables webmail client for a mail domain.
+# Serves WEBMAIL (a known client or disabled) for the domain; without it the installed default.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 webmail=$3
@@ -23,7 +18,6 @@ if [ -z "$restart" ]; then
 	restart="yes"
 fi
 
-# Additional argument formatting
 if [[ "$domain" =~ [[:upper:]] ]]; then
 	domain=$(echo "$domain" | tr '[:upper:]' '[:lower:]')
 fi
@@ -34,7 +28,6 @@ if [[ "$domain" =~ .*\.$ ]]; then
 	domain=$(echo "$domain" | sed -e "s/\.$//")
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -43,24 +36,16 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 if [ -z "$webmail" ]; then
-	# Default mirrors the panel (web/add/mail): the first INSTALLED client in the order of
-	# WEBMAIL_KNOWN_CLIENTS (roundcube first), never the position in WEBMAIL_SYSTEM; the token
-	# writers append, so a position would make the default depend on install order.
+	# Keep in step with web/add/mail: the first installed client in WEBMAIL_KNOWN_CLIENTS order, not WEBMAIL_SYSTEM's.
 	for c in $WEBMAIL_KNOWN_CLIENTS; do
-		# exact token, not a word boundary: grep -w would take roundcube from roundcube-next
+		# Exact token, not grep -w: that would take roundcube from roundcube-next.
 		case ",$WEBMAIL_SYSTEM," in *",$c,"*)
 			webmail="$c"
 			break
@@ -69,40 +54,31 @@ if [ -z "$webmail" ]; then
 	done
 fi
 
-# The WEBMAIL record's value domain (#584): '' (resolved above), 'disabled', or a client from
-# WEBMAIL_KNOWN_CLIENTS (include/main.sh - the one list, smoke-guarded against the shipped
-# templates). Known STATICALLY, not by install state: a client that is merely absent right now
-# - delete/re-add window, backend-switch reinstall - keeps its record, renders degraded via
-# select_webmail_template, and heals when the client returns. Deriving validity from
-# WEBMAIL_SYSTEM instead silently converged every domain of a client to 'disabled' DURING its
-# own reinstall. Only values outside the domain (legacy 'snappymail', a typo) normalize,
-# loudly. Never an abort: rebuild paths feed recorded values back in here.
-if [ -n "$webmail" ] && [ "$webmail" != "disabled" ] \
-	&& ! grep -qwF -- "$webmail" <<< "$WEBMAIL_KNOWN_CLIENTS"; then
-	echo "NOTE: unknown webmail client '$webmail' - storing 'disabled' for $domain"
-	webmail="disabled"
+# Known by WEBMAIL_KNOWN_CLIENTS, not install state: an absent client keeps its record and renders degraded until it
+# returns. Anything else becomes 'disabled', never an abort: rebuild paths feed recorded values back in here.
+# One exact name: grep -w passed a value of several lines or one spanning several names.
+if [ -n "$webmail" ] && [ "$webmail" != "disabled" ]; then
+	known=''
+	for c in $WEBMAIL_KNOWN_CLIENTS; do
+		[ "$webmail" = "$c" ] && known='yes'
+	done
+	if [ -z "$known" ]; then
+		echo "NOTE: unknown webmail client '$webmail' - storing 'disabled' for $domain"
+		webmail="disabled"
+	fi
 fi
 
 check_args '2' "$#" 'USER DOMAIN [WEBMAIL] [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
-# the webmail vhost needs a front, not customer web: on a mailfront box
-# WEB_SYSTEM is empty by design (#193) and WEBMAIL_FRONT carries nginx
+# The front, not WEB_SYSTEM: on a mailfront box WEB_SYSTEM is empty and WEBMAIL_FRONT carries nginx.
 front=$(webmail_front)
 is_system_enabled "$front" 'WEBMAIL front (WEB_SYSTEM/WEBMAIL_FRONT)'
 is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
-# The client was normalized above; select_webmail_template (below) additionally degrades
-# an uninstalled client to the safe 'disabled' vhost at render time, so a rebuild after a
-# webmailer is removed can never fail (#119).
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Inherit web domain local ip address
 domain_ip=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP')
 if [ -n "$domain_ip" ]; then
 	local_ip=$(get_real_ip "$domain_ip")
@@ -116,7 +92,6 @@ if [ -n "$domain_ip" ]; then
 else
 	get_user_ip
 fi
-# v6 mirror: web domain's IP6, else default v6, else none
 local_ip6=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP6')
 if [ -z "$local_ip6" ] && get_user_ip6; then
 	local_ip6="$ip6"
@@ -125,12 +100,10 @@ if [ -n "$local_ip6" ] && [ ! -e "$CONF_DIR/ips/$local_ip6" ]; then
 	local_ip6=''
 fi
 
-# Verify that webmail alias variable exists and create it if it does not
 if [ -z "$WEBMAIL_ALIAS" ]; then
 	$BIN/h-change-sys-config-value 'WEBMAIL_ALIAS' "webmail"
 else
 
-	# Resolve template names (degrades to 'disabled' when the client isn't installed)
 	select_webmail_template "$webmail"
 
 	add_webmail_config "$front" "${WEBMAIL_TEMPLATE}.tpl"
@@ -139,7 +112,6 @@ else
 		add_webmail_config "$PROXY_SYSTEM" "${PROXY_TEMPLATE}.tpl"
 	fi
 
-	# Enable SSL for webmail if available
 	if [ -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.crt ] || [ "$SSL" = 'yes' ]; then
 		add_webmail_config "$front" "${WEBMAIL_TEMPLATE}.stpl"
 
@@ -149,18 +121,16 @@ else
 	fi
 fi
 
-# Create the log files the vhost will write (mirrors the web-domain rebuild):
-# nginx only creates them on first traffic, but the fail2ban web jails hang on
-# EXISTING logs - without this the first webmail domain would not arm them
+# As the web-domain rebuild does: the fail2ban web jails arm only on existing logs, nginx writes them on first traffic.
 if [ -n "$front" ]; then
 	mkdir -p "/var/log/$front/domains"
 	touch "/var/log/$front/domains/$WEBMAIL_ALIAS.$domain.log" \
 		"/var/log/$front/domains/$WEBMAIL_ALIAS.$domain.error.log"
 	chown root:$user "/var/log/$front/domains/$WEBMAIL_ALIAS.$domain."* 2> /dev/null
-	# As the web domain logs: the caller's umask made these 644 or 600 (#1134).
+	# As the web domain logs; the caller's umask would leave them 644 or 600.
 	chmod 640 "/var/log/$front/domains/$WEBMAIL_ALIAS.$domain."* 2> /dev/null
 fi
-# first log on the box arms the web jails (change-detected, no-op otherwise)
+# The first log on the box arms the web jails; a no-op otherwise.
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh
 declare -F fail2ban_regate_web_apply > /dev/null 2>&1 || source "$HESTIA/include/fail2ban.sh"
 fail2ban_regate_web_apply
@@ -170,15 +140,10 @@ if [ -z "$WEBMAIL" ]; then
 	add_object_key 'mail' 'DOMAIN' "$domain" 'WEBMAIL' 'SSL'
 fi
 
-# Set SSL as enabled in configuration
 update_object_value 'mail' 'DOMAIN' "$domain" '$WEBMAIL' "$webmail"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
 if [ "$restart" = 'yes' ]; then
-	# A new vhost needs a reload; a restart would cut the panel request asking for it (#878).
+	# A new vhost needs a reload; a restart would cut the panel request asking for it.
 	$BIN/h-restart-web ''
 	check_result $? "Web restart failed" > /dev/null
 
@@ -186,7 +151,6 @@ if [ "$restart" = 'yes' ]; then
 	check_result $? "Proxy restart failed" > /dev/null
 fi
 
-# Logging
 if [ "$quiet" != 'yes' ]; then
 	$BIN/h-log-action "$user" "Info" "Mail" "Webmail access enabled (Domain: $domain)."
 fi

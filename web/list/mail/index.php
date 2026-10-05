@@ -4,10 +4,8 @@ use function Hestiacp\quoteshellarg\quoteshellarg;
 
 $TAB = "MAIL";
 
-// Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
-// Data & Render page
 if (empty($_GET["domain"])) {
 	$data = cli_json("h-list-mail-domains $user json");
 	if ($_SESSION["userSortOrder"] == "name") {
@@ -45,5 +43,4 @@ if (empty($_GET["domain"])) {
 	render_page($user, $TAB, "list_mail_acc");
 }
 
-// Back uri
 $_SESSION["back"] = $_SERVER["REQUEST_URI"];

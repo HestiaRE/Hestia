@@ -5,15 +5,12 @@ use function Hestiacp\quoteshellarg\quoteshellarg;
 ob_start();
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
-// Delete as someone else?
 if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 	$user = quoteshellarg($_GET["user"]);
 }
 
-// Check token
 verify_csrf($_GET);
 
-// Mail domain
 if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	$v_username = quoteshellarg($user);
 	$v_domain = quoteshellarg($_GET["domain"]);
@@ -32,7 +29,6 @@ if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	exit();
 }
 
-// Mail account
 if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_domain = quoteshellarg($_GET["domain"]);
 	$v_account = quoteshellarg($_GET["account"]);

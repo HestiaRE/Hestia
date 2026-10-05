@@ -874,7 +874,8 @@ is_mail_new() {
 # Only this domain's SNI links: chmod on a glob over $MAIL_SNI_DIR followed every link and set the keys of every
 # domain on the box to 644, and chown -h handed all links to the current user (#1135).
 mail_ssl_modes() { # USER DOMAIN
-	local d="$HOMEDIR/$1/conf/mail/$2/ssl" f
+	local d="$HOMEDIR/$1/conf/mail/$2/ssl" f sni
+	sni=$(mail_sni_name "$2")
 	chmod 0750 "$d"
 	chown -R "$MAIL_USER:mail" "$d"
 	for f in "$d"/*; do
@@ -882,7 +883,7 @@ mail_ssl_modes() { # USER DOMAIN
 		chmod 0640 "$f"
 		chown -h "$1:mail" "$f"
 	done
-	for f in "$MAIL_SNI_DIR/$2.crt" "$MAIL_SNI_DIR/$2.key" "$MAIL_SNI_DIR/mail.$2.crt" "$MAIL_SNI_DIR/mail.$2.key"; do
+	for f in "$MAIL_SNI_DIR/$sni.crt" "$MAIL_SNI_DIR/$sni.key" "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key"; do
 		[ -L "$f" ] && chown -h "$1:mail" "$f"
 	done
 	return 0
@@ -900,6 +901,28 @@ smtp_relay_write() { # FILE OWNER MODE HOST PORT USER PASS
 	fi
 	rm -f "$tmp"
 	return 1
+}
+
+# The addresses a mail domain sends from, as exim reads them: the web domain's, else the user's first. Needs ip.sh.
+mail_outgoing_ip_write() { # USER DOMAIN
+	local d="$HOMEDIR/$1/conf/mail/$2" v4 v6
+	v4=$(get_object_value 'web' 'DOMAIN' "$2" '$IP')
+	if [ -n "$v4" ]; then
+		v4=$(get_real_ip "$v4")
+	else
+		v4=$(get_user_ips 4 | head -n1)
+	fi
+	v6=$(get_object_value 'web' 'DOMAIN' "$2" '$IP6')
+	[ -n "$v6" ] || v6=$(get_user_ips 6 | head -n1)
+	[ -n "$v6" ] && [ -e "$CONF_DIR/ips/$v6" ] || v6=''
+	rm -f "$d/ip" "$d/ipv6"
+	if [ -n "$v4" ]; then
+		echo "$v4" > "$d/ip" && chown "${MAIL_USER:-Debian-exim}:mail" "$d/ip" && chmod 660 "$d/ip" || return 1
+	fi
+	if [ -n "$v6" ]; then
+		echo "$v6" > "$d/ipv6" && chown "${MAIL_USER:-Debian-exim}:mail" "$d/ipv6" && chmod 660 "$d/ipv6" || return 1
+	fi
+	return 0
 }
 
 # Update 0.23: the relay files already on the box.
@@ -926,7 +949,18 @@ mail_ssl_modes_apply() {
 	done
 }
 
+# The name a client sends as SNI and dovecot's local_name: punycode for an IDN domain, while files keep the record's name.
+mail_sni_name() { # DOMAIN
+	if [[ "$1" = *[![:ascii:]]* ]]; then
+		idn2 --quiet "$1"
+	else
+		printf '%s\n' "$1"
+	fi
+}
+
 add_mail_ssl_config() {
+	local sni
+	sni=$(mail_sni_name "$domain")
 	if [ ! -d "$HOMEDIR/$user/conf/mail/$domain/ssl/" ]; then
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain/ssl/
 	fi
@@ -962,79 +996,81 @@ add_mail_ssl_config() {
 	fi
 
 	# Clean up dovecot configuration (if it exists)
-	if [ -f /etc/dovecot/conf.d/domains/$domain.conf ]; then
-		rm -f /etc/dovecot/conf.d/domains/$domain.conf
-	fi
+	rm -f "/etc/dovecot/conf.d/domains/$domain.conf" "/etc/dovecot/conf.d/domains/$sni.conf"
 
 	# Check if using custom / wildcard mail certificate
-	wildcard_domain="\\*.$(echo "$domain" | cut -f 1 -d . --complement)"
-	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $domain| $wildcard_domain")
-	dovecot_version="$(dovecot --version | cut -f -2 -d .)"
+	wildcard_domain="\\*.$(echo "$sni" | cut -f 1 -d . --complement)"
+	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $sni| $wildcard_domain")
 
 	if [ -n "$mail_cert_match" ]; then
-		if [[ "$dovecot_version" = "2.4" ]]; then
+		if dovecot_ge_24; then
 			# Add domain SSL configuration to dovecot
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name $domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+			echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "local_name $sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 		else
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name $domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+			echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "local_name $sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 		fi
 		# Add domain SSL configuration to exim4
-		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/$domain.crt
-		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/$domain.key
+		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem "$MAIL_SNI_DIR/$sni.crt"
+		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key "$MAIL_SNI_DIR/$sni.key"
 	fi
 
 	# Add domain SSL configuration to dovecot
-	if [[ "$dovecot_version" = "2.4" ]]; then
-		echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+	if dovecot_ge_24; then
+		echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "local_name mail.$sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 	else
-		echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+		echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "local_name mail.$sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 	fi
 
 	# Add domain SSL configuration to exim4
-	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
-	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
+	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem "$MAIL_SNI_DIR/mail.$sni.crt"
+	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key "$MAIL_SNI_DIR/mail.$sni.key"
 
 	mail_ssl_modes "$user" "$domain"
 }
 
 del_mail_ssl_config() {
+	local sni
+	sni=$(mail_sni_name "$domain")
 	# Check to prevent accidental removal of mismatched certificate
-	wildcard_domain="\\*.$(echo "$domain" | cut -f 1 -d . --complement)"
-	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $domain| $wildcard_domain")
+	wildcard_domain="\\*.$(echo "$sni" | cut -f 1 -d . --complement)"
+	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $sni| $wildcard_domain")
 
 	# Remove old mail certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*
 
 	# Remove dovecot configuration
-	rm -f /etc/dovecot/conf.d/domains/$domain.conf
-
-	# Remove SSL vhost configuration
-	rm -f $HOMEDIR/$user/conf/mail/$domain/*.*ssl.conf
-	conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
-	conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
+	rm -f "/etc/dovecot/conf.d/domains/$domain.conf" "/etc/dovecot/conf.d/domains/$sni.conf"
 
 	# Remove SSL certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*
 	if [ -n "$mail_cert_match" ]; then
-		rm -f $MAIL_SNI_DIR/$domain.crt $MAIL_SNI_DIR/$domain.key
+		rm -f "$MAIL_SNI_DIR/$sni.crt" "$MAIL_SNI_DIR/$sni.key"
 	fi
-	rm -f $MAIL_SNI_DIR/mail.$domain.crt $MAIL_SNI_DIR/mail.$domain.key
+	rm -f "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key" "$MAIL_SNI_DIR/mail.$domain.crt" "$MAIL_SNI_DIR/mail.$domain.key"
+}
+
+# A failed key leaves neither half behind, so nothing claims a DKIM it does not have.
+mail_dkim_keys_write() { # DOMAIN SIZE
+	local pem="$USER_DATA/mail/$1.pem" pub="$USER_DATA/mail/$1.pub"
+	openssl genrsa -out "$pem" "$2" &> /dev/null && openssl rsa -pubout -in "$pem" -out "$pub" &> /dev/null && return 0
+	rm -f "$pem" "$pub"
+	return 1
 }
 
 del_mail_ssl_certificates() {
@@ -1208,12 +1244,18 @@ mail_password_hash() { # PASSWORD
 	printf '%s\n' "$hash"
 }
 
+# dovecot 2.4 renamed the SSL and quota settings; every later version keeps the 2.4 names.
+dovecot_ge_24() {
+	local ver
+	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
+	[ -n "$ver" ] && [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = '2.4' ]
+}
+
 # The passwd line dovecot and exim read for an account, built here only: the quota syntax changed with dovecot 2.4.
 mail_passwd_line() { # USER ACCOUNT HASH QUOTA
-	local q="$4" ver rule
+	local q="$4" rule
 	[ "$q" != 'unlimited' ] && [ -n "$q" ] || q=0
-	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
-	if [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = '2.4' ]; then
+	if dovecot_ge_24; then
 		rule="userdb_quota_storage_size=${q}M"
 	else
 		rule="userdb_quota_rule=*:storage=${q}M"

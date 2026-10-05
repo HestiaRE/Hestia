@@ -23,6 +23,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/ip.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -160,6 +162,8 @@ if [ -n "$mail_data" ]; then
 	echo "[*] Moving mail domain and accounts..."
 
 	parse_object_kv_list "$mail_data"
+	mail_suspended=$SUSPENDED
+	format_domain_idn
 
 	# Ensure mail configuration directory exists for receiving user
 	if [ ! -e "$HOMEDIR/$user/conf/mail/$domain/" ]; then
@@ -181,6 +185,16 @@ if [ -n "$mail_data" ]; then
 			$CONF_DIR/users/$user/mail/
 	fi
 
+	# Autoreplies: the record copy moves along, and an exim-mode text is written again into the new conf dir.
+	for msg in "$CONF_DIR/users/$owner/mail/"*"@$domain.msg"; do
+		[ -e "$msg" ] || continue
+		account=$(basename "$msg" "@$domain.msg")
+		mv -f "$msg" "$CONF_DIR/users/$user/mail/"
+		if [ -e "$HOMEDIR/$owner/conf/mail/$domain/autoreply.$account.msg" ]; then
+			vacation_exim_write "$user" "$domain" "$account" "$CONF_DIR/users/$user/mail/$account@$domain.msg"
+		fi
+	done
+
 	# Move SSL certificates
 	if [ "$SSL" = 'yes' ]; then
 		# Ensure that SSL directory exists and move certificates
@@ -196,50 +210,25 @@ if [ -n "$mail_data" ]; then
 		mv $ssl_ca $CONF_DIR/users/$user/ssl/ >> /dev/null 2>&1
 		mv $ssl_pem $CONF_DIR/users/$user/ssl/ >> /dev/null 2>&1
 
-		# Add certificate to user home directory
-		cp -f $CONF_DIR/users/$user/ssl/mail.$domain.crt $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.crt
-		cp -f $CONF_DIR/users/$user/ssl/mail.$domain.key $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key
-		cp -f $CONF_DIR/users/$user/ssl/mail.$domain.pem $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem
-		if [ -e "$CONF_DIR/users/$user/ssl/mail.$domain.ca" ]; then
-			cp -f $CONF_DIR/users/$user/ssl/mail.$domain.ca $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.ca
-		fi
-
-		# Add domain SSL configuration to dovecot
-		if [ -f "/etc/dovecot/conf.d/domains/$domain.conf" ]; then
-			rm -f /etc/dovecot/conf.d/domains/$domain.conf
-		fi
-
-		dovecot_version="$(dovecot --version | cut -f -2 -d .)"
-		if [[ "$dovecot_version" = "2.4" ]]; then
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
-		else
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
-		fi
-
-		# Add domain SSL configuration to exim4
 		# Cleanup symlinks
 		find $MAIL_SNI_DIR -xtype l -delete
-
-		ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
-		ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
+		# The SNI links still point into the old owner's conf dir, and the writer below does not replace a link.
+		sni=$(mail_sni_name "$domain")
+		for link in "$MAIL_SNI_DIR/$sni.crt" "$MAIL_SNI_DIR/$sni.key" "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key"; do
+			[[ "$(readlink "$link")" == "$HOMEDIR/$owner/conf/mail/$domain/"* ]] && rm -f "$link"
+		done
+		ssl_dir=''
+		add_mail_ssl_config
 
 		mail_ssl_modes "$user" "$domain"
 	fi
 
-	# Move data
-	mv $HOMEDIR/$owner/mail/$domain $HOMEDIR/$user/mail/
-
-	# Change ownership
-	find $HOMEDIR/$user/mail/$domain -user $owner \
-		-exec chown -h $user {} \;
+	if mail_dir_trusted "$owner" "$domain_idn" && mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ]; then
+		mv "$HOMEDIR/$owner/mail/$domain_idn" "$HOMEDIR/$user/mail/"
+		find "$HOMEDIR/$user/mail/$domain_idn" -user "$owner" -exec chown -h "$user" {} \;
+	elif [ -e "$HOMEDIR/$owner/mail/$domain_idn" ]; then
+		echo "Warning: the mailboxes stay in $HOMEDIR/$owner/mail/$domain_idn, move them by hand"
+	fi
 
 	# Checking exim username for later chowning
 	exim_user="exim"
@@ -250,12 +239,7 @@ if [ -n "$mail_data" ]; then
 	# Chowning mail conf files to exim user
 	if [ -d "$HOMEDIR/$user/conf/mail/$domain" ]; then
 		find $HOMEDIR/$user/conf/mail/$domain -user root \
-			-exec chown $exim_user {} \;
-	fi
-
-	# Remove old mail directory from original owner
-	if [ -e "$HOMEDIR/$owner/mail/$domain" ]; then
-		rm -rf "$HOMEDIR/$owner/mail/$domain"
+			-exec chown -h $exim_user {} \;
 	fi
 
 	# Remove old mail configuration directory from original owner
@@ -267,7 +251,9 @@ if [ -n "$mail_data" ]; then
 	fi
 
 	# Rebuild config
-	$BIN/h-unsuspend-mail-domain "$user" "$domain" no
+	if [ "$mail_suspended" != 'yes' ]; then
+		$BIN/h-unsuspend-mail-domain "$user" "$domain" no
+	fi
 	$BIN/h-rebuild-mail-domains "$owner" no
 	$BIN/h-rebuild-mail-domains "$user"
 fi

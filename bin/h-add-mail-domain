@@ -4,13 +4,9 @@
 #
 # example: h-add-mail-domain admin mydomain.tld
 #
-# This function adds MAIL domain.
+# Adds a mail domain with its config dir and maildir, and unless DKIM is no a DKIM key of DKIM_SIZE bits
+# (1024, 2048, 4096).
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 antispam=${3-yes}
@@ -20,7 +16,6 @@ dkim_size=${6-2048}
 restart="$7"
 reject=${8-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -31,24 +26,17 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/ip.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Define mail user
 if [ "$MAIL_SYSTEM" = 'exim4' ]; then
 	MAIL_USER=Debian-exim
 else
 	MAIL_USER=exim
 fi
 
-# Additional argument formatting
 format_domain
 format_domain_idn
 domain_utf=$(idn2 --quiet -d "$domain_idn")
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [ANTISPAM] [ANTIVIRUS] [DKIM] [DKIM_SIZE] [RESTART] [REJECT_SPAM]'
 is_format_valid 'user' 'domain' 'antispam' 'antivirus' 'dkim' 'dkim_size' 'restart' 'reject'
@@ -56,13 +44,10 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-# Both spellings, unconditionally. The listing comparison these used to hang on could not be
-# false - a stray space inside the quotes - so the guard always ran; that is kept, without
-# the appearance of a condition.
+# Both spellings: a domain may be on record in its UTF-8 or its punycode form.
 is_domain_new 'mail' "$domain_utf"
 is_domain_new 'mail' "$domain_idn"
-# The silent predicate, not the validator: the validator logs its refusal, and this is the
-# success path of every domain add (#925).
+# looks_like_ip46, not is_ip46_format_valid: the validator logs its refusal, and here refusal is the normal case.
 if looks_like_ip46 "$domain"; then
 	echo "Error: Invalid domain format. IP address detected as input."
 	exit 1
@@ -74,12 +59,7 @@ mail_dir_trusted "$user" && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ] \
 
 is_base_domain_owner "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 source_conf "$USER_DATA/user.conf"
-# Inherit web domain local ip address
 domain_ip=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP')
 if [ ! -z "$domain_ip" ]; then
 	local_ip=$(get_real_ip "$domain_ip")
@@ -88,18 +68,21 @@ else
 	get_user_ip
 fi
 
-# Generating timestamp
 new_timestamp
 
 if [ -z "$ANTISPAM_SYSTEM" ]; then
 	antispam="no"
-	reject="no"
 fi
+# Rejecting acts on the spam score, so without the filter it would wait in the record and fire when it is switched on.
+[ "$antispam" = 'yes' ] || reject="no"
 if [ -z "$ANTIVIRUS_SYSTEM" ]; then
 	antivirus="no"
 fi
 
-# Adding domain to mail.conf
+if [ "$dkim" = 'yes' ]; then
+	mail_dkim_keys_write "$domain" "$dkim_size" || check_result "$E_DISK" "DKIM key generation failed for $domain"
+fi
+
 s="DOMAIN='$domain' ANTIVIRUS='$antivirus' ANTISPAM='$antispam' REJECT='$reject' DKIM='$dkim' WEBMAIL=''"
 s="$s SSL='no' LETSENCRYPT='no' CATCHALL='' ACCOUNTS='0' RATE_LIMIT='$RATE_LIMIT' U_DISK='0' SUSPENDED='no' TIME='$time'"
 s="$s DATE='$date'"
@@ -108,18 +91,9 @@ touch $USER_DATA/mail/$domain.conf
 
 syshealth_repair_mail_config
 
-# Generating DKIM keys
-if [ "$dkim" = 'yes' ]; then
-	openssl genrsa -out $USER_DATA/mail/$domain.pem $dkim_size &> /dev/null
-	openssl rsa -pubout -in $USER_DATA/mail/$domain.pem \
-		-out $USER_DATA/mail/$domain.pub &> /dev/null
-fi
-
-# Set permissions
 chmod 660 $USER_DATA/mail/$domain.*
 chmod 660 $USER_DATA/mail.conf
 
-# Building exim configs
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	mkdir $HOMEDIR/$user/conf/mail/$domain
 	mkdir $HOMEDIR/$user/mail/$domain_idn
@@ -131,12 +105,10 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	ln -s $HOMEDIR/$user/conf/mail/$domain \
 		/etc/$MAIL_SYSTEM/domains/$domain_idn
 
-	# Seeting outgoing ip address
 	if [ -n "$local_ip" ]; then
 		echo "$local_ip" > $HOMEDIR/$user/conf/mail/$domain/ip
 	fi
-	# v6 twin, derived like the webmail vhost. Unconditional on purpose: domain relay
-	# cannot exist yet at add time (its command removes both pins when it arrives).
+	# The v6 pin without a relay check: no relay can exist yet at add time, and adding one removes both pins.
 	local_ip6=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP6' 2> /dev/null)
 	if [ -z "$local_ip6" ] && get_user_ip6; then
 		local_ip6="$ip6"
@@ -146,7 +118,6 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	fi
 
 	if [ -n "$ANTISPAM_SYSTEM" ]; then
-		# Adding antispam protection
 		if [ "$antispam" = 'yes' ]; then
 			touch "$HOMEDIR/$user/conf/mail/$domain/antispam"
 		fi
@@ -156,25 +127,20 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	fi
 
 	if [ -n "$ANTIVIRUS_SYSTEM" ]; then
-		# Adding antivirus protection
 		if [ "$antivirus" = 'yes' ]; then
 			touch "$HOMEDIR/$user/conf/mail/$domain/antivirus"
 		fi
 	fi
 
-	# Adding dkim support
 	if [ "$dkim" = 'yes' ]; then
 		cp -f $USER_DATA/mail/$domain.pem \
 			$HOMEDIR/$user/conf/mail/$domain/dkim.pem
 	fi
 
-	# Set permission
 	chmod 771 $HOMEDIR/$user/conf/mail/$domain
 	chmod 660 $HOMEDIR/$user/conf/mail/$domain/*
-	chmod 771 /etc/$MAIL_SYSTEM/domains/$domain_idn
 	chmod 770 $HOMEDIR/$user/mail/$domain_idn
 
-	# Set ownership
 	chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain
 	if [ "$IMAP_SYSTEM" = 'dovecot' ]; then
 		chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
@@ -183,39 +149,29 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	chown $user:mail $HOMEDIR/$user/mail/$domain_idn
 fi
 
-# Add webmail configuration to mail domain (front-based: mailfront boxes have
-# an empty WEB_SYSTEM but nginx as WEBMAIL_FRONT, #193)
+# Keyed on the front, not WEB_SYSTEM: a mailfront box has no WEB_SYSTEM but nginx as WEBMAIL_FRONT.
 if [ -n "$(webmail_front)" ] || [ -n "$PROXY_SYSTEM" ]; then
 	if [ -n "$IMAP_SYSTEM" ]; then
 		$BIN/h-add-mail-domain-webmail "$user" "$domain" '' 'no'
 	fi
 fi
 
-# Run extension trigger
 if [ -x "$CONF_DIR/hooks/add-mail-domain.sh" ]; then
 	$CONF_DIR/hooks/add-mail-domain.sh "$user" "$domain"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Increasing domain value
 increase_user_value "$user" '$U_MAIL_DOMAINS'
 
 if [ "$dkim" = 'yes' ]; then
 	increase_user_value "$user" '$U_MAIL_DKIM'
 fi
 
-# Restarting web server
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
-# Restarting proxy server
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Added new mail domain ($domain)."
 log_event "$OK" "$ARGUMENTS"
 

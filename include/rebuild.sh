@@ -626,7 +626,7 @@ rebuild_mail_domain_conf() {
 
 	# Rebuilding exim config structure
 	if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-		rm -f /etc/$MAIL_SYSTEM/domains/$domain_idn
+		rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		ln -s $HOMEDIR/$user/conf/mail/$domain \
 			/etc/$MAIL_SYSTEM/domains/$domain_idn
@@ -641,6 +641,8 @@ rebuild_mail_domain_conf() {
 		rm -f $HOMEDIR/$user/conf/mail/$domain/ip
 		rm -f $HOMEDIR/$user/conf/mail/$domain/ipv6
 		rm -fr $HOMEDIR/$user/conf/mail/$domain/limits
+		# Written as root from the record below; a link exim's user planted in their place must not be followed.
+		rm -f $HOMEDIR/$user/conf/mail/$domain/{smtp_relay_exclude,spam_score,spam_reject_score,spam_subject_tag}
 		touch $HOMEDIR/$user/conf/mail/$domain/accounts
 		touch $HOMEDIR/$user/conf/mail/$domain/aliases
 		touch $HOMEDIR/$user/conf/mail/$domain/passwd
@@ -686,14 +688,16 @@ rebuild_mail_domain_conf() {
 			if [ ! -f "$USER_DATA/mail/$domain.pem" ]; then
 				check_result "$E_NOTEXIST" "$domain has DKIM='yes' but no private key ($USER_DATA/mail/$domain.pem); the published TXT record would announce a key nothing signs with"
 			fi
+			rm -f $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 			cp $USER_DATA/mail/$domain.pem \
 				$HOMEDIR/$user/conf/mail/$domain/dkim.pem
 		fi
 
 		# Rebuild SMTP Relay configuration
 		if [ "$U_SMTP_RELAY" = 'true' ]; then
-			$BIN/h-add-mail-domain-smtp-relay $user $domain "$U_SMTP_RELAY_HOST" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" \
-				"$(record_value_decode "$U_SMTP_RELAY_PASSWORD")" "$U_SMTP_RELAY_PORT"
+			# Written here, not through h-add-mail-domain-smtp-relay: its arguments would show the password in ps.
+			smtp_relay_write "$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf" 'Debian-exim:mail' 660 "$U_SMTP_RELAY_HOST" \
+				"$U_SMTP_RELAY_PORT" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" "$(record_value_decode "$U_SMTP_RELAY_PASSWORD")"
 		fi
 
 		# Rebuild SMTP relay exclude list (recipient domains delivered
@@ -723,18 +727,8 @@ rebuild_mail_domain_conf() {
 		else
 			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_subject_tag
 		fi
-		if [ -n "$U_SPAM_WHITELIST" ]; then
-			echo "$U_SPAM_WHITELIST" | tr ',' '\n' \
-				> $HOMEDIR/$user/conf/mail/$domain/spam_whitelist
-		else
-			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_whitelist
-		fi
-		if [ -n "$U_SPAM_BLACKLIST" ]; then
-			echo "$U_SPAM_BLACKLIST" | tr ',' '\n' \
-				> $HOMEDIR/$user/conf/mail/$domain/spam_blacklist
-		else
-			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_blacklist
-		fi
+		spam_list_write "$HOMEDIR/$user/conf/mail/$domain/spam_whitelist" "$U_SPAM_WHITELIST"
+		spam_list_write "$HOMEDIR/$user/conf/mail/$domain/spam_blacklist" "$U_SPAM_BLACKLIST"
 
 		# Removing configuration files if domain is suspended
 		if [ "$SUSPENDED" = 'yes' ]; then
@@ -743,7 +737,7 @@ rebuild_mail_domain_conf() {
 		fi
 
 		# Adding mail directory
-		if [ ! -e $HOMEDIR/$user/mail/$domain_idn ]; then
+		if mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ] && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ]; then
 			mkdir "$HOMEDIR/$user/mail/$domain_idn"
 		fi
 

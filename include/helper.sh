@@ -715,6 +715,21 @@ exim_spam_header_apply() {
 	exim_template_patch 0.22/exim-spam-header-strip.patch
 }
 
+# One local domain per inbound transaction, so the per-domain virus and spam flags hold for every recipient.
+exim_one_domain_apply() {
+	exim_template_patch 0.24/exim-one-domain-per-transaction.patch
+}
+
+# A domain's reject_spam no longer outlives its antispam scan.
+exim_reject_antispam_apply() {
+	exim_template_patch 0.24/exim-reject-needs-antispam.patch
+}
+
+# The per-domain sender and relay lists are read as plain patterns, never string-expanded.
+exim_lists_unexpanded_apply() {
+	exim_template_patch 0.24/exim-lists-unexpanded.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

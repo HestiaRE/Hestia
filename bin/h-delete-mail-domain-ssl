@@ -1,67 +1,51 @@
 #!/bin/bash
 # info: delete mail domain ssl support
-# options: USER DOMAIN
+# options: USER DOMAIN [RESTART]
 #
 # example: h-delete-mail-domain-ssl user demo.com
 #
-# This function delete ssl certificates.
+# Turns SSL off for the domain's mail and its webmail, and deletes the certificate.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-check_args '2' "$#" 'USER DOMAIN'
+check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_value_exist 'mail' 'DOMAIN' "$domain" '$SSL'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Delete mail domain SSL configuration
 del_mail_ssl_config
 del_mail_ssl_certificates
 del_webmail_ssl_config
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating config
 update_object_value 'mail' 'DOMAIN' "$domain" '$SSL' 'no'
 update_object_value 'mail' 'DOMAIN' "$domain" '$LETSENCRYPT' 'no'
 
-# Restarting mail server
 $BIN/h-restart-mail "$restart"
 check_result $? "Mail restart failed" > /dev/null
 
-# Logging
+# The webmail SSL vhost went with it, and the web server serves it from memory until a reload.
+web_restart=$restart
+[ "$restart" = 'yes' ] && web_restart=''
+$BIN/h-restart-web "$web_restart"
+check_result $? "Web restart failed" > /dev/null
+$BIN/h-restart-proxy "$web_restart"
+check_result $? "Proxy restart failed" > /dev/null
+
 $BIN/h-log-action "$user" "Warning" "Mail" "SSL disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

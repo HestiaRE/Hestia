@@ -44,7 +44,7 @@ is_restart_format_valid "$restart"
 # Delete old webmail configuration
 for user in $("$BIN/h-list-users" list); do
 	for domain in $($BIN/h-list-mail-domains "$user" plain | cut -f 1); do
-		$BIN/h-delete-mail-domain-webmail "$user" "$domain"
+		$BIN/h-delete-mail-domain-webmail "$user" "$domain" 'no'
 	done
 done
 

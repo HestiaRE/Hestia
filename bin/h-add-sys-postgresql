@@ -40,8 +40,9 @@ fi
 
 PG_MAJOR=$(pg_lsclusters -h 2> /dev/null | awk 'NR==1{print $1}')
 systemctl enable postgresql > /dev/null 2>&1 || true
-systemctl start "postgresql@${PG_MAJOR}-main" > /dev/null 2>&1 \
-	|| systemctl start postgresql > /dev/null 2>&1 || true
+systemctl start "postgresql@${PG_MAJOR}-main" > /dev/null 2>&1 || true
+# the umbrella too: h-delete-sys-postgresql stopped it, and the panel and smoke read its state
+systemctl start postgresql > /dev/null 2>&1 || true
 _ready=0
 for _ in $(seq 1 15); do
 	pg_isready -q 2> /dev/null && {

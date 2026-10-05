@@ -1024,11 +1024,6 @@ del_mail_ssl_config() {
 	# Remove dovecot configuration
 	rm -f /etc/dovecot/conf.d/domains/$domain.conf
 
-	# Remove SSL vhost configuration
-	rm -f $HOMEDIR/$user/conf/mail/$domain/*.*ssl.conf
-	conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
-	conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
-
 	# Remove SSL certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*
 	if [ -n "$mail_cert_match" ]; then

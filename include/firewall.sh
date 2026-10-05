@@ -25,9 +25,9 @@ FW_INPUT_POLICY="drop"
 FW_ADDR_RE='^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$'
 # Deliberately loose: a sanity filter, not a parser - nft validates, this only keeps its grammar out.
 FW_ADDR6_RE='^[0-9A-Fa-f:]*:[0-9A-Fa-f:.]*(/[0-9]{1,3})?$'
-# What no blocklist and no CrowdSec ban may drop: loopback and the private ranges. FireHOL level1 carries 10/8 through
-# fullbogons, and a DROP on it locked the admin network out of a NAT'd box (#510).
-FW_KEEP_V4=(127.0.0.0/8 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16)
+# What no blocklist and no CrowdSec ban may drop: loopback, the private ranges and CGNAT (Tailscale). FireHOL
+# level1 carries 10/8 through fullbogons, and a DROP on it locked the admin network out of a NAT'd box (#510).
+FW_KEEP_V4=(127.0.0.0/8 10.0.0.0/8 100.64.0.0/10 172.16.0.0/12 192.168.0.0/16)
 FW_KEEP_V6=(::1 fe80::/10 fc00::/7)
 
 #----------------------------------------------------------#

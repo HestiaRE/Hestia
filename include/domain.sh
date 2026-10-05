@@ -1188,6 +1188,19 @@ del_webmail_ssl_config() {
 	fi
 }
 
+# The passwd line dovecot and exim read for an account, built here only: the quota syntax changed with dovecot 2.4.
+mail_passwd_line() { # USER ACCOUNT HASH QUOTA
+	local q="$4" ver rule
+	[ "$q" != 'unlimited' ] && [ -n "$q" ] || q=0
+	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
+	if [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = '2.4' ]; then
+		rule="userdb_quota_storage_size=${q}M"
+	else
+		rule="userdb_quota_rule=*:storage=${q}M"
+	fi
+	printf '%s\n' "$2:$3:$1:mail::$HOMEDIR/$1:$q:$rule"
+}
+
 # exim writes maildirsize through the mailbox's tmp/, which only the first INBOX delivery created: a mailbox whose
 # first mail was spam had its Spam delivery deferred until then, and bounced if nothing else arrived.
 mail_account_maildir_ensure() { # USER DOMAIN_IDN ACCOUNT

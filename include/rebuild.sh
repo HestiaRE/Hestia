@@ -782,18 +782,8 @@ rebuild_mail_domain_conf() {
 				QUOTA=0
 			fi
 			mail_account_maildir_ensure "$user" "$domain_idn" "$account"
-			dovecot_version="$(dovecot --version | cut -f -2 -d .)"
-			if [[ "$dovecot_version" = "2.4" ]]; then
-				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_storage_size=${QUOTA}M"
-				echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
-				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
-			else
-				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_rule=*:storage=${QUOTA}M"
-				echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
-				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
-			fi
+			mail_passwd_line "$user" "$account" "$MD5" "$QUOTA" >> $HOMEDIR/$user/conf/mail/$domain/passwd
+			echo "$account:$account:$user:mail:$HOMEDIR/$user" >> $HOMEDIR/$user/conf/mail/$domain/accounts
 			local -a _malias_list
 			IFS=, read -ra _malias_list <<< "$ALIAS"
 			for malias in "${_malias_list[@]}"; do

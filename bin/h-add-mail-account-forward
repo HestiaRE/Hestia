@@ -47,11 +47,10 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
 fwd=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD')
-if [ -n "$(echo $fwd | grep -w "$email_forward")" ]; then
-	echo "Error: forward $email_forward exists"
-	log_event "$E_EXISTS" "$ARGUMENTS"
-	exit $E_EXISTS
-fi
+IFS=, read -ra fwd_list <<< "$fwd"
+for f in "${fwd_list[@]}"; do
+	[ "$f" != "$email_forward" ] || check_result "$E_EXISTS" "forward $email_forward exists"
+done
 
 #----------------------------------------------------------#
 #                       Action                             #

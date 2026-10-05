@@ -857,19 +857,17 @@ is_mail_domain_new() {
 }
 
 is_mail_new() {
-	check_acc=$(grep -F "ACCOUNT='$1'" $USER_DATA/mail/$domain.conf)
-	if [ -n "$check_acc" ]; then
-		check_result "$E_EXISTS" "mail account $1 already exists"
-	fi
-	check_als=$(awk -F "ALIAS='" '{print $2}' $USER_DATA/mail/$domain.conf)
-	match=$(echo "$check_als" | cut -f 1 -d "'" | grep $1)
-	if [ -n "$match" ]; then
-		parse_object_kv_list "$(grep "ALIAS='$match'" $USER_DATA/mail/$domain.conf)"
-		check_als=$(echo ",$ALIAS," | grep ",$1,")
-		if [ -n "$check_als" ]; then
-			check_result "$E_EXISTS" "mail alias $1 already exists"
-		fi
-	fi
+	local line a
+	local -a als
+	[ -f "$USER_DATA/mail/$domain.conf" ] || return 0
+	# Per field and literal: a pattern over the whole file let a.b match axb and only weighed the last record it hit.
+	while IFS= read -r line; do
+		[ "$(record_field "$line" ACCOUNT)" != "$1" ] || check_result "$E_EXISTS" "mail account $1 already exists"
+		IFS=, read -ra als <<< "$(record_field "$line" ALIAS)"
+		for a in "${als[@]}"; do
+			[ "$a" != "$1" ] || check_result "$E_EXISTS" "mail alias $1 already exists"
+		done
+	done < "$USER_DATA/mail/$domain.conf"
 }
 
 # Modes of a mail domain's certificate files: exim reads them through the mail group, dovecot as root, nobody else.

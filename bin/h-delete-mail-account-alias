@@ -41,11 +41,16 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 aliases=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$ALIAS')
-if [ -z "$(echo $aliases | grep -w -e $malias)" ]; then
-	echo "Error: alias $malias doesn't exist"
-	log_event "$E_NOTEXIST $ARGUMENTS"
-	exit "$E_NOTEXIST"
-fi
+IFS=, read -ra alias_list <<< "$aliases"
+found='' aliases=''
+for a in "${alias_list[@]}"; do
+	if [ "$a" = "$malias" ]; then
+		found=yes
+	elif [ -n "$a" ]; then
+		aliases="${aliases:+$aliases,}$a"
+	fi
+done
+[ -n "$found" ] || check_result "$E_NOTEXIST" "alias $malias doesn't exist"
 
 #----------------------------------------------------------#
 #                       Action                             #
@@ -54,12 +59,6 @@ fi
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$malias@$domain_idn:$account"
 fi
-
-aliases=$(echo "$aliases" \
-	| sed "s/,/\n/g" \
-	| sed "s/^$malias$//g" \
-	| sed "/^$/d" \
-	| sed ':a;N;$!ba;s/\n/,/g')
 
 #----------------------------------------------------------#
 #                       Hestia                             #

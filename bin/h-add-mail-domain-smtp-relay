@@ -42,6 +42,11 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_password_valid
+# The panel never shows the stored password, so an empty one next to the same username keeps it.
+if [ -z "$password" ] && [ -n "$username" ] \
+	&& [ "$(record_value_decode "$(get_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_USERNAME')")" = "$username" ]; then
+	password=$(record_value_decode "$(get_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PASSWORD')")
+fi
 is_username_format_valid "$username" "Username"
 format_no_quotes "$password" "Password"
 

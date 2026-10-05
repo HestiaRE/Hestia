@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-account-autoreply admin example.com testing
 #
-# This function of obtaining mail account autoreply message.
+# Lists the account's autoreply text with its SOURCE and whether it is ENABLED.
 
 user=$1
 domain=$2

@@ -4,7 +4,7 @@
 #
 # example: h-add-mail-account-fwd-only admin example.com user
 #
-# This function adds fwd-only flag
+# Forwarded mail is no longer kept in the mailbox.
 
 user=$1
 domain=$2

@@ -4,7 +4,7 @@
 #
 # example: h-change-mail-account-quota admin mydomain.tld user01 unlimited
 #
-# This function changes email account disk quota.
+# Changes the account's disk quota in MB, or unlimited.
 
 user=$1
 domain=$2

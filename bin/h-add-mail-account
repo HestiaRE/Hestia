@@ -2,9 +2,9 @@
 # info: add mail domain account
 # options: USER DOMAIN ACCOUNT PASSWORD [QUOTA]
 #
-# example: h-add-mail-account user example.com john P4$$vvOrD
+# example: h-add-mail-account user example.com john 'Secret-Pass-2026'
 #
-# This function add new email account.
+# Adds a mailbox, QUOTA in MB and unlimited when left out. PASSWORD may name a file under /tmp holding it.
 
 user=$1
 domain=$2

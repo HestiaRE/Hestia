@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-account admin domain.tld tester
 #
-# This function of obtaining the list of account parameters.
+# Lists the account record.
 
 user=$1
 domain=$2

@@ -2,9 +2,9 @@
 # info: add mail account autoreply message
 # options: USER DOMAIN ACCOUNT MESSAGE
 #
-# example: h-add-mail-account-autoreply admin example.com user Hello from e-mail!
+# example: h-add-mail-account-autoreply admin example.com user 'Out of office until Monday.'
 #
-# This function add new email account.
+# Sets the account's autoreply text; with Sieve it goes into the vacation rule of the webmail's script.
 
 user=$1
 domain=$2

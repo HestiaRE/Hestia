@@ -4,7 +4,7 @@
 #
 # example: h-add-mail-account-alias admin acme.com alice alicia
 #
-# This function add new email alias.
+# Adds an address that delivers into the account.
 
 user=$1
 domain=$2

@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-accounts admin acme.com
 #
-# This function of obtaining the list of all user domains.
+# Lists the accounts of one mail domain.
 
 user=$1
 domain=$2

@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-account-fwd-only admin example.com jack
 #
-# This function deletes fwd-only flag
+# Forwarded mail is kept in the mailbox again.
 
 user=$1
 domain=$2

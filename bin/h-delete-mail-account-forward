@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-account-forward admin acme.com tony bob@acme.com
 #
-# This function deletes an email accounts forwarding address.
+# Deletes one forward address of the account.
 
 user=$1
 domain=$2

@@ -2,9 +2,9 @@
 # info: add mail account forward address
 # options: USER DOMAIN ACCOUNT FORWARD
 #
-# example: h-add-mail-account-forward admin acme.com alice bob
+# example: h-add-mail-account-forward admin acme.com alice bob@example.org
 #
-# This function add new email account.
+# Adds a forward address; :blackhole: discards the account's mail instead.
 
 user=$1
 domain=$2

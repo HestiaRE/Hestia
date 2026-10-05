@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-account-autoreply admin mydomain.tld bob
 #
-# This function deletes an email accounts autoreply.
+# Deletes the account's autoreply text.
 
 user=$1
 domain=$2

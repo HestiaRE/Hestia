@@ -4,7 +4,7 @@
 #
 # example: h-get-mail-account-value admin example.tld tester QUOTA
 #
-# This function for getting a certain mail account parameter.
+# Prints one field of the account record, KEY as h-list-mail-account names it.
 
 user=$1
 domain=$2

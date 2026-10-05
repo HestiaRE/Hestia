@@ -4,7 +4,7 @@
 #
 # example: h-change-mail-account-rate-limit admin mydomain.tld user01 100
 #
-# This function changes email account rate limit. Use system to use domain or "server" setting
+# Changes the account's limit in mails per hour; system falls back to the domain's limit, then the server's.
 
 user=$1
 domain=$2

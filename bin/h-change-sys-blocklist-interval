@@ -4,28 +4,17 @@
 #
 # example: h-change-sys-blocklist-interval 12h
 #
-# INTERVAL is a systemd time span (30min, 6h, 1d). One for all lists - per-list would be rework.
+# INTERVAL is a systemd time span (30min, 6h, 1d) and applies to all lists alike.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 interval=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	check_result "$E_FORBIDEN" "Script can be run executed only by root"
@@ -54,10 +43,6 @@ if [ ! -f /etc/systemd/system/hestia-blocklist.timer ]; then
 	check_result "$E_NOTEXIST" "no blocklist timer installed, add an IP list first"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 fw_blocklist_interval_apply "$interval"
 systemctl -q daemon-reload
 systemctl -q restart hestia-blocklist.timer 2> /dev/null
@@ -66,10 +51,6 @@ $BIN/h-change-sys-config-value 'BLOCKLIST_INTERVAL' "$interval"
 
 echo "Blocklist refresh interval: $interval"
 systemctl list-timers hestia-blocklist.timer --no-pager --no-legend 2> /dev/null | awk '{print "  next run: " $1, $2, $3}'
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Blocklist refresh interval changed to $interval."
 log_event "$OK" "$ARGUMENTS"

@@ -6,47 +6,30 @@
 #
 # example: h-delete-firewall-chain WEB
 #
-# This function adds new rule to system firewall
+# Detaches and destroys a fail2ban jail. Its chains.conf and banlist.conf rows go too, unless KEEP_RECORDS is yes.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 chain=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 keep=${2:-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source "$HESTIA/include/firewall.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'CHAIN [KEEP_RECORDS]'
 is_format_valid 'chain'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting chain
 chains="$CONF_DIR/firewall/chains.conf"
 banlist="$CONF_DIR/firewall/banlist.conf"
 chain_param=""
 [ -f "$chains" ] && chain_param=$(grep "CHAIN='$chain'" "$chains")
 if [ -n "$chain_param" ]; then
 	parse_object_kv_list "$chain_param"
-	# fail2ban calls this as actionstop on every stop, restart and upgrade, and purging there wiped the
-	# persistent banlist - the one property the hestia action exists for. actionstop passes KEEP='yes'.
+	# actionstop runs on every fail2ban stop, restart and upgrade and passes yes: purging there wipes the banlist.
 	if [ "$keep" != 'yes' ]; then
 		sed -i "/CHAIN='$chain'/d" "$chains"
 		sed -i "/CHAIN='$chain'/d" "$banlist" 2> /dev/null
@@ -54,17 +37,10 @@ if [ -n "$chain_param" ]; then
 	fw_jail_detach "$CHAIN" "$PROTOCOL" "$PORT"
 fi
 
-# Deleting the backend chain
 fw_jail_destroy "$CHAIN"
 
-# Changing permissions
 [ -f "$chains" ] && chmod 660 "$chains"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

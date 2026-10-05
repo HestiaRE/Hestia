@@ -4,31 +4,18 @@
 #
 # example: h-delete-sys-crowdsec-peer node2
 #
-# Drops the peer record (its tokens die with it), closes the IP-scoped panel-port rule, removes its
-# staged list and the bans it contributed. Run it on BOTH boxes: unpairing is deliberately local (no
-# remote command), so the other side keeps a dead peer - and its firewall hole - until unpaired there
-# too. Otherwise harmless: the orphaned peer's pulls just get a 403.
+# Drops the peer record with its tokens, its panel-port rule, staged list and contributed bans. Unpairing is local on
+# purpose, so run it on both boxes: the other side keeps a dead peer and its firewall hole until then (its pulls 403).
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 peer=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/crowdsec-mesh.sh
 source $HESTIA/include/crowdsec-mesh.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -48,10 +35,6 @@ if [ ! -f "$MESH_PEERS_CONF" ] || ! grep -qF "PEER='$peer' " "$MESH_PEERS_CONF";
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 mesh_fw_close "$peer"
 remove_line_by_prefix "$MESH_PEERS_CONF" "PEER='$peer' "
 rm -f "$MESH_PEERS_DIR/$peer.json"
@@ -62,10 +45,6 @@ fi
 
 mesh_stage_serve
 echo "Peer $peer unpaired. Run h-delete-sys-crowdsec-peer on that box too."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "CrowdSec mesh peer removed (Peer: $peer)."
 log_event "$OK" "$ARGUMENTS"

@@ -4,50 +4,28 @@
 #
 # example: h-delete-firewall-rule SSH_BLOCK
 #
-# This function deletes firewall rule.
+# Deletes a firewall rule; if the ruleset refuses the change, the rule stays.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 rule=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source "$HESTIA/include/firewall.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'RULE'
 is_format_valid 'rule'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 is_object_valid "$CONF_DIR/firewall/rules" 'RULE' "$rule"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting rule
 fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 sed -i "/RULE='$rule' /d" $CONF_DIR/firewall/rules.conf
 
-# Updating system firewall
 fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rule kept"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "Removed firewall rule (ID: $rule)."
 log_event "$OK" "$ARGUMENTS"
 

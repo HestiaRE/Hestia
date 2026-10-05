@@ -4,32 +4,17 @@
 #
 # example: h-update-sys-botfamilies
 #
-# Re-renders the web-server rate-limit config from the system bot-family conf
-# (/etc/hestia/botfamilies.conf) and reloads. Run after editing that conf. Renders the nginx zones
-# where nginx is the public front, else the apache mod_qos counters (apache-only).
-#
-# Also re-renders every throttled domain's fragment first: fragments reference zones by family name, so
-# a table edit that renamed or disabled a family would otherwise leave a dangling zone reference and
-# fail the nginx test below - blocking the next reload for the whole box.
+# Re-renders the bot rate-limit config from /etc/hestia/botfamilies.conf and reloads. The domain fragments go
+# first: a renamed or disabled family would otherwise leave a dangling zone and fail the test for the whole box.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/botpolicy.sh
 source $HESTIA/include/botpolicy.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -41,13 +26,9 @@ if [ ! -f "$CONF_DIR/botfamilies.conf" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 botpolicy_render_all_fragments
 
-# nginx fronts in nginx-only + both; apache-only is the only model where apache does Layer B.
+# nginx fronts in nginx-only and both; only in apache-only does apache throttle.
 if [ -n "$PROXY_SYSTEM" ]; then pub="$PROXY_SYSTEM"; else pub="$WEB_SYSTEM"; fi
 
 # The render writes into the live config dir, so a failed test puts the previous file back: left in place it
@@ -84,10 +65,6 @@ elif [ "$WEB_SYSTEM" = "apache2" ]; then
 else
 	echo "No web front for bot rate-limiting on this model."
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Re-rendered web bot rate-limit config."
 log_event "$OK" "$ARGUMENTS"

@@ -6,13 +6,8 @@
 #
 # example: h-add-firewall-chain CRM 5678 TCP
 #
-# This function adds new rule to system firewall
+# Wires a fail2ban jail into the live ruleset and records it in chains.conf. Known chains bring their own ports.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 chain=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 port="$2"
 port_ext="$2"
@@ -20,37 +15,23 @@ protocol="$3"
 [ -z "$protocol" ] && protocol='TCP'
 protocol=$(echo "$protocol" | tr '[:lower:]' '[:upper:]')
 
-# Defining absolute path to iptables
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source "$HESTIA/include/firewall.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# From BACKEND_PORT. It was scraped out of the nginx.conf Caddy replaced, so the sed errored on every jail
-# creation and fell back to the default - guarding the wrong port wherever the panel port had been changed.
+# From BACKEND_PORT, not the nginx.conf Caddy replaced: scraping that guarded the default on a changed panel port.
 hestiaport="${BACKEND_PORT:-8083}"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'CHAIN [PORT] [PROTOCOL]'
 is_format_valid 'chain' 'port_ext' 'protocol'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking known chains
 case $chain in
-	SSH) # Get ssh port (or ports) using h-list-sys-sshd-port.
+	SSH)
 		sshport="$($BIN/h-list-sys-sshd-port plain | sed ':a;N;$!ba;s/\n/,/g')"
 		if [ -z "$sshport" ]; then
 			sshport=22
@@ -70,8 +51,7 @@ case $chain in
 		port='80,443'
 		protocol=TCP
 		;;
-	# Same ports as WEB, separate chain purely so the scanner-signature jails can drop while the
-	# webmail/phpMyAdmin logins on the same ports keep rejecting (see fw_jail_verdict).
+	# Same ports as WEB, own chain: the scanner jails drop while the logins on these ports reject (fw_jail_verdict).
 	WEBSCAN)
 		port='80,443'
 		protocol=TCP
@@ -91,10 +71,9 @@ case $chain in
 	*) check_args '2' "$#" 'CHAIN PORT' ;;
 esac
 
-# Only wires the jump when the chain did not exist yet, so a re-run is a no-op.
+# Inserts the rules only while the input chain does not match the jail's set yet, so a re-run is a no-op.
 fw_jail_attach "$chain" "$protocol" "$port"
 
-# Preserving chain
 chains="$CONF_DIR/firewall/chains.conf"
 check_chain=""
 [ -f "$chains" ] && check_chain=$(grep "CHAIN='$chain'" "$chains")
@@ -102,14 +81,8 @@ if [ -z "$check_chain" ]; then
 	echo "CHAIN='$chain' PORT='$port' PROTOCOL='$protocol'" >> "$chains"
 fi
 
-# Changing permissions
 [ -f "$chains" ] && chmod 660 "$chains"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "Added service to firewall (Service: $chain, Port: $port, Protocol: $protocol)."
 log_event "$OK" "$ARGUMENTS"
 

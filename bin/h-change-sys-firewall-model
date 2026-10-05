@@ -4,28 +4,18 @@
 #
 # example: h-change-sys-firewall-model crowdsec
 #
-# Runtime switch across the four models the two addons encode. The current one is DERIVED from artefacts on
-# disk, not install.conf, which holds the recipe rather than the live state; no MODEL arg just prints it.
-# Components are added BEFORE any removal, so a crowdsec target that refuses on apache leaves the box with
-# its existing protection. crowdsec-only is best-effort: mail has no detection surface, bans only via cscli.
+# Switches between the four models the fail2ban and CrowdSec addons encode; without MODEL it prints the live one.
+# crowdsec alone is best-effort: mail has no detection surface there, bans come only via cscli.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 model=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Derive the live model from the artefacts, not install.conf.
-# The key alone is not the model: a fail2ban that never came up still carries it, and was reported as present.
+# From the artefacts, not install.conf (the recipe); and the key alone also names a fail2ban that never came up.
 f2b='no'
 if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
 	f2b='yes'
@@ -42,11 +32,6 @@ case "$f2b/$cs" in
 	down/yes) current='fail2ban (not running)+crowdsec' ;;
 esac
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# No argument: report the current model and exit (lets the panel and scripts read it cheaply).
 if [ -z "$model" ]; then
 	echo "$current"
 	exit 0
@@ -70,10 +55,6 @@ if [ "$model" = "$current" ]; then
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 want_f2b='no'
 want_cs='no'
 case "$model" in
@@ -85,9 +66,7 @@ case "$model" in
 	crowdsec) want_cs='yes' ;;
 esac
 
-# Held across the WHOLE switch, so a web switch cannot flip the front between the refuse check and the
-# wiring; reentrant, so the child command shares it. Only for crowdsec transitions - a pure fail2ban toggle
-# touches the firewall, not web config, and should not freeze domain ops.
+# Held over the whole switch so the web front cannot flip mid-way (reentrant for the child); fail2ban alone skips it.
 if { [ "$want_cs" = 'yes' ] && [ "$cs" = 'no' ]; } || { [ "$want_cs" = 'no' ] && [ "$cs" = 'yes' ]; }; then
 	web_lock_acquire || exit "$E_INUSE"
 fi
@@ -106,12 +85,7 @@ if [ "$want_cs" = 'no' ] && [ "$cs" = 'yes' ]; then
 	$BIN/h-delete-sys-crowdsec || exit "$E_INVALID"
 fi
 
-# No feeder refresh here: each component command owns its own L3 consequence, so calling the addon commands
-# directly reaches the same enforcement state as this switch does.
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+# No feeder refresh here: each component command owns its own firewall consequence.
 
 $BIN/h-log-action "system" "Info" "System" "Brute-force protection model changed ($current -> $model)."
 log_event "$OK" "$ARGUMENTS"

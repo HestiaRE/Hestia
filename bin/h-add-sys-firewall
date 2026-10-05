@@ -4,52 +4,30 @@
 #
 # example: h-add-sys-firewall
 #
-# This function enables the system firewall.
+# Enables the nftables firewall, seeding the default ruleset on a box that has none.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$FIREWALL_SYSTEM" = 'nftables' ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Adding default ruleset
 if [ -z "$(ls -A $CONF_DIR/firewall 2> /dev/null)" ]; then
 	mkdir -p "$CONF_DIR/firewall"
 	cp -f "$HESTIA/share/firewall/rules.conf" "$CONF_DIR/firewall/rules.conf"
 fi
 
-# Updating FIREWAL_SYSTEM value
 $BIN/h-change-sys-config-value "FIREWALL_SYSTEM" "nftables"
 
-# Updating firewall rules
 if ! $BIN/h-update-firewall; then
 	$BIN/h-change-sys-config-value "FIREWALL_SYSTEM" ""
 	check_result "$E_INVALID" "the ruleset was rejected, firewall not enabled"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "System firewall enabled."
 log_event "$OK" "$ARGUMENTS"
 

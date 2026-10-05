@@ -4,42 +4,26 @@
 #
 # example: h-list-sys-crowdsec-peers json
 #
-# Tokens are never printed - identity is all a panel or an operator needs. PIN is a public-key hash,
-# safe to show and useful for eyeballing a cert change.
+# Tokens are never printed. PIN is a public-key hash: safe to show, and useful for spotting a cert change.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/crowdsec-mesh.sh
 source $HESTIA/include/crowdsec-mesh.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if ! mesh_load; then
 	echo "ERROR: CrowdSec fleet-mesh is not enabled."
 	exit "$E_DISABLED"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 [ -f "$MESH_PEERS_CONF" ] || touch "$MESH_PEERS_CONF"
 
-# Bans contributed per peer - answers "is this link doing anything".
+# Bans contributed per peer: shows whether a link is doing anything.
 declare -A MESH_SEEN
 if command -v cscli > /dev/null 2>&1 && command -v jq > /dev/null 2>&1; then
 	while read -r cnt scen; do
@@ -102,9 +86,5 @@ case $format in
 	shell) shell_list | column -t -s '^' ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

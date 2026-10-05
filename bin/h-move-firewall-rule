@@ -4,58 +4,40 @@
 #
 # example: h-move-firewall-rule 4 up
 #
-# This function is used for moving an existing firewall rule.
-# Direction can be either "up" or "down".
-#
-# "up" swaps the rule to the next LOWER number, "down" to the next higher.
-# Note that lower is not higher priority: the renderer emits by descending RULE
-# id and nft takes the first match, so a higher number wins. The panel lists in
-# that same descending order, and its up arrow therefore calls "down".
+# Swaps a rule with its neighbour: "up" to the next LOWER id, "down" to the next higher.
+# Lower is not higher priority: the renderer emits by descending id and nft takes the first match, so a higher
+# number wins. The panel lists in that same descending order, and its up arrow therefore calls "down".
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 source_rule=$1
 direction=$(echo "$2" | tr '[:lower:]' '[:upper:]')
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source "$HESTIA/include/firewall.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 get_rule_id() {
-	# The next EXISTING id that way: the ids have gaps, and a missing neighbour wrote the rule twice.
+	# The next existing id that way, since the ids have gaps.
 	sed -n "s/^RULE='\([0-9]*\)'.*/\1/p" "$CONF_DIR/firewall/rules.conf" | sort -n \
 		| awk -v s="$1" -v d="$2" '(d == "UP" && $1 < s) { t = $1 } (d == "DOWN" && $1 > s && t == "") { t = $1 } END { print t }'
 }
 
-# Sort function
 sort_fw_rules() {
 	cat $CONF_DIR/firewall/rules.conf \
 		| sort -n -k 2 -t \' > $CONF_DIR/firewall/rules.conf.tmp
 	mv -f $CONF_DIR/firewall/rules.conf.tmp \
 		$CONF_DIR/firewall/rules.conf
 }
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'RULE DIRECTION'
-# The variable is source_rule, and 'rule' named nothing - so this validated neither, and the value was
-# being passed as if it were a second name. is_format_valid dispatches on variable NAMES and has no
-# 'source_rule' case, so call the underlying validator with the value.
+# is_format_valid dispatches on variable names and has no 'source_rule' case, so the value goes in directly.
 is_int_format_valid "$source_rule" 'rule id'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 is_object_valid "$CONF_DIR/firewall/rules" 'RULE' "$source_rule"
 
-# Check if the direction is valid
 if [[ "$direction" != "UP" && "$direction" != "DOWN" ]]; then
 	echo "Invalid direction. Use 'up' or 'down'."
 	exit 1
@@ -68,57 +50,38 @@ if [ -z "$target_rule" ]; then
 	exit 1
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get the rule that will be moved
 parse_object_kv_list "$(grep "RULE='$source_rule'" $CONF_DIR/firewall/rules.conf)"
 
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Concatenating firewall rule
 source_str="RULE='$target_rule' ACTION='$ACTION' PROTOCOL='$PROTOCOL' PORT='$PORT'"
 source_str="$source_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED'"
 source_str="$source_str TIME='$time' DATE='$date'"
 
-# Deleting old source rule
 fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 sed -i "/RULE='$source_rule' /d" $CONF_DIR/firewall/rules.conf
 
 parse_object_kv_list "$(grep "RULE='$target_rule'" $CONF_DIR/firewall/rules.conf)"
 
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Concatenating firewall rule
 target_str="RULE='$source_rule' ACTION='$ACTION' PROTOCOL='$PROTOCOL' PORT='$PORT'"
 target_str="$target_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED'"
 target_str="$target_str TIME='$time' DATE='$date'"
 
-# Deleting old target rule
 sed -i "/RULE='$target_rule' /d" $CONF_DIR/firewall/rules.conf
 
-# Adding new source and target rules
 echo "$source_str" >> $CONF_DIR/firewall/rules.conf
 echo "$target_str" >> $CONF_DIR/firewall/rules.conf
 
-# Sorting firewall rules by id number
 sort_fw_rules
 
-# Updating system firewall
 fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rules not moved"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "Firewall rule $source_rule moved $direction (Source rule: $source_rule, Target rule: $target_rule)."
 log_event "$OK" "$ARGUMENTS"
 exit

@@ -4,11 +4,7 @@
 #
 # example: h-add-firewall-ipset country-nl "https://raw.githubusercontent.com/ipverse/rir-ip/master/country/nl/ipv4-aggregated.txt"
 #
-# This function adds new ipset to system firewall
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Adds an IP list as a named firewall set; without SOURCE a known record is reloaded with its stored source.
 
 ip_name=${1}
 data_source=${2}
@@ -16,19 +12,13 @@ ip_version=${3:-v4}
 autoupdate=${4:-yes}
 refresh=${5:-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'NAME [SOURCE] [IPVERSION] [AUTOUPDATE] [REFRESH]'
 is_format_valid 'ip_name'
@@ -38,11 +28,10 @@ is_boolean_format_valid "$autoupdate" 'Automatically update IP list (yes/no)'
 is_boolean_format_valid "$refresh" 'Refresh IP list (yes/no)'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
-# No ipset binary probe or install: the renderer builds native nft sets, so the package is not on this path.
+# No ipset package probe or install: the renderer builds native nft sets.
 ipset_hstobject="$CONF_DIR/firewall/ipset"
 IPSET_PATH="$CONF_DIR/firewall/ipset"
 
-# Ensure ipset configuration path and master file exist before attempting to parse
 mkdir -p "$IPSET_PATH"
 if [ ! -f "$CONF_DIR/firewall/ipset.conf" ]; then
 	touch $CONF_DIR/firewall/ipset.conf
@@ -66,7 +55,7 @@ fi
 if ! echo "$data_source" | grep -Eq '^(https?|script|file):'; then
 	check_result "$E_INVALID" "invalid ipset source, valid: (http[s]://|script:|file:)"
 fi
-# Several sources make one combined set (#510): only https, and nothing that would break the record's quoting.
+# Several sources make one combined set: only https, and nothing that would break the record's quoting.
 read -ra sources <<< "$data_source"
 if [ "${#sources[@]}" -gt 1 ]; then
 	for url in "${sources[@]}"; do
@@ -77,13 +66,8 @@ fi
 IPSET_FILE="${ip_name}.${ip_version}"
 IPSET_MIN_SIZE=5
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 iplist_new=''
 
-# Generate ip lists file if missing or required refresh
 if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 
 	iplist_tempfile=$(mktemp)
@@ -91,8 +75,7 @@ if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 
 	if [[ "$data_source" =~ ^https?:// ]]; then
 
-		# A source that fails is skipped and logged: lists do die, and a set that stays on its old state for good
-		# is worse than one that loses a source. Only when every source fails does the set keep its last load.
+		# A failed source is skipped: lists do die, and a set stuck on its old state is worse than one short a source.
 		fetched=0
 		for url in "${sources[@]}"; do
 			if timeout 300 wget --tries=3 --timeout=15 --read-timeout=15 --waitretry=3 --no-dns-cache --quiet "$url" -O "$iplist_tempfile.part"; then
@@ -106,7 +89,7 @@ if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 		rm -f "$iplist_tempfile.part"
 		[ "$fetched" -gt 0 ] || check_result "$E_CONNECT" "Downloading ip list: no source could be fetched"
 
-		# Advanced: a script with the same basename gets to pre-process the downloaded list.
+		# A script with the list's basename may pre-process the download.
 		if [ -x "${IPSET_PATH}/${IPSET_FILE}.sh" ]; then
 			preprocess_output="$(cat "$iplist_tempfile" | setpriv --clear-groups --reuid nobody --regid nogroup -- "${IPSET_PATH}/${IPSET_FILE}.sh" "$ip_name" "$iplist_tempfile")"
 			check_result $? "Preprocessing script failed (${IPSET_FILE}.sh)"
@@ -115,7 +98,6 @@ if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 
 	elif [[ "$data_source" =~ ^script:/ ]]; then
 
-		# An external script generates the list, e.g. compiled from several sources on demand.
 		if [ -x "${data_source#script:}" ]; then
 
 			setpriv --clear-groups --reuid nobody --regid nogroup -- "${data_source#script:}" "$ip_name" > "$iplist_tempfile"
@@ -125,13 +107,11 @@ if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 
 	elif [[ "$data_source" =~ ^file:/ ]]; then
 
-		# An external file another app maintains, e.g. one that is continuously updated.
 		[ -f "${data_source#file:}" ] && cp -f "${data_source#file:}" "$iplist_tempfile"
 
 	fi
 
-	# Every line is checked as an address, family and prefix: nft rejects the whole set over one bad element, and
-	# a /0 to /7 in a third-party list would drop most of the internet.
+	# nft rejects a whole set over one bad element, and a /0 to /7 from a third-party list would block most of the net.
 	sed -r -i -e 's/\r$//' -e 's/[;#].*$//' -e 's/^[ \t]*//' -e 's/[ \t]*$//' -e '/^$/d' "$iplist_tempfile"
 	iplist_raw_size="$(grep -c . "$iplist_tempfile")"
 	"$HESTIA_PHP" -r '
@@ -145,10 +125,8 @@ if [ ! -f "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || [ "$refresh" = "yes" ]; then
 		}' "$iplist_tempfile" "$ip_version" > "$iplist_tempfile.ok"
 	mv -f "$iplist_tempfile.ok" "$iplist_tempfile"
 
-	# Validate iplist file size
 	iplist_size="$(grep -c . "$iplist_tempfile")"
-	# The form only SYNCS the family for its presets; the handler must not trust it. A hand-picked
-	# mismatch used to die below as "too small", hiding the actual fault behind a size complaint.
+	# The form syncs the family only for its presets, so a wrong family is named as such, not as "too small".
 	if [[ "$iplist_size" -lt "$IPSET_MIN_SIZE" ]] && [[ "$iplist_raw_size" -ge "$IPSET_MIN_SIZE" ]]; then
 		check_result "$E_INVALID" "source holds ${iplist_raw_size} entries but only ${iplist_size} are ${ip_version} - wrong IP version for this source?"
 	fi
@@ -171,8 +149,8 @@ if [ -z "$iplist_new" ]; then
 	[[ "$iplist_size" -lt "$IPSET_MIN_SIZE" ]] && check_result "$E_INVALID" "IP list file $iplist_new is too small (<${IPSET_MIN_SIZE}), ignoring"
 fi
 
-# The kernel first, the cache second: a list nft refused must not become the cache the next render reads. An
-# unreferenced list has no set in the table by design, the renderer declares one only where a rule matches it.
+# Kernel before cache: a list nft refused must not become the cache the next render reads.
+# An unreferenced list has no set by design; the renderer declares one only where a rule matches it.
 fw_family=4
 [ "$ip_version" = 'v6' ] && fw_family=6
 if fw_set_exists "$ip_name"; then
@@ -180,14 +158,12 @@ if fw_set_exists "$ip_name"; then
 fi
 [ "$iplist_new" = "${IPSET_PATH}/${IPSET_FILE}.iplist" ] || mv -f "$iplist_new" "${IPSET_PATH}/${IPSET_FILE}.iplist"
 
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 if [ ! -f "${IPSET_PATH}.conf" ] || [ -z "$(get_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$LISTNAME')" ]; then
 
-	# Concatenating rule
 	str="LISTNAME='$ip_name' IP_VERSION='$ip_version' SOURCE='$data_source'"
 	str="$str AUTOUPDATE='$autoupdate' SUSPENDED='no'"
 	str="$str TIME='$time' DATE='$date'"
@@ -196,26 +172,18 @@ if [ ! -f "${IPSET_PATH}.conf" ] || [ -z "$(get_object_value "$ipset_hstobject" 
 
 elif [ "$refresh" = "yes" ]; then
 
-	# Update iplist last regen time
 	update_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$TIME' "$time"
 	update_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$DATE' "$date"
 	log_type="refreshed"
 
 fi
 
-# Changing permissions
 chmod 660 $CONF_DIR/firewall/ipset.conf
 chmod 660 "${IPSET_PATH}/${IPSET_FILE}.iplist"
 
-# A timer, not a line in the daily queue: the queue gave every list the same schedule and no way to see or
-# change it, while a timer shows up in list-timers and its interval is a config key.
+# A timer rather than the daily queue: it shows in list-timers and its interval is a config key.
 fw_blocklist_timer_install
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "IPset IP list ${log_type:-loaded} (Name: $ip_name, IP version: $ip_version, Autoupdate: $autoupdate)."
 log_event "$OK" "$ARGUMENTS"
 

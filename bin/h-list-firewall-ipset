@@ -4,34 +4,18 @@
 #
 # example: h-list-firewall-ipset json
 #
-# This function prints defined ipset lists
+# Prints the defined firewall IP lists.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -55,7 +39,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "LISTNAME^IP_VERSION^AUTOUPDATE^SUSPENDED^SOURCE^TIME^DATE"
@@ -67,7 +50,6 @@ shell_list() {
 	done < <(cat $CONF_DIR/firewall/ipset.conf)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
@@ -80,16 +62,11 @@ plain_list() {
 
 [ ! -f "$CONF_DIR/firewall/ipset.conf" ] && touch "$CONF_DIR/firewall/ipset.conf"
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t -s '^' ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

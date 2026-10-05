@@ -6,26 +6,15 @@
 #
 # Removing an address only stops it being exempt; it does not ban it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 ip_cidr=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source "$HESTIA/include/firewall.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'IP_CIDR'
 is_format_valid 'ip_cidr'
@@ -35,10 +24,6 @@ excludes="$CONF_DIR/firewall/excludes.conf"
 if ! grep -qxF "$ip_cidr" "$excludes" 2> /dev/null; then
 	check_result "$E_NOTEXIST" "IP address $ip_cidr is not whitelisted"
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # grep -F to a temp file, not sed -i: a pattern built from an address would treat its dots as wildcards.
 fw_conf_checkpoint "$excludes"
@@ -56,10 +41,6 @@ if [ -n "$FIREWALL_EXTENSION" ] && [ -f "$HESTIA/include/fail2ban.sh" ]; then
 	fail2ban_sync_ignoreip
 	systemctl reload-or-restart fail2ban > /dev/null 2>&1
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Firewall" "Removed IP address $ip_cidr from the whitelist."
 log_event "$OK" "$ARGUMENTS"

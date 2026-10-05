@@ -4,29 +4,18 @@
 #
 # example: h-delete-firewall-crowdsec-ban 203.0.113.5
 #
-# The panel unban path: delete the decision, then refresh the feeder so the drop lifts at once rather than
-# after ~45s. A CAPI decision is not locally deletable and is not shown in the panel.
+# The panel unban path: delete the decision, then refresh the feeder so the drop lifts at once rather than at the
+# next timer run. A CAPI decision is not locally deletable and is not shown in the panel.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 ip=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'IP'
 
@@ -42,18 +31,9 @@ fi
 
 command -v cscli > /dev/null 2>&1 || check_result "$E_NOTEXIST" "CrowdSec is not installed"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 cscli decisions delete -i "$ip" > /dev/null 2>&1 || check_result "$E_INVALID" "CrowdSec did not remove the ban on $ip"
 
-# Refresh L3 now (both families) so the set drops it immediately rather than after the feeder timer.
 [ -f "$CONF_DIR/firewall/crowdsec.conf" ] && $BIN/h-update-firewall-crowdsec
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Firewall" "Removed CrowdSec ban $ip."
 log_event "$OK" "$ARGUMENTS"

@@ -4,19 +4,10 @@
 #
 # example: h-change-sys-botfamily ai 'gptbot|claudebot|ccbot' 60r/m 20r/m yes
 #
-# Upserts one family in the system table (/etc/hestia/botfamilies.conf). BURST and NODELAY stay
-# conf-only advanced tuning and are preserved on an update, defaulted on a create. APPLY=no skips the
-# re-render so a caller changing several families (the panel saves the whole table) can apply once at
-# the end with h-update-sys-botfamilies.
-#
-# MATCH is interpolated into an nginx `map` regex and an apache BrowserMatchNoCase argument, so its
-# charset is restricted: a quote or brace would end the surrounding directive and inject config.
+# Upserts one family in /etc/hestia/botfamilies.conf; the conf-only BURST and NODELAY are kept on an update. APPLY=no
+# skips the re-render, so the panel saving the whole table applies once with h-update-sys-botfamilies.
+# MATCH lands in an nginx map regex and an apache BrowserMatchNoCase argument: a quote or brace would inject config.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 family=$1
 match=$2
 lenient=$3
@@ -24,25 +15,18 @@ strict=$4
 enabled=$5
 apply=${6-yes}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/botpolicy.sh
 source $HESTIA/include/botpolicy.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
 OBJ="$CONF_DIR/botfamilies"
-# Each family costs two limit_req zones plus one more alternative in the per-request UA map, so the
-# table is capped rather than open-ended (8 curated + 2 free slots is the shipped layout).
+# Each family costs two limit_req zones and an alternative in the per-request UA map; 8 curated + 2 free slots ship.
 MAX_FAMILIES=10
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -89,10 +73,6 @@ if [ -z "$exists" ] && [ "$(grep -c "^FAMILY=" "$OBJ.conf")" -ge "$MAX_FAMILIES"
 	exit "$E_LIMIT"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 conf_prev=$(mktemp)
 cp -p "$OBJ.conf" "$conf_prev"
 if [ -n "$exists" ]; then
@@ -114,10 +94,6 @@ if [ "$apply" = 'yes' ] && ! "$BIN/h-update-sys-botfamilies"; then
 	check_result "$E_RESTART" "the web server refused the new family, the table is unchanged"
 fi
 rm -f "$conf_prev"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Bot family $log_type (Family: $family, Enabled: $enabled)."
 log_event "$OK" "$ARGUMENTS"

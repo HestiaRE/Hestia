@@ -4,22 +4,14 @@
 #
 # example: h-list-firewall-exclude json
 #
-# The whitelist is a bare address per line, so there is no object model to parse - the formats exist to
-# match the other h-list-firewall-* commands rather than because the data needs them.
+# The whitelist is a bare address per line; the formats exist to match the other h-list-firewall-* commands.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 excludes="$CONF_DIR/firewall/excludes.conf"
@@ -49,19 +41,11 @@ plain_list() {
 	grep -v '^\s*$' "$excludes" 2> /dev/null
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

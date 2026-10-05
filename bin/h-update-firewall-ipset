@@ -4,25 +4,15 @@
 #
 # example: h-update-firewall-ipset
 #
-# This function creates ipset lists and updates the lists if they are expired or ondemand
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Refreshes every active auto-update IP list older than 24 hours; REFRESH=yes refreshes them regardless of age.
 
 refresh=${1:-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 is_refresh_ipset_format_valid "$refresh" 'Refresh IP lists (load/yes/no)'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
@@ -36,8 +26,7 @@ for ipset_name in $(search_objects "$ipset_hstobject" 'SUSPENDED' 'no' 'LISTNAME
 	ipset_date="$(get_object_value "$ipset_hstobject" 'LISTNAME' "$ipset_name" '$DATE')"
 	ipset_au="$(get_object_value "$ipset_hstobject" 'LISTNAME' "$ipset_name" '$AUTOUPDATE')"
 
-	# 'load' used to mean "put the cached lists back in the kernel at boot". The ruleset document now
-	# carries every set's contents, so there is nothing to reload and nothing to order against.
+	# 'load' stays a valid argument but has nothing to do: the ruleset document carries every set's contents.
 	if [ "$refresh" = 'load' ]; then
 		continue
 	fi
@@ -55,10 +44,6 @@ for ipset_name in $(search_objects "$ipset_hstobject" 'SUSPENDED' 'no' 'LISTNAME
 
 	$BIN/h-add-firewall-ipset "$ipset_name" '' '' '' 'yes' || failed=$((failed + 1))
 done
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 # The timer unit shows this rc, so a run where lists failed must not look healthy.
 if [ "${failed:-0}" -gt 0 ]; then

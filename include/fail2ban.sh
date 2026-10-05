@@ -14,12 +14,12 @@ F2B_OURS="$F2B_DIR/jail.d/hestia.local"
 # Own file, not a block in hestia.local: a broken sed range over a delimited block deletes to EOF. Sorts last.
 F2B_WHITELIST="$F2B_DIR/jail.d/hestia-zz-whitelist.local"
 
-# The L7 jails reading the per-domain web access log. One list, so a new signature jail is added here and
-# nowhere else - gating, logpath repointing and the per-domain add/del all iterate it.
+# The L7 jails on the per-domain web access logs. Gating, logpath repointing and the per-domain add/del all
+# iterate this one list, so a new signature jail is added here only.
 F2B_WEB_JAILS="web-botsearch web-badactor web-exploit web-authprobe"
 
 # fail2ban takes a config it cannot parse with rc 0 and dies after, so the rc alone proves nothing: test first,
-# then ask the server. RELOAD keeps a running daemon's bans where a reload suffices.
+# then ask the server. 'reload' keeps a running daemon's bans where a reload suffices.
 fail2ban_restart() {
 	local i verb=restart
 	[ "${1:-}" = 'reload' ] && verb=reload-or-restart
@@ -32,12 +32,13 @@ fail2ban_restart() {
 	return 1
 }
 
-# jail.d/hestia.local is read last and wins; jail.local stays the admin's. Nothing to preserve, all re-renders.
+# jail.d/hestia.local is read last and wins; jail.local stays the admin's. hestia.local is only seeded when absent,
+# everything else is overwritten from share/.
 fail2ban_install_config() {
 	local stage
 	mkdir -p "$F2B_DIR/filter.d" "$F2B_DIR/action.d" "$F2B_DIR/jail.d"
-	# The WHOLE tree - a file list once omitted action.d/hestia.conf and broke every jail. Staged so share/'s
-	# jail.local never reaches /etc, where being read first would resurrect a jail block an admin deleted.
+	# The whole tree, not a file list, so no action or filter is left behind. Staged so share/'s jail.local
+	# never reaches /etc, where being read first would resurrect a jail block an admin deleted.
 	stage="$(mktemp -d)"
 	cp -rf "$HESTIA/share/fail2ban/." "$stage/"
 	[ -f "$F2B_OURS" ] || cp -f "$stage/jail.local" "$F2B_OURS"
@@ -47,20 +48,20 @@ fail2ban_install_config() {
 	chmod 644 "$F2B_OURS" 2> /dev/null
 }
 
-# The panel jail bans on 80/443 as well (#878), where a panel-proxy domain takes the same login. The update path:
-# the action file comes from the tree, the jail line is ours to swap.
+# The panel jail bans on 80/443 as well, where a panel-proxy domain takes the same login. Update path: the action
+# file comes from the tree, the jail line is ours to swap.
 fail2ban_panel_action_apply() {
 	[ -f "$F2B_OURS" ] || return 1
 	cp -f "$HESTIA/share/fail2ban/action.d/hestia-panel.conf" "$F2B_DIR/action.d/" || return 1
 	sed -i 's/^action[[:space:]]*=[[:space:]]*hestia\[name=HESTIA\][[:space:]]*$/action   = hestia-panel/' "$F2B_OURS" || return 1
 	grep -q '^action   = hestia-panel$' "$F2B_OURS" || return 1
 	systemctl -q is-active fail2ban 2> /dev/null || return 0
-	# Restart, not reload: a reload drops the old action and never loads the new one (measured, the jail had none).
+	# Restart, not reload: a reload drops the old action and never loads the new one.
 	fail2ban_restart
 }
 
-# The update path of the dovecot filter (#1171) and the mail password grace (#1155): hestia.local is only copied on a
-# box without one, so the two mail jails are edited in place. Substitutions and appends only, never a delete in a range.
+# Update path of the dovecot filter and the mail password grace: hestia.local is only copied on a box without one,
+# so the two mail jails are edited in place. Substitutions and appends only, never a delete in a range.
 fail2ban_mail_grace_apply() {
 	local grace="/usr/local/hestia/sbin/hestia-mail-grace"
 	[ -f "$F2B_OURS" ] || return 1
@@ -93,7 +94,7 @@ fail2ban_disable_distro_jails() {
 	} >> "$F2B_OURS"
 }
 
-# Both spellings: install.conf writes "true", the installer's locals "yes" - one once killed the proftpd jail.
+# Both spellings: install.conf writes "true", the installer's locals "yes".
 fail2ban_flag_on() {
 	case "${1:-}" in
 		true | yes | 1) return 0 ;;
@@ -116,25 +117,15 @@ fail2ban_gate_jails() {
 fail2ban_web_logdir() {
 	local ws
 	ws="$(sed -n "s/^WEB_SYSTEM='\([^']*\)'.*/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null)"
-	# mailfront (#193): the only public HTTP surface there is the webmail login on
-	# the front, and its vhosts log into the same domains dir - the web jails keep
-	# watching it. A decision, not a side effect of the emptiness check.
-	# Same rule as webmail_front() in include/main.sh, re-derived from the FILE on
-	# purpose (see the WEB_SYSTEM note above: the installer shell never sees keys
-	# it just wrote). If the fallback order ever changes, change BOTH homes.
+	# Mailfront: the webmail vhosts log into the same domains dir, so the web jails watch that login on purpose.
+	# Keep the fallback order in step with webmail_front() in include/main.sh.
 	[ -n "$ws" ] || ws="$(sed -n "s/^WEBMAIL_FRONT='\([^']*\)'.*/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null)"
 	[ -n "$ws" ] || return 1
 	echo "/var/log/$ws/domains"
 }
 
-# Gate + apply only when the decision changed. Called from the domain lifecycle
-# (h-add/delete-web-domain, h-add/delete-mail-domain-webmail): the jails hang on
-# existing logs now, so the FIRST domain must arm them and the LAST one must
-# disarm them - silently-off protection and a fail2ban that cannot start are the
-# two failure modes this transition owns. No-op when nothing changed.
-# Rebuild commands stay outside this circle because they create no LOG-SET transition
-# (no domain appears or disappears) - NOT because they change nothing: since #890 a
-# rebuild may write the record (v6 adoption). The gate hangs on the log-set edge.
+# For the domain lifecycle: the first domain must arm the web jails and the last must disarm them, or protection is
+# silently off or fail2ban cannot start. Rebuilds do not call it, since no domain appears or disappears there.
 fail2ban_regate_web_apply() {
 	[ -f "$F2B_OURS" ] || return 0
 	local before after
@@ -149,8 +140,7 @@ fail2ban_regate_web_apply() {
 fail2ban_gate_web_jail() {
 	local dir jail
 	[ -f "$F2B_OURS" ] || return 0
-	# CrowdSec owns Layer-7 when present, so these would double its http scenarios. They belong to the
-	# fail2ban-only model; re-enabled below once the marker is gone.
+	# CrowdSec owns L7 when present and these would double its http scenarios; without the marker they come back.
 	if [ -f "$CONF_DIR/firewall/crowdsec.conf" ]; then
 		for jail in $F2B_WEB_JAILS; do fail2ban_set_enabled "$jail" 'false'; done
 		return 0
@@ -159,10 +149,7 @@ fail2ban_gate_web_jail() {
 		for jail in $F2B_WEB_JAILS; do fail2ban_set_enabled "$jail" 'false'; done
 		return 0
 	fi
-	# Enable only when the glob can match: fail2ban refuses to START over a jail whose
-	# logpath matches nothing, so an empty domains dir must keep them off. The old
-	# comment claimed a prune that never existed - covered before only because every
-	# crowdsec preset took the marker branch above and never reached the enable.
+	# Enable only when the glob can match: fail2ban refuses to start over a jail whose logpath matches nothing.
 	local have_logs='false'
 	ls "$dir"/*.log > /dev/null 2>&1 && have_logs='true'
 	for jail in $F2B_WEB_JAILS; do
@@ -215,8 +202,8 @@ fail2ban_jail_enabled() {
 	[ "$(sed -n "/^\[$1\]/,/^\[/{/^enabled[[:space:]]*=/p}" "$F2B_OURS" 2> /dev/null | head -1 | tr -d ' ')" = 'enabled=true' ]
 }
 
-# fail2ban ABORTS startup on an enabled jail whose logpath matches zero files - on a fresh box proftpd and
-# web-botsearch do, which aborted the installer. Run last; h-add-sys-proftpd and watch_domain re-arm later.
+# fail2ban aborts startup on an enabled jail whose logpath matches no file, as proftpd's does on a fresh box.
+# Run last; h-add-sys-proftpd and fail2ban_watch_domain re-arm later.
 fail2ban_prune_empty_jails() {
 	[ -f "$F2B_OURS" ] || return 0
 	local j lp
@@ -244,7 +231,7 @@ fail2ban_ensure_authlog() {
 	chown root:adm /var/log/auth.log 2> /dev/null
 }
 
-# Per client in WEBMAIL_SYSTEM (from the FILE - installer-shell trap), plus the caddy-owned log it watches.
+# One jail per client in WEBMAIL_SYSTEM, read from the FILE for the installer's sake, plus the log it watches.
 fail2ban_gate_webmail_jails() {
 	local wm
 	[ -f "$F2B_OURS" ] || return 0
@@ -273,7 +260,7 @@ fail2ban_refresh_webmail() {
 	systemctl reload-or-restart fail2ban > /dev/null 2>&1
 }
 
-# Create a webmail auth log (caddy-owned - caddy is the pool that writes it) so its jail has a file to watch.
+# Owned by caddy, the pool that writes it; created up front so the jail has a file to watch.
 fail2ban_ensure_webmail_log() {
 	local f="$1"
 	[ -e "$f" ] && return 0
@@ -283,7 +270,7 @@ fail2ban_ensure_webmail_log() {
 	chmod 640 "$f" 2> /dev/null
 }
 
-# The jails our config enables, by name - the source of truth a smoke guard compares against reality.
+# The jails our config enables, by name: the reference the smoke and h-list-firewall-jail hold the daemon to.
 fail2ban_enabled_jails() {
 	[ -f "$F2B_OURS" ] || return 0
 	awk '/^\[/ { j = substr($0, 2, length($0) - 2) }
@@ -336,7 +323,7 @@ fail2ban_apply() {
 }
 
 # Chain names are captured before the loop, since h-delete-firewall-chain rewrites chains.conf as it goes.
-# KEEP defaults to no, so the banlist records go too - a human removing the addon wants the bans gone.
+# Without KEEP_RECORDS the banlist records go too: an admin removing the addon wants the bans gone.
 fail2ban_teardown() {
 	local chains="$CONF_DIR/firewall/chains.conf" chain
 	systemctl -q disable --now fail2ban 2> /dev/null

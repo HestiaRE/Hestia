@@ -307,9 +307,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 
 	// Change rate limit
 	if (
+		$_SESSION["userContext"] == "admin" &&
 		$v_rate != $_POST["v_rate"] &&
-		empty($_SESSION["error_msg"]) &&
-		$_SESSION["userContext"] == "admin"
+		empty($_SESSION["error_msg"])
 	) {
 		if (empty($_POST["v_rate"])) {
 			$v_rate = "system";
@@ -1116,9 +1116,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 	}
 	// Change rate limit
 	if (
+		$_SESSION["userContext"] == "admin" &&
 		$v_rate != $_POST["v_rate"] &&
-		empty($_SESSION["error_msg"]) &&
-		$_SESSION["userContext"] == "admin"
+		empty($_SESSION["error_msg"])
 	) {
 		if (empty($_POST["v_rate"])) {
 			$v_rate = "system";

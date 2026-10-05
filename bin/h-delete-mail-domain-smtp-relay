@@ -40,7 +40,7 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 #                       Action                             #
 #----------------------------------------------------------#
 
-rm -f /etc/exim4/domains/${domain}/smtp_relay.conf
+rm -f "$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

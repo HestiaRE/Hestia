@@ -49,8 +49,9 @@ format_no_quotes "$password" "Password"
 #                       Action                             #
 #----------------------------------------------------------#
 
-smtp_relay_write "/etc/exim4/domains/${domain}/smtp_relay.conf" 'Debian-exim:mail' 660 "$host" "$port" "$username" "$password" \
-	|| check_result "$E_DISK" "cannot write /etc/exim4/domains/${domain}/smtp_relay.conf"
+relay_conf="$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf"
+smtp_relay_write "$relay_conf" 'Debian-exim:mail' 660 "$host" "$port" "$username" "$password" \
+	|| check_result "$E_DISK" "cannot write $relay_conf"
 rm -f $HOMEDIR/$user/conf/mail/$domain/ip
 rm -f $HOMEDIR/$user/conf/mail/$domain/ipv6
 

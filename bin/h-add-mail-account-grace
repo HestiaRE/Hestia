@@ -10,32 +10,21 @@
 # /64. A ban the network already has in the two mail jails is lifted. The panel and both webmail password changes call it
 # with the client address; an admin calls it for a customer who is locked out. /run is tmpfs, a reboot ends it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 ip=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN ACCOUNT IP'
 is_format_valid 'user' 'domain' 'account'
@@ -51,10 +40,6 @@ done
 
 # Without fail2ban nothing bans, so there is nothing to hold back.
 [ "$FIREWALL_EXTENSION" = 'fail2ban' ] || exit 0
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 mailbox="$account@$domain_idn"
 grace_dir=/run/hestia/mail-grace
@@ -74,8 +59,7 @@ grace_write() {
 grace_write "${MAIL_PW_GRACE:-720}" mailbox
 grace_write "${MAIL_PW_GRACE_SMTP:-60}" ip
 
-# Expired files count for nothing, but they would pile up on a box that is never rebooted. The longer grace sets the age,
-# or a SMTP grace set above the mailbox one would be swept while it still runs.
+# The longer grace sets the age, or an SMTP grace above the mailbox one would be swept while it still runs.
 keep=${MAIL_PW_GRACE:-720}
 [ "${MAIL_PW_GRACE_SMTP:-60}" -gt "$keep" ] && keep=${MAIL_PW_GRACE_SMTP:-60}
 find "$grace_dir" -maxdepth 1 -type f -mmin +$((keep + 60)) -delete 2> /dev/null
@@ -90,10 +74,6 @@ for jail in dovecot-iptables exim-iptables; do
 		fi
 	done
 done
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "$user" "Info" "Mail" "Password grace for $mailbox from $ip (${MAIL_PW_GRACE:-720} min, SMTP ${MAIL_PW_GRACE_SMTP:-60} min)."
 log_event "$OK" "$ARGUMENTS"

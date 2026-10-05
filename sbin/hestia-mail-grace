@@ -1,5 +1,5 @@
 #!/bin/bash
-# The mail password grace (#1155): fail2ban asks here once per failure, through ignorecommand.
+# The mail password grace: fail2ban asks here once per failure, through ignorecommand.
 #   hestia-mail-grace mailbox IP MAILBOX   dovecot jail: exit 0 = this mailbox from this network does not count
 #   hestia-mail-grace ip IP                exim jail: exit 0 = nothing from this network counts
 #   hestia-mail-grace key mailbox|ip IP [MAILBOX]   the state file h-add-mail-account-grace writes
@@ -9,8 +9,8 @@
 
 GRACE_DIR=/run/hestia/mail-grace
 
-# v4 as it is, a global v6 as its /64, since the devices of one home network share the prefix, not the address. As for
-# the panel's session pin (#894), where a /64 holds strangers (ULA, link-local, NAT64, Teredo) the address decides.
+# A global v6 counts as its /64, which one home network shares; where a /64 holds strangers (ULA, link-local, NAT64,
+# Teredo) the address decides. Same rule as session_ip_key in web/inc/helpers.php.
 grace_net() {
 	local ip=${1,,} head tail g i
 	local -a h=() t=() all=() o=()

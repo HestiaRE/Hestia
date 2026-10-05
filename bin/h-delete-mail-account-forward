@@ -6,33 +6,21 @@
 #
 # This function deletes an email accounts forwarding address.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 forward=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN ACCOUNT FORWARD'
 is_format_valid 'user' 'domain' 'account'
@@ -53,11 +41,6 @@ for f in "${fwd_list[@]}"; do
 done
 [ -n "$found" ] || check_result "$E_NOTEXIST" "forward $forward doesn't exist"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting exim forward
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$account@$domain_idn:"
 	[ -z "$fwd" ] || echo "$account@$domain_idn:$fwd" >> $HOMEDIR/$user/conf/mail/$domain/aliases
@@ -65,15 +48,9 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	[ -n "$fwd" ] || remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating config
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD' "$fwd"
 [ -n "$fwd" ] || update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' ''
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account forwarding address removed (User: $account@$domain, Send To: $forward)."
 log_event "$OK" "$ARGUMENTS"
 

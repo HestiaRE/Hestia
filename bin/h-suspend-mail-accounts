@@ -6,30 +6,17 @@
 #
 # This function suspends all mail domain accounts.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
@@ -39,19 +26,10 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Starting suspend loop
 failed=''
 for account in $(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT'); do
 	$BIN/h-suspend-mail-account "$user" "$domain" "$account" || failed="$failed $account"
 done
 [ -z "$failed" ] || check_result "$E_UPDATE" "not suspended:$failed"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

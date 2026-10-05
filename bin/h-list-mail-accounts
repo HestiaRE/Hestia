@@ -6,23 +6,16 @@
 #
 # This function of obtaining the list of all user domains.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # With Sieve the customer can switch it in the webmail, so the script answers, not the record.
@@ -43,7 +36,6 @@ parse_row() {
 	parse_object_kv_list "$1"
 }
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -74,7 +66,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "ACCOUNT   ALIAS   FWD   DISK  DATE"
@@ -99,7 +90,6 @@ shell_list() {
 	done < <(rows)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
@@ -110,18 +100,10 @@ plain_list() {
 	done < <(rows)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if vacation_sieve_on && [ "$format" != 'shell' ]; then
 	format_domain_idn
@@ -131,16 +113,11 @@ if vacation_sieve_on && [ "$format" != 'shell' ]; then
 	done < <(vacation_live "$user" "$domain_idn" "${accounts[@]}")
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

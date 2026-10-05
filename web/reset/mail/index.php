@@ -2,32 +2,24 @@
 
 use function Hestiacp\quoteshellarg\quoteshellarg;
 
-// Init
 define("NO_AUTH_REQUIRED", true);
 define("NO_AUTH_REQUIRED2", true);
 header("Content-Type: text/plain; charset=utf-8");
 
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
-// Checking IP of incoming connection, checking is it NAT address
 $ok = 0;
 $ip = $_SERVER["REMOTE_ADDR"];
 
-// cli_json() rather than exec+decode: a failed h-list-sys-ips decodes to null, and iterating that is
-// a TypeError - a 500 in an endpoint that is reachable without a session (#578).
+// cli_json(), not exec+decode: a failed lister decodes to null, and iterating null is a 500 on a sessionless endpoint.
 $arr = cli_json("h-list-sys-ips json");
 foreach ($arr as $arr_key => $arr_val) {
-	// search for NAT IPs and allow them
 	if ($ip == $arr_key || $ip == ($arr_val["NAT"] ?? "")) {
 		$ok = 1;
 		break;
 	}
 }
-// There used to be an "$ip == $_SERVER[SERVER_ADDR]" branch here. Caddy's php_fastcgi does not pass
-// SERVER_ADDR (nginx did, via fastcgi_params), so on this panel the key is absent on every request:
-// the branch never fired and only produced a warning inside an access gate. Dropping it does not
-// narrow anything - the loop above already walks every address h-list-sys-ips knows, NAT included,
-// which is where the box's own address comes from.
+// No SERVER_ADDR check: Caddy's php_fastcgi does not pass it, and the loop above covers the box's own addresses.
 // Both loopbacks: "localhost" resolves to ::1 first on Debian.
 if ($ip == "127.0.0.1" || $ip == "::1") {
 	$ok = 1;
@@ -35,13 +27,10 @@ if ($ip == "127.0.0.1" || $ip == "::1") {
 if ($ok == 0) {
 	exit();
 }
-// Local callers only: a relayed request names its client in X-Real-IP. X-Forwarded-For is no signal, Caddy sets it on
-// every request, which is how this endpoint refused the webmail password change everywhere.
+// A relayed request names its client in X-Real-IP. Not X-Forwarded-For: Caddy sets that on every request.
 if (isset($_SERVER["HTTP_X_REAL_IP"])) {
 	exit();
 }
-
-// Check arguments
 
 if (empty($_POST["email"])) {
 	echo "error email address not provided";
@@ -61,7 +50,6 @@ $v_domain = quoteshellarg($v_domain);
 $v_account = quoteshellarg($v_account);
 $v_password = $_POST["password"];
 
-// Get domain owner
 exec(HESTIA_CMD . "h-search-domain-owner " . $v_domain . " 'mail'", $output, $return_var);
 if ($return_var != 0 || empty($output[0])) {
 	echo "error domain owner not found";
@@ -70,7 +58,7 @@ if ($return_var != 0 || empty($output[0])) {
 $v_user = $output[0];
 unset($output);
 
-// Get current password hash (called "md5" for legacy reasons, it's not guaranteed to be md5)
+// "md5" is a legacy key name; the value is a hash in whatever scheme the box uses.
 exec(
 	HESTIA_CMD .
 		"h-get-mail-account-value " .
@@ -90,15 +78,13 @@ if ($return_var != 0 || empty($output[0])) {
 $v_hash = $output[0];
 unset($output);
 
-// v_hash use doveadm password hash format, which is basically {HASH_NAME}normal_crypt_format,
-// so we just need to remove the {HASH_NAME} before we can ask password_verify if its correct or not.
+// A doveadm hash is {SCHEME}crypt, and password_verify takes only the crypt part.
 $hash_for_password_verify = explode("}", $v_hash, 2);
 $hash_for_password_verify = end($hash_for_password_verify);
 if (!password_verify($v_password, $hash_for_password_verify)) {
 	die("error old password does not match");
 }
 
-// Change password
 $fp = tmpfile();
 $new_password_file = stream_get_meta_data($fp)["uri"];
 fwrite($fp, $_POST["new"] . "\n");
@@ -117,8 +103,7 @@ exec(
 );
 fclose($fp);
 if ($return_var == 0) {
-	// The webmail drivers name the client that changed it (#1155); only a local caller reaches this line, and it has
-	// just proven the old password, so the grace it asks for covers nothing it could not log into anyway.
+	// Only a local caller that just proved the old password gets here, so the client grace grants nothing new.
 	$client_ip = $_POST["ip"] ?? "";
 	if (filter_var($client_ip, FILTER_VALIDATE_IP) !== false) {
 		exec(

@@ -6,11 +6,6 @@
 #
 # This function add new email account.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
@@ -18,7 +13,6 @@ password=$4
 HIDE=4
 quota=${5:-unlimited}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,20 +21,14 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 if [[ "$account" =~ [[:upper:]] ]]; then
 	account=$(echo "$account" | tr '[:upper:]' '[:lower:]')
 fi
 
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN ACCOUNT PASSWORD [QUOTA]'
 is_format_valid 'user' 'domain' 'account'
@@ -59,16 +47,11 @@ is_mail_new "$account"
 is_password_valid
 [ -n "$password" ] || check_result "$E_INVALID" "an empty password logs anyone in"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 # The mailbox first: nothing is written for an account whose directory root may not create.
 mail_account_maildir_ensure "$user" "$domain_idn" "$account" \
 	|| check_result "$E_FORBIDEN" "$HOMEDIR/$user/mail/$domain_idn/$account is not a plain directory under ~/mail"
 
 md5=$(mail_password_hash "$password") || check_result "$E_UPDATE" "no password hash for $account@$domain"
-# Adding account info into password file
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	if [ "$quota" = 'unlimited' ]; then
 		quota='0'
@@ -77,11 +60,6 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	echo "$account:$account:$user:mail:$HOMEDIR/$user" >> $HOMEDIR/$user/conf/mail/$domain/accounts
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
@@ -110,12 +88,10 @@ else
 	echo "$account@$domain_idn:$system" >> $HOMEDIR/$user/conf/mail/$domain/limits
 fi
 
-# Increase mail accounts counter
 accounts=$(wc -l $USER_DATA/mail/$domain.conf | cut -f 1 -d ' ')
 increase_user_value "$user" '$U_MAIL_ACCOUNTS'
 update_object_value 'mail' 'DOMAIN' "$domain" '$ACCOUNTS' "$accounts"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Added new mail account ($account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

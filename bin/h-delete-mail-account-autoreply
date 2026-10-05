@@ -6,17 +6,11 @@
 #
 # This function deletes an email accounts autoreply.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 malias=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,16 +19,10 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN ACCOUNT'
 is_format_valid 'user' 'domain' 'account'
@@ -46,10 +34,6 @@ is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 if ! vacation_sieve_on; then
 	is_object_value_exist "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY'
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # The rule is switched off, not removed: the customer's own settings in it survive for next time.
 if vacation_sieve_on; then
@@ -63,20 +47,11 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	mail_autoreply_once_clear "$domain_idn" "$account"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Deleting autoreply message
-# No $domain/ level: h-add-mail-account-autoreply writes $USER_DATA/mail/$account@$domain.msg, so
-# this removed a path that never existed and left the record-side copy behind - which a backup then
-# carried and a restore put back.
+# Same path h-add-mail-account-autoreply writes; a copy left behind travels in a backup and comes back on restore.
 rm -f $USER_DATA/mail/$account@$domain.msg
 
-# Update config
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY' 'no'
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account auto-reply removed (User: $account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

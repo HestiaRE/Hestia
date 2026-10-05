@@ -26,7 +26,7 @@ class rcube_hestia_password
 			"email" => $_SESSION["username"],
 			"password" => $curpass,
 			"new" => $passwd,
-			// the client, so its other devices get the mail password grace (#1155); the vhost sets X-Real-IP
+			// The client, so its other devices get the mail password grace; the vhost sets X-Real-IP.
 			"ip" => rcube_utils::remote_addr(),
 		];
 		$url = "https://{$hestia_host}:{$hestia_port}/reset/mail/";

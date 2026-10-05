@@ -60,6 +60,7 @@ before v0.20.0 are folded into one section by theme.
   variables a reading command runs on, so a record must never set them; the writer likewise stores only a record
   it can read back.
 - **Mail account commands are stricter about account names, passwords and the mailbox directory** (#1176).
+- **Mail domain commands are stricter about what they write and where** (#1176).
 
 ### Removed
 
@@ -108,6 +109,9 @@ before v0.20.0 are folded into one section by theme.
 - **Mail account commands do what they report** (#1176). A suspended mailbox stays suspended through a rebuild and
   through its domain's suspension and keeps receiving mail, deleting a forward or alias deletes exactly that one, a
   forward-only account keeps the flag when its forward changes, and an autoreply text is shown as it is stored.
+- **Mail domains do what they report** (#1176). An IDN domain can be suspended and moves to a new owner with its
+  mailboxes, one domain's spam settings no longer decide for another domain's recipients, and switching the spam
+  filter off also stops rejecting.
 
 ## v0.23 (2026-09-27)
 

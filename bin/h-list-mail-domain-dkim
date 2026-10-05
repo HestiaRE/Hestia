@@ -33,7 +33,7 @@ shell_list() {
 }
 
 plain_list() {
-	echo "$pem\t$pub"
+	printf '%s\t%s\n' "$pem" "$pub"
 }
 
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'

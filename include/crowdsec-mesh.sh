@@ -157,7 +157,8 @@ mesh_pull_peers() {
 		[ -z "$str" ] && continue
 		unset PEER HOST PORT PIN PULL_TOKEN SUSPENDED
 		parse_object_kv_list "$str"
-		if [ -z "$PEER" ] || [ -z "$HOST" ] || [ -z "$PULL_TOKEN" ]; then continue; fi
+		# No pin, no pull: with -k the pin is the only thing that authenticates the peer, and every pairing records one.
+		if [ -z "$PEER" ] || [ -z "$HOST" ] || [ -z "$PULL_TOKEN" ] || [ -z "$PIN" ]; then continue; fi
 		[ "$SUSPENDED" = 'yes' ] && continue
 
 		cfg=$(mktemp)
@@ -165,7 +166,7 @@ mesh_pull_peers() {
 		{
 			echo "url = \"https://$(url_host "$HOST"):${PORT:-8083}/mesh-decisions.php\""
 			echo "header = \"Authorization: Bearer $PULL_TOKEN\""
-			[ -n "$PIN" ] && echo "pinnedpubkey = \"sha256//$PIN\""
+			echo "pinnedpubkey = \"sha256//$PIN\""
 		} > "$cfg"
 		out=$(mktemp)
 		if curl -fsS -k --config "$cfg" --max-time 20 --max-filesize 8000000 -o "$out" 2> /dev/null \

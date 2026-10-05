@@ -764,14 +764,15 @@ rebuild_mail_domain_conf() {
 	accs=0
 	dom_disk=0
 	if [ -e "$USER_DATA/mail/$domain.conf" ]; then
-		accounts=$(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT')
+		# Suspended ones too: suspension swaps the hash and keeps the mail coming, as h-suspend-mail-account does.
+		accounts=$(sed -n "s/^ACCOUNT='\([^']*\)'.*/\1/p" "$USER_DATA/mail/$domain.conf")
 	else
 		accounts=''
 	fi
 	for account in $accounts; do
 		((++accs))
 		object=$(grep -F "ACCOUNT='$account'" $USER_DATA/mail/$domain.conf)
-		FWD_ONLY='no'
+		ALIAS='' FWD='' FWD_ONLY='no' RATE_LIMIT='' SUSPENDED='no'
 		parse_object_kv_list "$object"
 		if [ "$SUSPENDED" = 'yes' ]; then
 			MD5='SUSPENDED'

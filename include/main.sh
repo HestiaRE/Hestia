@@ -707,6 +707,12 @@ _object_conf() {
 	esac
 }
 
+# Numbered matching lines of an object file. A comment line is never a record, and a shipped slot
+# like #FAMILY='custom1' would otherwise answer for one.
+_object_rows() {
+	grep -nF "$2" "$(_object_conf "$1")" | grep -v '^[0-9]*:[[:space:]]*#'
+}
+
 # Check if object is new
 is_object_new() {
 	if [ $2 = 'USER' ]; then
@@ -1059,7 +1065,7 @@ json_escape() {
 
 # Get object value
 get_object_value() {
-	object=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+	object=$(_object_rows "$1" "$2='$3'" | cut -d: -f2-)
 	parse_object_kv_list "$object"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1074,7 +1080,7 @@ get_object_values() {
 update_object_value() {
 	# all helpers local: the escaped $old must never leak into a caller's $old
 	local row lnr object varname old new
-	row=$(grep -nF "$2='$3'" "$(_object_conf "$1")")
+	row=$(_object_rows "$1" "$2='$3'")
 	lnr=$(echo $row | cut -f 1 -d ':')
 	object=$(echo $row | sed "s/^$lnr://")
 	parse_object_kv_list "$object"
@@ -1092,7 +1098,7 @@ update_object_value() {
 # Add object key
 add_object_key() {
 	local row lnr object new
-	row=$(grep -nF "$2='$3'" "$(_object_conf "$1")")
+	row=$(_object_rows "$1" "$2='$3'")
 	lnr=$(echo "$row" | cut -f 1 -d ':')
 	object=$(echo "$row" | sed "s/^$lnr://")
 	# sed without an address edits EVERY line, so a lookup that found nothing would inject the key

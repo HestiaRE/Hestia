@@ -228,11 +228,8 @@ acl_check_rcpt:
          set acl_m1    = yes
  warn    condition     = ${if exists {/etc/exim4/domains/$domain/reject_spam}{yes}{no}}
          set acl_m3    = yes
-# Per-domain threshold overrides (h-change-mail-domain-spam-(reject-)score):
-# integer tenths like the global macros, read per message — no reload needed.
-# Guarded by a digits-only match so a malformed file falls back to the global
-# default instead of breaking the numeric conditions in acl_check_data.
-# Like acl_m1/m3, the last recipient's domain wins for multi-domain messages.
+# Per-domain thresholds in integer tenths like the global macros. A malformed file falls back to the global default
+# instead of breaking the numeric conditions in acl_check_data.
  warn    condition     = ${if exists {/etc/exim4/domains/$domain/spam_score}{yes}{no}}
          condition     = ${if match {${readfile{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_score}}}{\N^\d+$\N}{yes}{no}}
          set acl_m4    = ${readfile{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_score}}

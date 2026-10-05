@@ -11,33 +11,21 @@
 # applied while Spam Filter is enabled. Source of truth: U_SPAM_WHITELIST in
 # mail.conf, mirrored one-per-line to the spam_whitelist file exim reads per message.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 sender=$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Define mail user
 if [ "$MAIL_SYSTEM" = 'exim4' ]; then
 	MAIL_USER=Debian-exim
 else
 	MAIL_USER=exim
 fi
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN SENDER'
 is_format_valid 'user' 'domain'
@@ -49,14 +37,9 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 list_file="$HOMEDIR/$user/conf/mail/$domain/spam_whitelist"
 current=$(get_object_value 'mail' 'DOMAIN' "$domain" '$U_SPAM_WHITELIST')
 
-# Idempotent: entry already present — nothing to do
 if [[ ",$current," = *",$sender,"* ]]; then
 	exit
 fi
@@ -69,15 +52,9 @@ fi
 
 spam_list_write "$list_file" "$new_list"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Adding whitelist value in config
 add_object_key 'mail' 'DOMAIN' "$domain" 'U_SPAM_WHITELIST' 'ACCOUNTS'
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SPAM_WHITELIST' "$new_list"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Spam whitelist entry added (Domain: $domain, Sender: $sender)."
 log_event "$OK" "$ARGUMENTS"
 

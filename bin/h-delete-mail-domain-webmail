@@ -7,34 +7,22 @@
 # This function removes support for webmail from
 # a specified mail domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart="${3:-yes}"
 quiet=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
@@ -45,16 +33,10 @@ is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 if [ -n "$WEBMAIL_ALIAS" ]; then
-	# Delete webmail configuration
 	del_webmail_config
 	del_webmail_ssl_config
-	# The nginx webmail templates log under nginx whatever the front is, so in the both model the proxy logs stay
-	# behind unless removed here too (#1122).
+	# The nginx webmail templates log under nginx whatever the front is, so the proxy logs go too.
 	for logdir in "/var/log/$front/domains" ${PROXY_SYSTEM:+"/var/log/$PROXY_SYSTEM/domains"}; do
 		rm -f "$logdir/$WEBMAIL_ALIAS.$domain.log"* "$logdir/$WEBMAIL_ALIAS.$domain.error"*
 	done
@@ -67,15 +49,10 @@ else
 	echo "Error: WEBMAIL_ALIAS is not defined in hestia.conf."
 fi
 
-# Set SSL as enabled in configuration
 update_object_value 'mail' 'DOMAIN' "$domain" '$WEBMAIL' ""
 
-#----------------------------------------------------------#
-#                       Hestia                              #
-#----------------------------------------------------------#
-
 if [ -n "$restart" ]; then
-	# A removed vhost needs a reload; a restart would cut the panel request asking for it (#878).
+	# A removed vhost needs a reload; a restart would cut the panel request asking for it.
 	if [ "$restart" = 'yes' ]; then
 		restart=''
 	fi
@@ -86,7 +63,6 @@ if [ -n "$restart" ]; then
 	check_result $? "Proxy restart failed" > /dev/null
 fi
 
-# Logging
 if [ "$quiet" != 'yes' ]; then
 	$BIN/h-log-action "$user" "Info" "Mail" "Webmail access disabled (Domain: $domain)."
 fi

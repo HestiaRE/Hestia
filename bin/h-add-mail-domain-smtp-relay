@@ -6,11 +6,6 @@
 #
 # This function adds mail domain smtp relay support.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 host=$3
@@ -20,19 +15,13 @@ password=$5
 HIDE=5
 port=${6-587}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN HOST [USERNAME] [PASSWORD] [PORT]'
 is_format_valid 'port' 'user' 'domain' 'host'
@@ -50,21 +39,12 @@ fi
 is_username_format_valid "$username" "Username"
 format_no_quotes "$password" "Password"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 relay_conf="$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf"
 smtp_relay_write "$relay_conf" 'Debian-exim:mail' 660 "$host" "$port" "$username" "$password" \
 	|| check_result "$E_DISK" "cannot write $relay_conf"
 rm -f $HOMEDIR/$user/conf/mail/$domain/ip
 rm -f $HOMEDIR/$user/conf/mail/$domain/ipv6
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Adding smtp relay values in config
 if [ -z "$U_SMTP_RELAY" ]; then
 	add_object_key 'mail' 'DOMAIN' "$domain" 'U_SMTP_RELAY' 'ACCOUNTS'
 	add_object_key 'mail' 'DOMAIN' "$domain" 'U_SMTP_RELAY_HOST' 'ACCOUNTS'
@@ -76,11 +56,10 @@ fi
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY' 'true'
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_HOST' "$host"
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PORT' "$port"
-# Encoded: a \ or ` is fine for exim but not for the record grammar, and h-restore-user refuses such a record (#1143).
+# Encoded: a \ or ` is fine for exim but not for the record grammar, and h-restore-user refuses such a record.
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_USERNAME' "$(record_value_encode "$username")"
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PASSWORD' "$(record_value_encode "$password")"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "SMTP Relay enabled (Domain: $domain, Host: $host, Port: $port)."
 log_event "$OK" "$ARGUMENTS"
 

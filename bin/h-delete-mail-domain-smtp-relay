@@ -6,15 +6,9 @@
 #
 # This function removes mail domain smtp relay support.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -23,14 +17,9 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 format_domain
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
@@ -40,18 +29,9 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 rm -f "$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf"
 mail_outgoing_ip_write "$user" "$domain" || check_result "$E_DISK" "cannot write the outgoing address of $domain"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Adding smtp relay values in config
 if [ -z "$U_SMTP_RELAY" ]; then
 	add_object_key 'mail' 'DOMAIN' "$domain" 'U_SMTP_RELAY' 'ACCOUNTS'
 	add_object_key 'mail' 'DOMAIN' "$domain" 'U_SMTP_RELAY_HOST' 'ACCOUNTS'
@@ -66,7 +46,6 @@ update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PORT' ''
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_USERNAME' ''
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_PASSWORD' ''
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "SMTP Relay disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

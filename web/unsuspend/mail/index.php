@@ -2,14 +2,11 @@
 
 use function Hestiacp\quoteshellarg\quoteshellarg;
 
-// Init
 ob_start();
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
-// Check token
 verify_csrf($_GET);
 
-// Mail domain
 if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	$v_domain = quoteshellarg($_GET["domain"]);
 	exec(HESTIA_CMD . "h-unsuspend-mail-domain " . $user . " " . $v_domain, $output, $return_var);
@@ -30,7 +27,6 @@ if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	exit();
 }
 
-// Mail account
 if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_username = quoteshellarg($user);
 	$v_domain = quoteshellarg($_GET["domain"]);

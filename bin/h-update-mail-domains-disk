@@ -6,24 +6,13 @@
 #
 # This function calculates disk usage for all mail domains.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
@@ -33,11 +22,6 @@ if [ -z "$MAIL_SYSTEM" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Starting loop
 for domain in $($BIN/h-list-mail-domains $user plain | cut -f 1); do
 	dom_disk=0
 	format_domain_idn
@@ -56,11 +40,6 @@ done
 
 recalc_user_disk_usage
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

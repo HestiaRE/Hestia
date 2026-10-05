@@ -7,31 +7,19 @@
 # This function for deleting MAIL domain. By deleting it all accounts will
 # also be deleted.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
@@ -39,11 +27,6 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get domain values
 get_domain_values 'mail'
 accounts=$(wc -l "$USER_DATA/mail/$domain.conf" | cut -f 1 -d ' ')
 
@@ -55,7 +38,6 @@ else
 	del_mail_ssl_certificates
 fi
 
-# Deleting exim configuration files
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 	rm -rf $HOMEDIR/$user/conf/mail/$domain
@@ -63,32 +45,24 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	mail_autoreply_once_clear "$domain_idn"
 fi
 
-# Delete webmail configuration if it exists (front-based, #193: a mailfront box
-# has an empty WEB_SYSTEM - skipping here left a dangling vhost symlink that
-# failed every later nginx configtest)
+# Keyed on the front, not WEB_SYSTEM: a mailfront box has none, and a skipped delete leaves a vhost link nginx rejects.
 if [ -n "$(webmail_front)" ] || [ -n "$PROXY_SYSTEM" ]; then
 	if [ -n "$IMAP_SYSTEM" ]; then
 		$BIN/h-delete-mail-domain-webmail "$user" "$domain" 'yes'
 	fi
 fi
 
-# Run extension trigger
 if [ -x "$CONF_DIR/hooks/delete-mail-domain.sh" ]; then
 	$CONF_DIR/hooks/delete-mail-domain.sh "$user" "$domain"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Delete domain config - dots escaped, or a.b.com also drops the aXb.com record
+# Dots escaped, or a.b.com also drops the aXb.com record.
 sed -i "/DOMAIN='${domain//./\\.}'/ d" $USER_DATA/mail.conf
 rm -f $USER_DATA/mail/$domain.conf
 rm -f $USER_DATA/mail/$domain.pem
 rm -f $USER_DATA/mail/$domain.pub
 rm -f $USER_DATA/mail/*@$domain.msg
 
-# Decreasing domain value
 decrease_user_value "$user" '$U_MAIL_DOMAINS'
 if [ "$DKIM" = 'yes' ]; then
 	decrease_user_value "$user" '$U_MAIL_DKIM'
@@ -96,14 +70,12 @@ fi
 
 decrease_user_value "$user" '$U_MAIL_ACCOUNTS' "$accounts"
 
-# Check if is suspended to decrease the suspended value
 if [ -n "$SUSPENDED" ]; then
 	if [ "$SUSPENDED" == "yes" ]; then
 		decrease_user_value "$user" '$SUSPENDED_MAIL'
 	fi
 fi
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail domain deleted (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

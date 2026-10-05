@@ -6,20 +6,13 @@
 #
 # This function of obtaining the list of all user domains.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # Domain rows only, each from empty: a blank line repeated the last domain, a missing key inherited its value.
@@ -33,7 +26,6 @@ parse_row() {
 	parse_object_kv_list "$1"
 }
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -68,7 +60,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "DOMAIN   ANTIVIRUS   ANTISPAM   DKIM  SSL   ACC   DISK   SPND   DATE"
@@ -80,7 +71,6 @@ shell_list() {
 	done < <(rows)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read -r str; do
@@ -90,28 +80,15 @@ plain_list() {
 	done < <(rows)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

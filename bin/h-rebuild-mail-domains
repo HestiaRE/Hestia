@@ -6,14 +6,8 @@
 #
 # This function rebuilds EXIM configuration files for all mail domains.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -26,20 +20,14 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Define mail user
 if [ "$MAIL_SYSTEM" = 'exim4' ]; then
 	export MAIL_USER="Debian-exim"
 else
 	export MAIL_USER="exim"
 fi
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
@@ -50,14 +38,7 @@ if [ -n "$check_user" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Starting loop. Each domain is its own process, so one that fails does not take the loop with it -
-# but its exit status used to be dropped here, and the run reported success while a domain had not
-# been rebuilt at all (a DKIM record whose key is gone is how a live box drifts into that). Every
-# domain is still attempted; the run just stops claiming to have succeeded.
+# Every domain is attempted, but one that failed keeps the run from reporting success.
 rebuild_failed=''
 for domain in $(search_objects 'mail' 'SUSPENDED' "*" 'DOMAIN'); do
 	if ! $BIN/h-rebuild-mail-domain "$user" "$domain" "no"; then
@@ -65,11 +46,6 @@ for domain in $(search_objects 'mail' 'SUSPENDED' "*" 'DOMAIN'); do
 	fi
 done
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Rebuilt mail domains (User: $user)."
 
 if [ -n "$rebuild_failed" ]; then

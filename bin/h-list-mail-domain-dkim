@@ -6,28 +6,19 @@
 #
 # This function of obtaining domain dkim files.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	echo '{'
-	# The keys come from the RAW file here: json_escape encodes the newlines itself, and running it
-	# over the already-encoded $pem would turn each of its \n into two visible characters.
+	# From the raw keys: json_escape encodes newlines itself, so the pre-encoded $pem would show each \n literally.
 	local pem="${pem_raw}" pub="${pub_raw}"
 	json_escape domain pem pub
 	printf '\t"%s": {\n' "$domain"
@@ -36,31 +27,20 @@ json_list() {
 	echo -e "\t}\n}"
 }
 
-# SHELL list function
 shell_list() {
 	echo -e "$pem"
 	echo -e "\n$pub"
 }
 
-# PLAIN list function
 plain_list() {
 	echo "$pem\t$pub"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing domain keys
 if [ -e "$USER_DATA/mail/$domain.pem" ]; then
 	pem_raw=$(cat $USER_DATA/mail/$domain.pem)
 	pem=$(echo "$pem_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
@@ -71,16 +51,11 @@ if [ -e "$USER_DATA/mail/$domain.pub" ]; then
 	pub=$(echo "$pub_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

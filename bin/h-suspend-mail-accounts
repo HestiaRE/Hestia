@@ -44,9 +44,11 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 #----------------------------------------------------------#
 
 # Starting suspend loop
+failed=''
 for account in $(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT'); do
-	$BIN/h-suspend-mail-account "$user" "$domain" "$account"
+	$BIN/h-suspend-mail-account "$user" "$domain" "$account" || failed="$failed $account"
 done
+[ -z "$failed" ] || check_result "$E_UPDATE" "not suspended:$failed"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

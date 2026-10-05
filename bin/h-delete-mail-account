@@ -60,7 +60,10 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/limits "$account@$domain_idn:"
 	mail_dir_trusted "$user" "$domain_idn" && rm -rf "$HOMEDIR/$user/mail/$domain_idn/$account"
 	mail_autoreply_once_clear "$domain_idn" "$account"
+	# exim answers as long as this file exists, a new account of the same name would inherit the text.
+	rm -f "$HOMEDIR/$user/conf/mail/$domain/autoreply.$account.msg"
 fi
+rm -f "$USER_DATA/mail/$account@$domain.msg"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

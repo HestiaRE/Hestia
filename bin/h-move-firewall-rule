@@ -29,15 +29,9 @@ source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 get_rule_id() {
-	local old_rule_no=$1
-	local direction=$2
-	local new_rule_no
-	if [[ "$direction" == "UP" ]]; then
-		new_rule_no=$((old_rule_no - 1))
-	else
-		new_rule_no=$((old_rule_no + 1))
-	fi
-	echo "$new_rule_no"
+	# The next EXISTING id that way: the ids have gaps, and a missing neighbour wrote the rule twice.
+	sed -n "s/^RULE='\([0-9]*\)'.*/\1/p" "$CONF_DIR/firewall/rules.conf" | sort -n \
+		| awk -v s="$1" -v d="$2" '(d == "UP" && $1 < s) { t = $1 } (d == "DOWN" && $1 > s && t == "") { t = $1 } END { print t }'
 }
 
 # Sort function
@@ -65,23 +59,16 @@ if [[ "$direction" != "UP" && "$direction" != "DOWN" ]]; then
 	exit 1
 fi
 
-# Check if the rule can be moved up (if it's not the first rule)
-if [[ "$direction" == "UP" && "$source_rule" -eq 1 ]]; then
-	echo "Cannot move rule up. It's already the first rule."
-	exit 1
-fi
-# Check if the rule can be moved down (if it's not the last rule)
-last_rule=$(tail -n 1 $CONF_DIR/firewall/rules.conf | cut -d "'" -f 2)
-if [[ "$direction" == "DOWN" && "$source_rule" -eq "$last_rule" ]]; then
-	echo "Cannot move rule down. It's already the last rule."
+target_rule=$(get_rule_id "$source_rule" "$direction")
+if [ -z "$target_rule" ]; then
+	[ "$direction" = 'UP' ] && echo "Cannot move rule up. It's already the first rule."
+	[ "$direction" = 'DOWN' ] && echo "Cannot move rule down. It's already the last rule."
 	exit 1
 fi
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
-
-target_rule=$(get_rule_id "$source_rule" "$direction")
 
 # Get the rule that will be moved
 parse_object_kv_list "$(grep "RULE='$source_rule'" $CONF_DIR/firewall/rules.conf)"

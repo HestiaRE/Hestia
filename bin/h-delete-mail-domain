@@ -4,8 +4,7 @@
 #
 # example: h-delete-mail-domain admin mydomain.tld
 #
-# This function for deleting MAIL domain. By deleting it all accounts will
-# also be deleted.
+# Deletes a mail domain with all its accounts and mailboxes.
 
 user=$1
 domain=$2

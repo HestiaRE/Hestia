@@ -5,11 +5,7 @@
 # example: h-add-mail-domain-spam-whitelist user domain.tld partner@example.com
 # example: h-add-mail-domain-spam-whitelist user domain.tld '*.example.com'
 #
-# Adds a sender pattern to the domain's spam whitelist: matching mail is never
-# treated as spam (rspamd scan skipped entirely). Whitelist wins over blacklist.
-# Patterns match the lowercased envelope sender + its domain (wildlsearch); only
-# applied while Spam Filter is enabled. Source of truth: U_SPAM_WHITELIST in
-# mail.conf, mirrored one-per-line to the spam_whitelist file exim reads per message.
+# Spares mail from SENDER (user@dom, *@dom, dom or *.dom) the spam scan. Wins over the blacklist.
 
 user=$1
 domain=$2

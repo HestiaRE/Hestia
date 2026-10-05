@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-domain-antispam admin mydomain.tld
 #
-# This function disable spamassasin for incoming emails.
+# Switches the rspamd scan off for the domain's incoming mail, and with it the rejection of spam.
 
 user=$1
 domain=$2

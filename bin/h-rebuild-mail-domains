@@ -4,7 +4,7 @@
 #
 # example: h-rebuild-mail-domains admin
 #
-# This function rebuilds EXIM configuration files for all mail domains.
+# Rebuilds every mail domain of the user.
 
 user=$1
 

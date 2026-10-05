@@ -4,7 +4,7 @@
 #
 # example: h-unsuspend-mail-domain user02 acme.com
 #
-# This function unsuspends mail domain.
+# Delivery, login and webmail of the domain work again.
 
 user=$1
 domain=$2

@@ -5,7 +5,7 @@
 #
 # example: h-delete-mail-domain-reject admin mydomain.tld
 #
-# The function disables spam rejection for incoming emails.
+# Spam is marked again instead of refused at SMTP.
 
 user=$1
 domain=$2

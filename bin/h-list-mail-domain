@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-domain user01 mydomain.com
 #
-# This function of obtaining the list of domain parameters.
+# Lists the domain's record.
 
 user=$1
 domain=$2

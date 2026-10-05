@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-domain-ssl user acme.com json
 #
-# This function of obtaining domain ssl files.
+# Lists the domain's mail certificate, key and CA.
 
 user=$1
 domain=$2

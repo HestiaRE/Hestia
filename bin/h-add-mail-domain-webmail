@@ -6,7 +6,7 @@
 # example: h-add-mail-domain-webmail user domain.com tachyon
 # example: h-add-mail-domain-webmail user domain.com roundcube
 #
-# This function enables webmail client for a mail domain.
+# Serves WEBMAIL (a known client or disabled) for the domain; without it the installed default.
 
 user=$1
 domain=$2

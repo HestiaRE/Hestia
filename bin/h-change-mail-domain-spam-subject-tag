@@ -4,10 +4,7 @@
 #
 # example: h-change-mail-domain-spam-subject-tag user domain.tld '[SPAM]'
 #
-# Sets a subject prefix for spam-classified mail: exim prepends "TAG " to the
-# Subject at delivery (spam only; clean mail untouched). Cosmetic. Source of
-# truth: U_SPAM_SUBJECT_TAG in mail.conf, mirrored to spam_subject_tag, read per
-# message (no reload). Removing the tag disables the rewriting.
+# Prefixes the subject of the domain's spam with TAG.
 
 user=$1
 domain=$2

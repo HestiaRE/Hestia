@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-domain-dkim admin mydomain.tld
 #
-# This function delete DKIM domain pem.
+# Stops DKIM signing and deletes the domain's DKIM key.
 
 user=$1
 domain=$2

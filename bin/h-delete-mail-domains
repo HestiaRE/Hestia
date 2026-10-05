@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-domains admin
 #
-# This function for deleting all users mail domains.
+# Deletes the user's mail domains that are not suspended.
 
 user=$1
 

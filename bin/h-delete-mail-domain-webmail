@@ -4,8 +4,7 @@
 #
 # example: h-delete-mail-domain-webmail user demo.com
 #
-# This function removes support for webmail from
-# a specified mail domain.
+# Stops serving webmail for the domain.
 
 user=$1
 domain=$2

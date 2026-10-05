@@ -4,7 +4,7 @@
 #
 # example: h-suspend-mail-domain admin domain.com
 #
-# This function suspends mail domain.
+# Stops delivery and login for the domain and takes its webmail down; the accounts keep their own state.
 
 user=$1
 domain=$2

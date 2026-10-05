@@ -5,7 +5,7 @@
 #
 # example: h-add-mail-domain-reject admin mydomain.tld
 #
-# The function enables spam rejection for incoming emails.
+# Refuses incoming mail at SMTP whose spam score is above the reject threshold, while the spam scan is on.
 
 user=$1
 domain=$2

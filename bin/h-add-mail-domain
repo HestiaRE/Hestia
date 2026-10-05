@@ -4,7 +4,8 @@
 #
 # example: h-add-mail-domain admin mydomain.tld
 #
-# This function adds MAIL domain.
+# Adds a mail domain with its config dir and maildir, and unless DKIM is no a DKIM key of DKIM_SIZE bits
+# (1024, 2048, 4096).
 
 user=$1
 domain=$2

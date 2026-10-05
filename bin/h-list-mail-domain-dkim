@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-domain-dkim admin maildomain.tld
 #
-# This function of obtaining domain dkim files.
+# Lists the domain's DKIM key pair.
 
 user=$1
 domain=$2

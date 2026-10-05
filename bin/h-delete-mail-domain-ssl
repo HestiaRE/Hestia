@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-domain-ssl user demo.com
 #
-# This function delete ssl certificates.
+# Turns SSL off for the domain's mail and its webmail, and deletes the certificate.
 
 user=$1
 domain=$2

@@ -4,12 +4,8 @@
 #
 # example: h-change-mail-domain-spam-reject-score user domain.tld 12.0
 #
-# Sets the spam reject threshold for one mail domain (spam points, ≤1 decimal).
-# Effective only while "Reject Spam" is on: mail above it is refused at SMTP.
-# Source of truth: U_SPAM_REJECT_SCORE in mail.conf, mirrored as integer tenths
-# (exim's unit) to spam_reject_score, read per message (no reload). Removing the
-# override falls back to the global SPAM_REJECT_SCORE. Range limits are enforced
-# by the panel; the CLI only validates format.
+# Sets the domain's spam reject threshold in spam points (one decimal), effective while reject is on. The panel
+# enforces the range, the CLI only the format.
 
 user=$1
 domain=$2

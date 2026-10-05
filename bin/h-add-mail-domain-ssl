@@ -1,11 +1,10 @@
 #!/bin/bash
-# info: add mail SSL for $domain
+# info: add mail domain ssl support
 # options: USER DOMAIN SSL_DIR [RESTART]
 #
-# This function turns on SSL support for a mail domain. Parameter ssl_dir
-# is a path to a directory where 2 or 3 ssl files can be found. Certificate file
-# mail.domain.tld.crt and its key mail.domain.tld.key are mandatory. Certificate
-# authority mail.domain.tld.ca file is optional.
+# example: h-add-mail-domain-ssl admin example.com /home/admin/tmp/ssl
+#
+# Turns on SSL for the domain's IMAP, POP3 and SMTP. SSL_DIR holds DOMAIN.crt and DOMAIN.key, DOMAIN.ca optionally.
 
 user=$1
 domain=$2

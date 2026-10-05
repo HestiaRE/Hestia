@@ -4,7 +4,7 @@
 #
 # example: h-change-mail-domain-catchall user01 mydomain.tld master@mydomain.tld
 #
-# This function changes mail domain catchall.
+# Delivers mail to unknown addresses of the domain to EMAIL instead.
 
 user=$1
 domain=$2

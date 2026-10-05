@@ -4,7 +4,7 @@
 #
 # example: h-suspend-mail-domains admin
 #
-# This function suspends all user's MAIL domains.
+# Suspends every mail domain of the user.
 
 user=$1
 

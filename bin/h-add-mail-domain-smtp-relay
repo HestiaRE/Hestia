@@ -1,10 +1,11 @@
 #!/bin/bash
-# info: Add mail domain smtp relay support
+# info: add mail domain smtp relay support
 # options: USER DOMAIN HOST [USERNAME] [PASSWORD] [PORT]
 #
 # example: h-add-mail-domain-smtp-relay user domain.tld srv.smtprelay.tld uname123 pass12345
 #
-# This function adds mail domain smtp relay support.
+# Sends the domain's outgoing mail through HOST. PASSWORD may name a file under /tmp holding it; an empty one next
+# to the stored USERNAME keeps the stored password.
 
 user=$1
 domain=$2

@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-domains admin
 #
-# This function of obtaining the list of all user domains.
+# Lists the user's mail domains.
 
 user=$1
 format=${2-shell}

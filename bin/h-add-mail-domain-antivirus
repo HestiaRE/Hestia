@@ -4,7 +4,7 @@
 #
 # example: h-add-mail-domain-antivirus admin mydomain.tld
 #
-# This function enables clamav scan for incoming emails.
+# Switches the ClamAV scan on for the domain's incoming mail.
 
 user=$1
 domain=$2

@@ -2,8 +2,9 @@
 # info: change domain ssl certificate
 # options: USER DOMAIN SSL_DIR [RESTART]
 #
-# This function changes SSL domain certificate and the key. If ca file present
-# it will be replaced as well.
+# example: h-change-mail-domain-sslcert admin example.com /home/admin/tmp/ssl
+#
+# Replaces the domain's mail certificate and key, and the CA file when SSL_DIR has one (DOMAIN.crt, .key, .ca).
 
 user=$1
 domain=$2

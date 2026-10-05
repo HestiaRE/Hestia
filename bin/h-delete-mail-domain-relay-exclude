@@ -4,8 +4,7 @@
 #
 # example: h-delete-mail-domain-relay-exclude user domain.tld datev.de
 #
-# Removes RECIPIENT_DOMAIN from the domain's smtp_relay_exclude list. The file is
-# deleted at the last entry so the bypass router declines with no lookup cost.
+# Sends mail for RECIPIENT_DOMAIN through the SMTP relay again.
 
 user=$1
 domain=$2

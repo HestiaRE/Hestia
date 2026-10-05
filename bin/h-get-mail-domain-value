@@ -4,7 +4,7 @@
 #
 # example: h-get-mail-domain-value admin example.com DKIM
 #
-# This function for getting a certain mail domain parameter.
+# Prints one KEY of the domain's record.
 
 user=$1
 domain=$2

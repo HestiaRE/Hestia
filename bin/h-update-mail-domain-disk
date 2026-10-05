@@ -4,7 +4,7 @@
 #
 # example: h-update-mail-domain-disk admin example.com
 #
-# This function updates domain disk usage.
+# Recounts the disk usage of the domain's mailboxes.
 
 user=$1
 domain=$2

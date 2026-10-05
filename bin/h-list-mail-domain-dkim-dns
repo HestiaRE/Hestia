@@ -4,7 +4,7 @@
 #
 # example: h-list-mail-domain-dkim-dns admin example.com
 #
-# This function of obtaining domain dkim dns records for proper setup.
+# Lists the DNS records the domain's DKIM needs.
 
 user=$1
 domain=$2

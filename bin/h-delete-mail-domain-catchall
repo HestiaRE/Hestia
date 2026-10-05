@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-domain-catchall admin mydomain.tld
 #
-# This function disables mail domain cathcall.
+# Mail to unknown addresses of the domain is refused again.
 
 user=$1
 domain=$2

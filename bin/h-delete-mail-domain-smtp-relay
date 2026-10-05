@@ -1,10 +1,10 @@
 #!/bin/bash
-# info: Remove mail domain smtp relay support
+# info: remove mail domain smtp relay support
 # options: USER DOMAIN
 #
 # example: h-delete-mail-domain-smtp-relay user domain.tld
 #
-# This function removes mail domain smtp relay support.
+# Sends the domain's outgoing mail directly again, from its own address.
 
 user=$1
 domain=$2

@@ -4,7 +4,7 @@
 #
 # example: h-add-mail-domain-dkim admin acme.com
 #
-# This function adds DKIM signature to outgoing domain emails.
+# Signs the domain's outgoing mail with a new DKIM key of DKIM_SIZE bits (1024, 2048, 4096; default 2048).
 
 user=$1
 domain=$2

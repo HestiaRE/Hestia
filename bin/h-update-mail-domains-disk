@@ -4,7 +4,7 @@
 #
 # example: h-update-mail-domains-disk admin
 #
-# This function calculates disk usage for all mail domains.
+# Recounts the disk usage of every mail domain of the user.
 
 user=$1
 

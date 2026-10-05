@@ -4,7 +4,7 @@
 #
 # example: h-unsuspend-mail-domains admin
 #
-# This function unsuspends all user's MAIL domains.
+# Unsuspends every mail domain of the user.
 
 user=$1
 

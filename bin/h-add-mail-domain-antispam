@@ -4,7 +4,7 @@
 #
 # example: h-add-mail-domain-antispam admin mydomain.tld
 #
-# This function enables spamassasin for incoming emails.
+# Switches the rspamd scan on for the domain's incoming mail.
 
 user=$1
 domain=$2

@@ -4,12 +4,8 @@
 #
 # example: h-change-mail-domain-spam-score user domain.tld 6.5
 #
-# Sets the spam mark threshold for one mail domain (spam points, ≤1 decimal).
-# Mail above it gets X-Spam-Status: Yes + .Spam foldering. Source of truth:
-# U_SPAM_SCORE in mail.conf, mirrored as integer tenths (exim's unit) to
-# spam_score, read per message (no reload). Removing the override falls back to
-# the global SPAM_SCORE. Range limits are enforced by the panel; the CLI only
-# validates format.
+# Sets the domain's spam mark threshold in spam points (one decimal): mail above it is marked and goes to Spam.
+# The panel enforces the range, the CLI only the format.
 
 user=$1
 domain=$2

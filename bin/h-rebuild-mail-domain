@@ -4,7 +4,7 @@
 #
 # example: h-rebuild-mail-domain user domain.tld
 #
-# This function rebuilds configuration files for a single domain.
+# Writes the domain's exim and dovecot files, webmail and autoreplies again from its records.
 
 user=$1
 domain=$2

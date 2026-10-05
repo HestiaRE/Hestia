@@ -9,7 +9,6 @@
 user=$1
 domain=$2
 account=$3
-malias=$4
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

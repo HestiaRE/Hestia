@@ -37,6 +37,7 @@ is_object_valid 'db' 'DB' "$database"
 is_object_unsuspended 'db' 'DB' "$database"
 
 get_database_values
+[ "$TYPE" = 'mysql' ] || check_result "$E_INVALID" "database $database is $TYPE, temp users are mysql only"
 # The login only works on the server that holds the database.
 [ -z "$host" ] || [ "$host" = 'default' ] || [ "$host" = "$HOST" ] \
 	|| check_result "$E_INVALID" "database $database is on $HOST, not on $host"

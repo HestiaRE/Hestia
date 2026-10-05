@@ -59,7 +59,7 @@ is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
 #----------------------------------------------------------#
 
 msg=$(mktemp)
-echo -e "$autoreply" > "$msg"
+printf '%s\n' "$autoreply" > "$msg"
 
 # With Sieve the vacation rule answers and exim stays silent, or the sender gets both.
 if vacation_sieve_on; then

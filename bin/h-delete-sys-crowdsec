@@ -95,7 +95,7 @@ if [ "$FIREWALL_EXTENSION" = 'fail2ban' ] && [ -f /etc/fail2ban/jail.d/hestia.lo
 	systemctl reload-or-restart fail2ban > /dev/null 2>&1
 fi
 
-# The per-domain fragments stay as saved state: inert without the http-block zones, restored by a re-add.
+# The fragments are gone, the records keep CROWDSEC: a re-add renders them again.
 
 echo "CrowdSec has been removed. You can now run h-delete-sys-nginx if the model requires it."
 

@@ -89,6 +89,7 @@ crowdsec_apply "$cs_mode" || {
 	echo "ERROR: CrowdSec wiring failed."
 	exit "$E_INVALID"
 }
+crowdsec_render_all_fragments
 
 #----------------------------------------------------------#
 #                       Hestia                             #

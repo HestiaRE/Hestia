@@ -776,6 +776,7 @@ install_security() {
 			# The wizard answer is the truth at install time, and it is handed over rather than looked up:
 			# the library no longer reads install.conf itself (#945).
 			crowdsec_apply "${COMPONENT_CROWDSEC_MODE:-capi}" || echo "[ ! ] CrowdSec wiring reported an issue (non-fatal)"
+			crowdsec_render_all_fragments
 			# 'mesh' model: arm the mechanism (publish + import timer). Inert until peers are paired,
 			# which is a two-admin step done afterwards in the panel or via the pairing commands.
 			if [ "${COMPONENT_CROWDSEC_MODE:-}" = "mesh" ]; then

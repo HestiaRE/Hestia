@@ -307,6 +307,20 @@ crowdsec_render_domain_fragment() {
 	fi
 }
 
+# A removal deletes every fragment while the records keep CROWDSEC, so an add renders them again from the records.
+crowdsec_render_all_fragments() {
+	local wc user d
+	for wc in "$CONF_DIR"/users/*/web.conf; do
+		[ -e "$wc" ] || continue
+		user=$(basename "$(dirname "$wc")")
+		for d in $(sed -n "s/^DOMAIN='\([^']*\)'.*CROWDSEC='yes'.*/\1/p" "$wc"); do
+			crowdsec_render_domain_fragment "$user" "$d"
+		done
+	done
+	nginx -t > /dev/null 2>&1 && systemctl reload nginx > /dev/null 2>&1
+	return 0
+}
+
 # Remove the nginx-side wiring (leaves the engine + /etc/crowdsec saved state).
 crowdsec_remove_nginx() {
 	rm -f /etc/nginx/conf.d/crowdsec_init.conf /etc/crowdsec/bouncers/hestia_bouncer.lua

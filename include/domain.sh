@@ -1192,10 +1192,21 @@ del_webmail_ssl_config() {
 # first mail was spam had its Spam delivery deferred until then, and bounced if nothing else arrived.
 mail_account_maildir_ensure() { # USER DOMAIN_IDN ACCOUNT
 	local d="$HOMEDIR/$1/mail/$2/$3" sub
+	mail_dir_trusted "$1" "$2" && [ ! -L "$d" ] || return 1
 	[ -d "$d" ] || install -d -o "$1" -g mail -m 700 "$d" || return 1
 	for sub in cur new tmp; do
+		[ ! -L "$d/$sub" ] || return 1
 		[ -d "$d/$sub" ] || install -d -o "$1" -g mail -m 770 "$d/$sub" || return 1
 	done
+}
+
+# mail_dir_trusted USER [DOMAIN_IDN]: root may work below ~/mail. The customer owns /home/USER and the domain dir, so a
+# link there, or a ~/mail of their own after renaming root's away, would hand root's chown to any target.
+# Does not cover a swap between this check and the action that follows it.
+mail_dir_trusted() {
+	local m="$HOMEDIR/$1/mail"
+	[ ! -L "$m" ] && [ -d "$m" ] && [ "$(stat -c %u "$m")" = 0 ] || return 1
+	[ -z "$2" ] || { [ ! -L "$m/$2" ] && [ -d "$m/$2" ]; }
 }
 
 # exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.

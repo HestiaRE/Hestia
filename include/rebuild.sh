@@ -194,6 +194,7 @@ rebuild_user_conf() {
 		fi
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		mkdir -p $HOMEDIR/$user/mail
+		chown --no-dereference root:root $HOMEDIR/$user/mail
 		chmod 751 $HOMEDIR/$user/mail
 		chmod 751 $HOMEDIR/$user/conf/mail
 		if [ "$create_user" = "yes" ]; then
@@ -829,13 +830,15 @@ rebuild_mail_domain_conf() {
 		chmod 771 $HOMEDIR/$user/conf/mail/$domain
 		chmod 660 $HOMEDIR/$user/conf/mail/$domain/*
 		chmod 771 /etc/$MAIL_SYSTEM/domains/$domain_idn
-		chmod 770 $HOMEDIR/$user/mail/$domain_idn
 		chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain
 		if [ "$IMAP_SYSTEM" = "dovecot" ]; then
 			chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
 		fi
 		chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/accounts
-		chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+		if mail_dir_trusted "$user" "$domain_idn"; then
+			chmod 770 $HOMEDIR/$user/mail/$domain_idn
+			chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+		fi
 	fi
 
 	# Add missing SSL configuration flags to existing domains

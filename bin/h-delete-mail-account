@@ -58,7 +58,7 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/accounts "$account:"
 	remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/limits "$account@$domain_idn:"
-	rm -rf $HOMEDIR/$user/mail/$domain_idn/$account
+	mail_dir_trusted "$user" "$domain_idn" && rm -rf "$HOMEDIR/$user/mail/$domain_idn/$account"
 	mail_autoreply_once_clear "$domain_idn" "$account"
 fi
 

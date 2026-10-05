@@ -60,6 +60,10 @@ is_password_valid
 #                       Action                             #
 #----------------------------------------------------------#
 
+# The mailbox first: nothing is written for an account whose directory root may not create.
+mail_account_maildir_ensure "$user" "$domain_idn" "$account" \
+	|| check_result "$E_FORBIDEN" "$HOMEDIR/$user/mail/$domain_idn/$account is not a plain directory under ~/mail"
+
 # Generating hashed password
 
 if [ -n "$(doveadm pw -l | grep BLF-CRYPT)" ]; then
@@ -92,12 +96,6 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 		echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
 	fi
 fi
-
-# Create mail account folder (mailbox)
-mkdir $HOMEDIR/$user/mail/$domain_idn/$account
-chown $user:mail $HOMEDIR/$user/mail/$domain_idn/$account
-chmod 700 $HOMEDIR/$user/mail/$domain_idn/$account
-mail_account_maildir_ensure "$user" "$domain_idn" "$account"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

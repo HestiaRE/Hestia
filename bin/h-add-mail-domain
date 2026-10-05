@@ -69,7 +69,8 @@ if looks_like_ip46 "$domain"; then
 fi
 
 is_package_full 'MAIL_DOMAINS'
-is_dir_symlink $HOMEDIR/$user/mail
+mail_dir_trusted "$user" && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ] \
+	|| check_result "$E_FORBIDEN" "$HOMEDIR/$user/mail is not root's own directory, or $domain_idn in it is a link"
 
 is_base_domain_owner "$domain"
 

@@ -46,7 +46,7 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 
 for minutes in "${MAIL_PW_GRACE:-720}" "${MAIL_PW_GRACE_SMTP:-60}"; do
-	[[ "$minutes" =~ ^[0-9]+$ ]] || check_result "$E_INVALID" "MAIL_PW_GRACE and MAIL_PW_GRACE_SMTP are minutes, 0 is off"
+	[[ "$minutes" =~ ^(0|[1-9][0-9]*)$ ]] || check_result "$E_INVALID" "MAIL_PW_GRACE and MAIL_PW_GRACE_SMTP are minutes, 0 is off"
 done
 
 # Without fail2ban nothing bans, so there is nothing to hold back.

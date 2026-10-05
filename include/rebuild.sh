@@ -695,8 +695,9 @@ rebuild_mail_domain_conf() {
 
 		# Rebuild SMTP Relay configuration
 		if [ "$U_SMTP_RELAY" = 'true' ]; then
-			$BIN/h-add-mail-domain-smtp-relay $user $domain "$U_SMTP_RELAY_HOST" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" \
-				"$(record_value_decode "$U_SMTP_RELAY_PASSWORD")" "$U_SMTP_RELAY_PORT"
+			# Written here, not through h-add-mail-domain-smtp-relay: its arguments would show the password in ps.
+			smtp_relay_write "$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf" 'Debian-exim:mail' 660 "$U_SMTP_RELAY_HOST" \
+				"$U_SMTP_RELAY_PORT" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" "$(record_value_decode "$U_SMTP_RELAY_PASSWORD")"
 		fi
 
 		# Rebuild SMTP relay exclude list (recipient domains delivered

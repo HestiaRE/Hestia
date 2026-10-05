@@ -36,7 +36,7 @@ class rcube_hestia_password
 			curl_setopt_array($ch, [
 				CURLOPT_URL => $url,
 				CURLOPT_RETURNTRANSFER => true,
-				CURLOPT_HEADER => true,
+				CURLOPT_HEADER => false,
 				CURLOPT_POST => true,
 				CURLOPT_POSTFIELDS => http_build_query($postvars),
 				CURLOPT_USERAGENT => "Hestia Control Panel Password Driver",
@@ -52,7 +52,8 @@ class rcube_hestia_password
 			throw new Exception("curl_exec() failed: " . curl_error($ch));
 		}
 		curl_close($ch);
-		if (strpos($result, "ok") && !strpos($result, "error")) {
+		// The exact answer: an "ok" anywhere, a cookie header included, took a silent refusal for success.
+		if (trim($result) === "==ok==") {
 			return PASSWORD_SUCCESS;
 		} else {
 			return PASSWORD_ERROR;

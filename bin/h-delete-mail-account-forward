@@ -60,7 +60,9 @@ done
 # Deleting exim forward
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$account@$domain_idn:"
-	echo "$account@$domain_idn:$fwd" >> $HOMEDIR/$user/conf/mail/$domain/aliases
+	[ -z "$fwd" ] || echo "$account@$domain_idn:$fwd" >> $HOMEDIR/$user/conf/mail/$domain/aliases
+	# Forward-only without a forward sends everything to devnull.
+	[ -n "$fwd" ] || remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
 fi
 
 #----------------------------------------------------------#
@@ -69,6 +71,7 @@ fi
 
 # Updating config
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD' "$fwd"
+[ -n "$fwd" ] || update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' ''
 
 # Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account forwarding address removed (User: $account@$domain, Send To: $forward)."

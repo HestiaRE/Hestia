@@ -794,7 +794,7 @@ rebuild_mail_domain_conf() {
 			if [ -n "$FWD" ]; then
 				echo "$account@$domain_idn:$FWD" >> $dom_aliases
 			fi
-			if [ "$FWD_ONLY" = 'yes' ]; then
+			if [ "$FWD_ONLY" = 'yes' ] && [ -n "$FWD" ]; then
 				echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
 			fi
 			user_rate_limit=$(get_object_value 'mail' 'DOMAIN' "$domain" '$RATE_LIMIT')

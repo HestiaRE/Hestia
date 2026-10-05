@@ -65,20 +65,7 @@ is_password_valid
 mail_account_maildir_ensure "$user" "$domain_idn" "$account" \
 	|| check_result "$E_FORBIDEN" "$HOMEDIR/$user/mail/$domain_idn/$account is not a plain directory under ~/mail"
 
-# Generating hashed password
-
-if [ -n "$(doveadm pw -l | grep BLF-CRYPT)" ]; then
-	set +H # disable ! style history substitution
-	md5="$(doveadm pw -s BLF-CRYPT -p "$password")"
-elif [ -n "$(doveadm pw -l | grep ARGON2ID)" ]; then
-	# Fall back on Argon2id if bcrypt is not available
-	set +H # disable ! style history substitution
-	md5="$(doveadm pw -s ARGON2ID -p "$password")"
-else
-	# Fall back on MD5 if neither bcrypt nor argon2id is available
-	salt=$(generate_password "$PW_MATRIX" "8")
-	md5="{MD5}$($BIN/h-generate-password-hash md5 $salt <<< $password)"
-fi
+md5=$(mail_password_hash "$password") || check_result "$E_UPDATE" "no password hash for $account@$domain"
 # Adding account info into password file
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	if [ "$quota" = 'unlimited' ]; then

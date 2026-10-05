@@ -1186,6 +1186,23 @@ del_webmail_ssl_config() {
 	fi
 }
 
+# The hash for a mail password, in the strongest scheme this dovecot knows. A failed doveadm prints nothing, and an
+# empty hash in passwd would be a login without a password.
+mail_password_hash() { # PASSWORD
+	local schemes hash salt
+	schemes=$(doveadm pw -l 2> /dev/null)
+	if [[ " $schemes " == *" BLF-CRYPT "* ]]; then
+		hash=$(doveadm pw -s BLF-CRYPT -p "$1")
+	elif [[ " $schemes " == *" ARGON2ID "* ]]; then
+		hash=$(doveadm pw -s ARGON2ID -p "$1")
+	else
+		salt=$(generate_password "$PW_MATRIX" "8")
+		hash="{MD5}$($BIN/h-generate-password-hash md5 "$salt" <<< "$1")"
+	fi
+	[[ "$hash" =~ ^\{[A-Z0-9-]+\}[^[:space:]]{8,}$ ]] || return 1
+	printf '%s\n' "$hash"
+}
+
 # The passwd line dovecot and exim read for an account, built here only: the quota syntax changed with dovecot 2.4.
 mail_passwd_line() { # USER ACCOUNT HASH QUOTA
 	local q="$4" ver rule

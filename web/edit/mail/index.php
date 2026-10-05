@@ -165,7 +165,6 @@ if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_autoreply_source = $autoreply_str[$v_account]["SOURCE"] ?? "exim";
 	if ($v_autoreply == "yes") {
 		$v_autoreply_message = $autoreply_str[$v_account]["MSG"];
-		$v_autoreply_message = str_replace("\\n", "\n", $v_autoreply_message);
 	} else {
 		$v_autoreply_message = "";
 	}

@@ -67,6 +67,11 @@ fi
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$account@$domain_idn:"
 	echo "$account@$domain_idn:$fwd" >> $HOMEDIR/$user/conf/mail/$domain/aliases
+	# exim's alias router reads nothing out of :blackhole:, the discard is forward-only's devnull.
+	if [ "$email_forward" = ':blackhole:' ]; then
+		remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
+		echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
+	fi
 fi
 
 #----------------------------------------------------------#
@@ -75,6 +80,10 @@ fi
 
 # Updating config
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD' "$fwd"
+if [ "$email_forward" = ':blackhole:' ]; then
+	add_object_key "mail/$domain" 'ACCOUNT' "$account" 'FWD_ONLY' 'MD5'
+	update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' 'yes'
+fi
 
 # Logging
 $BIN/h-log-action "$user" "Warning" "Mail" "Mail forwarding on mail account $account@$domain enabled (send to: $email_forward)."

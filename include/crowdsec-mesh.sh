@@ -118,6 +118,12 @@ mesh_fw_close() {
 	return 0
 }
 
+# A handoff path is a plain file in the staging dir and nothing else: the commands read and remove it as root.
+mesh_handoff_valid() {
+	[ "$(dirname -- "$1")" = "$MESH_RUN_DIR/in" ] && [[ "${1##*/}" =~ ^[A-Za-z0-9]{8,64}$ ]] \
+		&& [ -f "$1" ] && [ ! -L "$1" ]
+}
+
 # Stage what the panel needs under /run: the payload plus the per-peer serve-token HASHES. The panel
 # runs as `hestia` and can read neither /etc/hestia nor /var/lib/crowdsec, so it compares hashes here
 # rather than shelling out with a secret in argv - and a leak of this file yields no working token.

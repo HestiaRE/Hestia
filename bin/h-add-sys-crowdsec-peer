@@ -8,8 +8,8 @@
 # admin on both sides and neither handles the other's credentials. Both boxes end up with each other's
 # pull token, TLS pin and an IP-scoped ACCEPT rule for the panel port; the timer takes it from there.
 #
-# CODE may be @/path/to/file (read, then removed): argv is world-readable via /proc, so the panel
-# passes the secret that way.
+# CODE may be @FILE, a file in /run/hestia/mesh/in (read, then removed): argv is world-readable via /proc, so
+# the panel passes the secret that way.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -64,8 +64,8 @@ done
 # @file form: the secret arrives out of band. Consumed immediately either way.
 if [[ "$code" == @* ]]; then
 	code_file="${code#@}"
-	[ -f "$code_file" ] || {
-		echo "ERROR: code file not found."
+	mesh_handoff_valid "$code_file" || {
+		echo "ERROR: code file must be a file in $MESH_RUN_DIR/in."
 		exit "$E_NOTEXIST"
 	}
 	code=$(head -c 128 "$code_file")

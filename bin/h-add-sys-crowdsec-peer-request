@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: accept an inbound CrowdSec mesh pairing request
 # options: IP HANDOFF_FILE
+# labels: internal
+# caller: web/mesh-pair.php
 #
 # example: h-add-sys-crowdsec-peer-request 10.5.5.13 /run/hestia/mesh/in/abc123
 #
@@ -36,7 +38,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 # Errors go to stderr: stdout carries the JSON reply and nothing else.
 fail() {
 	echo "ERROR: $1" >&2
-	rm -f "$handoff"
+	[ -n "$handoff_ok" ] && rm -f "$handoff"
 	exit "${2:-$E_INVALID}"
 }
 
@@ -57,15 +59,12 @@ fi
 
 check_args '2' "$#" 'IP HANDOFF_FILE'
 
+# Before anything that could remove it: a refused path is never touched.
+handoff_ok=''
+mesh_handoff_valid "$handoff" || fail "handoff file must be a file in $MESH_RUN_DIR/in" "$E_NOTEXIST"
+handoff_ok=yes
 mesh_load || fail "fleet-mesh is not enabled" "$E_DISABLED"
 [ -f "$MESH_PAIRING_CONF" ] || fail "no pairing window is open" "$E_NOTEXIST"
-[ -f "$handoff" ] || fail "handoff file not found" "$E_NOTEXIST"
-
-# Panel-supplied path: confine it to the staging dir so it can never name an arbitrary file.
-case "$handoff" in
-	"$MESH_RUN_DIR/in/"*) [[ "${handoff##*/}" =~ ^[A-Za-z0-9]{8,64}$ ]] || fail "invalid handoff name" ;;
-	*) fail "handoff file outside $MESH_RUN_DIR/in" ;;
-esac
 
 # Both families: a peer that reached us over v6 is paired on the address it actually used (#893).
 (is_ip46_format_valid "$ip") > /dev/null 2>&1 || fail "invalid source address"

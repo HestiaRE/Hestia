@@ -24,10 +24,12 @@ format_domain_idn
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
+is_system_enabled "$ANTISPAM_SYSTEM" 'ANTISPAM_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
+is_object_value_exist 'mail' 'DOMAIN' "$domain" '$ANTISPAM'
 is_object_value_empty 'mail' 'DOMAIN' "$domain" '$REJECT'
 
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then

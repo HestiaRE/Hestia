@@ -72,8 +72,9 @@ new_timestamp
 
 if [ -z "$ANTISPAM_SYSTEM" ]; then
 	antispam="no"
-	reject="no"
 fi
+# Rejecting acts on the spam score, so without the filter it would wait in the record and fire when it is switched on.
+[ "$antispam" = 'yes' ] || reject="no"
 if [ -z "$ANTIVIRUS_SYSTEM" ]; then
 	antivirus="no"
 fi

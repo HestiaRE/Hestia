@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: delete mail domain ssl support
-# options: USER DOMAIN
+# options: USER DOMAIN [RESTART]
 #
 # example: h-delete-mail-domain-ssl user demo.com
 #
@@ -33,7 +33,7 @@ format_domain_idn
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER DOMAIN'
+check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
@@ -60,6 +60,14 @@ update_object_value 'mail' 'DOMAIN' "$domain" '$LETSENCRYPT' 'no'
 # Restarting mail server
 $BIN/h-restart-mail "$restart"
 check_result $? "Mail restart failed" > /dev/null
+
+# The webmail SSL vhost went with it, and the web server serves it from memory until a reload.
+web_restart=$restart
+[ "$restart" = 'yes' ] && web_restart=''
+$BIN/h-restart-web "$web_restart"
+check_result $? "Web restart failed" > /dev/null
+$BIN/h-restart-proxy "$web_restart"
+check_result $? "Proxy restart failed" > /dev/null
 
 # Logging
 $BIN/h-log-action "$user" "Warning" "Mail" "SSL disabled (Domain: $domain)."

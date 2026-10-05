@@ -14,7 +14,7 @@
 # Argument definition
 user=$1
 domain=$2
-restart="$3"
+restart="${3:-yes}"
 quiet=$4
 
 # Includes

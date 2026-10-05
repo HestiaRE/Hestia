@@ -56,6 +56,10 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix "$HOMEDIR/$user/conf/mail/$domain/passwd" "$account:"
 	mail_passwd_line "$user" "$account" 'SUSPENDED' "$quota" >> "$HOMEDIR/$user/conf/mail/$domain/passwd"
 fi
+# The new hash stops the next login, an open IMAP session would go on.
+if [ "$IMAP_SYSTEM" = 'dovecot' ]; then
+	doveadm kick "$account@$domain_idn" > /dev/null 2>&1
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #

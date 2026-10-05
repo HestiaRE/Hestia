@@ -47,17 +47,20 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 get_domain_values 'mail'
 accounts=$(wc -l "$USER_DATA/mail/$domain.conf" | cut -f 1 -d ' ')
 
+# Before the conf dir goes, and whatever the flag says: SNI links and the dovecot file can outlive SSL='no'.
+if [ "$SSL" = 'yes' ]; then
+	$BIN/h-delete-mail-domain-ssl "$user" "$domain"
+else
+	del_mail_ssl_config
+	del_mail_ssl_certificates
+fi
+
 # Deleting exim configuration files
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 	rm -rf $HOMEDIR/$user/conf/mail/$domain
 	rm -rf $HOMEDIR/$user/mail/$domain_idn
 	mail_autoreply_once_clear "$domain_idn"
-fi
-
-# Delete SSL certificates and configuration
-if [ "$SSL" = 'yes' ] || [ -e "$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.crt" ]; then
-	$BIN/h-delete-mail-domain-ssl "$user" "$domain"
 fi
 
 # Delete webmail configuration if it exists (front-based, #193: a mailfront box

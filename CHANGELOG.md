@@ -24,6 +24,8 @@ before v0.20.0 are folded into one section by theme.
   combined list hides what it already contains. The ticked lists become one IP list with one DROP rule, and a
   list FireHOL stops serving is skipped on refresh instead of freezing the set. The catalogue is fetched only on
   the button, never on page load.
+- **CrowdSec protects new web domains by default** (#1176), wherever its nginx bouncer runs; an admin turns it
+  off per domain in the domain's settings.
 
 ### Security
 
@@ -79,6 +81,9 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **Firewall and fail2ban commands do what they report** (#1176). A change the ruleset refuses is rolled back
+  instead of staying in the config, bans of whole networks and IPv6 rules for ICMP or all ports render, an IP list
+  that shrinks to a fraction on refresh is kept, and a fail2ban that does not come up is reported as such.
 - **Database commands do what they report** (#1176). A database that cannot be dropped keeps its record, a
   suspended PostgreSQL database stays closed, a host password change reaches the server, and phpMyAdmin's
   temporary logins go with their database. A restored database counts on its host again, and an unreachable

@@ -63,8 +63,9 @@ fi
 
 # Adding account to fwd_only
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
+	remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
 	echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
-	chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/fwd_only
+	chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/fwd_only
 fi
 
 #----------------------------------------------------------#

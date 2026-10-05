@@ -299,6 +299,7 @@ acl_check_data:
   # or global SPAM_REJECT_SCORE) and reject_spam is enabled; whitelisted
   # senders (acl_m6) are exempt
   deny   message        = This message scored $spam_score spam points
+         condition      = ${if eq{$acl_m1}{yes}{yes}{no}}
          condition      = ${if eq{$acl_m3}{yes}{yes}{no}}
          condition      = ${if eq{$acl_m6}{no}{yes}{no}}
          spam           = nobody:true

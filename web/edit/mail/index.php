@@ -210,6 +210,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		);
 		check_return_code($return_var, $output);
 		$v_antispam = "no";
+		$v_reject = "no";
 		unset($output);
 	}
 

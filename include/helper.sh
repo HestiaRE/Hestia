@@ -720,6 +720,11 @@ exim_one_domain_apply() {
 	exim_template_patch 0.24/exim-one-domain-per-transaction.patch
 }
 
+# A domain's reject_spam no longer outlives its antispam scan.
+exim_reject_antispam_apply() {
+	exim_template_patch 0.24/exim-reject-needs-antispam.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

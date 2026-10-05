@@ -47,7 +47,8 @@ is_object_value_exist 'mail' 'DOMAIN' "$domain" '$ANTISPAM'
 
 # Delete antispam flag
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	rm -f $HOMEDIR/$user/conf/mail/$domain/antispam
+	# Rejecting is a step of the spam scan, so it goes with it rather than outliving it in the record.
+	rm -f "$HOMEDIR/$user/conf/mail/$domain/antispam" "$HOMEDIR/$user/conf/mail/$domain/reject_spam"
 fi
 
 #----------------------------------------------------------#
@@ -56,6 +57,7 @@ fi
 
 # Delete antispam in config
 update_object_value 'mail' 'DOMAIN' "$domain" '$ANTISPAM' 'no'
+update_object_value 'mail' 'DOMAIN' "$domain" '$REJECT' 'no'
 
 # Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Anti-spam protection disabled (Domain: $domain)."

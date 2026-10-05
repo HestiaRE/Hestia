@@ -568,6 +568,30 @@
         "/etc/exim4/exim4.conf.template"
       ],
       "reversible": false
+    },
+    {
+      "id": "exim-reject-needs-antispam",
+      "description": "Spam is rejected only while the domain's antispam scan is on; a reject_spam left behind no longer rejects on its own",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-reject-needs-antispam.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_reject_antispam_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
     }
   ]
 }

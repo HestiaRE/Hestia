@@ -43,6 +43,7 @@ if grep -qxF "$ip_cidr" "$excludes" 2> /dev/null; then
 	exit
 fi
 
+fw_conf_checkpoint "$excludes"
 echo "$ip_cidr" >> "$excludes"
 chmod 660 "$excludes"
 
@@ -54,7 +55,7 @@ while read -r ban; do
 	[ "$IP" = "$ip_cidr" ] && $BIN/h-delete-firewall-ban "$IP" "$CHAIN" > /dev/null 2>&1
 done < <(grep "IP='$ip_cidr'" "$CONF_DIR/firewall/banlist.conf" 2> /dev/null)
 
-$BIN/h-update-firewall > /dev/null 2>&1
+fw_update_or_rollback > /dev/null 2>&1 || check_result "$E_INVALID" "the ruleset rejected the change, address not whitelisted"
 
 # fail2ban keeps its own copy, or the jail keeps counting an address the ruleset already exempts.
 if [ -n "$FIREWALL_EXTENSION" ] && [ -f "$HESTIA/include/fail2ban.sh" ]; then

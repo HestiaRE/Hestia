@@ -16,7 +16,7 @@ rule=$1
 action=$(echo "$2" | tr '[:lower:]' '[:upper:]')
 ipv4_cidr=$3
 port_ext=$4
-protocol=${5-TCP}
+protocol=${5:-TCP}
 protocol=$(echo "$protocol" | tr '[:lower:]' '[:upper:]')
 comment=$6
 
@@ -25,6 +25,8 @@ comment=$6
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -41,6 +43,7 @@ sort_fw_rules() {
 #----------------------------------------------------------#
 
 check_args '4' "$#" 'RULE ACTION IP_CIDR PORT [PROTOCOL] [COMMENT]'
+[ -n "$port_ext" ] || check_result "$E_INVALID" "PORT is empty (0 means every port)"
 is_format_valid 'rule' 'action' 'protocol' 'port_ext'
 if [ ! -z "$comment" ]; then
 	is_format_valid 'comment'
@@ -72,6 +75,7 @@ str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='no'"
 str="$str TIME='$time' DATE='$date'"
 
 # Deleting old rule
+fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 sed -i "/RULE='$rule' /d" $CONF_DIR/firewall/rules.conf
 
 # Adding new
@@ -81,7 +85,7 @@ echo "$str" >> $CONF_DIR/firewall/rules.conf
 sort_fw_rules
 
 # Updating system firewall
-$BIN/h-update-firewall
+fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rule unchanged"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

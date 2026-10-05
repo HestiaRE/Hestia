@@ -14,7 +14,7 @@
 action=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 ipv4_cidr=$2
 port_ext=$3
-protocol=${4-TCP}
+protocol=${4:-TCP}
 protocol=$(echo "$protocol" | tr '[:lower:]' '[:upper:]')
 comment=$5
 rule=$6
@@ -24,6 +24,8 @@ rule=$6
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -48,6 +50,7 @@ sort_fw_rules() {
 #----------------------------------------------------------#
 
 check_args '3' "$#" 'ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [RULE]'
+[ -n "$port_ext" ] || check_result "$E_INVALID" "PORT is empty (0 means every port)"
 is_format_valid 'action' 'protocol' 'port_ext'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 get_next_fw_rule
@@ -80,6 +83,7 @@ str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='no'"
 str="$str TIME='$time' DATE='$date'"
 
 # Adding to config
+fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 echo "$str" >> $CONF_DIR/firewall/rules.conf
 
 # Changing permissions
@@ -89,7 +93,7 @@ chmod 660 $CONF_DIR/firewall/rules.conf
 sort_fw_rules
 
 # Updating system firewall
-$BIN/h-update-firewall
+fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rule not added"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

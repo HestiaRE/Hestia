@@ -111,6 +111,23 @@ fw_batch_apply() {
 	return 0
 }
 
+# A record nft rejects makes every later render fail, so a command that writes one renders with a way back.
+fw_conf_checkpoint() {
+	FW_CHECKPOINT_OF="$1"
+	FW_CHECKPOINT="$(mktemp)"
+	cat "$1" > "$FW_CHECKPOINT" 2> /dev/null
+}
+
+fw_update_or_rollback() {
+	if "$HESTIA/bin/h-update-firewall"; then
+		rm -f "$FW_CHECKPOINT"
+		return 0
+	fi
+	cat "$FW_CHECKPOINT" > "$FW_CHECKPOINT_OF"
+	rm -f "$FW_CHECKPOINT"
+	return 1
+}
+
 #----------------------------------------------------------#
 #                  Chains and policy                       #
 #----------------------------------------------------------#
@@ -294,7 +311,7 @@ fw_render_sets() {
 		[ -n "$elems" ] && elems=" elements = { $elems };"
 		case "$kind" in
 			interval) echo "	set $id { type ipv4_addr; flags interval; auto-merge;${elems} }" ;;
-			# Blocklists are prefixes; jail and CrowdSec v6 sets hold single addresses and stay plain.
+			# Blocklists and jails take prefixes; the CrowdSec v6 set holds single addresses and stays plain.
 			v6interval) echo "	set $id { type ipv6_addr; flags interval; auto-merge;${elems} }" ;;
 			v6) echo "	set $id { type ipv6_addr;${elems} }" ;;
 			*) echo "	set $id { type ipv4_addr;${elems} }" ;;
@@ -416,8 +433,9 @@ fw_rule() {
 			;;
 	esac
 
+	# meta l4proto, not ip protocol: that one is v4 only, and after an ip6 saddr nft rejects the whole document.
 	if [ "$proto" = 'icmp' ] || [ "$port_val" = '0' ]; then
-		expr="${expr}ip protocol $proto "
+		expr="${expr}meta l4proto $proto "
 	elif [ "$type" = 'FTP' ] || [ "$port_val" = '21' ]; then
 		if [ "$conntrack_ftp" != 'no' ]; then
 			expr="${expr}${proto} dport $(fw_port_expr "$port_val") ct state new "
@@ -469,8 +487,8 @@ fw_jail_rebuild() {
 	local chain="$1" protocol="$2" port_val="$3" proto verdict
 	proto="$(echo "$protocol" | tr '[:upper:]' '[:lower:]')"
 	verdict="$(fw_jail_verdict "$chain")"
-	fw_set_declare "$(fw_jail_set "$chain")"
-	fw_set_declare "$(fw_jail_set6 "$chain")" v6
+	fw_set_declare "$(fw_jail_set "$chain")" interval
+	fw_set_declare "$(fw_jail_set6 "$chain")" v6interval
 	fw_sec jail "		ip saddr @$(fw_jail_set "$chain") ${proto} dport $(fw_port_expr "$port_val") $verdict"
 	# Unconditional: an ip6 rule and an ipv6_addr set load with no v6 address and with ipv6 off, so nothing is
 	# presupposed. Needed because the service accepts carry no family qualifier - v6 reaches the jailed ports.
@@ -486,8 +504,8 @@ fw_jail_attach() {
 	local -a verdict
 	proto="$(echo "$protocol" | tr '[:upper:]' '[:lower:]')"
 	read -r -a verdict <<< "$(fw_jail_verdict "$chain")"
-	"$FW_NFT" add set "$FW_FAMILY" "$FW_TABLE" "$(fw_jail_set "$chain")" '{ type ipv4_addr; }' 2> /dev/null
-	"$FW_NFT" add set "$FW_FAMILY" "$FW_TABLE" "$(fw_jail_set6 "$chain")" '{ type ipv6_addr; }' 2> /dev/null
+	"$FW_NFT" add set "$FW_FAMILY" "$FW_TABLE" "$(fw_jail_set "$chain")" '{ type ipv4_addr; flags interval; auto-merge; }' 2> /dev/null
+	"$FW_NFT" add set "$FW_FAMILY" "$FW_TABLE" "$(fw_jail_set6 "$chain")" '{ type ipv6_addr; flags interval; auto-merge; }' 2> /dev/null
 	"$FW_NFT" list chain "$FW_FAMILY" "$FW_TABLE" input 2> /dev/null \
 		| grep -q "@$(fw_jail_set "$chain") " && return 0
 	"$FW_NFT" insert rule "$FW_FAMILY" "$FW_TABLE" input index 0 \
@@ -545,10 +563,11 @@ fw_ban_emit() {
 	local set
 	set="$(fw_jail_set_for "$1" "$2")"
 	[ -n "$set" ] || return 0
+	# Interval like the jail declaration: a ban takes a CIDR, and a plain set fails the document on one.
 	if [ "$set" = "$(fw_jail_set6 "$1")" ]; then
-		fw_set_declare "$set" v6
+		fw_set_declare "$set" v6interval
 	else
-		fw_set_declare "$set"
+		fw_set_declare "$set" interval
 	fi
 	echo "$2" >> "$FW_WORK/elem.$set"
 }

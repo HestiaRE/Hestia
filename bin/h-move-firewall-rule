@@ -25,6 +25,8 @@ direction=$(echo "$2" | tr '[:lower:]' '[:upper:]')
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -84,6 +86,7 @@ source_str="$source_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED'"
 source_str="$source_str TIME='$time' DATE='$date'"
 
 # Deleting old source rule
+fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 sed -i "/RULE='$source_rule' /d" $CONF_DIR/firewall/rules.conf
 
 parse_object_kv_list "$(grep "RULE='$target_rule'" $CONF_DIR/firewall/rules.conf)"
@@ -109,7 +112,7 @@ echo "$target_str" >> $CONF_DIR/firewall/rules.conf
 sort_fw_rules
 
 # Updating system firewall
-$BIN/h-update-firewall
+fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rules not moved"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

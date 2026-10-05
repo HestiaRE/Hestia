@@ -18,6 +18,8 @@ rule=$1
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -35,11 +37,12 @@ is_object_suspended "$CONF_DIR/firewall/rules" 'RULE' "$rule"
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Suspending rule
+# Unsuspending rule
+fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 update_object_value "$CONF_DIR/firewall/rules" 'RULE' "$rule" '$SUSPENDED' "no"
 
 # Updating system firewall
-$BIN/h-update-firewall
+fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rule unchanged"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

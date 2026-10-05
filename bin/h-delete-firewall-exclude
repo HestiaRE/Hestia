@@ -18,6 +18,8 @@ ip_cidr=$1
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -39,12 +41,13 @@ fi
 #----------------------------------------------------------#
 
 # grep -F to a temp file, not sed -i: a pattern built from an address would treat its dots as wildcards.
+fw_conf_checkpoint "$excludes"
 tmp="$(mktemp)"
 grep -vxF "$ip_cidr" "$excludes" > "$tmp" 2> /dev/null
 mv -f "$tmp" "$excludes"
 chmod 660 "$excludes"
 
-$BIN/h-update-firewall > /dev/null 2>&1
+fw_update_or_rollback > /dev/null 2>&1 || check_result "$E_INVALID" "the ruleset rejected the change, address stays whitelisted"
 
 # fail2ban keeps its own copy, or the jail keeps counting an address the ruleset already exempts.
 if [ -n "$FIREWALL_EXTENSION" ] && [ -f "$HESTIA/include/fail2ban.sh" ]; then

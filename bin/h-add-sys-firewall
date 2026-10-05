@@ -40,7 +40,10 @@ fi
 $BIN/h-change-sys-config-value "FIREWALL_SYSTEM" "nftables"
 
 # Updating firewall rules
-$BIN/h-update-firewall
+if ! $BIN/h-update-firewall; then
+	$BIN/h-change-sys-config-value "FIREWALL_SYSTEM" ""
+	check_result "$E_INVALID" "the ruleset was rejected, firewall not enabled"
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #

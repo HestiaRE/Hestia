@@ -2018,17 +2018,27 @@ is_fw_protocol_format_valid() {
 	fi
 }
 
-# Firewall port validator
+# Firewall port validator. By value, not by character: nft rejects 70000 or 1-2-3, and one such record
+# makes every later render fail.
 is_fw_port_format_valid() {
-	if [ "${#1}" -eq 1 ]; then
-		if ! [[ "$1" =~ [0-9] ]]; then
+	local -a parts
+	local p lo hi
+	[ "$1" = '0' ] && return 0
+	if [ "${#1}" -gt 78 ]; then
+		check_result "$E_INVALID" "invalid port format and/or more than 78 chars used :: $1"
+	fi
+	IFS=, read -r -a parts <<< "$1"
+	[[ "$1" =~ (^,|,$|,,) ]] || [ "${#parts[@]}" -eq 0 ] && check_result "$E_INVALID" "invalid port format :: $1"
+	for p in "${parts[@]}"; do
+		if ! [[ "$p" =~ ^([1-9][0-9]{0,4})([-:]([1-9][0-9]{0,4}))?$ ]]; then
 			check_result "$E_INVALID" "invalid port format :: $1"
 		fi
-	else
-		if ! [[ "$1" =~ ^[0-9][-,:0-9]{0,76}[0-9]$ ]]; then
-			check_result "$E_INVALID" "invalid port format and/or more than 78 chars used :: $1"
+		lo="${BASH_REMATCH[1]}"
+		hi="${BASH_REMATCH[3]:-$lo}"
+		if [ "$lo" -gt 65535 ] || [ "$hi" -gt 65535 ] || [ "$lo" -gt "$hi" ]; then
+			check_result "$E_INVALID" "invalid port format :: $1"
 		fi
-	fi
+	done
 }
 
 # DNS record id validator

@@ -307,7 +307,7 @@ fail2ban_sync_ignoreip() {
 	declare -F fw_is_addr > /dev/null 2>&1 || source "$HESTIA/include/firewall.sh"
 	# grep rc 0/1 is the normal empty case; rc>=2 is a real read failure and must not vanish into `|| true`.
 	if [ -f "$excludes" ]; then
-		ips="$(grep -oE "$FW_ADDR_RE|^[0-9A-Fa-f:]+(/[0-9]{1,3})?$" "$excludes")" || rc=$?
+		ips="$(grep -oE "$FW_ADDR_RE|$FW_ADDR6_RE" "$excludes")" || rc=$?
 		[ "$rc" -le 1 ] || check_result "$E_PARSING" "fail2ban_sync_ignoreip: cannot read $excludes (grep rc=$rc)"
 		ips="$(printf '%s' "$ips" | paste -sd' ' -)"
 	fi

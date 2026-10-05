@@ -49,7 +49,7 @@ accounts=$(wc -l "$USER_DATA/mail/$domain.conf" | cut -f 1 -d ' ')
 
 # Deleting exim configuration files
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	rm -f /etc/$MAIL_SYSTEM/domains/$domain_idn
+	rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 	rm -rf $HOMEDIR/$user/conf/mail/$domain
 	rm -rf $HOMEDIR/$user/mail/$domain_idn
 	mail_autoreply_once_clear "$domain_idn"

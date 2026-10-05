@@ -47,7 +47,8 @@ is_object_suspended 'mail' 'DOMAIN' "$domain"
 
 # Add symbolic link
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	ln -s $HOMEDIR/$user/conf/mail/$domain /etc/$MAIL_SYSTEM/domains/
+	rm -f "/etc/$MAIL_SYSTEM/domains/$domain"
+	ln -sfn "$HOMEDIR/$user/conf/mail/$domain" "/etc/$MAIL_SYSTEM/domains/$domain_idn"
 fi
 
 #----------------------------------------------------------#

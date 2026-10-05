@@ -626,7 +626,7 @@ rebuild_mail_domain_conf() {
 
 	# Rebuilding exim config structure
 	if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-		rm -f /etc/$MAIL_SYSTEM/domains/$domain_idn
+		rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		ln -s $HOMEDIR/$user/conf/mail/$domain \
 			/etc/$MAIL_SYSTEM/domains/$domain_idn

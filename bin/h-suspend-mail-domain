@@ -47,7 +47,8 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 
 # Deleting symbolic link
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	rm -f /etc/$MAIL_SYSTEM/domains/$domain
+	# The link carries the punycode name; a unicode-named one can only be a stray an older unsuspend left.
+	rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 fi
 
 # Removing webmail configuration - but round-trip the customer's client choice: delete-webmail

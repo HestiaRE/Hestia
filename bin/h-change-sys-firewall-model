@@ -25,8 +25,12 @@ source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 # Derive the live model from the artefacts, not install.conf.
+# The key alone is not the model: a fail2ban that never came up still carries it, and was reported as present.
 f2b='no'
-[ "$FIREWALL_EXTENSION" = 'fail2ban' ] && f2b='yes'
+if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
+	f2b='yes'
+	systemctl -q is-active fail2ban 2> /dev/null || f2b='down'
+fi
 cs='no'
 dpkg -l crowdsec 2> /dev/null | grep -q '^ii' && cs='yes'
 case "$f2b/$cs" in
@@ -34,6 +38,8 @@ case "$f2b/$cs" in
 	yes/no) current='fail2ban' ;;
 	yes/yes) current='fail2ban+crowdsec' ;;
 	no/yes) current='crowdsec' ;;
+	down/no) current='fail2ban (not running)' ;;
+	down/yes) current='fail2ban (not running)+crowdsec' ;;
 esac
 
 #----------------------------------------------------------#
@@ -87,17 +93,17 @@ if { [ "$want_cs" = 'yes' ] && [ "$cs" = 'no' ]; } || { [ "$want_cs" = 'no' ] &&
 fi
 
 # Add first, then remove: a crowdsec add that refuses on apache aborts here with the model still intact.
-if [ "$want_f2b" = 'yes' ] && [ "$f2b" = 'no' ]; then
+if [ "$want_f2b" = 'yes' ] && [ "$f2b" != 'yes' ]; then
 	$BIN/h-add-sys-fail2ban || exit "$E_INVALID"
 fi
 if [ "$want_cs" = 'yes' ] && [ "$cs" = 'no' ]; then
 	$BIN/h-add-sys-crowdsec || exit "$E_INVALID"
 fi
-if [ "$want_f2b" = 'no' ] && [ "$f2b" = 'yes' ]; then
-	$BIN/h-delete-sys-fail2ban
+if [ "$want_f2b" = 'no' ] && [ "$f2b" != 'no' ]; then
+	$BIN/h-delete-sys-fail2ban yes || exit "$E_INVALID"
 fi
 if [ "$want_cs" = 'no' ] && [ "$cs" = 'yes' ]; then
-	$BIN/h-delete-sys-crowdsec
+	$BIN/h-delete-sys-crowdsec || exit "$E_INVALID"
 fi
 
 # No feeder refresh here: each component command owns its own L3 consequence, so calling the addon commands

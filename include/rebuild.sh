@@ -723,18 +723,8 @@ rebuild_mail_domain_conf() {
 		else
 			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_subject_tag
 		fi
-		if [ -n "$U_SPAM_WHITELIST" ]; then
-			echo "$U_SPAM_WHITELIST" | tr ',' '\n' \
-				> $HOMEDIR/$user/conf/mail/$domain/spam_whitelist
-		else
-			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_whitelist
-		fi
-		if [ -n "$U_SPAM_BLACKLIST" ]; then
-			echo "$U_SPAM_BLACKLIST" | tr ',' '\n' \
-				> $HOMEDIR/$user/conf/mail/$domain/spam_blacklist
-		else
-			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_blacklist
-		fi
+		spam_list_write "$HOMEDIR/$user/conf/mail/$domain/spam_whitelist" "$U_SPAM_WHITELIST"
+		spam_list_write "$HOMEDIR/$user/conf/mail/$domain/spam_blacklist" "$U_SPAM_BLACKLIST"
 
 		# Removing configuration files if domain is suspended
 		if [ "$SUSPENDED" = 'yes' ]; then

@@ -18,7 +18,7 @@
 # Argument definition
 user=$1
 domain=$2
-sender=$(echo "$3" | tr '[:upper:]' '[:lower:]')
+sender=$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -41,18 +41,7 @@ fi
 
 check_args '3' "$#" 'USER DOMAIN SENDER'
 is_format_valid 'user' 'domain'
-# sender pattern: user@dom, *@dom, dom or *.dom — the domain part must be a
-# plain domain (also keeps wildlsearch regex keys like ^... out of the file)
-if [[ "$sender" == *"@"* ]]; then
-	lpart="${sender%%@*}"
-	dpart="${sender#*@}"
-	if [ "$lpart" != '*' ] && ! [[ "$lpart" =~ ^[a-z0-9._+-]+$ ]]; then
-		check_result "$E_INVALID" "invalid sender pattern :: $sender"
-	fi
-else
-	dpart="${sender#\*.}"
-fi
-is_domain_format_valid "$dpart" 'sender domain'
+spam_sender_pattern_ok "$sender" || check_result "$E_INVALID" "invalid sender pattern :: $sender"
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_system_enabled "$ANTISPAM_SYSTEM" 'ANTISPAM_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
@@ -78,9 +67,7 @@ else
 	new_list="$current,$sender"
 fi
 
-echo "$new_list" | tr ',' '\n' > "$list_file"
-chown $MAIL_USER:mail "$list_file"
-chmod 660 "$list_file"
+spam_list_write "$list_file" "$new_list"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

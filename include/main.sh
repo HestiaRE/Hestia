@@ -1600,6 +1600,34 @@ is_domain_format_valid() {
 	is_no_new_line_format "$1"
 }
 
+# A spam list sender pattern: user@dom, *@dom, dom or *.dom, where dom has a dot. The list holds lsearch keys, so ':'
+# is out as well.
+spam_sender_pattern_ok() { # PATTERN
+	local lpart='*' dpart=${1#\*.} exclude='[][!@#$^&*()+={},<>?_/\\"|'\''`;%:[:space:]]'
+	if [[ "$1" == *@* ]]; then
+		lpart=${1%%@*}
+		dpart=${1#*@}
+	fi
+	[ "$lpart" = '*' ] || [[ "$lpart" =~ ^[a-z0-9._+-]+$ ]] || return 1
+	[[ "$dpart" == ?*.?* ]] || return 1
+	! [[ "$dpart" =~ $exclude || "$dpart" =~ \.\.|^[.-]|[.-]$|\.-|-\. ]]
+}
+
+# The file exim reads for a spam list: the record's entries that pass as patterns, and a planted link is replaced, not
+# followed.
+spam_list_write() { # FILE COMMA_LIST
+	local entry out='' entries
+	rm -f "$1"
+	IFS=, read -r -a entries <<< "$2"
+	for entry in "${entries[@]}"; do
+		spam_sender_pattern_ok "$entry" && out+="$entry"$'\n'
+	done
+	[ -n "$out" ] || return 0
+	printf '%s' "$out" > "$1"
+	chown -h "${MAIL_USER:-Debian-exim}:mail" "$1"
+	chmod 660 "$1"
+}
+
 # Alias forman validator
 is_alias_format_valid() {
 	for object in ${1//,/ }; do

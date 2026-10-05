@@ -14,7 +14,7 @@
 # Argument definition
 user=$1
 domain=$2
-sender=$(echo "$3" | tr '[:upper:]' '[:lower:]')
+sender=$(printf '%s' "$3" | tr '[:upper:]' '[:lower:]')
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -55,13 +55,7 @@ new_list="${new_list/",$sender,"/,}"
 new_list="${new_list#,}"
 new_list="${new_list%,}"
 
-if [ -z "$new_list" ]; then
-	rm -f "$list_file"
-else
-	echo "$new_list" | tr ',' '\n' > "$list_file"
-	chown $MAIL_USER:mail "$list_file"
-	chmod 660 "$list_file"
-fi
+spam_list_write "$list_file" "$new_list"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

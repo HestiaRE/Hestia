@@ -851,8 +851,8 @@ rebuild_mail_domain_conf() {
 	fi
 
 	dom_disk=0
-	for account in $(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT'); do
-		home_dir=$HOMEDIR/$user/mail/$domain/$account
+	for account in $accounts; do
+		home_dir=$HOMEDIR/$user/mail/$domain_idn/$account
 		if [ -e "$home_dir" ]; then
 			udisk=$(nice -n 19 du -shm $home_dir | cut -f 1)
 		else

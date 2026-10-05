@@ -14,9 +14,13 @@ VACATION_PHP="$HESTIA/include/vacation.php"
 vacation_sieve_on() { webmail_sieve_on; }
 
 # The file dovecot runs for the mailbox (dovecot.sieve is the activation symlink), or nothing.
+# The customer owns the mailbox and can point the link anywhere; root reads and rewrites only a script in it.
 vacation_script() { # USER DOMAIN_IDN ACCOUNT
-	local link="$HOMEDIR/$1/mail/$2/$3/dovecot.sieve"
-	[ -e "$link" ] && readlink -f "$link"
+	local box="$HOMEDIR/$1/mail/$2/$3" f
+	[ -e "$box/dovecot.sieve" ] || return 0
+	f=$(readlink -f "$box/dovecot.sieve")
+	[[ "$f" == "$box/"* ]] && [ -f "$f" ] && [ "$(stat -c %U "$f")" = "$1" ] && echo "$f"
+	return 0
 }
 
 vacation_state() { # USER DOMAIN_IDN ACCOUNT -> JSON

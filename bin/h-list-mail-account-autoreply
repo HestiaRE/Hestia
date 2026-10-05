@@ -76,7 +76,8 @@ source='exim'
 enabled=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY')
 if vacation_sieve_on; then
 	format_domain_idn
-	st=$(vacation_state "$user" "$domain_idn" "$account")
+	# A script php cannot parse is shown as custom, the panel does not offer to write over it.
+	st=$(vacation_state "$user" "$domain_idn" "$account") || st='{"format":"custom","enabled":false,"message":""}'
 	source=$(echo "$st" | jq -r '.format')
 	enabled=$(echo "$st" | jq -r 'if .enabled then "yes" else "no" end')
 	msg_raw=$(echo "$st" | jq -r '.message')

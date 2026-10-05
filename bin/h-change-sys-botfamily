@@ -61,7 +61,8 @@ if [[ ! "$family" =~ ^[a-z0-9_]{1,20}$ ]]; then
 	echo "Error: FAMILY must be 1-20 chars of a-z, 0-9 or _"
 	exit "$E_INVALID"
 fi
-if [ ${#match} -gt 512 ] || [[ ! "$match" =~ ^[A-Za-z0-9|._/+-]+$ ]]; then
+# Each token starts with a letter or digit: a bare + is no regex, and an empty token or a lone . matches every client.
+if [ ${#match} -gt 512 ] || [[ ! "$match" =~ ^[A-Za-z0-9][A-Za-z0-9._/+-]*(\|[A-Za-z0-9][A-Za-z0-9._/+-]*)*$ ]]; then
 	echo "Error: MATCH must be UA tokens separated by | (letters, digits and . _ / + -), max 512 chars"
 	exit "$E_INVALID"
 fi
@@ -92,6 +93,8 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
+conf_prev=$(mktemp)
+cp -p "$OBJ.conf" "$conf_prev"
 if [ -n "$exists" ]; then
 	log_type='changed'
 	update_object_value "$OBJ" 'FAMILY' "$family" '$MATCH' "$match"
@@ -105,7 +108,12 @@ else
 	echo "$str" >> "$OBJ.conf"
 fi
 
-[ "$apply" = 'yes' ] && "$BIN/h-update-sys-botfamilies"
+if [ "$apply" = 'yes' ] && ! "$BIN/h-update-sys-botfamilies"; then
+	mv -f "$conf_prev" "$OBJ.conf"
+	"$BIN/h-update-sys-botfamilies" > /dev/null 2>&1
+	check_result "$E_RESTART" "the web server refused the new family, the table is unchanged"
+fi
+rm -f "$conf_prev"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

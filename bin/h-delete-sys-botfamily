@@ -62,7 +62,9 @@ esac
 sed -i "/^FAMILY='$family' /d" "$OBJ.conf"
 botpolicy_purge_family "$family"
 
-[ "$apply" = 'yes' ] && "$BIN/h-update-sys-botfamilies"
+if [ "$apply" = 'yes' ]; then
+	"$BIN/h-update-sys-botfamilies" || check_result "$E_RESTART" "family deleted, but the web server config did not re-render"
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #

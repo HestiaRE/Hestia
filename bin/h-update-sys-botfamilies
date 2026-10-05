@@ -50,22 +50,35 @@ botpolicy_render_all_fragments
 # nginx fronts in nginx-only + both; apache-only is the only model where apache does Layer B.
 if [ -n "$PROXY_SYSTEM" ]; then pub="$PROXY_SYSTEM"; else pub="$WEB_SYSTEM"; fi
 
+# The render writes into the live config dir, so a failed test puts the previous file back: left in place it
+# fails every later reload on the box, whoever triggers it.
+botlimit_render_tested() {
+	local out="$1" render="$2" test="$3" prev
+	prev=$(mktemp)
+	[ -f "$out" ] && cp -p "$out" "$prev"
+	"$render"
+	if $test > /dev/null 2>&1; then
+		rm -f "$prev"
+		return 0
+	fi
+	if [ -s "$prev" ]; then mv -f "$prev" "$out"; else rm -f "$prev" "$out"; fi
+	return 1
+}
+
 if [ "$pub" = "nginx" ]; then
-	botpolicy_render_nginx
-	if nginx -t > /dev/null 2>&1; then
+	if botlimit_render_tested /etc/nginx/conf.d/hestia_botlimit.conf botpolicy_render_nginx 'nginx -t'; then
 		systemctl reload nginx > /dev/null 2>&1 || systemctl restart nginx > /dev/null 2>&1
 		echo "Bot rate-limit config re-rendered (nginx)."
 	else
-		echo "Error: nginx config test failed after render - not reloading."
+		echo "Error: nginx config test failed after render, previous config kept, not reloading."
 		exit "$E_RESTART"
 	fi
 elif [ "$WEB_SYSTEM" = "apache2" ]; then
-	botpolicy_render_apache
-	if apache2ctl configtest > /dev/null 2>&1; then
+	if botlimit_render_tested /etc/apache2/conf.d/hestia_botlimit.conf botpolicy_render_apache 'apache2ctl configtest'; then
 		systemctl reload apache2 > /dev/null 2>&1 || systemctl restart apache2 > /dev/null 2>&1
 		echo "Bot rate-limit config re-rendered (apache mod_qos)."
 	else
-		echo "Error: apache config test failed after render - not reloading."
+		echo "Error: apache config test failed after render, previous config kept, not reloading."
 		exit "$E_RESTART"
 	fi
 else

@@ -70,8 +70,7 @@ for service in $service_list; do
 	# "nftables": the panel's firewall row fell through to systemctl and restarted the DISTRO
 	# nftables unit, which tore our table down and loaded /etc/nftables.conf instead.
 	if [ -n "$FIREWALL_SYSTEM" ] && [ "$service" = "$FIREWALL_SYSTEM" ]; then
-		# Rebuild our ruleset rather than poking a systemd unit
-		$BIN/h-stop-firewall
+		# No stop first: the render swaps the table atomically, and a stop before a failed render left the box open.
 		$BIN/h-update-firewall
 	elif [ "$restart" = "ssl" ] && [ "$service" = "nginx" ]; then
 		service $service upgrade >> $log 2>&1

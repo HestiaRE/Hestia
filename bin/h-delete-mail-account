@@ -55,6 +55,12 @@ accounts=$(wc -l $USER_DATA/mail/$domain.conf | cut -f 1 -d ' ')
 decrease_user_value "$user" '$U_MAIL_ACCOUNTS'
 update_object_value 'mail' 'DOMAIN' "$domain" '$ACCOUNTS' "$accounts"
 
+# A catch-all into a deleted mailbox makes every unknown address unroutable, while the panel still shows it.
+catchall=$(get_object_value 'mail' 'DOMAIN' "$domain" '$CATCHALL')
+if [ "$catchall" = "$account@$domain" ] || [ "$catchall" = "$account@$domain_idn" ]; then
+	$BIN/h-delete-mail-domain-catchall "$user" "$domain" > /dev/null
+fi
+
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account removed (User: $account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -979,10 +979,9 @@ add_mail_ssl_config() {
 	# Check if using custom / wildcard mail certificate
 	wildcard_domain="\\*.$(echo "$sni" | cut -f 1 -d . --complement)"
 	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $sni| $wildcard_domain")
-	dovecot_version="$(dovecot --version | cut -f -2 -d .)"
 
 	if [ -n "$mail_cert_match" ]; then
-		if [[ "$dovecot_version" = "2.4" ]]; then
+		if dovecot_ge_24; then
 			# Add domain SSL configuration to dovecot
 			echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 			echo "local_name $sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
@@ -1002,7 +1001,7 @@ add_mail_ssl_config() {
 	fi
 
 	# Add domain SSL configuration to dovecot
-	if [[ "$dovecot_version" = "2.4" ]]; then
+	if dovecot_ge_24; then
 		echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 		echo "local_name mail.$sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 		echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
@@ -1215,12 +1214,18 @@ mail_password_hash() { # PASSWORD
 	printf '%s\n' "$hash"
 }
 
+# dovecot 2.4 renamed the SSL and quota settings; every later version keeps the 2.4 names.
+dovecot_ge_24() {
+	local ver
+	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
+	[ -n "$ver" ] && [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = '2.4' ]
+}
+
 # The passwd line dovecot and exim read for an account, built here only: the quota syntax changed with dovecot 2.4.
 mail_passwd_line() { # USER ACCOUNT HASH QUOTA
-	local q="$4" ver rule
+	local q="$4" rule
 	[ "$q" != 'unlimited' ] && [ -n "$q" ] || q=0
-	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
-	if [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = '2.4' ]; then
+	if dovecot_ge_24; then
 		rule="userdb_quota_storage_size=${q}M"
 	else
 		rule="userdb_quota_rule=*:storage=${q}M"

@@ -736,7 +736,7 @@ rebuild_mail_domain_conf() {
 		fi
 
 		# Adding mail directory
-		if [ ! -e $HOMEDIR/$user/mail/$domain_idn ]; then
+		if mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ] && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ]; then
 			mkdir "$HOMEDIR/$user/mail/$domain_idn"
 		fi
 

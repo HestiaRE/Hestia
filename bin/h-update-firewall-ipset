@@ -29,6 +29,7 @@ is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
 ipset_hstobject="$CONF_DIR/firewall/ipset"
 
+failed=0
 for ipset_name in $(search_objects "$ipset_hstobject" 'SUSPENDED' 'no' 'LISTNAME' 2> /dev/null); do
 
 	ipset_time="$(get_object_value "$ipset_hstobject" 'LISTNAME' "$ipset_name" '$TIME')"
@@ -52,14 +53,18 @@ for ipset_name in $(search_objects "$ipset_hstobject" 'SUSPENDED' 'no' 'LISTNAME
 		continue
 	fi
 
-	$BIN/h-add-firewall-ipset "$ipset_name" '' '' '' 'yes'
+	$BIN/h-add-firewall-ipset "$ipset_name" '' '' '' 'yes' || failed=$((failed + 1))
 done
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Logging
+# The timer unit shows this rc, so a run where lists failed must not look healthy.
+if [ "${failed:-0}" -gt 0 ]; then
+	log_event "$E_INVALID" "$ARGUMENTS"
+	exit "$E_INVALID"
+fi
 log_event "$OK" "$ARGUMENTS"
 
 exit

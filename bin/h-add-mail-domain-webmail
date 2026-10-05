@@ -77,10 +77,16 @@ fi
 # WEBMAIL_SYSTEM instead silently converged every domain of a client to 'disabled' DURING its
 # own reinstall. Only values outside the domain (legacy 'snappymail', a typo) normalize,
 # loudly. Never an abort: rebuild paths feed recorded values back in here.
-if [ -n "$webmail" ] && [ "$webmail" != "disabled" ] \
-	&& ! grep -qwF -- "$webmail" <<< "$WEBMAIL_KNOWN_CLIENTS"; then
-	echo "NOTE: unknown webmail client '$webmail' - storing 'disabled' for $domain"
-	webmail="disabled"
+# One exact name: grep -w passed a value of several lines or one spanning several names.
+if [ -n "$webmail" ] && [ "$webmail" != "disabled" ]; then
+	known=''
+	for c in $WEBMAIL_KNOWN_CLIENTS; do
+		[ "$webmail" = "$c" ] && known='yes'
+	done
+	if [ -z "$known" ]; then
+		echo "NOTE: unknown webmail client '$webmail' - storing 'disabled' for $domain"
+		webmail="disabled"
+	fi
 fi
 
 check_args '2' "$#" 'USER DOMAIN [WEBMAIL] [RESTART] [QUIET]'

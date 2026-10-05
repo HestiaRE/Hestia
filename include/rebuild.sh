@@ -641,6 +641,8 @@ rebuild_mail_domain_conf() {
 		rm -f $HOMEDIR/$user/conf/mail/$domain/ip
 		rm -f $HOMEDIR/$user/conf/mail/$domain/ipv6
 		rm -fr $HOMEDIR/$user/conf/mail/$domain/limits
+		# Written as root from the record below; a link exim's user planted in their place must not be followed.
+		rm -f $HOMEDIR/$user/conf/mail/$domain/{smtp_relay_exclude,spam_score,spam_reject_score,spam_subject_tag}
 		touch $HOMEDIR/$user/conf/mail/$domain/accounts
 		touch $HOMEDIR/$user/conf/mail/$domain/aliases
 		touch $HOMEDIR/$user/conf/mail/$domain/passwd
@@ -686,6 +688,7 @@ rebuild_mail_domain_conf() {
 			if [ ! -f "$USER_DATA/mail/$domain.pem" ]; then
 				check_result "$E_NOTEXIST" "$domain has DKIM='yes' but no private key ($USER_DATA/mail/$domain.pem); the published TXT record would announce a key nothing signs with"
 			fi
+			rm -f $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 			cp $USER_DATA/mail/$domain.pem \
 				$HOMEDIR/$user/conf/mail/$domain/dkim.pem
 		fi

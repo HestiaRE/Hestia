@@ -245,11 +245,11 @@ acl_check_rcpt:
 # (scan skipped entirely in acl_check_data), acl_m7 = blacklisted (always
 # marked as spam; refused while reject_spam is active). The whitelist wins.
  warn    condition     = ${if exists {/etc/exim4/domains/$domain/spam_whitelist}{yes}{no}}
-         condition     = ${lookup{${lc:$sender_address}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{${lookup{${lc:$sender_address_domain}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{no}}}}
+         condition     = ${lookup{${lc:$sender_address}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{${lookup{${lc:$sender_address_domain}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{no}}}}
          set acl_m6    = yes
  warn    condition     = ${if !eq{$acl_m6}{yes} {yes}{no}}
          condition     = ${if exists {/etc/exim4/domains/$domain/spam_blacklist}{yes}{no}}
-         condition     = ${lookup{${lc:$sender_address}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{${lookup{${lc:$sender_address_domain}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{no}}}}
+         condition     = ${lookup{${lc:$sender_address}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{${lookup{${lc:$sender_address_domain}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{no}}}}
          set acl_m7    = yes
 .endif
 
@@ -391,7 +391,7 @@ bypass_smtp_relay:
   driver = dnslookup
   domains = !+local_domains
   require_files = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude
-  condition = ${lookup{$domain}wildlsearch{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude}{yes}{no}}
+  condition = ${lookup{$domain}nwildlsearch{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude}{yes}{no}}
   transport = remote_smtp
   no_more
   no_verify

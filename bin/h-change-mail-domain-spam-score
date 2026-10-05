@@ -64,8 +64,9 @@ fi
 score_file="$HOMEDIR/$user/conf/mail/$domain/spam_score"
 
 # no trailing newline — exim compares the raw file content numerically
+rm -f "$score_file"
 printf '%s' "$score_tenths" > "$score_file"
-chown $MAIL_USER:mail "$score_file"
+chown -h $MAIL_USER:mail "$score_file"
 chmod 660 "$score_file"
 
 #----------------------------------------------------------#

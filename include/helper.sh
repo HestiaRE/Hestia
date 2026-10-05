@@ -725,6 +725,11 @@ exim_reject_antispam_apply() {
 	exim_template_patch 0.24/exim-reject-needs-antispam.patch
 }
 
+# The per-domain sender and relay lists are read as plain patterns, never string-expanded.
+exim_lists_unexpanded_apply() {
+	exim_template_patch 0.24/exim-lists-unexpanded.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

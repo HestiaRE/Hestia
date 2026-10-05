@@ -69,11 +69,12 @@ else
 	new_list="$current,$rdomain"
 fi
 
+rm -f "$exclude_file"
 echo "$new_list" | tr ',' '\n' > "$exclude_file"
 
 # exim must be able to read the file: on EACCES the router's require_files
 # defers instead of declining and ALL outgoing mail of the domain queues up
-chown $MAIL_USER:mail "$exclude_file"
+chown -h $MAIL_USER:mail "$exclude_file"
 chmod 660 "$exclude_file"
 
 #----------------------------------------------------------#

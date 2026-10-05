@@ -59,8 +59,9 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 tag_file="$HOMEDIR/$user/conf/mail/$domain/spam_subject_tag"
 
 # no trailing newline — exim inserts the raw file content into the Subject
+rm -f "$tag_file"
 printf '%s' "$tag" > "$tag_file"
-chown $MAIL_USER:mail "$tag_file"
+chown -h $MAIL_USER:mail "$tag_file"
 chmod 660 "$tag_file"
 
 #----------------------------------------------------------#

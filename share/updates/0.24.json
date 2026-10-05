@@ -592,6 +592,30 @@
         "/etc/exim4/exim4.conf.template"
       ],
       "reversible": false
+    },
+    {
+      "id": "exim-lists-unexpanded",
+      "description": "The per-domain spam sender lists and the relay exclude list are matched as plain patterns and no longer string-expanded; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-lists-unexpanded.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_lists_unexpanded_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
     }
   ]
 }

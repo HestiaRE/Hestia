@@ -19,6 +19,10 @@ domain=$2
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -41,6 +45,7 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 #----------------------------------------------------------#
 
 rm -f "$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf"
+mail_outgoing_ip_write "$user" "$domain" || check_result "$E_DISK" "cannot write the outgoing address of $domain"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

@@ -903,6 +903,28 @@ smtp_relay_write() { # FILE OWNER MODE HOST PORT USER PASS
 	return 1
 }
 
+# The addresses a mail domain sends from, as exim reads them: the web domain's, else the user's first. Needs ip.sh.
+mail_outgoing_ip_write() { # USER DOMAIN
+	local d="$HOMEDIR/$1/conf/mail/$2" v4 v6
+	v4=$(get_object_value 'web' 'DOMAIN' "$2" '$IP')
+	if [ -n "$v4" ]; then
+		v4=$(get_real_ip "$v4")
+	else
+		v4=$(get_user_ips 4 | head -n1)
+	fi
+	v6=$(get_object_value 'web' 'DOMAIN' "$2" '$IP6')
+	[ -n "$v6" ] || v6=$(get_user_ips 6 | head -n1)
+	[ -n "$v6" ] && [ -e "$CONF_DIR/ips/$v6" ] || v6=''
+	rm -f "$d/ip" "$d/ipv6"
+	if [ -n "$v4" ]; then
+		echo "$v4" > "$d/ip" && chown "${MAIL_USER:-Debian-exim}:mail" "$d/ip" && chmod 660 "$d/ip" || return 1
+	fi
+	if [ -n "$v6" ]; then
+		echo "$v6" > "$d/ipv6" && chown "${MAIL_USER:-Debian-exim}:mail" "$d/ipv6" && chmod 660 "$d/ipv6" || return 1
+	fi
+	return 0
+}
+
 # Update 0.23: the relay files already on the box.
 smtp_relay_modes_apply() {
 	local f

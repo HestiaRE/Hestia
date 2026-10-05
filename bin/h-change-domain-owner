@@ -23,6 +23,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/ip.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/vacation.sh
+source $HESTIA/include/vacation.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -182,6 +184,16 @@ if [ -n "$mail_data" ]; then
 		mv -f $CONF_DIR/users/$owner/mail/$domain.pub \
 			$CONF_DIR/users/$user/mail/
 	fi
+
+	# Autoreplies: the record copy moves along, and an exim-mode text is written again into the new conf dir.
+	for msg in "$CONF_DIR/users/$owner/mail/"*"@$domain.msg"; do
+		[ -e "$msg" ] || continue
+		account=$(basename "$msg" "@$domain.msg")
+		mv -f "$msg" "$CONF_DIR/users/$user/mail/"
+		if [ -e "$HOMEDIR/$owner/conf/mail/$domain/autoreply.$account.msg" ]; then
+			vacation_exim_write "$user" "$domain" "$account" "$CONF_DIR/users/$user/mail/$account@$domain.msg"
+		fi
+	done
 
 	# Move SSL certificates
 	if [ "$SSL" = 'yes' ]; then

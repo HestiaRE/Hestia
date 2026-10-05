@@ -36,7 +36,7 @@ fi
 
 update_object_value 'mail' 'DOMAIN' "$domain" '$REJECT' 'no'
 
-$BIN/h-log-action "$user" "Info" "Mail" "Anti-spam protection disabled (Domain: $domain)."
+$BIN/h-log-action "$user" "Info" "Mail" "Spam rejection disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 
 exit

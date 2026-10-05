@@ -1189,12 +1189,17 @@ del_webmail_ssl_config() {
 # The hash for a mail password, in the strongest scheme this dovecot knows. A failed doveadm prints nothing, and an
 # empty hash in passwd would be a login without a password.
 mail_password_hash() { # PASSWORD
-	local schemes hash salt
+	local schemes scheme='' hash salt
 	schemes=$(doveadm pw -l 2> /dev/null)
 	if [[ " $schemes " == *" BLF-CRYPT "* ]]; then
-		hash=$(doveadm pw -s BLF-CRYPT -p "$1")
+		scheme=BLF-CRYPT
 	elif [[ " $schemes " == *" ARGON2ID "* ]]; then
-		hash=$(doveadm pw -s ARGON2ID -p "$1")
+		scheme=ARGON2ID
+	fi
+	if [ -n "$scheme" ]; then
+		# Twice on stdin as the prompt asks, -p would show it in the process list. A mismatch still prints a hash
+		# with rc 0, so stderr goes into the result and the format check below refuses it.
+		hash=$(printf '%s\n%s\n' "$1" "$1" | doveadm pw -s "$scheme" 2>&1)
 	else
 		salt=$(generate_password "$PW_MATRIX" "8")
 		hash="{MD5}$($BIN/h-generate-password-hash md5 "$salt" <<< "$1")"

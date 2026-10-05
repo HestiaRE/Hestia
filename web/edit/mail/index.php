@@ -337,7 +337,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 
 	if ($post_reject == "yes" && $v_antispam == "yes" && $v_reject != "yes") {
 		exec(
-			HESTIA_CMD . "h-add-mail-domain-reject " . $user . " " . $v_domain . " yes",
+			HESTIA_CMD . "h-add-mail-domain-reject " . $user . " " . quoteshellarg($v_domain),
 			$output,
 			$return_var,
 		);
@@ -347,7 +347,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 	}
 	if ($post_reject != "yes" && $v_reject == "yes") {
 		exec(
-			HESTIA_CMD . "h-delete-mail-domain-reject " . $user . " " . $v_domain . " yes",
+			HESTIA_CMD . "h-delete-mail-domain-reject " . $user . " " . quoteshellarg($v_domain),
 			$output,
 			$return_var,
 		);
@@ -635,31 +635,38 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 	$post_webmail = post_or_keep("v_webmail", $offer_webmail, $v_webmail);
 	if ($offer_webmail) {
 		if (empty($_SESSION["error_msg"])) {
-			if (!empty($post_webmail)) {
-				$v_webmail = quoteshellarg($post_webmail);
+			if (!empty($post_webmail) && $post_webmail !== $v_webmail) {
 				exec(
 					HESTIA_CMD .
 						"h-add-mail-domain-webmail " .
 						$user .
 						" " .
-						$v_domain .
+						quoteshellarg($v_domain) .
 						" " .
-						$v_webmail .
+						quoteshellarg($post_webmail) .
 						" yes",
 					$output,
 					$return_var,
 				);
 				check_return_code($return_var, $output);
+				if ($return_var == 0) {
+					$v_webmail = $post_webmail;
+				}
 				unset($output);
 			}
 		}
 	}
 
 	if ($offer_webmail) {
-		if (empty($post_webmail)) {
+		if (empty($post_webmail) && !empty($v_webmail)) {
 			if (empty($_SESSION["error_msg"])) {
 				exec(
-					HESTIA_CMD . "h-delete-mail-domain-webmail " . $user . " " . $v_domain . " yes",
+					HESTIA_CMD .
+						"h-delete-mail-domain-webmail " .
+						$user .
+						" " .
+						quoteshellarg($v_domain) .
+						" yes",
 					$output,
 					$return_var,
 				);

@@ -18,6 +18,20 @@ F2B_WHITELIST="$F2B_DIR/jail.d/hestia-zz-whitelist.local"
 # nowhere else - gating, logpath repointing and the per-domain add/del all iterate it.
 F2B_WEB_JAILS="web-botsearch web-badactor web-exploit web-authprobe"
 
+# fail2ban takes a config it cannot parse with rc 0 and dies after, so the rc alone proves nothing: test first,
+# then ask the server. RELOAD keeps a running daemon's bans where a reload suffices.
+fail2ban_restart() {
+	local i verb=restart
+	[ "${1:-}" = 'reload' ] && verb=reload-or-restart
+	fail2ban-client -t > /dev/null 2>&1 || return 2
+	systemctl "$verb" fail2ban > /dev/null 2>&1 || return 1
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		sleep 1
+		fail2ban-client ping > /dev/null 2>&1 && return 0
+	done
+	return 1
+}
+
 # jail.d/hestia.local is read last and wins; jail.local stays the admin's. Nothing to preserve, all re-renders.
 fail2ban_install_config() {
 	local stage
@@ -42,7 +56,7 @@ fail2ban_panel_action_apply() {
 	grep -q '^action   = hestia-panel$' "$F2B_OURS" || return 1
 	systemctl -q is-active fail2ban 2> /dev/null || return 0
 	# Restart, not reload: a reload drops the old action and never loads the new one (measured, the jail had none).
-	systemctl restart fail2ban
+	fail2ban_restart
 }
 
 # The update path of the dovecot filter (#1171) and the mail password grace (#1155): hestia.local is only copied on a
@@ -63,7 +77,7 @@ fail2ban_mail_grace_apply() {
 	[ "$(sed -n '/^\[dovecot-iptables\]/,/^\[/p' "$F2B_OURS" | grep -c "^filter   = hestia-dovecot$\|^ignorecommand = $grace mailbox ")" = 2 ] || return 1
 	[ "$(sed -n '/^\[exim-iptables\]/,/^\[/p' "$F2B_OURS" | grep -c "^ignorecommand = $grace ip ")" = 1 ] || return 1
 	systemctl -q is-active fail2ban 2> /dev/null || return 0
-	systemctl restart fail2ban
+	fail2ban_restart
 }
 
 # From our own config, not by deleting the dpkg conffile jail.d/defaults-debian.conf, which an update restores.
@@ -318,14 +332,7 @@ fail2ban_apply() {
 	fail2ban_sync_ignoreip
 	fail2ban_prune_empty_jails
 	systemctl -q enable fail2ban 2> /dev/null
-	systemctl restart fail2ban 2> /dev/null
-	# fail2ban now owns brute force, so CrowdSec drops its SSH scenarios. No-op at install (crowdsec is later);
-	# fires when fail2ban is added to a box that already has it.
-	if [ -f "$CONF_DIR/firewall/crowdsec.conf" ]; then
-		# shellcheck source=/usr/local/hestia/include/crowdsec.sh
-		declare -F crowdsec_gate_bruteforce > /dev/null 2>&1 || source "$HESTIA/include/crowdsec.sh"
-		crowdsec_gate_bruteforce
-	fi
+	fail2ban_restart
 }
 
 # Chain names are captured before the loop, since h-delete-firewall-chain rewrites chains.conf as it goes.

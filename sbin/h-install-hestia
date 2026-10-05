@@ -746,7 +746,8 @@ install_security() {
 		# One implementation of "configured fail2ban", shared with the addon commands. It copies the
 		# WHOLE share/fail2ban tree: enumerating the files is what silently left out action.d/hestia.conf
 		# and made every jail referencing `action = hestia[...]` unstartable.
-		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}"
+		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}" \
+			|| echo "[ ! ] fail2ban did not start; check 'fail2ban-client -d'."
 	fi
 
 	# crowdsec — nginx-only web protection (#186); skipped on an apache-only model.

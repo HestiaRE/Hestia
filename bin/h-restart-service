@@ -72,6 +72,14 @@ for service in $service_list; do
 	if [ -n "$FIREWALL_SYSTEM" ] && [ "$service" = "$FIREWALL_SYSTEM" ]; then
 		# No stop first: the render swaps the table atomically, and a stop before a failed render left the box open.
 		$BIN/h-update-firewall
+	elif [ "$service" = "fail2ban" ]; then
+		# shellcheck source=/usr/local/hestia/include/fail2ban.sh
+		source "$HESTIA/include/fail2ban.sh"
+		if [ -z "$restart" ] || [ "$restart" = "no" ]; then
+			fail2ban_restart reload
+		else
+			fail2ban_restart
+		fi
 	elif [ "$restart" = "ssl" ] && [ "$service" = "nginx" ]; then
 		service $service upgrade >> $log 2>&1
 	elif [ -z "$restart" -o "$restart" = "no" ] && [ \
@@ -92,8 +100,7 @@ for service in $service_list; do
 		"$service" = "php8.4-fpm" -o \
 		"$service" = "php8.5-fpm" -o \
 		"$service" = "proftpd" -o \
-		"$service" = "ssh" -o \
-		"$service" = "fail2ban" ]; then
+		"$service" = "ssh" ]; then
 		systemctl reload-or-restart "$service" >> $log 2>&1
 	else
 		systemctl reset-failed "$service" >> $log 2>&1
@@ -102,8 +109,8 @@ for service in $service_list; do
 
 	# Check the result of the service restart and report whether it failed.
 	if [ $? -ne 0 ]; then
-		check_result "$E_RESTART" "ERROR: Restart of $service failed."
 		$BIN/h-log-action "system" "Error" "System" "Service failed to restart (Name: $service)."
+		check_result "$E_RESTART" "ERROR: Restart of $service failed."
 	else
 		$BIN/h-log-action "system" "Info" "System" "Service restarted (Name: $service)."
 	fi

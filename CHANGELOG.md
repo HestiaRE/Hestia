@@ -83,7 +83,8 @@ before v0.20.0 are folded into one section by theme.
 
 - **Firewall and fail2ban commands do what they report** (#1176). A change the ruleset refuses is rolled back
   instead of staying in the config, bans of whole networks and IPv6 rules for ICMP or all ports render, an IP list
-  that shrinks to a fraction on refresh is kept, and a fail2ban that does not come up is reported as such.
+  that shrinks to a fraction on refresh is kept, a ban made by hand survives a fail2ban restart, and a fail2ban
+  that does not come up is reported as such.
 - **Database commands do what they report** (#1176). A database that cannot be dropped keeps its record, a
   suspended PostgreSQL database stays closed, a host password change reaches the server, and phpMyAdmin's
   temporary logins go with their database. A restored database counts on its host again, and an unreachable

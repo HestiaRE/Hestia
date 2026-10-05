@@ -91,7 +91,8 @@ mesh_fw_open() {
 			*:*) comment="$(mesh_fw_comment "$peer") v6" ;;
 			*) comment="$(mesh_fw_comment "$peer")" ;;
 		esac
-		if grep -qF "COMMENT='$comment'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null; then
+		# By address and comment: a peer with two A records needs a rule for each.
+		if grep -qF "IP='$addr' COMMENT='$comment'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null; then
 			opened=1
 			continue
 		fi

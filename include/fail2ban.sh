@@ -20,6 +20,7 @@ F2B_WEB_JAILS="web-botsearch web-badactor web-exploit web-authprobe"
 
 # fail2ban takes a config it cannot parse with rc 0 and dies after, so the rc alone proves nothing: test first,
 # then ask the server. 'reload' keeps a running daemon's bans where a reload suffices.
+# shellcheck disable=SC2120  # h-restart-service passes 'reload'
 fail2ban_restart() {
 	local i verb=restart
 	[ "${1:-}" = 'reload' ] && verb=reload-or-restart

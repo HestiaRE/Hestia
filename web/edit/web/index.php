@@ -129,6 +129,7 @@ $v_ssl = $data[$v_domain]["SSL"];
 $v_ssl_forcessl = $data[$v_domain]["SSL_FORCE"] ?? "no";
 $v_ssl_hsts = $data[$v_domain]["SSL_HSTS"] ?? "no";
 $v_http3 = $data[$v_domain]["HTTP3"] ?? "no";
+$v_crowdsec = $data[$v_domain]["CROWDSEC"] ?? "";
 if (!empty($v_ssl)) {
 	extract(web_ssl_vars($user, $v_domain));
 }
@@ -337,6 +338,11 @@ $offer_http3 =
 	($_SESSION["WEB_SYSTEM"] == "nginx" ||
 		(!empty($_SESSION["PROXY_SYSTEM"]) && $_SESSION["PROXY_SYSTEM"] == "nginx"));
 $offer_botlimit = !empty($botfamilies);
+// A protective policy, so the admin's to switch; CrowdSec enforces only where nginx is the public front.
+$offer_crowdsec =
+	($_SESSION["adminContext"] ?? "") === "admin" &&
+	!empty($_SESSION["CROWDSEC_SYSTEM"]) &&
+	((!empty($_SESSION["PROXY_SYSTEM"]) ? $_SESSION["PROXY_SYSTEM"] : $_SESSION["WEB_SYSTEM"] ?? "") == "nginx");
 $offer_ftp = $_SESSION["FTP_SYSTEM"] == "proftpd";
 
 // WordPress update/removal run on their own POST route (own form): they are commands in their
@@ -1174,6 +1180,20 @@ if (!empty($_POST["save"])) {
 		$v_http3 = "no";
 		$restart_web = "yes";
 		$restart_proxy = "yes";
+	}
+
+	// CrowdSec per domain: both arms run off the difference to the stored field, so an unoffered box moves nothing.
+	$post_crowdsec = post_checkbox("v_crowdsec", $offer_crowdsec, $v_crowdsec == "yes" ? "on" : "", "on", "");
+	if (!empty($post_crowdsec) != ($v_crowdsec == "yes") && empty($_SESSION["error_msg"])) {
+		$cs_cmd = !empty($post_crowdsec) ? "h-add-web-domain-crowdsec " : "h-delete-web-domain-crowdsec ";
+		exec(HESTIA_CMD . $cs_cmd . $user . " " . quoteshellarg($v_domain) . " no", $output, $return_var);
+		check_return_code($return_var, $output);
+		unset($output);
+		if ($return_var == 0) {
+			$v_crowdsec = !empty($post_crowdsec) ? "yes" : "no";
+			$restart_web = "yes";
+			$restart_proxy = "yes";
+		}
 	}
 
 	// Docker proxy (#566/#592): enable or retarget re-runs the add command (it updates the

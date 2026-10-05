@@ -1,18 +1,7 @@
 #!/bin/bash
-# HestiaRE CrowdSec fleet-mesh: peering + transport helpers.
-#
-# Transport = an authenticated pull over the panel port: each box serves its own published ban list at
-# /mesh-decisions.php behind a per-peer token and pulls its peers' with the token they issued. The LAPI
-# stays loopback-only; only a file of IP values crosses the wire.
-#
-# Pairing needs an admin on BOTH boxes: one to run h-add-sys-crowdsec-peer, one to mint the one-time
-# code (/mesh-pair.php is a 404 while no code is live). Neither side handles the other's credentials.
-#
-# TLS is pinned by SPKI, not CA - panel certs are usually self-signed, so pairing records the peer's
-# key (TOFU) and every later pull is bound to it. A swapped cert fails closed.
-#
-# Secrets never appear in argv (/proc/*/cmdline is world-readable): curl reads tokens from a 0600
-# config, the panel hands its payload over in a 0600 file, and only hashes are staged for it.
+# CrowdSec fleet mesh: each box serves its ban list at /mesh-decisions.php behind a per-peer token and pulls its
+# peers' over the panel port; the LAPI stays loopback. TLS is pinned by SPKI, as panel certs are usually self-signed.
+# curl reads tokens from a 0600 config; the panel hands its payload over in a 0600 file and sees only token hashes.
 
 MESH_CONF_FILE="$CONF_DIR/crowdsec/mesh.conf"
 MESH_PEERS_CONF="$CONF_DIR/crowdsec/peers.conf"
@@ -35,8 +24,8 @@ mesh_load() {
 	return 0
 }
 
-# Peer id doubles as filename, scenario suffix and firewall comment - hence the charset, the cap and
-# the trailing-non-alnum strip (is_comment_format_valid rejects a trailing . or -).
+# The id doubles as filename, scenario suffix and firewall comment, hence the charset and the cap; the trailing
+# strip because is_comment_format_valid rejects a trailing . or -.
 mesh_peer_id() {
 	local id
 	id=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9._-' | cut -c1-32)
@@ -82,8 +71,8 @@ mesh_spki_pin() {
 	printf '%s' "$pin"
 }
 
-# Only ADDS to admin access - never narrowed to peers-only, that would lock the admin out. $1 may
-# name several addresses: a dual-stack peer calls back over v6, so one family alone would not match.
+# Only ADDS to admin access: narrowing it to peers-only would lock the admin out. $1 may name several addresses,
+# as a dual-stack peer calls back over v6 and one family alone would not match.
 mesh_fw_open() {
 	local addr peer="$2" comment opened=0
 	for addr in $1; do
@@ -91,7 +80,8 @@ mesh_fw_open() {
 			*:*) comment="$(mesh_fw_comment "$peer") v6" ;;
 			*) comment="$(mesh_fw_comment "$peer")" ;;
 		esac
-		if grep -qF "COMMENT='$comment'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null; then
+		# By address and comment: a peer with two A records needs a rule for each.
+		if grep -qF "IP='$addr' COMMENT='$comment'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null; then
 			opened=1
 			continue
 		fi
@@ -118,9 +108,14 @@ mesh_fw_close() {
 	return 0
 }
 
-# Stage what the panel needs under /run: the payload plus the per-peer serve-token HASHES. The panel
-# runs as `hestia` and can read neither /etc/hestia nor /var/lib/crowdsec, so it compares hashes here
-# rather than shelling out with a secret in argv - and a leak of this file yields no working token.
+# A handoff path is a plain file in the staging dir and nothing else: the commands read and remove it as root.
+mesh_handoff_valid() {
+	[ "$(dirname -- "$1")" = "$MESH_RUN_DIR/in" ] && [[ "${1##*/}" =~ ^[A-Za-z0-9]{8,64}$ ]] \
+		&& [ -f "$1" ] && [ ! -L "$1" ]
+}
+
+# The panel runs as `hestia` and reads neither /etc/hestia nor /var/lib/crowdsec, so it gets the payload and the
+# serve-token HASHES under /run: no secret in argv, and a leak of this file yields no working token.
 mesh_stage_serve() {
 	mkdir -p "$MESH_RUN_DIR/in"
 	chown root:hestia "$MESH_RUN_DIR" "$MESH_RUN_DIR/in" 2> /dev/null
@@ -147,9 +142,8 @@ mesh_stage_serve() {
 	rm -f "$tmp"
 }
 
-# Pull each peer's list for the import step. Only a valid response replaces the last good copy, so an
-# unreachable peer keeps its previous list rather than silently unbanning the fleet; one that stays
-# gone ages out via MESH_STALE_MIN.
+# Only a valid response replaces the last good copy, so an unreachable peer keeps its list rather than silently
+# unbanning the fleet; one that stays gone ages out via MESH_STALE_MIN.
 mesh_pull_peers() {
 	[ -f "$MESH_PEERS_CONF" ] || return 0
 	local str cfg out
@@ -157,7 +151,8 @@ mesh_pull_peers() {
 		[ -z "$str" ] && continue
 		unset PEER HOST PORT PIN PULL_TOKEN SUSPENDED
 		parse_object_kv_list "$str"
-		if [ -z "$PEER" ] || [ -z "$HOST" ] || [ -z "$PULL_TOKEN" ]; then continue; fi
+		# No pin, no pull: with -k the pin is the only thing that authenticates the peer, and every pairing records one.
+		if [ -z "$PEER" ] || [ -z "$HOST" ] || [ -z "$PULL_TOKEN" ] || [ -z "$PIN" ]; then continue; fi
 		[ "$SUSPENDED" = 'yes' ] && continue
 
 		cfg=$(mktemp)
@@ -165,7 +160,7 @@ mesh_pull_peers() {
 		{
 			echo "url = \"https://$(url_host "$HOST"):${PORT:-8083}/mesh-decisions.php\""
 			echo "header = \"Authorization: Bearer $PULL_TOKEN\""
-			[ -n "$PIN" ] && echo "pinnedpubkey = \"sha256//$PIN\""
+			echo "pinnedpubkey = \"sha256//$PIN\""
 		} > "$cfg"
 		out=$(mktemp)
 		if curl -fsS -k --config "$cfg" --max-time 20 --max-filesize 8000000 -o "$out" 2> /dev/null \

@@ -746,7 +746,8 @@ install_security() {
 		# One implementation of "configured fail2ban", shared with the addon commands. It copies the
 		# WHOLE share/fail2ban tree: enumerating the files is what silently left out action.d/hestia.conf
 		# and made every jail referencing `action = hestia[...]` unstartable.
-		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}"
+		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}" \
+			|| echo "[ ! ] fail2ban did not start; check 'fail2ban-client -d'."
 	fi
 
 	# crowdsec — nginx-only web protection (#186); skipped on an apache-only model.
@@ -775,6 +776,7 @@ install_security() {
 			# The wizard answer is the truth at install time, and it is handed over rather than looked up:
 			# the library no longer reads install.conf itself (#945).
 			crowdsec_apply "${COMPONENT_CROWDSEC_MODE:-capi}" || echo "[ ! ] CrowdSec wiring reported an issue (non-fatal)"
+			crowdsec_render_all_fragments
 			# 'mesh' model: arm the mechanism (publish + import timer). Inert until peers are paired,
 			# which is a two-admin step done afterwards in the panel or via the pairing commands.
 			if [ "${COMPONENT_CROWDSEC_MODE:-}" = "mesh" ]; then

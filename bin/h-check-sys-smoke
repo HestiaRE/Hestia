@@ -275,7 +275,10 @@ check_fail2ban_jails() {
 	have=$(fail2ban-client status 2> /dev/null | sed -n 's/.*Jail list:[[:space:]]*//p' | tr -d ' ' | tr ',' '\n' | sort)
 	for j in $want; do grep -qx "$j" <<< "$have" || missing="$missing $j"; done
 	for j in $have; do grep -qx "$j" <<< "$want" || extra="$extra $j"; done
-	if [ -n "$missing" ]; then
+	# Two empty sets agree too, and that is fail2ban guarding nothing.
+	if [ -z "$want" ]; then
+		no "fail2ban has no jail enabled in its config" "$F2B_OURS"
+	elif [ -n "$missing" ]; then
 		no "fail2ban jail enabled in config but not running" "${missing# }"
 	elif [ -n "$extra" ]; then
 		no "fail2ban is running a jail we did not enable" "${extra# } (a distro jail bans into a ruleset we do not manage)"

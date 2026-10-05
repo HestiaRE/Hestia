@@ -6,7 +6,7 @@
 // THE INVARIANT: pairing needs an admin on BOTH boxes. The joining side needs root or an admin panel
 // session to run h-add-sys-crowdsec-peer; here the only thing that authorises the request is the
 // one-time code, which only root or an admin session can mint. So this is not a way in: with no code
-// live it is a plain 404, and with one live it accepts a single pairing, out of 100 bits, for a
+// live it is a plain 404, and with one live it accepts a single pairing, out of about 99 bits, for a
 // handful of wrong guesses.
 //
 // This file is only the availability gate - authority is asserted by the CLI as root, which alone can

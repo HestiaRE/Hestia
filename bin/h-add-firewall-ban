@@ -4,81 +4,53 @@
 #
 # example: h-add-firewall-ban 37.120.129.20 MAIL
 #
-# This function adds new blocking rule to system firewall
+# Records the ban in banlist.conf and adds it to the live set, creating the chain on first use. The box's own
+# addresses and whitelisted ones are skipped silently.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 ip_cidr=$1
 chain=$(echo "$2" | tr '[:lower:]' '[:upper:]')
 
-# Defining absolute path for iptables and modprobe
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'IP_CIDR CHAIN'
 is_format_valid 'ip_cidr' 'chain'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking server ip
-# Loopback in either family, and any of the box's own addresses: banning one of those is a self-inflicted
-# outage, and it is the shape a misconfigured proxy produces (the app sees 127.0.0.1, not the client).
+# Banning loopback or an own address is a self-inflicted outage, and what a misconfigured proxy hands in.
 if [ -e "$CONF_DIR/ips/$ip_cidr" ] || [ "$ip_cidr" = '127.0.0.1' ] || [ "$ip_cidr" = '::1' ]; then
 	exit
 fi
 
-# Checking ip exclusions
 excludes="$CONF_DIR/firewall/excludes.conf"
 check_excludes=$(grep "^$ip_cidr$" $excludes 2> /dev/null)
 if [ -n "$check_excludes" ]; then
 	exit
 fi
 
-# Checking ip in banlist
 conf="$CONF_DIR/firewall/banlist.conf"
-check_ip=$(grep "IP='$ip_cidr' CHAIN='$chain'" $conf 2> /dev/null)
-if [ -n "$check_ip" ]; then
+if grep -qF "IP='$ip_cidr' CHAIN='$chain'" "$conf" 2> /dev/null; then
+	# Recorded but maybe not live: fail2ban re-bans what it knows after a restart.
+	fw_ban_add "$chain" "$ip_cidr"
 	exit
 fi
 
-# Adding chain
 $BIN/h-add-firewall-chain $chain
 
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Adding ip to banlist
 echo "IP='$ip_cidr' CHAIN='$chain' TIME='$time' DATE='$date'" >> $conf
 fw_ban_add "$chain" "$ip_cidr"
 
-# Changing permissions
 chmod 660 $conf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Warning" "Firewall" "Banned IP address $ip_cidr."
 log_event "$OK" "$ARGUMENTS"
 

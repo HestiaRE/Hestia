@@ -679,14 +679,12 @@ msgstr "Não tem acesso a esta cópia de segurança."
 #: web/edit/db/index.php web/edit/firewall/index.php web/edit/ip/index.php
 #: web/edit/mail/index.php web/edit/package/index.php
 #: web/edit/server/apache2/index.php web/edit/server/clamav-daemon/index.php
-#: web/edit/server/dovecot/index.php web/edit/server/exim/index.php
-#: web/edit/server/exim4/index.php web/edit/server/fail2ban/index.php
-#: web/edit/server/httpd/index.php web/edit/server/index.php
+#: web/edit/server/dovecot/index.php web/edit/server/exim4/index.php
+#: web/edit/server/fail2ban/index.php web/edit/server/index.php
 #: web/edit/server/mariadb/index.php web/edit/server/mysql/index.php
-#: web/edit/server/mysqld/index.php web/edit/server/nginx/index.php
-#: web/edit/server/php/index.php web/edit/server/postgresql/index.php
-#: web/edit/server/proftpd/index.php web/edit/server/ssh/index.php
-#: web/edit/user/index.php web/edit/web/index.php
+#: web/edit/server/nginx/index.php web/edit/server/php/index.php
+#: web/edit/server/postgresql/index.php web/edit/server/proftpd/index.php
+#: web/edit/server/ssh/index.php web/edit/user/index.php web/edit/web/index.php
 msgid "Changes have been saved."
 msgstr "As alterações foram guardadas."
 
@@ -712,7 +710,7 @@ msgstr "O limiar de marcação de spam tem de estar entre %s e %s."
 msgid "Spam reject threshold must be between %s and %s."
 msgstr "O limiar de rejeição de spam tem de estar entre %s e %s."
 
-#: web/edit/server/cron/index.php web/edit/server/crond/index.php
+#: web/edit/server/cron/index.php
 msgid "Info (read-only mode): Crontab can only be edited via SSH."
 msgstr "Informação (modo de leitura): Crontab só pode ser editado via SSH."
 
@@ -2756,6 +2754,10 @@ msgstr "Duração de cache"
 #: web/templates/pages/edit_web.php
 msgid "Container address and port"
 msgstr "Endereço e porta do contentor"
+
+#: web/templates/pages/edit_web.php
+msgid "CrowdSec protection"
+msgstr ""
 
 #: web/templates/pages/edit_web.php
 msgid "Custom document root"

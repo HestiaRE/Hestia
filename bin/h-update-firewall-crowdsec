@@ -4,45 +4,33 @@
 #
 # example: h-update-firewall-crowdsec
 #
-# Fills the L3 sets from cscli; h-update-firewall owns the DROP. Own feeder, not the OS bouncer: 0.0.25
-# nil-panics non-deterministically and its nft mode was only ever measured on one distro.
+# Fills the L3 sets from cscli; h-update-firewall owns the DROP. Own feeder, not the OS firewall bouncer: it panics
+# non-deterministically.
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# L3 only when wired (marker) and the tools exist; otherwise a silent no-op (timer fires anyway).
+# A silent no-op unless wired and the tools exist: the timer fires anyway.
 [ -f "$CONF_DIR/firewall/crowdsec.conf" ] || exit 0
 command -v cscli > /dev/null 2>&1 || exit 0
 command -v jq > /dev/null 2>&1 || exit 0
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 SET="crowdsec-blacklists"
 SET6="crowdsec6-blacklists"
 CACHE="$CONF_DIR/firewall/crowdsec.iplist"
 CACHE6="$CONF_DIR/firewall/crowdsec6.iplist"
 
-# The cache is the record of truth - every rebuild re-renders from it - so it is written even if the live set is not.
-#
-# Only origin==crowdsec reaches L3, minus a denylist - which keeps advisory-named exploits (vmsa), at the
-# cost of a web scenario carrying a denied token. The auth families are denied only while fail2ban is there,
-# since it acts in ~1s against this timer's ~45s; req-limit is denied always, a 429 must never become a ban.
+# The cache is the record of truth (every rebuild re-renders from it), so it is written even if the live set is not.
+# Only origin==crowdsec reaches L3, minus a denylist, which keeps advisory-named exploits (vmsa) at the cost of a web
+# scenario carrying a denied token. Auth families are denied only beside fail2ban, which acts far sooner than this
+# timer; req-limit always, as a 429 must never become a ban.
 deny='req-limit'
 [ -n "$FIREWALL_EXTENSION" ] && deny='ssh|ftp|smtp|imap|pop3|dovecot|postfix|exim|mysql|mariadb|postgres|req-limit'
-# One extraction of every kept decision (both families), then split by family below.
 raw="$(mktemp)"
 cscli decisions list -o json 2> /dev/null \
 	| jq -r --arg deny "$deny" '(if type=="array" then .[] else . end)
@@ -63,13 +51,12 @@ grep -oE "$FW_ADDR6_RE" "$raw" > "$CACHE6" || true
 chmod 640 "$CACHE" "$CACHE6"
 rm -f "$raw"
 
-# One transaction per set, so it is never observably empty - ipset needed a temp set and a swap for that.
+# One transaction per set, so it is never observably empty.
 fw_set_replace "$SET" "$CACHE"
 fw_set_replace "$SET6" "$CACHE6" 6
 
-# Self-heal: a manual `cscli hub upgrade` can rewrite the ssh scenarios and silently restore the double-ban,
-# and the model gates only run at explicit transitions - so re-assert on this timer. File-checked, so a
-# no-op unless one actually drifted back. Removal direction only: re-adding would fight a deliberate removal.
+# A manual `cscli hub upgrade` can restore the ssh scenarios and the double ban, and the model gates run only at
+# transitions, so re-assert on this timer. Removal direction only: re-adding would fight a deliberate removal.
 if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
 	# shellcheck source=/usr/local/hestia/include/crowdsec.sh
 	declare -F crowdsec_gate_bruteforce > /dev/null 2>&1 || source "$HESTIA/include/crowdsec.sh"

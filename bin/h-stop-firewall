@@ -4,43 +4,21 @@
 #
 # example: h-stop-firewall
 #
-# This function stops iptables
+# Drops the HestiaRE nft table and stands down the boot unit that would load it again.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# The backend path lives in include/firewall.sh now.
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Dropping our table wholesale - no chain-by-chain teardown needed, and nothing is left half applied.
 fw_table_destroy
 
 # A box mid-migration may still carry the old iptables ruleset, which would keep being evaluated.
 fw_legacy_teardown
 
-# Standing the boot unit down
 fw_persist_disable
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

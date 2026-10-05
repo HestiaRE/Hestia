@@ -301,6 +301,16 @@
 					</label>
 				</div>
 				<?php } ?>
+				<?php if ($offer_crowdsec) { ?>
+				<div class="form-check u-mb20">
+					<input class="form-check-input" type="checkbox" name="v_crowdsec" id="v_crowdsec" <?php if ($v_crowdsec == 'yes') {
+						echo 'checked';
+					} ?>>
+					<label for="v_crowdsec">
+						<?= tohtml(_("CrowdSec protection")) ?>
+					</label>
+				</div>
+				<?php } ?>
 					<?php // Cert data is bulk and rarely touched: SSL stays above the fold, the PEM
 					// blocks only appear in advanced mode (#621)?>
 				<div x-cloak x-show="showCertificates && showAdvanced" class="js-ssl-details">

@@ -1,27 +1,18 @@
 #!/bin/bash
 # info: accept an inbound CrowdSec mesh pairing request
 # options: IP HANDOFF_FILE
+# labels: internal
+# caller: web/mesh-pair.php
 #
 # example: h-add-sys-crowdsec-peer-request 10.5.5.13 /run/hestia/mesh/in/abc123
 #
-# The accepting half of the pairing handshake, called by /mesh-pair.php - not for hand use.
-# HANDOFF_FILE is the peer's JSON payload {code, token, port, host}, staged 0600 by the panel so no
-# secret rides in argv; consumed on sight. IP is the OBSERVED source address, not what the peer claims
-# - a self-reported address could name anyone.
-#
-# The one-time code is the whole authorisation, so it is checked before ANY side effect (no firewall
-# rule, no outbound connection, no record for a caller who cannot present it) and consumed on success.
-# Prints only the JSON reply the peer needs.
+# Accepting half of the pairing handshake. HANDOFF_FILE is the peer's JSON {code, token, port, host}, staged 0600 by the
+# panel to keep code and token off argv, and removed on sight. IP is the observed source, never a self-reported one.
+# The one-time code is the whole authorisation, so it is checked before any side effect. Prints only the JSON reply.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 ip=$1
 handoff=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -30,25 +21,19 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/crowdsec-mesh.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # Errors go to stderr: stdout carries the JSON reply and nothing else.
 fail() {
 	echo "ERROR: $1" >&2
-	rm -f "$handoff"
+	[ -n "$handoff_ok" ] && rm -f "$handoff"
 	exit "${2:-$E_INVALID}"
 }
 
-# Shut the window: on success (single use) and on too many wrong guesses - brute force gets one short
-# window and a handful of tries, never a standing oracle.
+# Single use, also shut on expiry and on too many wrong guesses: brute force gets one short window, a few tries.
 pairing_close() {
 	rm -f "$MESH_PAIRING_CONF" "$MESH_RUN_DIR/pairing"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root" >&2
@@ -57,22 +42,15 @@ fi
 
 check_args '2' "$#" 'IP HANDOFF_FILE'
 
+# Before anything that could remove it: a refused path is never touched.
+handoff_ok=''
+mesh_handoff_valid "$handoff" || fail "handoff file must be a file in $MESH_RUN_DIR/in" "$E_NOTEXIST"
+handoff_ok=yes
 mesh_load || fail "fleet-mesh is not enabled" "$E_DISABLED"
 [ -f "$MESH_PAIRING_CONF" ] || fail "no pairing window is open" "$E_NOTEXIST"
-[ -f "$handoff" ] || fail "handoff file not found" "$E_NOTEXIST"
 
-# Panel-supplied path: confine it to the staging dir so it can never name an arbitrary file.
-case "$handoff" in
-	"$MESH_RUN_DIR/in/"*) [[ "${handoff##*/}" =~ ^[A-Za-z0-9]{8,64}$ ]] || fail "invalid handoff name" ;;
-	*) fail "handoff file outside $MESH_RUN_DIR/in" ;;
-esac
-
-# Both families: a peer that reached us over v6 is paired on the address it actually used (#893).
+# Either family: the peer is paired on the source address it actually used.
 (is_ip46_format_valid "$ip") > /dev/null 2>&1 || fail "invalid source address"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # shellcheck source=/etc/hestia/crowdsec/pairing.conf
 source "$MESH_PAIRING_CONF"
@@ -98,13 +76,11 @@ if [ "$(mesh_hash "$code")" != "${PAIRING_HASH:-x}" ]; then
 	fail "invalid pairing code" "$E_PASSWORD"
 fi
 
-# Authorised. Consume the window before the work: a replay must not get a second peer even if the
-# steps below fail.
+# Shut the window before the work: a replay must not get a second peer even if the steps below fail.
 pairing_close
 
 [[ "$token" =~ ^[a-f0-9]{32,128}$ ]] || fail "peer sent no usable token" "$E_PARSING"
-# This side is the authority: the host lands in the pull config, where a newline would be a second
-# curl directive.
+# The host lands in the pull config, where a newline would be a second curl directive.
 if [[ "$peer_host" == *:* ]]; then
 	(is_ipv6_format_valid "$peer_host" 'peer host') > /dev/null 2>&1 \
 		|| fail "peer sent no usable host" "$E_PARSING"
@@ -138,18 +114,12 @@ touch "$MESH_PEERS_CONF"
 chmod 600 "$MESH_PEERS_CONF"
 echo "$str" >> "$MESH_PEERS_CONF"
 
-# Staging alone makes our serve side live, which is all the peer needs now. A full refresh is left to
-# the timer: it would run inside the peer's HTTP request, and its pull back to a peer that has not
-# finished recording us could outlast the caller's timeout - leaving the pairing one-sided.
+# No full refresh: its pull back to a peer still inside this request can outlast that request's timeout.
 mesh_stage_serve
 
 jq -n --arg token "$serve_token" --arg port "${BACKEND_PORT:-8083}" \
 	--arg host "$(hostname -f 2> /dev/null || hostname)" \
 	'{token: $token, port: $port, host: $host}'
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "CrowdSec mesh peer accepted (Peer: $peer, IP: $ip)." > /dev/null 2>&1
 log_event "$OK" "PEER='$peer'"

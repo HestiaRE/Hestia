@@ -256,6 +256,12 @@ echo "DOMAIN='$domain' IP='$ip' IP6='$local_ip6' CUSTOM_DOCROOT='' ALIAS='$ALIAS
 
 syshealth_repair_web_config
 
+# CrowdSec protection is on for a new domain. The field is inert without CrowdSec, and takes effect once it is added.
+update_object_value 'web' 'DOMAIN' "$domain" '$CROWDSEC' 'yes'
+# shellcheck source=/usr/local/hestia/include/crowdsec.sh
+source "$HESTIA/include/crowdsec.sh"
+crowdsec_render_domain_fragment "$user" "$domain"
+
 # Counters after the record, not before: an abort between the two used to leave the box counting
 # a domain that does not exist (#601).
 [ -n "$local_ip" ] && increase_ip_value "$local_ip"

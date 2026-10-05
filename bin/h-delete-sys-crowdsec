@@ -7,18 +7,12 @@
 # Unwires L3 and the L7 bouncer, then purges the engine. /etc/crowdsec is kept so a re-add reuses the LAPI
 # creds, collections and CAPI enrolment. First step of the two-step delete-nginx teardown.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
 FORCE=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # Trap-restore, so an aborted purge cannot strand /etc/crowdsec under .saved where a re-add never looks.
@@ -29,10 +23,6 @@ restore_cs_state() {
 	fi
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
@@ -42,26 +32,24 @@ fi
 source "$HESTIA/include/crowdsec.sh"
 
 if ! dpkg -l crowdsec 2> /dev/null | grep -q '^ii' && [ "$FORCE" != 'yes' ]; then
-	echo "ERROR: CrowdSec is not installed. Use FORCE=yes to clean up anyway."
+	echo "ERROR: CrowdSec is not installed. Pass yes as FORCE to clean up anyway."
 	crowdsec_status_record
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# crowdsec_remove_nginx rewrites and reloads nginx config, so a concurrent web switch must not race it.
-# Reentrant, so h-delete-sys-nginx's teardown passes straight through.
+# The nginx rewrite below must not race a web switch. Reentrant, so h-delete-sys-nginx's teardown passes through.
 web_lock_acquire || exit "$E_INUSE"
+
+# The mesh first: left behind, its peers keep their tokens, their ACCEPT rules on the panel port and the endpoint.
+if [ -f "$CONF_DIR/crowdsec/mesh.conf" ] || [ -f "$CONF_DIR/crowdsec/peers.conf" ]; then
+	$BIN/h-delete-sys-crowdsec-mesh > /dev/null 2>&1 || echo "[ ! ] the CrowdSec mesh could not be removed; run h-delete-sys-crowdsec-mesh."
+fi
 
 # L3 first: with the marker gone, h-update-firewall skips the L3 block on the re-render.
 crowdsec_l3_teardown
 
-# L7: remove the nginx bouncer + http glue (the reload happens inside).
 crowdsec_remove_nginx
 
-# purge the engine + bouncers (no autoremove: it would rip out shared-stack siblings)
 if [ "${PURGE_DATA:-}" = "yes" ]; then
 	rm -rf /etc/crowdsec.saved
 elif [ -d /etc/crowdsec ]; then
@@ -70,6 +58,7 @@ elif [ -d /etc/crowdsec ]; then
 	mv /etc/crowdsec /etc/crowdsec.saved
 fi
 
+# No autoremove: it would rip out shared-stack siblings.
 apt-get -y -qq purge crowdsec > /dev/null 2>&1
 
 restore_cs_state
@@ -90,13 +79,9 @@ if [ "$FIREWALL_EXTENSION" = 'fail2ban' ] && [ -f /etc/fail2ban/jail.d/hestia.lo
 	systemctl reload-or-restart fail2ban > /dev/null 2>&1
 fi
 
-# The per-domain fragments stay as saved state: inert without the http-block zones, restored by a re-add.
+# The fragments are gone, the records keep CROWDSEC: a re-add renders them again.
 
 echo "CrowdSec has been removed. You can now run h-delete-sys-nginx if the model requires it."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Removed CrowdSec addon."
 log_event "$OK" "$ARGUMENTS"

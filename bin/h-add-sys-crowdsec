@@ -7,26 +7,12 @@
 # Engine + LAPI on 127.0.0.1:8054, the L7 nginx bouncer and the L3 feeder. nginx-only, refuses on apache.
 # Idempotent; the work is crowdsec_apply, shared with the installer.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 source "$HESTIA/include/crowdsec.sh"
-
-# public-facing web server ('both' fronts with nginx); CrowdSec is offered only for nginx.
-cs_pub="$PROXY_SYSTEM"
-[ -z "$cs_pub" ] && cs_pub="$WEB_SYSTEM"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -34,13 +20,12 @@ if [ "x$(id -u)" != 'x0' ]; then
 fi
 
 # Held across the front check AND the wiring, or a concurrent web switch could flip the front between them.
-# Reentrant, so callers already holding it pass through. The front is re-read under the lock.
+# Reentrant; the front is re-read under the lock.
 web_lock_acquire || exit "$E_INUSE"
 source_conf "$HESTIA/conf/hestia.conf"
 cs_pub="$PROXY_SYSTEM"
 [ -z "$cs_pub" ] && cs_pub="$WEB_SYSTEM"
-# What the box HAS, not what the wizard was told (#945): the key carries the model and is empty without an
-# engine, so it answers "armed" and "in which mode" at once. Derived from the locked read, like the front.
+# What the box HAS, not what the wizard was told: the key is empty without an engine and names the model otherwise.
 cs_armed='no'
 [ -n "$CROWDSEC_SYSTEM" ] && cs_armed='yes'
 
@@ -51,7 +36,6 @@ if [ "$cs_pub" != 'nginx' ]; then
 	exit "$E_INVALID"
 fi
 
-# already fully active? idempotent early-exit (engine + L3 feeder timer)
 if [ "$cs_armed" = 'yes' ] \
 	&& systemctl is-active --quiet crowdsec 2> /dev/null \
 	&& systemctl is-active --quiet hestia-crowdsec-l3.timer 2> /dev/null; then
@@ -59,10 +43,6 @@ if [ "$cs_armed" = 'yes' ] \
 	crowdsec_status_record
 	exit 0
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 echo "[ * ] Installing CrowdSec engine..."
 # force-conf*: a re-add finds our :8054-patched config.yaml, and dpkg would prompt and hit EOF unattended.
@@ -78,21 +58,15 @@ if [ -f /etc/crowdsec/config.yaml ]; then
 	systemctl restart crowdsec 2> /dev/null || true
 fi
 
-# detection + L7 nginx wiring + L3 feeder (the one shared path)
-# The mode of a re-add is the one the box is already in; a first install gets the default. Changing it is
-# h-change-sys-crowdsec-mode, not this command. mesh+capi maps to capi, which leaves the enrolment exactly
-# as it is: the pair is arguably a drift state (a mesh box should not enrol), but repairing it here would
-# be a CrowdSec decision riding along in a refactor. A re-add changes nothing it was not asked to change.
+# A re-add keeps the box's mode, a first install gets the default; switching is h-change-sys-crowdsec-mode.
+# mesh+capi maps to capi, which leaves the enrolment as it is: a re-add changes nothing it was not asked to.
 cs_mode="${CROWDSEC_SYSTEM:-capi}"
 [ "$cs_mode" = 'mesh+capi' ] && cs_mode='capi'
 crowdsec_apply "$cs_mode" || {
 	echo "ERROR: CrowdSec wiring failed."
 	exit "$E_INVALID"
 }
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+crowdsec_render_all_fragments
 
 $BIN/h-log-action "system" "Info" "System" "Installed CrowdSec addon."
 log_event "$OK" "$ARGUMENTS"

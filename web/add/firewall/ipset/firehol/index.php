@@ -51,7 +51,7 @@ $ipsets = cli_json("h-list-firewall-ipset json");
 
 $v_setname = trim($_POST["v_setname"] ?? ($_GET["name"] ?? "firehol"));
 // ipset names are checked like domains, which rules out the underscore most FireHOL names carry
-if (!preg_match('/^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,62}[A-Za-z0-9])?$/', $v_setname)) {
+if (!preg_match('/^[A-Za-z](?:[A-Za-z0-9.-]{0,62}[A-Za-z0-9])?$/', $v_setname)) {
 	$v_setname = "firehol";
 }
 $existing = $ipsets[$v_setname] ?? null;

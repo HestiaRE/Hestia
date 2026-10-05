@@ -4,33 +4,19 @@
 #
 # example: h-change-sys-crowdsec-mode mesh
 #
-# Runtime counterpart to the wizard's CROWDSEC_MODE question (#494), for the case where the fleet grew
-# and the box should start meshing after the fact. capi = central community blocklist + telemetry;
-# local = self-hosted engine only; mesh = local plus the peer exchange, so mesh always turns CAPI off.
-# The current model is derived from the artefacts on disk, not from install.conf (that is the install
-# recipe, not live state), and the target is always enforced in full - so running this on the
-# inconsistent capi+mesh combination the pre-v0.13.3 wizard allowed normalises it.
+# Runtime counterpart to the wizard's CROWDSEC_MODE question. capi = central blocklist and telemetry; local = the
+# engine only; mesh = local plus the peer exchange, so mesh turns CAPI off. The target is enforced in full, which
+# also normalises a box in the inconsistent capi+mesh state.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 mode=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/crowdsec.sh
 source $HESTIA/include/crowdsec.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -59,10 +45,6 @@ if [ "$(crowdsec_public_web)" != "nginx" ]; then
 	crowdsec_status_record
 	exit "$E_NOTEXIST"
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 from=$(crowdsec_current_mode)
 echo "CrowdSec model: $from -> $mode"
@@ -102,9 +84,7 @@ if [ "$now" != "$mode" ]; then
 	exit "$E_INVALID"
 fi
 
-# Only when CAPI was actually active before: cscli 1.4.x cannot delete by origin, and deleting by
-# scenario would take own bans with it, so entries already in the local DB are left to expire (nothing
-# new arrives once CAPI is off).
+# cscli cannot delete by origin, and deleting by scenario would take own bans with it, so pulled entries expire.
 if [ "$mode" != 'capi' ] && [[ "$from" == *capi* ]]; then
 	echo "[ i ] Community-blocklist decisions already pulled stay until they expire."
 	echo "      Inspect: cscli decisions list -a   |   clear everything (incl. own bans): cscli decisions delete --all"
@@ -112,10 +92,6 @@ fi
 
 echo "CrowdSec model is now: $mode"
 [ "$mode" = 'mesh' ] && echo "      Pair a peer: panel Firewall > Fleet Mesh, or h-generate-sys-crowdsec-pairing"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "CrowdSec model changed ($from -> $mode)."
 log_event "$OK" "$ARGUMENTS"

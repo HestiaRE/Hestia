@@ -1,24 +1,9 @@
 #!/bin/bash
-# HestiaRE web bot rate-limiting (Layer B) - server-native, CrowdSec-independent.
-# Native nginx limit_req / apache mod_qos throttling of bot families (429 on excess). Humans are
-# UNLIMITED; malicious traffic is CrowdSec's job (ban -> 403), never here. Available on ANY web
-# install (nginx-only, apache-only, both), whether or not CrowdSec is installed.
-#
-# Model: an admin bot-family table (share/hestia/botfamilies.conf, seeded to
-# /etc/hestia/botfamilies.conf). Each family = name / UA match / lenient+strict rate / enabled,
-# plus conf-only advanced burst + nodelay. Per domain each family is off/lenient/strict (the
-# web.conf BOTLIMIT field). nginx keys per family PER DOMAIN ($host:family, so customers don't share
-# a bucket); apache mod_qos counts per client IP. get_object_value/search_objects take the object
-# base and append .conf.
-#
-# KNOWN LIMITATION (matching by UA): families are matched on the User-Agent string, which is
-# spoofable, and Layer B does NOT verify it (no IP-range / reverse-DNS check). On a non-CrowdSec
-# install a client faking e.g. a googlebot UA can therefore drain that family's per-domain bucket and
-# get the real Googlebot 429'd (SEO harm) - active abuse, not just evasion. On CrowdSec installs the
-# good-actor whitelist verifies real crawlers by rDNS/IP, so a spoofer isn't shielded from bans.
-# Accepted for now (verification would need per-request rDNS); revisit if it bites.
+# Web bot rate-limiting: nginx limit_req / apache mod_qos throttle the families in /etc/hestia/botfamilies.conf
+# with a 429, per domain off, lenient or strict (web.conf BOTLIMIT). Humans are never limited.
+# Families match on the User-Agent unverified, so a spoofed UA can drain a real crawler's bucket on that domain.
 
-# Seed the instance family conf (survives updates) from the shipped default if absent.
+# /etc/hestia survives updates, so the shipped table is only a seed.
 botpolicy_seed_families() {
 	mkdir -p "$CONF_DIR"
 	[ -f "$CONF_DIR/botfamilies.conf" ] \
@@ -33,8 +18,7 @@ botpolicy_rate_to_qos() {
 	case "$u" in s) echo "${n:-60} 1" ;; *) echo "${n:-60} 60" ;; esac
 }
 
-# Render the nginx UA map + per-family limit_req zones into /etc/nginx/conf.d/hestia_botlimit.conf.
-# Aggregate keying; 'generic' is always emitted LAST in the UA map (first match wins).
+# The UA map plus two limit_req zones per enabled family. 'generic' goes last in the map: the first match wins.
 botpolicy_render_nginx() {
 	local obj="$CONF_DIR/botfamilies"
 	local out="/etc/nginx/conf.d/hestia_botlimit.conf"
@@ -66,12 +50,8 @@ botpolicy_render_nginx() {
 		fi
 		echo "}"
 		echo
-		# Per family: an aggregate key + the two rate zones. The key is "$host:<family>" so the bucket
-		# is per-domain (each vhost gets its own family counter) - a busy customer's crawler traffic
-		# can't 429 another customer out of the shared server-wide bucket. Crucially $host lives INSIDE
-		# the map value (not concatenated onto the zone key), so a non-family UA still maps to "" and is
-		# skipped -> humans stay unlimited. Zone count is fixed (families x2), independent of domain
-		# count; 2m gives ~32k host:family slots per zone, ample for a many-domain box.
+		# $host inside the map value, not on the zone key: each domain gets its own bucket per family, and a
+		# non-family UA still maps to "" and stays unlimited. 2m holds about 32k host:family keys per zone.
 		for f in $enabled; do
 			len=$(get_object_value "$obj" 'FAMILY' "$f" '$LENIENT')
 			strict=$(get_object_value "$obj" 'FAMILY' "$f" '$STRICT')
@@ -84,9 +64,7 @@ botpolicy_render_nginx() {
 	chmod 644 "$out"
 }
 
-# Render the apache mod_qos base + a per-family per-level event counter into
-# /etc/apache2/conf.d/hestia_botlimit.conf. mod_qos counts per client IP (no aggregate), 429 on
-# breach; the per-domain fragment sets the QS_Event_<fam>_<level> var.
+# mod_qos counts per client IP, not per domain; the per-domain fragment sets the QS_Event_<fam>_<level> it counts.
 botpolicy_render_apache() {
 	local obj="$CONF_DIR/botfamilies"
 	local out="/etc/apache2/conf.d/hestia_botlimit.conf"
@@ -114,35 +92,14 @@ botpolicy_render_apache() {
 	chmod 644 "$out"
 }
 
-# Re-render the active web front's Layer-B server config + reload. nginx fronts in nginx-only/both;
-# apache-only is the only model where apache does Layer B.
-botpolicy_apply() {
-	local pub
-	if [ -n "$PROXY_SYSTEM" ]; then pub="$PROXY_SYSTEM"; else pub="$WEB_SYSTEM"; fi
-	if [ "$pub" = "nginx" ]; then
-		botpolicy_render_nginx
-		nginx -t > /dev/null 2>&1 && { systemctl reload nginx > /dev/null 2>&1 || systemctl restart nginx > /dev/null 2>&1; }
-	elif [ "$WEB_SYSTEM" = "apache2" ]; then
-		botpolicy_render_apache
-		apache2ctl configtest > /dev/null 2>&1 && { systemctl reload apache2 > /dev/null 2>&1 || systemctl restart apache2 > /dev/null 2>&1; }
-	fi
-}
-
-# Render the per-domain Layer-B fragment (nginx.botlimit.conf / botlimit.apache2.conf) from the
-# domain's BOTLIMIT field ("fam:level,fam:level"; level = lenient|strict, absent = off). Removed
-# when empty, so the vhost's IncludeOptional/include glob is a no-op for unthrottled domains.
-#
-# A family that is gone or disabled is SKIPPED: the server config only defines zones for enabled
-# families, so emitting `limit_req zone=hbot_x_strict` for a disabled one leaves a dangling zone
-# reference and `nginx -t` fails - which would block the next reload for every domain on the box.
-# botpolicy_family_enabled FAMILY - does this host know the family and have it switched on?
-#
 # A family that is gone or disabled has no zone in the server config, so a fragment naming it fails
-# `nginx -t` for the whole box. Asked from here by both the renderer and the restore's report.
+# `nginx -t` for the whole box. Asked by both the renderer and the restore's report.
 botpolicy_family_enabled() {
 	[ "$(get_object_value "$CONF_DIR/botfamilies" 'FAMILY' "$1" '$ENABLED' 2> /dev/null)" = 'yes' ]
 }
 
+# The domain's BOTLIMIT ("fam:level,fam:level", absent = off) as nginx.botlimit.conf or botlimit.apache2.conf.
+# Removed when empty, so the vhost's include glob is a no-op for an unthrottled domain.
 botpolicy_render_domain_fragment() {
 	local user="$1" domain="$2" sys
 	if [ -n "$PROXY_SYSTEM" ]; then sys="$PROXY_SYSTEM"; else sys="$WEB_SYSTEM"; fi
@@ -204,9 +161,8 @@ botpolicy_render_domain_fragment() {
 	fi
 }
 
-# Re-render every throttled domain's fragment. Needed whenever the FAMILY TABLE changes (rename,
-# delete, enable/disable): fragments reference zones by family name, so a table change that is not
-# followed by this leaves stale references behind until the next domain rebuild.
+# Fragments reference zones by family name, so every change to the family table needs this, or stale references
+# stay until the next domain rebuild.
 botpolicy_render_all_fragments() {
 	local wc u d
 	for wc in "$CONF_DIR"/users/*/web.conf; do
@@ -219,9 +175,8 @@ botpolicy_render_all_fragments() {
 	done
 }
 
-# Strip one family from every domain's BOTLIMIT - for a family that no longer exists, whose leftover
-# references would otherwise be rendered forever. Absolute object path: update_object_value resolves a
-# relative one against the caller's own $USER_DATA.
+# Strips a deleted family from every domain's BOTLIMIT, where it would otherwise be rendered forever.
+# Absolute object path: update_object_value resolves a relative one against the caller's own $USER_DATA.
 botpolicy_purge_family() {
 	local fam="$1" wc u d obj bl new e
 	for wc in "$CONF_DIR"/users/*/web.conf; do

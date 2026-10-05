@@ -255,7 +255,7 @@ fw_addr_family() {
 # Cache file, set type and match qualifier must agree. Hardcoded v4 meant a v6 list (the panel offers one)
 # wrote <name>.v6.iplist while the renderer read <name>.v4.iplist - an empty set that blocked nothing.
 fw_ipset_family() {
-	case "$(sed -n "s/.*LISTNAME='$1'.*IP_VERSION='\([^']*\)'.*/\1/p" "$CONF_DIR/firewall/ipset.conf" 2> /dev/null | head -1)" in
+	case "$(grep -F "LISTNAME='$1' " "$CONF_DIR/firewall/ipset.conf" 2> /dev/null | sed -n "s/.*IP_VERSION='\([^']*\)'.*/\1/p" | head -1)" in
 		v6) echo 6 ;;
 		*) echo 4 ;;
 	esac
@@ -317,6 +317,11 @@ fw_render_sets() {
 			*) echo "	set $id { type ipv4_addr;${elems} }" ;;
 		esac
 	done
+}
+
+# By the literal name: a dot in a list name is a regex wildcard, and a.b would answer for aXb.
+fw_ipset_known() {
+	grep -qF "LISTNAME='$1' " "$CONF_DIR/firewall/ipset.conf" 2> /dev/null
 }
 
 # For the paths that must not rebuild the whole ruleset (45s feeder, blocklist refresh). Flush and refill in

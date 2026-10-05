@@ -42,14 +42,15 @@ IPSET_FILE="${ip_name}.${ip_version}"
 #                       Action                             #
 #----------------------------------------------------------#
 
-# A set still matched by a rule cannot go: nft refuses to delete it, and that refusal is the check. The
-# old code asked ipset the same question but then tested the wrong exit status, so it never actually
-# blocked. Removing the object while a rule references it would make the next render fail validation.
+# The rules decide, since a stopped firewall has no set to ask; nft refusing the delete is the second check.
+if grep -qF "IP='ipset:$ip_name'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null; then
+	check_result "$E_INUSE" "IP list ${ip_name} is still referenced by a firewall rule. Cannot remove"
+fi
 if fw_set_exists "$ip_name" && ! fw_set_destroy "$ip_name"; then
 	check_result "$E_INUSE" "IP list ${ip_name} is still referenced by a firewall rule. Cannot remove"
 fi
 
-sed -i "/LISTNAME='$ip_name'/d" "${IPSET_PATH}.conf"
+remove_line_by_prefix "${IPSET_PATH}.conf" "LISTNAME='$ip_name' "
 rm -f "${IPSET_PATH}/${IPSET_FILE}.iplist"
 
 # Nothing left to refresh: stop the timer rather than leave it firing against an empty object list.

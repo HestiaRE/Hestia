@@ -49,7 +49,7 @@ if [ ! -f "$CONF_DIR/firewall/ipset.conf" ]; then
 fi
 
 if [ -z "$data_source" ]; then
-	if [ ! -f "${IPSET_PATH}.conf" ] || [[ ! $(grep "LISTNAME='$ip_name'" "${IPSET_PATH}.conf") ]]; then
+	if [ ! -f "${IPSET_PATH}.conf" ] || ! fw_ipset_known "$ip_name"; then
 		check_args '2' "$#" 'NAME SOURCE [IPVERSION] [AUTOUPDATE] [REFRESH]'
 	fi
 

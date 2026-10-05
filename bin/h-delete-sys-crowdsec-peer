@@ -43,7 +43,7 @@ if ! mesh_load; then
 fi
 
 peer=$(mesh_peer_id "$peer")
-if [ ! -f "$MESH_PEERS_CONF" ] || ! grep -q "^PEER='$peer'" "$MESH_PEERS_CONF"; then
+if [ ! -f "$MESH_PEERS_CONF" ] || ! grep -qF "PEER='$peer' " "$MESH_PEERS_CONF"; then
 	echo "ERROR: peer $peer does not exist."
 	exit "$E_NOTEXIST"
 fi
@@ -53,7 +53,7 @@ fi
 #----------------------------------------------------------#
 
 mesh_fw_close "$peer"
-sed -i "/^PEER='$peer' /d" "$MESH_PEERS_CONF"
+remove_line_by_prefix "$MESH_PEERS_CONF" "PEER='$peer' "
 rm -f "$MESH_PEERS_DIR/$peer.json"
 
 if command -v cscli > /dev/null 2>&1; then

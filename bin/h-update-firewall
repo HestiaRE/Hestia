@@ -127,7 +127,7 @@ for line in $(sort -r -n -k 2 -t \' $rules); do
 	if [ "$SUSPENDED" = 'no' ]; then
 		# Warn but still render: a missing set costs the one rule, not the whole batch.
 		if [[ "$IP" =~ ^ipset: ]]; then
-			if ! "$BIN/h-list-firewall-ipset" plain | grep "^${IP#ipset:}\s" > /dev/null; then
+			if ! fw_ipset_known "${IP#ipset:}"; then
 				log_event $E_NOTEXIST "IPset IP list (${IP#ipset:}) not found"
 			fi
 		fi

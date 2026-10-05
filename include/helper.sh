@@ -715,6 +715,11 @@ exim_spam_header_apply() {
 	exim_template_patch 0.22/exim-spam-header-strip.patch
 }
 
+# One local domain per inbound transaction, so the per-domain virus and spam flags hold for every recipient.
+exim_one_domain_apply() {
+	exim_template_patch 0.24/exim-one-domain-per-transaction.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

@@ -544,6 +544,30 @@
         "/usr/local/hestia/bin/h-check-mail-account-hash"
       ],
       "reversible": false
+    },
+    {
+      "id": "exim-one-domain-per-transaction",
+      "description": "Inbound mail is taken one local domain per transaction, so one domain's virus and spam settings no longer decide for another's recipients; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-one-domain-per-transaction.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_one_domain_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
     }
   ]
 }

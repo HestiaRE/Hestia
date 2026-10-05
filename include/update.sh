@@ -323,7 +323,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	exim_autoreply_apply exim_spam_header_apply mail_ssl_modes_apply smtp_relay_modes_apply
 	php_versions_configure_apply php_modules_apply php_cli_pcntl_apply ioncube_pin_apply language_fallback_apply
 	panel_locale_apply fail2ban_mail_grace_apply firewall_keep_private_apply v_aliases_remove_apply
-	cron_record_review_apply)
+	cron_record_review_apply exim_one_domain_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

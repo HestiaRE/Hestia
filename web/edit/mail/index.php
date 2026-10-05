@@ -363,7 +363,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 	if (empty($_SESSION["error_msg"]) && isset($_POST["v_spam_sensitivity"])) {
 		$spam_presets = ["tolerant" => "7.0", "normal" => "5.0", "strict" => "3.5"];
 		$spam_is_admin = $_SESSION["userContext"] === "admin";
-		if ($spam_tuning_allowed) {
+		if ($offer_antispam && $spam_tuning_allowed) {
 			// Mark threshold: preset or custom value; "default" clears the override
 			$spam_sensitivity = $_POST["v_spam_sensitivity"];
 			$new_spam_score = $spam_presets[$spam_sensitivity] ?? "";

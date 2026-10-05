@@ -1512,6 +1512,10 @@ is_localpart_format_valid() {
 			fi
 		fi
 	fi
+	# The name is a directory under the customer's mail dir (`..` is its parent) and an argument to grep and rm.
+	if [[ "$1" == [.-]* ]] || [[ "$1" == *. ]] || [[ "$1" == *..* ]]; then
+		check_result "$E_INVALID" "invalid $2 format :: $1"
+	fi
 	if [ "$1" != "${1//[^[:ascii:]]/}" ]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi

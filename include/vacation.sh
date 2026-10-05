@@ -1,9 +1,7 @@
 #!/bin/bash
-# The panel's autoreply (#784). Without Sieve it is exim's autoreply.<account>.msg, as upstream. With
-# Sieve it is the vacation rule in the mailbox's active script, in the format of the webmail that
-# owns it (include/vacation.php), so panel and webmail show and edit the same entry and only one of
-# them answers. Record AUTOREPLY and $USER_DATA/mail/<account>@<domain>.msg are kept either way:
-# both travel in the backup to and from HestiaCP.
+# The panel's autoreply: exim's autoreply.<account>.msg without Sieve, otherwise the vacation rule in the mailbox's
+# active script in its webmail's format (include/vacation.php), so panel and webmail edit one entry and one answers.
+# Record AUTOREPLY and $USER_DATA/mail/<account>@<domain>.msg stay either way: both travel in a HestiaCP backup.
 # Needs main.sh.
 
 # shellcheck source=/usr/local/hestia/include/sieve.sh
@@ -13,10 +11,13 @@ VACATION_PHP="$HESTIA/include/vacation.php"
 
 vacation_sieve_on() { webmail_sieve_on; }
 
-# The file dovecot runs for the mailbox (dovecot.sieve is the activation symlink), or nothing.
+# The customer can point the dovecot.sieve link anywhere; root reads and rewrites only their own script in the box.
 vacation_script() { # USER DOMAIN_IDN ACCOUNT
-	local link="$HOMEDIR/$1/mail/$2/$3/dovecot.sieve"
-	[ -e "$link" ] && readlink -f "$link"
+	local box="$HOMEDIR/$1/mail/$2/$3" f
+	[ -e "$box/dovecot.sieve" ] || return 0
+	f=$(readlink -f "$box/dovecot.sieve")
+	[[ "$f" == "$box/"* ]] && [ -f "$f" ] && [ "$(stat -c %U "$f")" = "$1" ] && echo "$f"
+	return 0
 }
 
 vacation_state() { # USER DOMAIN_IDN ACCOUNT -> JSON
@@ -70,7 +71,7 @@ vacation_disable() { # USER DOMAIN_IDN ACCOUNT
 	return "$rc"
 }
 
-# exim's copy of the text, the one its autoreplay router looks for.
+# The file exim's autoreply router looks for; keep in step with share/exim/exim4.conf.template.
 vacation_exim_file() { # USER DOMAIN ACCOUNT
 	echo "$HOMEDIR/$1/conf/mail/$2/autoreply.$3.msg"
 }
@@ -93,10 +94,8 @@ vacation_live() { # USER DOMAIN_IDN ACCOUNT...
 	paste -d' ' <(printf '%s\n' "$@") <("$HESTIA_PHP" "$VACATION_PHP" enabled "${files[@]}")
 }
 
-# One direction per call, for everything that moves autoreplies between the two mechanisms: the Sieve
-# addon arriving or leaving, and a restore that brings exim files onto a Sieve box.
-# To Sieve keys on the exim file, not on the record: the record stays 'yes' when the customer switches
-# the vacation off in the webmail, and a later rebuild must not bring it back.
+# Keyed on the exim file, not on the record: the record stays 'yes' when the customer switches the vacation off in
+# the webmail, and a later rebuild must not bring it back.
 vacation_domain_to_sieve() { # USER DOMAIN
 	local user="$1" domain="$2" domain_idn f acc rc=0
 	format_domain_idn

@@ -165,7 +165,6 @@ if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_autoreply_source = $autoreply_str[$v_account]["SOURCE"] ?? "exim";
 	if ($v_autoreply == "yes") {
 		$v_autoreply_message = $autoreply_str[$v_account]["MSG"];
-		$v_autoreply_message = str_replace("\\n", "\n", $v_autoreply_message);
 	} else {
 		$v_autoreply_message = "";
 	}
@@ -308,9 +307,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 
 	// Change rate limit
 	if (
+		$_SESSION["userContext"] == "admin" &&
 		$v_rate != $_POST["v_rate"] &&
-		empty($_SESSION["error_msg"]) &&
-		$_SESSION["userContext"] == "admin"
+		empty($_SESSION["error_msg"])
 	) {
 		if (empty($_POST["v_rate"])) {
 			$v_rate = "system";
@@ -1117,9 +1116,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 	}
 	// Change rate limit
 	if (
+		$_SESSION["userContext"] == "admin" &&
 		$v_rate != $_POST["v_rate"] &&
-		empty($_SESSION["error_msg"]) &&
-		$_SESSION["userContext"] == "admin"
+		empty($_SESSION["error_msg"])
 	) {
 		if (empty($_POST["v_rate"])) {
 			$v_rate = "system";
@@ -1197,24 +1196,8 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 	}
 	// Change forwarders to :blackhole:
 	if (empty($_SESSION["error_msg"]) && !empty($_POST["v_blackhole"])) {
-		foreach ($vfwd as $forward) {
-			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
-				exec(
-					HESTIA_CMD .
-						"h-delete-mail-account-forward " .
-						$v_username .
-						" " .
-						quoteshellarg($v_domain) .
-						" " .
-						quoteshellarg($v_account) .
-						" " .
-						quoteshellarg($forward),
-					$output,
-					$return_var,
-				);
-				check_return_code($return_var, $output);
-				unset($output);
-			}
+		// Added before the old ones go: with no forward left, forward-only ends.
+		if (!in_array(":blackhole:", $vfwd)) {
 			exec(
 				HESTIA_CMD .
 					"h-add-mail-account-forward " .
@@ -1229,21 +1212,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			$v_fwd = "";
-			$v_blackhole = "yes";
 		}
-	}
-	// Change forwarders
-	if (empty($_SESSION["error_msg"]) && empty($_POST["v_blackhole"])) {
-		$wfwd = preg_replace("/\n/", " ", $_POST["v_fwd"]);
-		$wfwd = preg_replace("/,/", " ", $wfwd);
-		$wfwd = preg_replace("/\s+/", " ", $wfwd);
-		$wfwd = trim($wfwd);
-		$fwd = explode(" ", $wfwd);
-		$v_fwd = str_replace(" ", "\n", $wfwd);
-		$result = array_diff($vfwd, $fwd);
-		foreach ($result as $forward) {
-			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
+		foreach ($vfwd as $forward) {
+			if (empty($_SESSION["error_msg"]) && !empty($forward) && $forward != ":blackhole:") {
 				exec(
 					HESTIA_CMD .
 						"h-delete-mail-account-forward " .
@@ -1261,12 +1232,44 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				unset($output);
 			}
 		}
+		$v_fwd = "";
+		$v_blackhole = "yes";
+	}
+	// Change forwarders
+	if (empty($_SESSION["error_msg"]) && empty($_POST["v_blackhole"])) {
+		$wfwd = preg_replace("/\n/", " ", $_POST["v_fwd"]);
+		$wfwd = preg_replace("/,/", " ", $wfwd);
+		$wfwd = preg_replace("/\s+/", " ", $wfwd);
+		$wfwd = trim($wfwd);
+		$fwd = explode(" ", $wfwd);
+		$v_fwd = str_replace(" ", "\n", $wfwd);
+		// New ones first, for the same reason as above.
 		$result = array_diff($fwd, $vfwd);
 		foreach ($result as $forward) {
 			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
 				exec(
 					HESTIA_CMD .
 						"h-add-mail-account-forward " .
+						$v_username .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						quoteshellarg($v_account) .
+						" " .
+						quoteshellarg($forward),
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+			}
+		}
+		$result = array_diff($vfwd, $fwd);
+		foreach ($result as $forward) {
+			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
+				exec(
+					HESTIA_CMD .
+						"h-delete-mail-account-forward " .
 						$v_username .
 						" " .
 						quoteshellarg($v_domain) .

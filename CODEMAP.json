@@ -656,6 +656,38 @@
         "issues": []
       }
     },
+    "mail_account": {
+      "description": "Mail accounts of a mail domain: mailbox, login, aliases, forwards, forward-only, autoreply, quota, rate limit, suspension. The record is $USER_DATA/mail/DOMAIN.conf, one ACCOUNT row each; exim and dovecot read $HOMEDIR/$user/conf/mail/DOMAIN (passwd, accounts, aliases, fwd_only, limits, autoreply.ACCOUNT.msg) through the link /etc/exim4/domains/DOMAIN_IDN.",
+      "commands": [
+        "bin/h-add-mail-account",
+        "bin/h-delete-mail-account",
+        "bin/h-list-mail-account",
+        "bin/h-list-mail-accounts",
+        "bin/h-get-mail-account-value",
+        "bin/h-change-mail-account-password",
+        "bin/h-add-mail-account-grace",
+        "bin/h-change-mail-account-quota",
+        "bin/h-change-mail-account-rate-limit",
+        "bin/h-add-mail-account-alias",
+        "bin/h-delete-mail-account-alias",
+        "bin/h-add-mail-account-forward",
+        "bin/h-delete-mail-account-forward",
+        "bin/h-add-mail-account-fwd-only",
+        "bin/h-delete-mail-account-fwd-only",
+        "bin/h-add-mail-account-autoreply",
+        "bin/h-delete-mail-account-autoreply",
+        "bin/h-list-mail-account-autoreply",
+        "bin/h-suspend-mail-account",
+        "bin/h-unsuspend-mail-account",
+        "bin/h-suspend-mail-accounts",
+        "bin/h-unsuspend-mail-accounts"
+      ],
+      "core": "include/domain.sh: mail_password_hash (doveadm with the password on stdin, a hash that is not one is refused), mail_passwd_line (the passwd line with the dovecot 2.3 or 2.4 quota syntax, built only here), mail_account_maildir_ensure + mail_dir_trusted (root creates and chowns below ~/mail only while ~/mail is root's own directory and nothing on the way is a link; a swap between check and action is not covered), is_mail_new (accounts and aliases compared literally per field). include/vacation.sh + vacation.php: the autoreply, as the vacation rule in the webmail's Sieve format or as exim's file; vacation_script reads only a script inside the mailbox.",
+      "suspension": "An account: SUSPENDED in its row and SUSPENDED in place of its hash, so no login while its mail, aliases and forwards keep working. A domain: the /etc/exim4/domains link goes, which ends login and delivery for every account, and the account rows stay as they are, so an account suspended on its own stays suspended after the domain comes back. The rebuild writes every account, the suspended ones with the SUSPENDED hash. The panel's account list shows the accounts of a suspended domain as suspended.",
+      "forwards": "FWD is a comma list compared literally. fwd_only sends the local copy to devnull and only makes sense with a forward: removing the last forward ends it. :blackhole: discards through fwd_only, since exim's alias router reads nothing out of it.",
+      "panel": "web/add/mail (forward-only without a password gets a random one), web/edit/mail (new forwards are added before old ones go, or forward-only would end in between), web/list/mail (the domain's WEBMAIL decides the webmail link), web/delete/mail, web/bulk/mail, web/suspend|unsuspend/mail. web/reset/mail is the local, session-less password endpoint the webmail drivers post to (share/roundcube/hestia.php, share/tachyon/plugins/change-password-hestia/driver.php); both accept only the exact answer ==ok==.",
+      "upstream_ref": "bin/v-*-mail-account*, func/domain.sh"
+    },
     "make_release": {
       "description": "Pure-bash installer. install.sh (bootstrap) → include/wizard.sh (manifest-driven Q&A → /etc/hestia/install.conf) → sbin/h-install-hestia (non-interactive, COMPONENT_*-gated). Migrated from Justfile/just/* to bash h-* commands in Issue #112 (epic); just removed (was Makefile→Justfile in #102, Justfile→bash in #112).",
       "entry_points": [

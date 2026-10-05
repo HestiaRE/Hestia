@@ -194,6 +194,7 @@ rebuild_user_conf() {
 		fi
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		mkdir -p $HOMEDIR/$user/mail
+		chown --no-dereference root:root $HOMEDIR/$user/mail
 		chmod 751 $HOMEDIR/$user/mail
 		chmod 751 $HOMEDIR/$user/conf/mail
 		if [ "$create_user" = "yes" ]; then
@@ -763,14 +764,15 @@ rebuild_mail_domain_conf() {
 	accs=0
 	dom_disk=0
 	if [ -e "$USER_DATA/mail/$domain.conf" ]; then
-		accounts=$(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT')
+		# Suspended ones too: suspension swaps the hash and keeps the mail coming, as h-suspend-mail-account does.
+		accounts=$(sed -n "s/^ACCOUNT='\([^']*\)'.*/\1/p" "$USER_DATA/mail/$domain.conf")
 	else
 		accounts=''
 	fi
 	for account in $accounts; do
 		((++accs))
 		object=$(grep -F "ACCOUNT='$account'" $USER_DATA/mail/$domain.conf)
-		FWD_ONLY='no'
+		ALIAS='' FWD='' FWD_ONLY='no' RATE_LIMIT='' SUSPENDED='no'
 		parse_object_kv_list "$object"
 		if [ "$SUSPENDED" = 'yes' ]; then
 			MD5='SUSPENDED'
@@ -781,18 +783,8 @@ rebuild_mail_domain_conf() {
 				QUOTA=0
 			fi
 			mail_account_maildir_ensure "$user" "$domain_idn" "$account"
-			dovecot_version="$(dovecot --version | cut -f -2 -d .)"
-			if [[ "$dovecot_version" = "2.4" ]]; then
-				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_storage_size=${QUOTA}M"
-				echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
-				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
-			else
-				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_rule=*:storage=${QUOTA}M"
-				echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
-				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
-			fi
+			mail_passwd_line "$user" "$account" "$MD5" "$QUOTA" >> $HOMEDIR/$user/conf/mail/$domain/passwd
+			echo "$account:$account:$user:mail:$HOMEDIR/$user" >> $HOMEDIR/$user/conf/mail/$domain/accounts
 			local -a _malias_list
 			IFS=, read -ra _malias_list <<< "$ALIAS"
 			for malias in "${_malias_list[@]}"; do
@@ -802,7 +794,7 @@ rebuild_mail_domain_conf() {
 			if [ -n "$FWD" ]; then
 				echo "$account@$domain_idn:$FWD" >> $dom_aliases
 			fi
-			if [ "$FWD_ONLY" = 'yes' ]; then
+			if [ "$FWD_ONLY" = 'yes' ] && [ -n "$FWD" ]; then
 				echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
 			fi
 			user_rate_limit=$(get_object_value 'mail' 'DOMAIN' "$domain" '$RATE_LIMIT')
@@ -828,14 +820,15 @@ rebuild_mail_domain_conf() {
 		chmod 660 $USER_DATA/mail/$domain.*
 		chmod 771 $HOMEDIR/$user/conf/mail/$domain
 		chmod 660 $HOMEDIR/$user/conf/mail/$domain/*
-		chmod 771 /etc/$MAIL_SYSTEM/domains/$domain_idn
-		chmod 770 $HOMEDIR/$user/mail/$domain_idn
 		chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain
 		if [ "$IMAP_SYSTEM" = "dovecot" ]; then
 			chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
 		fi
 		chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/accounts
-		chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+		if mail_dir_trusted "$user" "$domain_idn"; then
+			chmod 770 $HOMEDIR/$user/mail/$domain_idn
+			chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+		fi
 	fi
 
 	# Add missing SSL configuration flags to existing domains
@@ -857,8 +850,8 @@ rebuild_mail_domain_conf() {
 	fi
 
 	dom_disk=0
-	for account in $(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT'); do
-		home_dir=$HOMEDIR/$user/mail/$domain/$account
+	for account in $accounts; do
+		home_dir=$HOMEDIR/$user/mail/$domain_idn/$account
 		if [ -e "$home_dir" ]; then
 			udisk=$(nice -n 19 du -shm $home_dir | cut -f 1)
 		else

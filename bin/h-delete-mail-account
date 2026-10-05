@@ -6,32 +6,20 @@
 #
 # This function deletes email account.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN ACCOUNT'
 is_format_valid 'user' 'domain' 'account'
@@ -40,16 +28,12 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	aliases=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$ALIAS')
 	IFS=, read -ra _al_list <<< "$aliases"
 	for al in "${_al_list[@]}"; do
 		[ -n "$al" ] || continue
-		# Literal comparisons, not sed patterns - deleting john.doe must not take johnXdoe's lines
+		# Literal comparisons, not sed patterns: deleting john.doe must not take johnXdoe's lines.
 		remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$al@$domain_idn:$account"
 	done
 
@@ -58,23 +42,19 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/accounts "$account:"
 	remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/limits "$account@$domain_idn:"
-	rm -rf $HOMEDIR/$user/mail/$domain_idn/$account
+	mail_dir_trusted "$user" "$domain_idn" && rm -rf "$HOMEDIR/$user/mail/$domain_idn/$account"
 	mail_autoreply_once_clear "$domain_idn" "$account"
+	# exim answers as long as this file exists, a new account of the same name would inherit the text.
+	rm -f "$HOMEDIR/$user/conf/mail/$domain/autoreply.$account.msg"
 fi
+rm -f "$USER_DATA/mail/$account@$domain.msg"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update config
 remove_line_by_prefix $USER_DATA/mail/$domain.conf "ACCOUNT='$account'"
 
-# Decrease mail accounts counter
 accounts=$(wc -l $USER_DATA/mail/$domain.conf | cut -f 1 -d ' ')
 decrease_user_value "$user" '$U_MAIL_ACCOUNTS'
 update_object_value 'mail' 'DOMAIN' "$domain" '$ACCOUNTS' "$accounts"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account removed (User: $account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

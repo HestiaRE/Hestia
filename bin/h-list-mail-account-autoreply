@@ -4,35 +4,23 @@
 #
 # example: h-list-mail-account-autoreply admin example.com testing
 #
-# This function of obtaining mail account autoreply message.
+# Lists the account's autoreply text with its SOURCE and whether it is ENABLED.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 format=${4-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
-	# json_escape replaces the hand-rolled sed chain and works on the RAW message: it covers the
-	# backslash, the quote and the newline encoding in one place. No storage decode here: the message
-	# lives in its own .msg file that no writer ever encodes, here or in the upstream this came from,
-	# so decoding %quote% only rewrote a customer's literal text, and the shell branch below never
-	# did it either (#1002).
+	# From the raw message, without a %quote% decode: no writer encodes the .msg file, decoding only altered the text.
 	local msg="$msg_raw"
 	echo '{'
 	json_escape account msg source enabled
@@ -43,19 +31,13 @@ json_list() {
 	echo -e "\t}\n}"
 }
 
-# SHELL list function
 shell_list() {
 	echo "$msg"
 }
 
-# PLAIN list function
 plain_list() {
 	echo "$msg"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN ACCOUNT [FORMAT]'
 is_format_valid 'user' 'domain' 'account'
@@ -65,18 +47,14 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# SOURCE says who answers: exim, or the Sieve script in the webmail's format (roundcube, tachyon, none
-# yet), or custom, which is shown and never written. With Sieve the script is the truth, since the
-# customer may have changed it in the webmail since.
+# SOURCE: exim, the webmail's Sieve format (roundcube, tachyon, none yet) or custom, shown but never written.
+# With Sieve the script answers, not the record: the customer may have changed it in the webmail.
 source='exim'
 enabled=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY')
 if vacation_sieve_on; then
 	format_domain_idn
-	st=$(vacation_state "$user" "$domain_idn" "$account")
+	# A script php cannot parse is shown as custom, the panel does not offer to write over it.
+	st=$(vacation_state "$user" "$domain_idn" "$account") || st='{"format":"custom","enabled":false,"message":""}'
 	source=$(echo "$st" | jq -r '.format')
 	enabled=$(echo "$st" | jq -r 'if .enabled then "yes" else "no" end')
 	msg_raw=$(echo "$st" | jq -r '.message')
@@ -89,16 +67,11 @@ elif [ -e "$USER_DATA/mail/$account@$domain.msg" ]; then
 fi
 msg=$(echo "$msg_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

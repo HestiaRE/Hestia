@@ -4,25 +4,18 @@
 #
 # example: h-list-mail-accounts admin acme.com
 #
-# This function of obtaining the list of all user domains.
+# Lists the accounts of one mail domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # With Sieve the customer can switch it in the webmail, so the script answers, not the record.
@@ -33,14 +26,23 @@ live_autoreply() {
 	fi
 }
 
-# JSON list function
+# Account rows only, each from empty: a blank line repeated the last account, a missing key inherited its value.
+rows() {
+	grep "^ACCOUNT='" "$USER_DATA/mail/$domain.conf"
+}
+
+parse_row() {
+	ALIAS='' FWD='' FWD_ONLY='' AUTOREPLY='' QUOTA='' U_DISK='' SUSPENDED='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
-	objects=$(grep ACCOUNT $USER_DATA/mail/$domain.conf | wc -l)
+	objects=$(rows | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		parse_row "$str"
 		live_autoreply
 		json_escape ACCOUNT ALIAS FWD FWD_ONLY AUTOREPLY QUOTA U_DISK SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$ACCOUNT"
@@ -60,17 +62,16 @@ json_list() {
 			echo
 		fi
 		((i++))
-	done < <(cat $USER_DATA/mail/$domain.conf)
+	done < <(rows)
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "ACCOUNT   ALIAS   FWD   DISK  DATE"
 	echo "-------   -----   ---   ----  ----"
 	while read str; do
-		parse_object_kv_list "$str"
+		parse_row "$str"
 		if [ -z "$ALIAS" ]; then
 			ALIAS='no'
 		else
@@ -86,32 +87,23 @@ shell_list() {
 			fi
 		fi
 		echo "$ACCOUNT $ALIAS $FWD $U_DISK $DATE"
-	done < <(cat $USER_DATA/mail/$domain.conf)
+	done < <(rows)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		parse_row "$str"
 		live_autoreply
 		echo -ne "$ACCOUNT\t$ALIAS\t$FWD\t$FWD_ONLY\t$AUTOREPLY\t"
 		echo -e "$QUOTA\t$U_DISK\t$SUSPENDED\t$TIME\t$DATE"
-	done < <(cat $USER_DATA/mail/$domain.conf)
+	done < <(rows)
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if vacation_sieve_on && [ "$format" != 'shell' ]; then
 	format_domain_idn
@@ -121,16 +113,11 @@ if vacation_sieve_on && [ "$format" != 'shell' ]; then
 	done < <(vacation_live "$user" "$domain_idn" "${accounts[@]}")
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

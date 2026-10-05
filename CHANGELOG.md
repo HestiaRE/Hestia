@@ -59,6 +59,7 @@ before v0.20.0 are folded into one section by theme.
 - **Record parsing refuses to bind a reserved control name** like `user` or `crontab` (#1176). These are shell
   variables a reading command runs on, so a record must never set them; the writer likewise stores only a record
   it can read back.
+- **Mail account commands are stricter about account names, passwords and the mailbox directory** (#1176).
 
 ### Removed
 
@@ -78,6 +79,7 @@ before v0.20.0 are folded into one section by theme.
   crontab always carries; the second removed it, after which restarts queued under a hand-set SCHEDULED_RESTART
   never ran. Neither had a caller.
   An update deletes them from the box.
+- **`h-check-mail-account-hash` is gone** (#1176). It had no caller. An update deletes it from the box.
 
 ### Fixed
 
@@ -103,6 +105,9 @@ before v0.20.0 are folded into one section by theme.
 - **Adding a mail domain left its webmail unreachable until some later reload** (#1172), and every restart after
   a command that reads a customer record was skipped the same way. The freeze check ran `$SHELL`, which the record's
   `SHELL='nologin'` had replaced, and read the refusal as a web-model switch in progress.
+- **Mail account commands do what they report** (#1176). A suspended mailbox stays suspended through a rebuild and
+  through its domain's suspension and keeps receiving mail, deleting a forward or alias deletes exactly that one, a
+  forward-only account keeps the flag when its forward changes, and an autoreply text is shown as it is stored.
 
 ## v0.23 (2026-09-27)
 

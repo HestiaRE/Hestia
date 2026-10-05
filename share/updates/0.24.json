@@ -526,6 +526,24 @@
         "/usr/share/adminer/adminer-plugins/login-servers.php"
       ],
       "reversible": true
+    },
+    {
+      "id": "remove-h-check-mail-account-hash",
+      "description": "h-check-mail-account-hash is gone: nothing called it, and it took the mail password in its arguments",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-check-mail-account-hash"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-check-mail-account-hash"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-check-mail-account-hash"
+      ],
+      "reversible": false
     }
   ]
 }

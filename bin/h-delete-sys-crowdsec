@@ -55,6 +55,11 @@ fi
 # Reentrant, so h-delete-sys-nginx's teardown passes straight through.
 web_lock_acquire || exit "$E_INUSE"
 
+# The mesh first: left behind, its peers keep their tokens, their ACCEPT rules on the panel port and the endpoint.
+if [ -f "$CONF_DIR/crowdsec/mesh.conf" ] || [ -f "$CONF_DIR/crowdsec/peers.conf" ]; then
+	$BIN/h-delete-sys-crowdsec-mesh > /dev/null 2>&1 || echo "[ ! ] the CrowdSec mesh could not be removed; run h-delete-sys-crowdsec-mesh."
+fi
+
 # L3 first: with the marker gone, h-update-firewall skips the L3 block on the re-render.
 crowdsec_l3_teardown
 

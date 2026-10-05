@@ -4,7 +4,7 @@
 #
 # example: h-delete-mail-domains admin
 #
-# Deletes the user's mail domains that are not suspended.
+# Deletes all of the user's mail domains, suspended ones included.
 
 user=$1
 
@@ -19,7 +19,7 @@ is_format_valid 'user'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 
-for domain in $(search_objects 'mail' 'SUSPENDED' "no" 'DOMAIN'); do
+for domain in $(search_objects 'mail' 'SUSPENDED' "*" 'DOMAIN'); do
 	$BIN/h-delete-mail-domain "$user" "$domain"
 done
 

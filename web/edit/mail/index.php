@@ -373,7 +373,13 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 					$_SESSION["error_msg"] = _("Invalid spam mark threshold.");
 				}
 			}
-			if (empty($_SESSION["error_msg"]) && $new_spam_score !== "" && !$spam_is_admin) {
+			// Only a changed value is held to the policy, so one an admin set outside it does not block the form.
+			if (
+				empty($_SESSION["error_msg"]) &&
+				$new_spam_score !== "" &&
+				$new_spam_score !== $v_spam_score &&
+				!$spam_is_admin
+			) {
 				$score_min = (float) ($_SESSION["POLICY_SPAM_SCORE_MIN"] ?? "3.0");
 				$score_max = (float) ($_SESSION["POLICY_SPAM_SCORE_MAX"] ?? "10.0");
 				if ((float) $new_spam_score < $score_min || (float) $new_spam_score > $score_max) {
@@ -428,7 +434,12 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 			) {
 				$_SESSION["error_msg"] = _("Invalid spam reject threshold.");
 			}
-			if (empty($_SESSION["error_msg"]) && $new_reject_score !== "" && !$spam_is_admin) {
+			if (
+				empty($_SESSION["error_msg"]) &&
+				$new_reject_score !== "" &&
+				$new_reject_score !== $v_spam_reject_score &&
+				!$spam_is_admin
+			) {
 				$reject_min = (float) ($_SESSION["POLICY_SPAM_REJECT_SCORE_MIN"] ?? "8.0");
 				$reject_max = (float) ($_SESSION["POLICY_SPAM_REJECT_SCORE_MAX"] ?? "20.0");
 				if (

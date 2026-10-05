@@ -30,6 +30,7 @@ if (empty($_GET["domain"])) {
 	$data = cli_json("h-list-mail-accounts " . $user . " " . quoteshellarg($_GET["domain"]) . " json");
 	// A domain's suspension leaves its account records alone, so an account suspended on its own stays so.
 	$v_mail_domain = cli_json("h-list-mail-domain " . $user . " " . quoteshellarg($_GET["domain"]) . " json");
+	$v_domain_webmail = is_array($v_mail_domain) ? reset($v_mail_domain)["WEBMAIL"] ?? "" : "";
 	if (is_array($v_mail_domain) && (reset($v_mail_domain)["SUSPENDED"] ?? "") == "yes" && is_array($data)) {
 		foreach ($data as $key => $value) {
 			$data[$key]["SUSPENDED"] = "yes";

@@ -204,7 +204,7 @@ if (!empty($_SESSION["WEBMAIL_ALIAS"])) {
 						<?php } else { ?>
 							<?php if ($data[$key]["SUSPENDED"] == "no") { ?>
 								<?php if ($_SESSION["WEBMAIL_SYSTEM"]) { ?>
-									<?php if (!empty($data[$key]["WEBMAIL"])) { ?>
+									<?php if (!empty($v_domain_webmail)) { ?>
 										<li class="units-table-row-action" data-key-action="href">
 											<a
 												class="units-table-row-action-link"

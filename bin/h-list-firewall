@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: list iptables rules
+# info: list firewall rules
 # options: [FORMAT]
 #
 # example: h-list-firewall json

@@ -2,7 +2,7 @@
 # info: delete firewall rule
 # options: RULE
 #
-# example: h-delete-firewall-rule SSH_BLOCK
+# example: h-delete-firewall-rule 7
 #
 # Deletes a firewall rule; if the ruleset refuses the change, the rule stays.
 

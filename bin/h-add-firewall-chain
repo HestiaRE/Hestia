@@ -2,7 +2,7 @@
 # info: add firewall chain
 # options: CHAIN [PORT] [PROTOCOL]
 # labels: internal
-# caller: the fail2ban actions and h-update-firewall
+# caller: the fail2ban actions, h-add-firewall-ban and h-update-firewall
 #
 # example: h-add-firewall-chain CRM 5678 TCP
 #

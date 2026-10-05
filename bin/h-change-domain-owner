@@ -160,6 +160,7 @@ if [ -n "$mail_data" ]; then
 	echo "[*] Moving mail domain and accounts..."
 
 	parse_object_kv_list "$mail_data"
+	mail_suspended=$SUSPENDED
 
 	# Ensure mail configuration directory exists for receiving user
 	if [ ! -e "$HOMEDIR/$user/conf/mail/$domain/" ]; then
@@ -267,7 +268,9 @@ if [ -n "$mail_data" ]; then
 	fi
 
 	# Rebuild config
-	$BIN/h-unsuspend-mail-domain "$user" "$domain" no
+	if [ "$mail_suspended" != 'yes' ]; then
+		$BIN/h-unsuspend-mail-domain "$user" "$domain" no
+	fi
 	$BIN/h-rebuild-mail-domains "$owner" no
 	$BIN/h-rebuild-mail-domains "$user"
 fi

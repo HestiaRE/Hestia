@@ -33,20 +33,23 @@ format_domain_idn
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '3' "$#" 'USER DOMAIN ACCOUNT KEY'
-is_format_valid 'user' 'domain' 'key'
+check_args '4' "$#" 'USER DOMAIN ACCOUNT KEY'
+is_format_valid 'user' 'domain' 'account' 'key'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 
-key=$(echo "$key" | tr '[:lower:]' '[:upper:]' | sed "s/^/$/")
+key=$(echo "$key" | tr '[:lower:]' '[:upper:]')
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
 
 # Print
-get_object_value "mail/$domain" 'ACCOUNT' "$account" "$key"
+# From the account's own row: a key the record does not carry is empty, never some shell variable of that name.
+row=$(awk -v a="ACCOUNT='$account' " 'index($0, a) == 1' "$USER_DATA/mail/$domain.conf")
+value=$(record_field "$row" "$key")
+echo "$value"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

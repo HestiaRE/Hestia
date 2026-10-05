@@ -173,15 +173,19 @@ crowdsec_apply() {
 			echo "CrowdSec: bouncer registration failed" >&2
 			return 1
 		}
-		cat > "$keyfile" <<- EOF
-			-- CrowdSec nginx bouncer config. Generated - do not edit.
-			return {
-				host = "127.0.0.1", port = 8054,
-				api_key = "$key",
-				cache_ttl = 30, ban_ttl = 60, timeout = 1000, fail_open = true,
-				dict = "crowdsec_cache",
-			}
-		EOF
+		# umask, not only the chmod below: the file holds the key from its first byte on.
+		(
+			umask 077
+			cat > "$keyfile" <<- EOF
+				-- CrowdSec nginx bouncer config. Generated - do not edit.
+				return {
+					host = "127.0.0.1", port = 8054,
+					api_key = "$key",
+					cache_ttl = 30, ban_ttl = 60, timeout = 1000, fail_open = true,
+					dict = "crowdsec_cache",
+				}
+			EOF
+		)
 		# 600: holds the LAPI key, read only by nginx's master (root) at (re)load, before workers fork.
 		chmod 600 "$keyfile"
 	fi

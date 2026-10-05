@@ -1065,6 +1065,14 @@ del_mail_ssl_config() {
 	rm -f "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key" "$MAIL_SNI_DIR/mail.$domain.crt" "$MAIL_SNI_DIR/mail.$domain.key"
 }
 
+# A failed key leaves neither half behind, so nothing claims a DKIM it does not have.
+mail_dkim_keys_write() { # DOMAIN SIZE
+	local pem="$USER_DATA/mail/$1.pem" pub="$USER_DATA/mail/$1.pub"
+	openssl genrsa -out "$pem" "$2" &> /dev/null && openssl rsa -pubout -in "$pem" -out "$pub" &> /dev/null && return 0
+	rm -f "$pem" "$pub"
+	return 1
+}
+
 del_mail_ssl_certificates() {
 	rm -f $USER_DATA/ssl/mail.$domain.ca
 	rm -f $USER_DATA/ssl/mail.$domain.crt

@@ -2244,7 +2244,7 @@ is_format_valid() {
 				dbpass) is_password_format_valid "$arg" ;;
 				dbuser) is_dbuser_format_valid "$arg" 'dbuser' ;;
 				dkim) is_boolean_format_valid "$arg" 'dkim' ;;
-				dkim_size) is_int_format_valid "$arg" ;;
+				dkim_size) [[ "$arg" =~ ^(1024|2048|4096)$ ]] || check_result "$E_INVALID" "invalid dkim_size :: $arg (1024, 2048 or 4096)" ;;
 				domain) is_domain_format_valid "$arg" ;;
 				dom_alias) is_alias_format_valid "$arg" ;;
 				email) is_email_format_valid "$arg" ;;

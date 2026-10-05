@@ -54,10 +54,7 @@ is_object_value_empty 'mail' 'DOMAIN' "$domain" '$DKIM'
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Generating dkim
-openssl genrsa -out $USER_DATA/mail/$domain.pem $dkim_size &> /dev/null
-openssl rsa -pubout -in $USER_DATA/mail/$domain.pem \
-	-out $USER_DATA/mail/$domain.pub &> /dev/null
+mail_dkim_keys_write "$domain" "$dkim_size" || check_result "$E_DISK" "DKIM key generation failed for $domain"
 chmod 660 $USER_DATA/mail/$domain.*
 
 # Adding dkim keys

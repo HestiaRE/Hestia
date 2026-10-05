@@ -34,8 +34,9 @@ if [ -n "$check_excludes" ]; then
 fi
 
 conf="$CONF_DIR/firewall/banlist.conf"
-check_ip=$(grep "IP='$ip_cidr' CHAIN='$chain'" $conf 2> /dev/null)
-if [ -n "$check_ip" ]; then
+if grep -qF "IP='$ip_cidr' CHAIN='$chain'" "$conf" 2> /dev/null; then
+	# Recorded but maybe not live: fail2ban re-bans what it knows after a restart.
+	fw_ban_add "$chain" "$ip_cidr"
 	exit
 fi
 

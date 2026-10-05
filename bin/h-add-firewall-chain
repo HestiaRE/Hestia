@@ -71,8 +71,18 @@ case $chain in
 	*) check_args '2' "$#" 'CHAIN PORT' ;;
 esac
 
+wired=yes
+fw_jail_wired "$chain" || wired=''
 # Inserts the rules only while the input chain does not match the jail's set yet, so a re-run is a no-op.
 fw_jail_attach "$chain" "$protocol" "$port"
+
+# A jail stop destroys the set and keeps its rows; fail2ban restores only its own bans, a manual one would stay out.
+banlist="$CONF_DIR/firewall/banlist.conf"
+if [ -z "$wired" ] && [ -f "$banlist" ]; then
+	grep -F "CHAIN='$chain' " "$banlist" | grep -o "^IP='[^']*'" | cut -d"'" -f2 | while read -r ban; do
+		fw_ban_add "$chain" "$ban"
+	done
+fi
 
 chains="$CONF_DIR/firewall/chains.conf"
 check_chain=""

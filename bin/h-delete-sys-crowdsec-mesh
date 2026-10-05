@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: disable CrowdSec fleet-mesh
-# options: [PURGE_DATA]
+# options: NONE
 #
 # example: h-delete-sys-crowdsec-mesh
 #

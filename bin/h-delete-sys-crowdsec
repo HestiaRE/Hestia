@@ -42,7 +42,7 @@ fi
 source "$HESTIA/include/crowdsec.sh"
 
 if ! dpkg -l crowdsec 2> /dev/null | grep -q '^ii' && [ "$FORCE" != 'yes' ]; then
-	echo "ERROR: CrowdSec is not installed. Use FORCE=yes to clean up anyway."
+	echo "ERROR: CrowdSec is not installed. Pass yes as FORCE to clean up anyway."
 	crowdsec_status_record
 	exit "$E_NOTEXIST"
 fi

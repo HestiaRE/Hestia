@@ -30,7 +30,7 @@
 	<?php if (!$mesh_enabled): ?>
 		<div class="form-container">
 			<p><?= tohtml(_("CrowdSec Fleet Mesh is not enabled on this server.")) ?></p>
-			<p class="hint"><code>h-add-sys-crowdsec-mesh</code></p>
+			<p class="hint"><code>h-change-sys-crowdsec-mode mesh</code></p>
 		</div>
 	<?php else: ?>
 

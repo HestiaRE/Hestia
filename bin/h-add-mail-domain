@@ -168,7 +168,6 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	# Set permission
 	chmod 771 $HOMEDIR/$user/conf/mail/$domain
 	chmod 660 $HOMEDIR/$user/conf/mail/$domain/*
-	chmod 771 /etc/$MAIL_SYSTEM/domains/$domain_idn
 	chmod 770 $HOMEDIR/$user/mail/$domain_idn
 
 	# Set ownership

@@ -457,33 +457,37 @@ rebuild_web_domain_conf() {
 	# here, the record keeps the account and the unsuspend rebuild creates it (the loop fires on
 	# absence from /etc/passwd, which is exactly the state it is in).
 	local -a _ftp_user_list
-	IFS=: read -ra _ftp_user_list <<< "$FTP_USER"
+	local _ftp_i=0 _ftp_i_now _ftp_users="$FTP_USER" _ftp_md5s="$FTP_MD5" _ftp_paths="$FTP_PATH" _ftp_hash
+	IFS=: read -ra _ftp_user_list <<< "$_ftp_users"
 	for ftp_user in "${_ftp_user_list[@]}"; do
+		_ftp_i=$((_ftp_i + 1))
 		[ -n "$ftp_user" ] || continue
-		if [ "$SUSPENDED" != 'yes' ] && [ -z "$(grep ^$ftp_user: /etc/passwd)" ]; then
-			position=$(echo $FTP_USER | tr ':' '\n' | grep -n '' \
-				| grep ":$ftp_user$" | cut -f 1 -d:)
-			ftp_path=$(echo $FTP_PATH | tr ':' '\n' | grep -n '' \
-				| grep "^$position:" | cut -f 2 -d :)
-			ftp_md5=$(echo $FTP_MD5 | tr ':' '\n' | grep -n '' \
-				| grep "^$position:" | cut -f 2 -d :)
+		if [ "$SUSPENDED" != 'yes' ] && ! getent passwd "$ftp_user" > /dev/null; then
+			ftp_path=$(ftp_list_get "$_ftp_paths" "$_ftp_i")
+			ftp_md5=$(ftp_list_get "$_ftp_md5s" "$_ftp_i")
 			# A path stored before the character check would be refused after the delete, and the account would leave
 			# the record as well. Kept, so the customer can give it a new path.
 			if ! record_path_ok "$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")" "$HOMEDIR/$user/web/$domain"; then
 				echo "Warning!: FTP account $ftp_user of $domain is not re-created, its path is not accepted any more"
 				continue
 			fi
-			# rebuild S/FTP users
 			$BIN/h-delete-web-domain-ftp "$user" "$domain" "$ftp_user"
-			# Generate temporary password to add user but update afterwards
-			temp_password=$(generate_password)
-			$BIN/h-add-web-domain-ftp "$user" "$domain" "${ftp_user##*_}" "$temp_password" "$ftp_path"
-			# Updating ftp user password
-			chmod u+w /etc/shadow
-			sed -i "s|^$ftp_user:[^:]*:|$ftp_user:$ftp_md5:|" /etc/shadow
-			chmod u-w /etc/shadow
-			#Update web.conf for next rebuild or move
-			update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' "$ftp_md5"
+			# The stored name, prefix included: stripping up to the last _ renamed alice_web_dev to alice_dev.
+			if ! $BIN/h-add-web-domain-ftp "$user" "$domain" "$ftp_user" "$(generate_password)" "$ftp_path" > /dev/null; then
+				echo "Warning!: FTP account $ftp_user of $domain could not be re-created"
+				continue
+			fi
+			# The hash comes from the record, possibly an archive: only a crypt string goes in, else the account
+			# keeps the random password and the customer sets a new one.
+			if [[ "$ftp_md5" =~ ^[!*]?[A-Za-z0-9./$]+$ ]]; then
+				echo "$ftp_user:$ftp_md5" | /usr/sbin/chpasswd -e
+			else
+				echo "Warning!: FTP account $ftp_user of $domain has no usable password hash, set a new password"
+			fi
+			_ftp_hash=$(getent shadow "$ftp_user" | cut -f 2 -d :)
+			_ftp_i_now=$(ftp_list_index "$(get_object_value 'web' 'DOMAIN' "$domain" '$FTP_USER')" "$ftp_user")
+			update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' \
+				"$(ftp_list_edit "$(get_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5')" "$_ftp_i_now" "$_ftp_hash")"
 		fi
 	done
 

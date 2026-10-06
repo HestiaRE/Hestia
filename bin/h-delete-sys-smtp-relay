@@ -6,25 +6,11 @@
 #
 # This function disables system wide smtp relay support.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 rm -f /etc/exim4/smtp_relay.conf
 
@@ -33,11 +19,6 @@ change_sys_value "SMTP_RELAY_HOST" ""
 change_sys_value "SMTP_RELAY_PORT" ""
 change_sys_value "SMTP_RELAY_USER" ""
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Mail" "Global SMTP Relay disabled."
 log_event "$OK" "$ARGUMENTS"
 

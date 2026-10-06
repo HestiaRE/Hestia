@@ -6,36 +6,23 @@
 # dedicated MySQL database, deploys the HestiaRE password driver, and
 # configures panel integration.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/sieve.sh
 source $HESTIA/include/sieve.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 RC_CONFIG_DIR="/etc/roundcube"
 RC_DRIVERS_DIR="/usr/share/roundcube/plugins/password/drivers"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$(id -u)" != '0' ]; then
 	echo "ERROR: h-add-sys-roundcube must be run as root"
 	exit 10
 fi
 
-# DB backend, decided ONCE here and recorded in the written config (the artefact every
-# later path reads): MySQL when the box has it, otherwise SQLite (roundcube-sqlite3 from
-# the OS repo - one file, no daemon). A MariaDB added later never flips an existing
-# install - no silent data migration; switching means reinstalling the webmailer (#584).
+# Decided once, recorded in config.inc.php: a MariaDB added later never flips it, switching means reinstalling.
 RC_DB_BACKEND="sqlite"
 RC_DB_PKG="roundcube-sqlite3"
 if echo "$DB_SYSTEM" | grep -qw 'mysql'; then
@@ -45,24 +32,18 @@ else
 	echo "NOTE: no MySQL/MariaDB on this box - Roundcube uses the SQLite backend"
 fi
 
-# Already installed? Keyed on the pool conf: it is written LAST, only by this command, and
-# removed by the delete. config.inc.php marks nothing - the OS package ships one of its own,
-# which made a retry after a mid-flow failure skip everything (#684).
+# Keyed on the pool conf, written last and only by this command: the OS package ships a config.inc.php of its own.
 if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube' \
 	&& [ -f /etc/php/hestia/fpm/pool.d/roundcube.conf ]; then
 	echo "INFO: Roundcube is already installed and configured."
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# preseed debconf so dbconfig-common doesn't auto-configure a DB (no interactive prompt)
+# dbconfig-common must not set up a database of its own.
 echo "roundcube-core roundcube/dbconfig-install boolean false" \
 	| debconf-set-selections
 
-# No recommends (#1069): enchant never loads in the panel pool, and classic/larry are skins nobody selects.
+# No recommends: enchant never loads in the panel pool, and classic/larry are skins nobody selects.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y --no-install-recommends install \
 	roundcube "$RC_DB_PKG" roundcube-plugins || {
 	echo "ERROR: Roundcube packages did not install"
@@ -70,7 +51,6 @@ DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y --no-instal
 }
 
 if [ "$RC_DB_BACKEND" = "mysql" ]; then
-	# Create dedicated MySQL database and user
 	dbpass=$(generate_password)
 	db_client="mysql"
 	[ -x /usr/bin/mariadb ] && db_client="mariadb"
@@ -108,7 +88,7 @@ if [ "$RC_DB_BACKEND" = "mysql" ]; then
 			exit 1
 		}
 
-	# debian-db.php (read by roundcube-core via debian-db-roundcube.php for the DSN)
+	# roundcube-core reads the DSN from here through debian-db-roundcube.php.
 	cat > "$RC_CONFIG_DIR/debian-db.php" << 'PHP'
 <?php
 $dbtype='mysql';
@@ -124,22 +104,17 @@ PHP
 	chmod 640 "$RC_CONFIG_DIR/debian-db.php"
 	chown root:caddy "$RC_CONFIG_DIR/debian-db.php"
 else
-	# the seed below and the serving pool both need pdo_sqlite in the panel pool chain
+	# The seed below and the serving pool both need pdo_sqlite.
 	ensure_panel_sqlite_driver \
 		|| {
 			echo "ERROR: panel PHP lacks the sqlite driver (php-sqlite3 for the pinned version)"
 			exit 1
 		}
-	# caddy-owned dir, not just the file: sqlite needs write on the DIRECTORY (journal/wal)
+	# The directory, not just the file: sqlite writes its journal next to the database.
 	mkdir -p /var/lib/roundcube/db
 	chown caddy:caddy /var/lib/roundcube/db
 	chmod 750 /var/lib/roundcube/db
-	# Seed the schema NOW, as caddy, with a hard failure - symmetric to the mysql branch's
-	# mysql.initial.sql import. Roundcube would also self-initialize on the first HTTP hit,
-	# but then the install ends green without anything ever having touched the database,
-	# and the first proof lands on the first customer visit. Seeded with the SAME PHP the
-	# pool serves with (pinned version + the pool's curated ini chain), not whatever CLI php
-	# the PATH offers - the proof must exercise the chain that carries the traffic afterwards.
+	# Seeded now with the pool's PHP and ini chain, so a broken chain fails the install and not the first visit.
 	if [ ! -s /etc/php/hestia/php-version ]; then
 		echo "ERROR: no pinned panel PHP (/etc/php/hestia/php-version) - is the panel stage done?"
 		exit 1
@@ -158,7 +133,6 @@ else
 	chmod 640 /var/lib/roundcube/db/roundcube.db
 fi
 
-# Generate encryption key and write main config
 des_key="$(openssl rand -base64 30 | tr -d '/' | cut -c1-24)"
 if [ "$RC_DB_BACKEND" = "mysql" ]; then
 	cat > "$RC_CONFIG_DIR/config.inc.php" << 'PHP'
@@ -202,17 +176,15 @@ PHP
 # From the shared derivation, not the heredoc: the sieve commands rewrite this very line later.
 printf "\$config['plugins'] = [%s];\n" "$(webmail_roundcube_plugins)" >> "$RC_CONFIG_DIR/config.inc.php"
 sed -i "s/_DES_KEY_/$des_key/" "$RC_CONFIG_DIR/config.inc.php"
-# 640 like debian-db.php: the des_key encrypts the IMAP credentials in the session cookie -
-# a secret of the same class as the DB password, and shell customers must not read it.
+# 640: the des_key encrypts the IMAP credentials in the session cookie, shell customers must not read it.
 chmod 640 "$RC_CONFIG_DIR/config.inc.php"
 chown root:caddy "$RC_CONFIG_DIR/config.inc.php"
 
-# HestiaRE password driver. Extra files in apt-managed dirs survive upgrades -
-# dpkg only removes files it installed.
+# Extra files in apt-managed dirs survive upgrades: dpkg only removes files it installed.
 cp -f "$HESTIA/share/roundcube/hestia.php" "$RC_DRIVERS_DIR/hestia.php"
 chmod 644 "$RC_DRIVERS_DIR/hestia.php"
 
-# password plugin config (the OS package already symlinks this into place)
+# The OS package symlinks this into the plugin directory.
 cat > "$RC_CONFIG_DIR/plugins/password/config.inc.php" << 'PHP'
 <?php
 $config['password_driver'] = 'hestia';
@@ -227,31 +199,26 @@ printf "\$config['password_hestia_port'] = '%s';\n" "${BACKEND_PORT:-8083}" \
 chmod 644 "$RC_CONFIG_DIR/plugins/password/config.inc.php"
 chown root:caddy "$RC_CONFIG_DIR/plugins/password/config.inc.php"
 
-# Deploy plugin configs for newmail_notifier and zipdownload
 cp -f "$HESTIA/share/roundcube/plugins/config_newmail_notifier.inc.php" \
 	"/usr/share/roundcube/plugins/newmail_notifier/config.inc.php"
 cp -f "$HESTIA/share/roundcube/plugins/config_zipdownload.inc.php" \
 	"/usr/share/roundcube/plugins/zipdownload/config.inc.php"
 
-# The packaged maintenance timers (gc half-hourly, cleandb daily) run as www-data, which owns
-# none of our caddy-held state - see share/roundcube/systemd-caddy.conf. The cron.d fallback
-# lines stay as shipped: they are no-ops wherever PID1 is systemd, i.e. on every target.
+# The packaged gc and cleandb timers run as www-data, which owns none of our caddy-held state.
+# The cron.d fallback lines stay as shipped: they are no-ops wherever PID1 is systemd, i.e. on every target.
 mkdir -p /etc/systemd/system/roundcube-gc.service.d /etc/systemd/system/roundcube-cleandb.service.d
 cp -f "$HESTIA/share/roundcube/systemd-caddy.conf" /etc/systemd/system/roundcube-gc.service.d/hestia.conf
 cp -f "$HESTIA/share/roundcube/systemd-caddy.conf" /etc/systemd/system/roundcube-cleandb.service.d/hestia.conf
-# the drop-in appends this scan dir for the two units (PHP 8.5 compat, see the ini)
+# The drop-in adds this scan dir for both units (PHP 8.5 compat, see the ini).
 mkdir -p /etc/php/hestia/roundcube-cli
 cp -f "$HESTIA/share/roundcube/cli-php85-compat.ini" /etc/php/hestia/roundcube-cli/95-hestia-roundcube.ini
 systemctl daemon-reload
 
-# Ensure log directory exists with correct ownership
 mkdir -p /var/log/roundcube
 chown caddy:caddy /var/log/roundcube
 chmod 750 /var/log/roundcube
-# the fail2ban roundcube-auth jail tails userlogins, so the log must rotate
-# A path listed in two files is an error to logrotate: it skips the second one and exits 1, which
-# leaves logrotate.service failed and the whole box degraded (#798). The divert target must sit
-# OUTSIDE the directory - logrotate reads every file in it, whatever the suffix (measured).
+# The fail2ban roundcube-auth jail tails userlogins, so the log must rotate.
+# Diverted, as logrotate fails on a path in two files; the target sits outside logrotate.d, which reads any suffix.
 if ! dpkg-divert --list /etc/logrotate.d/roundcube-core | grep -q 'roundcube-core'; then
 	mkdir -p "$CONF_DIR/diverted"
 	dpkg-divert --quiet --local --rename \
@@ -260,9 +227,7 @@ if ! dpkg-divert --list /etc/logrotate.d/roundcube-core | grep -q 'roundcube-cor
 fi
 cp -f "$HESTIA/share/roundcube/logrotate" /etc/logrotate.d/roundcube
 
-# Panel-Caddy delivery: caddy FPM pool behind the :8090 loopback listener; the
-# temp dir must be writable by the pool user (Debian ships it www-data-owned).
-# Loud on purpose: a swallowed chown here is a webmail that breaks on first upload.
+# Debian ships temp/ www-data-owned, the caddy pool needs it. Loud: a swallowed chown breaks the first upload.
 mkdir -p /var/lib/roundcube/temp
 chown caddy:caddy /var/lib/roundcube/temp || {
 	echo "ERROR: cannot chown roundcube temp dir"
@@ -271,24 +236,17 @@ chown caddy:caddy /var/lib/roundcube/temp || {
 cp -f "$HESTIA/share/panel-php/pool.d/roundcube.conf" /etc/php/hestia/fpm/pool.d/roundcube.conf
 systemctl reload hestia-php 2> /dev/null || systemctl restart hestia-php 2> /dev/null || true
 cp -f "$HESTIA/share/panel-caddy/webmail-roundcube.conf" /etc/caddy/webmail-roundcube.conf
-# :8083/webmail route for admin access without a customer domain. Roundcube-only -
-# Tachyon is root-mounted and can't run under a sub-path.
+# The :8083/webmail admin route is Roundcube-only: Tachyon is root-mounted and cannot run under a sub-path.
 mkdir -p /etc/caddy/apps
 cp -f "$HESTIA/share/panel-caddy/apps/webmail.tpl" /etc/caddy/apps/webmail.conf
 systemctl try-restart caddy > /dev/null 2>&1 || true
 
-# Update hestia.conf
-# Through the token function like every other token key: the position in the list carries no
-# meaning (the default client is chosen by name, see h-add-mail-domain-webmail), so no prepend.
+# No prepend: the position in the key carries no meaning, the default follows WEBMAIL_KNOWN_CLIENTS order.
 sys_key_token_set WEBMAIL_SYSTEM add roundcube > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record roundcube"
 
-# re-render mail domains so they pick up the new client immediately
+# A domain recorded with roundcube rendered the 'disabled' vhost while the client was missing.
 $BIN/h-update-mail-templates yes > /dev/null 2>&1 \
 	|| echo "Warning: not every mail domain was re-rendered, h-update-mail-templates names them."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Plugins" "Roundcube installed (OS package)."
 # Re-gate the fail2ban webmail jails now that WEBMAIL_SYSTEM changed (no-op unless fail2ban is active).

@@ -9,11 +9,6 @@
 # it back). On dovecot 2.4 the sieve package itself STAYS - core depends on it there - and only its
 # configuration goes. Per-account scripts stay in the maildirs.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -22,14 +17,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/sieve.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
@@ -40,15 +29,11 @@ if [ "$SIEVE_SYSTEM" != 'yes' ]; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 # While doveadm can still write the scripts: exim takes over every vacation that is on right now.
 vacation_rc=0
 vacation_all exim || vacation_rc=1
 
-# Unwire exim first: clean local delivery back to the appendfile transport
+# exim first: clean local delivery goes back to the appendfile transport.
 sed -i 's/^SIEVE = yes/#SIEVE = yes/' /etc/exim4/exim4.conf.template
 systemctl restart exim4
 if ! systemctl is-active --quiet exim4; then
@@ -56,8 +41,7 @@ if ! systemctl is-active --quiet exim4; then
 	exit "$E_RESTART"
 fi
 
-# remove the sieve configs BEFORE purging: they are maintainer-script managed, and
-# the purge's dovecot restart would fail while sieve settings are still referenced
+# Before the purge: its dovecot restart fails while the config still names sieve settings.
 rm -f /etc/dovecot/conf.d/20-managesieve.conf \
 	/etc/dovecot/conf.d/90-sieve.conf \
 	/etc/dovecot/conf.d/90-sieve-extprograms.conf \
@@ -68,7 +52,7 @@ rm -f /etc/dovecot/conf.d/20-managesieve.conf \
 sieve_mail_group_del
 sieve_learn_remove
 sieve_imap_plugin_del
-# 15-lda.conf belongs to dovecot-core — restore the base (non-sieve) variant
+# 15-lda.conf belongs to dovecot-core, so the purge does not bring the base variant back.
 DOVECOT_VER=$(dovecot --version 2> /dev/null | cut -d. -f1,2 || echo "2.3")
 if [ "$(printf '%s\n2.4' "$DOVECOT_VER" | sort -V | head -1)" = "2.4" ]; then
 	DCDIR="$HESTIA/share/dovecot/2.4"
@@ -83,11 +67,9 @@ if ! systemctl is-active --quiet dovecot; then
 	exit "$E_RESTART"
 fi
 
-# On dovecot 2.4 core DEPENDS on dovecot-sieve, so purging sieve takes core, imapd and pop3d with
-# it - the whole mail server, for removing an optional addon. Read from the dependency and not from
-# a version number: the packaging is what changes here.
-# lmtpd in both branches: dovecot-core only Suggests it, so the purge cannot take the mail
-# server with it the way dovecot-sieve can.
+# Where dovecot-core depends on dovecot-sieve, purging sieve would take the whole mail server with it.
+# Read from the dependency, not a version number: the packaging is what changes.
+# lmtpd goes in both branches: dovecot-core only Suggests it.
 purge_pkgs='dovecot-managesieved dovecot-sieve dovecot-lmtpd'
 if apt-cache show dovecot-core 2> /dev/null | grep -qE '^Depends:.*[ ,]dovecot-sieve[ ,(]'; then
 	purge_pkgs='dovecot-managesieved dovecot-lmtpd'
@@ -96,7 +78,7 @@ fi
 # shellcheck disable=SC2086  # deliberate word splitting: one or two package names
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge $purge_pkgs > /dev/null 2>&1
 
-# no autoremove: it would rip out shared-stack siblings (deb13 autoremoved dovecot-core).
+# no autoremove: it would rip out shared-stack siblings such as dovecot-core.
 systemctl start dovecot 2> /dev/null || true
 if ! systemctl is-active --quiet dovecot; then
 	echo "ERROR: dovecot did not come back up after the sieve purge."
@@ -105,17 +87,11 @@ fi
 
 $BIN/h-change-sys-config-value 'SIEVE_SYSTEM' ''
 
-# Take the filter screens away with the service. A UI whose backend stopped answering is worse
-# than no UI: it fails at the first save, with an error nobody can act on.
+# The filter screens go too: without a backend they fail at the first save, with nothing to act on.
 webmail_sieve_apply
 
 echo "sieve has been removed (stored scripts remain in the maildirs)."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Removed sieve mail filtering."
 
 # Filters and forwards stop with the service, by design; the admin learns how many.

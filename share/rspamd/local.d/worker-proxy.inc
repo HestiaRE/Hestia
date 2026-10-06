@@ -1,3 +1,3 @@
-# HestiaRE — milter proxy unused: exim speaks the spamc protocol directly to the
-# normal worker (11333). Disabled to avoid an idle worker process on 11332.
+# HestiaRE: milter proxy unused, exim talks to the scan worker over /run/rspamd/normal.sock (worker-normal.inc).
+# Disabled so no idle proxy worker runs.
 enabled = false;

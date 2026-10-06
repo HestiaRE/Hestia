@@ -4,35 +4,22 @@
 #
 # This function removes the Tachyon webmail client.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Folder paths
 TX_INSTALL_DIR="/var/lib/tachyon"
 TX_CONFIG_DIR="/etc/tachyon"
 TX_LOG="/var/log/tachyon"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "ERROR: h-delete-sys-tachyon can only be executed by the root user"
 	exit 10
 fi
 
-# No MySQL requirement: a SQLite-backed install (no MariaDB on the box) must be removable too.
-# The DB drop below is guarded on its own.
+# No MySQL requirement: a SQLite-backed install must be removable too, the DB drop below is guarded on its own.
 
 # Any artefact is enough: an add that failed halfway leaves pieces without the VERSION file.
 version=$(cat /var/lib/tachyon/data/VERSION 2> /dev/null)
@@ -42,11 +29,7 @@ if [ -z "$version" ] && [[ ",$WEBMAIL_SYSTEM," != *,tachyon,* ]] && [ ! -e /etc/
 	exit 2
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Panel-Caddy teardown first (listener + FPM pool), so nothing serves from the dirs we delete
+# Listener and pool first, so nothing serves from the dirs deleted below.
 rm -f /etc/caddy/webmail-tachyon.conf
 systemctl try-restart caddy > /dev/null 2>&1 || true
 rm -f /etc/php/hestia/fpm/pool.d/tachyon.conf
@@ -55,30 +38,22 @@ systemctl reload hestia-php 2> /dev/null || systemctl restart hestia-php 2> /dev
 rm -f -r $TX_INSTALL_DIR
 rm -f -r $TX_CONFIG_DIR
 rm -f -r $TX_LOG
-# logrotate fragment deployed by h-add-sys-tachyon
 rm -f /etc/logrotate.d/tachyon
 rm -f ~/.tachyon
 
-# IF EXISTS covers the SQLite-backed install (no tachyon DB was ever created);
-# the whole block only runs where a MySQL server exists at all.
+# IF EXISTS: a SQLite-backed install never created a tachyon DB, even where MySQL arrived later.
 if echo "$DB_SYSTEM" | grep -qw 'mysql'; then
 	db_client="mysql"
 	[ -x /usr/bin/mariadb ] && db_client="mariadb"
 	$db_client -e "DROP DATABASE IF EXISTS tachyon" 2>&1
 	$db_client -e "DROP USER IF EXISTS tachyon@localhost"
 fi
-# remove tachyon from WEBMAIL_SYSTEM. Token-based strip (not sed) so no stray
-# commas survive in any position.
+# Token strip, not sed: no stray comma survives in any position.
 sys_key_token_set WEBMAIL_SYSTEM remove tachyon > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not drop tachyon"
 
-# re-render mail domains so vhosts stop proxying to the removed listener
-# (fall back to the remaining client, or the safe 'disabled' vhost)
+# A domain recorded with tachyon now renders the 'disabled' vhost, even when Roundcube is installed.
 $BIN/h-update-mail-templates yes > /dev/null 2>&1 \
 	|| echo "Warning: not every mail domain was re-rendered, h-update-mail-templates names them."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Plugins" "Tachyon removed (Version: ${version:-unknown})."
 

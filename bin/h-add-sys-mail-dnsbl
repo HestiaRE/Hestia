@@ -6,44 +6,25 @@
 #
 # This function adds a DNSBL server exim checks incoming mail against.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 host=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# The live file exim reads per message (exim4.conf.template: readfile /etc/exim4/dnsbl.conf).
-# Edited in place rather than through a shadow copy in CONF_DIR: exim reads only this path, and a
-# second master would need syncing in both directions. Preserving it belongs to the update path (#206).
+# Edited in place, no shadow copy: exim4.conf.template reads this path per message, a second master would need a sync.
 DNSBL_CONF="/etc/exim4/dnsbl.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'HOST [RESTART]'
-# A host, optionally with exim's "!=" result filter (some.dnsbl.tld!=127.0.0.10). The value goes into
-# a colon-joined exim dnslists expression, so anything else here becomes a broken ACL rather than a
-# rejected argument.
+# Host with an optional "!=" filter; anything else lands in exim's colon-joined dnslists as a broken ACL.
 # Spelled out: under a German locale a-z matches umlauts.
 an='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 if [[ ! "$host" =~ ^[$an]([$an.-]*[$an])?(!=[0123456789.,]+)?$ ]]; then
 	check_result "$E_INVALID" "invalid dnsbl host format :: $host"
 fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 touch "$DNSBL_CONF"
 if grep -qxF -- "$host" "$DNSBL_CONF"; then
@@ -55,11 +36,6 @@ fi
 echo "$host" >> "$DNSBL_CONF"
 chmod 644 "$DNSBL_CONF"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 "$BIN/h-log-action" "system" "Info" "Mail" "DNSBL host added (Host: $host)."
 log_event "$OK" "$ARGUMENTS"
 

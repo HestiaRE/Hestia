@@ -6,32 +6,19 @@
 #
 # This function for obtaining updated webmail templates from Hestia package.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 restart=${1:-yes}
 skip=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 check_args '0' "$#" '[RESTART] [SKIP]'
 is_format_valid 'restart'
 
-# Webmail vhost templates ship at $HESTIA/share/$WEB_SYSTEM/webmail (delivered by
-# the tarball) — there is no separate install source to copy from anymore.
-# Rebuild mail domains if mail services are enabled
+# Nothing to copy: the webmail templates arrive with the tarball under $HESTIA/share/$WEB_SYSTEM/webmail.
 failed=''
 if [ -z "$skip" ]; then
 	if [ -n "$MAIL_SYSTEM" ]; then
@@ -40,12 +27,8 @@ if [ -z "$skip" ]; then
 		done
 	fi
 fi
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$restart" != "no" ]; then
-	# Restarting web server
 	$BIN/h-restart-web "$restart"
 	check_result $? "restart" > /dev/null 2>&1
 

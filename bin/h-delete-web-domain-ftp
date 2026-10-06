@@ -35,12 +35,14 @@ if [ -z "$position" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-$BIN/h-delete-user-sftp-jail "$ftp_user"
+# -f: the account shares the customer's uid, whose PHP pool keeps it busy. First, and it takes the account out of
+# sftp-jailed too: an account userdel leaves alive keeps its jail, its AllowUsers entry and its record.
+/usr/sbin/userdel -f "$ftp_user" > /dev/null 2>&1
+if getent passwd "$ftp_user" > /dev/null; then
+	check_result "$E_INUSE" "cannot delete the ftp account $ftp_user, userdel refused"
+fi
 
 manage_sshd_allowusers del "$ftp_user"
-
-# -f: the account shares the customer's uid, whose PHP pool keeps it busy.
-/usr/sbin/userdel -f "$ftp_user" > /dev/null 2>&1
 
 # ftp_user becomes the remaining list below, so keep the account name for the log line.
 ftp_account="$ftp_user"

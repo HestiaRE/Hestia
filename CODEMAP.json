@@ -749,6 +749,40 @@
       "panel": "web/add/mail, web/edit/mail (domain branch: spam tuning only where antispam is offered, a threshold is held to the customer policy only when it changed, webmail touched only on change), web/list/mail, web/delete/mail, web/suspend|unsuspend/mail.",
       "upstream_ref": "bin/v-*-mail-domain*, func/domain.sh"
     },
+    "mail_system": {
+      "description": "The box-wide mail stack: exim smarthost and relay, the DNSBL list, the exim queue, and the removable addons rspamd, sieve, ClamAV and the two webmail clients (Roundcube, Tachyon), plus the webmail alias. Each addon arms exim through a macro line in share/exim/exim4.conf.template (RSPAMD, SIEVE, CLAMD) and records its state in hestia.conf (ANTISPAM_SYSTEM, SIEVE_SYSTEM, ANTIVIRUS_SYSTEM, WEBMAIL_SYSTEM).",
+      "commands": [
+        "bin/h-add-sys-clamav",
+        "bin/h-add-sys-mail-dnsbl",
+        "bin/h-add-sys-roundcube",
+        "bin/h-add-sys-rspamd",
+        "bin/h-add-sys-sieve",
+        "bin/h-add-sys-smtp",
+        "bin/h-add-sys-smtp-relay",
+        "bin/h-add-sys-tachyon",
+        "bin/h-change-sys-webmail",
+        "bin/h-delete-sys-clamav",
+        "bin/h-delete-sys-mail-dnsbl",
+        "bin/h-delete-sys-mail-queue",
+        "bin/h-delete-sys-roundcube",
+        "bin/h-delete-sys-rspamd",
+        "bin/h-delete-sys-sieve",
+        "bin/h-delete-sys-smtp",
+        "bin/h-delete-sys-smtp-relay",
+        "bin/h-delete-sys-tachyon",
+        "bin/h-learn-mail-message",
+        "bin/h-list-sys-clamd-config",
+        "bin/h-list-sys-dovecot-config",
+        "bin/h-list-sys-mail-dnsbl",
+        "bin/h-list-sys-mail-status",
+        "bin/h-list-sys-webmail",
+        "bin/h-update-mail-templates"
+      ],
+      "core": "include/sieve.sh: the sieve state shared by the engine and both webmail clients, the IMAP-learning chain (imap_sieve plugin, _rspamd-ctrl in mail_access_groups, compile after the dovecot restart) and sieve_managesieve_bind_local (ManageSieve on loopback, 2.3 address vs 2.4 listen). include/vacation.sh: the autoreply move between exim and Sieve. include/helper.sh: update callables sieve_learn_ham_apply and sieve_managesieve_local_apply.",
+      "invariants": "An addon reports active only when the exim template carries its armed macro and exim came back; a failed restart disarms and restarts exim. rspamd and sieve wire the learning chain whichever comes second, and removing rspamd takes _rspamd-ctrl out of dovecot before the group goes, or logins and delivery break. Add and delete run on any leftover artefact, so a half install can be repaired by running the add again. h-change-sys-webmail re-renders every unsuspended mail domain with the client its record names.",
+      "panel": "web/edit/server (service links, clamav-daemon), web/inc/main.php.",
+      "upstream_ref": "bin/v-*-sys-{smtp,smtp-relay,roundcube,snappymail,mail-queue,mail-dnsbl,webmail,clamd-config,dovecot-config}, v-update-mail-templates (tachyon took the place of snappymail); rspamd, sieve, clamav and h-learn-mail-message are hestiare-native"
+    },
     "make_release": {
       "description": "Pure-bash installer. install.sh (bootstrap) → include/wizard.sh (manifest-driven Q&A → /etc/hestia/install.conf) → sbin/h-install-hestia (non-interactive, COMPONENT_*-gated). Migrated from Justfile/just/* to bash h-* commands in Issue #112 (epic); just removed (was Makefile→Justfile in #102, Justfile→bash in #112).",
       "entry_points": [

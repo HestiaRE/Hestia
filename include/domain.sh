@@ -271,15 +271,6 @@ prepare_web_domain_values() {
 	fi
 	group="$user"
 	docroot="$HOMEDIR/$user/web/$domain/public_html"
-	sdocroot="$docroot"
-	# SSL_HOME='single' gives the https vhost its own docroot. Not a dead read: it can be set when
-	# SSL is enabled or carried in by a restore, only no longer flipped afterwards.
-	if [ "$SSL_HOME" = 'single' ]; then
-		sdocroot="$HOMEDIR/$user/web/$domain/public_shtml"
-		$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/public_shtml"
-		chmod 751 $HOMEDIR/$user/web/$domain/public_shtml
-		chown www-data:$user $HOMEDIR/$user/web/$domain/public_shtml
-	fi
 
 	if [ -n "$WEB_BACKEND" ]; then
 		prepare_web_backend "$BACKEND"
@@ -304,10 +295,8 @@ prepare_web_domain_values() {
 	if [ -n "$CUSTOM_DOCROOT" ]; then
 		custom_docroot="$CUSTOM_DOCROOT"
 		docroot="$custom_docroot"
-		sdocroot="$docroot"
 	else
 		docroot="$HOMEDIR/$user/web/$domain/public_html"
-		sdocroot="$docroot"
 	fi
 
 	# Rendered from share/ because the selectable tree has no apache variant. Admin suspension
@@ -316,11 +305,9 @@ prepare_web_domain_values() {
 	WEBTPL_OVERRIDE=''
 	if [ "$SUSPENDED" = 'yes' ]; then
 		docroot="$SHARETPL/suspend/pages/admin"
-		sdocroot="$docroot"
 		WEBTPL_OVERRIDE="$SHARETPL/suspend/admin"
 	elif [ "$OFFLINE" = 'yes' ]; then
 		docroot="$SHARETPL/suspend/pages/offline"
-		sdocroot="$docroot"
 		WEBTPL_OVERRIDE="$SHARETPL/suspend/offline"
 	fi
 	if [ -n "$WEBTPL_OVERRIDE" ]; then
@@ -393,7 +380,7 @@ web_render_template() {
 		-e "s|%group%|$user|g" \
 		-e "s|%home%|$HOMEDIR|g" \
 		-e "s|%docroot%|$docroot|g" \
-		-e "s|%sdocroot%|$sdocroot|g" \
+		-e "s|%sdocroot%|$docroot|g" \
 		-e "s|%ssl_crt%|$ssl_crt|g" \
 		-e "s|%ssl_key%|$ssl_key|g" \
 		-e "s|%ssl_pem%|$ssl_pem|g" \

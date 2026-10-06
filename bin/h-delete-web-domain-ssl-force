@@ -57,7 +57,7 @@ fi
 #----------------------------------------------------------#
 
 if [ -z "$SSL_FORCE" ]; then
-	add_object_key "web" 'DOMAIN' "$domain" 'SSL_FORCE' 'SSL_HOME'
+	add_object_key "web" 'DOMAIN' "$domain" 'SSL_FORCE' 'LETSENCRYPT'
 fi
 
 update_object_value 'web' 'DOMAIN' "$domain" '$SSL_FORCE' 'no'

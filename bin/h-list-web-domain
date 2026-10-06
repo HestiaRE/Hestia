@@ -26,7 +26,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 # JSON list function
 json_list() {
 	echo '{'
-	json_escape DOMAIN IP IP6 DOCROOT U_DISK U_BANDWIDTH TPL ALIAS STATS STATS_USER SSL SSL_FORCE SSL_HSTS SSL_HOME HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT WP FTP_USER FTP_PATH AUTH_USER BACKEND PHP_VERSION PROXY PROXY_EXT FASTCGI_CACHE FASTCGI_DURATION PROXY_CACHE PROXY_CACHE_DURATION REDIRECT REDIRECT_CODE CUSTOM_DOCROOT BOTLIMIT CROWDSEC OFFLINE ALLOW_USERS SUSPENDED TIME DATE
+	json_escape DOMAIN IP IP6 DOCROOT U_DISK U_BANDWIDTH TPL ALIAS STATS STATS_USER SSL SSL_FORCE SSL_HSTS HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT WP FTP_USER FTP_PATH AUTH_USER BACKEND PHP_VERSION PROXY PROXY_EXT FASTCGI_CACHE FASTCGI_DURATION PROXY_CACHE PROXY_CACHE_DURATION REDIRECT REDIRECT_CODE CUSTOM_DOCROOT BOTLIMIT CROWDSEC OFFLINE ALLOW_USERS SUSPENDED TIME DATE
 	printf '    "%s": {\n' "$DOMAIN"
 	printf '        "IP": "%s",\n' "$IP"
 	printf '        "IP6": "%s",\n' "$IP6"
@@ -40,7 +40,6 @@ json_list() {
 	printf '        "SSL": "%s",\n' "$SSL"
 	printf '        "SSL_FORCE": "%s",\n' "$SSL_FORCE"
 	printf '        "SSL_HSTS": "%s",\n' "$SSL_HSTS"
-	printf '        "SSL_HOME": "%s",\n' "$SSL_HOME"
 	printf '        "HTTP3": "%s",\n' "$HTTP3"
 	printf '        "DOCKER": "%s",\n' "$DOCKER"
 	printf '        "DOCKER_PORT": "%s",\n' "$DOCKER_PORT"
@@ -82,7 +81,7 @@ shell_list() {
 		echo "IP6:              $IP6"
 	fi
 	if [ -n "$SSL" ] && [ "$SSL" != 'no' ]; then
-		echo "SSL:              $SSL / $SSL_HOME"
+		echo "SSL:              $SSL"
 		if [ -n "$LETSENCRYPT" ] && [ "$LETSENCRYPT" != 'no' ]; then
 			echo "LETSENCRYPT:      $LETSENCRYPT"
 		fi
@@ -163,7 +162,7 @@ shell_list() {
 # PLAIN list function
 plain_list() {
 	echo -ne "$DOMAIN\t$IP\t$IP6\t$DOCROOT\t$U_DISK\t$U_BANDWIDTH\t$TPL\t"
-	echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$SSL_FORCE\t$SSL_HSTS\t$SSL_HOME\t,$LETSENCRYPT"
+	echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$SSL_FORCE\t$SSL_HSTS\t$LETSENCRYPT\t"
 	echo -ne "$FTP_USER\t$FTP_PATH\t$AUTH_USER\t$BACKEND\t$PROXY\t"
 	echo -e "$PROXY_EXT\t$SUSPENDED\t$TIME\t$DATE"
 }

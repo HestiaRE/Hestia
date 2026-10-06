@@ -114,15 +114,6 @@
 					$spnd_icon_class = 'icon-highlight';
 					$spnd_confirmation = _('Are you sure you want to suspend domain %s?');
 				}
-				if (!empty($data[$key]['SSL_HOME'])) {
-					if ($data[$key]['SSL_HOME'] == 'same') {
-						$ssl_home = 'public_html';
-					} else {
-						$ssl_home = 'public_shtml';
-					}
-				} else {
-					$ssl_home = '';
-				}
 				$web_stats = 'no';
 				if (!empty($data[$key]['STATS'])) {
 					$web_stats = $data[$key]['STATS'];

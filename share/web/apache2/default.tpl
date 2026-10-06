@@ -53,7 +53,7 @@
     IncludeOptional %home%/%user%/conf/web/%domain%/botlimit.apache2.conf*
     %alias_string%
     ServerAdmin %email%
-    DocumentRoot %sdocroot%
+    DocumentRoot %docroot%
     ScriptAlias /cgi-bin/ %home%/%user%/web/%domain%/cgi-bin/
     Alias /vstats/ %home%/%user%/web/%domain%/stats/
     Alias /error/ %home%/%user%/web/%domain%/document_errors/
@@ -64,7 +64,7 @@
     <Directory %home%/%user%/web/%domain%/stats>
         AllowOverride All
     </Directory>
-    <Directory %sdocroot%>
+    <Directory %docroot%>
         AllowOverride All
         SSLRequireSSL
         Options +Includes -Indexes +ExecCGI

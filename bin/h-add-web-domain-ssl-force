@@ -72,7 +72,7 @@ chmod 640 $forcessl
 #----------------------------------------------------------#
 
 if [ -z "$SSL_FORCE" ]; then
-	add_object_key "web" 'DOMAIN' "$domain" 'SSL_FORCE' 'SSL_HOME'
+	add_object_key "web" 'DOMAIN' "$domain" 'SSL_FORCE' 'LETSENCRYPT'
 fi
 
 # Set forcessl flag to enabled

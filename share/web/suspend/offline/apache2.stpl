@@ -6,16 +6,16 @@
     IncludeOptional %home%/%user%/conf/web/%domain%/botlimit.apache2.conf*
     %alias_string%
     ServerAdmin %email%
-    DocumentRoot %sdocroot%
+    DocumentRoot %docroot%
     CustomLog /var/log/%web_system%/domains/%domain%.bytes bytes
     CustomLog /var/log/%web_system%/domains/%domain%.log combined
     ErrorLog /var/log/%web_system%/domains/%domain%.error.log
 
     ErrorDocument 503 /offline/index.html
-    Alias /offline/ %sdocroot%/
+    Alias /offline/ %docroot%/
     RedirectMatch 503 ^/(?!offline/|\.well-known/)
 
-    <Directory %sdocroot%>
+    <Directory %docroot%>
         AllowOverride All
         SSLRequireSSL
         Options -Indexes

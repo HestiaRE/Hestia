@@ -84,7 +84,7 @@ add_web_http3_config "$local_ip" "$IP6"
 #----------------------------------------------------------#
 
 if [ -z "$HTTP3" ]; then
-	add_object_key "web" 'DOMAIN' "$domain" 'HTTP3' 'SSL_HOME'
+	add_object_key "web" 'DOMAIN' "$domain" 'HTTP3' 'LETSENCRYPT'
 fi
 update_object_value 'web' 'DOMAIN' "$domain" '$HTTP3' 'yes'
 

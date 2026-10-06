@@ -108,6 +108,16 @@ source_conf "$USER_DATA/user.conf"
 
 [[ -e "$HOMEDIR/$user/web/$domain" ]] && check_result "$E_EXISTS" "Web domain folder for $domain should not exist"
 
+# Until the record exists, an abort takes back what was created, or the folder check above refuses every retry.
+web_add_undo() {
+	rm -rf "${HOMEDIR:?}/$user/web/$domain"
+	web_domain_logs "$domain" | while IFS= read -r f; do rm -f "$f"; done
+	if [ -n "$FIREWALL_EXTENSION" ] && declare -F fail2ban_watch_domain > /dev/null; then
+		fail2ban_watch_domain del "$domain"
+	fi
+}
+trap web_add_undo EXIT
+
 # Creating domain directories
 mkdir $HOMEDIR/$user/web/$domain
 chown $user:$user $HOMEDIR/$user/web/$domain
@@ -115,7 +125,6 @@ chown $user:$user $HOMEDIR/$user/web/$domain
 # removing the folder leaves the account as it was.
 for sub in public_html document_errors cgi-bin private stats logs; do
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/$sub" > /dev/null || {
-		rm -rf "${HOMEDIR:?}/$user/web/$domain"
 		check_result "$E_NOTEXIST" "cannot create $HOMEDIR/$user/web/$domain/$sub as $user; h-rebuild-user $user repairs the modes of $HOMEDIR/$user/web"
 	}
 done
@@ -255,6 +264,7 @@ echo "DOMAIN='$domain' IP='$ip' IP6='$local_ip6' CUSTOM_DOCROOT='' ALIAS='$ALIAS
  BACKEND='$BACKEND_TEMPLATE' PHP_VERSION='$PHP_VERSION' PROXY='$PROXY_TEMPLATE' PROXY_EXT='$PROXY_EXT'\
  STATS='' STATS_USER='' STATS_CRYPT='' U_DISK='0' U_BANDWIDTH='0'\
  SUSPENDED='no' TIME='$time' DATE='$date'" >> $USER_DATA/web.conf
+trap - EXIT
 
 syshealth_repair_web_config
 

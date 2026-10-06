@@ -50,7 +50,7 @@ query_le_v2() {
 	post_data=$post_data'"payload":"'"$payload_"'",'
 	post_data=$post_data'"signature":"'"$signature_"'"}'
 
-	curl --user-agent "HestiaCP" -s -i -d "$post_data" "$1" -H "$content"
+	curl --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 -s -i -d "$post_data" "$1" -H "$content"
 }
 
 #----------------------------------------------------------#
@@ -121,7 +121,7 @@ if [ -z "$THUMB" ]; then
 fi
 
 # Requesting ACME nonce
-nonce=$(curl -s -I "$LE_API/directory" | grep -i nonce | cut -f2 -d\  | tr -d '\r\n')
+nonce=$(curl --connect-timeout 15 --max-time 60 -s -I "$LE_API/directory" | grep -i nonce | cut -f2 -d\  | tr -d '\r\n')
 
 # Creating ACME account
 url="$LE_API/acme/new-acct"

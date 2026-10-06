@@ -36,7 +36,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '6' "$#" 'DOMAIN PORT SMTP_SECURITY USERNAME PASSWORD EMAIL'
 is_format_valid 'domain' 'port' 'email' 'password'
 is_username_format_valid "$username" 'username'
-format_no_quotes "$password" 'passowrd'
+format_no_quotes "$password" 'password'
 is_common_format_valid "$smtp_security" "SMTP_SECURITY"
 
 #----------------------------------------------------------#

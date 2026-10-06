@@ -22,9 +22,13 @@ fi
 if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
 	exit
 fi
-exiqgrep -i | xargs -r exim -Mrm
+# exipick, not exiqgrep: exiqgrep -i without a selection prints its help and lists no message.
+rm_rc=0
+exipick -i | xargs -r exim -Mrm > /dev/null || rm_rc=$?
+left=$(exim -bpc)
 
-$BIN/h-log-action "system" "Info" "System" "Mail queue ($message_count) has been deleted"
+$BIN/h-log-action "system" "Info" "System" "Mail queue ($message_count) has been deleted, $left left"
+[ "$rm_rc" -eq 0 ] || check_result "$E_UPDATE" "not every message could be deleted, exim -bp lists what is left"
 log_event "$OK" "$ARGUMENTS"
 
 exit

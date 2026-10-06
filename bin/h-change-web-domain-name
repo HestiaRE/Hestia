@@ -13,8 +13,8 @@
 # Argument defenition
 user=$1
 domain=$2
-new_domain=$3
-restart=$4
+new_domain=${3,,}
+restart=${4:-yes}
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -50,38 +50,58 @@ check_new_domain=$(grep -F "DOMAIN='$new_domain'" $CONF_DIR/users/*/web.conf)
 if [ -n "$check_new_domain" ]; then
 	check_result "$E_EXISTS" "$new_domain already exists"
 fi
+is_domain_new '' "$new_domain"
+if [ -e "$HOMEDIR/$user/web/$new_domain" ] || [ -e "$HOMEDIR/$user/conf/web/$new_domain" ]; then
+	check_result "$E_EXISTS" "a folder for $new_domain already exists"
+fi
+
+get_domain_values 'web'
+
+# These carry the old name or path in places a rename does not reach; each is switched off first and on again after.
+blockers=''
+[ "$SSL" = 'yes' ] && blockers+=', SSL'
+[ -n "$FTP_USER" ] && blockers+=', FTP accounts'
+[ -n "$CUSTOM_DOCROOT" ] && blockers+=', custom document root'
+[ -n "$WP" ] && [ "$WP" != 'no' ] && blockers+=', WordPress'
+[ -n "$STATS" ] && blockers+=', web statistics'
+while IFS= read -r d; do
+	[ -n "$d" ] && blockers+=", custom document root of $d"
+done < <(awk -v p="CUSTOM_DOCROOT='$HOMEDIR/$user/web/$domain/" 'index($0, p) { match($0, /^DOMAIN='"'"'[^'"'"']*'"'"'/); print substr($0, 9, RLENGTH - 9) }' "$USER_DATA/web.conf")
+if [ -n "$blockers" ]; then
+	check_result "$E_FORBIDEN" "switch off first: ${blockers#, }"
+fi
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Fetching domain variables
-get_domain_values 'web'
-
 # Changing domain in web.conf - pattern-side dots escaped, or renaming a.b.com also
 # rewrites the aXb.com record
 sed -i "s/DOMAIN='${domain//./\\.}'/DOMAIN='$new_domain'/" $USER_DATA/web.conf
-# Dots escaped here too, for the reason above: renaming a.b.com otherwise rewrote an alias awb.com to
-# the new name, and the duplicate filter below then dropped it - the customer lost an alias silently.
-new_alias=$(echo "$ALIAS,$domain" \
-	| sed -e "s/,/\n/g" \
-	| sed -e "s/${domain//./\\.}/$new_domain/" \
-	| sed -e "s/^${new_domain//./\\.}$//g" \
-	| sed -e "/^$/d" \
-	| sed -e ':a;N;$!ba;s/\n/,/g')
 
-# Updating domain alias
-if [ -n "$ALIAS" ] && [ "$ALIAS" != "$new_alias" ]; then
-	sed -i "s/ALIAS='$ALIAS'/ALIAS='$new_alias'/" $USER_DATA/web.conf
+# An alias below the old name moves with it (www.old -> www.new); every other alias stays as it is.
+new_alias=''
+IFS=, read -ra _alias_list <<< "$ALIAS"
+for a in "${_alias_list[@]}"; do
+	[ -n "$a" ] || continue
+	case "$a" in
+		"$domain") a=$new_domain ;;
+		*."$domain") a=${a%."$domain"}.$new_domain ;;
+	esac
+	[ "$a" = "$new_domain" ] && continue
+	[[ ",$new_alias," == *",$a,"* ]] || new_alias+="${new_alias:+,}$a"
+done
+if [ "$ALIAS" != "$new_alias" ]; then
+	update_object_value 'web' 'DOMAIN' "$new_domain" '$ALIAS' "$new_alias"
 fi
 
 # Moving document root and domain logs
-mv "$HOMEDIR/$user/web/$domain" "$HOMEDIR/$user/web/$new_domain/"
+mv "$HOMEDIR/$user/web/$domain" "$HOMEDIR/$user/web/$new_domain"
 cd /var/log/$WEB_SYSTEM/domains
 mv "$domain.log" "$new_domain.log"
 mv "$domain.error.log" "$new_domain.error.log"
 mv "$domain.bytes" "$new_domain.bytes"
-rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.*"
+rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new_domain/logs/$domain.error.log"
 
 # The jail is watching the old filename; a rename is invisible to it.
 if [ -n "$FIREWALL_EXTENSION" ]; then
@@ -89,16 +109,6 @@ if [ -n "$FIREWALL_EXTENSION" ]; then
 	source $HESTIA/include/fail2ban.sh
 	fail2ban_watch_domain del "$domain"
 	fail2ban_watch_domain add "$new_domain"
-fi
-
-# Updating domain certificates
-if [ -e "$USER_DATA/ssl/$domain.crt" ]; then
-	cd $USER_DATA/ssl
-	mv $USER_DATA/ssl/$domain.crt $USER_DATA/ssl/$new_domain.crt
-	mv $USER_DATA/ssl/$domain.ca $USER_DATA/ssl/$new_domain.ca
-	mv $USER_DATA/ssl/$domain.pem $USER_DATA/ssl/$new_domain.pem
-	mv $USER_DATA/ssl/$domain.key $USER_DATA/ssl/$new_domain.key
-	rm -f $HOMEDIR/$user/conf/web/$domain/ssl/$domain.*
 fi
 
 # Deleting vhost configuration
@@ -119,6 +129,9 @@ if [ -n "$BACKEND" ]; then
 	delete_web_backend
 fi
 
+# The fragments move with the domain; the rebuild renders the vhosts into the new folder.
+mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain"
+
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
@@ -128,6 +141,6 @@ $BIN/h-rebuild-web-domains "$user" "$restart"
 
 # Logging
 $BIN/h-log-action "$user" "Info" "Web" "Renamed web domain (Old Domain: $domain, New Domain: $new_domain)."
-log_event "$OK" "$EVENT"
+log_event "$OK" "$ARGUMENTS"
 
 exit

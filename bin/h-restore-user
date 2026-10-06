@@ -827,7 +827,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 
 	# Adding user to traffic queue. Deleting by name is right HERE: this drops any older entry for
 	# the customer before adding one, it is not a job cleaning up after itself.
-	sed -i "/ $user /d" $CONF_DIR/queue/traffic.pipe
+	sed -i "/ $user$/d" $CONF_DIR/queue/traffic.pipe
 	echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 
 	# Restarting web server

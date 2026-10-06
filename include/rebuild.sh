@@ -158,10 +158,8 @@ rebuild_user_conf() {
 		chmod 770 $USER_DATA/ssl
 		touch $USER_DATA/web.conf
 		chmod 660 $USER_DATA/web.conf
-		if [ "$(grep -w $user $CONF_DIR/queue/traffic.pipe)" ]; then
-			echo "$BIN/h-update-web-domains-traff $user" \
-				>> $CONF_DIR/queue/traffic.pipe
-		fi
+		sed -i "/ $user$/d" $CONF_DIR/queue/traffic.pipe
+		echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 		echo "$BIN/h-update-web-domains-disk $user" \
 			>> $CONF_DIR/queue/disk.pipe
 

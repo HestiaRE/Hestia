@@ -38,7 +38,7 @@ is_object_valid 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 # Starting delete loop
-for domain in $(search_objects 'web' 'SUSPENDED' "no" 'DOMAIN'); do
+for domain in $(search_objects 'web' 'SUSPENDED' "*" 'DOMAIN'); do
 	$BIN/h-delete-web-domain "$user" "$domain" 'no'
 done
 

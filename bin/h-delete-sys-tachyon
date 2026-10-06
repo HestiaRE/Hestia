@@ -44,10 +44,10 @@ fi
 # No MySQL requirement: a SQLite-backed install (no MariaDB on the box) must be removable too.
 # The DB drop below is guarded on its own.
 
-# Get current version
-if [ -f "/var/lib/tachyon/data/VERSION" ]; then
-	version=$(cat /var/lib/tachyon/data/VERSION)
-else
+# Any artefact is enough: an add that failed halfway leaves pieces without the VERSION file.
+version=$(cat /var/lib/tachyon/data/VERSION 2> /dev/null)
+if [ -z "$version" ] && [[ ",$WEBMAIL_SYSTEM," != *,tachyon,* ]] && [ ! -e /etc/caddy/webmail-tachyon.conf ] \
+	&& [ ! -e /etc/php/hestia/fpm/pool.d/tachyon.conf ] && [ ! -e /var/lib/tachyon ] && [ ! -e /etc/tachyon ]; then
 	echo "Error: Tachyon is not installed"
 	exit 2
 fi
@@ -67,7 +67,7 @@ rm -f -r $TX_CONFIG_DIR
 rm -f -r $TX_LOG
 # logrotate fragment deployed by h-add-sys-tachyon
 rm -f /etc/logrotate.d/tachyon
-rm ~/.tachyon
+rm -f ~/.tachyon
 
 # IF EXISTS covers the SQLite-backed install (no tachyon DB was ever created);
 # the whole block only runs where a MySQL server exists at all.
@@ -92,7 +92,7 @@ $BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-$BIN/h-log-action "system" "Info" "Plugins" "Tachyon removed (Version: $version)."
+$BIN/h-log-action "system" "Info" "Plugins" "Tachyon removed (Version: ${version:-unknown})."
 
 # Re-gate the fail2ban webmail jails now that WEBMAIL_SYSTEM changed (no-op unless fail2ban is active).
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh

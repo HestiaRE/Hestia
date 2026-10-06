@@ -118,6 +118,42 @@
         "/etc/hestia/queue/letsencrypt.pipe"
       ],
       "reversible": false
+    },
+    {
+      "id": "remove-h-add-web-domain-ssl-preset",
+      "description": "h-add-web-domain-ssl-preset is gone: nothing called it, h-add-web-domain-ssl-force sets the same flag",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-update-web-domain-traff",
+      "description": "h-update-web-domain-traff is gone: nothing called it, the nightly h-update-web-domains-traff counts every domain",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-update-web-domain-traff"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-update-web-domain-traff"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-update-web-domain-traff"
+      ],
+      "reversible": false
     }
   ]
 }

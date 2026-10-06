@@ -813,6 +813,26 @@ is_web_domain_cert_valid() {
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
 }
 
+# http-01 on an apache front: the token sits in a root-owned directory per name, published by an Alias in the vhost's
+# conf_letsencrypt fragment. Never a docroot, which the customer controls, nor a directory customers share.
+ACME_APACHE_DIR=/var/lib/hestia-acme
+acme_apache_publish() { # CONF_DIR NAME TOKEN KEY_AUTHORIZATION
+	local _dir="$ACME_APACHE_DIR/$2"
+	mkdir -p "$_dir"
+	chmod 755 "$ACME_APACHE_DIR" "$(dirname "$_dir")" "$_dir"
+	echo "$4" > "$_dir/$3"
+	chmod 644 "$_dir/$3"
+	cat > "$1/apache2.conf_letsencrypt" <<- EOF
+		Alias /.well-known/acme-challenge/ $_dir/
+		<Directory $_dir/>
+		    Options None
+		    AllowOverride None
+		    Require all granted
+		</Directory>
+	EOF
+	[ -e "$1/apache2.ssl.conf_letsencrypt" ] || ln -s "$1/apache2.conf_letsencrypt" "$1/apache2.ssl.conf_letsencrypt"
+}
+
 # The log files of a web domain and their rotations, one path per line. By name: $domain.* also matches
 # example.com.au, which may belong to another customer.
 web_domain_logs() { # DOMAIN

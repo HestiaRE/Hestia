@@ -4,20 +4,8 @@
 
     IncludeOptional %home%/%user%/conf/mail/%root_domain%/apache2.forcessl.conf*
 
-    # LE http-01: serve the challenge from disk, never proxy it. The apache-only
-    # branch of h-add-letsencrypt-domain writes the token to
-    # /var/lib/roundcube/.well-known/acme-challenge/.
+    # LE http-01 is answered by the Alias in the conf_letsencrypt fragment included below, never proxied.
     ProxyPass /.well-known/acme-challenge/ !
-    Alias /.well-known/acme-challenge/ /var/lib/roundcube/.well-known/acme-challenge/
-    # The roundcube docroot ships a .htaccess with directives disallowed in this
-    # context; without AllowOverride None Apache aborts the local challenge serve
-    # and falls through to the proxy (verified live). We only serve the token here.
-    <Directory /var/lib/roundcube>
-        AllowOverride None
-    </Directory>
-    <Directory /var/lib/roundcube/.well-known/acme-challenge/>
-        Require all granted
-    </Directory>
 
     # Roundcube is rendered by the Panel-Caddy listener on 127.0.0.1:8090
     # (share/panel-caddy/webmail-roundcube.conf). This vhost only reverse-proxies

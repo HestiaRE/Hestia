@@ -14,6 +14,7 @@
     ErrorDocument 503 /offline/index.html
     Alias /offline/ %docroot%/
     RedirectMatch 503 ^/(?!offline/|\.well-known/)
+    IncludeOptional %home%/%user%/conf/web/%domain%/%web_system%.ssl.conf_letsencrypt
 
     <Directory %docroot%>
         AllowOverride All

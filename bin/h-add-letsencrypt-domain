@@ -289,6 +289,10 @@ for auth in $authz; do
 	fi
 
 	# Accepting challenge / STEP 4
+	# The token names a file below: base64url only.
+	if [[ ! "$token" =~ ^[A-Za-z0-9_-]+$ ]]; then
+		check_result "$E_INVALID" "Let's Encrypt sent an unusable challenge token ($domain)"
+	fi
 	if [ -z "$mail" ]; then
 		if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
 			conf="$HOMEDIR/$user/conf/web/$domain/nginx.conf_letsencrypt"
@@ -306,21 +310,10 @@ for auth in $authz; do
 				check_result $? "Proxy restart failed" > /dev/null
 			fi
 		else
-			# Get root directory from configuration
-			domain_config="$HOMEDIR/$user/conf/web/$domain"
-			if [ -f "$domain_config/apache2.conf" ]; then
-				well_known="$(cat $domain_config/apache2.conf | egrep \
-					'^\s+DocumentRoot' | awk '{split($0, a, " "); \
-                                print a[2]}')/.well-known"
-			else
-				well_known="$(cat $domain_config/nginx.conf | egrep '^\s+root' \
-					| awk '{split($0, a, " "); print a[2]}' \
-					| sed 's/;$//')/.well-known"
-			fi
-			acme_challenge="$well_known/acme-challenge"
-			mkdir -p $acme_challenge
-			echo "$token.$THUMB" > $acme_challenge/$token
-			chown -R $user:$user $well_known
+			acme_name="web/$domain"
+			acme_apache_publish "$HOMEDIR/$user/conf/web/$domain" "$acme_name" "$token" "$token.$THUMB"
+			$BIN/h-restart-web
+			check_result $? "Web restart failed" > /dev/null
 		fi
 	else
 		if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
@@ -339,13 +332,11 @@ for auth in $authz; do
 				check_result $? "Proxy restart failed" > /dev/null
 			fi
 		else
-			get_object_value 'mail' 'DOMAIN' "$root_domain" "WEBMAIL"
-			if [ -n "$WEBMAIL" ]; then
-				well_known="/var/lib/$WEBMAIL/.well-known"
-				acme_challenge="$well_known/acme-challenge"
-				mkdir -p $acme_challenge
-				echo "$token.$THUMB" > $acme_challenge/$token
-				chown -R $user:$user $well_known
+			if [ -d "$HOMEDIR/$user/conf/mail/$root_domain" ]; then
+				acme_name="mail/$root_domain"
+				acme_apache_publish "$HOMEDIR/$user/conf/mail/$root_domain" "$acme_name" "$token" "$token.$THUMB"
+				$BIN/h-restart-web
+				check_result $? "Web restart failed" > /dev/null
 			fi
 		fi
 	fi
@@ -572,9 +563,9 @@ if [ -x "$CONF_DIR/hooks/le_post.sh" ]; then
 	$CONF_DIR/hooks/le_post.sh "$user" "$domain" "$aliases" "$mail"
 fi
 
-# Remove challenge folder if exist
-if [ -n "$well_known" ]; then
-	rm -fr $well_known
+# The answered tokens; the fragment stays and points at an empty name.
+if [ -n "$acme_name" ]; then
+	rm -rf "${ACME_APACHE_DIR:?}/$acme_name"
 fi
 
 # Remove temporary SSL folder

@@ -142,7 +142,9 @@ if [ "$clamd_up" = 1 ]; then
 	fi
 	systemctl restart exim4
 	if ! systemctl is-active --quiet exim4; then
-		echo "ERROR: exim4 failed to restart with ClamAV enabled."
+		sed -i 's/^CLAMD = yes/#CLAMD = yes/' "$EXIM_TPL"
+		systemctl restart exim4
+		echo "ERROR: exim4 failed to restart with ClamAV enabled, it runs again without it."
 		exit "$E_RESTART"
 	fi
 	$BIN/h-change-sys-config-value 'ANTIVIRUS_SYSTEM' 'clamav'

@@ -40,7 +40,7 @@ is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 get_domain_values 'web'
-if [ -z "$(echo $ALIAS | tr ',' '\n' | grep ^$dom_alias$)" ]; then
+if [[ ",$ALIAS," != *",$dom_alias,"* ]]; then
 	check_result "$E_NOTEXIST" "alias $dom_alias doesn't exist"
 fi
 
@@ -50,11 +50,12 @@ fi
 
 # Preparing domain values for the template substitution
 local_ip=$(get_real_ip $IP)
-ALIAS=$(echo "$ALIAS" \
-	| sed -e "s/,/\n/g" \
-	| sed -e "s/^$dom_alias$//g" \
-	| sed -e "/^$/d" \
-	| sed -e ':a;N;$!ba;s/\n/,/g')
+_aliases=''
+IFS=, read -ra _alias_list <<< "$ALIAS"
+for _a in "${_alias_list[@]}"; do
+	[ -n "$_a" ] && [ "$_a" != "$dom_alias" ] && _aliases+="${_aliases:+,}$_a"
+done
+ALIAS=$_aliases
 prepare_web_domain_values
 
 # Rebuilding vhost

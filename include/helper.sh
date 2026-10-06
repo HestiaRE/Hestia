@@ -730,6 +730,10 @@ exim_lists_unexpanded_apply() {
 	exim_template_patch 0.24/exim-lists-unexpanded.patch
 }
 
+exim_relay_dkim_apply() {
+	exim_template_patch 0.24/exim-relay-dkim.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

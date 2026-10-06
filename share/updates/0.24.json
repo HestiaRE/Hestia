@@ -640,6 +640,30 @@
         "/etc/caddy/webmail-tachyon.conf"
       ],
       "reversible": true
+    },
+    {
+      "id": "exim-relay-dkim",
+      "description": "Mail sent through an authenticated SMTP relay is DKIM-signed like direct mail; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-relay-dkim.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_relay_dkim_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
     }
   ]
 }

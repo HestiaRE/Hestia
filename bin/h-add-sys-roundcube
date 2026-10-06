@@ -222,8 +222,10 @@ $config['password_confirm_current'] = true;
 $config['password_minimum_length'] = 8;
 $config['password_log'] = false;
 $config['password_hestia_host'] = 'localhost';
-$config['password_hestia_port'] = '8083';
 PHP
+# The panel may have moved off 8083 before this (re)install; h-change-sys-port rewrites this line later.
+printf "\$config['password_hestia_port'] = '%s';\n" "${BACKEND_PORT:-8083}" \
+	>> "$RC_CONFIG_DIR/plugins/password/config.inc.php"
 chmod 644 "$RC_CONFIG_DIR/plugins/password/config.inc.php"
 chown root:caddy "$RC_CONFIG_DIR/plugins/password/config.inc.php"
 

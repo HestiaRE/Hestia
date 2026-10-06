@@ -812,6 +812,39 @@ is_web_domain_cert_valid() {
 	kill $pid &> /dev/null
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
 }
+
+# Replaces the certificate of $domain with the one in SSL_DIR, in the user's store and in the copy the vhost reads,
+# and re-renders the vhost: a chain file that came or went changes the apache template.
+web_ssl_replace() {
+	local ssl_dir="$1" ext store="$USER_DATA/ssl" live="$HOMEDIR/$user/conf/web/$domain/ssl"
+	# By name, never $domain.*: that also matches the files of example.com.au.
+	for ext in crt key pem ca; do
+		rm -f "$store/$domain.$ext" "$live/$domain.$ext"
+	done
+	cp -f "$ssl_dir/$domain.crt" "$store/$domain.crt"
+	cp -f "$ssl_dir/$domain.key" "$store/$domain.key"
+	cp -f "$ssl_dir/$domain.crt" "$store/$domain.pem"
+	if [ -e "$ssl_dir/$domain.ca" ]; then
+		cp -f "$ssl_dir/$domain.ca" "$store/$domain.ca"
+		echo >> "$store/$domain.pem"
+		cat "$store/$domain.ca" >> "$store/$domain.pem"
+	fi
+	for ext in crt key pem ca; do
+		[ -e "$store/$domain.$ext" ] || continue
+		chmod 660 "$store/$domain.$ext"
+		cp -f "$store/$domain.$ext" "$live/$domain.$ext"
+	done
+
+	get_domain_values 'web'
+	local_ip=$(get_real_ip "$IP")
+	prepare_web_domain_values
+	del_web_config "$WEB_SYSTEM" "$TPL.tpl"
+	add_web_config "$WEB_SYSTEM" "$TPL.tpl"
+	if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
+		del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
+		add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
+	fi
+}
 #----------------------------------------------------------#
 #                       MAIL                               #
 #----------------------------------------------------------#

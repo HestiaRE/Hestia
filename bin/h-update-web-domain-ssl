@@ -55,28 +55,7 @@ is_web_domain_cert_valid
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Deleting old certificate
-rm -f $HOMEDIR/$user/conf/web/$domain/ssl/$domain.*
-rm -f $USER_DATA/ssl/$domain.*
-
-# Adding certificate to user data directory
-cp -f $ssl_dir/$domain.crt $USER_DATA/ssl/$domain.crt
-cp -f $ssl_dir/$domain.key $USER_DATA/ssl/$domain.key
-cp -f $ssl_dir/$domain.crt $USER_DATA/ssl/$domain.pem
-if [ -e "$ssl_dir/$domain.ca" ]; then
-	cp -f $ssl_dir/$domain.ca $USER_DATA/ssl/$domain.ca
-	echo >> $USER_DATA/ssl/$domain.pem
-	cat $USER_DATA/ssl/$domain.ca >> $USER_DATA/ssl/$domain.pem
-fi
-chmod 660 $USER_DATA/ssl/$domain.*
-
-# Adding certificate to user dir
-cp -f $USER_DATA/ssl/$domain.crt $HOMEDIR/$user/conf/web/$domain/ssl/$domain.crt
-cp -f $USER_DATA/ssl/$domain.key $HOMEDIR/$user/conf/web/$domain/ssl/$domain.key
-cp -f $USER_DATA/ssl/$domain.pem $HOMEDIR/$user/conf/web/$domain/ssl/$domain.pem
-if [ -e "$USER_DATA/ssl/$domain.ca" ]; then
-	cp -f $USER_DATA/ssl/$domain.ca $HOMEDIR/$user/conf/web/$domain/ssl/$domain.ca
-fi
+web_ssl_replace "$ssl_dir"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

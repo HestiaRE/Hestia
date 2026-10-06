@@ -24,6 +24,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
@@ -54,28 +56,7 @@ is_web_domain_cert_valid
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Deleting old certificate
-tmpdir=$(mktemp -p $HOMEDIR/$user/web/$domain/private -d)
-rm -f $HOMEDIR/$user/conf/web/$domain/ssl/$domain.*
-mv $USER_DATA/ssl/$domain.* $tmpdir
-chown -R $user:$user $tmpdir
-
-# Adding new certificate to user data directory
-cp -f $ssl_dir/$domain.crt $USER_DATA/ssl/$domain.crt
-cp -f $ssl_dir/$domain.key $USER_DATA/ssl/$domain.key
-cp -f $ssl_dir/$domain.crt $USER_DATA/ssl/$domain.pem
-if [ -e "$ssl_dir/$domain.ca" ]; then
-	cp -f $ssl_dir/$domain.ca $USER_DATA/ssl/$domain.ca
-	cat $USER_DATA/ssl/$domain.ca >> $USER_DATA/ssl/$domain.pem
-fi
-
-# Adding new certificate to user dir
-cp -f $USER_DATA/ssl/$domain.crt $HOMEDIR/$user/conf/web/$domain/ssl/$domain.crt
-cp -f $USER_DATA/ssl/$domain.key $HOMEDIR/$user/conf/web/$domain/ssl/$domain.key
-cp -f $USER_DATA/ssl/$domain.pem $HOMEDIR/$user/conf/web/$domain/ssl/$domain.pem
-if [ -e "$USER_DATA/ssl/$domain.ca" ]; then
-	cp -f $USER_DATA/ssl/$domain.ca $HOMEDIR/$user/conf/web/$domain/ssl/$domain.ca
-fi
+web_ssl_replace "$ssl_dir"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

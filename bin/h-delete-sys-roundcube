@@ -52,6 +52,7 @@ rm -f "$RC_CONFIG_DIR/debian-db.php"
 
 # What the add created beside the package: the purge leaves non-empty dirs, the login log holds customer addresses.
 rm -rf /etc/php/hestia/roundcube-cli /var/log/roundcube /var/lib/roundcube/temp
+rm -f /etc/dbconfig-common/roundcube.conf.ucf-*
 rmdir /var/lib/roundcube 2> /dev/null
 
 rm -rf "$RC_CONFIG_DIR"

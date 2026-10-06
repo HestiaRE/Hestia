@@ -40,9 +40,16 @@ if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube' \
 	exit 0
 fi
 
-# dbconfig-common must not set up a database of its own.
-echo "roundcube-core roundcube/dbconfig-install boolean false" \
-	| debconf-set-selections
+# dbconfig-common must not set up a database of its own. After a purge the preseed finds only its own dummy template
+# and fails; a reinstall is then held back by the file dbconfig reads before it asks.
+if ! echo "roundcube-core roundcube/dbconfig-install boolean false" | debconf-set-selections 2> /dev/null \
+	&& [ -d /etc/dbconfig-common ]; then
+	if [ -f /etc/dbconfig-common/roundcube.conf ]; then
+		sed -i "s/^dbc_install=.*/dbc_install='false'/" /etc/dbconfig-common/roundcube.conf
+	else
+		(umask 077 && echo "dbc_install='false'" > /etc/dbconfig-common/roundcube.conf)
+	fi
+fi
 
 # No recommends: enchant never loads in the panel pool, and classic/larry are skins nobody selects.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y --no-install-recommends install \

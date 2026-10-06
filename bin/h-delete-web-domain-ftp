@@ -42,7 +42,8 @@ is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 get_domain_values 'web'
-if [ -z "$(echo $FTP_USER | tr ':' '\n' | grep ^$ftp_user$)" ]; then
+position=$(ftp_list_index "$FTP_USER" "$ftp_user")
+if [ -z "$position" ]; then
 	echo "Error: account $ftp_user doesn't exist"
 	log_event "$E_NOTEXIST" "$ARGUMENTS"
 	exit "$E_NOTEXIST"
@@ -57,12 +58,8 @@ $BIN/h-delete-user-sftp-jail "$ftp_user"
 # SSH AllowUsers co-maintenance for the FTP sub-account (#413)
 manage_sshd_allowusers del "$ftp_user"
 
-# Deleting ftp user
-/usr/sbin/userdel $ftp_user >> /dev/null 2>&1
-if [ "$?" != 0 ]; then
-	sed -i "/^$ftp_user:/d" /etc/passwd
-	sed -i "/^$ftp_user:/d" /etc/shadow
-fi
+# -f: the account shares the customer's uid, whose PHP pool keeps it busy.
+/usr/sbin/userdel -f "$ftp_user" > /dev/null 2>&1
 
 #----------------------------------------------------------#
 #                       Hestia                             #
@@ -71,14 +68,9 @@ fi
 # Rebuilding FTP variables. ftp_user is reused as the remaining list below, so keep the account
 # name for the log line.
 ftp_account="$ftp_user"
-position=$(echo $FTP_USER | tr ':' '\n' | grep -n '' | grep ":$ftp_user$" \
-	| cut -f 1 -d:)
-ftp_user=$(echo $FTP_USER | tr ':' '\n' | grep -n '' | grep -v "^$position:" \
-	| cut -f 2 -d : | sed -e "/^$/d" | sed -e ':a;N;$!ba;s/\n/:/g')
-ftp_md5=$(echo $FTP_MD5 | tr ':' '\n' | grep -n '' | grep -v "^$position:" \
-	| cut -f 2 -d : | sed -e ':a;N;$!ba;s/\n/:/g')
-ftp_path=$(echo $FTP_PATH | tr ':' '\n' | grep -n '' | grep -v "^$position:" \
-	| cut -f 2 -d : | sed -e ':a;N;$!ba;s/\n/:/g')
+ftp_user=$(ftp_list_edit "$FTP_USER" "$position")
+ftp_md5=$(ftp_list_edit "$FTP_MD5" "$position")
+ftp_path=$(ftp_list_edit "$FTP_PATH" "$position")
 
 # Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_USER' "$ftp_user"

@@ -45,7 +45,8 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 get_domain_values 'web'
-if [ -z "$(echo $FTP_USER | tr ':' '\n' | grep ^$ftp_user$)" ]; then
+position=$(ftp_list_index "$FTP_USER" "$ftp_user")
+if [ -z "$position" ]; then
 	echo "Error: account $ftp_user doesn't exist"
 	log_event "$E_NOTEXIST" "$ARGUMENTS"
 	exit "$E_NOTEXIST"
@@ -64,11 +65,8 @@ if [ ! -e "$ftp_path_a" ]; then
 	chmod 751 "$ftp_path_a"
 fi
 
-# Chaning ftp user path
-pw_str=$(grep -n "^$ftp_user:" /etc/passwd)
-str=$(echo "$pw_str" | cut -f 1 -d :)
-old_path=$(echo "$pw_str" | cut -f 7 -d :)
-sed -i "$str s%$old_path%$ftp_path_a%g" /etc/passwd
+/usr/sbin/usermod -d "$ftp_path_a" "$ftp_user"
+check_result $? "home of $ftp_user was not changed" > /dev/null
 
 # Updating chroot jail for SFTP and FTP
 delete_chroot_jail $ftp_user
@@ -82,17 +80,13 @@ add_chroot_jail $ftp_user
 ftp_path_r=$(echo $ftp_path_a | sed "s%$HOMEDIR/$user/web/$domain%%")
 
 # Rebuilding FTP variables
-position=$(echo $FTP_USER | tr ':' '\n' | grep -n '' | grep ":$ftp_user$" \
-	| cut -f 1 -d:)
-ftp_path=$(echo $FTP_PATH | tr ':' '\n' | grep -n '' \
-	| sed -e "s%^$position:.*%$position:$ftp_path_r%" \
-	| cut -f 2 -d : | sed -e ':a;N;$!ba;s/\n/:/g')
+ftp_path=$(ftp_list_edit "$FTP_PATH" "$position" "$ftp_path_r")
 
 # Updating config
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_PATH' "$ftp_path"
 
 # Logging
-$BIN/h-log-action "$user" "Info" "Web" "FTP account path changed (User: $ftp_user@domain, Path: $ftp_path_a)."
+$BIN/h-log-action "$user" "Info" "Web" "FTP account path changed (User: $ftp_user@$domain, Path: $ftp_path_a)."
 log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -813,6 +813,43 @@ is_web_domain_cert_valid() {
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
 }
 
+# FTP_USER, FTP_MD5 and FTP_PATH are parallel colon lists. Positions count from 1, an empty field keeps its place,
+# and names compare as whole strings: an account name may carry a dot.
+ftp_list_index() { # LIST NAME
+	local _rest="$1:" _i=1
+	while [ -n "$_rest" ]; do
+		[ "${_rest%%:*}" = "$2" ] && echo "$_i" && return 0
+		_rest="${_rest#*:}"
+		_i=$((_i + 1))
+	done
+	return 1
+}
+
+ftp_list_get() { # LIST N
+	local _rest="$1:" _i=1
+	while [ -n "$_rest" ]; do
+		[ "$_i" -eq "$2" ] && echo "${_rest%%:*}" && return 0
+		_rest="${_rest#*:}"
+		_i=$((_i + 1))
+	done
+}
+
+# LIST with field N set to VALUE, or dropped when VALUE is not given.
+ftp_list_edit() { # LIST N [VALUE]
+	local _rest="$1:" _i=1 _out=()
+	while [ -n "$_rest" ] || { [ $# -ge 3 ] && [ "$_i" -le "$2" ]; }; do
+		if [ "$_i" -eq "$2" ]; then
+			[ $# -lt 3 ] || _out+=("$3")
+		else
+			_out+=("${_rest%%:*}")
+		fi
+		_rest="${_rest#*:}"
+		_i=$((_i + 1))
+	done
+	local IFS=:
+	echo "${_out[*]}"
+}
+
 # Replaces the certificate of $domain with the one in SSL_DIR, in the user's store and in the copy the vhost reads,
 # and re-renders the vhost: a chain file that came or went changes the apache template.
 web_ssl_replace() {

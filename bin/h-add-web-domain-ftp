@@ -46,8 +46,7 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
-check_ftp_user=$(grep "^$ftp_user:" /etc/passwd)
-if [ -n "$check_ftp_user" ] && [ "$FTP_USER" != "$ftp_user" ]; then
+if getent passwd "$ftp_user" > /dev/null && [ "$FTP_USER" != "$ftp_user" ]; then
 	echo "Error: ftp user $ftp_user already exists"
 	log_event "$E_EXISTS" "$ARGUMENTS"
 	exit "$E_EXISTS"

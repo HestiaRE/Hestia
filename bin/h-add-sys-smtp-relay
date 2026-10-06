@@ -48,13 +48,15 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 #                       Action                             #
 #----------------------------------------------------------#
 
+# File before record: exim acts on the file, so a refused key must not leave the record ahead of it.
+smtp_relay_write "/etc/exim4/smtp_relay.conf" 'root:Debian-exim' 640 "$host" "$port" "$username" "$password" \
+	|| check_result "$E_DISK" "cannot write /etc/exim4/smtp_relay.conf"
+
 change_sys_value 'SMTP_RELAY' 'true'
 change_sys_value 'SMTP_RELAY_HOST' "$host"
 change_sys_value 'SMTP_RELAY_PORT' "$port"
-change_sys_value 'SMTP_RELAY_USER' "$username"
-
-smtp_relay_write "/etc/exim4/smtp_relay.conf" 'root:Debian-exim' 640 "$host" "$port" "$username" "$password" \
-	|| check_result "$E_DISK" "cannot write /etc/exim4/smtp_relay.conf"
+# Encoded, as change_sys_value refuses the \ of DOMAIN\user.
+change_sys_value 'SMTP_RELAY_USER' "$(record_value_encode "$username")"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

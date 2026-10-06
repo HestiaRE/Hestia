@@ -26,12 +26,12 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                       Action                             #
 #----------------------------------------------------------#
 
+rm -f /etc/exim4/smtp_relay.conf
+
 change_sys_value "SMTP_RELAY" "false"
 change_sys_value "SMTP_RELAY_HOST" ""
 change_sys_value "SMTP_RELAY_PORT" ""
 change_sys_value "SMTP_RELAY_USER" ""
-
-rm -f /etc/exim4/smtp_relay.conf
 
 #----------------------------------------------------------#
 #                       Hestia                             #

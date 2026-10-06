@@ -21,9 +21,10 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# Stored encoded by h-add-sys-smtp (#1143); every format hands out the real value.
+# Stored encoded by h-add-sys-smtp and h-add-sys-smtp-relay (#1143); every format hands out the real value.
 SERVER_SMTP_USER=$(record_value_decode "$SERVER_SMTP_USER")
 SERVER_SMTP_PASSWD=$(record_value_decode "$SERVER_SMTP_PASSWD")
+SMTP_RELAY_USER=$(record_value_decode "$SMTP_RELAY_USER")
 
 # Exposed so the panel offers the per-domain http3 switch only where it works: the deb12/ub24 OS nginx
 # has no http_v3 and a quic listen fails nginx -t (#613).

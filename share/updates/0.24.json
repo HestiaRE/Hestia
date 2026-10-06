@@ -640,6 +640,77 @@
         "/etc/caddy/webmail-tachyon.conf"
       ],
       "reversible": true
+    },
+    {
+      "id": "exim-relay-dkim",
+      "description": "Mail sent through an authenticated SMTP relay is DKIM-signed like direct mail; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-relay-dkim.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_relay_dkim_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "sieve-learn-ham-skips-trash",
+      "description": "Deleting a message from the spam folder no longer teaches the filter that it is ham",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/dovecot/sieve/report-ham.sieve"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/dovecot/sieve-learn/report-ham.sieve",
+          "target": "/etc/dovecot/sieve/report-ham.sieve"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "sieve_learn_ham_apply"
+      },
+      "paths": [
+        "/etc/dovecot/sieve/report-ham.sieve"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "managesieve-loopback",
+      "description": "ManageSieve listens on loopback only, where the webmails reach it",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "SIEVE_SYSTEM",
+          "value": "yes"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/dovecot/conf.d/20-managesieve.conf",
+          "value": "127.0.0.1"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "sieve_managesieve_local_apply"
+      },
+      "paths": [
+        "/etc/dovecot/conf.d/20-managesieve.conf"
+      ],
+      "reversible": false
     }
   ]
 }

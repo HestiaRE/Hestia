@@ -4,47 +4,31 @@
 #
 # example: h-update-mail-templates
 #
-# This function for obtaining updated webmail templates from Hestia package.
+# Rebuilds every user's mail domains, so the webmail vhosts follow the installed clients, then reloads.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
-restart=$1
+restart=${1:-yes}
 skip=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-check_args '1' "$#" '[RESTART] [SKIP]'
+check_args '0' "$#" '[RESTART] [SKIP]'
 is_format_valid 'restart'
 
-# Webmail vhost templates ship at $HESTIA/share/$WEB_SYSTEM/webmail (delivered by
-# the tarball) — there is no separate install source to copy from anymore.
-# Rebuild mail domains if mail services are enabled
+# Nothing to copy: the webmail templates arrive with the tarball under $HESTIA/share/$WEB_SYSTEM/webmail.
+failed=''
 if [ -z "$skip" ]; then
 	if [ -n "$MAIL_SYSTEM" ]; then
 		for user in $("$BIN/h-list-users" list); do
-			$BIN/h-rebuild-mail-domains "$user" no
+			$BIN/h-rebuild-mail-domains "$user" no || failed="$failed $user"
 		done
 	fi
 fi
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
-if [ -n "$restart" ] || [ "$restart" == "yes" ]; then
-	# Restarting web server
+if [ "$restart" != "no" ]; then
 	$BIN/h-restart-web "$restart"
 	check_result $? "restart" > /dev/null 2>&1
 
@@ -52,4 +36,5 @@ if [ -n "$restart" ] || [ "$restart" == "yes" ]; then
 	check_result $? "restart" > /dev/null 2>&1
 fi
 $BIN/h-log-action "system" "Info" "Updates" "Default mail domain templates updated."
+[ -z "$failed" ] || check_result "$E_PARSING" "mail domains not rebuilt for:$failed"
 exit

@@ -83,6 +83,22 @@ sieve_imap_plugin_add() {
 	}
 }
 
+# ManageSieve serves the webmails on this box only. In place, because 2.3 calls the key address and 2.4 listen.
+sieve_managesieve_bind_local() {
+	local f="${1:-/etc/dovecot/conf.d/20-managesieve.conf}" key=address val='127.0.0.1, ::1' ver
+	[ -f "$f" ] || return 1
+	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
+	if [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = "2.4" ]; then
+		key=listen
+		val='127.0.0.1 ::1'
+	fi
+	# As the installer does for listen: a v6 address is fatal on a kernel without v6.
+	[ -e /proc/net/if_inet6 ] || val='127.0.0.1'
+	grep -qE "^[[:space:]]*(address|listen)[[:space:]]*=[[:space:]]*127\.0\.0\.1" "$f" && return 0
+	sed -i -E "/^[[:space:]]*inet_listener sieve \{/,/^[[:space:]]*\}/ s/^([[:space:]]*)port = 4190$/&\n\1$key = $val/" "$f"
+	grep -qE "^[[:space:]]*$key = 127\.0\.0\.1" "$f"
+}
+
 sieve_imap_plugin_del() {
 	[ -f "$DOVECOT_IMAP_CONF" ] || return 0
 	sed -i -E "s/^([[:space:]]*mail_plugins[[:space:]]*=.*)[[:space:]]imap_sieve\b(.*)$/\1\2/" "$DOVECOT_IMAP_CONF"

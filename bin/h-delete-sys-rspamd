@@ -4,28 +4,17 @@
 #
 # example: h-delete-sys-rspamd
 #
-# Unwires and uninstalls rspamd: exim macros back to inert (mail flows unscanned;
-# per-domain flags + spam-tuning files stay, reactivating on h-add-sys-rspamd),
-# panel UI route removed, package purged. Redis goes with it unless it is the
-# user's general service (DB_REDIS).
+# Disarms exim, takes IMAP learning out of dovecot and purges rspamd; Redis goes too unless REDIS_SYSTEM.
+# Per-domain spam settings stay and act again after h-add-sys-rspamd.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/sieve.sh
+source $HESTIA/include/sieve.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
@@ -36,11 +25,7 @@ if [ "$ANTISPAM_SYSTEM" != 'rspamd' ]; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Unwire exim first so mail keeps flowing (unscanned) while rspamd goes away
+# exim first, so mail keeps flowing unscanned while rspamd goes away.
 sed -i -e 's/^RSPAMD = yes/#RSPAMD = yes/' \
 	-e 's/^SPAM_SCORE = /#SPAM_SCORE = /' \
 	-e 's/^SPAM_REJECT_SCORE = /#SPAM_REJECT_SCORE = /' \
@@ -51,25 +36,43 @@ if ! systemctl is-active --quiet exim4; then
 	exit "$E_RESTART"
 fi
 
-# panel UI route + the Caddy controller-socket group drop-in
 rm -f /etc/caddy/apps/rspamd.conf
 rm -f /etc/systemd/system/caddy.service.d/rspamd-ctrl.conf
 rmdir /etc/systemd/system/caddy.service.d 2> /dev/null || true
-# drop any stale caddy membership in _rspamd from older installs
+# Older installs put the caddy user in _rspamd.
 gpasswd -d caddy _rspamd > /dev/null 2>&1 || true
 systemctl daemon-reload
 systemctl try-restart caddy 2> /dev/null || true
 
-systemctl disable --now rspamd > /dev/null 2>&1
-apt-get -y -qq purge rspamd > /dev/null 2>&1
+# Dovecot names the group in mail_access_groups; once it is gone, every login and delivery fails.
+# Decided by the file, not SIEVE_SYSTEM: the group in dovecot is what breaks.
+if grep -qE '^[[:space:]]*mail_access_groups[[:space:]]*=.*\b_rspamd-ctrl\b' "$DOVECOT_MAIL_CONF" 2> /dev/null; then
+	sieve_mail_group_del
+	sieve_imap_plugin_del
+	systemctl restart dovecot
+	if ! systemctl is-active --quiet dovecot; then
+		echo "ERROR: dovecot failed to restart without IMAP learning, rspamd stays installed."
+		exit "$E_RESTART"
+	fi
+fi
 
-# the controller-socket group is rspamd-only — drop it with the package
+systemctl disable --now rspamd > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge rspamd > /dev/null 2>&1
+
+# Ours, not the package's, so the purge keeps them; they carry the controller hashes and name the group below.
+for f in "$HESTIA/share/rspamd/local.d"/*; do
+	[ -e "$f" ] || continue
+	rm -f "/etc/rspamd/local.d/${f##*/}"
+done
+rmdir /etc/rspamd/local.d /etc/rspamd 2> /dev/null
+
+# The controller-socket group exists for rspamd only.
 groupdel _rspamd-ctrl 2> /dev/null || true
 
-# Redis: the Bayes companion goes with rspamd; a general service stays. Same truth as the add side.
+# The Bayes companion goes with rspamd, a general Redis stays. Keep in step with h-add-sys-rspamd.
 if [ -z "$REDIS_SYSTEM" ]; then
 	systemctl disable --now redis-server > /dev/null 2>&1
-	apt-get -y -qq purge redis-server > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge redis-server > /dev/null 2>&1
 fi
 # no autoremove: it would rip out shared-stack siblings
 
@@ -77,11 +80,6 @@ $BIN/h-change-sys-config-value 'ANTISPAM_SYSTEM' ''
 
 echo "rspamd has been removed (mail is delivered unscanned)."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Removed rspamd antispam."
 log_event "$OK" "$ARGUMENTS"
 

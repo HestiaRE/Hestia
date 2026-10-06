@@ -563,6 +563,11 @@ smtp_relay_smtp:
   driver = smtp
   hosts_require_auth = $host_address
   hosts_require_tls = $host_address
+  dkim_domain = DKIM_DOMAIN
+  dkim_selector = mail
+  dkim_private_key = DKIM_PRIVATE_KEY
+  dkim_canon = relaxed
+  dkim_strict = 0
 
 # interface builds four shapes and NEVER an empty list element ("" is a hard transport
 # error deferring the mail); an entirely empty result just unsets the option.

@@ -5,29 +5,20 @@
 #
 # example: h-list-sys-webmail
 #
-# List available webmail clients
+# The installed webmail clients, in the order a new mail domain picks its default from.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# The installed clients in the order of WEBMAIL_KNOWN_CLIENTS, never in the order of the key: the panel's
-# select and h-add-mail-domain-webmail take the first entry as the default, and the token writers append.
-# A token outside the known list is not offered (it has no template either).
+# Known-list order, not the key's: callers take the first as the default and the token writers append.
+# A token outside the known list has no template, so it is not offered.
 clients=$(for c in $WEBMAIL_KNOWN_CLIENTS; do case ",$WEBMAIL_SYSTEM," in *",$c,"*) echo "$c" ;; esac done)
 
-# JSON list function
 json_list() {
 	i=1
 	objects=$(printf '%s\n' "$clients" | grep -c .)
@@ -44,7 +35,6 @@ json_list() {
 	echo ']'
 }
 
-# SHELL list function
 shell_list() {
 	echo "Webmail Client"
 	echo "--------"
@@ -53,27 +43,17 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	for client in $clients; do
 		echo "$client"
 	done
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

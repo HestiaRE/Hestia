@@ -1901,7 +1901,7 @@ is_common_format_spaces_valid() {
 is_no_new_line_format() {
 	test=$(echo "$1" | head -n1)
 	if [[ "$test" != "$1" ]]; then
-		check_result "$E_INVALID" "invalid value :: $1"
+		check_result "$E_INVALID" "invalid value :: contains a line break"
 	fi
 }
 
@@ -2196,7 +2196,7 @@ is_role_valid() {
 # Password validator
 is_password_format_valid() {
 	if [ "${#1}" -lt '6' ]; then
-		check_result "$E_INVALID" "invalid password format :: $1"
+		check_result "$E_INVALID" "invalid password format :: shorter than 6 characters"
 	fi
 }
 # Curated login-shell allowlist, one source for the panel and the validator. rssh is gone from
@@ -2649,7 +2649,8 @@ format_no_quotes() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="['|\"]"
 	if [[ "$1" =~ $exclude ]]; then
-		check_result "$E_INVALID" "Invalid $2 contains qoutes (\" or ' or | ) :: $1"
+		# No value in the message: the panel keeps it in the session file, and $1 is often a password.
+		check_result "$E_INVALID" "Invalid $2: contains a quote (\" or ') or |"
 	fi
 	is_no_new_line_format "$1"
 }

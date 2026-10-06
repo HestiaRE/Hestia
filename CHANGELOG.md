@@ -62,6 +62,7 @@ before v0.20.0 are folded into one section by theme.
 - **Mail account commands are stricter about account names, passwords and the mailbox directory** (#1176).
 - **Mail domain commands are stricter about what they write and where** (#1176).
 - **Tachyon webmail serves only what belongs to the browser** (#1176).
+- **Mail system commands are tightened** (#1176).
 
 ### Removed
 
@@ -113,6 +114,8 @@ before v0.20.0 are folded into one section by theme.
 - **Mail domains do what they report** (#1176). An IDN domain can be suspended and moves to a new owner with its
   mailboxes, one domain's spam settings no longer decide for another domain's recipients, and switching the spam
   filter off also stops rejecting.
+- **Mail system addons do what they report** (#1176). They can be removed and added again without breaking
+  logins or delivery, a webmail alias change keeps each domain's client, and a Tachyon upgrade updates its plugins.
 
 ## v0.23 (2026-09-27)
 

@@ -2,16 +2,10 @@
 # info: Add SMTP Account for logging, notification and internal mail
 # options: DOMAIN PORT SMTP_SECURITY USERNAME PASSWORD EMAIL
 #
-# example: h-add-sys-smtp example.com 587 STARTTLS test@domain.com securepassword test@example.com
+# example: h-add-sys-smtp example.com 587 tls test@domain.com securepassword test@example.com
 #
-# This function allows configuring a SMTP account for the server to use
-# for logging, notification and warn emails etc.
+# The account the server sends its own mail through. SMTP_SECURITY is tls, ssl or none.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 domain=$1
 port=$2
 smtp_security=$3
@@ -21,42 +15,34 @@ password=$5
 HIDE=5
 email=$6
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '6' "$#" 'DOMAIN PORT SMTP_SECURITY USERNAME PASSWORD EMAIL'
+is_password_valid
 is_format_valid 'domain' 'port' 'email' 'password'
 is_username_format_valid "$username" 'username'
-format_no_quotes "$password" 'passowrd'
-is_common_format_valid "$smtp_security" "SMTP_SECURITY"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+format_no_quotes "$password" 'password'
+# PHPMailer knows tls and ssl only, and in lowercase; anything else silently sends without them.
+case "${smtp_security,,}" in
+	tls | starttls) smtp_security='tls' ;;
+	ssl | smtps) smtp_security='ssl' ;;
+	none) smtp_security='' ;;
+	*) check_result "$E_INVALID" "invalid SMTP_SECURITY :: $smtp_security (tls, ssl or none)" ;;
+esac
 
 change_sys_value "USE_SERVER_SMTP" 'true'
 change_sys_value "SERVER_SMTP_HOST" "$domain"
 change_sys_value "SERVER_SMTP_PORT" "$port"
 change_sys_value "SERVER_SMTP_SECURITY" "$smtp_security"
-# Encoded, as change_sys_value refuses a \ or ` that DOMAIN\user or a password may carry (#1143).
+# Encoded, as change_sys_value refuses a \ or ` that DOMAIN\user or a password may carry.
 change_sys_value "SERVER_SMTP_USER" "$(record_value_encode "$username")"
 change_sys_value "SERVER_SMTP_PASSWD" "$(record_value_encode "$password")"
 change_sys_value "SERVER_SMTP_ADDR" "$email"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Mail" "Server SMTP enabled."
 log_event "$OK" "$ARGUMENTS"
 

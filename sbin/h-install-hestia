@@ -1243,11 +1243,12 @@ install_exim_sendonly() {
 	# Looked at, not asserted: saying "mail goes through a relay" without checking leaves the
 	# box in the state the smoke test flags as a FAIL one minute later.
 	if ! is_on "${COMPONENT_PANEL_EXIM:-true}"; then
-		if [ "${USE_SERVER_SMTP:-}" = 'true' ] && [ -n "${SERVER_SMTP_HOST:-}" ]; then
-			echo "[ * ] Local MTA disabled (COMPONENT_PANEL_EXIM) - notification mail goes through ${SERVER_SMTP_HOST}"
+		# hestia.conf, not install.conf: the panel reads only that, and nothing copies recipe keys into it.
+		if grep -q "^USE_SERVER_SMTP='true'" "$HESTIA/conf/hestia.conf" 2> /dev/null; then
+			echo "[ * ] Local MTA disabled (COMPONENT_PANEL_EXIM) - notification mail goes through the server SMTP account"
 		else
-			echo "[ ! ] Local MTA disabled (COMPONENT_PANEL_EXIM) and no SMTP relay configured -"
-			echo "[ ! ] notification mail is lost until USE_SERVER_SMTP and SERVER_SMTP_HOST are set"
+			echo "[ ! ] Local MTA disabled (COMPONENT_PANEL_EXIM) and no SMTP account configured -"
+			echo "[ ! ] notification mail is lost until one is set with h-add-sys-smtp"
 		fi
 		return 0
 	fi

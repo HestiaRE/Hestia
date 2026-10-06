@@ -135,6 +135,7 @@ vacation_domain_sync() { # USER DOMAIN DIR
 			update_object_value "mail/$domain" 'ACCOUNT' "$acc" '$AUTOREPLY' 'no'
 		else
 			echo "Warning!: autoreply of $acc@$domain is in a Sieve script the panel does not manage, left there" >&2
+			rc=1
 		fi
 	done < <(sed -n "s/^ACCOUNT='\([^']*\)'.*/\1/p" "$USER_DATA/mail/$domain.conf" 2> /dev/null)
 	rm -f "$msg"

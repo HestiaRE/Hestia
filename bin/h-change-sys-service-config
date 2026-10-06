@@ -72,9 +72,10 @@ restart_ok() {
 if [ "$update" = 'yes' ] && [ "$service" = 'hestia' ]; then
 	rm -f "$dst.vst.back"
 elif [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
-	# dovecot-3, postgresql-hba and php-8.3 restart dovecot, postgresql and that version's fpm.
+	# dovecot-3, postgresql-hba, php-8.3 and clamd restart dovecot, postgresql, that version's fpm and clamav-daemon.
 	service=${service%-*}
 	[ "$service" != 'php' ] || service="php$(php_ini_version "$dst")-fpm"
+	[ "$service" != 'clamd' ] || service='clamav-daemon'
 	restart_ok "$service"
 	rc=$?
 	if [ "$rc" -ne 0 ]; then

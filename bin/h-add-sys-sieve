@@ -86,9 +86,12 @@ mkdir -p /etc/dovecot/sieve
 
 # IMAP-triggered learning. Collected rather than aborted: filters and vacation work without any of
 # it, so a half-wired learner is a degradation and not a failure.
+# The trigger only with rspamd, which h-add-sys-rspamd wires itself when it comes later.
 learn_failures=''
-sieve_imap_plugin_add || learn_failures="$learn_failures$(printf '\n  the imap_sieve trigger')"
-sieve_mail_group_add || learn_failures="$learn_failures$(printf '\n  the rspamd controller group')"
+if [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
+	sieve_imap_plugin_add || learn_failures="$learn_failures$(printf '\n  the imap_sieve trigger')"
+	sieve_mail_group_add || learn_failures="$learn_failures$(printf '\n  the rspamd controller group')"
+fi
 sieve_learn_install
 
 systemctl restart dovecot

@@ -55,8 +55,9 @@ if ! systemctl is-active --quiet exim4; then
 	exit "$E_RESTART"
 fi
 
-# drop exim's socket-group membership
+# drop both memberships: the clamav account outlives the purge and would keep reading the exim spool
 gpasswd -d "$EXIM_USER" clamav > /dev/null 2>&1 || true
+gpasswd -d clamav "$EXIM_USER" > /dev/null 2>&1 || true
 
 systemctl disable --now clamav-daemon clamav-freshclam > /dev/null 2>&1
 # drop the socket-hardening override (purge removes the unit; the drop-in would dangle)

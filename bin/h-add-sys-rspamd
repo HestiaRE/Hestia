@@ -46,6 +46,8 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
+# Before the package: its postinst starts rspamd, and local.d files left by an earlier install name this group.
+groupadd -r _rspamd-ctrl 2> /dev/null || true
 echo "Installing rspamd (with Bayes Redis)..."
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install rspamd redis-server > /dev/null 2>&1
 if ! dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
@@ -65,10 +67,8 @@ systemctl restart redis-server 2> /dev/null || true
 mkdir -p /etc/rspamd/local.d
 cp -f "$HESTIA/share/rspamd/local.d/"* /etc/rspamd/local.d/
 
-# dedicated group for the controller socket; _rspamd joins it so the worker can
-# chgrp the socket. Must exist before rspamd starts. The proxy gets it process-
-# scoped (drop-in below), not the caddy user, so app FPM pools can't inherit it.
-groupadd -r _rspamd-ctrl 2> /dev/null || true
+# _rspamd joins the controller group so the worker can chgrp the socket. The proxy gets it
+# process-scoped (drop-in below), not the caddy user, so app FPM pools can't inherit it.
 usermod -aG _rspamd-ctrl _rspamd
 # heal older installs that put the caddy USER in _rspamd (leaked controller access)
 gpasswd -d caddy _rspamd > /dev/null 2>&1 || true
@@ -79,6 +79,8 @@ rspamd_hash=$(rspamadm pw --password "$rspamd_pw")
 printf 'password = "%s";\nenable_password = "%s";\n' "$rspamd_hash" "$rspamd_hash" \
 	>> /etc/rspamd/local.d/worker-controller.inc
 systemctl enable rspamd > /dev/null 2>&1
+# A start that failed in the postinst may have hit the start limit, which refuses this restart too.
+systemctl reset-failed rspamd > /dev/null 2>&1
 systemctl restart rspamd
 if ! systemctl is-active --quiet rspamd; then
 	echo "ERROR: rspamd failed to start."

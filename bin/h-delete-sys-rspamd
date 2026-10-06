@@ -77,6 +77,13 @@ fi
 systemctl disable --now rspamd > /dev/null 2>&1
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge rspamd > /dev/null 2>&1
 
+# Ours, not the package's, so the purge keeps them; they carry the controller hashes and name the group below.
+for f in "$HESTIA/share/rspamd/local.d"/*; do
+	[ -e "$f" ] || continue
+	rm -f "/etc/rspamd/local.d/${f##*/}"
+done
+rmdir /etc/rspamd/local.d /etc/rspamd 2> /dev/null
+
 # the controller-socket group is rspamd-only — drop it with the package
 groupdel _rspamd-ctrl 2> /dev/null || true
 

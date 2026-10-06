@@ -664,6 +664,29 @@
         "/etc/exim4/exim4.conf.template"
       ],
       "reversible": false
+    },
+    {
+      "id": "sieve-learn-ham-skips-trash",
+      "description": "Deleting a message from the spam folder no longer teaches the filter that it is ham",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/dovecot/sieve/report-ham.sieve"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/dovecot/sieve-learn/report-ham.sieve",
+          "target": "/etc/dovecot/sieve/report-ham.sieve"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "sieve_learn_ham_apply"
+      },
+      "paths": [
+        "/etc/dovecot/sieve/report-ham.sieve"
+      ],
+      "reversible": false
     }
   ]
 }

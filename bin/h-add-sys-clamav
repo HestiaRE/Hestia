@@ -125,6 +125,11 @@ else
 	echo "WARNING: ClamAV installed, but clamd is not answering yet (virus DB still"
 	echo "         downloading). Antivirus is NOT active. Re-run 'h-add-sys-clamav'"
 	echo "         once the DB is ready to activate scanning."
+	# A macro armed by an earlier run stays off until clamd answers, or "NOT active" would not hold.
+	if grep -q '^CLAMD = yes' "$EXIM_TPL"; then
+		sed -i 's/^CLAMD = yes/#CLAMD = yes/' "$EXIM_TPL"
+		systemctl restart exim4
+	fi
 	$BIN/h-log-action "system" "Warning" "System" "Installed ClamAV, not active: clamd does not answer."
 	# Non-zero so the installer lists it among its warnings.
 	exit "$E_CONNECT"

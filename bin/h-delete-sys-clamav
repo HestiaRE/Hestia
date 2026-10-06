@@ -87,7 +87,8 @@ fi
 rm -f /etc/apparmor.d/local/usr.sbin.clamd
 
 # no autoremove: it would rip out shared-stack siblings
-apt-get -y -qq purge clamav clamav-daemon clamav-freshclam > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq \
+	purge clamav clamav-daemon clamav-freshclam > /dev/null 2>&1
 
 restore_clamav_db
 trap - EXIT

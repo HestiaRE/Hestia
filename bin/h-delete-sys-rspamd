@@ -61,7 +61,7 @@ systemctl daemon-reload
 systemctl try-restart caddy 2> /dev/null || true
 
 systemctl disable --now rspamd > /dev/null 2>&1
-apt-get -y -qq purge rspamd > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge rspamd > /dev/null 2>&1
 
 # the controller-socket group is rspamd-only — drop it with the package
 groupdel _rspamd-ctrl 2> /dev/null || true
@@ -69,7 +69,7 @@ groupdel _rspamd-ctrl 2> /dev/null || true
 # Redis: the Bayes companion goes with rspamd; a general service stays. Same truth as the add side.
 if [ -z "$REDIS_SYSTEM" ]; then
 	systemctl disable --now redis-server > /dev/null 2>&1
-	apt-get -y -qq purge redis-server > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge redis-server > /dev/null 2>&1
 fi
 # no autoremove: it would rip out shared-stack siblings
 

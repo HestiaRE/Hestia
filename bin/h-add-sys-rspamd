@@ -45,7 +45,7 @@ fi
 #----------------------------------------------------------#
 
 echo "Installing rspamd (with Bayes Redis)..."
-apt-get -y -qq install rspamd redis-server > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install rspamd redis-server > /dev/null 2>&1
 if ! dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: rspamd installation failed."
 	exit "$E_INVALID"

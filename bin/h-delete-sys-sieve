@@ -93,7 +93,7 @@ if apt-cache show dovecot-core 2> /dev/null | grep -qE '^Depends:.*[ ,]dovecot-s
 	echo "NOTE: dovecot-core requires dovecot-sieve on this release - the package stays, its configuration does not."
 fi
 # shellcheck disable=SC2086  # deliberate word splitting: one or two package names
-apt-get -y -qq purge $purge_pkgs > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge $purge_pkgs > /dev/null 2>&1
 
 # no autoremove: it would rip out shared-stack siblings (deb13 autoremoved dovecot-core).
 systemctl start dovecot 2> /dev/null || true

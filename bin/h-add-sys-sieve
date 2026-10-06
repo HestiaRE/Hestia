@@ -61,7 +61,8 @@ fi
 
 # dovecot-lmtpd too: without it dovecot opens no socket while exim already routes there.
 echo "Installing sieve (dovecot-managesieved, dovecot-sieve, dovecot-lmtpd)..."
-apt-get -y -qq install dovecot-managesieved dovecot-sieve dovecot-lmtpd > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq \
+	install dovecot-managesieved dovecot-sieve dovecot-lmtpd > /dev/null 2>&1
 for _p in dovecot-managesieved dovecot-lmtpd; do
 	if ! dpkg -l "$_p" 2> /dev/null | grep -q '^ii'; then
 		echo "ERROR: sieve installation failed ($_p)."

@@ -66,7 +66,10 @@ echo "roundcube-core roundcube/dbconfig-install boolean false" \
 
 # No recommends (#1069): enchant never loads in the panel pool, and classic/larry are skins nobody selects.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y --no-install-recommends install \
-	roundcube "$RC_DB_PKG" roundcube-plugins
+	roundcube "$RC_DB_PKG" roundcube-plugins || {
+	echo "ERROR: Roundcube packages did not install"
+	exit 1
+}
 
 if [ "$RC_DB_BACKEND" = "mysql" ]; then
 	# Create dedicated MySQL database and user

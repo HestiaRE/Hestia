@@ -96,7 +96,8 @@ sys_key_token_set WEBMAIL_SYSTEM remove roundcube > /dev/null || check_result "$
 
 # re-render mail domains so vhosts stop proxying to the removed listener
 # (fall back to the remaining client, or the safe 'disabled' vhost)
-$BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
+$BIN/h-update-mail-templates yes > /dev/null 2>&1 \
+	|| echo "Warning: not every mail domain was re-rendered, h-update-mail-templates names them."
 
 #----------------------------------------------------------#
 #                       Hestia                             #

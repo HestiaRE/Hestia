@@ -285,7 +285,8 @@ systemctl try-restart caddy > /dev/null 2>&1 || true
 sys_key_token_set WEBMAIL_SYSTEM add roundcube > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record roundcube"
 
 # re-render mail domains so they pick up the new client immediately
-$BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
+$BIN/h-update-mail-templates yes > /dev/null 2>&1 \
+	|| echo "Warning: not every mail domain was re-rendered, h-update-mail-templates names them."
 
 #----------------------------------------------------------#
 #                       Hestia                             #

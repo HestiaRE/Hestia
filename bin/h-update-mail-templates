@@ -32,10 +32,11 @@ is_format_valid 'restart'
 # Webmail vhost templates ship at $HESTIA/share/$WEB_SYSTEM/webmail (delivered by
 # the tarball) — there is no separate install source to copy from anymore.
 # Rebuild mail domains if mail services are enabled
+failed=''
 if [ -z "$skip" ]; then
 	if [ -n "$MAIL_SYSTEM" ]; then
 		for user in $("$BIN/h-list-users" list); do
-			$BIN/h-rebuild-mail-domains "$user" no
+			$BIN/h-rebuild-mail-domains "$user" no || failed="$failed $user"
 		done
 	fi
 fi
@@ -52,4 +53,5 @@ if [ "$restart" != "no" ]; then
 	check_result $? "restart" > /dev/null 2>&1
 fi
 $BIN/h-log-action "system" "Info" "Updates" "Default mail domain templates updated."
+[ -z "$failed" ] || check_result "$E_PARSING" "mail domains not rebuilt for:$failed"
 exit

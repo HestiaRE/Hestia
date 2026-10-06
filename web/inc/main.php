@@ -234,6 +234,14 @@ function cli_json($cmd): array
 	return is_array($data) ? $data : [];
 }
 
+// [path, content] of a file the server config editor offers; h-open-fs-config owns which those are.
+// An empty path means the component has no such file on this server.
+function server_config(string $key): array
+{
+	$data = cli_json("h-open-fs-config " . quoteshellarg($key) . " json");
+	return [(string) ($data["path"] ?? ""), (string) ($data["content"] ?? "")];
+}
+
 // Same call for a command that prints ONE value rather than a list, e.g. h-get-user-value.
 // Answers null when the call failed or printed nothing, which is the state callers already test
 // for; [] would be the wrong answer, because it compares against null and against a number the
@@ -604,7 +612,9 @@ function send_email($to, $subject, $mailtext, $from, $from_name, $to_name = "")
 		$mail->Mailer = "smtp";
 		$mail->SMTPDebug = 0;
 		$mail->SMTPAuth = true;
-		$mail->SMTPSecure = $_SESSION["SERVER_SMTP_SECURITY"];
+		// A value stored before the command normalised it (STARTTLS, SSL) means the same to us, not to PHPMailer.
+		$smtp_security = strtolower($_SESSION["SERVER_SMTP_SECURITY"] ?? "");
+		$mail->SMTPSecure = $smtp_security === "starttls" ? "tls" : ($smtp_security === "smtps" ? "ssl" : $smtp_security);
 		$mail->Port = $_SESSION["SERVER_SMTP_PORT"];
 		$mail->Host = $_SESSION["SERVER_SMTP_HOST"];
 		$mail->Username = $_SESSION["SERVER_SMTP_USER"];

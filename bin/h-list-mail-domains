@@ -4,32 +4,35 @@
 #
 # example: h-list-mail-domains admin
 #
-# This function of obtaining the list of all user domains.
+# Lists the user's mail domains.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
+# Domain rows only, each from empty: a blank line repeated the last domain, a missing key inherited its value.
+rows() {
+	grep "^DOMAIN='" "$USER_DATA/mail.conf"
+}
+
+parse_row() {
+	ANTIVIRUS='' ANTISPAM='' REJECT='' RATE_LIMIT='' DKIM='' CATCHALL='' ACCOUNTS='' U_DISK='' SSL='' SUSPENDED='' TIME='' DATE=''
+	WEBMAIL_ALIAS='' WEBMAIL=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
-	objects=$(grep DOMAIN $USER_DATA/mail.conf | wc -l)
+	objects=$(rows | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		parse_row "$str"
 		json_escape DOMAIN ANTIVIRUS ANTISPAM REJECT RATE_LIMIT DKIM CATCHALL ACCOUNTS U_DISK SSL SUSPENDED TIME DATE WEBMAIL_ALIAS WEBMAIL
 		printf '    "%s": {\n' "$DOMAIN"
 		printf '        "ANTIVIRUS": "%s",\n' "$ANTIVIRUS"
@@ -53,54 +56,39 @@ json_list() {
 			echo
 		fi
 		((i++))
-	done < <(cat $USER_DATA/mail.conf)
+	done < <(rows)
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "DOMAIN   ANTIVIRUS   ANTISPAM   DKIM  SSL   ACC   DISK   SPND   DATE"
 	echo "------   ---------   --------   ----  ---   ---   ----   ---   ----"
-	while read str; do
-		parse_object_kv_list "$str"
+	while read -r str; do
+		parse_row "$str"
 		echo -n "$DOMAIN $ANTIVIRUS $ANTISPAM $DKIM $SSL $ACCOUNTS $U_DISK "
 		echo "$SUSPENDED $DATE"
-	done < <(cat $USER_DATA/mail.conf)
+	done < <(rows)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
-	while read str; do
-		parse_object_kv_list "$str"
-		echo -ne "$DOMAIN\t$ANTIVIRUS\t$ANTISPAM\t$DKIM\t$SSL\$CATCHALL\t"
-		echo -e "$ACCOUNTS\t$U_DISK\t$SUSPENDED\t$TIME\t$DATE\t$WEBMAIL_ALIAS\t$WEBMAIL"
-	done < <(cat $USER_DATA/mail.conf)
+	while read -r str; do
+		parse_row "$str"
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$DOMAIN" "$ANTIVIRUS" "$ANTISPAM" "$DKIM" "$SSL" \
+			"$CATCHALL" "$ACCOUNTS" "$U_DISK" "$SUSPENDED" "$TIME" "$DATE" "$WEBMAIL_ALIAS" "$WEBMAIL"
+	done < <(rows)
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

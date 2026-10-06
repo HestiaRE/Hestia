@@ -4,32 +4,20 @@
 #
 # example: h-change-sys-blocklist-interval 12h
 #
-# INTERVAL is a systemd time span (30min, 6h, 1d). One for all lists - per-list would be rework. No v-* symlink.
+# INTERVAL is a systemd time span (30min, 6h, 1d) and applies to all lists alike.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 interval=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 if [ "x$(id -u)" != 'x0' ]; then
-	echo "Error: Script can be run executed only by root"
-	exit 10
+	check_result "$E_FORBIDEN" "Script can be run executed only by root"
 fi
 
 check_args '1' "$#" 'INTERVAL'
@@ -38,18 +26,22 @@ is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
 # Not free text: a malformed value leaves the timer inert with the failure only visible in journalctl.
 if ! [[ "$interval" =~ ^[0-9]+(s|m|min|h|d|w)$ ]]; then
-	echo "Error: INTERVAL must be a systemd time span, e.g. 30min, 6h, 1d"
-	exit "$E_INVALID"
+	check_result "$E_INVALID" "INTERVAL must be a systemd time span, e.g. 30min, 6h, 1d"
 fi
+# Every refresh downloads every list again; under 15 minutes that is load on the list hosts, not protection.
+case "${interval//[0-9]/}" in
+	s) unit=1 ;;
+	m | min) unit=60 ;;
+	h) unit=3600 ;;
+	d) unit=86400 ;;
+	w) unit=604800 ;;
+esac
+secs=$((10#${interval%%[a-z]*} * unit))
+[ "$secs" -ge 900 ] || check_result "$E_INVALID" "INTERVAL must be at least 15min"
 
 if [ ! -f /etc/systemd/system/hestia-blocklist.timer ]; then
-	echo "Error: no blocklist timer installed - add an IP list first"
-	exit "$E_NOTEXIST"
+	check_result "$E_NOTEXIST" "no blocklist timer installed, add an IP list first"
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 fw_blocklist_interval_apply "$interval"
 systemctl -q daemon-reload
@@ -59,10 +51,6 @@ $BIN/h-change-sys-config-value 'BLOCKLIST_INTERVAL' "$interval"
 
 echo "Blocklist refresh interval: $interval"
 systemctl list-timers hestia-blocklist.timer --no-pager --no-legend 2> /dev/null | awk '{print "  next run: " $1, $2, $3}'
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Blocklist refresh interval changed to $interval."
 log_event "$OK" "$ARGUMENTS"

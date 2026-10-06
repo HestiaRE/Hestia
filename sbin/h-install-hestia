@@ -746,7 +746,8 @@ install_security() {
 		# One implementation of "configured fail2ban", shared with the addon commands. It copies the
 		# WHOLE share/fail2ban tree: enumerating the files is what silently left out action.d/hestia.conf
 		# and made every jail referencing `action = hestia[...]` unstartable.
-		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}"
+		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}" \
+			|| echo "[ ! ] fail2ban did not start; check 'fail2ban-client -d'."
 	fi
 
 	# crowdsec — nginx-only web protection (#186); skipped on an apache-only model.
@@ -775,6 +776,7 @@ install_security() {
 			# The wizard answer is the truth at install time, and it is handed over rather than looked up:
 			# the library no longer reads install.conf itself (#945).
 			crowdsec_apply "${COMPONENT_CROWDSEC_MODE:-capi}" || echo "[ ! ] CrowdSec wiring reported an issue (non-fatal)"
+			crowdsec_render_all_fragments
 			# 'mesh' model: arm the mechanism (publish + import timer). Inert until peers are paired,
 			# which is a two-admin step done afterwards in the panel or via the pairing commands.
 			if [ "${COMPONENT_CROWDSEC_MODE:-}" = "mesh" ]; then
@@ -904,9 +906,8 @@ configure_hestia() {
 	deploy_hestia_sudoers
 	cp -f "$HESTIA/share/hestia/logrotate" /etc/logrotate.d/hestia 2> /dev/null || true
 
-	# committed v-* symlinks ship in the tarball; don't blanket-create (orphans native
-	# commands) — just prune dangling ones left by a renamed/removed h-*
-	find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -xtype l -delete 2> /dev/null || true
+	# A reinstall over an older tree still carries the v-* aliases.
+	v_aliases_remove_apply || echo "[ ! ] a v-* alias in $HESTIA/bin could not be removed, h-check-sys-smoke names it" >&2
 
 	echo "[ * ] Installing firewall data; seeding hosting packages..."
 	# Seed the shipped packages into the instance dir (#663), per file and only when absent: configure
@@ -1242,11 +1243,12 @@ install_exim_sendonly() {
 	# Looked at, not asserted: saying "mail goes through a relay" without checking leaves the
 	# box in the state the smoke test flags as a FAIL one minute later.
 	if ! is_on "${COMPONENT_PANEL_EXIM:-true}"; then
-		if [ "${USE_SERVER_SMTP:-}" = 'true' ] && [ -n "${SERVER_SMTP_HOST:-}" ]; then
-			echo "[ * ] Local MTA disabled (COMPONENT_PANEL_EXIM) - notification mail goes through ${SERVER_SMTP_HOST}"
+		# hestia.conf, not install.conf: the panel reads only that, and nothing copies recipe keys into it.
+		if grep -q "^USE_SERVER_SMTP='true'" "$HESTIA/conf/hestia.conf" 2> /dev/null; then
+			echo "[ * ] Local MTA disabled (COMPONENT_PANEL_EXIM) - notification mail goes through the server SMTP account"
 		else
-			echo "[ ! ] Local MTA disabled (COMPONENT_PANEL_EXIM) and no SMTP relay configured -"
-			echo "[ ! ] notification mail is lost until USE_SERVER_SMTP and SERVER_SMTP_HOST are set"
+			echo "[ ! ] Local MTA disabled (COMPONENT_PANEL_EXIM) and no SMTP account configured -"
+			echo "[ ! ] notification mail is lost until one is set with h-add-sys-smtp"
 		fi
 		return 0
 	fi

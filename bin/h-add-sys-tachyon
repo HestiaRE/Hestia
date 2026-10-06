@@ -1,45 +1,31 @@
 #!/bin/bash
 # info: Install Tachyon webmail client
-# options: [MODE]
+# options: NONE
 #
-# This function installs the Tachyon webmail client (the maintained SnappyMail fork,
-# adopted in #584 after SnappyMail upstream went dormant).
+# example: h-add-sys-tachyon
 #
-# Source is the GitHub release for the version pinned in share/manifest.json: a pinned
-# version is the only one we can verify.
-#
-# Fetched and verified before anything is removed - an unreachable source must not take an
-# existing installation down with it.
+# Installs or upgrades Tachyon, the maintained SnappyMail fork, at the release pinned in share/manifest.json.
+# Everything is fetched and verified before anything is removed.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/sieve.sh
 source $HESTIA/include/sieve.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 tx_v=$(manifest_get '.software_versions.tachyon')
 
-MODE=$1
 UPDATE="no"
 TX_FILE="tachyon-${tx_v}.tar.gz"
 
 TX_URL="https://github.com/kimusan/Tachyon/releases/download/v${tx_v}/tachyon-${tx_v}.tar.gz"
 
-# Folder paths
 TX_INSTALL_DIR="/var/lib/tachyon"
 TX_CONFIG_DIR="/etc/tachyon"
-TX_LOG="/var/log/tachyon"
 
-# fetch_release_asset carries the bound and the mirror fallback (include/main.sh). The tarball
-# is pinned like the plugins: gzip -t passes on ANY valid gzip, and the mirror is a second host.
+# Pinned like the plugins: gzip -t passes on any valid gzip, and fetch_release_asset may fall back to a mirror.
 tx_fetch() {
 	local dest="$1" sum
 	sum=$(manifest_get '.software_versions.tachyon_sha256')
@@ -49,9 +35,8 @@ tx_fetch() {
 	echo "$sum  $dest" | sha256sum -c --quiet - 2> /dev/null || return 1
 }
 
-# Same fail-before-touch bar as the main tarball, plus a pinned sha256: change-password-hestia
-# changes system passwords, so a swapped release asset must die here, not install. Never via
-# Tachyon's own Repository - that fetches packages.json from the master branch, a moving address.
+# Pinned: change-password-hestia changes system passwords, so a swapped release asset must die here.
+# Never through Tachyon's own Repository: it reads packages.json from the master branch, a moving address.
 tx_fetch_plugin() {
 	local name="$1" dest="$2" ver sum
 	ver=$(manifest_get ".software_versions.tachyon_plugins[\"$name\"].version")
@@ -63,37 +48,49 @@ tx_fetch_plugin() {
 }
 
 TX_PLUGINS="change-password change-password-hestia add-x-originating-ip-header"
+TX_PLUGIN_DIR="$TX_CONFIG_DIR/data/_data_/_default_/plugins"
+declare -A tx_plugin_tmp
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
+# All fetched and verified before anything is touched.
+tx_fetch_plugins() {
+	local p q
+	for p in "$@"; do
+		tx_plugin_tmp[$p]="$(mktemp -t tachyon-plugin.XXXXXX.tgz)"
+		if ! tx_fetch_plugin "$p" "${tx_plugin_tmp[$p]}"; then
+			for q in "$@"; do rm -f "${tx_plugin_tmp[$q]}"; done
+			echo "ERROR: could not fetch/verify Tachyon plugin $p (pin in share/manifest.json)"
+			return 1
+		fi
+	done
+}
 
-# Checking root permissions
+# Over the installed ones: a plugin's config lives in configs/, not in its directory.
+tx_unpack_plugins() {
+	local p
+	mkdir -p "$TX_PLUGIN_DIR"
+	for p in "$@"; do
+		tar -xzf "${tx_plugin_tmp[$p]}" -C "$TX_PLUGIN_DIR/" || return 1
+		rm -f "${tx_plugin_tmp[$p]}"
+		chown -R caddy:caddy "$TX_PLUGIN_DIR/$p"
+		chmod -R 750 "$TX_PLUGIN_DIR/$p"
+	done
+	# Ours on top of the pinned driver: it names the client, for the mail password grace.
+	cp -f "$HESTIA/share/tachyon/plugins/change-password-hestia/driver.php" \
+		"$TX_PLUGIN_DIR/change-password-hestia/driver.php"
+}
+
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "ERROR: h-add-sys-tachyon can only be executed by the root user"
 	exit 10
 fi
 
-# Ensure that $HESTIA (/usr/local/hestia/) and other variables are valid.
-if [ -z "$HESTIA" ]; then
-	HESTIA="/usr/local/hestia"
-fi
-
-if [ -z "$HOMEDIR" ]; then
-	echo "ERROR: Environment variables not present, installation aborted."
-	exit 2
-fi
-
-# Contacts backend, decided ONCE here and recorded in Tachyon's own config (the artefact
-# that every later path reads): MySQL when the box has it, otherwise Tachyon's shipped
-# SQLite default. A MariaDB added later never flips an existing install - no silent
-# contact-data migration; switching means reinstalling the webmailer (#584).
+# Decided once, recorded in Tachyon's config: a MariaDB added later never flips it, switching means reinstalling.
 TX_DB_BACKEND="sqlite"
 if echo "$DB_SYSTEM" | grep -qw 'mysql'; then
 	TX_DB_BACKEND="mysql"
 else
 	echo "NOTE: no MySQL/MariaDB on this box - Tachyon contacts use the SQLite backend"
-	# fail here, not at the customer's first contacts write: the serving pool needs the driver
+	# Fail here, not at the customer's first contacts write: the serving pool needs the driver.
 	ensure_panel_sqlite_driver \
 		|| {
 			echo "ERROR: panel PHP lacks the sqlite driver (php-sqlite3 for the pinned version)"
@@ -107,15 +104,15 @@ if [ -z "$tx_v" ]; then
 	exit 2
 fi
 
-# Get current version
 if [ -f "/var/lib/tachyon/data/VERSION" ]; then
 	version=$(cat $TX_INSTALL_DIR/data/VERSION)
+	# The pool is written last; without it an earlier run stopped halfway, and wiping here could cost contacts.
+	if [ ! -f /etc/php/hestia/fpm/pool.d/tachyon.conf ]; then
+		echo "ERROR: Tachyon $version is unpacked but not set up. Run h-delete-sys-tachyon, then this command again."
+		exit 2
+	fi
 	if [ "$version" == "$tx_v" ]; then
-		# The one component whose target state is more than presence: the pin. Standing on it is success,
-		# not failure (E13, #945). rc 2 here also meant "no pin", "download failed" and "no sqlite driver",
-		# so the installer read a box that was exactly right as a failed install and said so on every re-run.
-		# The key writer sits further down, past this exit, so it is done here: a box that has Tachyon and
-		# not the token gets it now (the 1b build rule).
+		# Standing on the pin is success. The token writer further down sits past this exit, so it runs here too.
 		echo "INFO: Tachyon $version is already installed and matches the pinned version."
 		sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null \
 			|| check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
@@ -124,10 +121,6 @@ if [ -f "/var/lib/tachyon/data/VERSION" ]; then
 		UPDATE="yes"
 	fi
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if [ "$UPDATE" == "no" ]; then
 	# Fetched before the removals below: a dead source must not cost the running install.
@@ -139,18 +132,11 @@ if [ "$UPDATE" == "no" ]; then
 		exit 2
 	fi
 
-	# Plugins under the same rule: all fetched and verified before anything is removed.
-	declare -A tx_plugin_tmp
-	for p in $TX_PLUGINS; do
-		tx_plugin_tmp[$p]="$(mktemp -t tachyon-plugin.XXXXXX.tgz)"
-		if ! tx_fetch_plugin "$p" "${tx_plugin_tmp[$p]}"; then
-			rm -f "$tx_tmp"
-			for q in $TX_PLUGINS; do rm -f "${tx_plugin_tmp[$q]}"; done
-			echo "ERROR: could not fetch/verify Tachyon plugin $p (pin in share/manifest.json)"
-			echo "       Installation aborted - nothing was changed."
-			exit 2
-		fi
-	done
+	if ! tx_fetch_plugins $TX_PLUGINS; then
+		rm -f "$tx_tmp"
+		echo "       Installation aborted - nothing was changed."
+		exit 2
+	fi
 
 	rm -f -r $TX_INSTALL_DIR
 	rm -f -r $TX_CONFIG_DIR
@@ -171,8 +157,7 @@ if [ "$UPDATE" == "no" ]; then
 	echo "Admin Panel key: admin_$suffix" >> ~/.tachyon
 
 	tar -xzf ${TX_INSTALL_DIR}/${TX_FILE}
-	# No set -e here: an empty tree would otherwise run the rest of this script to exit 0,
-	# leaving a dangling data symlink and a WEBMAIL_SYSTEM claiming an install nobody had.
+	# No set -e here: an empty tree would run the rest to exit 0 and record an install nobody has.
 	if [ ! -s ./data/VERSION ]; then
 		echo "ERROR: Tachyon archive did not unpack (no data/VERSION). Installation aborted."
 		exit 2
@@ -182,69 +167,56 @@ if [ "$UPDATE" == "no" ]; then
 	mv ./data $TX_CONFIG_DIR/
 	ln -s $TX_CONFIG_DIR/data/ ./data
 
-	# Create cache folder and set permissions
 	mkdir -p "$TX_CONFIG_DIR/data/_data_/_default_/cache/"
 
-	# Unpack the verified plugins; install.php only writes their config and enables them.
-	mkdir -p "$TX_CONFIG_DIR/data/_data_/_default_/plugins/"
-	for p in $TX_PLUGINS; do
-		tar -xzf "${tx_plugin_tmp[$p]}" -C "$TX_CONFIG_DIR/data/_data_/_default_/plugins/"
-		rm -f "${tx_plugin_tmp[$p]}"
-	done
-
-	chown -R www-data:www-data ./data
+	# install.php only writes their config and enables them.
+	if ! tx_unpack_plugins $TX_PLUGINS; then
+		echo "ERROR: a Tachyon plugin did not unpack. Installation aborted."
+		exit 2
+	fi
 
 	r=""
 	if [ "$TX_DB_BACKEND" = "mysql" ]; then
-		if [ -f '/usr/bin/mariadb' ]; then
-			mariadb -e "CREATE DATABASE tachyon" 2>&1
-			r=$(generate_password)
-			mariadb -e "GRANT ALL ON tachyon.*
-			 TO tachyon@localhost IDENTIFIED BY '$r'"
-		else
-			mysql -e "CREATE DATABASE tachyon" 2>&1
-			r=$(generate_password)
-			mysql -e "GRANT ALL ON tachyon.*
-			 TO tachyon@localhost IDENTIFIED BY '$r'"
+		db_client="mysql"
+		[ -x /usr/bin/mariadb ] && db_client="mariadb"
+		r=$(generate_password)
+		if ! $db_client -e "CREATE DATABASE IF NOT EXISTS tachyon" \
+			|| ! $db_client -e "GRANT ALL ON tachyon.* TO tachyon@localhost IDENTIFIED BY '$r'"; then
+			echo "ERROR: could not create the tachyon database or its user. Installation aborted."
+			exit 2
 		fi
 	fi
-	# Temporarily set the permissions to www-data
-	chown -R www-data:www-data $TX_CONFIG_DIR/
-	# Same PHP the pool serves with (pinned version + the pool's curated ini chain), not the
-	# PATH's CLI php - install.php loads Tachyon's own framework, so this run must prove the
-	# chain that carries the traffic afterwards.
+	# The pool's PHP and ini chain, not the PATH's CLI php: install.php loads Tachyon's framework, so it proves that chain.
 	if [ ! -s /etc/php/hestia/php-version ]; then
 		echo "ERROR: no pinned panel PHP (/etc/php/hestia/php-version) - is the panel stage done?"
 		exit 2
 	fi
 	panel_php="php$(cat /etc/php/hestia/php-version)"
-	env PHP_INI_SCAN_DIR=/etc/php/hestia/fpm/conf.d "$panel_php" -f $HESTIA/share/tachyon/install.php "admin_$key" "admin_$suffix" "$admin_password" "$r" "$BACKEND_PORT" "$TX_DB_BACKEND"
+	if ! env PHP_INI_SCAN_DIR=/etc/php/hestia/fpm/conf.d "$panel_php" -f $HESTIA/share/tachyon/install.php \
+		"admin_$key" "admin_$suffix" "$admin_password" "$r" "$BACKEND_PORT" "$TX_DB_BACKEND"; then
+		echo "ERROR: Tachyon setup (install.php) failed. Installation aborted."
+		exit 2
+	fi
 
-	# back to caddy (the FPM pool user); explicit 0750 keeps the data dir caddy-private
+	# Back to caddy, the pool user; 0750 keeps the data dir caddy-private.
 	chown -R caddy:caddy $TX_CONFIG_DIR/
 	chmod -R 750 $TX_CONFIG_DIR/data
 
-	# After the chown, because the rewrite copies owner and mode from the file it replaces. A webmail
-	# installed after sieve must not come up without the filter screen.
+	# After the chown, as the rewrite copies owner and mode; a webmail added after sieve needs the filter screen.
 	webmail_sieve_apply
 
-	# Auth-log target for the fail2ban webmail jail. Tachyon runs as caddy and writes
-	# /var/log/tachyon/fail2ban/auth.txt (see share/tachyon/install.php); create the root here so
-	# the first failed login has somewhere to write and the jail has a file to watch.
+	# Tachyon writes fail2ban/auth.txt below this as caddy (share/tachyon/install.php); the jail needs it to exist.
 	mkdir -p /var/log/tachyon
 	chown caddy:caddy /var/log/tachyon
 	chmod 750 /var/log/tachyon
-	# the fail2ban tachyon-auth jail tails fail2ban/auth.txt, so the log must rotate
+	# The fail2ban tachyon-auth jail tails fail2ban/auth.txt, so the log must rotate.
 	cp -f "$HESTIA/share/tachyon/logrotate" /etc/logrotate.d/tachyon
 
-	# Remove the downloaded file
 	rm ${TX_INSTALL_DIR}/${TX_FILE}
-	# Add robots.txt
 	echo "User-agent: *" > $TX_INSTALL_DIR/robots.txt
 	echo "Disallow: /" >> $TX_INSTALL_DIR/robots.txt
 
-	# Panel-Caddy delivery: caddy FPM pool behind the :8091 loopback listener
-	# (the caddy-owned data dir only works because the pool runs as caddy)
+	# The pool behind the :8091 loopback listener runs as caddy, which the caddy-owned data dir depends on.
 	mkdir -p $TX_INSTALL_DIR/tmp
 	chown caddy:caddy $TX_INSTALL_DIR/tmp
 	chmod 770 $TX_INSTALL_DIR/tmp
@@ -253,13 +225,26 @@ if [ "$UPDATE" == "no" ]; then
 	cp -f "$HESTIA/share/panel-caddy/webmail-tachyon.conf" /etc/caddy/webmail-tachyon.conf
 	systemctl try-restart caddy > /dev/null 2>&1 || true
 
-	# Updating hestia.conf through the token function; the position carries no meaning, so no prepend
+	# No prepend: the position in the key carries no meaning, the default follows WEBMAIL_KNOWN_CLIENTS order.
 	sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null || check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
 
 else
 	if [ ! -s "${TX_INSTALL_DIR}/${TX_FILE}" ] && ! tx_fetch "${TX_INSTALL_DIR}/${TX_FILE}"; then
 		rm -f "${TX_INSTALL_DIR}/${TX_FILE}"
 		echo "ERROR: could not download Tachyon $tx_v from $TX_URL"
+		echo "       Update aborted - the installed version is untouched."
+		exit 2
+	fi
+
+	# The plugins come from the same release, so a bump of the pin may carry new ones.
+	tx_stale=()
+	for p in $TX_PLUGINS; do
+		pin=$(manifest_get ".software_versions.tachyon_plugins[\"$p\"].version")
+		grep -qE "VERSION[[:space:]]*=[[:space:]]*'${pin//./\\.}'" "$TX_PLUGIN_DIR/$p/index.php" 2> /dev/null \
+			|| tx_stale+=("$p")
+	done
+	if [ "${#tx_stale[@]}" -gt 0 ] && ! tx_fetch_plugins "${tx_stale[@]}"; then
+		rm -f "${TX_INSTALL_DIR}/${TX_FILE}"
 		echo "       Update aborted - the installed version is untouched."
 		exit 2
 	fi
@@ -272,18 +257,14 @@ else
 		check_result "$E_PARSING" "Tachyon $tx_v tarball could not be unpacked - the installed version is untouched"
 	fi
 	version_source=$(cat "$tx_peek/data/VERSION")
-	# check the version in the tarball in case hestia hasn't updated yet
 	if [ "$version" != "$version_source" ]; then
-		# Copied from the peek, not unpacked over the tree: on an installed box data/ is a symlink into
-		# $TX_CONFIG_DIR, and tar refuses to write through it ("Invalid cross-device link"). It said so
-		# on stderr and carried on, so data/VERSION kept the OLD number while the code was already new.
+		# Copied from the peek, not unpacked over the tree: data/ is a symlink and tar refuses to write through it.
 		for _e in "$tx_peek"/* "$tx_peek"/.[!.]*; do
 			[ -e "$_e" ] || continue
 			case "${_e##*/}" in data) continue ;; esac
 			cp -a "$_e" "$TX_INSTALL_DIR/" || check_result "$E_PARSING" "could not install ${_e##*/} from the Tachyon $tx_v tarball"
 		done
-		# The three files the tarball carries under data/, through the symlink. VERSION is the marker
-		# this command reads on the next run, so it decides whether the box is done or upgrades forever.
+		# VERSION is the marker the next run reads: a stale one makes every run upgrade again.
 		cp -f "$tx_peek/data/.htaccess" "$tx_peek/data/README.md" "$tx_peek/data/VERSION" "$TX_INSTALL_DIR/data/" \
 			|| check_result "$E_PARSING" "could not write the Tachyon $tx_v version marker"
 		chown --reference="$TX_INSTALL_DIR/data" "$TX_INSTALL_DIR"/data/{.htaccess,README.md,VERSION}
@@ -292,14 +273,16 @@ else
 		version="$version_source"
 	fi
 	rm -fr "$tx_peek"
+	if [ "${#tx_stale[@]}" -gt 0 ] && ! tx_unpack_plugins "${tx_stale[@]}"; then
+		check_result "$E_PARSING" "a Tachyon $tx_v plugin did not unpack"
+	fi
+	sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null \
+		|| check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
 fi
 
-# re-render mail domains so they pick up the new client immediately
-$BIN/h-update-mail-templates yes > /dev/null 2>&1 || true
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+# A domain recorded with tachyon renders the 'disabled' vhost until the client is installed and recorded.
+$BIN/h-update-mail-templates yes > /dev/null 2>&1 \
+	|| echo "Warning: not every mail domain was re-rendered, h-update-mail-templates names them."
 
 if [ "$UPDATE" = "yes" ]; then
 	$BIN/h-log-action "system" "Info" "Plugins" "Tachyon updated (Version: $version)."

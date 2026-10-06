@@ -5,74 +5,49 @@
 # example: h-change-sys-db-alias pma phpmyadmin
 #          # Sets phpMyAdmin alias to phpmyadmin
 #
-# This function changes the database editor url in
-# apache2 or nginx configuration. (PostgreSQL uses Adminer, which is served on
-# the fixed /adminer/ route and has no configurable alias — see h-add-sys-adminer.)
+# Moves phpMyAdmin to another URL path, on the panel port and on every customer domain.
+# Only pma has an alias: Adminer is served on the fixed /adminer/ route.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 alias=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'TYPE ALIAS'
 
 is_common_format_valid "$alias" "Alias"
-# is_common_format_valid passes an empty string, and an empty alias renders `redir / // 308` plus
-# `handle_path //*` into the route the :8083 site imports ahead of its own catch-all: caddy accepts
-# it, and the panel's entry point then redirects to itself forever. Switching the editor off is
-# h-delete-sys-phpmyadmin's job; it clears the key AND removes the route, which is what an empty
-# DB_PMA_ALIAS means everywhere else (#1058).
+# is_common_format_valid passes an empty alias, which renders a route that redirects the panel to itself forever.
+# Switching phpMyAdmin off is h-delete-sys-phpmyadmin's job: it clears the key AND removes the route.
 if [ -z "$alias" ]; then
 	check_result "$E_INVALID" "alias cannot be empty - to switch the editor off use h-delete-sys-phpmyadmin"
 fi
+case "$type" in
+	pma | PMA | phpmyadmin) ;;
+	*) check_result "$E_INVALID" "unknown TYPE '$type', only pma has an alias" ;;
+esac
+# Before anything is written: without it the customer-domain proxy would have no target.
+if [ -z "$BACKEND_PORT" ]; then
+	echo "Error: BACKEND_PORT is empty - the phpMyAdmin proxy would have no target"
+	log_event "$E_NOTEXIST" "$ARGUMENTS"
+	exit "$E_NOTEXIST"
+fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# The database editors are served by the Panel-Caddy (port 8083) from a
-# dedicated caddy FPM pool. Changing the alias (re)writes:
-#   1. the Caddy route snippet under /etc/caddy/apps/ (imported in the :8083 site)
-#   2. the per-customer-domain alias for nginx/apache, which transparently
-#      reverse-proxies <domain>/<alias> into the Panel-Caddy (included per
-#      domain vhost via `include .../phpmyadmin.inc*`).
+# phpMyAdmin lives on Panel-Caddy :8083; customer domains reach it through a proxy include in their vhosts.
 mkdir -p /etc/caddy/apps
 
-# Detect common allowed entries for phpMyAdmin
 if [ "$type" = "pma" ] || [ "$type" = "PMA" ] || [ "$type" = "phpmyadmin" ]; then
-	# Set database editor friendly name
 	db_editor="phpMyAdmin"
-	# Set new alias value
 	$BIN/h-change-sys-config-value 'DB_PMA_ALIAS' "$alias"
 
-	# 1. Panel-Caddy route (delivery)
 	cp -f "$HESTIA/share/panel-caddy/apps/phpmyadmin.tpl" /etc/caddy/apps/phpmyadmin.conf
 	sed -i "s|%alias%|$alias|g" /etc/caddy/apps/phpmyadmin.conf
 	$BIN/h-restart-service caddy
 
-	# 2. Customer-domain alias -> transparent proxy into the Panel-Caddy. The port is a
-	# placeholder, not a literal: a moved panel port has to reach these two files or
-	# phpMyAdmin on every customer domain proxies into nothing.
-	if [ -z "$BACKEND_PORT" ]; then
-		echo "Error: BACKEND_PORT is empty - the phpMyAdmin proxy would have no target"
-		log_event "$E_NOTEXIST" "$ARGUMENTS"
-		exit "$E_NOTEXIST"
-	fi
+	# The port is a placeholder, not a literal: a moved panel port has to reach these two files too.
 	if [ -d /etc/nginx/conf.d ]; then
 		cp -f "$HESTIA/share/nginx/apps/phpmyadmin.inc" /etc/nginx/conf.d/phpmyadmin.inc
 		sed -i -e "s|%pma_alias%|$alias|g" -e "s|%panel_port%|$BACKEND_PORT|g" /etc/nginx/conf.d/phpmyadmin.inc
@@ -85,11 +60,6 @@ if [ "$type" = "pma" ] || [ "$type" = "PMA" ] || [ "$type" = "phpmyadmin" ]; the
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "System access alias changed (Tool: $db_editor, Alias: $alias)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -5,16 +5,13 @@ use function Hestiacp\quoteshellarg\quoteshellarg;
 ob_start();
 $TAB = "MAIL";
 
-// Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
-// Check domain argument
 if (empty($_GET["domain"])) {
 	header("Location: /list/mail/");
 	exit();
 }
 
-// Edit as someone else?
 if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 	$user = quoteshellarg($_GET["user"]);
 	$user_plain = htmlentities($_GET["user"]);
@@ -22,7 +19,6 @@ if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 
 $v_username = $user;
 
-// List mail domain
 if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	$v_domain = $_GET["domain"];
 
@@ -37,7 +33,6 @@ if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	check_return_code_redirect($return_var, $output, "/list/mail/");
 	unset($output);
 
-	// Parse domain
 	$v_antispam = $data[$v_domain]["ANTISPAM"];
 	$v_reject = $data[$v_domain]["REJECT"];
 	$v_antivirus = $data[$v_domain]["ANTIVIRUS"];
@@ -61,12 +56,11 @@ if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 		$exclude_data[$v_domain]["RELAY_EXCLUDE"] ?? "",
 	);
 
-	// Per-domain spam tuning (#318): empty = server default applies
+	// Empty means the server default applies.
 	$v_spam_score = $data[$v_domain]["U_SPAM_SCORE"] ?? "";
 	$v_spam_reject_score = $data[$v_domain]["U_SPAM_REJECT_SCORE"] ?? "";
 	$v_spam_subject_tag = $data[$v_domain]["U_SPAM_SUBJECT_TAG"] ?? "";
 
-	// Per-domain sender white/blacklist (#330)
 	$whitelist_data = cli_json("h-list-mail-domain-spam-whitelist " . $user . " " . quoteshellarg($v_domain) . " json");
 	$v_spam_whitelist = str_replace(
 		",",
@@ -106,7 +100,6 @@ if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	}
 }
 
-// List mail account
 if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_domain = $_GET["domain"];
 
@@ -127,7 +120,6 @@ if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	check_return_code_redirect($return_var, $output, "/list/mail/");
 	unset($output);
 
-	// Parse mail account
 	$v_username = $user;
 	$v_password = "";
 	$v_aliases = str_replace(",", "\n", $data[$v_account]["ALIAS"]);
@@ -157,22 +149,19 @@ if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	$v_date = $data[$v_account]["DATE"];
 	$v_time = $data[$v_account]["TIME"];
 
-	// Always asked: with Sieve the source (webmail format, or a custom script the panel must not
-	// write) decides what the form offers, whatever the switch says.
+	// Always asked: with Sieve the source (webmail format or a custom script) decides the form, not the switch.
 	$autoreply_str = cli_json(
 		"h-list-mail-account-autoreply " . $user . " " . quoteshellarg($v_domain) . " " . quoteshellarg($v_account) . " json",
 	);
 	$v_autoreply_source = $autoreply_str[$v_account]["SOURCE"] ?? "exim";
 	if ($v_autoreply == "yes") {
 		$v_autoreply_message = $autoreply_str[$v_account]["MSG"];
-		$v_autoreply_message = str_replace("\\n", "\n", $v_autoreply_message);
 	} else {
 		$v_autoreply_message = "";
 	}
 }
 
-// One gate per conditionally rendered control: rendered on it, read on it.
-// Webmail also needs IMAP: the view must not offer what the POST would ignore
+// One gate per conditional control, for render and POST alike; webmail also needs IMAP.
 $offer_webmail = !empty($_SESSION["IMAP_SYSTEM"]) && !empty($_SESSION["WEBMAIL_SYSTEM"]);
 $offer_antispam = !empty($_SESSION["ANTISPAM_SYSTEM"]);
 $offer_antivirus = !empty($_SESSION["ANTIVIRUS_SYSTEM"]);
@@ -180,9 +169,7 @@ $spam_tuning_allowed =
 	$_SESSION["userContext"] === "admin" ||
 	($_SESSION["POLICY_SPAM_CUSTOMER_TUNING"] ?? "yes") !== "no";
 
-// Check POST request for mail domain
 if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])) {
-	// Check token
 	verify_csrf($_POST);
 
 	exec(
@@ -198,7 +185,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 	$post_antivirus = post_checkbox("v_antivirus", $offer_antivirus, $v_antivirus, "yes", "no");
 	$post_reject = post_checkbox("v_reject", $offer_antispam, $v_reject, "yes", "no");
 
-	// Delete antispam
 	if ($v_antispam == "yes" && $post_antispam != "yes" && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -211,10 +197,10 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		);
 		check_return_code($return_var, $output);
 		$v_antispam = "no";
+		$v_reject = "no";
 		unset($output);
 	}
 
-	// Add antispam
 	if ($v_antispam == "no" && $post_antispam == "yes" && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -230,7 +216,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Delete antivirus
 	if ($v_antivirus == "yes" && $post_antivirus != "yes" && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -246,7 +231,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Add antivirus
 	if ($v_antivirus == "no" && $post_antivirus == "yes" && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -262,7 +246,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Delete DKIM
 	if ($v_dkim == "yes" && empty($_POST["v_dkim"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -278,7 +261,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Add DKIM
 	if ($v_dkim == "no" && !empty($_POST["v_dkim"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD . "h-add-mail-domain-dkim " . $v_username . " " . quoteshellarg($v_domain),
@@ -290,7 +272,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Delete catchall
 	if (!empty($v_catchall) && empty($_POST["v_catchall"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -306,11 +287,10 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Change rate limit
 	if (
+		$_SESSION["userContext"] == "admin" &&
 		$v_rate != $_POST["v_rate"] &&
-		empty($_SESSION["error_msg"]) &&
-		$_SESSION["userContext"] == "admin"
+		empty($_SESSION["error_msg"])
 	) {
 		if (empty($_POST["v_rate"])) {
 			$v_rate = "system";
@@ -337,7 +317,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 
 	if ($post_reject == "yes" && $v_antispam == "yes" && $v_reject != "yes") {
 		exec(
-			HESTIA_CMD . "h-add-mail-domain-reject " . $user . " " . $v_domain . " yes",
+			HESTIA_CMD . "h-add-mail-domain-reject " . $user . " " . quoteshellarg($v_domain),
 			$output,
 			$return_var,
 		);
@@ -347,7 +327,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 	}
 	if ($post_reject != "yes" && $v_reject == "yes") {
 		exec(
-			HESTIA_CMD . "h-delete-mail-domain-reject " . $user . " " . $v_domain . " yes",
+			HESTIA_CMD . "h-delete-mail-domain-reject " . $user . " " . quoteshellarg($v_domain),
 			$output,
 			$return_var,
 		);
@@ -356,15 +336,13 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	// Per-domain spam tuning (#318): mark/reject thresholds and subject tag.
-	// Only processed when the tuning UI was rendered (sensitivity field
-	// present). Non-admin users are bound to the POLICY_SPAM_* ranges and the
-	// POLICY_SPAM_CUSTOMER_TUNING toggle; the admin is unrestricted.
+	// The sensitivity field marks the tuning UI as rendered; without it nothing here may reset a value.
 	if (empty($_SESSION["error_msg"]) && isset($_POST["v_spam_sensitivity"])) {
+		// Keep in step with the presets in web/templates/pages/edit_mail.php.
 		$spam_presets = ["tolerant" => "7.0", "normal" => "5.0", "strict" => "3.5"];
 		$spam_is_admin = $_SESSION["userContext"] === "admin";
-		if ($spam_tuning_allowed) {
-			// Mark threshold: preset or custom value; "default" clears the override
+		if ($offer_antispam && $spam_tuning_allowed) {
+			// "default" is no preset, so it yields "" and clears the override.
 			$spam_sensitivity = $_POST["v_spam_sensitivity"];
 			$new_spam_score = $spam_presets[$spam_sensitivity] ?? "";
 			if ($spam_sensitivity === "custom") {
@@ -373,7 +351,13 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 					$_SESSION["error_msg"] = _("Invalid spam mark threshold.");
 				}
 			}
-			if (empty($_SESSION["error_msg"]) && $new_spam_score !== "" && !$spam_is_admin) {
+			// Only a changed value is held to the policy, so one an admin set outside it does not block the form.
+			if (
+				empty($_SESSION["error_msg"]) &&
+				$new_spam_score !== "" &&
+				$new_spam_score !== $v_spam_score &&
+				!$spam_is_admin
+			) {
 				$score_min = (float) ($_SESSION["POLICY_SPAM_SCORE_MIN"] ?? "3.0");
 				$score_max = (float) ($_SESSION["POLICY_SPAM_SCORE_MAX"] ?? "10.0");
 				if ((float) $new_spam_score < $score_min || (float) $new_spam_score > $score_max) {
@@ -417,9 +401,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				}
 			}
 
-			// Reject threshold: plain numeric input, empty = server default.
-			// Stored independently of the reject toggle; exim only applies it
-			// while reject_spam is enabled.
+			// Stored even while reject is off: exim applies it only with reject_spam on.
 			$new_reject_score = trim($_POST["v_spam_reject_score"] ?? "");
 			if (
 				empty($_SESSION["error_msg"]) &&
@@ -428,7 +410,12 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 			) {
 				$_SESSION["error_msg"] = _("Invalid spam reject threshold.");
 			}
-			if (empty($_SESSION["error_msg"]) && $new_reject_score !== "" && !$spam_is_admin) {
+			if (
+				empty($_SESSION["error_msg"]) &&
+				$new_reject_score !== "" &&
+				$new_reject_score !== $v_spam_reject_score &&
+				!$spam_is_admin
+			) {
 				$reject_min = (float) ($_SESSION["POLICY_SPAM_REJECT_SCORE_MIN"] ?? "8.0");
 				$reject_max = (float) ($_SESSION["POLICY_SPAM_REJECT_SCORE_MAX"] ?? "20.0");
 				if (
@@ -475,7 +462,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				}
 			}
 
-			// Subject tag: empty = no rewriting (charset mirrors the CLI check)
+			// Charset kept in step with bin/h-change-mail-domain-spam-subject-tag.
 			$new_subject_tag = trim($_POST["v_spam_subject_tag"] ?? "");
 			if (
 				empty($_SESSION["error_msg"]) &&
@@ -520,9 +507,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				}
 			}
 
-			// Sender white/blacklist (#330): diff textarea against current
-			// list and apply via the add/delete commands (pattern like the
-			// relay excludes in #306)
 			foreach (
 				[
 					"whitelist" => "v_spam_whitelist",
@@ -583,7 +567,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Change catchall address
 	if (!empty($v_catchall) && !empty($_POST["v_catchall"]) && empty($_SESSION["error_msg"])) {
 		if ($v_catchall != $_POST["v_catchall"]) {
 			$v_catchall = quoteshellarg($_POST["v_catchall"]);
@@ -603,7 +586,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Add catchall
 	if (empty($v_catchall) && !empty($_POST["v_catchall"]) && empty($_SESSION["error_msg"])) {
 		$v_catchall = quoteshellarg($_POST["v_catchall"]);
 		exec(
@@ -624,31 +606,38 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 	$post_webmail = post_or_keep("v_webmail", $offer_webmail, $v_webmail);
 	if ($offer_webmail) {
 		if (empty($_SESSION["error_msg"])) {
-			if (!empty($post_webmail)) {
-				$v_webmail = quoteshellarg($post_webmail);
+			if (!empty($post_webmail) && $post_webmail !== $v_webmail) {
 				exec(
 					HESTIA_CMD .
 						"h-add-mail-domain-webmail " .
 						$user .
 						" " .
-						$v_domain .
+						quoteshellarg($v_domain) .
 						" " .
-						$v_webmail .
+						quoteshellarg($post_webmail) .
 						" yes",
 					$output,
 					$return_var,
 				);
 				check_return_code($return_var, $output);
+				if ($return_var == 0) {
+					$v_webmail = $post_webmail;
+				}
 				unset($output);
 			}
 		}
 	}
 
 	if ($offer_webmail) {
-		if (empty($post_webmail)) {
+		if (empty($post_webmail) && !empty($v_webmail)) {
 			if (empty($_SESSION["error_msg"])) {
 				exec(
-					HESTIA_CMD . "h-delete-mail-domain-webmail " . $user . " " . $v_domain . " yes",
+					HESTIA_CMD .
+						"h-delete-mail-domain-webmail " .
+						$user .
+						" " .
+						quoteshellarg($v_domain) .
+						" yes",
 					$output,
 					$return_var,
 				);
@@ -659,7 +648,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Change SSL certificate
 	if (
 		$v_letsencrypt == "no" &&
 		empty($_POST["v_letsencrypt"]) &&
@@ -674,8 +662,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		) {
 			$tmpdir = private_tmpdir();
 			if ($tmpdir !== false) {
-
-				// Certificate
 				if (!empty($_POST["v_ssl_crt"])) {
 					$fp = fopen($tmpdir . "/" . $v_domain . ".crt", "w");
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_crt"]));
@@ -683,7 +669,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 					fclose($fp);
 				}
 
-				// Key
 				if (!empty($_POST["v_ssl_key"])) {
 					$fp = fopen($tmpdir . "/" . $v_domain . ".key", "w");
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_key"]));
@@ -691,7 +676,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 					fclose($fp);
 				}
 
-				// CA
 				if (!empty($_POST["v_ssl_ca"])) {
 					$fp = fopen($tmpdir . "/" . $v_domain . ".ca", "w");
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_ca"]));
@@ -728,7 +712,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				$v_ssl_pub_key = $ssl_str[$v_domain]["PUB_KEY"];
 				$v_ssl_issuer = $ssl_str[$v_domain]["ISSUER"];
 
-				// Cleanup certificate tempfiles
 				if (!empty($_POST["v_ssl_crt"])) {
 					unlink($tmpdir . "/" . $v_domain . ".crt");
 				}
@@ -743,7 +726,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Delete Lets Encrypt support
 	if (
 		$v_letsencrypt == "yes" &&
 		(empty($_POST["v_letsencrypt"]) || empty($_POST["v_ssl"])) &&
@@ -770,7 +752,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		$restart_mail = "yes";
 	}
 
-	// Delete SSL certificate
 	if ($v_ssl == "yes" && empty($_POST["v_ssl"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD . "h-delete-mail-domain-ssl " . $v_username . " " . quoteshellarg($v_domain),
@@ -786,7 +767,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		$restart_mail = "yes";
 	}
 
-	// Add Lets Encrypt support
 	if (
 		!empty($_POST["v_ssl"]) &&
 		$v_letsencrypt == "no" &&
@@ -810,7 +790,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		$restart_mail = "yes";
 	}
 
-	// Add SSL certificate
 	if (
 		$v_ssl == "no" &&
 		!empty($_POST["v_ssl"]) &&
@@ -835,22 +814,18 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		} else {
 			$tmpdir = private_tmpdir();
 			if ($tmpdir !== false) {
-
-				// Certificate
 				if (!empty($_POST["v_ssl_crt"])) {
 					$fp = fopen($tmpdir . "/" . $v_domain . ".crt", "w");
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_crt"]));
 					fclose($fp);
 				}
 
-				// Key
 				if (!empty($_POST["v_ssl_key"])) {
 					$fp = fopen($tmpdir . "/" . $v_domain . ".key", "w");
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_key"]));
 					fclose($fp);
 				}
 
-				// CA
 				if (!empty($_POST["v_ssl_ca"])) {
 					$fp = fopen($tmpdir . "/" . $v_domain . ".ca", "w");
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_ca"]));
@@ -886,7 +861,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				$v_ssl_pub_key = $ssl_str[$v_domain]["PUB_KEY"];
 				$v_ssl_issuer = $ssl_str[$v_domain]["ISSUER"];
 
-				// Cleanup certificate tempfiles
 				if (!empty($_POST["v_ssl_crt"])) {
 					unlink($tmpdir . "/" . $v_domain . ".crt");
 				}
@@ -901,7 +875,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Add SMTP Relay Support
 	if (empty($_SESSION["error_msg"])) {
 		if (isset($_POST["v_smtp_relay"]) && !empty($_POST["v_smtp_relay_host"])) {
 			if (
@@ -960,9 +933,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Update SMTP relay exclude list (recipient domains delivered directly
-	// via DNS/MX). Only processed while the relay toggle is on - with the
-	// relay off the list is kept untouched for a later re-enable.
+	// With the relay off the exclude list stays untouched, kept for a later re-enable.
 	if (empty($_SESSION["error_msg"]) && isset($_POST["v_smtp_relay"])) {
 		$current_excludes = array_filter(explode("\n", $v_smtp_relay_exclude));
 		$wexcludes = preg_replace("/\n/", " ", $_POST["v_smtp_relay_exclude"] ?? "");
@@ -1009,18 +980,14 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		}
 	}
 
-	// Set success message
 	if (empty($_SESSION["error_msg"])) {
 		$_SESSION["ok_msg"] = _("Changes have been saved.");
 	}
 }
 
-// Check POST request for mail account
 if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"])) {
-	// Check token
 	verify_csrf($_POST);
 
-	// Validate email
 	if (!empty($_POST["v_send_email"]) && empty($_SESSION["error_msg"])) {
 		if (!filter_var($_POST["v_send_email"], FILTER_VALIDATE_EMAIL)) {
 			$_SESSION["error_msg"] = _("Please enter a valid email address.");
@@ -1046,7 +1013,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 	check_return_code_redirect($return_var, $output, "/list/mail/");
 	unset($output);
 
-	// Change password
 	if (!empty($_POST["v_password"]) && empty($_SESSION["error_msg"])) {
 		if (!validate_password($_POST["v_password"])) {
 			$_SESSION["error_msg"] = _("Password does not match the minimum requirements.");
@@ -1069,12 +1035,28 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				check_return_code($return_var, $output);
 				unset($output);
 				unlink($v_password);
+				// Devices behind this IP still poll the old password; best effort, the change itself has succeeded.
+				if ($return_var == 0) {
+					exec(
+						HESTIA_CMD .
+							"h-add-mail-account-grace " .
+							$v_username .
+							" " .
+							quoteshellarg($v_domain) .
+							" " .
+							quoteshellarg($v_account) .
+							" " .
+							quoteshellarg(get_real_user_ip()),
+						$output,
+						$return_var,
+					);
+					unset($output);
+				}
 			}
 			$v_password = quoteshellarg($_POST["v_password"]);
 		}
 	}
 
-	// Change quota
 	if ($v_quota != $_POST["v_quota"] && empty($_SESSION["error_msg"])) {
 		if (empty($_POST["v_quota"])) {
 			$v_quota = 0;
@@ -1097,11 +1079,10 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		check_return_code($return_var, $output);
 		unset($output);
 	}
-	// Change rate limit
 	if (
+		$_SESSION["userContext"] == "admin" &&
 		$v_rate != $_POST["v_rate"] &&
-		empty($_SESSION["error_msg"]) &&
-		$_SESSION["userContext"] == "admin"
+		empty($_SESSION["error_msg"])
 	) {
 		if (empty($_POST["v_rate"])) {
 			$v_rate = "system";
@@ -1128,7 +1109,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		unset($output);
 	}
 
-	// Change account aliases
 	if (empty($_SESSION["error_msg"])) {
 		$waliases = preg_replace("/\n/", " ", $_POST["v_aliases"]);
 		$waliases = preg_replace("/,/", " ", $waliases);
@@ -1177,26 +1157,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 			}
 		}
 	}
-	// Change forwarders to :blackhole:
 	if (empty($_SESSION["error_msg"]) && !empty($_POST["v_blackhole"])) {
-		foreach ($vfwd as $forward) {
-			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
-				exec(
-					HESTIA_CMD .
-						"h-delete-mail-account-forward " .
-						$v_username .
-						" " .
-						quoteshellarg($v_domain) .
-						" " .
-						quoteshellarg($v_account) .
-						" " .
-						quoteshellarg($forward),
-					$output,
-					$return_var,
-				);
-				check_return_code($return_var, $output);
-				unset($output);
-			}
+		// Added before the old ones go: with no forward left, forward-only ends.
+		if (!in_array(":blackhole:", $vfwd)) {
 			exec(
 				HESTIA_CMD .
 					"h-add-mail-account-forward " .
@@ -1211,21 +1174,9 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 			);
 			check_return_code($return_var, $output);
 			unset($output);
-			$v_fwd = "";
-			$v_blackhole = "yes";
 		}
-	}
-	// Change forwarders
-	if (empty($_SESSION["error_msg"]) && empty($_POST["v_blackhole"])) {
-		$wfwd = preg_replace("/\n/", " ", $_POST["v_fwd"]);
-		$wfwd = preg_replace("/,/", " ", $wfwd);
-		$wfwd = preg_replace("/\s+/", " ", $wfwd);
-		$wfwd = trim($wfwd);
-		$fwd = explode(" ", $wfwd);
-		$v_fwd = str_replace(" ", "\n", $wfwd);
-		$result = array_diff($vfwd, $fwd);
-		foreach ($result as $forward) {
-			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
+		foreach ($vfwd as $forward) {
+			if (empty($_SESSION["error_msg"]) && !empty($forward) && $forward != ":blackhole:") {
 				exec(
 					HESTIA_CMD .
 						"h-delete-mail-account-forward " .
@@ -1243,6 +1194,17 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				unset($output);
 			}
 		}
+		$v_fwd = "";
+		$v_blackhole = "yes";
+	}
+	if (empty($_SESSION["error_msg"]) && empty($_POST["v_blackhole"])) {
+		$wfwd = preg_replace("/\n/", " ", $_POST["v_fwd"]);
+		$wfwd = preg_replace("/,/", " ", $wfwd);
+		$wfwd = preg_replace("/\s+/", " ", $wfwd);
+		$wfwd = trim($wfwd);
+		$fwd = explode(" ", $wfwd);
+		$v_fwd = str_replace(" ", "\n", $wfwd);
+		// New ones first, for the same reason as above.
 		$result = array_diff($fwd, $vfwd);
 		foreach ($result as $forward) {
 			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
@@ -1263,10 +1225,29 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				unset($output);
 			}
 		}
+		$result = array_diff($vfwd, $fwd);
+		foreach ($result as $forward) {
+			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
+				exec(
+					HESTIA_CMD .
+						"h-delete-mail-account-forward " .
+						$v_username .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						quoteshellarg($v_account) .
+						" " .
+						quoteshellarg($forward),
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+			}
+		}
 		$v_blackhole = "no";
 	}
 
-	// Delete FWD_ONLY flag
 	if ($v_fwd_only == "yes" && empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -1284,7 +1265,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$v_fwd_only = "";
 	}
 
-	// Add FWD_ONLY flag
 	if ($v_fwd_only != "yes" && !empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -1305,7 +1285,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 	// A custom Sieve script renders the switch read-only and posts nothing, which must not read as "off".
 	$autoreply_editable = $v_autoreply_source != "custom";
 
-	// Delete autoreply
 	if ($autoreply_editable && $v_autoreply == "yes" && empty($_POST["v_autoreply"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -1324,7 +1303,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$v_autoreply_message = "";
 	}
 
-	// Add autoreply
 	if ($autoreply_editable && !empty($_POST["v_autoreply"]) && empty($_SESSION["error_msg"])) {
 		if ($v_autoreply_message != str_replace("\r\n", "\n", $_POST["v_autoreply_message"])) {
 			$v_autoreply_message = str_replace("\r\n", "\n", $_POST["v_autoreply_message"]);
@@ -1355,7 +1333,6 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$webmail = $_SESSION["WEBMAIL_ALIAS"];
 	}
 
-	// Email login credentials
 	if (!empty($_POST["v_send_email"]) && empty($_SESSION["error_msg"])) {
 		$to = $_POST["v_send_email"];
 		$template = get_email_template("email_credentials", $_SESSION["language"]);
@@ -1441,21 +1418,16 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		send_email($to, $subject, $mailtext, $from, $from_name);
 	}
 
-	// Set success message
 	if (empty($_SESSION["error_msg"])) {
 		$_SESSION["ok_msg"] = _("Changes have been saved.");
 	}
 }
 
-// Render page
 if (empty($_GET["account"])) {
-	// Display body for mail domain
 	render_page($user, $TAB, "edit_mail");
 } else {
-	// Display body for mail account
 	render_page($user, $TAB, "edit_mail_acc");
 }
 
-// Flush session messages
 unset($_SESSION["error_msg"]);
 unset($_SESSION["ok_msg"]);

@@ -8,6 +8,9 @@
 			<a href="/add/firewall/ipset/" class="button button-secondary js-button-create">
 				<i class="fas fa-circle-plus icon-green"></i><?= tohtml(_("Add IP list")) ?>
 			</a>
+			<a href="/add/firewall/ipset/firehol/" class="button button-secondary">
+				<i class="fas fa-fire icon-orange"></i><?= tohtml(_("FireHOL Blocklists")) ?>
+			</a>
 		</div>
 		<div class="toolbar-right">
 			<form x-data x-bind="BulkEdit" action="/bulk/firewall/ipset/" method="post">

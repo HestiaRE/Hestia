@@ -4,65 +4,44 @@
 # labels: internal
 # caller: the at job h-add-database-temp-user schedules
 #
-# example: h-delete-database-temp-user wordpress hestia_sso_user mysql
+# example: h-delete-database-temp-user admin admin_wp_db hestia_sso_XXXXXXXX mysql
 #
-# Revokes "temp user" access to a database and removes the user
-# To be used in combination with h-add-database-temp-user
+# Drops a hestia_sso_ user on HOST (default: the host of DATABASE's record); the counterpart of h-add-database-temp-user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 database=$2
 dbuser=$3
 type=${4-mysql}
 host=$5
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DATABASE DBUSER [TYPE] [HOST]'
 is_format_valid 'user' 'database' 'dbuser'
 is_system_enabled "$DB_SYSTEM" 'DB_SYSTEM'
-is_object_valid 'user' 'USER' "$user"
-is_object_unsuspended 'user' 'USER' "$user"
-is_object_valid 'db' 'DB' "$database"
-is_object_unsuspended 'db' 'DB' "$database"
-get_next_dbhost
-
-if [[ $dbuser != *"hestia_sso"* ]]; then
-	echo "DBUSER is invalid SSO user"
-	exit "$E_INVALID"
+# No object or suspension guards: the job runs after the TTL, when the user or database may be gone or suspended.
+case "$dbuser" in
+	hestia_sso_*) ;;
+	*) check_result "$E_INVALID" "$dbuser is not an SSO user" ;;
+esac
+if [ -z "$host" ] || [ "$host" = 'default' ]; then
+	host=$(db_record_field "$(grep -F "DB='$database'" "$USER_DATA/db.conf" 2> /dev/null)" HOST)
 fi
+[ -n "$host" ] || check_result "$E_NOTEXIST" "no record names the host of $database, pass HOST"
+is_format_valid 'host'
+is_object_valid "$HESTIA/conf/mysql" 'HOST' "$host"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+delete_mysql_database_temp_user || check_result "$E_DB" "$dbuser was not dropped on $host"
 
-# Get database values
-get_database_values
-
-delete_mysql_database_temp_user
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
-$BIN/h-log-action "$user" "Info" "Database" "Revoked user access (Database: $database, User: $dbuser)."
+log_user="$user"
+[ -d "$USER_DATA" ] || log_user='system'
+$BIN/h-log-action "$log_user" "Info" "Database" "Revoked user access (Database: $database, User: $dbuser)."
 log_event "$OK" "$ARGUMENTS"
 
 exit

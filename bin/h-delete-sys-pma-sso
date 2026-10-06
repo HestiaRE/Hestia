@@ -3,57 +3,37 @@
 # options: [mode]
 #
 # example: h-delete-sys-pma-sso
-#
-# Disables support for SSO to phpMyAdmin
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
 
 MODE=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 PMA_INSTALL="/usr/share/phpmyadmin"
 PMA_CONFIG="/etc/phpmyadmin"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$(id -u)" != '0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-if [ ! -f "$PMA_INSTALL/hestia-sso.php" ]; then
+# Any remnant counts: h-delete-sys-phpmyadmin refuses while the include or the key is there.
+if [ ! -f "$PMA_INSTALL/hestia-sso.php" ] && [ ! -f "$PMA_CONFIG/conf.d/hestia-sso.inc.php" ] \
+	&& [ -z "${PHPMYADMIN_KEY:-}" ]; then
 	echo 'Error: PMA Single Sign On already disabled'
 	exit 1
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Remove SSO files
 rm -f "$PMA_INSTALL/hestia-sso.php"
 rm -f "$PMA_CONFIG/conf.d/hestia-sso.inc.php"
 
-# Drop unconsumed handoff tokens (temp DB users expire via their own TTL)
+# the temporary DB users expire by their own TTL
 rm -rf /run/hestia-sso
 
-# Disable flag
 $BIN/h-change-sys-config-value 'PHPMYADMIN_KEY' ""
-
-#----------------------------------------------------------#
-#                       Logging                            #
-#----------------------------------------------------------#
 
 if [ "$MODE" != "quiet" ]; then
 	echo "PMA Hestia-SSO plugin has been successfully removed/disabled"

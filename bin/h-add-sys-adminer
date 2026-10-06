@@ -4,32 +4,20 @@
 #
 # example: h-add-sys-adminer
 #
-# Installs Adminer as a single vendored PHP file (share/adminer/adminer.php, pinned
-# in VENDORED.json — the OS packages ship CVE-affected versions), served by
-# Panel-Caddy at :8083/adminer/ via a dedicated caddy FPM pool (same model as
-# phpMyAdmin). The PostgreSQL web UI (auto-selected with PostgreSQL); phpMyAdmin
-# stays the MySQL default. Gate = Adminer's own DB login + the firewall on :8083.
+# The PostgreSQL web UI; phpMyAdmin stays the MySQL one. Vendored and pinned in VENDORED.json, since the OS
+# packages ship CVE-affected versions; served by Panel-Caddy at :8083/adminer/ from its own caddy FPM pool.
+# Gate: Adminer's own DB login plus the firewall on :8083.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 WEBROOT="/usr/share/adminer"
 POOL="/etc/php/hestia/fpm/pool.d/adminer.conf"
 ROUTE="/etc/caddy/apps/adminer.conf"
 TMPDIR="/var/lib/adminer/tmp"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$(id -u)" != '0' ]; then
 	echo "ERROR: h-add-sys-adminer must be run as root"
@@ -41,16 +29,14 @@ if [ ! -s "$HESTIA/share/adminer/adminer.php" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-# the login-servers plugin closes the SSRF hole (fixed localhost dropdown, not a
-# free Server field) — refuse to install without it
+# the login-servers plugin limits the login form to the local servers (SSRF); no install without it
 if [ ! -s "$HESTIA/share/adminer/adminer-plugins.php" ] \
 	|| [ ! -s "$HESTIA/share/adminer/plugins/login-servers.php" ]; then
 	echo "ERROR: Adminer login-servers plugin missing ($HESTIA/share/adminer/) — refusing to install without SSRF hardening."
 	exit "$E_NOTEXIST"
 fi
 
-# installed = webroot + pool + route AND the plugin files (a pre-plugin install
-# must fall through to (re)deploy the SSRF-closing plugin)
+# the plugin files count too, so an install from before the plugin gets it deployed
 if [ -f "$WEBROOT/index.php" ] && [ -f "$POOL" ] && [ -f "$ROUTE" ] \
 	&& [ -f "$WEBROOT/adminer-plugins.php" ] \
 	&& [ -f "$WEBROOT/adminer-plugins/login-servers.php" ]; then
@@ -58,44 +44,31 @@ if [ -f "$WEBROOT/index.php" ] && [ -f "$POOL" ] && [ -f "$ROUTE" ] \
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 echo "[ * ] Installing Adminer (vendored single-file)..."
 
-# webroot: the single file is the directory index (root:caddy 644, read-only pool)
 mkdir -p "$WEBROOT"
 cp -f "$HESTIA/share/adminer/adminer.php" "$WEBROOT/index.php"
 chown root:caddy "$WEBROOT/index.php"
 chmod 644 "$WEBROOT/index.php"
 
-# login-servers plugin: fixed localhost dropdown instead of a free Server field (SSRF)
 mkdir -p "$WEBROOT/adminer-plugins"
 cp -f "$HESTIA/share/adminer/plugins/login-servers.php" "$WEBROOT/adminer-plugins/login-servers.php"
 cp -f "$HESTIA/share/adminer/adminer-plugins.php" "$WEBROOT/adminer-plugins.php"
 chown -R root:caddy "$WEBROOT/adminer-plugins" "$WEBROOT/adminer-plugins.php"
 chmod 644 "$WEBROOT/adminer-plugins.php" "$WEBROOT/adminer-plugins/login-servers.php"
 
-# 2. Writable temp dir for sessions / uploads (pool runs as caddy)
 mkdir -p "$TMPDIR"
 chown caddy:caddy "$TMPDIR"
 chmod 770 "$TMPDIR"
 
-# 3. Dedicated caddy FPM pool
 cp -f "$HESTIA/share/panel-php/pool.d/adminer.conf" "$POOL"
 systemctl reload hestia-php 2> /dev/null || systemctl restart hestia-php 2> /dev/null || true
 
-# 4. Panel-Caddy route (imported inside the :8083 site block)
 mkdir -p /etc/caddy/apps
 cp -f "$HESTIA/share/panel-caddy/apps/adminer.tpl" "$ROUTE"
 $BIN/h-restart-service caddy > /dev/null 2>&1 || true
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# panel marker: presence adds the Adminer "manage" button to the DB list (fixed /adminer/)
+# only a marker for the panel's DB list button: the route is fixed at /adminer/
 $BIN/h-change-sys-config-value 'DB_ADMINER_ALIAS' 'adminer'
 
 echo "[ OK ] Adminer installed — reachable at the panel under /adminer/"

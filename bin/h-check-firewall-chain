@@ -6,39 +6,22 @@
 #
 # example: h-check-firewall-chain SSH
 #
-# fail2ban's actioncheck. Exits 0 while the jail chain exists and the base chain still jumps to it.
-#
-# Replaces a grep of the backend's own output, which goes stale with the renderer. A wrong "missing" is
-# expensive: fail2ban answers a failed actioncheck with actionstop + actionstart. No v-* symlink.
+# fail2ban's actioncheck: exits 0 while the jail's set exists and the input chain still matches it.
+# A wrong "missing" is expensive: fail2ban answers a failed actioncheck with actionstop + actionstart.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 chain=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'CHAIN'
 is_format_valid 'chain'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 fw_jail_wired "$chain"
 exit $?

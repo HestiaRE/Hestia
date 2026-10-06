@@ -6,7 +6,7 @@
 #
 # Thin entry point over the shared web-model switch core (include/web-model.sh, #120).
 # The model is derived from the resulting component set; MODE omitted/not 'yes'
-# previews, 'yes' applies. New h-* command: no v-* symlink.
+# previews, 'yes' applies.
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env

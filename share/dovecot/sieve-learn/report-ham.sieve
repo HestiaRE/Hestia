@@ -6,4 +6,12 @@ if environment :matches "imap.user" "*" {
 	set "username" "${1}";
 }
 
+# Out of Spam into a trash folder is a delete, not a verdict.
+if environment :matches "imap.mailbox" "*" {
+	set "mailbox" "${1}";
+}
+if string :is "${mailbox}" [ "Trash", "Deleted Messages" ] {
+	stop;
+}
+
 pipe :copy "hestia-rspamd-learn" [ "ham", "${username}" ];

@@ -4,30 +4,24 @@
 #
 # example: h-add-firewall-rule DROP 185.137.111.77 25
 #
-# This function adds new rule to system firewall
+# Adds a rule to the firewall; without RULE it takes the next free id.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 action=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 ipv4_cidr=$2
 port_ext=$3
-protocol=${4-TCP}
+protocol=${4:-TCP}
 protocol=$(echo "$protocol" | tr '[:lower:]' '[:upper:]')
 comment=$5
 rule=$6
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Get next firewall rule id
 get_next_fw_rule() {
 	if [ -z "$rule" ]; then
 		curr_str=$(grep "RULE=" $CONF_DIR/firewall/rules.conf \
@@ -43,11 +37,8 @@ sort_fw_rules() {
 		$CONF_DIR/firewall/rules.conf
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '3' "$#" 'ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [RULE]'
+[ -n "$port_ext" ] || check_result "$E_INVALID" "PORT is empty (0 means every port)"
 is_format_valid 'action' 'protocol' 'port_ext'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 get_next_fw_rule
@@ -58,49 +49,33 @@ if [ -n "$comment" ]; then
 fi
 if [[ "$ipv4_cidr" =~ ^ipset: ]]; then
 	ipset_name="${ipv4_cidr#ipset:}"
-	$BIN/h-list-firewall-ipset plain | grep "^$ipset_name\s" > /dev/null
-	check_result $? 'ipset object not found' "$E_NOTEXIST"
+	fw_ipset_known "$ipset_name" || check_result "$E_NOTEXIST" "ipset object not found"
 else
-	# Either family: a v6 source renders `ip6 saddr`. The variable keeps its legacy name.
+	# Either family (a v6 source renders `ip6 saddr`); the variable keeps its legacy name.
 	is_ip_cidr_format_valid "$ipv4_cidr"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Concatenating rule
 str="RULE='$rule' ACTION='$action' PROTOCOL='$protocol' PORT='$port_ext'"
 str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='no'"
 str="$str TIME='$time' DATE='$date'"
 
-# Adding to config
+fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 echo "$str" >> $CONF_DIR/firewall/rules.conf
 
-# Changing permissions
 chmod 660 $CONF_DIR/firewall/rules.conf
 
-# Sorting firewall rules by id number
 sort_fw_rules
 
-# Updating system firewall
-$BIN/h-update-firewall
+fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rule not added"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Fix missing port value in log if zero
 if [ -z "$port_ext" ]; then
 	port_ext="0"
 fi
 
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "Added firewall rule (Action: $action, Port: $port_ext, Protocol: $protocol)."
 log_event "$OK" "$ARGUMENTS"
 

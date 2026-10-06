@@ -4,33 +4,21 @@
 #
 # example: h-delete-mail-domain-catchall admin mydomain.tld
 #
-# This function disables mail domain cathcall.
+# Mail to unknown addresses of the domain is refused again.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
@@ -39,23 +27,12 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_value_exist 'mail' 'DOMAIN' "$domain" '$CATCHALL'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Delete cathcall alias
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	sed -i "/*@$domain_idn:/d" $HOMEDIR/$user/conf/mail/$domain/aliases
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Delete catchall in config
 update_object_value 'mail' 'DOMAIN' "$domain" '$CATCHALL' ''
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Catch-all forwarding disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -4,41 +4,29 @@
 #
 # example: h-change-mail-account-quota admin mydomain.tld user01 unlimited
 #
-# This function changes email account disk quota.
+# Changes the account's disk quota in MB, or unlimited.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
-quota=$4
+quota=${4:-unlimited}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
-format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN ACCOUNT QUOTA'
 is_format_valid 'user' 'domain' 'account'
 if [ "$quota" != 'unlimited' ]; then
 	is_format_valid 'quota'
+	# Every later test would read 08 as a broken octal number.
+	quota=$((10#$quota))
 fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
@@ -48,38 +36,21 @@ is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 md5=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$MD5')
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	if [ "$quota" = 'unlimited' ]; then
 		quota=0
 	fi
 	remove_line_by_prefix "$HOMEDIR/$user/conf/mail/$domain/passwd" "$account:"
-	dovecot_version="$(dovecot --version | cut -f -2 -d .)"
-	if [[ "$dovecot_version" = "2.4" ]]; then
-		str="$account:$md5:$user:mail::$HOMEDIR/$user:${quota}:userdb_quota_storage_size=${quota}M"
-		echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-	else
-		str="$account:$md5:$user:mail::$HOMEDIR/$user:${quota}:userdb_quota_rule=*:storage=${quota}M"
-		echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-	fi
+	mail_passwd_line "$user" "$account" "$md5" "$quota" >> "$HOMEDIR/$user/conf/mail/$domain/passwd"
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [[ "$quota" -eq 0 ]]; then
 	quota='unlimited'
 fi
 
-# Update quota
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$QUOTA' "$quota"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account quota changed (Quota: $quota, Account: $account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

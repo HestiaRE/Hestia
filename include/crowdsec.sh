@@ -1,7 +1,7 @@
 #!/bin/bash
 # Engine + nginx Layer-A bouncer for the current web model. Idempotent; no-op when nginx is not the front.
 
-# Declared here rather than in each of the six callers. Guarded: re-sourcing would reset an in-flight batch.
+# Sourced here rather than in each caller. Guarded: re-sourcing would reset an in-flight batch.
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 declare -F fw_set_chain_destroy > /dev/null 2>&1 || source "$HESTIA/include/firewall.sh"
 
@@ -14,7 +14,7 @@ crowdsec_public_web() {
 	fi
 }
 
-# Local-only engine: comment out the CAPI online_client (no central pull / signal sharing). Idempotent.
+# Local-only engine: no central blocklist pull and no signal sharing.
 crowdsec_disable_capi() {
 	local cfg="/etc/crowdsec/config.yaml"
 	[ -f "$cfg" ] || return 0
@@ -25,8 +25,7 @@ crowdsec_disable_capi() {
 		"$cfg"
 }
 
-# The packages leave both credential files 0644 while they hold machine passwords, and customers have shell
-# access here. Everything reading them runs as root, so 0600 costs nothing.
+# The packages leave both credential files 0644 though they hold machine passwords, and customers have shells here.
 crowdsec_secure_credentials() {
 	chmod 600 /etc/crowdsec/local_api_credentials.yaml /etc/crowdsec/online_api_credentials.yaml 2> /dev/null || true
 }
@@ -48,8 +47,7 @@ crowdsec_enable_capi() {
 		}
 		uncommented=1
 	fi
-	# `cscli capi register` (1.4.x) LOADS the credentials file before writing it: an empty one is enough, an
-	# absent one is a hard failure. The OS packages register at postinst, so this only covers a wiped file.
+	# `cscli capi register` loads the file before writing it: an empty one is enough, an absent one fails.
 	if [ ! -f "$creds" ]; then
 		: > "$creds"
 		chmod 600 "$creds"
@@ -68,12 +66,11 @@ crowdsec_enable_capi() {
 	crowdsec_secure_credentials
 }
 
-# DERIVED from artefacts, not stored: install.conf holds the recipe, not the current state. mesh implies
-# local so it wins; mesh+capi is the legacy combination the two-flag wizard allowed, and gets re-normalised.
+# Derived from the box, never stored: install.conf is the recipe, not the state. mesh+capi is a legacy state that
+# the callers map onto one model.
 crowdsec_current_mode() {
 	local mesh=0 capi=0
-	# No engine at all is not "local", or a caller would report a model for a box that has none. The config
-	# alone is not the engine: h-delete-sys-crowdsec without PURGE_DATA keeps /etc/crowdsec for a re-add.
+	# No engine is "none", not "local". The config alone is not the engine: a delete without PURGE_DATA keeps it.
 	{ [ -f /etc/crowdsec/config.yaml ] && command -v cscli > /dev/null 2>&1; } || {
 		echo "none"
 		return 0
@@ -91,8 +88,8 @@ crowdsec_current_mode() {
 	fi
 }
 
-# The status key from the box, never from the recipe (#938): the model crowdsec_current_mode reads off the
-# engine, "none" is an empty key. Called wherever the model can change: apply, mode switch, mesh on/off, delete.
+# CROWDSEC_SYSTEM from the box, never from the recipe; "none" is an empty key. Called wherever the model can change:
+# apply, mode switch, mesh on/off, delete.
 crowdsec_status_record() {
 	local m
 	m=$(crowdsec_current_mode)
@@ -100,9 +97,9 @@ crowdsec_status_record() {
 	change_sys_value "CROWDSEC_SYSTEM" "$m"
 }
 
-# SSH detection only when fail2ban is ABSENT, or the two double up. Scenario-level, not collection:
-# crowdsecurity/linux bundles sshd and would re-pull it, while dropping the two scenarios keeps its parsers.
-# fail2ban presence read from the FILE - the installer shell never sees the key it just wrote.
+# SSH detection only when fail2ban is absent, or the two double up. Per scenario, not collection: crowdsecurity/linux
+# would re-pull sshd, while dropping the two scenarios keeps its parsers. fail2ban is read from the FILE because the
+# installer shell never sees the key it just wrote.
 CS_BF_SCENARIOS="crowdsecurity/ssh-bf crowdsecurity/ssh-slow-bf"
 crowdsec_gate_bruteforce() {
 	command -v cscli > /dev/null 2>&1 || return 0
@@ -126,11 +123,9 @@ crowdsec_gate_bruteforce() {
 	return 0
 }
 
-# Install + wire CrowdSec detection and the nginx Layer-A bouncer. Safe to re-run.
+# Install and wire CrowdSec detection and the nginx Layer-A bouncer. Safe to re-run.
 # Usage: crowdsec_apply [MODE]   MODE = capi (default) | local | mesh
-# The mode is an argument, not a lookup: this library used to source install.conf itself, which made it
-# the only place in the tree where a shared function read the recipe. The caller knows which truth applies
-# (the installer the wizard answer, a command the box), so the caller says it (#945).
+# The caller passes the mode: only it knows whether the recipe (installer) or the box (a command) is the truth.
 crowdsec_apply() {
 	local share="$HESTIA/share/crowdsec" mode="${1:-capi}"
 
@@ -140,29 +135,28 @@ crowdsec_apply() {
 		return 0
 	fi
 
-	# Engine + nginx lua module (OS-repo; the module auto-loads + pulls lua-resty-core itself).
+	# The lua module auto-loads and pulls lua-resty-core itself.
 	DEBIAN_FRONTEND=noninteractive apt-get -y -qq install crowdsec libnginx-mod-http-lua > /dev/null 2>&1 \
 		|| {
 			echo "CrowdSec: package install failed" >&2
 			return 1
 		}
 
-	# Curated web collections (LAPI already on :8054); failures non-fatal (hub/network hiccup).
+	# Hub failures are non-fatal: a network hiccup must not abort the setup.
 	cscli hub update > /dev/null 2>&1 || true
 	local col
 	while read -r col; do
 		case "$col" in '' | \#*) continue ;; esac
 		cscli collections install "$col" > /dev/null 2>&1 || true
 	done < "$share/collections.list"
-	# nginx-req-limit-exceeded fires on OUR Layer-B 429 and turns throttling into a ban. Removing taints the
-	# collection, so cscli keeps it removed on re-runs.
+	# nginx-req-limit-exceeded turns OUR Layer-B 429 into a ban. Removing taints the collection, so re-runs keep it out.
 	cscli scenarios remove crowdsecurity/nginx-req-limit-exceeded > /dev/null 2>&1 || true
-	# nginx front logs to /var/log/$WEB_SYSTEM/domains (real client IP; 'both' -> apache2 path, still nginx's).
+	# The nginx front logs under /var/log/$WEB_SYSTEM/domains with the real client IP, in 'both' on the apache2 path.
 	mkdir -p /etc/crowdsec/acquis.d
 	sed "s|%WEB_SYSTEM%|$WEB_SYSTEM|g" "$share/acquis.d/hestia-nginx.yaml" \
 		> /etc/crowdsec/acquis.d/hestia-nginx.yaml
 
-	# Key is shown only at creation -> persist it in the lua config; (re)create only when missing.
+	# cscli shows the key only at creation, so it lives in the lua config and is recreated only when missing.
 	mkdir -p /etc/crowdsec/bouncers
 	local keyfile="/etc/crowdsec/bouncers/hestia-nginx.lua"
 	if ! cscli bouncers list -o raw 2> /dev/null | grep -q '^hestia-nginx,' || [ ! -s "$keyfile" ]; then
@@ -173,26 +167,28 @@ crowdsec_apply() {
 			echo "CrowdSec: bouncer registration failed" >&2
 			return 1
 		}
-		cat > "$keyfile" <<- EOF
-			-- CrowdSec nginx bouncer config. Generated - do not edit.
-			return {
-				host = "127.0.0.1", port = 8054,
-				api_key = "$key",
-				cache_ttl = 30, ban_ttl = 60, timeout = 1000, fail_open = true,
-				dict = "crowdsec_cache",
-			}
-		EOF
-		# 600: holds the LAPI key, read only by nginx's master (root) at (re)load, before workers fork.
+		# umask, not only the chmod below: the file holds the key from its first byte on.
+		(
+			umask 077
+			cat > "$keyfile" <<- EOF
+				-- CrowdSec nginx bouncer config. Generated - do not edit.
+				return {
+					host = "127.0.0.1", port = 8054,
+					api_key = "$key",
+					cache_ttl = 30, ban_ttl = 60, timeout = 1000, fail_open = true,
+					dict = "crowdsec_cache",
+				}
+			EOF
+		)
+		# Only nginx's master (root) reads it, at (re)load before the workers fork.
 		chmod 600 "$keyfile"
 	fi
 
-	# Bouncer runtime + http-block init glue (conf.d loads in http{} before vhosts); enforcement per-vhost.
-	# The bouncer CODE lives next to its config under /etc/crowdsec/bouncers, not in a lua dir of its
-	# own under the install root: share/ is a template source that setup copies FROM, never a runtime
-	# include path. cp -f so a Hestia update refreshes the code; the config there is seed-if-absent.
+	# The code sits next to its config: share/ is a copy source, never a runtime include path. The update path never
+	# runs this setup, so the code is refreshed only when the CrowdSec setup itself runs again.
 	cp -f "$share/lua/hestia_bouncer.lua" /etc/crowdsec/bouncers/hestia_bouncer.lua
 	cp -f "$share/nginx/crowdsec_init.conf" /etc/nginx/conf.d/crowdsec_init.conf
-	# Layer B (bot rate limiting) is include/botpolicy.sh, wired at web install. CrowdSec owns Layer A only.
+	# Layer B (bot rate limiting) is include/botpolicy.sh; CrowdSec owns Layer A only.
 
 	# Only 'capi' keeps the central blocklist. mesh is local plus peer exchange, so it must not enrol either.
 	[ "$mode" = "capi" ] || crowdsec_disable_capi
@@ -207,10 +203,10 @@ crowdsec_apply() {
 		return 1
 	fi
 
-	# L3: SYN-level ban of the same decisions; non-fatal so L7 stays up if L3 wiring hiccups.
+	# L3 bans the same decisions at SYN level; non-fatal, so L7 stays up if its wiring fails.
 	crowdsec_l3_setup || echo "CrowdSec: L3 feeder setup reported an issue" >&2
 
-	# fail2ban owns brute force when present, CrowdSec owns Layer-7 - so each side drops the other's jobs.
+	# fail2ban owns brute force when present and CrowdSec owns Layer 7, so each side drops the other's jobs.
 	crowdsec_gate_bruteforce
 	if [ "$(sed -n "s/^FIREWALL_EXTENSION='\([^']*\)'.*/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null)" = 'fail2ban' ] \
 		&& [ -f /etc/fail2ban/jail.d/hestia.local ]; then
@@ -224,7 +220,7 @@ crowdsec_apply() {
 	echo "CrowdSec: applied (nginx front, L7 bouncer hestia-nginx + L3 set feeder)."
 }
 
-# Own feeder fills the set, h-update-firewall owns the DROP. Not the OS bouncer: 0.0.25 nil-panics (fleet).
+# Own feeder fills the set, h-update-firewall owns the DROP. Not the OS firewall bouncer: it panics.
 crowdsec_l3_setup() {
 	local share="$HESTIA/share/crowdsec"
 	local marker="$CONF_DIR/firewall/crowdsec.conf"
@@ -236,7 +232,6 @@ crowdsec_l3_setup() {
 	# jq drives the feeder's decision filter.
 	command -v jq > /dev/null 2>&1 || DEBIAN_FRONTEND=noninteractive apt-get -y -qq install jq > /dev/null 2>&1
 
-	# Marker: presence gates the set + DROP chain and the feed.
 	mkdir -p "$CONF_DIR/firewall"
 	if [ ! -f "$marker" ]; then
 		cat > "$marker" <<- EOF
@@ -256,32 +251,29 @@ crowdsec_l3_setup() {
 	"$BIN/h-update-firewall" > /dev/null 2>&1 || true
 }
 
-# Remove the L3 wiring (timer + marker + chain/jump + set); leaves the engine + /etc/crowdsec.
+# Remove the L3 wiring; leaves the engine and /etc/crowdsec.
 crowdsec_l3_teardown() {
 	systemctl disable --now hestia-crowdsec-l3.timer > /dev/null 2>&1 || true
 	systemctl stop hestia-crowdsec-l3.service > /dev/null 2>&1 || true
 	rm -f /etc/systemd/system/hestia-crowdsec-l3.service /etc/systemd/system/hestia-crowdsec-l3.timer
 	systemctl daemon-reload
 	rm -f "$CONF_DIR/firewall/crowdsec.conf"
-	# Tear the firewall side down directly (h-update-firewall now skips it - marker gone).
+	# Directly: with the marker gone, h-update-firewall skips the crowdsec chain.
 	fw_set_chain_destroy hestia-crowdsec crowdsec-blacklists
 	rm -f "$CONF_DIR/firewall/crowdsec.iplist"
 	"$BIN/h-update-firewall" > /dev/null 2>&1 || true
 }
 
-# The per-domain Layer-A ban check, into the public nginx vhost dir - nginx-only, apache has no CrowdSec.
-# Removed when off, so the vhost's `include ...nginx.crowdsec.conf*;` glob is a no-op for that domain.
-# crowdsec_domain_capable - can a per-domain fragment do anything here?
-#
-# The field is intent, this is capability: an nginx without the bouncer either fails to parse the
-# directive, invalidating the whole config, or answers 500 per request. Keyed on the artefact the
-# apply step installs, and asked from here by both the renderer and the restore's report.
+# The CROWDSEC field is intent, this is capability: an nginx without the bouncer fails the whole config or answers
+# 500 per request. Keyed on the artefact the apply step installs; shared by the renderer and the restore's report.
 crowdsec_domain_capable() {
 	local sys
 	if [ -n "$PROXY_SYSTEM" ]; then sys="$PROXY_SYSTEM"; else sys="$WEB_SYSTEM"; fi
 	[ "$sys" = "nginx" ] && [ -f /etc/nginx/conf.d/crowdsec_init.conf ]
 }
 
+# Per-domain Layer-A ban check in the public nginx vhost dir (apache has no CrowdSec). Removed when off, so the
+# vhost's `include ...nginx.crowdsec.conf*;` glob is a no-op for that domain.
 crowdsec_render_domain_fragment() {
 	local user="$1" domain="$2"
 
@@ -307,13 +299,25 @@ crowdsec_render_domain_fragment() {
 	fi
 }
 
+# A removal deletes every fragment while the records keep CROWDSEC, so an add renders them again from the records.
+crowdsec_render_all_fragments() {
+	local wc user d
+	for wc in "$CONF_DIR"/users/*/web.conf; do
+		[ -e "$wc" ] || continue
+		user=$(basename "$(dirname "$wc")")
+		for d in $(sed -n "s/^DOMAIN='\([^']*\)'.*CROWDSEC='yes'.*/\1/p" "$wc"); do
+			crowdsec_render_domain_fragment "$user" "$d"
+		done
+	done
+	nginx -t > /dev/null 2>&1 && systemctl reload nginx > /dev/null 2>&1
+	return 0
+}
+
 # Remove the nginx-side wiring (leaves the engine + /etc/crowdsec saved state).
 crowdsec_remove_nginx() {
 	rm -f /etc/nginx/conf.d/crowdsec_init.conf /etc/crowdsec/bouncers/hestia_bouncer.lua
-	# The per-domain fragments call require("hestia_bouncer"), the file just removed. Left behind they
-	# answer 500 on every request, and the reload below would put that live immediately - nginx -t
-	# still passes, because the directive parses as long as the lua module is installed. Found from
-	# the tree rather than from the records: a fragment can outlive the record that asked for it.
+	# Fragments left behind require the module just removed and answer 500, yet nginx -t passes while the lua module
+	# is installed. Found from the tree, not the records: a fragment can outlive the record that asked for it.
 	find "${HOMEDIR:-/home}" -mindepth 5 -maxdepth 5 -path '*/conf/web/*' -name 'nginx.crowdsec.conf' \
 		-delete 2> /dev/null
 	nginx -t > /dev/null 2>&1 && { systemctl reload nginx > /dev/null 2>&1 || true; }

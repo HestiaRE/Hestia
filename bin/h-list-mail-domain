@@ -4,26 +4,18 @@
 #
 # example: h-list-mail-domain user01 mydomain.com
 #
-# This function of obtaining the list of domain parameters.
+# Lists the domain's record.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/mail.conf)"
 	U_SMTP_RELAY_USERNAME=$(record_value_decode "$U_SMTP_RELAY_USERNAME")
@@ -57,70 +49,53 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
-	echo "DOMAIN:             $DOMAIN"
-	echo "ANTIVIRUS:          $ANTIVIRUS"
-	echo "ANTISPAM:           $ANTISPAM"
-	echo "DKIM:               $DKIM"
-	echo "CATCHALL:           $CATCHALL"
-	echo "ACCOUNTS:           $ACCOUNTS"
-	echo "DISK:               $U_DISK"
-	echo "SSL:                $SSL"
-	echo "RATE_LIMIT:         $RATE_LIMIT"
-	echo "REJECT:             $REJECT"
-	echo "LETSENCRYPT:        $LETSENCRYPT"
-	echo "SUSPENDED:          $SUSPENDED"
-	echo "TIME:               $TIME"
-	echo "DATE:               $DATE"
-	echo "WEBMAIL_ALIAS:      $WEBMAIL_ALIAS.$domain"
-	echo "WEBMAIL:            $WEBMAIL"
+	echo "DOMAIN:                $DOMAIN"
+	echo "ANTIVIRUS:             $ANTIVIRUS"
+	echo "ANTISPAM:              $ANTISPAM"
+	echo "DKIM:                  $DKIM"
+	echo "CATCHALL:              $CATCHALL"
+	echo "ACCOUNTS:              $ACCOUNTS"
+	echo "DISK:                  $U_DISK"
+	echo "SSL:                   $SSL"
+	echo "RATE_LIMIT:            $RATE_LIMIT"
+	echo "REJECT:                $REJECT"
+	echo "LETSENCRYPT:           $LETSENCRYPT"
+	echo "SUSPENDED:             $SUSPENDED"
+	echo "TIME:                  $TIME"
+	echo "DATE:                  $DATE"
+	echo "WEBMAIL_ALIAS:         $WEBMAIL_ALIAS.$domain"
+	echo "WEBMAIL:               $WEBMAIL"
 	echo "U_SMTP_RELAY:          $U_SMTP_RELAY"
-	echo "U_SMTP_RELAY_HOST      $U_SMTP_RELAY_HOST"
-	echo "U_SMTP_RELAY_PORT      $U_SMTP_RELAY_PORT"
-	echo "U_SMTP_RELAY_USERNAME  $U_SMTP_RELAY_USERNAME"
+	echo "U_SMTP_RELAY_HOST:     $U_SMTP_RELAY_HOST"
+	echo "U_SMTP_RELAY_PORT:     $U_SMTP_RELAY_PORT"
+	echo "U_SMTP_RELAY_USERNAME: $U_SMTP_RELAY_USERNAME"
 	echo "U_SPAM_SCORE:          $U_SPAM_SCORE"
 	echo "U_SPAM_REJECT_SCORE:   $U_SPAM_REJECT_SCORE"
 	echo "U_SPAM_SUBJECT_TAG:    $U_SPAM_SUBJECT_TAG"
 }
 
-# PLAIN list function
 plain_list() {
-	# One record, one line: the two middle echoes lacked -n, so a reader got four lines - two
-	# header-shaped, two data-shaped - and counted the fields of the wrong one (#861).
+	# One record on one line: every echo but the last needs -n, or a reader counts the wrong line's fields.
 	echo -ne "$DOMAIN\t$ANTIVIRUS\t$ANTISPAM\t$DKIM\t$CATCHALL\t"
 	echo -ne "$ACCOUNTS\t$U_DISK\t$SSL\t$LETSENCRYPT\t$SUSPENDED\t$TIME\t$DATE\t$WEBMAIL_ALIAS.$domain\t$WEBMAIL\t"
 	echo -ne "$U_SMTP_RELAY\t$U_SMTP_RELAY_HOST\t$U_SMTP_RELAY_PORT\t$U_SMTP_RELAY_USERNAME\t"
 	echo -e "$U_SPAM_SCORE\t$U_SPAM_REJECT_SCORE\t$U_SPAM_SUBJECT_TAG"
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing mail domain
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/mail.conf)"
 U_SMTP_RELAY_USERNAME=$(record_value_decode "$U_SMTP_RELAY_USERNAME")
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

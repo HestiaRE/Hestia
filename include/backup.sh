@@ -6,64 +6,15 @@
 #                                                                           #
 #===========================================================================#
 
-# Edited AS TEXT, never re-emitted from a key list: an unknown field would be dropped, and the
-# field ORDER is load-bearing. A value with a literal ' is not representable.
+# record_line_valid, record_keys and record_rewrite live in include/main.sh, which is sourced before this file.
 
-# Not optional: the archived line lands in a live *.conf that sed, grep/cut and the JSON emitters
-# read directly. $ stays allowed (crypt hashes); banning ' is what lets record_set_field find one.
-record_line_valid() {
-	local _line="$1" _rest _q="'" _dq='"' _bt='`' _bs='\'
-	local -A _seen_key=()
-	[ -n "$_line" ] || return 1
-	# A newline would make the "one record per line" assumption a lie for every reader below.
-	[[ "$_line" == *$'\n'* ]] && return 1
-	local _re="^([A-Z][A-Z0-9_]*)=${_q}([^${_q}${_dq}${_bt}${_bs}]*)${_q}( |$)"
-	# Trailing blanks are trimmed rather than rejected: some writers emit one and it carries
-	# nothing. Everything else has to match the grammar exactly.
-	_rest="${_line%"${_line##*[! ]}"}"
-	while [ -n "$_rest" ]; do
-		[[ "$_rest" =~ $_re ]] || return 1
-		# A repeated key is refused: the readers disagree about which wins - eval keeps the last,
-		# sed and grep -o the first - so one line would carry two truths, invisibly.
-		[ -z "${_seen_key[${BASH_REMATCH[1]}]:-}" ] || return 1
-		_seen_key[${BASH_REMATCH[1]}]=1
-		_rest="${_rest#"${BASH_REMATCH[0]}"}"
-	done
-	return 0
-}
-
-# The keys of a record line, one per line, in the order they appear.
-record_keys() {
-	grep -o "[A-Z][A-Z0-9_]*='" <<< "$1" | sed "s/='$//"
-}
-
-# record_set_field VAR KEY VALUE - replace KEY's value in the record held in VAR, keeping its
-# position; append the field at the end when it is not there yet.
+# record_set_field VAR KEY VALUE: replace KEY's value in the record held in VAR, keeping its position; append the
+# field at the end when it is not there yet. rc 1, VAR unchanged, when the record is not KEY='VALUE' fields.
 record_set_field() {
 	local -n _rec_ref="$1"
-	local _key="$2" _val="$3" _pre _post
-	if [[ "$_rec_ref" == "$_key='"* ]]; then
-		_pre=''
-		_post="${_rec_ref#"$_key='"}"
-	elif [[ "$_rec_ref" == *" $_key='"* ]]; then
-		_pre="${_rec_ref%%" $_key='"*}"
-		_post="${_rec_ref#*" $_key='"}"
-	else
-		# No separator in front of the first field: a leading blank is what record_line_valid
-		# refuses, and a helper must not be able to build what the gate beside it rejects.
-		if [ -z "$_rec_ref" ]; then
-			_rec_ref="$_key='$_val'"
-		else
-			_rec_ref="$_rec_ref $_key='$_val'"
-		fi
-		return
-	fi
-	_post="${_post#*\'}"
-	if [ -z "$_pre" ]; then
-		_rec_ref="$_key='$_val'$_post"
-	else
-		_rec_ref="$_pre $_key='$_val'$_post"
-	fi
+	local _rsf_new
+	record_rewrite _rsf_new "$_rec_ref" set "$2" "$3" || return 1
+	_rec_ref="$_rsf_new"
 }
 
 # restore_parse_record KEYVAR LINE - parse a record and remember, in KEYVAR, which keys it set.
@@ -82,20 +33,12 @@ restore_forget_record() {
 	_keys_ref=''
 }
 
-# record_del_field VAR KEY - remove KEY from the record held in VAR.
+# record_del_field VAR KEY: remove KEY from the record held in VAR; rc 1 as in record_set_field.
 record_del_field() {
 	local -n _rec_ref="$1"
-	local _key="$2" _pre _post
-	if [[ "$_rec_ref" == "$_key='"* ]]; then
-		_post="${_rec_ref#"$_key='"}"
-		_post="${_post#*\'}"
-		_rec_ref="${_post# }"
-	elif [[ "$_rec_ref" == *" $_key='"* ]]; then
-		_pre="${_rec_ref%%" $_key='"*}"
-		_post="${_rec_ref#*" $_key='"}"
-		_post="${_post#*\'}"
-		_rec_ref="$_pre$_post"
-	fi
+	local _rdf_new
+	record_rewrite _rdf_new "$_rec_ref" del "$2" || return 1
+	_rec_ref="$_rdf_new"
 }
 
 # Read the archive ONCE, before anything is written: backup_probe says what is IN it, backup_report
@@ -286,7 +229,7 @@ backup_report_count() {
 # Keys this host can write for KIND. Three sources because each alone under-reports: the registry lags,
 # live records show only what is in use, the command sweep is the population-independent one.
 backup_local_keys() {
-	local _kind="$1" _f
+	local _kind="$1" _f _line
 	# A missing user directory is the wrong place, not "no keys" - the other two sources cannot stand in.
 	if [ ! -d "$CONF_DIR/users" ]; then
 		echo "Warning!: $CONF_DIR/users is not there - the live-record key source read nothing" >&2
@@ -295,7 +238,9 @@ backup_local_keys() {
 		syshealth_known_keys "$_kind" 2> /dev/null | tr ' ' '\n'
 		for _f in "$CONF_DIR"/users/*/"$_kind.conf"; do
 			[ -f "$_f" ] || continue
-			grep -o "[A-Z][A-Z0-9_]*='" "$_f" | sed "s/='$//"
+			while IFS= read -r _line || [ -n "$_line" ]; do
+				record_keys "$_line"
+			done < "$_f"
 		done
 		# What any command on this box could add to such a record, independent of who uses it today.
 		grep -ho "add_object_key[^#]*'\([A-Z][A-Z0-9_]*\)'[[:space:]]*'" "$BIN"/h-* 2> /dev/null \

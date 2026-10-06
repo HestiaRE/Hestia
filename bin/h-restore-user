@@ -112,6 +112,8 @@ if [ -z "$check_user" ]; then
 else
 	create_user="yes"
 	email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f2 -d \')
+	! db_namespace_taken "$user" \
+		|| check_result "$E_EXISTS" "user $user is not available: another account holds database names starting with ${user}_"
 fi
 
 # Checking available disk space
@@ -1195,6 +1197,13 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			# The same name the existence check used, not a second derivation of it.
 			DB="$target_db"
 			DBUSER="${user}_${DBUSER#"${old_user}_"}"
+			# Another customer's database, or a pgsql name in another customer's name space: clearing it below would
+			# drop that customer's live database.
+			if ! db_names_free "$DB" "$DBUSER" "$TYPE" "$user"; then
+				echo "Warning!: $target_db skipped - the name belongs to another customer" | tee -a $tmpdir/restore.log
+				restore_failures="$restore_failures$(printf '\n  database %s (the name belongs to another customer)' "$target_db")"
+				continue
+			fi
 			# Another customer's user: the rebuild would hand it this archive's password and grants.
 			if db_user_foreign "$DBUSER" "$user"; then
 				echo "Warning!: $target_db skipped - its user $DBUSER belongs to another customer" | tee -a $tmpdir/restore.log
@@ -1227,6 +1236,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 				esac
 			done
 			echo "$str" >> $USER_DATA/db.conf
+			dbhost_count_record "$TYPE" "$HOST"
 		else
 			restore_parse_record prev_db_keys "$(grep -F "DB='$target_db'" $USER_DATA/db.conf)"
 		fi
@@ -1328,6 +1338,10 @@ if [ "$cron" != 'no' ] && [ -n "$CRON_SYSTEM" ]; then
 	else
 		echo -e "$(date "+%F %T") $jobs cron jobs" | tee -a $tmpdir/restore.log
 	fi
+	# HestiaCP before 1.9 kept its system jobs here; named, never rewritten, a rewrite would arm them twice.
+	for job in $(sed -n "s|^JOB='\([0-9]*\)'.*/usr/local/hestia/bin/v-.*|\1|p" "$tmpdir/cron/cron.conf"); do
+		echo "$(date "+%F %T") cron job $job calls a HestiaCP command that does not exist here" | tee -a $tmpdir/restore.log
+	done
 
 	# Restoring cron jobs
 	cp $tmpdir/cron/cron.conf $USER_DATA/cron.conf

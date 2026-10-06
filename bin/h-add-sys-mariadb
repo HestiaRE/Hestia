@@ -5,41 +5,27 @@
 # example: h-add-sys-mariadb           # version from install.conf, else OS default
 # example: h-add-sys-mariadb 11.8      # explicit (post-install)
 #
-# Installs + hardens MariaDB and registers it as the local DB host. Version:
-# arg > COMPONENT_DB_MARIADB_VERSION > __os__; 12.3|11.8|11.4 pull the MariaDB.org
-# repo, __os__ the distro package. Idempotent (repo/keyring, RAM-tiered my.cnf,
-# unix_socket root, host registration); phpMyAdmin follows when DB_PHPMYADMIN is set.
-# "Fully installed" = package present AND host registered (else resume an aborted run).
+# Installs and hardens MariaDB and registers it as the local DB host; phpMyAdmin follows when the wizard chose it.
+# VERSION defaults to the install.conf answer, else __os__; 12.3|11.8|11.4 use the MariaDB.org repo.
+# Installed means package present AND host registered, so an aborted run resumes.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# The recipe, and one of the few places it is still right to read one (#945): both values below are
-# install-time ANSWERS, not box state. The version is only a default for the argument, and whether
-# phpMyAdmin follows MariaDB is a wizard decision the manifest ties to this component.
+# The recipe is right here: both values read from it are install-time answers, the default VERSION and the
+# wizard's phpMyAdmin choice, not box state.
 [ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
-# OS-profile helper (load_os_profile). Sourcing only defines functions.
+# for load_os_profile; sourcing it only defines functions
 # shellcheck source=/usr/local/hestia/include/helper.sh
 [ -f "$HESTIA/include/helper.sh" ] && . "$HESTIA/include/helper.sh"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# installed = package present AND host registered (see header); else resume
 if dpkg -l mariadb-server 2> /dev/null | grep -q '^ii' \
 	&& grep -qs "HOST='localhost'" "$HESTIA/conf/mysql.conf"; then
 	echo "INFO: MariaDB is already installed."
@@ -48,11 +34,6 @@ if dpkg -l mariadb-server 2> /dev/null | grep -q '^ii' \
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# version: arg > wizard selection > OS default
 MARIADB_VER="${1:-${COMPONENT_DB_MARIADB_VERSION:-}}"
 [ -z "$MARIADB_VER" ] && MARIADB_VER="__os__"
 case "$MARIADB_VER" in
@@ -64,7 +45,6 @@ case "$MARIADB_VER" in
 esac
 ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
 
-# OS_ID + CODENAME for the external repo line (profile helper, else /etc/os-release)
 if command -v load_os_profile > /dev/null 2>&1 && [ -n "${INSTALL_OS:-}" ]; then
 	load_os_profile "$INSTALL_OS" > /dev/null 2>&1 || true
 fi
@@ -77,18 +57,18 @@ fi
 	echo "${VERSION_CODENAME:-}"
 )"
 
-# Repo/keyring only for an external-repo version; __os__/empty uses OS packages.
 case "$MARIADB_VER" in
 	12.3 | 11.8 | 11.4)
 		echo "[ * ] Adding MariaDB $MARIADB_VER repo..."
 		printf 'deb [arch=%s signed-by=/usr/share/keyrings/mariadb-keyring.gpg] https://dlm.mariadb.com/repo/mariadb-server/%s/repo/%s %s main\n' \
 			"$ARCH" "$MARIADB_VER" "$OS_ID" "$CODENAME" > /etc/apt/sources.list.d/mariadb.list
-		curl -fsSL https://mariadb.org/mariadb_release_signing_key.asc -o /tmp/mariadb_signing.asc \
+		key_asc=$(mktemp)
+		curl -fsSL --max-time 30 https://mariadb.org/mariadb_release_signing_key.asc -o "$key_asc" \
 			|| {
 				echo "ERROR: failed to download MariaDB signing key"
 				exit 1
 			}
-		gpg --dearmor < /tmp/mariadb_signing.asc > /usr/share/keyrings/mariadb-keyring.gpg \
+		gpg --dearmor < "$key_asc" > /usr/share/keyrings/mariadb-keyring.gpg \
 			|| {
 				echo "ERROR: failed to dearmor MariaDB signing key"
 				exit 1
@@ -97,7 +77,7 @@ case "$MARIADB_VER" in
 			echo "ERROR: MariaDB keyring empty"
 			exit 1
 		}
-		rm -f /tmp/mariadb_signing.asc
+		rm -f "$key_asc"
 		;;
 	*)
 		echo "[ * ] MariaDB: using OS package (distribution default)"
@@ -126,9 +106,8 @@ rm -f /etc/mysql/my.cnf
 cp -f "$HESTIA/share/mysql/$MYCNF" /etc/mysql/my.cnf
 sed -i 's|/usr/share/mysql|/usr/share/mariadb|g' /etc/mysql/my.cnf
 
-# init the system schema if missing. Ubuntu 26's enforced mariadbd AppArmor profile
-# denies the dac_override that the mariadb-install-db bootstrap needs — unload it
-# just for the init, reload after. No-op where no such profile is loaded.
+# Ubuntu 26's enforced mariadbd AppArmor profile denies the dac_override mariadb-install-db needs,
+# so it is unloaded for the init only.
 chown -R mysql:mysql /var/lib/mysql
 if [ ! -d /var/lib/mysql/mysql ]; then
 	aa_prof="/etc/apparmor.d/mariadbd"
@@ -154,42 +133,33 @@ if ! systemctl is-active --quiet mariadb; then
 fi
 
 echo "[ * ] Securing MariaDB..."
-# Every statement here is checked. Unchecked, a failure in the first one, which sets the very password
-# the rest need, left the remaining five refused one after another while the stage still marked itself
-# done: a box with a root MariaDB nobody had secured.
+# Every statement is checked: the first sets the password the rest need, so a silent failure leaves root unsecured.
 secure_db() {
-	mariadb -e "$1" || {
+	mariadb <<< "$1" || {
 		echo "ERROR: securing MariaDB failed at: $2"
 		echo "       the root account is NOT in the state this installer guarantees."
 		exit "$E_DB"
 	}
 }
 
-# MPASS lands only in /root/.my.cnf (0600), never in install.conf (secrets stay out). It stays a WORKING
-# password on purpose: that file is where an operator looks for it, to paste into phpMyAdmin or a client.
+# MPASS lands only in /root/.my.cnf, never in install.conf, and stays a working password on purpose:
+# that file is where an operator looks for it.
 MPASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16 || true)
 printf '[client]\npassword='"'"'%s'"'"'\n' "$MPASS" > /root/.my.cnf
 chmod 600 /root/.my.cnf
 secure_db "ALTER USER 'root'@'localhost' IDENTIFIED BY '$MPASS'; FLUSH PRIVILEGES;" "setting the root password"
-# unix_socket as an ALTERNATIVE, not a replacement: local root works without the password (so a command
-# started without $HOME still reaches the socket), and the password in .my.cnf keeps working too.
+# unix_socket as an alternative, not a replacement: root without $HOME still gets in, and the password works too.
 secure_db "UPDATE mysql.global_priv SET priv=json_set(priv, '\$.password_last_changed', UNIX_TIMESTAMP(), '\$.plugin', 'mysql_native_password', '\$.auth_or', json_array(json_object(), json_object('plugin', 'unix_socket'))) WHERE User='root';" "adding socket auth for root"
 secure_db "DELETE FROM mysql.global_priv WHERE User='';" "removing anonymous users"
 secure_db "DROP DATABASE IF EXISTS test;" "dropping the test database"
 secure_db "DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';" "dropping test grants"
 secure_db "FLUSH PRIVILEGES;" "flushing privileges"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# status: source and version from the package that is on the box now (#978, #935)
+# from the package on the box now, not from the recipe
 mariadb_status_record
 
-# register the local host (sole writer of DB_SYSTEM's mysql token); MUST precede
-# phpMyAdmin, whose guard needs 'mysql' in DB_SYSTEM
+# before phpMyAdmin, whose guard needs the mysql token in DB_SYSTEM that only this registration writes
 $BIN/h-add-database-host mysql localhost root "$MPASS" > /dev/null 2>&1 || true
-$BIN/h-change-sys-db-alias pma phpmyadmin > /dev/null 2>&1 || true
 
 if [ "${COMPONENT_DB_PHPMYADMIN:-}" = "true" ]; then
 	echo "[ * ] Installing phpMyAdmin..."

@@ -4,20 +4,10 @@
 #
 # example: h-add-database-host mysql localhost alice p@$$wOrd
 #
-# This function add new database server to the server pool. It supports local
-# and remote database servers, which is useful for clusters. By adding a host
-# you can set limit for number of databases on a host. Template parameter is
-# used only for PostgreSQL and has an default value "template1". You can read
-# more about templates in official PostgreSQL documentation.
-#
-# A remote PostgreSQL host must offer TLS with a certificate this box trusts. TLS=no allows a
-# plaintext connection on purpose; it exists only for pgsql, the MariaDB client enforces TLS itself.
+# Adds a local or remote database server holding at most MAX_DB databases; TEMPLATE is pgsql only (template1).
+# A remote PostgreSQL host must offer TLS with a certificate this box trusts; TLS=no (pgsql only) allows plaintext on
+# purpose. The MariaDB client enforces TLS itself from 11.4 on; the 10.11 client on Debian 12 and Ubuntu 24.04 does not.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 host=$2
 dbuser=$3
@@ -29,14 +19,12 @@ template=${7}
 port=${8}
 tls=${9:-yes}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 is_mysql_host_alive() {
@@ -46,6 +34,7 @@ is_mysql_host_alive() {
 	echo "user='$dbuser'" >> $mycnf
 	echo "password='$password'" >> $mycnf
 	echo "port='$port'" >> $mycnf
+	printf '[mysql]\nconnect-timeout=10\n' >> $mycnf
 
 	chmod 600 $mycnf
 	mysql_out=$(mktemp)
@@ -55,9 +44,7 @@ is_mysql_host_alive() {
 		mysql --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
 	fi
 	if [ "$?" -ne '0' ]; then
-		# TLS is a prerequisite for a remote host, and the client has demanded it since MariaDB 11.4.
-		# Two different failures hide behind one error number and need two different answers, so they are
-		# told apart here rather than both being called "TLS".
+		# One error number covers an untrusted certificate and no TLS at all, and each needs a different fix.
 		case "$(tr 'A-Z' 'a-z' < "$mysql_out")" in
 			*'certificate'*)
 				echo "Error: MySQL connection to $host failed: the server's TLS certificate is not trusted"
@@ -76,6 +63,7 @@ is_mysql_host_alive() {
 		log_event "$E_CONNECT" "$ARGUMENTS"
 		exit "$E_CONNECT"
 	fi
+	rm -f "$mysql_out"
 
 	if [ -f '/usr/bin/mariadb' ]; then
 		grants=$(mariadb --defaults-file=$mycnf -e 'SHOW GRANTS FOR CURRENT_USER();')
@@ -90,7 +78,6 @@ is_mysql_host_alive() {
 		exit "$E_CONNECT"
 	fi
 
-	# Check allow to grant user
 	check_grants=$(echo $grants | grep "WITH GRANT OPTION")
 	if [ -z "$check_grants" ]; then
 		echo "Error: MySQL connection to $host failed. Unable to grant other users"
@@ -109,7 +96,6 @@ is_pgsql_host_alive() {
 	# C locale: the cases below match libpq's words, which it translates.
 	LC_ALL=C psql -h $host -U $dbuser -p $port -c "SELECT VERSION()" > "$pg_out" 2>&1
 	if [ "$?" -ne '0' ]; then
-		# Same rule as MySQL: TLS is a prerequisite, and the reason belongs in the message.
 		case "$(tr 'A-Z' 'a-z' < "$pg_out")" in
 			*'certificate'*)
 				echo "Error: PostgreSQL connection to $host failed: the server's TLS certificate is not trusted"
@@ -131,10 +117,6 @@ is_pgsql_host_alive() {
 	rm -f "$pg_out"
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 args_usage='TYPE HOST DBUSER DBPASS [MAX_DB] [CHARSETS] [TEMPLATE] [PORT] [TLS]'
 check_args '4' "$#" "$args_usage"
 
@@ -144,11 +126,7 @@ if [ -z $template ]; then template="template1"; fi
 database_set_default_ports
 
 is_format_valid 'host' 'dbuser' 'max_db' 'charsets' 'template' 'port'
-# Validate against the SUPPORTED engine types, not DB_SYSTEM membership: adding
-# the first host of a type is exactly what enables that type, so gating on
-# "$type already in $DB_SYSTEM" (is_type_valid) / "$DB_SYSTEM non-empty"
-# (is_system_enabled) is circular — it made the first mysql host rely on a
-# pre-seeded DB_SYSTEM and made a pgsql host impossible to register at all (#121).
+# Not is_type_valid/is_system_enabled: adding the first host of a type is what puts it into DB_SYSTEM.
 case "$type" in
 	mysql | pgsql) ;;
 	*) check_result "$E_INVALID" "database type '$type' is not supported (mysql|pgsql)" ;;
@@ -167,16 +145,10 @@ case $type in
 	pgsql) is_pgsql_host_alive ;;
 esac
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Concatenating db host string
 case $type in
 	mysql)
 		str="HOST='$host' USER='$dbuser' PASSWORD='$dbpass'"
@@ -191,19 +163,12 @@ case $type in
 		;;
 esac
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Adding host to conf
 echo "$str" >> $HESTIA/conf/$type.conf
 chmod 660 $HESTIA/conf/$type.conf
 
-# The DB_SYSTEM token through its token function, never a bare sed: "s/DB_SYSTEM=.*/" also rewrote
-# DB_MARIADB_SYSTEM, which carries the name as a substring (measured on the first add, #978).
+# Never a bare sed on DB_SYSTEM: its pattern also matches DB_MARIADB_SYSTEM.
 sys_key_token_set DB_SYSTEM add "$type" > /dev/null || check_result "$E_UPDATE" "DB_SYSTEM: could not record $type"
 
-# Logging
 $BIN/h-log-action "system" "Info" "Database" "Added external $type database server ($host) to the system."
 log_event "$OK" "$ARGUMENTS"
 

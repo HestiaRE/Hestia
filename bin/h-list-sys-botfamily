@@ -4,33 +4,20 @@
 #
 # example: h-list-sys-botfamily json
 #
-# Lists the system bot-family table (name, enabled, lenient/strict rate, UA match, and the conf-only
-# BURST/NODELAY tuning). These are the families a domain can throttle via
-# h-change-web-domain-botlimit. Edit with h-change-sys-botfamily, or the conf
-# (/etc/hestia/botfamilies.conf) followed by h-update-sys-botfamilies.
+# The families a domain can throttle with h-change-web-domain-botlimit, including the conf-only BURST and NODELAY.
+# Without /etc/hestia/botfamilies.conf the shipped default is listed.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# object base (get_object_value appends .conf); fall back to the shipped default
+# Object base without .conf: get_object_value appends it.
 OBJ="$CONF_DIR/botfamilies"
 [ -f "$OBJ.conf" ] || OBJ="$HESTIA/share/hestia/botfamilies"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if [ ! -f "$OBJ.conf" ]; then
 	[ "$format" = 'json' ] && echo '{}' || echo "No bot-family conf found."
@@ -46,8 +33,8 @@ json_list() {
 	total=$(echo "$families" | grep -c .)
 	echo "{"
 	for f in $families; do
-		# Named first, then escaped: a command substitution cannot be escaped in place, and MATCH
-		# is an admin-supplied regex - the one field here that carries backslashes as a matter of course.
+		# Named first, then escaped: a command substitution cannot be escaped in place, and MATCH is an
+		# admin-supplied regex, the one field here that routinely carries backslashes.
 		enabled=$(fam_field "$f" ENABLED)
 		lenient=$(fam_field "$f" LENIENT)
 		strict=$(fam_field "$f" STRICT)
@@ -91,10 +78,6 @@ case $format in
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 log_event "$OK" "$ARGUMENTS"
 

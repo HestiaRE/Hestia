@@ -4,26 +4,17 @@
 #
 # example: h-suspend-firewall-rule 7
 #
-# This function suspends a certain firewall rule.
+# Suspends a firewall rule: it stays in rules.conf but is no longer rendered into the ruleset.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 rule=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'RULE'
 is_format_valid 'rule'
@@ -31,21 +22,11 @@ is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 is_object_valid "$CONF_DIR/firewall/rules" 'RULE' "$rule"
 is_object_unsuspended "$CONF_DIR/firewall/rules" 'RULE' "$rule"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Suspending rule
+fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 update_object_value "$CONF_DIR/firewall/rules" 'RULE' "$rule" '$SUSPENDED' yes
 
-# Updating system firewall
-$BIN/h-update-firewall
+fw_update_or_rollback || check_result "$E_INVALID" "the ruleset rejected the change, rule unchanged"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Firewall" "Suspended firewall rule (Rule: $rule)."
 log_event "$OK" "$ARGUMENTS"
 

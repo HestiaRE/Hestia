@@ -4,34 +4,23 @@
 #
 # example: h-list-mail-domain-ssl user acme.com json
 #
-# This function of obtaining domain ssl files.
+# Lists the domain's mail certificate, key and CA.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
 
-# JSON list function
 json_list() {
-	# The certificate fields are free text (#5524 covered ISSUER only, #5585 the rest). CRT/KEY/CA
-	# come from the RAW file here: json_escape encodes the newlines itself, and running it over the
-	# already-encoded $crt would turn each of its \n into two visible characters in the panel.
+	# The raw files: json_escape encodes newlines itself, over the encoded copy each \n would show literally.
 	local crt="${crt_raw}" key="${key_raw}" ca="${ca_raw}"
 	json_escape domain crt key ca subj alt_dns before after signature pub_key issuer
 	echo '{'
@@ -49,7 +38,6 @@ json_list() {
 	echo -e "\t}\n}"
 }
 
-# SHELL list function
 shell_list() {
 	if [ -n "$crt" ]; then
 		echo -e "$crt"
@@ -75,7 +63,6 @@ shell_list() {
 	fi
 }
 
-# PLAIN list function
 plain_list() {
 	if [ -n "$crt" ]; then
 		echo -e "$crt"
@@ -98,20 +85,11 @@ plain_list() {
 
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing domain SSL certificate
 if [ -e "$USER_DATA/ssl/mail.$domain.crt" ]; then
 	crt_raw=$(cat $USER_DATA/ssl/mail.$domain.crt)
 	crt=$(echo "$crt_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
@@ -139,16 +117,11 @@ if [ -e "$USER_DATA/ssl/mail.$domain.ca" ]; then
 	ca=$(echo "$ca_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

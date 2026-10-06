@@ -4,28 +4,17 @@
 #
 # example: h-add-sys-rspamd
 #
-# Installs and wires rspamd as the antispam system: curated local.d set (controller
-# + scan worker on group-restricted sockets), random controller password, panel web
-# UI via Panel-Caddy, exim macros. Redis is the Bayes backend — unrestricted if
-# DB_REDIS, else the hard-capped companion (h-add/delete-sys-redis promote/demote it).
+# rspamd with group-restricted sockets, its web UI in the panel and the exim macros. Redis is the Bayes
+# backend, hard-capped unless REDIS_SYSTEM makes it a general service. With sieve, IMAP learning too.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/sieve.sh
+source $HESTIA/include/sieve.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
@@ -33,26 +22,24 @@ fi
 
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 
-# Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
-# The status key is part of the condition, so nothing needs writing here: it already says rspamd.
-if [ "$ANTISPAM_SYSTEM" = 'rspamd' ] && dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
+# Present already is success. The macro too: a re-run of the installer's mail stage lays down a template with it off.
+if [ "$ANTISPAM_SYSTEM" = 'rspamd' ] && dpkg -l rspamd 2> /dev/null | grep -q '^ii' \
+	&& grep -q '^RSPAMD = yes' /etc/exim4/exim4.conf.template; then
 	echo "INFO: rspamd is already installed."
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
+# Before the package: its postinst starts rspamd, and local.d files left by an earlier install name this group.
+groupadd -r _rspamd-ctrl 2> /dev/null || true
 echo "Installing rspamd (with Bayes Redis)..."
-apt-get -y -qq install rspamd redis-server > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install rspamd redis-server > /dev/null 2>&1
 if ! dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: rspamd installation failed."
 	exit "$E_INVALID"
 fi
 
-# Redis: hard-capped Bayes companion unless it is the box's general service. REDIS_SYSTEM, not the
-# recipe: the delete side has read the same truth since #983, and a Redis added later must count (#945).
+# Hard cap unless Redis is the box's general service. REDIS_SYSTEM, not the recipe, so a Redis added later counts.
+# Keep in step with h-delete-sys-rspamd, which decides by the same key.
 if [ -z "$REDIS_SYSTEM" ] \
 	&& ! grep -q 'HestiaRE rspamd-bayes limit' /etc/redis/redis.conf; then
 	cat "$HESTIA/share/rspamd/redis-rspamd-limit.conf" >> /etc/redis/redis.conf
@@ -63,71 +50,87 @@ systemctl restart redis-server 2> /dev/null || true
 mkdir -p /etc/rspamd/local.d
 cp -f "$HESTIA/share/rspamd/local.d/"* /etc/rspamd/local.d/
 
-# dedicated group for the controller socket; _rspamd joins it so the worker can
-# chgrp the socket. Must exist before rspamd starts. The proxy gets it process-
-# scoped (drop-in below), not the caddy user, so app FPM pools can't inherit it.
-groupadd -r _rspamd-ctrl 2> /dev/null || true
+# _rspamd joins the controller group so the worker can chgrp its socket.
 usermod -aG _rspamd-ctrl _rspamd
-# heal older installs that put the caddy USER in _rspamd (leaked controller access)
+# Older installs put the caddy user in _rspamd, which leaks controller access to its FPM pools.
 gpasswd -d caddy _rspamd > /dev/null 2>&1 || true
-# controller password: only set so no known default ("q1") is active — the panel
-# UI skips the rspamd login (forward_auth + unix socket). Same random hash for both.
+# Set only so the stock default "q1" is not active: the panel path needs no rspamd login.
 rspamd_pw=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 24 || true)
 rspamd_hash=$(rspamadm pw --password "$rspamd_pw")
 printf 'password = "%s";\nenable_password = "%s";\n' "$rspamd_hash" "$rspamd_hash" \
 	>> /etc/rspamd/local.d/worker-controller.inc
 systemctl enable rspamd > /dev/null 2>&1
+# A start that failed in the postinst may have hit the start limit, which refuses this restart too.
+systemctl reset-failed rspamd > /dev/null 2>&1
 systemctl restart rspamd
 if ! systemctl is-active --quiet rspamd; then
 	echo "ERROR: rspamd failed to start."
 	exit "$E_RESTART"
 fi
-# wait up to 60s for the sockets: a cold first start (Lua compile, maps fetch) is
-# far slower than a warm restart, and must not abort the install
+# A cold first start compiles Lua and fetches maps, far slower than a warm restart.
 for _ in $(seq 1 60); do
 	[ -S /run/rspamd/normal.sock ] && [ -S /run/rspamd/controller.sock ] && break
 	sleep 1
 done
 if [ ! -S /run/rspamd/normal.sock ]; then
-	# unit is active, socket just slow to bind — don't abort (smoke test verifies it)
 	echo "WARNING: rspamd scan worker socket not up after 60s — continuing (rspamd is active; smoke test will verify)."
 fi
 
-# exim joins _rspamd to reach the scan socket (service account, /etc/group grant is fine)
+# exim reaches the scan socket through _rspamd; an /etc/group grant is fine for a service account.
 usermod -aG _rspamd Debian-exim
 
-# grant the controller group to the Caddy PROXY process only (systemd drop-in), NOT
-# the caddy user — app FPM pools run as caddy and would otherwise inherit it
+# Controller group for the Caddy process only, never the caddy user: the app FPM pools run as caddy.
 mkdir -p /etc/systemd/system/caddy.service.d
 cp -f "$HESTIA/share/rspamd/caddy-service.d/rspamd-ctrl.conf" \
 	/etc/systemd/system/caddy.service.d/rspamd-ctrl.conf
 systemctl daemon-reload
 
-# publish the controller UI via Panel-Caddy; try-restart only bounces a running Caddy
+# try-restart: only a running Caddy is bounced.
 cp -f "$HESTIA/share/panel-caddy/apps/rspamd.tpl" /etc/caddy/apps/rspamd.conf
 systemctl try-restart caddy 2> /dev/null || true
 
-# enable the RSPAMD/SPAM_SCORE macros in the exim template and restart
 sed -i -e 's/^#RSPAMD = yes/RSPAMD = yes/' \
 	-e 's/^#SPAM_SCORE = /SPAM_SCORE = /' \
 	-e 's/^#SPAM_REJECT_SCORE = /SPAM_REJECT_SCORE = /' \
 	/etc/exim4/exim4.conf.template
+if ! grep -q '^RSPAMD = yes' /etc/exim4/exim4.conf.template; then
+	echo "ERROR: no RSPAMD macro in /etc/exim4/exim4.conf.template, rspamd is NOT active."
+	exit "$E_NOTEXIST"
+fi
 systemctl restart exim4
 if ! systemctl is-active --quiet exim4; then
-	echo "ERROR: exim4 failed to restart with rspamd enabled."
+	sed -i -e 's/^RSPAMD = yes/#RSPAMD = yes/' \
+		-e 's/^SPAM_SCORE = /#SPAM_SCORE = /' \
+		-e 's/^SPAM_REJECT_SCORE = /#SPAM_REJECT_SCORE = /' \
+		/etc/exim4/exim4.conf.template
+	systemctl restart exim4
+	echo "ERROR: exim4 failed to restart with rspamd enabled, it runs again without it."
 	exit "$E_RESTART"
 fi
 
 $BIN/h-change-sys-config-value 'ANTISPAM_SYSTEM' 'rspamd'
 
+# Sieve came first, so it found no rspamd to learn into: IMAP learning is wired here.
+learn_failures=''
+if [ "$SIEVE_SYSTEM" = 'yes' ]; then
+	sieve_imap_plugin_add || learn_failures="$learn_failures$(printf '\n  the imap_sieve trigger')"
+	sieve_mail_group_add || learn_failures="$learn_failures$(printf '\n  the rspamd controller group')"
+	sieve_learn_install
+	systemctl restart dovecot
+	if ! systemctl is-active --quiet dovecot; then
+		sieve_mail_group_del
+		sieve_imap_plugin_del
+		systemctl restart dovecot
+		echo "ERROR: dovecot failed to restart with IMAP learning, it runs again without it."
+		exit "$E_RESTART"
+	fi
+	sieve_learn_compile || learn_failures="$learn_failures$(printf '\n  the learn scripts')"
+fi
+
 echo "rspamd is now active (antispam system)."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Installed rspamd antispam."
+[ -z "$learn_failures" ] || check_result "$E_PARSING" "IMAP-triggered spam learning is NOT wired:$learn_failures"
 log_event "$OK" "$ARGUMENTS"
 
 exit

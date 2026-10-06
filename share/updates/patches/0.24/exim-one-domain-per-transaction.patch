@@ -1,0 +1,17 @@
+--- exim4.conf.template
++++ exim4.conf.template
+@@ -202,6 +202,14 @@
+ 
+   require verify        = recipient
+ 
++  # The virus and spam flags set below hold one domain's settings for the whole message, so each local domain gets a
++  # transaction of its own.
++  defer   message       = 452 4.5.3 Please send to one recipient domain at a time
++          domains       = +local_domains
++          condition     = ${if and{{!eq{$acl_m8}{}}{!eq{$acl_m8}{$domain}}}{yes}{no}}
++  warn    domains       = +local_domains
++          set acl_m8    = $domain
++
+ .ifdef CLAMD
+   warn    set acl_m0    = no
+ 

@@ -4,23 +4,14 @@
 #
 # example: h-add-sys-crowdsec-peer node2.example.com AB3CD-EF4GH-JK5MN-PQ6RS
 #
-# Joins the mesh of the box at HOST with a one-time code its admin minted there, so pairing needs an
-# admin on both sides and neither handles the other's credentials. Both boxes end up with each other's
-# pull token, TLS pin and an IP-scoped ACCEPT rule for the panel port; the timer takes it from there.
-#
-# CODE may be @/path/to/file (read, then removed): argv is world-readable via /proc, so the panel
-# passes the secret that way.
+# Joins the mesh of the box at HOST with a one-time code its admin minted there: pairing needs an admin on both sides.
+# Both boxes end up with each other's pull token, TLS pin and an IP-scoped ACCEPT rule for the panel port.
+# CODE may be @FILE in /run/hestia/mesh/in (read, then removed), which keeps it off this command's argv.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 host=$1
 code=$2
 port=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -29,7 +20,6 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/crowdsec-mesh.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 fail() {
@@ -38,10 +28,6 @@ fail() {
 	rm -f "$payload" "$reply"
 	exit "${2:-$E_INVALID}"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -61,11 +47,10 @@ for b in curl jq openssl; do
 	}
 done
 
-# @file form: the secret arrives out of band. Consumed immediately either way.
 if [[ "$code" == @* ]]; then
 	code_file="${code#@}"
-	[ -f "$code_file" ] || {
-		echo "ERROR: code file not found."
+	mesh_handoff_valid "$code_file" || {
+		echo "ERROR: code file must be a file in $MESH_RUN_DIR/in."
 		exit "$E_NOTEXIST"
 	}
 	code=$(head -c 128 "$code_file")
@@ -83,7 +68,7 @@ port="${port:-${BACKEND_PORT:-8083}}"
 	echo "ERROR: invalid port."
 	exit "$E_INVALID"
 }
-# A v6 literal has colons, the name form has none. Canonicalised, or two spellings become two peers.
+# Canonicalised, or two spellings of one v6 address become two peers.
 if [[ "$host" == *:* ]]; then
 	(is_ipv6_format_valid "$host" 'host') > /dev/null 2>&1 || {
 		echo "ERROR: invalid host."
@@ -108,8 +93,7 @@ if [ -f "$MESH_PEERS_CONF" ] && grep -q "^PEER='$peer'" "$MESH_PEERS_CONF"; then
 	exit "$E_EXISTS"
 fi
 
-# The peer calls back to record OUR pin, so every address it can arrive from gets a rule: a name
-# resolves in BOTH families (a v6-only peer has no A record), a literal needs no lookup.
+# The peer calls back for our pin from any of its addresses; a name resolves in both families (v6-only has no A record).
 if [[ "$host" == *:* ]] || [[ "$host" =~ ^[0-9]+(\.[0-9]+){3}$ ]]; then
 	peer_ips="$host"
 else
@@ -120,22 +104,16 @@ peer_ips=${peer_ips% }
 	echo "ERROR: cannot resolve $host to an address."
 	exit "$E_CONNECT"
 }
-# Comma form. Read only by the three output formats of h-list-sys-crowdsec-peers, which print it
-# as it stands - nothing parses it as a single address.
+# Comma form is safe: only h-list-sys-crowdsec-peers reads IP, and it prints it as it stands.
 peer_ip="${peer_ips// /,}"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# 1) Let the peer in first: it connects back for our TLS pin, and later pulls on the same port.
+# Open before pinning: the peer connects back for our TLS pin, and later pulls on the same port.
 mesh_fw_open "$peer_ips" "$peer" && fw_added=1
 
-# 2) Pin first, then pair against that pin - even the handshake carrying the code is key-bound.
+# Pin first, so even the handshake carrying the code is key-bound.
 pin=$(mesh_spki_pin "$host" "$port") || fail "cannot read the TLS key of $host:$port (reachable? panel up?)" "$E_CONNECT"
 
-# 3) The token minted here is what the peer presents to US later; its own comes back in the reply.
-# Both travel in files, never argv.
+# serve_token is what the peer presents to us later. curl gets the payload as a file; jq gets code and token via --arg.
 serve_token=$(mesh_token_new)
 payload=$(mktemp)
 chmod 600 "$payload"
@@ -163,7 +141,7 @@ rm -f "$reply"
 [[ "$pull_token" =~ ^[a-f0-9]{32,128}$ ]] || fail "the peer returned no usable token." "$E_PARSING"
 [[ "$peer_port" =~ ^[0-9]{1,5}$ ]] || peer_port="$port"
 
-# 4) Root-only file: PULL_TOKEN/SERVE_TOKEN are live credentials.
+# Root-only file: PULL_TOKEN/SERVE_TOKEN are live credentials.
 time_n_date=$(date +'%T %F')
 str="PEER='$peer' HOST='$host' PORT='$peer_port' IP='$peer_ip' PIN='$pin'"
 str="$str PULL_TOKEN='$pull_token' SERVE_TOKEN='$serve_token' SUSPENDED='no'"
@@ -172,17 +150,12 @@ touch "$MESH_PEERS_CONF"
 chmod 600 "$MESH_PEERS_CONF"
 echo "$str" >> "$MESH_PEERS_CONF"
 
-# 5) Serve side live at once, then converge without waiting for the timer.
 mesh_stage_serve
 $BIN/h-update-crowdsec-mesh > /dev/null 2>&1 || true
 
 echo "Paired with $peer ($(url_host "$host"):$peer_port)."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# $ARGUMENTS holds the code, so it is never logged - only the peer identity.
+# $ARGUMENTS can hold the code, so only the peer identity is logged.
 $BIN/h-log-action "system" "Info" "System" "CrowdSec mesh peer added (Peer: $peer, IP: $peer_ip)."
 log_event "$OK" "PEER='$peer'"
 

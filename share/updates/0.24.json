@@ -1,0 +1,716 @@
+{
+  "version": "0.24",
+  "entries": [
+    {
+      "id": "firewall-keep-private",
+      "description": "A DROP rule over an IP list no longer drops loopback and the private ranges; the rules already on the box get it with one new render",
+      "conditions": [
+        {
+          "type": "file_contains",
+          "path": "/etc/hestia/firewall/rules.conf",
+          "value": "IP='ipset:"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/hestia/firewall/ruleset.nft",
+          "value": "# keep-private"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "firewall_keep_private_apply"
+      },
+      "paths": [
+        "/etc/hestia/firewall/ruleset.nft"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "fail2ban-mail-grace",
+      "description": "The dovecot jail gets a filter that reads dovecot 2.4 and counts a failure once, and both mail jails ask the mail password grace before they count",
+      "conditions": [
+        {
+          "type": "file_lacks",
+          "path": "/etc/fail2ban/jail.d/hestia.local",
+          "value": "hestia-mail-grace"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "fail2ban_mail_grace_apply"
+      },
+      "paths": [
+        "/etc/fail2ban/jail.d/hestia.local",
+        "/etc/fail2ban/filter.d/hestia-dovecot.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "roundcube-password-client-ip",
+      "description": "The Roundcube password driver names the client, so the mail password grace reaches the devices of a webmail password change",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/roundcube/hestia.php",
+          "target": "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/roundcube/hestia.php",
+        "target": "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+      },
+      "paths": [
+        "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "tachyon-password-client-ip",
+      "description": "The same for Tachyon: our change-password-hestia driver replaces the pinned one",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/tachyon/plugins/change-password-hestia/driver.php",
+          "target": "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/tachyon/plugins/change-password-hestia/driver.php",
+        "target": "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+      },
+      "paths": [
+        "/etc/tachyon/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "v-aliases-remove",
+      "description": "The v-* aliases of the HestiaCP command names are gone; an update removes them, only symlinks are touched",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/v-add-user"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "v_aliases_remove_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-fs-archive",
+      "description": "h-add-fs-archive is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-fs-archive"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-fs-archive"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-fs-archive"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-change-fs-file-permission",
+      "description": "h-change-fs-file-permission is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-change-fs-file-permission"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-change-fs-file-permission"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-change-fs-file-permission"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-check-fs-permission",
+      "description": "h-check-fs-permission is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-check-fs-permission"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-check-fs-permission"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-check-fs-permission"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-copy-fs-directory",
+      "description": "h-copy-fs-directory is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-copy-fs-directory"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-copy-fs-directory"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-copy-fs-directory"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-copy-fs-file",
+      "description": "h-copy-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-copy-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-copy-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-copy-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-delete-fs-file",
+      "description": "h-delete-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-delete-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-delete-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-delete-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-get-fs-file-type",
+      "description": "h-get-fs-file-type is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-get-fs-file-type"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-get-fs-file-type"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-get-fs-file-type"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-list-fs-directory",
+      "description": "h-list-fs-directory is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-list-fs-directory"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-list-fs-directory"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-list-fs-directory"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-move-fs-directory",
+      "description": "h-move-fs-directory is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-move-fs-directory"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-move-fs-directory"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-move-fs-directory"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-move-fs-file",
+      "description": "h-move-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-move-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-move-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-move-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-open-fs-file",
+      "description": "h-open-fs-file is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-open-fs-file"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-open-fs-file"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-open-fs-file"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-search-fs-object",
+      "description": "h-search-fs-object is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-search-fs-object"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-search-fs-object"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-search-fs-object"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-httpd",
+      "description": "The httpd config editor page is gone: httpd is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/httpd"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/httpd"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/httpd"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-exim",
+      "description": "The exim config editor page is gone: exim is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/exim"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/exim"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/exim"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-crond",
+      "description": "The crond config editor page is gone: crond is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/crond"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/crond"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/crond"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-panel-editor-mysqld",
+      "description": "The mysqld config editor page is gone: mysqld is a RHEL service name, no supported target has it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/web/edit/server/mysqld"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/web/edit/server/mysqld"
+      },
+      "paths": [
+        "/usr/local/hestia/web/edit/server/mysqld"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "cron-record-review",
+      "description": "The hardened cron reader skips a cron.conf line it cannot read back; name the users whose jobs an injected or malformed record stops, without touching any file",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/users"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/hestia/.cron-record-review-1176"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "cron_record_review_apply"
+      },
+      "paths": [
+        "/etc/hestia/.cron-record-review-1176"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-cron-restart-job",
+      "description": "h-add-cron-restart-job is gone: the hestia crontab renderer writes the restart queue line on every box, so it added nothing",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-cron-restart-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-cron-restart-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-cron-restart-job"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-delete-cron-restart-job",
+      "description": "h-delete-cron-restart-job is gone: it removed the restart queue line, after which queued restarts were never run",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-delete-cron-restart-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-delete-cron-restart-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-delete-cron-restart-job"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "adminer-core",
+      "description": "Adminer as shipped: h-add-sys-adminer stops at an existing install, so a new pin reaches a box only through this entry",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/adminer/index.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/adminer/adminer.php",
+          "target": "/usr/share/adminer/index.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/adminer/adminer.php",
+        "target": "/usr/share/adminer/index.php"
+      },
+      "paths": [
+        "/usr/share/adminer/index.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "adminer-plugins",
+      "description": "Adminer as shipped: h-add-sys-adminer stops at an existing install, so a new pin reaches a box only through this entry",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/adminer/adminer-plugins.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/adminer/adminer-plugins.php",
+          "target": "/usr/share/adminer/adminer-plugins.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/adminer/adminer-plugins.php",
+        "target": "/usr/share/adminer/adminer-plugins.php"
+      },
+      "paths": [
+        "/usr/share/adminer/adminer-plugins.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "adminer-login-servers",
+      "description": "Adminer as shipped: h-add-sys-adminer stops at an existing install, so a new pin reaches a box only through this entry",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/adminer/adminer-plugins/login-servers.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/adminer/plugins/login-servers.php",
+          "target": "/usr/share/adminer/adminer-plugins/login-servers.php"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/adminer/plugins/login-servers.php",
+        "target": "/usr/share/adminer/adminer-plugins/login-servers.php"
+      },
+      "paths": [
+        "/usr/share/adminer/adminer-plugins/login-servers.php"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "remove-h-check-mail-account-hash",
+      "description": "h-check-mail-account-hash is gone: nothing called it, and it took the mail password in its arguments",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-check-mail-account-hash"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-check-mail-account-hash"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-check-mail-account-hash"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "exim-one-domain-per-transaction",
+      "description": "Inbound mail is taken one local domain per transaction, so one domain's virus and spam settings no longer decide for another's recipients; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-one-domain-per-transaction.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_one_domain_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "exim-reject-needs-antispam",
+      "description": "Spam is rejected only while the domain's antispam scan is on; a reject_spam left behind no longer rejects on its own",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-reject-needs-antispam.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_reject_antispam_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "exim-lists-unexpanded",
+      "description": "The per-domain spam sender lists and the relay exclude list are matched as plain patterns and no longer string-expanded; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-lists-unexpanded.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_lists_unexpanded_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "tachyon-private-folders",
+      "description": "The Tachyon listener answers its data and tmp folders with 404",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/caddy/webmail-tachyon.conf"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/panel-caddy/webmail-tachyon.conf",
+          "target": "/etc/caddy/webmail-tachyon.conf"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/panel-caddy/webmail-tachyon.conf",
+        "target": "/etc/caddy/webmail-tachyon.conf"
+      },
+      "paths": [
+        "/etc/caddy/webmail-tachyon.conf"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "exim-relay-dkim",
+      "description": "Mail sent through an authenticated SMTP relay is DKIM-signed like direct mail; patched into a file the operator may have edited",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "MAIL_SYSTEM",
+          "value": "exim4"
+        },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.24/exim-relay-dkim.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "exim_relay_dkim_apply"
+      },
+      "paths": [
+        "/etc/exim4/exim4.conf.template"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "sieve-learn-ham-skips-trash",
+      "description": "Deleting a message from the spam folder no longer teaches the filter that it is ham",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/dovecot/sieve/report-ham.sieve"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/dovecot/sieve-learn/report-ham.sieve",
+          "target": "/etc/dovecot/sieve/report-ham.sieve"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "sieve_learn_ham_apply"
+      },
+      "paths": [
+        "/etc/dovecot/sieve/report-ham.sieve"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "managesieve-loopback",
+      "description": "ManageSieve listens on loopback only, where the webmails reach it",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "SIEVE_SYSTEM",
+          "value": "yes"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/dovecot/conf.d/20-managesieve.conf",
+          "value": "127.0.0.1"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "sieve_managesieve_local_apply"
+      },
+      "paths": [
+        "/etc/dovecot/conf.d/20-managesieve.conf"
+      ],
+      "reversible": false
+    }
+  ]
+}

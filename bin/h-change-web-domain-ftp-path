@@ -51,11 +51,7 @@ if [ -z "$(echo $FTP_USER | tr ':' '\n' | grep ^$ftp_user$)" ]; then
 	exit "$E_NOTEXIST"
 fi
 ftp_path_a=$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")
-if [ -z "$(echo $ftp_path_a | grep $HOMEDIR/$user/web/$domain)" ]; then
-	echo "Error: absolute path $ftp_path_a is invalid"
-	log_event "$E_INVALID" "$ARGUMENTS"
-	exit "$E_INVALID"
-fi
+is_record_path_valid "$ftp_path_a" "$HOMEDIR/$user/web/$domain" 'ftp path'
 
 #----------------------------------------------------------#
 #                       Action                             #

@@ -1,69 +1,68 @@
 #!/bin/bash
 # info: open config
-# options: CONFIG
+# options: CONFIG [FORMAT]
 # labels: internal
 # caller: the panel server config editor
 #
-# example: h-open-fs-config /etc/mysql/my.cnf
+# example: h-open-fs-config nginx json
 #
-# This function opens/reads config files on the file system
+# Prints a file the server config editor offers. CONFIG is its key (nginx, dovecot-3, php-8.3, see sys_config_path)
+# or its path; anything else is refused with rc 2. FORMAT json answers {"path", "content"} for the panel.
 
-# The rest of the tree gets --help through main.sh, which this command does not load.
-# shellcheck source=/usr/local/hestia/include/help.sh
-case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+config=$1
+format=$2
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
-src_file=$1
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
 
-# Checking arguments
-if [ -z "$src_file" ]; then
-	echo "Usage: h-open-fs-config CONFIG"
-	exit 1
-fi
+check_args '1' "$#" 'CONFIG [FORMAT]'
 
-# Checking root permissions
 if [ "$(id -u)" != '0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# Checking file on fs
-if [ ! -e "$src_file" ]; then
-	echo "Error: $src_file file doesn't exist"
-	exit 3
-fi
+case "$format" in '' | plain | json) ;; *) check_result "$E_INVALID" "invalid format $format" ;; esac
 
-# Checking path
-if [ -n "$src_file" ]; then
-	rpath=$(readlink -f "$src_file")
-	services="nginx|apache|httpd|php|ftp|exim|dovecot"
-	services="$services|clam|mysql|postgresql|pgsql|cron|ssh|fail2ban|iptables"
-	services="$services|my.cnf|hestia"
-	spath=$(echo "$rpath" | egrep "$services")
-	if [ -z "$spath" ]; then
-		echo "Error: invalid source path $src_file"
+# A path counts only as the whole canonical string of an offered file: no prefix, no keyword, no pattern.
+if [[ "$config" == /* ]]; then
+	sys_config_preload
+	if ! path=$(sys_config_offered "$config"); then
+		none=''
+		for key in $(sys_config_keys); do sys_config_path "$key" > /dev/null || none="$none $key"; done
+		echo "Error: $config is not a file the config editor offers${none:+ (no file here for:$none)}"
 		exit 2
 	fi
-	spath=$(echo "$rpath" | egrep "/etc|/var/lib|/var/spool/cron/")
-	if [ -z "$spath" ]; then
-		echo "Error: invalid source path $src_file"
-		exit 2
-	fi
+else
+	path=$(sys_config_path "$config")
+	case $? in
+		0) ;;
+		1)
+			echo "Error: $config is not offered by the config editor"
+			exit 2
+			;;
+		*)
+			echo "Error: $config has no config file on this server, the component is missing"
+			exit 2
+			;;
+	esac
 fi
 
-# Reading conf
-cat "$src_file" 2> /dev/null
+if [ ! -e "$path" ]; then
+	# Offered but not yet created (fail2ban's jail.local): empty, the first save makes it.
+	[ "$format" != json ] || jq -n --arg path "$path" '{path: $path, content: ""}'
+elif [ "$format" = json ]; then
+	jq -n --arg path "$path" --rawfile content "$path" '{path: $path, content: $content}' 2> /dev/null
+else
+	cat -- "$path" 2> /dev/null
+fi
 if [ $? -ne 0 ]; then
-	echo "Error: file $src_file was not opened"
+	echo "Error: file $path was not opened"
 	exit 3
 fi
 
-"$HESTIA/bin/h-log-action" "system" "Info" "System" "Configuration file opened (File: $src_file)."
+"$HESTIA/bin/h-log-action" "system" "Info" "System" "Configuration file opened (File: $path)."
 
-# Exiting
 exit

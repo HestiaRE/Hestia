@@ -14,6 +14,74 @@ before v0.20.0 are folded into one section by theme.
 
 _Nothing yet._
 
+## v0.24 (2026-10-06)
+
+The command audit covers files, cron, databases, the firewall and mail, the `v-*` names are gone, a mail password
+change no longer gets the user's other devices banned, and FireHOL lists can be picked from their catalogue.
+
+### Added
+
+- **A mail password change gives the other devices of the network time to catch up** (#1155). For 12 hours
+  dovecot failures of that account from that network do not count towards a ban, for one hour no exim failure from
+  it does, and a ban the network already has is lifted; a global IPv6 address stands for its /64. Panel, Roundcube
+  and Tachyon set it, `h-add-mail-account-grace` by hand, `MAIL_PW_GRACE` / `MAIL_PW_GRACE_SMTP` set the minutes.
+- **FireHOL blocklists can be picked from the live catalogue** (#510). The ticked lists become one IP list with one
+  DROP rule, combined lists hide what they already contain, and a list FireHOL stops serving is skipped on refresh
+  instead of freezing the set.
+- **CrowdSec protects new web domains by default** (#1176) wherever its nginx bouncer runs; off per domain.
+
+### Security
+
+- **The server config editor read and wrote more than it offers** (#1176). It handed out the SSH host keys, the
+  MariaDB root password and customer records, and its writer copied any file as root into a service config. Both
+  now work on one set of files derived from the installed services, and a config the service rejects is never
+  applied.
+- **Database names stay within their account** (#1176). A database, database user or account whose names lie in
+  another account's is refused when created, moved or restored. Also: the server status page escapes what it shows,
+  and a database download is readable by the panel only.
+- **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171). The stock filter does not know dovecot
+  2.4; our own reads 2.3 and 2.4 and counts a failure once.
+- **A DROP rule over an IP list could lock out the admin network** (#510). FireHOL Level 1 contains the private
+  ranges; such a rule now leaves loopback and them alone, and an update re-renders a box that has one.
+- **Paths are compared as whole components** (#1176): `/home/ab` no longer passes for customer `a` in the fs
+  commands. Customer directory names reaching records and configs are held to a closed set, and record parsing
+  refuses to bind a reserved control name like `user` or `crontab`.
+- **Mail account, domain and system commands are stricter** (#1176), and Tachyon webmail serves only what belongs to
+  the browser.
+
+### Changed
+
+- **Tachyon is 4.3.1** (#1194) on a fresh install; an existing box gets it by running `h-add-sys-tachyon`, which also
+  replaces the plugins whose version moved.
+
+### Removed
+
+- **The `v-*` command names** (#1176). Call `h-*` with the same arguments, or create aliases outside
+  `/usr/local/hestia/bin`; a `v-*` symlink left there fails the smoke check. An update removes the shipped ones, and
+  a restore of a pre-1.9 HestiaCP archive names cron jobs that still call them.
+- **Sixteen commands without a caller** (#1176): twelve file commands from HestiaCP's app installer and the
+  VestaCP file manager, `h-add-cron-restart-job`, `h-delete-cron-restart-job` and `h-check-mail-account-hash`. An
+  update deletes them from the box.
+
+### Fixed
+
+- **Commands that reported success without having done it** (#1176). Firewall changes the ruleset refuses are
+  rolled back, IPv6 and network bans render, a shrunken IP list is kept, a manual ban survives a fail2ban restart.
+  A database that cannot be dropped keeps its record, a suspended PostgreSQL database stays closed, an unreachable
+  host fails after 10 seconds. Suspended mailboxes stay suspended through a rebuild, IDN mail domains can be
+  suspended and moved, one domain's spam settings no longer decide for another's recipients, removing rspamd no
+  longer breaks logins, deleting the mail queue deletes it, and mail addons and Roundcube can be removed and added
+  again.
+- **Adding a mail domain left its webmail unreachable until some later reload** (#1172), like every restart after a
+  command that read a customer record: the record's `SHELL='nologin'` broke the web freeze check.
+- **A restore broke off at the mail and home archives when `BACKUP_TEMP` was set** (#1176), and read parts of a
+  PostgreSQL password hash as record keys. Record helpers now read a record field by field.
+- **The fail2ban page of the config editor could never save** (#1176); the first save creates `jail.local`, and one
+  fail2ban cannot run on is rolled back.
+- Smaller ones: mail through an authenticated SMTP relay was not DKIM-signed, moving a message from Spam to Trash
+  trained it as ham, ManageSieve listened on every address, and a webmail alias change switched every domain to the
+  default client (#1176).
+
 ## v0.23 (2026-09-27)
 
 The panel keeps eight languages and speaks German completely, a customer's databases can share a user or add a
@@ -21,76 +89,37 @@ read-only one, ionCube joins the addons, and every PHP version gets one extensio
 
 ### Added
 
-- **A MySQL database can share a user with another database of the customer, and carry a second one** (#725).
-  `h-add-database` and `h-change-database-user` take an empty DBPASS to reuse a user the customer already has;
-  its password stays in the record that created it, and that database cannot be deleted or moved while another
-  still uses the user. `h-change-database-second-user` adds a second user, switches it between full rights and
-  read-only (`SELECT, SHOW VIEW`) and changes its password; suspend, rebuild, backup and restore carry it. Add
-  and Edit Database offer both in the panel.
-- **ionCube loader as an installer addon** (#1069), preselected on standard and compact. The loader is pinned
-  with a sha256 per architecture and reaches every customer PHP version but 8.0, for which ionCube ships none;
-  `h-add-sys-ioncube` / `h-delete-sys-ioncube` switch it on a live box.
-- **The installer asks for the system locale, and the panel's language follows it** (#1164). Leave as it is,
-  English, German or `C.UTF-8`, unattended with `--locale=`; it takes effect with the install reboot, and
-  `h-change-sys-locale` does the same later. An update never touches the system locale.
+- **A MySQL database can share a user with another database of the customer, and carry a second one** (#725),
+  full or read-only, carried by suspend, rebuild, backup and restore.
+- **ionCube loader as an installer addon** (#1069), pinned per architecture, for every customer PHP but 8.0.
+- **The installer asks for the system locale, and the panel's language follows it** (#1164).
 
 ### Security
 
-- **A customer could take over another customer's database user** (#725). The customer prefix does not keep
-  names apart (`a` with `b_x` and `a_b` with `x` are both `a_b_x`), and the second GRANT reset the first
-  user's password. Creating, renaming, moving and restoring a database refuse a name somebody else has.
-- **A database restored without a password hash got a user without a password** (#725), which any local
-  process could use. It gets a random one now, and an empty DBPASS is no longer taken as a password.
+- **A customer could take over another customer's database user** (#725), because the prefix does not keep names
+  apart; a database restored without a password hash got a user without a password.
 - **The SMTP relay password was readable by every account** (#1142), and **mail certificate keys were
-  world-readable** (#1135). The relay files are 640/660 for exim, the keys 640 through the `mail` group, and
-  update entries re-mode what a box already has.
+  world-readable** (#1135).
 
 ### Changed
 
-- **The panel speaks eight languages, from text sources** (#1160). English and German are maintained, and
-  German covers the whole panel with one reviewed term for each recurring word; Dutch, French, Spanish,
-  Portuguese, Danish and Russian were filled once, best effort. Each language is a `hestia.po` beside its
-  `hestia.mo` under the gettext domain `hestia`, kept in step by `.gitea/tools/i18n.sh`.
-- **Sharing a domain is the owner's switch on the web domain** (#751). A Share box on Add and Edit Web Domain
-  lets other accounts add subdomains of it; "Enforce subdomain ownership" left the panel and stays a
-  `hestia.conf` key for the CLI.
-- **Every PHP version gets one extension set** (#1069), sized for WordPress, Nextcloud and Magento: `redis`,
-  `igbinary` and `mcrypt` are new, `cgi`, `pspell` and `imap` are no longer installed, and the CLI allows
-  `pcntl_*`. phpMyAdmin and Roundcube install without recommends, which had pulled the newest Sury PHP onto
-  boxes that run none of it.
-- **The smoke checks the box; checks on the shipped code run in CI** (#1147). `h-check-sys-smoke` went from
-  97 checks to 57, and a new `nginx -t` / `apache2ctl -t` check catches every config the next reload would
-  refuse.
-
-### Removed
-
-- **33 panel languages** (#1160). Most covered a third of the panel or less. An update deletes them and moves
-  every account on one of them to English; a restore does the same with a note.
+- **The panel speaks eight languages, from text sources** (#1160); English and German are maintained, 33 others
+  were dropped and their accounts moved to English.
+- **Sharing a domain is the owner's switch on the web domain** (#751).
+- **Every PHP version gets one extension set** (#1069), sized for WordPress, Nextcloud and Magento.
+- **The smoke checks the box; checks on the shipped code run in CI** (#1147), with `nginx -t` / `apache2ctl -t`.
 
 ### Fixed
 
-- **The panel showed English on Debian 13 and both Ubuntu releases** (#1157). glibc 2.39 and later ignore
-  `LANGUAGE` under `C.UTF-8`, and no box had `en_US.UTF-8`; install and update generate it now.
-- **An update to v0.22 stopped halfway** (#1132). An entry in `0.22.json` waited for one the raised lower bound
-  no longer reads, and a nomail box failed the same check on the stock exim template.
-- **On a PHP 8.5 panel, phpMyAdmin or Roundcube answered 500** (#1149). The Roundcube pool's shim for
-  `array_first()` reached phpMyAdmin through the shared OPcache; the Roundcube pool runs without it now.
-- **An OS-PHP box left customer PHP unhardened** (#1069). singlephp and mailonly never ran `h-add-web-php`, so
-  `exec()` was open and uploads stopped at 2 MB; an update configures what it missed. Customer code there that
-  relied on `exec()` stops working, as it always did on a Sury box.
-- **Saving the PHP page overwrote every php.ini on the box, the panel's own included** (#1144). It edits the
-  fpm `php.ini` of one chosen version now.
-- **An SMTP relay login with `\` or `` ` `` made the mail backup unrestorable** (#1143). The credentials are
-  stored encoded; HestiaCP reads that form literally, so the relay password has to be set again there.
-- **An account created under `umask 077` was broken without an error** (#1134): IMAP unavailable, every web
-  domain 403. Every command starts from `umask 022` now, and `h-add-user` sets its modes as the rebuild does.
-- **Removing a PHP version could take phpMyAdmin and Roundcube with it** (#1069); `h-delete-web-php` refuses.
-- **Renaming a package left its customers on a package that no longer existed** (#1158), and three more panel
-  actions failed the same way: a call without `$BIN`, which sudo's path does not carry.
-- Smaller ones: counters drifted after an aborted restore (#1137), saving unchanged server settings ran the
-  relay delete and reloaded the web server (#1140), a failed `tempnam()` ended a password save in a blank page
-  (#1158), an apostrophe in a translation or a multi-line restic error broke the panel's scripts (#1160), and
-  Add Database never showed the customer prefix (#725).
+- **The panel showed English on Debian 13 and both Ubuntu releases** (#1157), and **an update to v0.22 stopped
+  halfway** (#1132).
+- **An OS-PHP box left customer PHP unhardened** (#1069), and **saving the PHP page overwrote every php.ini on the
+  box** (#1144).
+- **An SMTP relay login with `\` or `` ` `` made the mail backup unrestorable** (#1143), and **an account created
+  under `umask 077` was broken without an error** (#1134).
+- Smaller ones: phpMyAdmin or Roundcube answered 500 on a PHP 8.5 panel (#1149), removing a PHP version could take
+  them along (#1069), a package rename and three more panel actions failed under sudo's path (#1158), and
+  counters drifted after an aborted restore (#1137).
 
 ## v0.22 (2026-09-24)
 
@@ -99,32 +128,22 @@ answers `--help`, and the spam path loses three defects inherited from HestiaCP.
 
 ### Added
 
-- **With Sieve, panel and webmail share one out-of-office notice** (#784), written into the mailbox's active
-  script in the format of the webmail that owns it; exim no longer answers alongside. Without Sieve exim
-  answers as before.
-- **A web domain can carry the panel** (#878). The `panel` template proxies to the panel on loopback, so the
-  panel port can close; the panel sees the real client address, and the login jail bans on 80/443 as well.
-- **Every command answers `--help`** (#657), from a header that now describes what the code reads.
-- **The clock is stepped once a day at 07:00** (#1098), against the drift of nightly suspend-mode snapshots.
+- **With Sieve, panel and webmail share one out-of-office notice** (#784); without Sieve exim answers as before.
+- **A web domain can carry the panel** (#878), so the panel port can close.
+- **Every command answers `--help`** (#657), and **the clock is stepped once a day** (#1098).
 
 ### Changed
 
-- **A remote PostgreSQL host has to speak TLS** (#1098, #980). One registered without it stops connecting
-  until `TLS='no'` is added to its line in `conf/pgsql.conf`.
-- **The exim autoreply follows RFC 3834** (#784): no answer to bounces, lists or spam, one per sender a week.
-- **The update lower bound is `v0.21`** (#1111), and **Tachyon is 4.2.5** (#1125).
+- **A remote PostgreSQL host has to speak TLS** (#1098, #980), unless its line carries `TLS='no'`.
+- **The exim autoreply follows RFC 3834** (#784), **the update lower bound is `v0.21`** (#1111), and **Tachyon is
+  4.2.5** (#1125).
 
 ### Fixed
 
-- **A sender could keep spam out of the spam folder with an `X-Spam-Status` of their own** (#1121). Incoming
-  `X-Spam-*` headers are dropped before the scan.
-- **The first spam to a new mailbox waited for its first ordinary mail** (#1127), and every retry tagged the
-  subject again.
-- **A restored PostgreSQL database left the customer without rights to their own data** (#1113).
-- **The Roundcube password change failed on every box** (#878), and **a sieve redirect failed SPF** (#1095).
-- Smaller ones: PHP ran on UTC whatever the time zone, database hosts off the default port were half ignored,
-  two install probes depended on the box's language (#1098), a panel certificate took effect only at the next
-  restart (#878), and removing webmail left its nginx logs behind (#1122).
+- **A sender could keep spam out of the spam folder with an `X-Spam-Status` of their own** (#1121), the first spam
+  to a new mailbox waited for its first ordinary mail (#1127), a restored PostgreSQL database left the customer
+  without rights (#1113), the Roundcube password change failed on every box (#878), and a sieve redirect failed SPF
+  (#1095).
 
 ## v0.21 (2026-09-22)
 

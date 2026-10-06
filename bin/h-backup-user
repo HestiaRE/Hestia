@@ -184,7 +184,7 @@ get_user_disk_usage() {
 				# An unreadable part makes the sum unreadable, it does not drop out of it.
 				# TYPE is this database's engine; DB_SYSTEM is a token list and matches no arm.
 				case $TYPE in
-					mysql) get_mysql_disk_usage ;;
+					mysql) get_mysql_disk_usage || return 1 ;;
 					pgsql) get_pgsql_disk_usage || return 1 ;;
 				esac
 				add_usage "$usage" || return 1
@@ -834,7 +834,12 @@ if [ "$USER" != '*' ]; then
 		exclusion=$(echo "$USER" | tr ',' '\n' | grep "^$udir$")
 		if [ -z "$exclusion" ]; then
 			((i++))
-			udir_list="$udir_list $udir"
+			# The archive keeps every entry; the record lists only names it can hold, a full restore reads the archive.
+			if is_record_list_item "$udir"; then
+				udir_list="$udir_list $udir"
+			else
+				echo "$(date "+%F %T") $udir is archived but not listed in the backup record" | tee -a $BACKUP/$user/$user.log
+			fi
 			echo -e "$(date "+%F %T") adding $udir" | tee -a $BACKUP/$user/$user.log
 
 			check_backup_conditions

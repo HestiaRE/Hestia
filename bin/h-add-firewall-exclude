@@ -4,37 +4,21 @@
 #
 # example: h-add-firewall-exclude 203.0.113.10
 #
-# Accepted ahead of every ban match, which is what makes this the recovery primitive: adding your own
-# address releases an EXISTING lockout, not just future ones. No v-* symlink.
+# The whitelist is accepted ahead of every ban, so adding your own address also releases an existing lockout.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 ip_cidr=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'IP_CIDR'
 is_format_valid 'ip_cidr'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 excludes="$CONF_DIR/firewall/excludes.conf"
 touch "$excludes"
@@ -43,18 +27,18 @@ if grep -qxF "$ip_cidr" "$excludes" 2> /dev/null; then
 	exit
 fi
 
+fw_conf_checkpoint "$excludes"
 echo "$ip_cidr" >> "$excludes"
 chmod 660 "$excludes"
 
-# Drop any ban it already has: an accept and a reject for one source, decided by emit order, is a confusing
-# state to leave behind when the point of the command is to release a lockout.
+# Drop its bans as well: an accept and a ban for one source, decided only by emit order, is no state to leave.
 while read -r ban; do
 	[ -n "$ban" ] || continue
 	parse_object_kv_list "$ban"
 	[ "$IP" = "$ip_cidr" ] && $BIN/h-delete-firewall-ban "$IP" "$CHAIN" > /dev/null 2>&1
 done < <(grep "IP='$ip_cidr'" "$CONF_DIR/firewall/banlist.conf" 2> /dev/null)
 
-$BIN/h-update-firewall > /dev/null 2>&1
+fw_update_or_rollback > /dev/null 2>&1 || check_result "$E_INVALID" "the ruleset rejected the change, address not whitelisted"
 
 # fail2ban keeps its own copy, or the jail keeps counting an address the ruleset already exempts.
 if [ -n "$FIREWALL_EXTENSION" ] && [ -f "$HESTIA/include/fail2ban.sh" ]; then
@@ -63,10 +47,6 @@ if [ -n "$FIREWALL_EXTENSION" ] && [ -f "$HESTIA/include/fail2ban.sh" ]; then
 	fail2ban_sync_ignoreip
 	systemctl reload-or-restart fail2ban > /dev/null 2>&1
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Firewall" "Whitelisted IP address $ip_cidr."
 log_event "$OK" "$ARGUMENTS"

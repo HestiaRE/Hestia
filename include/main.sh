@@ -22,8 +22,11 @@ PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCN
 HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
-# one (the archive name).
-RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP"
+# one (the archive name). user and crontab: sync_cron_jobs chowns $crontab to $user as root.
+RECORD_ONLY_PROTECTED="ROOT_USER REPO BACKUP_TEMP user crontab"
+
+# cron_record_safe skips a stored line that sets any other key. Keep in step with the writers.
+CRON_RECORD_SCHEMA="JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE"
 
 # Storage encoding for record VALUES (record_line_valid refuses ' " ` and \ inside one). One encoder
 # and one decoder, or a fifth writer knows half the set.
@@ -44,6 +47,127 @@ record_value_decode() {
 	_v="${_v//%backtick%/\`}"
 	_v="${_v//%backslash%/\\}"
 	printf '%s' "$_v"
+}
+
+# Record lines are edited AS TEXT, never re-emitted from a key list: an unknown field would be
+# dropped, and the field ORDER is load-bearing. A value with a literal ' is not representable.
+
+# Not optional: the line lands in a live *.conf that sed, grep/cut and the JSON emitters read
+# directly. $ stays allowed (crypt hashes); banning ' is what lets record_set_field find one.
+record_line_valid() {
+	local _line="$1" _rest _q="'" _dq='"' _bt='`' _bs='\'
+	local -A _seen_key=()
+	[ -n "$_line" ] || return 1
+	# A newline would make the "one record per line" assumption a lie for every reader below.
+	[[ "$_line" == *$'\n'* ]] && return 1
+	local _re="^([A-Z][A-Z0-9_]*)=${_q}([^${_q}${_dq}${_bt}${_bs}]*)${_q}( |$)"
+	# Trailing blanks are trimmed rather than rejected: some writers emit one and it carries
+	# nothing. Everything else has to match the grammar exactly.
+	_rest="${_line%"${_line##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		# A repeated key is refused: the readers disagree about which wins - eval keeps the last,
+		# sed and grep -o the first - so one line would carry two truths, invisibly.
+		[ -z "${_seen_key[${BASH_REMATCH[1]}]:-}" ] || return 1
+		_seen_key[${BASH_REMATCH[1]}]=1
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 0
+}
+
+# One KEY='VALUE' field at the start of what is left of a line. The helpers below walk a record field by field with
+# it: a value may end in KEY=, and a search for the text finds that before the real field.
+RECORD_FIELD_RE="^([A-Z][A-Z0-9_]*)='([^']*)'( |\$)"
+
+# The keys of a record line, one per line, in the order they appear; rc 1 where the line stops being KEY='VALUE'.
+record_keys() {
+	local _rest
+	_rest="${1%"${1##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
+		printf '%s\n' "${BASH_REMATCH[1]}"
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+}
+
+# record_field LINE KEY: the value of KEY in a record line; rc 1 when the line has no such field.
+record_field() {
+	local _rest
+	_rest="${1%"${1##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
+		if [ "${BASH_REMATCH[1]}" = "$2" ]; then
+			printf '%s' "${BASH_REMATCH[2]}"
+			return 0
+		fi
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 1
+}
+
+# record_rewrite OUTVAR LINE set KEY VALUE | del KEY | insert KEY BEFORE: LINE with KEY set (appended when it is not
+# there), removed, or inserted empty in front of the field BEFORE. OUTVAR is left alone when the rc is not 0: 1 when
+# LINE is not KEY='VALUE' fields or names a key twice (which one counts is a guess), 2 when BEFORE is not a field,
+# 3 when insert finds KEY already there.
+record_rewrite() {
+	local -n _rw_out="$1"
+	local _rest _new='' _hit='' _k
+	local -A _rw_seen=()
+	_rest="${2%"${2##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $RECORD_FIELD_RE ]] || return 1
+		_k="${BASH_REMATCH[1]}"
+		[ -z "${_rw_seen[$_k]:-}" ] || return 1
+		_rw_seen[$_k]=1
+		[ "$3" != insert ] || [ "$_k" != "$4" ] || return 3
+		if [ "$3" = insert ] && [ "$_k" = "$5" ]; then
+			_hit=1
+			_new="$_new${_new:+ }$4=''"
+		fi
+		if [ "$3" != insert ] && [ "$_k" = "$4" ]; then
+			_hit=1
+			[ "$3" = del ] || _new="$_new${_new:+ }$4='$5'"
+		else
+			_new="$_new${_new:+ }$_k='${BASH_REMATCH[2]}'"
+		fi
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	if [ -z "$_hit" ]; then
+		[ "$3" != insert ] || return 2
+		[ "$3" != set ] || _new="$_new${_new:+ }$4='$5'"
+	fi
+	_rw_out="$_new"
+}
+
+# record_sum_field FILE KEY: the sum of KEY over the records in FILE. A value that is not a whole number counts 0,
+# it would end the caller's arithmetic, and with it the script.
+record_sum_field() {
+	local _line _v _sum=0
+	if [ -f "$1" ]; then
+		while IFS= read -r _line || [ -n "$_line" ]; do
+			_v=$(record_field "$_line" "$2") || continue
+			[[ "$_v" =~ ^[0-9]+$ ]] && _sum=$((_sum + 10#$_v))
+		done < "$1"
+	fi
+	echo "$_sum"
+}
+
+# The cron reader's gate, not record_line_valid: a migrated command may hold a ". Keys of either case
+# are read, so a lowercase key outside the schema is caught too.
+cron_record_safe() {
+	local _line="$1" _rest _k
+	[ -n "$_line" ] || return 1
+	[[ "$_line" == *$'\n'* ]] && return 1
+	# A token parse, not a key scan: a KEY=' without its closing quote must fail here, not in the parser.
+	local _re="^([A-Za-z_][A-Za-z0-9_]*)='[^']*'( |\$)"
+	_rest="${_line%"${_line##*[! ]}"}"
+	while [ -n "$_rest" ]; do
+		[[ "$_rest" =~ $_re ]] || return 1
+		_k="${BASH_REMATCH[1]}"
+		case " $CRON_RECORD_SCHEMA " in *" $_k "*) ;; *) return 1 ;; esac
+		_rest="${_rest#"${BASH_REMATCH[0]}"}"
+	done
+	return 0
 }
 
 is_protected_key() {
@@ -583,6 +707,12 @@ _object_conf() {
 	esac
 }
 
+# Numbered matching lines of an object file. A comment line is never a record, and a shipped slot
+# like #FAMILY='custom1' would otherwise answer for one.
+_object_rows() {
+	grep -nF "$2" "$(_object_conf "$1")" | grep -v '^[0-9]*:[[:space:]]*#'
+}
+
 # Check if object is new
 is_object_new() {
 	if [ $2 = 'USER' ]; then
@@ -672,9 +802,12 @@ declare(strict_types=1);
 // - Key names must match: [a-zA-Z][a-zA-Z0-9_]*
 // - Inside single quotes, every character is literal except the closing single quote.
 // - Outside single quotes, backslash escapes the next character.
+// php://stderr, not the STDERR constant: the CLI defines STDERR only for a script given as a file,
+// and this body arrives on stdin, so the constant is undefined and the intended message turned into
+// an "Undefined constant STDERR" fatal instead. It still failed closed, but said the wrong thing.
 function fail(string $message): never
 {
-    fwrite(STDERR, $message . PHP_EOL);
+    fwrite(fopen('php://stderr', 'w'), $message . PHP_EOL);
     exit(2);
 }
 
@@ -791,7 +924,7 @@ while ($unparsed !== '') {
                 'new_value' => $key_value,
             ], true);
         }
-        fwrite(STDERR, $msg . PHP_EOL);
+        fwrite(fopen('php://stderr', 'w'), $msg . PHP_EOL);
     }
     $result[$key_name] = $key_value;
 }
@@ -932,7 +1065,7 @@ json_escape() {
 
 # Get object value
 get_object_value() {
-	object=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+	object=$(_object_rows "$1" "$2='$3'" | cut -d: -f2-)
 	parse_object_kv_list "$object"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -947,7 +1080,7 @@ get_object_values() {
 update_object_value() {
 	# all helpers local: the escaped $old must never leak into a caller's $old
 	local row lnr object varname old new
-	row=$(grep -nF "$2='$3'" "$(_object_conf "$1")")
+	row=$(_object_rows "$1" "$2='$3'")
 	lnr=$(echo $row | cut -f 1 -d ':')
 	object=$(echo $row | sed "s/^$lnr://")
 	parse_object_kv_list "$object"
@@ -964,8 +1097,8 @@ update_object_value() {
 
 # Add object key
 add_object_key() {
-	local row lnr object varname old
-	row=$(grep -nF "$2='$3'" "$(_object_conf "$1")")
+	local row lnr object new
+	row=$(_object_rows "$1" "$2='$3'")
 	lnr=$(echo "$row" | cut -f 1 -d ':')
 	object=$(echo "$row" | sed "s/^$lnr://")
 	# sed without an address edits EVERY line, so a lookup that found nothing would inject the key
@@ -973,14 +1106,15 @@ add_object_key() {
 	if [[ -z "$lnr" || -z "$5" ]]; then
 		return 1
 	fi
-	# Anchored on a separator and on the opening quote. Unanchored, a key that is a SUFFIX of one
-	# already present counts as present and is silently not added (LIST into a record holding
-	# DIR_LIST). No caller pairs like that today; it goes sharp the moment the registry grows one.
-	if [[ "$object" != "$4='"* && "$object" != *" $4='"* ]]; then
-		local varname="${4#\$}"
-		old="${!varname}"
-		sed -i "$lnr s/$5='/$4='' $5='/" "$(_object_conf "$1")"
-	fi
+	# By field, not by text: a key that is a SUFFIX of one present (LIST and DIR_LIST) or a value ending in KEY=
+	# would otherwise count as present, or take the new field. Present already, or no BEFORE: nothing to do.
+	record_rewrite new "$object" insert "$4" "$5"
+	case $? in
+		1) return 1 ;;
+		2 | 3) return 0 ;;
+	esac
+	new=$(echo "$new" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
+	sed -i "$lnr s/.*/$new/" "$(_object_conf "$1")"
 }
 
 # Literal match on the full keys_zone prefix: a dot in the domain is a regex wildcard, so a.b.com
@@ -1201,36 +1335,21 @@ send_notice() {
 recalc_user_disk_usage() {
 	u_usage=0
 	if [ -f "$USER_DATA/web.conf" ]; then
-		usage=0
-		dusage=$(grep 'U_DISK=' $USER_DATA/web.conf \
-			| awk -F "U_DISK='" '{print $2}' | cut -f 1 -d \')
-		for disk_usage in $dusage; do
-			usage=$((usage + disk_usage))
-		done
+		usage=$(record_sum_field "$USER_DATA/web.conf" U_DISK)
 		d=$(grep "U_DISK_WEB='" $USER_DATA/user.conf | cut -f 2 -d \')
 		sed -i "s/U_DISK_WEB='$d'/U_DISK_WEB='$usage'/g" $USER_DATA/user.conf
 		u_usage=$((u_usage + usage))
 	fi
 
 	if [ -f "$USER_DATA/mail.conf" ]; then
-		usage=0
-		dusage=$(grep 'U_DISK=' $USER_DATA/mail.conf \
-			| awk -F "U_DISK='" '{print $2}' | cut -f 1 -d \')
-		for disk_usage in $dusage; do
-			usage=$((usage + disk_usage))
-		done
+		usage=$(record_sum_field "$USER_DATA/mail.conf" U_DISK)
 		d=$(grep "U_DISK_MAIL='" $USER_DATA/user.conf | cut -f 2 -d \')
 		sed -i "s/U_DISK_MAIL='$d'/U_DISK_MAIL='$usage'/g" $USER_DATA/user.conf
 		u_usage=$((u_usage + usage))
 	fi
 
 	if [ -f "$USER_DATA/db.conf" ]; then
-		usage=0
-		dusage=$(grep 'U_DISK=' $USER_DATA/db.conf \
-			| awk -F "U_DISK='" '{print $2}' | cut -f 1 -d \')
-		for disk_usage in $dusage; do
-			usage=$((usage + disk_usage))
-		done
+		usage=$(record_sum_field "$USER_DATA/db.conf" U_DISK)
 		d=$(grep "U_DISK_DB='" $USER_DATA/user.conf | cut -f 2 -d \')
 		sed -i "s/U_DISK_DB='$d'/U_DISK_DB='$usage'/g" $USER_DATA/user.conf
 		u_usage=$((u_usage + usage))
@@ -1243,12 +1362,7 @@ recalc_user_disk_usage() {
 
 # Recalculate U_BANDWIDTH value
 recalc_user_bandwidth_usage() {
-	usage=0
-	bandwidth_usage=$(grep 'U_BANDWIDTH=' $USER_DATA/web.conf \
-		| awk -F "U_BANDWIDTH='" '{print $2}' | cut -f 1 -d \')
-	for bandwidth in $bandwidth_usage; do
-		usage=$((usage + bandwidth))
-	done
+	usage=$(record_sum_field "$USER_DATA/web.conf" U_BANDWIDTH)
 	old=$(grep "U_BANDWIDTH='" $USER_DATA/user.conf | cut -f 2 -d \')
 	sed -i "s/U_BANDWIDTH='$old'/U_BANDWIDTH='$usage'/g" $USER_DATA/user.conf
 }
@@ -1270,41 +1384,47 @@ sort_cron_jobs() {
 
 # Sync cronjobs with system cron
 sync_cron_jobs() {
+	# Captured before any record is read: the parser sets globals, and these steer root's chown.
+	local _user="$user" crontab line
 	source_conf "$USER_DATA/user.conf"
 	if [ -e "/var/spool/cron/crontabs" ]; then
-		crontab="/var/spool/cron/crontabs/$user"
+		crontab="/var/spool/cron/crontabs/$_user"
 	else
-		crontab="/var/spool/cron/$user"
+		crontab="/var/spool/cron/$_user"
 	fi
 
-	# remove file if exists
 	if [ -e "$crontab" ]; then
-		rm -f $crontab
+		rm -f "$crontab"
 	fi
 
-	# touch new crontab file
-	touch $crontab
+	touch "$crontab"
 
 	if [ "$CRON_REPORTS" = 'yes' ]; then
-		echo "MAILTO=$CONTACT" > $crontab
-		echo 'CONTENT_TYPE="text/plain; charset=utf-8"' >> $crontab
+		echo "MAILTO=$CONTACT" > "$crontab"
+		echo 'CONTENT_TYPE="text/plain; charset=utf-8"' >> "$crontab"
 	else
-		echo 'MAILTO=""' > $crontab
+		echo 'MAILTO=""' > "$crontab"
 	fi
 
-	# read -r, or a backslash in a stored CMD field is consumed as an escape while the crontab is
-	# assembled (GHSA-5fpv).
+	# read -r, or a backslash in a stored command is eaten as an escape.
 	while read -r line; do
+		# Clear the record fields first: a skipped or half line would otherwise inherit the one before.
+		JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
+		[ -n "$line" ] || continue
+		# Skipped, never parsed: the parser would abort the run, or a foreign key would set root's target.
+		if ! cron_record_safe "$line"; then
+			echo "Warning: $_user cron.conf has a line the reader cannot trust, skipped" >&2
+			continue
+		fi
 		parse_object_kv_list "$line"
 		if [ "$SUSPENDED" = 'no' ]; then
-			# The command alone: a schedule field carries no placeholder, and decoding the assembled
-			# line rewrites parts of the command that were never encoded.
+			# Decode the command alone: decoding the whole line rewrites text that was never encoded.
 			printf '%s %s %s %s %s %s\n' "$MIN" "$HOUR" "$DAY" "$MONTH" "$WDAY" \
 				"$(record_value_decode "$CMD")" >> "$crontab"
 		fi
-	done < $USER_DATA/cron.conf
-	chown $user:$user $crontab
-	chmod 600 $crontab
+	done < "$USER_DATA/cron.conf"
+	chown "$_user:$_user" "$crontab"
+	chmod 600 "$crontab"
 }
 
 # The one hestia crontab, rendered here so a second copy cannot drift from it. The renewal time is
@@ -1392,6 +1512,10 @@ is_localpart_format_valid() {
 			fi
 		fi
 	fi
+	# The name is a directory under the customer's mail dir (`..` is its parent) and an argument to grep and rm.
+	if [[ "$1" == [.-]* ]] || [[ "$1" == *. ]] || [[ "$1" == *..* ]]; then
+		check_result "$E_INVALID" "invalid $2 format :: $1"
+	fi
 	if [ "$1" != "${1//[^[:ascii:]]/}" ]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
@@ -1474,6 +1598,34 @@ is_domain_format_valid() {
 		check_result "$E_INVALID" "invalid $object_name format :: $1"
 	fi
 	is_no_new_line_format "$1"
+}
+
+# A spam list sender pattern: user@dom, *@dom, dom or *.dom, where dom has a dot. The list holds lsearch keys, so ':'
+# is out as well.
+spam_sender_pattern_ok() { # PATTERN
+	local lpart='*' dpart=${1#\*.} exclude='[][!@#$^&*()+={},<>?_/\\"|'\''`;%:[:space:]]'
+	if [[ "$1" == *@* ]]; then
+		lpart=${1%%@*}
+		dpart=${1#*@}
+	fi
+	[ "$lpart" = '*' ] || [[ "$lpart" =~ ^[a-z0-9._+-]+$ ]] || return 1
+	[[ "$dpart" == ?*.?* ]] || return 1
+	! [[ "$dpart" =~ $exclude || "$dpart" =~ \.\.|^[.-]|[.-]$|\.-|-\. ]]
+}
+
+# The file exim reads for a spam list: the record's entries that pass as patterns, and a planted link is replaced, not
+# followed.
+spam_list_write() { # FILE COMMA_LIST
+	local entry out='' entries
+	rm -f "$1"
+	IFS=, read -r -a entries <<< "$2"
+	for entry in "${entries[@]}"; do
+		spam_sender_pattern_ok "$entry" && out+="$entry"$'\n'
+	done
+	[ -n "$out" ] || return 0
+	printf '%s' "$out" > "$1"
+	chown -h "${MAIL_USER:-Debian-exim}:mail" "$1"
+	chmod 660 "$1"
 }
 
 # Alias forman validator
@@ -1749,7 +1901,7 @@ is_common_format_spaces_valid() {
 is_no_new_line_format() {
 	test=$(echo "$1" | head -n1)
 	if [[ "$test" != "$1" ]]; then
-		check_result "$E_INVALID" "invalid value :: $1"
+		check_result "$E_INVALID" "invalid value :: contains a line break"
 	fi
 }
 
@@ -1813,7 +1965,8 @@ is_cron_command_valid_format() {
 is_database_format_valid() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="[!|@|#|$|^|&|*|(|)|+|=|{|}|:|,|<|>|?|/|\|\"|'|;|%|\`| ]"
-	if [[ "$1" =~ $exclude ]] || [ 64 -le ${#1} ]; then
+	# Whitespace and control characters too: pgsql takes the name unquoted.
+	if [[ "$1" =~ $exclude ]] || [[ "$1" =~ [[:space:][:cntrl:]] ]] || [ 64 -le ${#1} ]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
 	is_no_new_line_format "$1"
@@ -1826,6 +1979,25 @@ is_date_format_valid() {
 	fi
 }
 
+# is_record_path_valid PATH BASE NAME: PATH is BASE or below it, and what it adds comes from a closed set. Records and
+# server configs take the path as it is, and the customer names the directories. BASE is built from checked names only.
+is_record_path_valid() {
+	record_path_ok "$1" "$2" \
+		|| check_result "$E_INVALID" "invalid $3 :: below $2 only letters, digits and ._/+@~- are allowed"
+}
+
+record_path_ok() {
+	local _tail
+	[ "$1" != "$2" ] || return 0
+	_tail="${1#"$2"/}"
+	[ "$_tail" != "$1" ] && [[ "$_tail" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$_tail" = "${_tail//[^[:ascii:]]/}" ]
+}
+
+# A name in a record's comma list (UDIR): the same set without the slash.
+is_record_list_item() {
+	[[ "$1" =~ ^[[:alnum:]._+@~-]+$ ]] && [ "$1" = "${1//[^[:ascii:]]/}" ]
+}
+
 # Database user validator
 is_dbuser_format_valid() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
@@ -1833,7 +2005,7 @@ is_dbuser_format_valid() {
 	if [ 33 -le ${#1} ]; then
 		check_result "$E_INVALID" "mysql username can be up to 32 characters long"
 	fi
-	if [[ "$1" =~ $exclude ]]; then
+	if [[ "$1" =~ $exclude ]] || [[ "$1" =~ [[:space:][:cntrl:]] ]]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
 	is_no_new_line_format "$1"
@@ -1878,17 +2050,27 @@ is_fw_protocol_format_valid() {
 	fi
 }
 
-# Firewall port validator
+# Firewall port validator. By value, not by character: nft rejects 70000 or 1-2-3, and one such record
+# makes every later render fail.
 is_fw_port_format_valid() {
-	if [ "${#1}" -eq 1 ]; then
-		if ! [[ "$1" =~ [0-9] ]]; then
+	local -a parts
+	local p lo hi
+	[ "$1" = '0' ] && return 0
+	if [ "${#1}" -gt 78 ]; then
+		check_result "$E_INVALID" "invalid port format and/or more than 78 chars used :: $1"
+	fi
+	IFS=, read -r -a parts <<< "$1"
+	[[ "$1" =~ (^,|,$|,,) ]] || [ "${#parts[@]}" -eq 0 ] && check_result "$E_INVALID" "invalid port format :: $1"
+	for p in "${parts[@]}"; do
+		if ! [[ "$p" =~ ^([1-9][0-9]{0,4})([-:]([1-9][0-9]{0,4}))?$ ]]; then
 			check_result "$E_INVALID" "invalid port format :: $1"
 		fi
-	else
-		if ! [[ "$1" =~ ^[0-9][-,:0-9]{0,76}[0-9]$ ]]; then
-			check_result "$E_INVALID" "invalid port format and/or more than 78 chars used :: $1"
+		lo="${BASH_REMATCH[1]}"
+		hi="${BASH_REMATCH[3]:-$lo}"
+		if [ "$lo" -gt 65535 ] || [ "$hi" -gt 65535 ] || [ "$lo" -gt "$hi" ]; then
+			check_result "$E_INVALID" "invalid port format :: $1"
 		fi
-	fi
+	done
 }
 
 # DNS record id validator
@@ -1928,50 +2110,41 @@ is_comment_format_valid() {
 }
 
 # Cron validator
-is_cron_format_valid() {
-	limit=59
-	check_format=''
-	if [ "$2" = 'hour' ]; then
-		limit=23
-	fi
-
-	if [ "$2" = 'day' ]; then
-		limit=31
-	fi
-	if [ "$2" = 'month' ]; then
-		limit=12
-	fi
-	if [ "$2" = 'wday' ]; then
-		limit=7
-	fi
-	if [ "$1" = '*' ]; then
-		check_format='ok'
-	fi
-	if [[ "$1" =~ ^[\*]+[/]+[0-9] ]]; then
-		if [ "$(echo $1 | cut -f 2 -d /)" -lt $limit ]; then
-			check_format='ok'
-		fi
-	fi
-	if [[ "$1" =~ ^[0-9][-,0-9]{0,70}[\/][0-9]$ ]]; then
-		check_format='ok'
-		crn_values=${1//,/ }
-		crn_values=${crn_values//-/ }
-		crn_values=${crn_values//\// }
-		for crn_vl in $crn_values; do
-			if [ "$crn_vl" -gt $limit ]; then
-				check_format='invalid'
-			fi
-		done
-	fi
-	crn_values=$(echo $1 | tr "," " " | tr "-" " ")
-	for crn_vl in $crn_values; do
-		if [[ "$crn_vl" =~ ^[0-9]+$ ]] && [ "$crn_vl" -le $limit ]; then
-			check_format='ok'
+# Cron tokens only, so a quote, a space or a key= never matches. Names only in wday and month, as
+# vixie cron has them; the arithmetic after the regex checks bounds and order of the numeric parts.
+cron_field_valid() {
+	local value="$1" field="$2" floor=0 limit=59 names='' part a b parts=()
+	case "$field" in
+		hour) limit=23 ;;
+		day) floor=1 limit=31 ;;
+		month) floor=1 limit=12 names='jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec' ;;
+		wday) limit=7 names='sun|mon|tue|wed|thu|fri|sat' ;;
+	esac
+	# A lowercased copy, not nocasematch: that shopt is global and an abort would not restore it.
+	local lc="${value,,}"
+	local atom="[0-9]{1,2}"
+	[ -n "$names" ] && atom="($atom|$names)"
+	local elem="($atom(-$atom)?|\\*)"
+	local term="$elem(/[1-9][0-9]?)?" # step >=1; /0 never matches
+	[[ $lc =~ ^$term(,$term)*$ ]] || return 1
+	# read, not `for part in $lc`: an unquoted * would glob to filenames.
+	IFS=',' read -ra parts <<< "$lc"
+	for part in "${parts[@]}"; do
+		part="${part%%/*}"
+		[ "$part" = '*' ] && continue
+		if [[ $part =~ ^([0-9]{1,2})-([0-9]{1,2})$ ]]; then
+			a=$((10#${BASH_REMATCH[1]})) b=$((10#${BASH_REMATCH[2]}))
+			[ "$a" -ge "$floor" ] && [ "$b" -le "$limit" ] && [ "$a" -le "$b" ] || return 1
+		elif [[ $part =~ ^([0-9]{1,2})$ ]]; then
+			a=$((10#${BASH_REMATCH[1]}))
+			[ "$a" -ge "$floor" ] && [ "$a" -le "$limit" ] || return 1
 		fi
 	done
-	if [ "$check_format" != 'ok' ]; then
-		check_result "$E_INVALID" "invalid $2 format :: $1"
-	fi
+	return 0
+}
+
+is_cron_format_valid() {
+	cron_field_valid "$1" "$2" || check_result "$E_INVALID" "invalid $2 format :: $1"
 }
 
 is_object_name_format_valid() {
@@ -2023,7 +2196,7 @@ is_role_valid() {
 # Password validator
 is_password_format_valid() {
 	if [ "${#1}" -lt '6' ]; then
-		check_result "$E_INVALID" "invalid password format :: $1"
+		check_result "$E_INVALID" "invalid password format :: shorter than 6 characters"
 	fi
 }
 # Curated login-shell allowlist, one source for the panel and the validator. rssh is gone from
@@ -2099,7 +2272,7 @@ is_format_valid() {
 				dbpass) is_password_format_valid "$arg" ;;
 				dbuser) is_dbuser_format_valid "$arg" 'dbuser' ;;
 				dkim) is_boolean_format_valid "$arg" 'dkim' ;;
-				dkim_size) is_int_format_valid "$arg" ;;
+				dkim_size) [[ "$arg" =~ ^(1024|2048|4096)$ ]] || check_result "$E_INVALID" "invalid dkim_size :: $arg (1024, 2048 or 4096)" ;;
 				domain) is_domain_format_valid "$arg" ;;
 				dom_alias) is_alias_format_valid "$arg" ;;
 				email) is_email_format_valid "$arg" ;;
@@ -2334,7 +2507,7 @@ multiphp_default_version() {
 # own pool as well, and a save copied one file over all of them (#1144).
 php_ini_path() {
 	local v="${1:-$(multiphp_default_version)}"
-	$BIN/h-list-sys-php plain | grep -qxF -- "$v" || return 1
+	printf '%s\n' "${SYS_CONFIG_PHP:-$("$BIN/h-list-sys-php" plain)}" | grep -qxF -- "$v" || return 1
 	[ -f "/etc/php/$v/fpm/php.ini" ] || return 1
 	echo "/etc/php/$v/fpm/php.ini"
 }
@@ -2342,6 +2515,86 @@ php_ini_path() {
 php_ini_version() { # PATH from php_ini_path
 	local v="${1#/etc/php/}"
 	echo "${v%%/*}"
+}
+
+# sys_config_path KEY: the one file the server config editor offers under KEY, for h-open-fs-config and
+# h-change-sys-service-config alike. rc 1: KEY is not offered. rc 2: its component yields no single existing file.
+sys_config_path() {
+	local p
+	case "$1" in
+		apache2) p=/etc/apache2/apache2.conf ;;
+		cron) p=/etc/crontab ;;
+		exim4) p=/etc/exim4/exim4.conf.template ;;
+		fail2ban)
+			# The admin's own file, never rendered by us: absent until the first save creates it.
+			[ -d /etc/fail2ban/jail.d ] || return 2
+			echo /etc/fail2ban/jail.local
+			return 0
+			;;
+		hestia) p=/var/spool/cron/crontabs/hestia ;;
+		ssh) p=/etc/ssh/sshd_config ;;
+		nginx | proftpd | clamd) p=$(sys_config_lister "$1" config_path) ;;
+		mysql | mariadb) p=$(sys_config_lister mysql config_path) ;;
+		postgresql) p=$(sys_config_lister pgsql config_path) ;;
+		postgresql-hba) p=$(sys_config_lister pgsql pg_hba_path) ;;
+		dovecot) p=$(sys_config_lister dovecot config_path) ;;
+		dovecot-[1-8]) p=$(sys_config_lister dovecot "config_path${1#dovecot-}") ;;
+		php) p=$(php_ini_path) || return 2 ;;
+		php-?*) p=$(php_ini_path "${1#php-}") || return 2 ;;
+		*) return 1 ;;
+	esac
+	# A lister answering with nothing, two lines or a relative path contributes nothing.
+	case "$p" in /*) ;; *) return 2 ;; esac
+	[ "$(printf '%s\n' "$p" | wc -l)" -eq 1 ] && [ -f "$p" ] || return 2
+	echo "$p"
+}
+
+sys_config_lister() {
+	declare -gA SYS_CONFIG_FIELD
+	[ -n "${SYS_CONFIG_FIELD["$1"]-}" ] || sys_config_fill "$1"
+	echo "${SYS_CONFIG_FIELD["$1/$2"]-}"
+}
+
+# One lister run and one jq per lister, jq alone costs 30 ms a start. A value travels as JSON text, so one that
+# holds a newline stays a single line and fails the file test instead of splitting into two paths.
+sys_config_fill() {
+	local k v
+	declare -gA SYS_CONFIG_FIELD
+	SYS_CONFIG_FIELD["$1"]='read'
+	while IFS=$'\t' read -r k v; do
+		[ -n "$k" ] || continue
+		v=${v#\"}
+		SYS_CONFIG_FIELD["$1/$k"]=${v%\"}
+	done < <("$BIN/h-list-sys-$1-config" json 2> /dev/null | jq -r '.CONFIG // {} | to_entries[] | "\(.key)\t\(.value | tojson)"' 2> /dev/null)
+}
+
+# For whoever asks every key: the listers once here, not once per subshell.
+sys_config_preload() {
+	local l
+	for l in nginx proftpd clamd mysql pgsql dovecot; do sys_config_fill "$l"; done
+	SYS_CONFIG_PHP=$("$BIN/h-list-sys-php" plain 2> /dev/null)
+}
+
+# sys_config_offered PATH: the offered file PATH is, compared as the whole canonical string; rc 1 when none is.
+sys_config_offered() {
+	local want key p
+	want=$(readlink -f -- "$1") && [ -n "$want" ] || return 1
+	for key in $(sys_config_keys); do
+		p=$(sys_config_path "$key") || continue
+		[ "$(readlink -f -- "$p")" != "$want" ] || {
+			echo "$p"
+			return 0
+		}
+	done
+	return 1
+}
+
+# Every key sys_config_path answers, a php-X.Y per installed version, whether or not its file exists here.
+sys_config_keys() {
+	local v
+	echo apache2 cron exim4 fail2ban hestia ssh nginx proftpd clamd mysql mariadb postgresql postgresql-hba
+	echo dovecot dovecot-1 dovecot-2 dovecot-3 dovecot-4 dovecot-5 dovecot-6 dovecot-7 dovecot-8 php
+	for v in ${SYS_CONFIG_PHP:-$("$BIN/h-list-sys-php" plain 2> /dev/null)}; do echo "php-$v"; done
 }
 
 is_hestia_package() {
@@ -2366,6 +2619,20 @@ user_exec() {
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
 }
 
+# path_within PATH BASE...: PATH, resolved, is one of the BASEs or lies below one. A prefix match would let
+# /home/fsa admit /home/fsab. Second line only: the fs commands act through user_exec, the UID is the boundary.
+path_within() {
+	local p b
+	p=$(readlink -f -- "$1") && [ -n "$p" ] || return 1
+	shift
+	for b in "$@"; do
+		[ -n "$b" ] || continue
+		b=$(readlink -f -- "$b") && [ -n "$b" ] || continue
+		case "$p" in "$b" | "$b"/*) return 0 ;; esac
+	done
+	return 1
+}
+
 # Simple chmod wrapper that skips symlink files after glob expand
 no_symlink_chmod() {
 	local filemode=$1
@@ -2382,7 +2649,8 @@ format_no_quotes() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="['|\"]"
 	if [[ "$1" =~ $exclude ]]; then
-		check_result "$E_INVALID" "Invalid $2 contains qoutes (\" or ' or | ) :: $1"
+		# No value in the message: the panel keeps it in the session file, and $1 is often a password.
+		check_result "$E_INVALID" "Invalid $2: contains a quote (\" or ') or |"
 	fi
 	is_no_new_line_format "$1"
 }
@@ -2536,7 +2804,9 @@ WEB_MODEL_LOCK="/run/hestia/web-model.lock"
 web_freeze_held() {
 	[ "${HESTIA_WEB_LOCK_HELD:-}" = "1" ] && return 1
 	[ -e "$WEB_MODEL_LOCK" ] || return 1
-	if flock -n -x "$WEB_MODEL_LOCK" -c true > /dev/null 2>&1; then
+	# On a descriptor, so the lock alone decides: the -c form ran $SHELL, and a user record carries SHELL='nologin',
+	# which then read as "held" and silently skipped every restart after it (#1172).
+	if flock -n -x 9 2> /dev/null 9< "$WEB_MODEL_LOCK"; then
 		return 1 # acquired freely -> nobody holds it
 	fi
 	return 0 # busy -> a switch holds it

@@ -2,21 +2,15 @@
 # info: add mail account autoreply message
 # options: USER DOMAIN ACCOUNT MESSAGE
 #
-# example: h-add-mail-account-autoreply admin example.com user Hello from e-mail!
+# example: h-add-mail-account-autoreply admin example.com user 'Out of office until Monday.'
 #
-# This function add new email account.
+# Sets the account's autoreply text; with Sieve it goes into the vacation rule of the webmail's script.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 autoreply=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,23 +19,16 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Define mail user
 if [ "$MAIL_SYSTEM" = 'exim4' ]; then
 	MAIL_USER=Debian-exim
 else
 	MAIL_USER=exim
 fi
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN ACCOUNT MESSAGE'
 is_format_valid 'user' 'domain' 'account' 'autoreply'
@@ -52,14 +39,10 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
-# is_object_value_empty "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# No check for an empty AUTOREPLY: the panel changes an existing text through this command.
 
 msg=$(mktemp)
-echo -e "$autoreply" > "$msg"
+printf '%s\n' "$autoreply" > "$msg"
 
 # With Sieve the vacation rule answers and exim stays silent, or the sender gets both.
 if vacation_sieve_on; then
@@ -75,16 +58,11 @@ elif [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	vacation_exim_write "$user" "$domain" "$account" "$msg"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
 # Kept with Sieve too: the backup carries it to HestiaCP, and h-delete-sys-sieve falls back to exim.
 mv -f "$msg" "$USER_DATA/mail/$account@$domain.msg"
 chmod 660 "$USER_DATA/mail/$account@$domain.msg"
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY' 'yes'
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Added auto-reply message for mail account $account@$domain."
 log_event "$OK" "$ARGUMENTS"
 

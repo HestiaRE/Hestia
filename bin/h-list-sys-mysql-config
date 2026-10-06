@@ -3,25 +3,15 @@
 # options: [FORMAT]
 #
 # example: h-list-sys-mysql-config
-#
-# This function for obtaining the list of mysql config parameters.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	str=$(echo "$config" | egrep "$keys" \
 		| sed -e "s/[ ]*=/=/" -e "s/=[ ]*/=\'/" -e "s/$/'/")
@@ -39,42 +29,30 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "$config" | egrep "$keys" | tr '=' ' '
 	echo "config_path $config_path"
 }
 
-# PLAIN list function
 plain_list() {
 	echo "$config" | egrep "$keys" | tr '=' ' '
 	echo "config_path $config_path"
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# the file h-add-sys-mariadb writes: a search can find none or several
+config_path=/etc/mysql/my.cnf
+[ -f "$config_path" ] || check_result "$E_NOTEXIST" "$config_path not found"
 
-# Defining config path
-config_path=$(find /etc/my* -name my.cnf)
-
-# Defining keys
 keys="max_user_connections|max_connections|wait_timeout|interactive_timeout"
 keys="${keys}|max_allowed_packet"
 
-# Reading config
-config=$(cat $config_path | grep -v "^;")
+config=$(grep -v "^;" "$config_path")
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

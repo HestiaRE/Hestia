@@ -6,33 +6,21 @@
 #
 # This function deletes email account alias.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 account=$3
 malias=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN ACCOUNT ALIAS'
 is_format_valid 'user' 'domain' 'account' 'malias'
@@ -41,34 +29,23 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 aliases=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$ALIAS')
-if [ -z "$(echo $aliases | grep -w -e $malias)" ]; then
-	echo "Error: alias $malias doesn't exist"
-	log_event "$E_NOTEXIST $ARGUMENTS"
-	exit "$E_NOTEXIST"
-fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+IFS=, read -ra alias_list <<< "$aliases"
+found='' aliases=''
+for a in "${alias_list[@]}"; do
+	if [ "$a" = "$malias" ]; then
+		found=yes
+	elif [ -n "$a" ]; then
+		aliases="${aliases:+$aliases,}$a"
+	fi
+done
+[ -n "$found" ] || check_result "$E_NOTEXIST" "alias $malias doesn't exist"
 
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$malias@$domain_idn:$account"
 fi
 
-aliases=$(echo "$aliases" \
-	| sed "s/,/\n/g" \
-	| sed "s/^$malias$//g" \
-	| sed "/^$/d" \
-	| sed ':a;N;$!ba;s/\n/,/g')
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update config
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$ALIAS' "$aliases"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account alias removed (Alias: $malias, User: $account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

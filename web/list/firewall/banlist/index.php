@@ -16,10 +16,9 @@ if ($_SESSION["userContext"] != "admin") {
 // fail2ban banlist at all. Keyed with a source prefix so a shared IP does not collide between the two.
 $data = [];
 
-foreach (cli_json("h-list-firewall-ban json") as $ip => $v) {
-	$v["IP"] = $ip;
+foreach (cli_json("h-list-firewall-ban json") as $key => $v) {
 	$v["SOURCE"] = "fail2ban";
-	$data["f2b:" . $ip] = $v;
+	$data["f2b:" . $key] = $v;
 }
 
 // CROWDSEC_SYSTEM, the registry key (#938), replaces the synthetic CROWDSEC the emitter used to compute

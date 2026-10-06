@@ -170,6 +170,16 @@
    "class": "betreiber",
    "default": "default"
   },
+  "MAIL_PW_GRACE": {
+   "class": "betreiber",
+   "default": "720",
+   "note": "minutes after a mail password change in which dovecot failures of that account from the changing network do not count (#1155); 0 is off"
+  },
+  "MAIL_PW_GRACE_SMTP": {
+   "class": "betreiber",
+   "default": "60",
+   "note": "the same for every exim failure from that network, whatever the account; 0 is off"
+  },
   "MAIL_SYSTEM": {
    "class": "system",
    "default": "",

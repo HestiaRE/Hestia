@@ -4,28 +4,13 @@
 #
 # example: h-delete-sys-smtp
 #
-# This function allows configuring a SMTP account for the server to use
-# for logging, notification and warn emails etc.
+# The server sends its own mail through the local MTA again.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 change_sys_value "USE_SERVER_SMTP" "false"
 change_sys_value "SERVER_SMTP_HOST" ""
@@ -35,11 +20,6 @@ change_sys_value "SERVER_SMTP_USER" ""
 change_sys_value "SERVER_SMTP_PASSWD" ""
 change_sys_value "SERVER_SMTP_ADDR" ""
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Mail" "Server SMTP disabled."
 log_event "$OK" "$ARGUMENTS"
 

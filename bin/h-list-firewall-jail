@@ -4,24 +4,17 @@
 #
 # example: h-list-firewall-jail json
 #
-# Configured UNION running, so a jail that is configured but NOT running reports STATE='stopped' instead of
-# vanishing from the list - that gap is the whole reason this exists. No v-* symlink.
+# Configured jails united with running ones, so a configured jail that is not running shows STATE='stopped'
+# instead of vanishing from the list.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh
 source $HESTIA/include/fail2ban.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 f2bcli="/usr/bin/fail2ban-client"
@@ -92,16 +85,8 @@ plain_list() {
 	done < <(jail_names)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 is_system_enabled "$FIREWALL_EXTENSION" 'FIREWALL_EXTENSION'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 case $format in
 	json) json_list ;;
@@ -109,9 +94,5 @@ case $format in
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

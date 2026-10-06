@@ -5,45 +5,28 @@
 # example: h-add-mail-domain-relay-exclude user domain.tld datev.de
 # example: h-add-mail-domain-relay-exclude user domain.tld '*.datev.de'
 #
-# Excludes RECIPIENT_DOMAIN from the domain's SMTP relay: exim's
-# bypass_smtp_relay router delivers matching mail directly via DNS/MX (local DKIM
-# + OUTGOING_IP apply). Patterns stored one-per-line in smtp_relay_exclude, read
-# per message (no reload); wildcards like *.datev.de allowed (wildlsearch).
-# ADMIN NOTE: excluded recipients get mail direct from the server IP, so SPF must
-# include the server IP, the local DKIM record (selector mail) must be published,
-# outbound :25 must be open and the PTR correct.
+# Sends mail for RECIPIENT_DOMAIN (a leading *. allowed) past the SMTP relay, directly via MX with the local DKIM
+# and outgoing IP. The server IP then has to be in SPF, the DKIM record published and the PTR right.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 rdomain=$(echo "$3" | tr '[:upper:]' '[:lower:]')
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Define mail user
 if [ "$MAIL_SYSTEM" = 'exim4' ]; then
 	MAIL_USER=Debian-exim
 else
 	MAIL_USER=exim
 fi
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '3' "$#" 'USER DOMAIN RECIPIENT_DOMAIN'
 is_format_valid 'user' 'domain'
-# recipient domain: plain domain or wildcard pattern (*.domain.tld)
+# A leading *. is allowed: the file is an nwildlsearch pattern list.
 is_domain_format_valid "${rdomain#\*.}" 'recipient domain'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
@@ -51,14 +34,9 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 exclude_file="$HOMEDIR/$user/conf/mail/$domain/smtp_relay_exclude"
 current=$(get_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_EXCLUDE')
 
-# Idempotent: entry already present — nothing to do
 if [[ ",$current," = *",$rdomain,"* ]]; then
 	exit
 fi
@@ -69,22 +47,16 @@ else
 	new_list="$current,$rdomain"
 fi
 
+rm -f "$exclude_file"
 echo "$new_list" | tr ',' '\n' > "$exclude_file"
 
-# exim must be able to read the file: on EACCES the router's require_files
-# defers instead of declining and ALL outgoing mail of the domain queues up
-chown $MAIL_USER:mail "$exclude_file"
+# exim must read it: on EACCES require_files defers instead of declining, and all outgoing mail of the domain queues.
+chown -h $MAIL_USER:mail "$exclude_file"
 chmod 660 "$exclude_file"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Adding relay exclude value in config
 add_object_key 'mail' 'DOMAIN' "$domain" 'U_SMTP_RELAY_EXCLUDE' 'ACCOUNTS'
 update_object_value 'mail' 'DOMAIN' "$domain" '$U_SMTP_RELAY_EXCLUDE' "$new_list"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Mail" "SMTP Relay exclude added (Domain: $domain, Recipient: $rdomain)."
 log_event "$OK" "$ARGUMENTS"
 

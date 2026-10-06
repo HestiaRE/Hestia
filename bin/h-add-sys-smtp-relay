@@ -4,59 +4,46 @@
 #
 # example: h-add-sys-smtp-relay srv.smtprelay.tld uname123 pass12345
 #
-# This function adds system wide smtp relay support.
+# Routes all outgoing mail through HOST, port 587 unless given. An empty password keeps the stored one
+# when the username stays the same.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 host=$1
 username=$2
 password=$3
 # Read while main.sh is sourced, so it has to stand before the includes.
 HIDE=3
-port=${4-587}
+port=${4:-587}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'HOST [USERNAME] [PASSWORD] [PORT]'
-# secret via /tmp file, not argv - resolve before the value is format-checked
+# The secret comes via a /tmp file, not argv; resolve it before the format check.
 is_password_valid
+# The panel never shows the stored password, so an empty one next to the same username keeps it.
+if [ -z "$password" ] && [ -n "$username" ] && [ "$(record_value_decode "$SMTP_RELAY_USER")" = "$username" ]; then
+	password=$(sed -n 's/^pass://p' /etc/exim4/smtp_relay.conf 2> /dev/null | head -n1)
+fi
 is_format_valid 'port' 'host' 'password'
 is_username_format_valid "$username" 'username'
-format_no_quotes "$password" 'passowrd'
+format_no_quotes "$password" 'password'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# File before record: exim acts on the file, so a refused key must not leave the record ahead of it.
+smtp_relay_write "/etc/exim4/smtp_relay.conf" 'root:Debian-exim' 640 "$host" "$port" "$username" "$password" \
+	|| check_result "$E_DISK" "cannot write /etc/exim4/smtp_relay.conf"
 
 change_sys_value 'SMTP_RELAY' 'true'
 change_sys_value 'SMTP_RELAY_HOST' "$host"
 change_sys_value 'SMTP_RELAY_PORT' "$port"
-change_sys_value 'SMTP_RELAY_USER' "$username"
+# Encoded, as change_sys_value refuses the \ of DOMAIN\user.
+change_sys_value 'SMTP_RELAY_USER' "$(record_value_encode "$username")"
 
-smtp_relay_write "/etc/exim4/smtp_relay.conf" 'root:Debian-exim' 640 "$host" "$port" "$username" "$password" \
-	|| check_result "$E_DISK" "cannot write /etc/exim4/smtp_relay.conf"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Mail" "Server-wide SMTP Relay enabled (Host: $host, Port: $port)."
 log_event "$OK" "$ARGUMENTS"
 

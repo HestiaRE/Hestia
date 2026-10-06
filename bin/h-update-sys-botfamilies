@@ -4,32 +4,17 @@
 #
 # example: h-update-sys-botfamilies
 #
-# Re-renders the web-server rate-limit config from the system bot-family conf
-# (/etc/hestia/botfamilies.conf) and reloads. Run after editing that conf. Renders the nginx zones
-# where nginx is the public front, else the apache mod_qos counters (apache-only).
-#
-# Also re-renders every throttled domain's fragment first: fragments reference zones by family name, so
-# a table edit that renamed or disabled a family would otherwise leave a dangling zone reference and
-# fail the nginx test below - blocking the next reload for the whole box.
+# Re-renders the bot rate-limit config from /etc/hestia/botfamilies.conf and reloads. The domain fragments go
+# first: a renamed or disabled family would otherwise leave a dangling zone and fail the test for the whole box.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/botpolicy.sh
 source $HESTIA/include/botpolicy.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -41,40 +26,45 @@ if [ ! -f "$CONF_DIR/botfamilies.conf" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 botpolicy_render_all_fragments
 
-# nginx fronts in nginx-only + both; apache-only is the only model where apache does Layer B.
+# nginx fronts in nginx-only and both; only in apache-only does apache throttle.
 if [ -n "$PROXY_SYSTEM" ]; then pub="$PROXY_SYSTEM"; else pub="$WEB_SYSTEM"; fi
 
+# The render writes into the live config dir, so a failed test puts the previous file back: left in place it
+# fails every later reload on the box, whoever triggers it.
+botlimit_render_tested() {
+	local out="$1" render="$2" test="$3" prev
+	prev=$(mktemp)
+	[ -f "$out" ] && cp -p "$out" "$prev"
+	"$render"
+	if $test > /dev/null 2>&1; then
+		rm -f "$prev"
+		return 0
+	fi
+	if [ -s "$prev" ]; then mv -f "$prev" "$out"; else rm -f "$prev" "$out"; fi
+	return 1
+}
+
 if [ "$pub" = "nginx" ]; then
-	botpolicy_render_nginx
-	if nginx -t > /dev/null 2>&1; then
+	if botlimit_render_tested /etc/nginx/conf.d/hestia_botlimit.conf botpolicy_render_nginx 'nginx -t'; then
 		systemctl reload nginx > /dev/null 2>&1 || systemctl restart nginx > /dev/null 2>&1
 		echo "Bot rate-limit config re-rendered (nginx)."
 	else
-		echo "Error: nginx config test failed after render - not reloading."
+		echo "Error: nginx config test failed after render, previous config kept, not reloading."
 		exit "$E_RESTART"
 	fi
 elif [ "$WEB_SYSTEM" = "apache2" ]; then
-	botpolicy_render_apache
-	if apache2ctl configtest > /dev/null 2>&1; then
+	if botlimit_render_tested /etc/apache2/conf.d/hestia_botlimit.conf botpolicy_render_apache 'apache2ctl configtest'; then
 		systemctl reload apache2 > /dev/null 2>&1 || systemctl restart apache2 > /dev/null 2>&1
 		echo "Bot rate-limit config re-rendered (apache mod_qos)."
 	else
-		echo "Error: apache config test failed after render - not reloading."
+		echo "Error: apache config test failed after render, previous config kept, not reloading."
 		exit "$E_RESTART"
 	fi
 else
 	echo "No web front for bot rate-limiting on this model."
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Re-rendered web bot rate-limit config."
 log_event "$OK" "$ARGUMENTS"

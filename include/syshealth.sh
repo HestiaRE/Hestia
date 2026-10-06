@@ -443,17 +443,13 @@ function syshealth_repair_system_config() {
 	return "$syshealth_repair_failed"
 }
 # The hestia crontab is OPERATOR SURFACE, so the repair restores a MISSING file and never touches a
-# present one. The panel edits it (web/edit/server/hestia -> h-change-sys-service-config hestia,
-# measured: a hand-added line survives a save), h-add-cron-letsencrypt-job and h-add-letsencrypt-domain
-# append to it, and h-delete-cron-restart-job removes a baseline line on purpose. A repair that
-# rewrote a file that is there would undo all four (#972).
+# present one. The panel edits it (web/edit/server/hestia -> h-change-sys-service-config hestia), and
+# h-add-cron-letsencrypt-job and h-add-letsencrypt-domain append to it; a rewrite would undo all three.
+# system_crontab_write in include/main.sh is the only renderer, the installer uses it too.
 #
-# The list itself is not here any more. It lived twice and had already drifted; system_crontab_write
-# in include/main.sh is now the only renderer, and the installer uses the same one.
-#
-# /etc/cron.d/hestia-repair is the other half: it is what calls this repair on a schedule, it is not
-# operator surface, and it is restored the same way. Only a manual or installer run can bring it back
-# when it is gone, which is precisely why it does not live inside the crontab it repairs (#1006).
+# /etc/cron.d/hestia-repair is the other half: it calls this repair on a schedule, is not operator surface,
+# and is restored the same way. Only a manual or installer run brings it back when it is gone, which is
+# why it does not live inside the crontab it repairs.
 syshealth_repair_system_cron() {
 	local _ct='/var/spool/cron/crontabs/hestia' _cd='/etc/cron.d/hestia-repair' _rc=0
 	if [ ! -s "$_ct" ]; then

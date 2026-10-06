@@ -4,22 +4,9 @@
 #
 # example: h-add-sys-sieve
 #
-# Installs dovecot-managesieved + dovecot-sieve: the version-specific sieve conf.d
-# overlay enables sieve on port 4190 (localhost-only) and stores per-account
-# scripts in the maildir. exim's SIEVE macro switches clean local delivery to
-# dovecot-lda so scripts run at delivery; spam keeps the direct .Spam appendfile.
-#
-# QUIRK: sieve runs ONLY on non-spam mail — rspamd-tagged spam bypasses dovecot-lda
-# and lands in .Spam directly, so customer sieve rules never see it (spam foldering
-# is exim's job). Over-quota behaviour is identical on both paths (defer, not bounce)
-# via quota_full_tempfail + return_fail_output.
-# New h-* command — no v-* symlink.
+# ManageSieve on loopback for the webmails, delivery through LMTP so the scripts run, autoreplies moved
+# into Sieve. Mail exim files as spam goes to .Spam directly, so customer rules never see it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -28,14 +15,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/sieve.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
@@ -44,25 +25,28 @@ fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 
-# Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
-# The status key is part of the condition, so it already says yes.
-# The deployed configuration is the target state, not the packages: a run that installed them
-# and then died on the dovecot restart would otherwise read as done. 25-lmtp.conf is laid down
-# last, so its presence is what "finished" means (#596).
+# Dovecot 2.4 broke the 2.3 config syntax, so the overlay is per version.
+DOVECOT_VER=$(dovecot --version 2> /dev/null | cut -d. -f1,2 || echo "2.3")
+if [ "$(printf '%s\n2.4' "$DOVECOT_VER" | sort -V | head -1)" = "2.4" ]; then
+	DCDIR="$HESTIA/share/dovecot/2.4"
+else
+	DCDIR="$HESTIA/share/dovecot/2.3"
+fi
+
+# Present already is success, judged by the deployed config and not by the packages alone.
+# The exim macro and 15-lda.conf too: a re-run of the installer's mail stage lays down stock ones.
 if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii' \
 	&& dpkg -l dovecot-lmtpd 2> /dev/null | grep -q '^ii' \
-	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ]; then
+	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ] && grep -q '^SIEVE = yes' /etc/exim4/exim4.conf.template \
+	&& cmp -s "$DCDIR/sieve/15-lda.conf" /etc/dovecot/conf.d/15-lda.conf; then
 	echo "INFO: sieve is already installed."
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 # dovecot-lmtpd too: without it dovecot opens no socket while exim already routes there.
 echo "Installing sieve (dovecot-managesieved, dovecot-sieve, dovecot-lmtpd)..."
-apt-get -y -qq install dovecot-managesieved dovecot-sieve dovecot-lmtpd > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq \
+	install dovecot-managesieved dovecot-sieve dovecot-lmtpd > /dev/null 2>&1
 for _p in dovecot-managesieved dovecot-lmtpd; do
 	if ! dpkg -l "$_p" 2> /dev/null | grep -q '^ii'; then
 		echo "ERROR: sieve installation failed ($_p)."
@@ -70,22 +54,19 @@ for _p in dovecot-managesieved dovecot-lmtpd; do
 	fi
 done
 
-# version-specific overlay (2.3/2.4) replacing the package defaults
-DOVECOT_VER=$(dovecot --version 2> /dev/null | cut -d. -f1,2 || echo "2.3")
-if [ "$(printf '%s\n2.4' "$DOVECOT_VER" | sort -V | head -1)" = "2.4" ]; then
-	DCDIR="$HESTIA/share/dovecot/2.4"
-else
-	DCDIR="$HESTIA/share/dovecot/2.3"
-fi
 cp -f "$DCDIR/sieve/"* /etc/dovecot/conf.d/
-# global script dir referenced by the sieve config (pipe/global extensions)
+sieve_managesieve_bind_local \
+	|| echo "Warning!: ManageSieve could not be bound to loopback, it listens on every address." >&2
+# Referenced by the sieve config (pipe/global extensions).
 mkdir -p /etc/dovecot/sieve
 
-# IMAP-triggered learning. Collected rather than aborted: filters and vacation work without any of
-# it, so a half-wired learner is a degradation and not a failure.
+# Learning failures are collected, not fatal: filters and vacation work without it.
+# The trigger only with rspamd; h-add-sys-rspamd wires it when rspamd comes later.
 learn_failures=''
-sieve_imap_plugin_add || learn_failures="$learn_failures$(printf '\n  the imap_sieve trigger')"
-sieve_mail_group_add || learn_failures="$learn_failures$(printf '\n  the rspamd controller group')"
+if [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
+	sieve_imap_plugin_add || learn_failures="$learn_failures$(printf '\n  the imap_sieve trigger')"
+	sieve_mail_group_add || learn_failures="$learn_failures$(printf '\n  the rspamd controller group')"
+fi
 sieve_learn_install
 
 systemctl restart dovecot
@@ -97,17 +78,22 @@ fi
 # Only now: the compiler asks the running dovecot (see sieve_learn_compile).
 sieve_learn_compile || learn_failures="$learn_failures$(printf '\n  the learn scripts')"
 
-# switch clean local delivery to dovecot-lda so sieve scripts run at delivery
 sed -i 's/^#SIEVE = yes/SIEVE = yes/' /etc/exim4/exim4.conf.template
+if ! grep -q '^SIEVE = yes' /etc/exim4/exim4.conf.template; then
+	echo "ERROR: no SIEVE macro in /etc/exim4/exim4.conf.template, sieve is NOT active."
+	exit "$E_NOTEXIST"
+fi
 systemctl restart exim4
 if ! systemctl is-active --quiet exim4; then
-	echo "ERROR: exim4 failed to restart with sieve delivery enabled."
+	sed -i 's/^SIEVE = yes/#SIEVE = yes/' /etc/exim4/exim4.conf.template
+	systemctl restart exim4
+	echo "ERROR: exim4 failed to restart with sieve delivery enabled, it runs again without it."
 	exit "$E_RESTART"
 fi
 
 $BIN/h-change-sys-config-value 'SIEVE_SYSTEM' 'yes'
 
-# Without this the only way in is a client that speaks ManageSieve itself - the panel has no screen.
+# Without this only a ManageSieve client gets in; the panel has no filter screen.
 webmail_sieve_apply
 
 # From here the vacation rule answers; exim's copy would reply a second time.
@@ -115,18 +101,16 @@ vacation_all sieve
 vacation_rc=$?
 
 echo "sieve is now active (ManageSieve on 4190, filters and vacation in the webmail)."
-# Into the exit code, not only the log: a caller reading the status must see the missing half (#746).
-if [ -n "$learn_failures" ]; then
-	check_result "$E_PARSING" "IMAP-triggered spam learning is NOT wired:$learn_failures"
-fi
-[ "$vacation_rc" -eq 0 ] || check_result "$E_UPDATE" "some autoreplies were not moved to Sieve, exim still answers them"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Installed sieve mail filtering."
+
+# Into the exit code, so a caller sees the missing half; logged first, as the install itself happened.
+learn_msg="IMAP-triggered spam learning is NOT wired:$learn_failures"
+vacation_msg="some autoreplies were not moved to Sieve, exim still answers them"
+if [ "$vacation_rc" -ne 0 ]; then
+	check_result "$E_UPDATE" "$vacation_msg${learn_failures:+; $learn_msg}"
+fi
+[ -z "$learn_failures" ] || check_result "$E_PARSING" "$learn_msg"
 log_event "$OK" "$ARGUMENTS"
 
 exit

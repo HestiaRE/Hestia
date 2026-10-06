@@ -4,7 +4,7 @@
 #
 # example: h-extract-fs-archive admin latest.tar.gz /home/admin
 #
-# This function extracts archive into directory on the file system
+# Extracts a .tar.zst or .tar.gz into the user's home or /tmp, as the user; the restore's unpacker.
 
 user=$1
 src_file=$2
@@ -12,49 +12,46 @@ dst_dir=$3
 selected_dir=$4
 strip=$5
 test=$6
-# NUL-separated list of members to extract (#712): the first pass of a differential restore lays
-# down only what the base still shares with the current map. Absent means "everything", as before.
+# NUL-separated members to extract: a differential restore lays down only what the base shares with the current map.
 filelist=$7
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER ARCHIVE DIRECTORY [SELECTED_DIR] [STRIP] [TEST] [FILELIST]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-# Checking user homedir
 homedir=$(grep "^$user:" /etc/passwd | cut -f 6 -d :)
 if [ -z "$homedir" ]; then
 	echo "Error: user home directory doesn't exist"
 	exit 12
 fi
 
-# Checking source dir
 if [ ! -e "$src_file" ]; then
 	echo "Error: source file $src_file doesn't exist"
 	exit 3
 fi
 
-# Checking source path
-rpath=$(readlink -f "$src_file")
-if [ -z "$(echo $rpath | egrep "^/tmp|^$homedir|^$BACKUP/$user\.|^$BACKUP/$user/$user\.|^$BACKUP/tmp\.")" ]; then
+# Besides home and /tmp only the restore's own mktemp dir, tmp.* directly under BACKUP_TEMP or BACKUP:
+# the customers' archive folders there are no source.
+src_ok=''
+path_within "$src_file" "$homedir" /tmp && src_ok='yes'
+src_real=$(readlink -f -- "$src_file")
+for base in "$BACKUP" "$BACKUP_TEMP"; do
+	[ -n "$base" ] && [ -d "$base" ] || continue
+	base=$(readlink -f -- "$base")
+	case "$src_real" in "$base"/tmp.*/*) src_ok='yes' ;; esac
+done
+if [ "$src_ok" != 'yes' ]; then
 	echo "Error: invalid source path $src_file"
 	exit 2
 fi
 
-# Checking destination path
-rpath=$(readlink -f "$dst_dir")
-if [ -z "$(echo $rpath | egrep "^/tmp|^$homedir")" ]; then
+if ! path_within "$dst_dir" "$homedir" /tmp; then
 	echo "Error: invalid destination path $dst_dir"
 	exit 2
 fi
@@ -69,113 +66,30 @@ if [ -n "$filelist" ]; then
 		echo "Error: file list $filelist doesn't exist"
 		exit 3
 	}
-	# --no-recursion first: the list names directories as the archive stores them, and without it
-	# each one is unpacked recursively - which brings deleted files back on a differential restore.
+	# --no-recursion first: a listed directory would unpack whole and bring deleted files back.
 	tar_select=(--no-recursion --null -T "$filelist")
 fi
-# Extracting gziped archive
-if [ -n "$(echo $src_file | egrep -i '.tgz|.tar.gz')" ]; then
-	x='yes'
-	if [ -z "$test" ] || [ "$test" = "no" ]; then
-		user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-		user_exec tar -xzf "$src_file" -C "$dst_dir" --no-wildcards "$selected_dir" $tar_strip_level "${tar_select[@]}" > /dev/null 2>&1
-		rc=$?
-	else
-		user_exec tar -tf "$src_file" --no-wildcards "$selected_dir" > /dev/null 2>&1
-		rc=$?
-	fi
-fi
-
-# Extracting bziped archive
-if [ -n "$(echo $src_file | egrep -i '.tbz|.tar.bz')" ]; then
-	x='yes'
-	if [ -z "$test" ] || [ "$test" = "no" ]; then
-		user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-		user_exec tar -xjf "$src_file" -C "$dst_dir" --no-wildcards "$selected_dir" $tar_strip_level "${tar_select[@]}" > /dev/null 2>&1
-		rc=$?
-	else
-		user_exec tar -tf "$src_file" --no-wildcards "$selected_dir" > /dev/null 2>&1
-		rc=$?
-	fi
-fi
-
-# Extracting ZSTD archive
-if [ -n "$(echo $src_file | egrep -i '.tar.zst')" ]; then
-	x='yes'
-	if [ -z "$test" ] || [ "$test" = "no" ]; then
-		user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-		user_exec tar -I pzstd -xf "$src_file" -C "$dst_dir" --no-wildcards "$selected_dir" $tar_strip_level "${tar_select[@]}" > /dev/null 2>&1
-		rc=$?
-	else
-		user_exec tar -I pzstd -tf "$src_file" --no-wildcards "$selected_dir" > /dev/null 2>&1
-		rc=$?
-	fi
-fi
-
-# Extracting gziped file
-if [ -n "$(echo $src_file | grep -i '.zst')" ] && [ -z "$x" ]; then
+# Our backups and HestiaCP's write these two, nothing else reaches this command.
+case "$src_file" in
+	*.tar.zst) tar_codec=(-I pzstd) ;;
+	*.tar.gz | *.tgz) tar_codec=(-z) ;;
+	*)
+		echo "Error: $src_file is neither .tar.zst nor .tar.gz"
+		exit "$E_INVALID"
+		;;
+esac
+if [ -z "$test" ] || [ "$test" = "no" ]; then
 	user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-	user_exec mv "$src_file" "$dst_dir" > /dev/null 2>&1
-	user_exec pzstd -d "$dst_dir/$(basename $src_file)" > /dev/null 2>&1
+	user_exec tar "${tar_codec[@]}" -xf "$src_file" -C "$dst_dir" --no-wildcards "$selected_dir" $tar_strip_level "${tar_select[@]}" > /dev/null 2>&1
+	rc=$?
+else
+	user_exec tar "${tar_codec[@]}" -tf "$src_file" --no-wildcards "$selected_dir" > /dev/null 2>&1
 	rc=$?
 fi
 
-# Extracting gziped file
-if [ -n "$(echo $src_file | grep -i '.gz')" ] && [ -z "$x" ]; then
-	user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-	user_exec mv "$src_file" "$dst_dir" > /dev/null 2>&1
-	user_exec gzip -d "$dst_dir/$(basename $src_file)" > /dev/null 2>&1
-	rc=$?
-fi
-
-# Extracting bziped file
-if [ -n "$(echo $src_file | grep -i '.bz')" ] && [ -z "$x" ]; then
-	user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-	user_exec mv "$src_file" "$dst_dir" # >/dev/null 2>&1
-	user_exec bzip2 -d "$dst_dir/$(basename $src_file)" > /dev/null 2>&1
-	rc=$?
-fi
-
-# Extracting ziped archive
-if [ -n "$(echo $src_file | grep -i '.zip')" ]; then
-	user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-	user_exec unzip "$src_file" -d "$dst_dir" > /dev/null 2>&1
-	rc=$?
-fi
-
-# Extracting ziped archive
-if [ -n "$(echo $src_file | grep -i '.7z')" ]; then
-	user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-	user_exec mv "$src_file" "$dst_dir" > /dev/null 2>&1
-	user_exec p7zip -d "$src_file" > /dev/null 2>&1
-	rc=$?
-fi
-
-# Extracting tared archive
-if [ -n "$(echo $src_file | grep -i '.tar')" ] && [ -z "$x" ]; then
-	x='yes'
-	if [ -z "$test" ] || [ "$test" = "no" ]; then
-		user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-		user_exec tar -xf "$src_file" -C "$dst_dir" --no-wildcards "$selected_dir" $tar_strip_level "${tar_select[@]}" > /dev/null 2>&1
-		rc=$?
-	else
-		user_exec tar -tf "$src_file" --no-wildcards "$selected_dir" > /dev/null 2>&1
-		rc=$?
-	fi
-fi
-
-# Extracting rared archive
-if [ -n "$(echo $src_file | grep -i '.rar')" ]; then
-	user_exec mkdir -p "$dst_dir" > /dev/null 2>&1
-	user_exec unrar "$src_file" "$dst_dir" > /dev/null 2>&1
-	rc=$?
-fi
-
-# Checking result
-if [ $rc -ne 0 ]; then
+if [ "$rc" -ne 0 ]; then
 	echo "Error: $src_file was not extracted"
 	exit 3
 fi
 
-# Exiting
 exit

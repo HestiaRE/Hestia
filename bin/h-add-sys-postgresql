@@ -4,37 +4,23 @@
 #
 # example: h-add-sys-postgresql
 #
-# Installs PostgreSQL and registers it as a local DB host so the panel can manage
-# pgsql databases + users. The panel connects as the `postgres` superuser over TCP
-# loopback (a password is set; socket peer-auth is unaffected, default pg_hba
-# already allows scram on 127.0.0.1). Credential lives in conf/pgsql.conf (0660),
-# never install.conf. Idempotency = package + host registration; readiness via
-# pg_isready (systemctl is-active lies — the umbrella unit reports active when down).
+# Installs PostgreSQL and registers it as the local DB host. The panel logs in as postgres over TCP loopback,
+# which the default pg_hba already allows, with a password kept in conf/pgsql.conf; socket peer auth is unaffected.
+# Readiness is pg_isready: the umbrella unit reports active while the cluster is down.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 MGMT_ROLE="postgres"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# installed = package present AND host registered
 if dpkg -l postgresql 2> /dev/null | grep -q '^ii' \
 	&& grep -qs "HOST='localhost'" "$HESTIA/conf/pgsql.conf"; then
 	echo "INFO: PostgreSQL is already installed."
@@ -42,14 +28,9 @@ if dpkg -l postgresql 2> /dev/null | grep -q '^ii' \
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 echo "[ * ] Installing PostgreSQL packages..."
 apt-get -qq update
-# postgresql-common first, own transaction: the metapackage's debconf runs
-# pg_lsclusters before postgresql-common is unpacked when both are together
+# own transaction: together, the metapackage's debconf runs pg_lsclusters before postgresql-common is unpacked
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq install postgresql-common > /dev/null 2>&1 || true
 DEBIAN_FRONTEND=noninteractive apt-get -y -qq install postgresql postgresql-contrib > /dev/null 2>&1
 if ! dpkg -l postgresql 2> /dev/null | grep -q '^ii'; then
@@ -57,11 +38,11 @@ if ! dpkg -l postgresql 2> /dev/null | grep -q '^ii'; then
 	exit "$E_INVALID"
 fi
 
-# bring the versioned cluster up, verify with pg_isready
 PG_MAJOR=$(pg_lsclusters -h 2> /dev/null | awk 'NR==1{print $1}')
 systemctl enable postgresql > /dev/null 2>&1 || true
-systemctl start "postgresql@${PG_MAJOR}-main" > /dev/null 2>&1 \
-	|| systemctl start postgresql > /dev/null 2>&1 || true
+systemctl start "postgresql@${PG_MAJOR}-main" > /dev/null 2>&1 || true
+# the umbrella too: h-delete-sys-postgresql stopped it, and the panel and smoke read its state
+systemctl start postgresql > /dev/null 2>&1 || true
 _ready=0
 for _ in $(seq 1 15); do
 	pg_isready -q 2> /dev/null && {
@@ -76,18 +57,12 @@ if [ "$_ready" != 1 ]; then
 fi
 
 echo "[ * ] Setting management credentials..."
-# password for the panel's loopback TCP login (socket peer-auth is unaffected)
 PGPASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16 || true)
-sudo -u postgres psql -qc "ALTER ROLE postgres WITH PASSWORD '$PGPASS';" > /dev/null 2>&1
+sudo -u postgres psql -q <<< "ALTER ROLE postgres WITH PASSWORD '$PGPASS';" > /dev/null 2>&1
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# status: a local package, from the OS (#979); DB_SYSTEM's pgsql token is the host register, written below
+# DB_SYSTEM's pgsql token is written by the host registration below, not here
 change_sys_value "DB_POSTGRESQL_SYSTEM" "os"
 
-# register the local host — composes DB_SYSTEM+=pgsql, letting the panel manage pgsql DBs
 if ! "$BIN/h-add-database-host" pgsql localhost "$MGMT_ROLE" "$PGPASS" > /dev/null 2>&1; then
 	echo "[ ! ] PostgreSQL host registration reported an issue"
 fi

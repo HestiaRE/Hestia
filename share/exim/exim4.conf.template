@@ -202,6 +202,14 @@ acl_check_rcpt:
 
   require verify        = recipient
 
+  # The virus and spam flags set below hold one domain's settings for the whole message, so each local domain gets a
+  # transaction of its own.
+  defer   message       = 452 4.5.3 Please send to one recipient domain at a time
+          domains       = +local_domains
+          condition     = ${if and{{!eq{$acl_m8}{}}{!eq{$acl_m8}{$domain}}}{yes}{no}}
+  warn    domains       = +local_domains
+          set acl_m8    = $domain
+
 .ifdef CLAMD
   warn    set acl_m0    = no
 
@@ -220,11 +228,8 @@ acl_check_rcpt:
          set acl_m1    = yes
  warn    condition     = ${if exists {/etc/exim4/domains/$domain/reject_spam}{yes}{no}}
          set acl_m3    = yes
-# Per-domain threshold overrides (h-change-mail-domain-spam-(reject-)score):
-# integer tenths like the global macros, read per message — no reload needed.
-# Guarded by a digits-only match so a malformed file falls back to the global
-# default instead of breaking the numeric conditions in acl_check_data.
-# Like acl_m1/m3, the last recipient's domain wins for multi-domain messages.
+# Per-domain thresholds in integer tenths like the global macros. A malformed file falls back to the global default
+# instead of breaking the numeric conditions in acl_check_data.
  warn    condition     = ${if exists {/etc/exim4/domains/$domain/spam_score}{yes}{no}}
          condition     = ${if match {${readfile{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_score}}}{\N^\d+$\N}{yes}{no}}
          set acl_m4    = ${readfile{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_score}}
@@ -237,11 +242,11 @@ acl_check_rcpt:
 # (scan skipped entirely in acl_check_data), acl_m7 = blacklisted (always
 # marked as spam; refused while reject_spam is active). The whitelist wins.
  warn    condition     = ${if exists {/etc/exim4/domains/$domain/spam_whitelist}{yes}{no}}
-         condition     = ${lookup{${lc:$sender_address}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{${lookup{${lc:$sender_address_domain}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{no}}}}
+         condition     = ${lookup{${lc:$sender_address}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{${lookup{${lc:$sender_address_domain}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_whitelist}{yes}{no}}}}
          set acl_m6    = yes
  warn    condition     = ${if !eq{$acl_m6}{yes} {yes}{no}}
          condition     = ${if exists {/etc/exim4/domains/$domain/spam_blacklist}{yes}{no}}
-         condition     = ${lookup{${lc:$sender_address}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{${lookup{${lc:$sender_address_domain}}wildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{no}}}}
+         condition     = ${lookup{${lc:$sender_address}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{${lookup{${lc:$sender_address_domain}}nwildlsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_blacklist}{yes}{no}}}}
          set acl_m7    = yes
 .endif
 
@@ -291,6 +296,7 @@ acl_check_data:
   # or global SPAM_REJECT_SCORE) and reject_spam is enabled; whitelisted
   # senders (acl_m6) are exempt
   deny   message        = This message scored $spam_score spam points
+         condition      = ${if eq{$acl_m1}{yes}{yes}{no}}
          condition      = ${if eq{$acl_m3}{yes}{yes}{no}}
          condition      = ${if eq{$acl_m6}{no}{yes}{no}}
          spam           = nobody:true
@@ -382,7 +388,7 @@ bypass_smtp_relay:
   driver = dnslookup
   domains = !+local_domains
   require_files = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude
-  condition = ${lookup{$domain}wildlsearch{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude}{yes}{no}}
+  condition = ${lookup{$domain}nwildlsearch{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude}{yes}{no}}
   transport = remote_smtp
   no_more
   no_verify
@@ -557,6 +563,11 @@ smtp_relay_smtp:
   driver = smtp
   hosts_require_auth = $host_address
   hosts_require_tls = $host_address
+  dkim_domain = DKIM_DOMAIN
+  dkim_selector = mail
+  dkim_private_key = DKIM_PRIVATE_KEY
+  dkim_canon = relaxed
+  dkim_strict = 0
 
 # interface builds four shapes and NEVER an empty list element ("" is a hard transport
 # error deferring the mail); an entirely empty result just unsets the option.

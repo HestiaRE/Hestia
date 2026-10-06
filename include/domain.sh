@@ -163,14 +163,14 @@ is_web_domain_new() {
 # customer. The owner needs its own variable: reusing $user here compares the caller with itself,
 # which makes the foreign-owner half of the check dead.
 is_web_alias_new() {
-	local alias_name="$1" alias_type="$2" conf alias_user aliases a
+	local alias_name="$1" alias_type="$2" conf alias_user aliases a line
 	for conf in "$CONF_DIR"/users/*/web.conf; do
 		[ -f "$conf" ] || continue
 		grep -qF -- "$alias_name" "$conf" || continue
 		alias_user=$(basename "$(dirname "$conf")")
-		# read ALIAS directly: parse_object_kv_list would eval the whole record into the caller's
-		# scope, and the leading space keeps WEBMAIL_ALIAS out of the match
-		while IFS= read -r aliases; do
+		# read ALIAS directly: parse_object_kv_list would eval the whole record into the caller's scope
+		while IFS= read -r line || [ -n "$line" ]; do
+			aliases=$(record_field "$line" ALIAS) || continue
 			local -a _a_list
 			IFS=, read -ra _a_list <<< "$aliases"
 			for a in "${_a_list[@]}"; do
@@ -180,7 +180,7 @@ is_web_alias_new() {
 					check_result "$E_EXISTS" "Web alias $alias_name exists"
 				fi
 			done
-		done < <(sed -n "s/.* ALIAS='\([^']*\)'.*/\1/p" "$conf")
+		done < "$conf"
 	done
 }
 
@@ -857,26 +857,25 @@ is_mail_domain_new() {
 }
 
 is_mail_new() {
-	check_acc=$(grep -F "ACCOUNT='$1'" $USER_DATA/mail/$domain.conf)
-	if [ -n "$check_acc" ]; then
-		check_result "$E_EXISTS" "mail account $1 already exists"
-	fi
-	check_als=$(awk -F "ALIAS='" '{print $2}' $USER_DATA/mail/$domain.conf)
-	match=$(echo "$check_als" | cut -f 1 -d "'" | grep $1)
-	if [ -n "$match" ]; then
-		parse_object_kv_list "$(grep "ALIAS='$match'" $USER_DATA/mail/$domain.conf)"
-		check_als=$(echo ",$ALIAS," | grep ",$1,")
-		if [ -n "$check_als" ]; then
-			check_result "$E_EXISTS" "mail alias $1 already exists"
-		fi
-	fi
+	local line a
+	local -a als
+	[ -f "$USER_DATA/mail/$domain.conf" ] || return 0
+	# Per field and literal: a pattern over the whole file let a.b match axb and only weighed the last record it hit.
+	while IFS= read -r line; do
+		[ "$(record_field "$line" ACCOUNT)" != "$1" ] || check_result "$E_EXISTS" "mail account $1 already exists"
+		IFS=, read -ra als <<< "$(record_field "$line" ALIAS)"
+		for a in "${als[@]}"; do
+			[ "$a" != "$1" ] || check_result "$E_EXISTS" "mail alias $1 already exists"
+		done
+	done < "$USER_DATA/mail/$domain.conf"
 }
 
 # Modes of a mail domain's certificate files: exim reads them through the mail group, dovecot as root, nobody else.
 # Only this domain's SNI links: chmod on a glob over $MAIL_SNI_DIR followed every link and set the keys of every
 # domain on the box to 644, and chown -h handed all links to the current user (#1135).
 mail_ssl_modes() { # USER DOMAIN
-	local d="$HOMEDIR/$1/conf/mail/$2/ssl" f
+	local d="$HOMEDIR/$1/conf/mail/$2/ssl" f sni
+	sni=$(mail_sni_name "$2")
 	chmod 0750 "$d"
 	chown -R "$MAIL_USER:mail" "$d"
 	for f in "$d"/*; do
@@ -884,7 +883,7 @@ mail_ssl_modes() { # USER DOMAIN
 		chmod 0640 "$f"
 		chown -h "$1:mail" "$f"
 	done
-	for f in "$MAIL_SNI_DIR/$2.crt" "$MAIL_SNI_DIR/$2.key" "$MAIL_SNI_DIR/mail.$2.crt" "$MAIL_SNI_DIR/mail.$2.key"; do
+	for f in "$MAIL_SNI_DIR/$sni.crt" "$MAIL_SNI_DIR/$sni.key" "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key"; do
 		[ -L "$f" ] && chown -h "$1:mail" "$f"
 	done
 	return 0
@@ -902,6 +901,28 @@ smtp_relay_write() { # FILE OWNER MODE HOST PORT USER PASS
 	fi
 	rm -f "$tmp"
 	return 1
+}
+
+# The addresses a mail domain sends from, as exim reads them: the web domain's, else the user's first. Needs ip.sh.
+mail_outgoing_ip_write() { # USER DOMAIN
+	local d="$HOMEDIR/$1/conf/mail/$2" v4 v6
+	v4=$(get_object_value 'web' 'DOMAIN' "$2" '$IP')
+	if [ -n "$v4" ]; then
+		v4=$(get_real_ip "$v4")
+	else
+		v4=$(get_user_ips 4 | head -n1)
+	fi
+	v6=$(get_object_value 'web' 'DOMAIN' "$2" '$IP6')
+	[ -n "$v6" ] || v6=$(get_user_ips 6 | head -n1)
+	[ -n "$v6" ] && [ -e "$CONF_DIR/ips/$v6" ] || v6=''
+	rm -f "$d/ip" "$d/ipv6"
+	if [ -n "$v4" ]; then
+		echo "$v4" > "$d/ip" && chown "${MAIL_USER:-Debian-exim}:mail" "$d/ip" && chmod 660 "$d/ip" || return 1
+	fi
+	if [ -n "$v6" ]; then
+		echo "$v6" > "$d/ipv6" && chown "${MAIL_USER:-Debian-exim}:mail" "$d/ipv6" && chmod 660 "$d/ipv6" || return 1
+	fi
+	return 0
 }
 
 # Update 0.23: the relay files already on the box.
@@ -928,7 +949,18 @@ mail_ssl_modes_apply() {
 	done
 }
 
+# The name a client sends as SNI and dovecot's local_name: punycode for an IDN domain, while files keep the record's name.
+mail_sni_name() { # DOMAIN
+	if [[ "$1" = *[![:ascii:]]* ]]; then
+		idn2 --quiet "$1"
+	else
+		printf '%s\n' "$1"
+	fi
+}
+
 add_mail_ssl_config() {
+	local sni
+	sni=$(mail_sni_name "$domain")
 	if [ ! -d "$HOMEDIR/$user/conf/mail/$domain/ssl/" ]; then
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain/ssl/
 	fi
@@ -964,79 +996,81 @@ add_mail_ssl_config() {
 	fi
 
 	# Clean up dovecot configuration (if it exists)
-	if [ -f /etc/dovecot/conf.d/domains/$domain.conf ]; then
-		rm -f /etc/dovecot/conf.d/domains/$domain.conf
-	fi
+	rm -f "/etc/dovecot/conf.d/domains/$domain.conf" "/etc/dovecot/conf.d/domains/$sni.conf"
 
 	# Check if using custom / wildcard mail certificate
-	wildcard_domain="\\*.$(echo "$domain" | cut -f 1 -d . --complement)"
-	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $domain| $wildcard_domain")
-	dovecot_version="$(dovecot --version | cut -f -2 -d .)"
+	wildcard_domain="\\*.$(echo "$sni" | cut -f 1 -d . --complement)"
+	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $sni| $wildcard_domain")
 
 	if [ -n "$mail_cert_match" ]; then
-		if [[ "$dovecot_version" = "2.4" ]]; then
+		if dovecot_ge_24; then
 			# Add domain SSL configuration to dovecot
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name $domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+			echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "local_name $sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 		else
-			echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "local_name $domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-			echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+			echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "local_name $sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+			echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 		fi
 		# Add domain SSL configuration to exim4
-		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/$domain.crt
-		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/$domain.key
+		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem "$MAIL_SNI_DIR/$sni.crt"
+		ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key "$MAIL_SNI_DIR/$sni.key"
 	fi
 
 	# Add domain SSL configuration to dovecot
-	if [[ "$dovecot_version" = "2.4" ]]; then
-		echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+	if dovecot_ge_24; then
+		echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "local_name mail.$sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_server_cert_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_server_key_file = $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 	else
-		echo "" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "local_name mail.$domain {" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> /etc/dovecot/conf.d/domains/$domain.conf
-		echo "}" >> /etc/dovecot/conf.d/domains/$domain.conf
+		echo "" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "local_name mail.$sni {" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_cert = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "  ssl_key = <$HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key" >> "/etc/dovecot/conf.d/domains/$sni.conf"
+		echo "}" >> "/etc/dovecot/conf.d/domains/$sni.conf"
 	fi
 
 	# Add domain SSL configuration to exim4
-	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
-	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key $MAIL_SNI_DIR/mail.$domain.key
+	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem "$MAIL_SNI_DIR/mail.$sni.crt"
+	ln -s $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key "$MAIL_SNI_DIR/mail.$sni.key"
 
 	mail_ssl_modes "$user" "$domain"
 }
 
 del_mail_ssl_config() {
+	local sni
+	sni=$(mail_sni_name "$domain")
 	# Check to prevent accidental removal of mismatched certificate
-	wildcard_domain="\\*.$(echo "$domain" | cut -f 1 -d . --complement)"
-	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $domain| $wildcard_domain")
+	wildcard_domain="\\*.$(echo "$sni" | cut -f 1 -d . --complement)"
+	mail_cert_match=$($BIN/h-list-mail-domain-ssl $user $domain | awk '/SUBJECT|ALIASES/' | grep -wE " $sni| $wildcard_domain")
 
 	# Remove old mail certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*
 
 	# Remove dovecot configuration
-	rm -f /etc/dovecot/conf.d/domains/$domain.conf
-
-	# Remove SSL vhost configuration
-	rm -f $HOMEDIR/$user/conf/mail/$domain/*.*ssl.conf
-	conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
-	conf_link_drop "/etc/$PROXY_SYSTEM/conf.d/domains/$WEBMAIL_ALIAS.$domain.ssl.conf" "$user"
+	rm -f "/etc/dovecot/conf.d/domains/$domain.conf" "/etc/dovecot/conf.d/domains/$sni.conf"
 
 	# Remove SSL certificates
 	rm -f $HOMEDIR/$user/conf/mail/$domain/ssl/*
 	if [ -n "$mail_cert_match" ]; then
-		rm -f $MAIL_SNI_DIR/$domain.crt $MAIL_SNI_DIR/$domain.key
+		rm -f "$MAIL_SNI_DIR/$sni.crt" "$MAIL_SNI_DIR/$sni.key"
 	fi
-	rm -f $MAIL_SNI_DIR/mail.$domain.crt $MAIL_SNI_DIR/mail.$domain.key
+	rm -f "$MAIL_SNI_DIR/mail.$sni.crt" "$MAIL_SNI_DIR/mail.$sni.key" "$MAIL_SNI_DIR/mail.$domain.crt" "$MAIL_SNI_DIR/mail.$domain.key"
+}
+
+# A failed key leaves neither half behind, so nothing claims a DKIM it does not have.
+mail_dkim_keys_write() { # DOMAIN SIZE
+	local pem="$USER_DATA/mail/$1.pem" pub="$USER_DATA/mail/$1.pub"
+	openssl genrsa -out "$pem" "$2" &> /dev/null && openssl rsa -pubout -in "$pem" -out "$pub" &> /dev/null && return 0
+	rm -f "$pem" "$pub"
+	return 1
 }
 
 del_mail_ssl_certificates() {
@@ -1188,14 +1222,66 @@ del_webmail_ssl_config() {
 	fi
 }
 
+# The hash for a mail password, in the strongest scheme this dovecot knows. A failed doveadm prints nothing, and an
+# empty hash in passwd would be a login without a password.
+mail_password_hash() { # PASSWORD
+	local schemes scheme='' hash salt
+	schemes=$(doveadm pw -l 2> /dev/null)
+	if [[ " $schemes " == *" BLF-CRYPT "* ]]; then
+		scheme=BLF-CRYPT
+	elif [[ " $schemes " == *" ARGON2ID "* ]]; then
+		scheme=ARGON2ID
+	fi
+	if [ -n "$scheme" ]; then
+		# Twice on stdin as the prompt asks, -p would show it in the process list. A mismatch still prints a hash
+		# with rc 0, so stderr goes into the result and the format check below refuses it.
+		hash=$(printf '%s\n%s\n' "$1" "$1" | doveadm pw -s "$scheme" 2>&1)
+	else
+		salt=$(generate_password "$PW_MATRIX" "8")
+		hash="{MD5}$($BIN/h-generate-password-hash md5 "$salt" <<< "$1")"
+	fi
+	[[ "$hash" =~ ^\{[A-Z0-9-]+\}[^[:space:]]{8,}$ ]] || return 1
+	printf '%s\n' "$hash"
+}
+
+# dovecot 2.4 renamed the SSL and quota settings; every later version keeps the 2.4 names.
+dovecot_ge_24() {
+	local ver
+	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2)
+	[ -n "$ver" ] && [ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = '2.4' ]
+}
+
+# The passwd line dovecot and exim read for an account, built here only: the quota syntax changed with dovecot 2.4.
+mail_passwd_line() { # USER ACCOUNT HASH QUOTA
+	local q="$4" rule
+	[ "$q" != 'unlimited' ] && [ -n "$q" ] || q=0
+	if dovecot_ge_24; then
+		rule="userdb_quota_storage_size=${q}M"
+	else
+		rule="userdb_quota_rule=*:storage=${q}M"
+	fi
+	printf '%s\n' "$2:$3:$1:mail::$HOMEDIR/$1:$q:$rule"
+}
+
 # exim writes maildirsize through the mailbox's tmp/, which only the first INBOX delivery created: a mailbox whose
 # first mail was spam had its Spam delivery deferred until then, and bounced if nothing else arrived.
 mail_account_maildir_ensure() { # USER DOMAIN_IDN ACCOUNT
 	local d="$HOMEDIR/$1/mail/$2/$3" sub
+	mail_dir_trusted "$1" "$2" && [ ! -L "$d" ] || return 1
 	[ -d "$d" ] || install -d -o "$1" -g mail -m 700 "$d" || return 1
 	for sub in cur new tmp; do
+		[ ! -L "$d/$sub" ] || return 1
 		[ -d "$d/$sub" ] || install -d -o "$1" -g mail -m 770 "$d/$sub" || return 1
 	done
+}
+
+# mail_dir_trusted USER [DOMAIN_IDN]: root may work below ~/mail. The customer owns /home/USER and the domain dir, so a
+# link there, or a ~/mail of their own after renaming root's away, would hand root's chown to any target.
+# Does not cover a swap between this check and the action that follows it.
+mail_dir_trusted() {
+	local m="$HOMEDIR/$1/mail"
+	[ ! -L "$m" ] && [ -d "$m" ] && [ "$(stat -c %u "$m")" = 0 ] || return 1
+	[ -z "$2" ] || { [ ! -L "$m/$2" ] && [ -d "$m/$2" ]; }
 }
 
 # exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.

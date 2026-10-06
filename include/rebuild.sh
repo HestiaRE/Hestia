@@ -194,6 +194,7 @@ rebuild_user_conf() {
 		fi
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		mkdir -p $HOMEDIR/$user/mail
+		chown --no-dereference root:root $HOMEDIR/$user/mail
 		chmod 751 $HOMEDIR/$user/mail
 		chmod 751 $HOMEDIR/$user/conf/mail
 		if [ "$create_user" = "yes" ]; then
@@ -466,6 +467,12 @@ rebuild_web_domain_conf() {
 				| grep "^$position:" | cut -f 2 -d :)
 			ftp_md5=$(echo $FTP_MD5 | tr ':' '\n' | grep -n '' \
 				| grep "^$position:" | cut -f 2 -d :)
+			# A path stored before the character check would be refused after the delete, and the account would leave
+			# the record as well. Kept, so the customer can give it a new path.
+			if ! record_path_ok "$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")" "$HOMEDIR/$user/web/$domain"; then
+				echo "Warning!: FTP account $ftp_user of $domain is not re-created, its path is not accepted any more"
+				continue
+			fi
 			# rebuild S/FTP users
 			$BIN/h-delete-web-domain-ftp "$user" "$domain" "$ftp_user"
 			# Generate temporary password to add user but update afterwards
@@ -619,7 +626,7 @@ rebuild_mail_domain_conf() {
 
 	# Rebuilding exim config structure
 	if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-		rm -f /etc/$MAIL_SYSTEM/domains/$domain_idn
+		rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		ln -s $HOMEDIR/$user/conf/mail/$domain \
 			/etc/$MAIL_SYSTEM/domains/$domain_idn
@@ -634,6 +641,8 @@ rebuild_mail_domain_conf() {
 		rm -f $HOMEDIR/$user/conf/mail/$domain/ip
 		rm -f $HOMEDIR/$user/conf/mail/$domain/ipv6
 		rm -fr $HOMEDIR/$user/conf/mail/$domain/limits
+		# Written as root from the record below; a link exim's user planted in their place must not be followed.
+		rm -f $HOMEDIR/$user/conf/mail/$domain/{smtp_relay_exclude,spam_score,spam_reject_score,spam_subject_tag}
 		touch $HOMEDIR/$user/conf/mail/$domain/accounts
 		touch $HOMEDIR/$user/conf/mail/$domain/aliases
 		touch $HOMEDIR/$user/conf/mail/$domain/passwd
@@ -679,14 +688,16 @@ rebuild_mail_domain_conf() {
 			if [ ! -f "$USER_DATA/mail/$domain.pem" ]; then
 				check_result "$E_NOTEXIST" "$domain has DKIM='yes' but no private key ($USER_DATA/mail/$domain.pem); the published TXT record would announce a key nothing signs with"
 			fi
+			rm -f $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 			cp $USER_DATA/mail/$domain.pem \
 				$HOMEDIR/$user/conf/mail/$domain/dkim.pem
 		fi
 
 		# Rebuild SMTP Relay configuration
 		if [ "$U_SMTP_RELAY" = 'true' ]; then
-			$BIN/h-add-mail-domain-smtp-relay $user $domain "$U_SMTP_RELAY_HOST" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" \
-				"$(record_value_decode "$U_SMTP_RELAY_PASSWORD")" "$U_SMTP_RELAY_PORT"
+			# Written here, not through h-add-mail-domain-smtp-relay: its arguments would show the password in ps.
+			smtp_relay_write "$HOMEDIR/$user/conf/mail/$domain/smtp_relay.conf" 'Debian-exim:mail' 660 "$U_SMTP_RELAY_HOST" \
+				"$U_SMTP_RELAY_PORT" "$(record_value_decode "$U_SMTP_RELAY_USERNAME")" "$(record_value_decode "$U_SMTP_RELAY_PASSWORD")"
 		fi
 
 		# Rebuild SMTP relay exclude list (recipient domains delivered
@@ -716,18 +727,8 @@ rebuild_mail_domain_conf() {
 		else
 			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_subject_tag
 		fi
-		if [ -n "$U_SPAM_WHITELIST" ]; then
-			echo "$U_SPAM_WHITELIST" | tr ',' '\n' \
-				> $HOMEDIR/$user/conf/mail/$domain/spam_whitelist
-		else
-			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_whitelist
-		fi
-		if [ -n "$U_SPAM_BLACKLIST" ]; then
-			echo "$U_SPAM_BLACKLIST" | tr ',' '\n' \
-				> $HOMEDIR/$user/conf/mail/$domain/spam_blacklist
-		else
-			rm -f $HOMEDIR/$user/conf/mail/$domain/spam_blacklist
-		fi
+		spam_list_write "$HOMEDIR/$user/conf/mail/$domain/spam_whitelist" "$U_SPAM_WHITELIST"
+		spam_list_write "$HOMEDIR/$user/conf/mail/$domain/spam_blacklist" "$U_SPAM_BLACKLIST"
 
 		# Removing configuration files if domain is suspended
 		if [ "$SUSPENDED" = 'yes' ]; then
@@ -736,7 +737,7 @@ rebuild_mail_domain_conf() {
 		fi
 
 		# Adding mail directory
-		if [ ! -e $HOMEDIR/$user/mail/$domain_idn ]; then
+		if mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ] && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ]; then
 			mkdir "$HOMEDIR/$user/mail/$domain_idn"
 		fi
 
@@ -757,14 +758,15 @@ rebuild_mail_domain_conf() {
 	accs=0
 	dom_disk=0
 	if [ -e "$USER_DATA/mail/$domain.conf" ]; then
-		accounts=$(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT')
+		# Suspended ones too: suspension swaps the hash and keeps the mail coming, as h-suspend-mail-account does.
+		accounts=$(sed -n "s/^ACCOUNT='\([^']*\)'.*/\1/p" "$USER_DATA/mail/$domain.conf")
 	else
 		accounts=''
 	fi
 	for account in $accounts; do
 		((++accs))
 		object=$(grep -F "ACCOUNT='$account'" $USER_DATA/mail/$domain.conf)
-		FWD_ONLY='no'
+		ALIAS='' FWD='' FWD_ONLY='no' RATE_LIMIT='' SUSPENDED='no'
 		parse_object_kv_list "$object"
 		if [ "$SUSPENDED" = 'yes' ]; then
 			MD5='SUSPENDED'
@@ -775,18 +777,8 @@ rebuild_mail_domain_conf() {
 				QUOTA=0
 			fi
 			mail_account_maildir_ensure "$user" "$domain_idn" "$account"
-			dovecot_version="$(dovecot --version | cut -f -2 -d .)"
-			if [[ "$dovecot_version" = "2.4" ]]; then
-				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_storage_size=${QUOTA}M"
-				echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
-				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
-			else
-				str="$account:$MD5:$user:mail::$HOMEDIR/$user:${QUOTA}:userdb_quota_rule=*:storage=${QUOTA}M"
-				echo $str >> $HOMEDIR/$user/conf/mail/$domain/passwd
-				userstr="$account:$account:$user:mail:$HOMEDIR/$user"
-				echo $userstr >> $HOMEDIR/$user/conf/mail/$domain/accounts
-			fi
+			mail_passwd_line "$user" "$account" "$MD5" "$QUOTA" >> $HOMEDIR/$user/conf/mail/$domain/passwd
+			echo "$account:$account:$user:mail:$HOMEDIR/$user" >> $HOMEDIR/$user/conf/mail/$domain/accounts
 			local -a _malias_list
 			IFS=, read -ra _malias_list <<< "$ALIAS"
 			for malias in "${_malias_list[@]}"; do
@@ -796,7 +788,7 @@ rebuild_mail_domain_conf() {
 			if [ -n "$FWD" ]; then
 				echo "$account@$domain_idn:$FWD" >> $dom_aliases
 			fi
-			if [ "$FWD_ONLY" = 'yes' ]; then
+			if [ "$FWD_ONLY" = 'yes' ] && [ -n "$FWD" ]; then
 				echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
 			fi
 			user_rate_limit=$(get_object_value 'mail' 'DOMAIN' "$domain" '$RATE_LIMIT')
@@ -822,14 +814,15 @@ rebuild_mail_domain_conf() {
 		chmod 660 $USER_DATA/mail/$domain.*
 		chmod 771 $HOMEDIR/$user/conf/mail/$domain
 		chmod 660 $HOMEDIR/$user/conf/mail/$domain/*
-		chmod 771 /etc/$MAIL_SYSTEM/domains/$domain_idn
-		chmod 770 $HOMEDIR/$user/mail/$domain_idn
 		chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain
 		if [ "$IMAP_SYSTEM" = "dovecot" ]; then
 			chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
 		fi
 		chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/accounts
-		chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+		if mail_dir_trusted "$user" "$domain_idn"; then
+			chmod 770 $HOMEDIR/$user/mail/$domain_idn
+			chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+		fi
 	fi
 
 	# Add missing SSL configuration flags to existing domains
@@ -851,8 +844,8 @@ rebuild_mail_domain_conf() {
 	fi
 
 	dom_disk=0
-	for account in $(search_objects "mail/$domain" 'SUSPENDED' "no" 'ACCOUNT'); do
-		home_dir=$HOMEDIR/$user/mail/$domain/$account
+	for account in $accounts; do
+		home_dir=$HOMEDIR/$user/mail/$domain_idn/$account
 		if [ -e "$home_dir" ]; then
 			udisk=$(nice -n 19 du -shm $home_dir | cut -f 1)
 		else
@@ -871,15 +864,14 @@ rebuild_mail_domain_conf() {
 	recalc_user_disk_usage
 }
 
-# Rebuild MySQL
 rebuild_mysql_database() {
 	mysql_connect $HOST
 	mysql_query "CREATE DATABASE \`$DB\` CHARACTER SET $CHARSET" > /dev/null
 	rebuild_mysql_database_user
 }
 
-# The user half, per slot (SLOT limits it to one). REBUILD_DB_DEFER (restore): a hashless slot whose user is not here
-# yet waits in REBUILD_DB_DEFERRED as DB:SLOT. REBUILD_DB_RUN_SET: that run's databases, not counted as elsewhere.
+# rebuild_mysql_database_user [SLOT]: the user half, per slot. REBUILD_DB_DEFER (restore): a hashless slot whose user
+# is not here yet waits in REBUILD_DB_DEFERRED as DB:SLOT. REBUILD_DB_RUN_SET: that run's databases, not "elsewhere".
 # shellcheck disable=SC2120  # the slot argument comes from h-restore-user
 rebuild_mysql_database_user() {
 	mysql_connect $HOST
@@ -900,8 +892,7 @@ rebuild_mysql_slot() {
 		key='MD5_SECOND'
 		ro="${DBUSER_SECOND_RO:-}"
 	fi
-	# Before the CREATE USERs: only "was this user already here" tells a kept credential from one
-	# that never arrived.
+	# Before the CREATE USERs: only "was this user already here" tells a kept credential from one that never arrived.
 	existed=$(mysql_query "SELECT COUNT(*) FROM mysql.user WHERE User='$u'" 2> /dev/null | tail -n1)
 	[ "$existed" = '0' ] && existed=''
 	if [ -n "${REBUILD_DB_DEFER:-}" ] && [ -z "$hash" ] && [ -z "$existed" ]; then
@@ -920,14 +911,12 @@ rebuild_mysql_slot() {
 	ident="IDENTIFIED BY PASSWORD '$hash'"
 	[ -n "$hash" ] || ident="${auth# }"
 	if [ "$mysql_fork" = "mysql" ]; then
-		# mysql
 		mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 		mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 		if [ "$mysql_ver_sub" -ge 8 ] || { [ "$mysql_ver_sub" -eq 5 ] && [ "$mysql_ver_sub_sub" -ge 7 ]; }; then
-			# mysql >= 5.7
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`$auth" > /dev/null
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost$auth" > /dev/null
-			# mysql >= 8, with enabled Print identified with as hex feature
+			# mysql_read_md5 reads mysql 8 hashes with print_identified_with_as_hex.
 			if [[ "$mysql_ver_sub" -ge 8 && "$hash" =~ ^0x.* ]]; then
 				query="UPDATE mysql.user SET authentication_string=UNHEX('${hash:2}')"
 			else
@@ -935,28 +924,22 @@ rebuild_mysql_slot() {
 			fi
 			query="$query WHERE User='$u'"
 		else
-			# mysql < 5.7
 			query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 		fi
 	else
-		# mariadb
 		mysql_ver_sub=$(echo $mysql_ver | cut -d '.' -f1)
 		mysql_ver_sub_sub=$(echo $mysql_ver | cut -d '.' -f2)
 		if [ "$mysql_ver_sub" -eq 5 ]; then
-			# mariadb = 5
 			mysql_query "CREATE USER \`$u\`$auth" > /dev/null
 			mysql_query "CREATE USER \`$u\`@localhost$auth" > /dev/null
 			query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 		else
-			# mariadb = 10
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\` $ident" > /dev/null
 			mysql_query "CREATE USER IF NOT EXISTS \`$u\`@localhost $ident" > /dev/null
-			if [ "$mysql_ver_sub_sub" -ge 4 ]; then
-				#mariadb >= 10.4
+			if [ "$mysql_ver_sub" -gt 10 ] || [ "$mysql_ver_sub_sub" -ge 4 ]; then
 				query="SET PASSWORD FOR '$u'@'%' = '$hash';"
 				query2="SET PASSWORD FOR '$u'@'localhost' = '$hash';"
 			else
-				#mariadb < 10.4
 				query="UPDATE mysql.user SET Password='$hash' WHERE User='$u'"
 			fi
 		fi
@@ -969,8 +952,7 @@ rebuild_mysql_slot() {
 		echo "Info: another database of $user holds the password of $u - it is kept, $DB now points at it"
 		update_object_value 'db' 'DB' "$DB" "\$$key" ''
 		printf -v "$key" '%s' ''
-	# An empty hash would blank a working password; mysql survives today only because its own read
-	# path happens to work. Guards an EXISTING credential - CREATE USER above is IF NOT EXISTS.
+	# Only with a hash: an empty one would blank the working password of a user that already existed.
 	elif [ -n "$hash" ]; then
 		mysql_query "$query" > /dev/null
 		if [ -n "$query2" ]; then
@@ -987,11 +969,10 @@ rebuild_mysql_slot() {
 	fi
 }
 
-# Rebuild PostgreSQL
 rebuild_pgsql_database() {
 
 	unset PORT TLS
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"
@@ -1018,21 +999,17 @@ rebuild_pgsql_database() {
 		exit "$E_CONNECT"
 	fi
 
-	# Asked before anything is created: afterwards the two cases look identical, and "kept
-	# unchanged" on a host where the role was just made claims a credential that never existed.
+	# Asked before the CREATE ROLE: afterwards a kept credential and a role just made look identical.
 	role_existed=$(psql_value "SELECT 1 FROM pg_authid WHERE rolname='$DBUSER'")
 
 	if [ -n "$MD5" ]; then
-		# Bare CREATE ROLE is NOLOGIN, so a restored database was unreachable whatever its password
-		# said. Granted only together with a password: a passwordless login role would be open
-		# wherever pg_hba.conf carries a trust line, which nothing here can read. The ALTER repairs
-		# roles the old bare form left behind.
+		# Bare CREATE ROLE is NOLOGIN; the ALTER covers a role that exists without it. LOGIN only with a password:
+		# a passwordless login role is open wherever pg_hba.conf has a trust line, which nothing here can read.
 		query="CREATE ROLE $DBUSER WITH LOGIN"
 		psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
 		query="ALTER ROLE $DBUSER WITH LOGIN"
 		psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
-		# Through psql_query's temp file, never -c: a SCRAM verifier is credential-equivalent and
-		# argv is readable through /proc. The only statement here that carries a secret.
+		# psql_query's temp file, never -c: a SCRAM verifier is credential-equivalent and argv is readable in /proc.
 		psql_query "UPDATE pg_authid SET rolpassword='$MD5' WHERE rolname='$DBUSER'" > /dev/null
 	else
 		# An empty hash is the absence of a password: it may neither replace a working one nor pose as one.
@@ -1060,25 +1037,23 @@ rebuild_pgsql_database() {
 	query="GRANT CONNECT ON DATABASE template1 to $DBUSER"
 	psql -h $HOST -U $USER -p $PORT -c "$query" > /dev/null 2>&1
 
-	# CREATE DATABASE skips an existing one, so h-change-database-user needs this too, and it makes
-	# h-rebuild-databases the repair. Only a warning, or one bad database would stop the whole run.
+	# Also for a database that already exists (h-change-database-user, h-rebuild-databases as the repair).
+	# Only a warning, or one bad database would stop the whole run.
 	psql_owner_apply "$DB" "$DBUSER" || true
 }
 
-# Import MySQL dump
 import_mysql_database() {
 
 	unset PORT
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/mysql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/mysql.conf)
 	parse_object_kv_list "$host_str"
 	if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ]; then
 		echo "Error: mysql config parsing failed"
 		log_event "$E_PARSING" "$ARGUMENTS"
 		exit "$E_PARSING"
 	fi
-	# Through a pipe, not -p on argv (the process list) and not a file: the callers own the EXIT trap, so
-	# a file of ours would outlive an abort with the admin password in it. mysql_connect exits on a failed
-	# connection, and the callers need the return code.
+	# Through a pipe: -p is on argv, and a file would outlive an abort, as the callers own the EXIT trap.
+	# Not mysql_connect: it exits on a failed connection, and the callers need the return code.
 	_import_mysql_cnf() { printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" "$HOST" "$USER" "$PASSWORD" "${PORT:-3306}"; }
 	if [ -f '/usr/bin/mariadb' ]; then
 		mariadb --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
@@ -1087,12 +1062,11 @@ import_mysql_database() {
 	fi
 }
 
-# Import PostgreSQL dump
 import_pgsql_database() {
 
 	local _rc
 	unset PORT TLS
-	host_str=$(grep "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
+	host_str=$(grep -F "HOST='$HOST'" $HESTIA/conf/pgsql.conf)
 	parse_object_kv_list "$host_str"
 	export PGPASSWORD="$PASSWORD"
 	psql_env "$HOST" "$TLS"
@@ -1104,11 +1078,10 @@ import_pgsql_database() {
 		exit "$E_PARSING"
 	fi
 
-	psql -h $HOST -U $USER -p $PORT $DB < $1 > /dev/null 2>&1
+	psql -h $HOST -U $USER -p $PORT "$DB" < "$1" > /dev/null 2>&1
 	_rc=$?
 
-	# Only a warning: the rows are there, and a failed import would make h-change-database-owner undo
-	# a restore that worked.
+	# Only a warning: the rows are there, and a failed import would make h-change-database-owner roll it back.
 	[ "$_rc" -eq 0 ] && psql_owner_apply "$DB" "$DBUSER"
 	return "$_rc"
 }

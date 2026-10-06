@@ -9,7 +9,7 @@
 # It exists so the daily crontab line has something inside bin/ to call. sudo grants hestia
 # /usr/local/hestia/bin/* and nothing else, so a line pointing one level up at update.sh is refused
 # as "command not allowed" and the banner never appears (#1091). Widening the grant is the wrong
-# direction: bin/ IS the panel-callable surface. No v-* symlink.
+# direction: bin/ IS the panel-callable surface.
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env

@@ -4,122 +4,99 @@
 #
 # example: h-change-sys-service-config /home/admin/dovecot.conf dovecot yes
 #
-# This function for changing service confguration. SERVICE php is the fpm php.ini of the default version,
-# php-X.Y that of version X.Y; one file either way, and only that version's fpm restarts.
+# Replaces the file the config editor offers under SERVICE (sys_config_path) with CONFIG and restarts the service
+# unless RESTART is no; a failed restart puts the old file back. php is the default fpm php.ini, php-X.Y that of X.Y.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 src=$1
 service=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'CONFIG SERVICE [RESTART]'
 is_format_valid 'service' 'restart'
 
-if [ ! -e "$src" ]; then
-	check_result "$E_NOTEXIST" "$src config doesn't exist"
-fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining dst config path
-case $service in
-	nginx) dst='/etc/nginx/nginx.conf' ;;
-	httpd) dst='/etc/httpd/conf/httpd.conf' ;;
-	apache2) dst='/etc/apache2/apache2.conf' ;;
-	exim) dst='/etc/exim/exim.conf' ;;
-	exim4) dst='/etc/exim4/exim4.conf.template' ;;
-	proftpd) dst=$(find /etc/proftpd* -name 'proftpd.conf') ;;
-	php | php-[0-9]*)
-		php_v=''
-		[ "$service" = php ] || php_v=${service#php-}
-		dst=$(php_ini_path "$php_v") || check_result "$E_NOTEXIST" "$service has no fpm php.ini"
-		;;
-	mysql) dst=$(find /etc/my* -name my.cnf) ;;
-	mysqld) dst=$(find /etc/my* -name my.cnf) ;;
-	mariadb) dst=$(find /etc/my* -name my.cnf) ;;
-	postgresql) dst=$($BIN/h-list-sys-pgsql-config plain | cut -f 1) ;;
-	postgresql-hba) dst=$($BIN/h-list-sys-pgsql-config plain | cut -f 2) ;;
-	dovecot) dst=$(find /etc/dovecot* -name dovecot.conf) ;;
-	dovecot-1) dst='/etc/dovecot/conf.d/10-auth.conf' ;;
-	dovecot-2) dst='/etc/dovecot/conf.d/10-logging.conf' ;;
-	dovecot-3) dst='/etc/dovecot/conf.d/10-mail.conf' ;;
-	dovecot-4) dst='/etc/dovecot/conf.d/10-master.conf' ;;
-	dovecot-5) dst='/etc/dovecot/conf.d/10-ssl.conf' ;;
-	dovecot-6) dst='/etc/dovecot/conf.d/20-imap.conf' ;;
-	dovecot-7) dst='/etc/dovecot/conf.d/20-pop3.conf' ;;
-	dovecot-8) dst='/etc/dovecot/conf.d/auth-passwdfile.conf.ext' ;;
-	clamd) dst=$($BIN/h-list-sys-clamd-config plain) ;;
-	fail2ban) dst='/etc/fail2ban/jail.local' ;;
-	ssh) dst='/etc/ssh/sshd_config' ;;
-	hestia) dst='/var/spool/cron/crontabs/hestia' ;;
-	*) check_result $E_NOTEXIST "service $service doesn't exist" ;;
+dst=$(sys_config_path "$service")
+case $? in
+	0) ;;
+	1) check_result "$E_INVALID" "service $service is not offered by the config editor" ;;
+	*) check_result "$E_NOTEXIST" "$service has no config file on this server" ;;
 esac
+[ "$service" != cron ] || check_result "$E_FORBIDEN" "the cron config is read-only"
 
-# Checking config path
-for config in $dst; do
-	if [ ! -e "$config" ]; then
-		check_result "$E_NOTEXIST" "$service config doesn't exist"
-	fi
-done
+# Read as the caller: root copying a file the caller cannot read would hand it out through the editor.
+new=$(mktemp) || check_result "$E_NOTEXIST" "no temporary file"
+if [ -n "$SUDO_UID" ] && [ "$SUDO_UID" != 0 ]; then
+	setpriv --reuid "$SUDO_UID" --regid "$SUDO_GID" --init-groups -- cat -- "$src" > "$new" 2> /dev/null
+else
+	cat -- "$src" > "$new" 2> /dev/null
+fi
+if [ $? -ne 0 ]; then
+	rm -f "$new"
+	check_result "$E_NOTEXIST" "$src cannot be read"
+fi
 
-# Checking diff between src and dst configs
-for config in $dst; do
-	diff -q "$src" "$config" > /dev/null
-
-	if [ $? -ne 0 ]; then
-		cp "$config" "$config.vst.back"
-		cp "$src" "$config"
-		update="yes"
-	fi
-done
-
-# Restarting service
-if [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
-	if [[ "$service" =~ - ]]; then
-		service=$(echo ${service%-*})
-	fi
-
-	if [ "$service" = 'php' ]; then
-		service="php$(php_ini_version "$dst")-fpm"
-	fi
-
-	if [[ "$service" != "hestia" ]]; then
-		$BIN/h-restart-service "$service" > /dev/null 2>&1
-		if [ $? -ne 0 ]; then
-			for config in $dst; do
-				cat "$config.vst.back" > "$config"
-				rm -f "$config.vst.back"
-			done
-			check_result "$E_RESTART" "ERROR: $service failed to start with new configuration."
-		fi
+# A failed restart takes back exactly this write: a file it created goes, an older .vst.back is not ours.
+created=''
+if ! cmp -s "$new" "$dst"; then
+	if [ -e "$dst" ]; then
+		cp "$dst" "$dst.vst.back"
 	else
-		rm -f "$config.vst.back"
+		install -m 644 /dev/null "$dst"
+		created='yes'
+	fi
+	cp "$new" "$dst"
+	update="yes"
+fi
+rm -f "$new"
+
+restart_ok() {
+	local i
+	# fail2ban takes a config it cannot parse with restart rc 0 and dies after: test first, then ask the server.
+	if [ "$1" = 'fail2ban' ]; then
+		fail2ban-client -t > /dev/null 2>&1 || return 2
+	fi
+	$BIN/h-restart-service "$1" > /dev/null 2>&1 || return 1
+	[ "$1" = 'fail2ban' ] || return 0
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		sleep 1
+		fail2ban-client ping > /dev/null 2>&1 && return 0
+	done
+	return 1
+}
+
+if [ "$update" = 'yes' ] && [ "$service" = 'hestia' ]; then
+	rm -f "$dst.vst.back"
+elif [ "$update" = 'yes' ] && [ "$restart" != 'no' ]; then
+	# dovecot-3, postgresql-hba, php-8.3 and clamd restart dovecot, postgresql, that version's fpm and clamav-daemon.
+	service=${service%-*}
+	[ "$service" != 'php' ] || service="php$(php_ini_version "$dst")-fpm"
+	[ "$service" != 'clamd' ] || service='clamav-daemon'
+	restart_ok "$service"
+	rc=$?
+	if [ "$rc" -ne 0 ]; then
+		if [ "$created" = 'yes' ]; then
+			rm -f "$dst"
+		else
+			cat "$dst.vst.back" > "$dst"
+			rm -f "$dst.vst.back"
+		fi
+		# elif/else, so the three outcomes stay mutually exclusive by structure, not by check_result exiting.
+		if [ "$rc" -eq 2 ]; then
+			# Refused by the test, the running instance never saw the file: nothing to start again.
+			check_result "$E_RESTART" "$service rejects the new configuration, the old one is back, nothing was restarted."
+		elif restart_ok "$service"; then
+			check_result "$E_RESTART" "$service failed to start with new configuration, it runs again on the old one."
+		else
+			check_result "$E_RESTART" "$service is down: it failed with the new configuration and again with the old one, which is back in place."
+		fi
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

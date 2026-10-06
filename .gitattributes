@@ -4,6 +4,7 @@ dist export-ignore
 .github export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
+.git-blame-ignore-revs export-ignore
 CLAUDE.md export-ignore
 CODEMAP.json export-ignore
 PATHS.md export-ignore

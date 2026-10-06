@@ -20,7 +20,7 @@
 
 ```
 /usr/local/hestia/
-├── bin/               CLI commands (h-*, v-* symlinks)
+├── bin/               CLI commands (h-*)
 ├── conf -> /etc/hestia/conf   Symlink — instance config lives in /etc/hestia (§5a)
 ├── share/             Shipped install-time assets: manifest.json, panel-caddy/,
 │                      panel-php/, dovecot/, firewall/ (consumed by the installer)
@@ -171,6 +171,17 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Jail config | `/etc/fail2ban/jail.d/hestia.local` (ours, re-rendered); `jail.local` stays the admin's |
 | Panel ban action | `/etc/fail2ban/action.d/hestia-panel.conf` (panel port plus 80/443, #878) |
 | Auth log watched | `/var/log/hestia/auth.log` |
+| dovecot filter | `/etc/fail2ban/filter.d/hestia-dovecot.conf` (dovecot 2.3 and 2.4, one line per failure, #1171) |
+| Mail password grace check | `/usr/local/hestia/sbin/hestia-mail-grace` (`ignorecommand` of the dovecot and exim jails, #1155) |
+| Mail password grace state | `/run/hestia/mail-grace/` (root 700, one file per grace, gone at reboot) |
+
+### Firewall
+
+| Item | Path |
+|------|------|
+| Rendered ruleset | `/etc/hestia/firewall/ruleset.nft` (loaded at boot by `hestia-nftables.service`, first line `# keep-private`) |
+| IP list cache | `/etc/hestia/firewall/ipset/<name>.v4.iplist` / `.v6.iplist` |
+| FireHOL catalogue | `/var/cache/hestia/firehol-catalog.json` (root 644, fetched on demand by the FireHOL page, #510) |
 
 ### Cron (hestia crontab)
 
@@ -283,7 +294,7 @@ All former residents were migrated (see §5a) or removed.
 The naming conflict between the two `hestia.conf` files has been resolved:
 
 1. **`/etc/hestia/hestia.env`** — Bootstrap file (renamed from `/etc/hestia/hestia.conf`).
-   Sourced as the very first action by every `h-*`/`v-*` command. Sets `$HESTIA` and `$PATH`.
+   Sourced as the very first action by every `h-*` command. Sets `$HESTIA` and `$PATH`.
    Content: `export HESTIA='/usr/local/hestia'` + sources `local.conf`.
 
 2. **`/usr/local/hestia/conf/hestia.conf`** — Panel instance config. Contains all

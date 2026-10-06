@@ -8,4 +8,6 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# A oneshot has no start timeout by default, and a hung download would then hold the timer for good.
+TimeoutStartSec=1h
 ExecStart=/usr/local/hestia/bin/h-update-firewall-ipset yes

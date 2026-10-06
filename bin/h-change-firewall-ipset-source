@@ -1,0 +1,42 @@
+#!/bin/bash
+# info: change the source of a firewall ipset
+# options: NAME SOURCE
+#
+# example: h-change-firewall-ipset-source firehol "https://iplists.firehol.org/files/firehol_level1.netset https://iplists.firehol.org/files/firehol_level2.netset"
+#
+# SOURCE is one source as for h-add-firewall-ipset, or several space-separated https URLs for one combined set.
+# The set reloads at once; if that fails the old SOURCE is put back, so the record names what the set came from.
+
+ip_name=$1
+data_source=$2
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '2' "$#" 'NAME SOURCE'
+is_format_valid 'ip_name'
+is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
+
+ipset_hstobject="$CONF_DIR/firewall/ipset"
+is_object_valid "$ipset_hstobject" 'LISTNAME' "$ip_name"
+[ -n "$data_source" ] || check_result "$E_INVALID" "empty ipset source"
+[[ "$data_source" == *\'* ]] && check_result "$E_INVALID" "invalid ipset source :: $data_source"
+old_source="$(get_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$SOURCE')"
+
+update_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$SOURCE' "$data_source"
+# h-add-firewall-ipset validates the source it reads back and reloads the set; its error is the one to show.
+output=$($BIN/h-add-firewall-ipset "$ip_name" '' '' '' 'yes' 2>&1)
+rc=$?
+if [ "$rc" -ne 0 ]; then
+	update_object_value "$ipset_hstobject" 'LISTNAME' "$ip_name" '$SOURCE' "$old_source"
+	output="${output#Error: }"
+	check_result "$rc" "${output:-reloading $ip_name failed}, source unchanged"
+fi
+
+$BIN/h-log-action "system" "Info" "Firewall" "IPset source changed (Name: $ip_name)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

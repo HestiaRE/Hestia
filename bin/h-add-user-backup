@@ -85,7 +85,8 @@ adopt_list() {
 	ADOPT_LIST=''
 	while IFS= read -r _item; do
 		[ -n "$_item" ] || continue
-		if [ "${_item#*,}" != "$_item" ]; then
+		# Home entries are named by the customer, so they also have to fit the record; the other lists hold object names.
+		if [ "${_item#*,}" != "$_item" ] || { [ "${2:-}" = udir ] && ! is_record_list_item "$_item"; }; then
 			adopt_skipped="$adopt_skipped $_item"
 			continue
 		fi
@@ -104,7 +105,7 @@ adopt_list "$PROBE_MAIL"
 mail_list="$ADOPT_LIST"
 adopt_list "$PROBE_DB"
 db_list="$ADOPT_LIST"
-adopt_list "$PROBE_UDIR"
+adopt_list "$PROBE_UDIR" udir
 udir_list="$ADOPT_LIST"
 
 backup_str="BACKUP='$archive'"
@@ -135,7 +136,7 @@ chmod 660 $USER_DATA/backup.conf
 # Said out loud: a whole restore still brings these back - the restore reads the archive's members,
 # not this list - but they cannot be picked individually in the panel.
 if [ -n "$adopt_skipped" ]; then
-	echo "Warning!: name(s) carrying a comma are not in the record and cannot be selected singly:$adopt_skipped"
+	echo "Warning!: name(s) the record cannot hold are not in it and cannot be selected singly:$adopt_skipped"
 fi
 
 U_BACKUPS=$(grep -c BACKUP $USER_DATA/backup.conf)

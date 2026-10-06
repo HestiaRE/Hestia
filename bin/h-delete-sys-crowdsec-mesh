@@ -1,39 +1,23 @@
 #!/bin/bash
 # info: disable CrowdSec fleet-mesh
-# options: [PURGE_DATA]
+# options: NONE
 #
 # example: h-delete-sys-crowdsec-mesh
 #
-# Turns off the mesh: stops the timer, unpairs every peer (tokens and their panel-port rules go with
-# them), drops the imported mesh bans and the mesh config. CrowdSec itself + its own local/CAPI
-# decisions are untouched. PURGE_DATA=yes also wipes the published/peer lists under
-# /var/lib/crowdsec/mesh. Peers keep a dead record for this box until unpaired there too.
+# Unpairs every peer, drops the imported mesh bans and the mesh config; CrowdSec and its own decisions stay.
+# PURGE_DATA=yes also wipes the published and peer lists. Peers keep a dead record for this box until unpaired there.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 source "$HESTIA/include/crowdsec.sh"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 systemctl disable --now hestia-crowdsec-mesh.timer > /dev/null 2>&1 || true
 systemctl stop hestia-crowdsec-mesh.service > /dev/null 2>&1 || true
@@ -50,8 +34,7 @@ if [ -f "$CONF_DIR/crowdsec/peers.conf" ]; then
 	rm -f "$CONF_DIR/crowdsec/peers.conf"
 fi
 
-# Drop imported mesh bans; local + CAPI decisions stay. `delete --scenario` is exact-match, not a
-# prefix, so enumerate the per-peer scenarios that are actually active.
+# `delete --scenario` is exact-match, not a prefix, so every active per-peer scenario is deleted by name.
 if command -v cscli > /dev/null 2>&1 && command -v jq > /dev/null 2>&1; then
 	for s in $(cscli decisions list -a -o json 2> /dev/null \
 		| jq -r '(if type=="array" then .[] else . end) | (.decisions // [])[] | .scenario // empty
@@ -68,10 +51,6 @@ if [ "${PURGE_DATA:-}" = "yes" ]; then
 fi
 
 echo "CrowdSec fleet-mesh disabled."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 crowdsec_status_record
 $BIN/h-log-action "system" "Info" "System" "Disabled CrowdSec fleet-mesh."

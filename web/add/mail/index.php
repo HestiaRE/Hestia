@@ -5,7 +5,6 @@ use function Hestiacp\quoteshellarg\quoteshellarg;
 ob_start();
 $TAB = "MAIL";
 
-// Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
 $webmail_clients = cli_json("h-list-sys-webmail json");
@@ -14,7 +13,6 @@ if (!empty($_GET["domain"])) {
 	$v_domain = $_GET["domain"];
 }
 if (!empty($v_domain)) {
-	// Set webmail alias
 	exec(
 		HESTIA_CMD . "h-list-mail-domain " . $user . " " . quoteshellarg($v_domain) . " json",
 		$output,
@@ -28,18 +26,14 @@ if (!empty($v_domain)) {
 	$v_webmail_alias = $data[$v_domain]["WEBMAIL_ALIAS"];
 }
 
-// One gate per conditionally rendered control: rendered on it, read on it.
-// On a new domain "not installed" is the same as "off".
+// One gate per conditional control, for render and POST alike; on a new domain "not installed" means "off".
 $offer_webmail = !empty($_SESSION["IMAP_SYSTEM"]) && !empty($_SESSION["WEBMAIL_SYSTEM"]);
 $offer_antispam = !empty($_SESSION["ANTISPAM_SYSTEM"]);
 $offer_antivirus = !empty($_SESSION["ANTIVIRUS_SYSTEM"]);
 
-// Check POST request for mail domain
 if (!empty($_POST["ok"])) {
-	// Check token
 	verify_csrf($_POST);
 
-	// Check empty fields
 	if (empty($_POST["v_domain"])) {
 		$errors[] = _("Domain");
 	}
@@ -54,25 +48,20 @@ if (!empty($_POST["ok"])) {
 		$_SESSION["error_msg"] = sprintf(_('Field "%s" can not be blank.'), $error_msg);
 	}
 
-	// Check antispam option
 	$v_antispam = post_checkbox("v_antispam", $offer_antispam, "no", "yes", "no");
 
-	// Check antivirus option
 	$v_antivirus = post_checkbox("v_antivirus", $offer_antivirus, "no", "yes", "no");
 
-	// Check dkim option
 	if (!empty($_POST["v_dkim"])) {
 		$v_dkim = "yes";
 	} else {
 		$v_dkim = "no";
 	}
 
-	// Set domain name to lowercase and remove www prefix
-	$v_domain = preg_replace("/^www./i", "", $_POST["v_domain"]);
+	$v_domain = preg_replace("/^www\./i", "", $_POST["v_domain"]);
 	$v_domain = quoteshellarg($v_domain);
 	$v_domain = strtolower($v_domain);
 
-	// Add mail domain
 	if (empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -139,7 +128,6 @@ if (!empty($_POST["ok"])) {
 		}
 	}
 
-	// Add SMTP Relay Support
 	if (empty($_SESSION["error_msg"])) {
 		if (isset($_POST["v_smtp_relay"]) && !empty($_POST["v_smtp_relay_host"])) {
 			if (
@@ -182,7 +170,6 @@ if (!empty($_POST["ok"])) {
 		}
 	}
 
-	// Flush field values on success
 	if (empty($_SESSION["error_msg"])) {
 		$_SESSION["ok_msg"] = htmlify_trans(
 			sprintf(
@@ -196,21 +183,17 @@ if (!empty($_POST["ok"])) {
 	}
 }
 
-// Check POST request for mail account
 if (!empty($_POST["ok_acc"])) {
-	// Check token
 	if (!isset($_POST["token"]) || $_SESSION["token"] != $_POST["token"]) {
 		header("location: /login/");
 		exit();
 	}
 
-	// Check antispam option
 	if (!empty($_POST["v_blackhole"])) {
 		$v_blackhole = "yes";
 	} else {
 		$v_blackhole = "no";
 	}
-	// Check empty fields
 	if (empty($_POST["v_domain"])) {
 		$errors[] = _("Domain");
 	}
@@ -233,21 +216,18 @@ if (!empty($_POST["ok_acc"])) {
 		$_SESSION["error_msg"] = sprintf(_('Field "%s" can not be blank.'), $error_msg);
 	}
 
-	// Validate email
 	if (!empty($_POST["v_send_email"]) && empty($_SESSION["error_msg"])) {
 		if (!filter_var($_POST["v_send_email"], FILTER_VALIDATE_EMAIL)) {
 			$_SESSION["error_msg"] = _("Please enter a valid email address.");
 		}
 	}
 
-	// Check password length
 	if (empty($_SESSION["error_msg"]) && empty($_POST["v_fwd_only"])) {
 		if (!validate_password($_POST["v_password"])) {
 			$_SESSION["error_msg"] = _("Password does not match the minimum requirements.");
 		}
 	}
 
-	// Protect input
 	$v_domain = quoteshellarg($_POST["v_domain"]);
 	$v_domain = strtolower($v_domain);
 	$v_account = quoteshellarg($_POST["v_account"]);
@@ -259,9 +239,13 @@ if (!empty($_POST["ok_acc"])) {
 		$v_quota = 0;
 	}
 
-	// Add Mail Account
 	if (empty($_SESSION["error_msg"])) {
-		$v_password = secret_tmpfile($_POST["v_password"]);
+		// Forward-only still has a login, and an empty password would open it to anyone.
+		$v_new_password = $_POST["v_password"];
+		if ($v_new_password === "" && !empty($_POST["v_fwd_only"])) {
+			$v_new_password = bin2hex(random_bytes(16));
+		}
+		$v_password = secret_tmpfile($v_new_password);
 	}
 	if (empty($_SESSION["error_msg"])) {
 		exec(
@@ -285,7 +269,6 @@ if (!empty($_POST["ok_acc"])) {
 		$v_password = quoteshellarg($_POST["v_password"]);
 	}
 
-	// Add Aliases
 	if (!empty($_POST["v_aliases"]) && empty($_SESSION["error_msg"])) {
 		$valiases = preg_replace("/\n/", " ", $_POST["v_aliases"]);
 		$valiases = preg_replace("/,/", " ", $valiases);
@@ -329,10 +312,9 @@ if (!empty($_POST["ok_acc"])) {
 		);
 		check_return_code($return_var, $output);
 		unset($output);
-		//disable any input in v_fwd
+		// A blackhole discards the mail, so forwarders entered alongside are dropped.
 		$_POST["v_fwd"] = "";
 	}
-	// Add Forwarders
 	if (!empty($_POST["v_fwd"]) && empty($_SESSION["error_msg"])) {
 		$vfwd = preg_replace("/\n/", " ", $_POST["v_fwd"]);
 		$vfwd = preg_replace("/,/", " ", $vfwd);
@@ -361,7 +343,6 @@ if (!empty($_POST["ok_acc"])) {
 		}
 	}
 
-	// Add fwd_only flag
 	if (!empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -378,7 +359,6 @@ if (!empty($_POST["ok_acc"])) {
 		unset($output);
 	}
 
-	// Add fwd_only flag
 	if (
 		!empty($_POST["v_rate"]) &&
 		empty($_SESSION["error_msg"]) &&
@@ -402,7 +382,6 @@ if (!empty($_POST["ok_acc"])) {
 		unset($output);
 	}
 
-	// Get webmail url
 	if (empty($_SESSION["error_msg"])) {
 		$hostname = get_http_host_name();
 		$webmail = "http://" . $hostname . "/" . $v_webmail_alias . "/";
@@ -411,7 +390,6 @@ if (!empty($_POST["ok_acc"])) {
 		}
 	}
 
-	// Email login credentials
 	if (!empty($_POST["v_send_email"]) && empty($_SESSION["error_msg"])) {
 		$to = $_POST["v_send_email"];
 		$template = get_email_template("email_credentials", $_SESSION["language"]);
@@ -497,7 +475,6 @@ if (!empty($_POST["ok_acc"])) {
 		send_email($to, $subject, $mailtext, $from, $from_name);
 	}
 
-	// Flush field values on success
 	if (empty($_SESSION["error_msg"])) {
 		$_SESSION["ok_msg"] = htmlify_trans(
 			sprintf(
@@ -520,13 +497,11 @@ if (!empty($_POST["ok_acc"])) {
 	}
 }
 
-// Render page
 if (empty($_GET["domain"])) {
-	// Display body for mail domain
 	if (!empty($_POST["v_webmail"])) {
 		$v_webmail = $_POST["v_webmail"];
 	} else {
-		//default is always roundcube unless it hasn't been installed. Then picks the first one in order
+		// Roundcube preselected; when it is not installed the select shows its first option.
 		$v_webmail = "roundcube";
 	}
 
@@ -555,7 +530,6 @@ if (empty($_GET["domain"])) {
 	$accept = $_GET["accept"] ?? "";
 	render_page($user, $TAB, "add_mail");
 } else {
-	// Display body for mail account
 	if (empty($v_account)) {
 		$v_account = "";
 	}
@@ -584,6 +558,5 @@ if (empty($_GET["domain"])) {
 	render_page($user, $TAB, "add_mail_acc");
 }
 
-// Flush session messages
 unset($_SESSION["error_msg"]);
 unset($_SESSION["ok_msg"]);

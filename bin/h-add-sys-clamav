@@ -155,6 +155,9 @@ else
 	echo "WARNING: ClamAV installed, but clamd is not answering yet (virus DB still"
 	echo "         downloading). Antivirus is NOT active. Re-run 'h-add-sys-clamav'"
 	echo "         once the DB is ready to activate scanning."
+	# Non-zero so the installer lists it among its warnings.
+	$BIN/h-log-action "system" "Warning" "System" "Installed ClamAV, not active: clamd does not answer."
+	exit "$E_CONNECT"
 fi
 
 #----------------------------------------------------------#

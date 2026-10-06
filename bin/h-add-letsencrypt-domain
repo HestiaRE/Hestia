@@ -519,10 +519,13 @@ if [ "$ssl_rc" -ne 0 ]; then
 fi
 
 # Adding LE autorenew cronjob
-if [ -z "$(grep $BIN/h-update-letsencrypt "/var/spool/cron/crontabs/hestia")" ]; then
+# A missing crontab is syshealth's to restore with owner and mode.
+_ct=/var/spool/cron/crontabs/hestia
+if [ -f "$_ct" ] && ! grep -qF "$BIN/h-update-letsencrypt-ssl" "$_ct"; then
+	sed -i "\#sudo $BIN/h-update-letsencrypt\$#d" "$_ct"
 	min=$(generate_password '012345' '2')
 	hour=$(generate_password '1234567' '1')
-	sed -i -e "\$a*/5 * * * * sudo $BIN/h-update-letsencrypt" "/var/spool/cron/crontabs/hestia"
+	echo "$min $hour * * * sudo $BIN/h-update-letsencrypt-ssl" >> "$_ct"
 fi
 
 # Updating letsencrypt key

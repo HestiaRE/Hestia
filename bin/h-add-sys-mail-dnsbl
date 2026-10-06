@@ -12,7 +12,6 @@
 
 # Argument definition
 host=$1
-restart=${2-yes}
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
@@ -64,7 +63,6 @@ chmod 644 "$DNSBL_CONF"
 "$BIN/h-log-action" "system" "Info" "Mail" "DNSBL host added (Host: $host)."
 log_event "$OK" "$ARGUMENTS"
 
-# Restart exim so the ACL picks up the new list
-"$BIN/h-restart-service" "$MAIL_SYSTEM" "$restart"
+# No restart, RESTART stays only for the signature: exim reads the list for every message.
 
 exit

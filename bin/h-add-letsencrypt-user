@@ -61,7 +61,7 @@ check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 if [ -e "$USER_DATA/ssl/le.conf" ]; then
-	source "$USER_DATA/ssl/le.conf"
+	le_conf_load "$USER_DATA/ssl/le.conf"
 fi
 # A restored or hand-replaced user.key no longer matches the modulus the ACME account was
 # registered with. KID is set, so the early exit below would keep it forever and every later

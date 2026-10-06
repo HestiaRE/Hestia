@@ -182,7 +182,7 @@ if [ "$?" -ne 0 ]; then
 fi
 
 # Parsing LetsEncrypt account data
-source $USER_DATA/ssl/le.conf
+le_conf_load "$USER_DATA/ssl/le.conf"
 
 # Checking wildcard alias
 if [ "$aliases" = "*.$domain" ]; then

@@ -67,7 +67,7 @@ fi
 #----------------------------------------------------------#
 
 # load config file
-source_conf "$USER_DATA/ssl/le.conf"
+le_conf_load "$USER_DATA/ssl/le.conf"
 
 # Listing data
 case $format in

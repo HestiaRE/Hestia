@@ -228,6 +228,17 @@ source_conf() {
 	done < $1
 }
 
+# The ACME account file of a user, read by key: it can arrive in an archive, and THUMB lands in vhost configs. A value
+# outside the characters these fields use reads as empty.
+le_conf_load() {
+	local _k _v
+	for _k in EXPONENT MODULUS THUMB EMAIL KID; do
+		_v=$(sed -n "s/^$_k='\(.*\)'\$/\1/p" "$1" 2> /dev/null | tail -n 1)
+		[[ "$_v" =~ ^[A-Za-z0-9_.:/@+=-]*$ ]] || _v=''
+		printf -v "$_k" '%s' "$_v"
+	done
+}
+
 # Read from share/manifest.json; empty on miss. jq is an install.sh prereq, so it is always there.
 manifest_get() {
 	jq -r "$1" "$HESTIA/share/manifest.json" 2> /dev/null

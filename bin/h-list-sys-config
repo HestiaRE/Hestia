@@ -151,7 +151,7 @@ shell_list() {
 		echo "SMTP Server Account Port:          $SERVER_SMTP_PORT"
 		echo "SMTP Server Account Security:      $SERVER_SMTP_SECURITY"
 		echo "SMTP Server Account Username:      $SERVER_SMTP_USER"
-		echo "SMTP Server Account Password:      $SERVER_SMTP_PASSWD"
+		echo "SMTP Server Account Password:      ${SERVER_SMTP_PASSWD:+******** (h-list-sys-config secret SERVER_SMTP_PASSWD)}"
 		echo "SMTP Server Account Address:       $SERVER_SMTP_ADDR"
 	fi
 

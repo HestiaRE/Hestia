@@ -1479,35 +1479,29 @@ get_base_domain() {
 	fi
 }
 
+# The base domain needs the public suffix list, which is fetched; without enforcement it is never looked at.
 is_base_domain_owner() {
-	for object in ${1//,/ }; do
-		if [ "$object" != "none" ]; then
-			get_base_domain $object
-			web=$(grep -F -H -h "DOMAIN='$basedomain'" $CONF_DIR/users/*/web.conf)
-			if [ "$ENFORCE_SUBDOMAIN_OWNERSHIP" = "yes" ]; then
-				if [ -n "$web" ]; then
-					# Subshell: this is the PARENT's record - parsed in place, its keys (SSL, ...)
-					# leaked into the caller's vhost rendering. Only ALLOW_USERS leaves this line.
-					allow_users=$(
-						parse_object_kv_list "$web" 2> /dev/null
-						echo "${ALLOW_USERS:-}"
-					)
-					if [ "$allow_users" != "yes" ]; then
-						# an existing $basedomain is fine as long as the current user owns it
-						check=$(is_domain_new "" $basedomain)
-						if [ $? -ne 0 ]; then
-							echo "Error: Unable to add $object. $basedomain belongs to a different user"
-							exit 4
-						fi
-					fi
-				else
-					check=$(is_domain_new "" "$basedomain")
-					if [ $? -ne 0 ]; then
-						echo "Error: Unable to add $object. $basedomain belongs to a different user"
-						exit 4
-					fi
-				fi
-			fi
+	[ "$ENFORCE_SUBDOMAIN_OWNERSHIP" = "yes" ] || return 0
+	local object _list
+	IFS=, read -ra _list <<< "$1"
+	for object in "${_list[@]}"; do
+		[ -n "$object" ] && [ "$object" != "none" ] || continue
+		get_base_domain "$object"
+		web=$(grep -F -H -h "DOMAIN='$basedomain'" "$CONF_DIR"/users/*/web.conf)
+		if [ -n "$web" ]; then
+			# Subshell: this is the PARENT's record - parsed in place, its keys (SSL, ...)
+			# leaked into the caller's vhost rendering. Only ALLOW_USERS leaves this line.
+			allow_users=$(
+				parse_object_kv_list "$web" 2> /dev/null
+				echo "${ALLOW_USERS:-}"
+			)
+			[ "$allow_users" = "yes" ] && continue
+		fi
+		# an existing $basedomain is fine as long as the current user owns it
+		check=$(is_domain_new "" "$basedomain")
+		if [ $? -ne 0 ]; then
+			echo "Error: Unable to add $object. $basedomain belongs to a different user"
+			exit 4
 		fi
 	done
 }

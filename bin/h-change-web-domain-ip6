@@ -4,21 +4,14 @@
 #
 # example: h-change-web-domain-ip6 admin example.com 2001:db8::2 yes
 #
-# Switches the domain to another v6. Deliberately no per-domain opt-out: rebuild
-# re-adopts the default v6 into an empty field - "no v6" is a box-level decision.
-# Rebuild, not sed: adding a family creates lines a substring replace cannot.
+# Moves the domain to another v6. No per-domain opt-out: a rebuild re-adopts the default v6 into an empty
+# field, "no v6" is decided per box. Rebuild, not sed: adding a family creates lines a replace cannot.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 ip46=$3
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,17 +20,11 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN IPV6 [RESTART]'
 is_format_valid 'user' 'domain' 'ip46' 'restart'
@@ -50,42 +37,30 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 get_domain_values 'web'
 old_ip6="$IP6"
 
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$IP6' "$ip46"
 
-# Update counters (guarded: a stale record must not crash the change that fixes it)
+# A stale record must not crash the change that fixes it.
 increase_ip_value "$ip46"
 if [ -n "$old_ip6" ] && [ -e "$CONF_DIR/ips/$old_ip6" ]; then
 	decrease_ip_value "$old_ip6"
 fi
 
-# Re-render the vhosts under the new address set
 $BIN/h-rebuild-web-domain "$user" "$domain" no
 
-# Check for webmail (only when a mail domain of this name exists)
+# Only when a mail domain of this name exists.
 if [ -n "$IMAP_SYSTEM" ] && grep -qF "DOMAIN='$domain'" "$USER_DATA/mail.conf" 2> /dev/null; then
 	$BIN/h-rebuild-mail-domain "$user" "$domain"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restart web server
 $BIN/h-restart-web "$restart"
 check_result $? "WEB restart failed" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web domain IPv6 address changed (IP6: $ip46, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

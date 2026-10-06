@@ -4,37 +4,23 @@
 #
 # example: h-delete-web-domain-ftp admin wonderland.com bob_ftp
 #
-# This function deletes additional ftp account.
+# Deletes an FTP sub-account of the domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
-# Accounts are stored as <owner>_<name>. Take either form: add used to prefix while delete and
-# the change-* commands wanted the stored name, so the name that worked there failed here.
+# Stored as <owner>_<name>; either form is accepted, as by the add and change-* commands.
 if [[ "$3" == "${1}_"* ]]; then ftp_user="$3"; else ftp_user="${1}_${3}"; fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN FTP_USER'
 is_format_valid 'user' 'domain' 'ftp_user'
@@ -49,35 +35,23 @@ if [ -z "$position" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-# Deleting sftp jail
 $BIN/h-delete-user-sftp-jail "$ftp_user"
 
-# SSH AllowUsers co-maintenance for the FTP sub-account (#413)
 manage_sshd_allowusers del "$ftp_user"
 
 # -f: the account shares the customer's uid, whose PHP pool keeps it busy.
 /usr/sbin/userdel -f "$ftp_user" > /dev/null 2>&1
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Rebuilding FTP variables. ftp_user is reused as the remaining list below, so keep the account
-# name for the log line.
+# ftp_user becomes the remaining list below, so keep the account name for the log line.
 ftp_account="$ftp_user"
 ftp_user=$(ftp_list_edit "$FTP_USER" "$position")
 ftp_md5=$(ftp_list_edit "$FTP_MD5" "$position")
 ftp_path=$(ftp_list_edit "$FTP_PATH" "$position")
 
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_USER' "$ftp_user"
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' "$ftp_md5"
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_PATH' "$ftp_path"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Deleted FTP account (User: $ftp_account, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

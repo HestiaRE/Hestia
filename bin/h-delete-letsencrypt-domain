@@ -4,31 +4,20 @@
 #
 # example: h-delete-letsencrypt-domain admin acme.com yes
 #
-# This function turns off letsencrypt SSL support for a domain.
+# Turns off Let's Encrypt SSL for a web domain, or with MAIL for its mail domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 mail=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART] [MAIL]'
 is_format_valid 'user' 'domain' 'restart'
@@ -46,11 +35,6 @@ else
 	is_object_value_exist 'mail' 'DOMAIN' "$domain" '$LETSENCRYPT'
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Delete SSL
 if [ -z "$mail" ]; then
 	$BIN/h-delete-web-domain-ssl "$user" "$domain" "$restart" > /dev/null 2>&1
 else
@@ -61,18 +45,12 @@ if [ $? -ne "$E_NOTEXIST" ]; then
 	check_result $? "SSL delete" > /dev/null
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating letsencrypt flag
 if [ -z "$mail" ]; then
 	update_object_value 'web' 'DOMAIN' "$domain" '$LETSENCRYPT' 'no'
 else
 	update_object_value 'mail' 'DOMAIN' "$domain" '$LETSENCRYPT' 'no'
 fi
 
-# Restarting web
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
@@ -82,12 +60,10 @@ if [ -n "$PROXY_SYSTEM" ]; then
 fi
 
 if [ -n "$mail" ]; then
-	# Restarting mail
 	$BIN/h-restart-mail "$restart"
 	check_result $? "Mail restart failed" > /dev/null
 fi
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

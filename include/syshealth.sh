@@ -444,7 +444,7 @@ function syshealth_repair_system_config() {
 }
 # The hestia crontab is OPERATOR SURFACE, so the repair restores a MISSING file and never touches a
 # present one. The panel edits it (web/edit/server/hestia -> h-change-sys-service-config hestia), and
-# h-add-cron-letsencrypt-job and h-add-letsencrypt-domain append to it; a rewrite would undo all three.
+# h-add-letsencrypt-domain appends to it; a rewrite would undo both.
 # system_crontab_write in include/main.sh is the only renderer, the installer uses it too.
 #
 # /etc/cron.d/hestia-repair is the other half: it calls this repair on a schedule, is not operator surface,

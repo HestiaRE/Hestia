@@ -4,17 +4,11 @@
 #
 # example: h-rebuild-web-domains
 #
-# This function rebuilds web configuration files.
+# Renders the vhost, proxy and backend configuration of all web domains of a user from their records.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,13 +21,8 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
@@ -44,11 +33,6 @@ if [ -n "$check_user" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting old web configs
 if [ -e "/etc/$WEB_SYSTEM/conf.d/hestia.conf" ]; then
 	sed -i "/.*\/$user\/conf\/web\//d" /etc/$WEB_SYSTEM/conf.d/hestia.conf
 fi
@@ -62,7 +46,6 @@ if [ -e "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf" ]; then
 	rm -f /etc/$WEB_SYSTEM/conf.d/domains/$domain.ssl.conf
 fi
 
-# Deleting old proxy configs
 if [ -n "$PROXY_SYSTEM" ]; then
 	if [ -e "/etc/$PROXY_SYSTEM/conf.d/hestia.conf" ]; then
 		sed -i "/.*\/$user\/conf\/web\//d" /etc/$PROXY_SYSTEM/conf.d/hestia.conf
@@ -79,9 +62,7 @@ if [ -n "$PROXY_SYSTEM" ]; then
 	fi
 fi
 
-# Create dummy php-fpm configs if missing. Enumerate via h-list-sys-php, which
-# skips the isolated panel pool (/etc/php/hestia); a bare /etc/php/* glob seeds a
-# stray www-data pool into the panel master with an unsubstituted socket name.
+# Through h-list-sys-php, which skips the panel pool: a bare /etc/php/* glob seeds a www-data pool into it.
 for v_php in $($BIN/h-list-sys-php plain); do
 	[ -d "/etc/php/${v_php}/fpm/pool.d/" ] || continue
 	if [ ! -f "/etc/php/${v_php}/fpm/pool.d/dummy.conf" ]; then
@@ -90,11 +71,8 @@ for v_php in $($BIN/h-list-sys-php plain); do
 	fi
 done
 
-# Migrate pre-#591 records to the explicit PHP_VERSION field, before the pools below are
-# deleted and rebuilt. The version used to be implied (BACKEND=default -> system default) or
-# encoded in BACKEND (PHP-8_x); read the one the vhost actually runs from its pool directory,
-# then collapse the legacy BACKEND to the plain pool profile. Idempotent: a record that already
-# carries PHP_VERSION is skipped.
+# A record without PHP_VERSION gets the version its pool runs, and its BACKEND the plain pool profile;
+# before the pools below are deleted and rebuilt.
 if [ -n "$WEB_BACKEND" ]; then
 	for domain in $($BIN/h-list-web-domains $user plain | cut -f 1); do
 		[ -n "$(get_object_value 'web' 'DOMAIN' "$domain" '$PHP_VERSION')" ] && continue
@@ -109,7 +87,6 @@ if [ -n "$WEB_BACKEND" ]; then
 	done
 fi
 
-# Deleting backend configs
 if [ -n "$WEB_BACKEND" ]; then
 	for domain in $($BIN/h-list-web-domains $user plain | cut -f 1); do
 		get_domain_values 'web'
@@ -118,7 +95,6 @@ if [ -n "$WEB_BACKEND" ]; then
 	done
 fi
 
-# Starting rebuild loop for each web domain
 for domain in $($BIN/h-list-web-domains $user plain | cut -f 1); do
 	if [ -n "$WEB_BACKEND" ]; then
 		template=$(get_object_value 'web' 'DOMAIN' "$domain" '$BACKEND')
@@ -131,21 +107,15 @@ for domain in $($BIN/h-list-web-domains $user plain | cut -f 1); do
 	rebuild_web_domain_conf
 done
 
-# Balance line, not exit code: web-model.sh treats a nonzero rebuild as switch failure,
-# and one broken record must not veto a model switch
+# Balance line, not exit code: web-model.sh treats a nonzero rebuild as switch failure, and one broken
+# record must not veto a model switch.
 if [ "${web_config_skipped:-0}" -gt 0 ]; then
 	echo "Warning: $web_config_skipped vhost config(s) skipped over an unusable record (see errors above)."
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating user counters
 $BIN/h-update-user-counters "$user"
 
 if [ "$restart" = "yes" ]; then
-	# Restarting web server
 	$BIN/h-restart-web "$restart"
 	check_result $? "Web restart failed" > /dev/null
 
@@ -153,7 +123,6 @@ if [ "$restart" = "yes" ]; then
 	check_result $? "Proxy restart failed" > /dev/null
 fi
 
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Rebuilt web domains (User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

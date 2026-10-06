@@ -5,50 +5,38 @@
 # example: h-add-letsencrypt-domain admin wonderland.com www.wonderland.com,demo.wonderland.com
 # example: h-add-letsencrypt-domain admin wonderland.com '' yes
 #
-# This function check and validates domain with Let's Encrypt
+# Issues a Let's Encrypt certificate over HTTP-01 for a web domain, or with MAIL for its mail names.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 aliases=$3
 mail=${4// /}
 
-# Define variables to preserve redirect/force-ssl if renewal fails
 deleted_redirect=0
 deleted_force_ssl=0
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# LE API
 LE_API='https://acme-v02.api.letsencrypt.org'
 
 if [[ "$LE_STAGING" = 'yes' ]]; then
 	LE_API='https://acme-staging-v02.api.letsencrypt.org'
 fi
 
-# LE Pre-Hook
 if [ -x "$CONF_DIR/hooks/le_pre.sh" ]; then
 	$CONF_DIR/hooks/le_pre.sh "$user" "$domain" "$aliases" "$mail"
 fi
 
-# encode base64
 encode_base64() {
 	cat | base64 | tr '+/' '-_' | tr -d '\r\n='
 }
 
-# Let's Encrypt v2 curl function
 query_le_v2() {
 	protected='{"nonce": "'$3'",'
 	protected=''$protected' "url": "'$1'",'
@@ -65,14 +53,13 @@ query_le_v2() {
 	post_data=$post_data'"payload":"'"$payload_"'",'
 	post_data=$post_data'"signature":"'"$signature_"'"}'
 
-	# Save http response to file passed as "$4" arg or print to stdout if not provided
-	# http response headers are always sent to stdout
+	# Response headers always go to stdout, the body to $4 when given.
 	local save_to_file=${4:-"/dev/stdout"}
 	curl --location --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 --retry 5 --retry-connrefused --silent --dump-header /dev/stdout --data "$post_data" "$1" --header "$content" --output "$save_to_file"
 	debug_log "API call" "exit status: $?"
 }
 
-# Function to preserve redirect/force-ssl on cert renewal failure
+# A failed renewal must not leave the domain without the redirect and force-ssl it had.
 on_error_exit() {
 	local exit_code=$?
 	if [[ $exit_code -eq 0 ]]; then
@@ -89,12 +76,7 @@ on_error_exit() {
 	fi
 }
 
-# Trap exit code to keep redirect/force-ssl if cert renewal fails
 trap on_error_exit EXIT
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [ALIASES] [MAIL]'
 is_format_valid 'user' 'domain' 'aliases'
@@ -126,16 +108,10 @@ else
 	is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 fi
 
-# Dump debug info
 debug_log() {
 	echo -e "\n==[${1}]==\n${2}\n" >> "$log_file"
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Generate correct variables for mail domain SSL certificates
 if [ -n "$mail" ]; then
 	root_domain=$domain
 	domain="mail.$root_domain"
@@ -172,14 +148,12 @@ user: ${user}
 domain: ${domain}
 " >> "$log_file"
 
-# Registering LetsEncrypt user account
 $BIN/h-add-letsencrypt-user $user
 if [ "$?" -ne 0 ]; then
 	send_notice "LETSENCRYPT" "Account registration failed ($user)"
 	check_result "$E_CONNECT" "LE account registration ($user)" > /dev/null
 fi
 
-# Parsing LetsEncrypt account data
 le_conf_load "$USER_DATA/ssl/le.conf"
 
 proto="http-01"
@@ -189,11 +163,9 @@ echo -e "
 - proto: ${proto}
 " >> "$log_file"
 
-# Check if dns records exist for requested domain/aliases. The fallback resolvers are IP
-# literals by nature (resolving their name would need the resolver that just failed) and
-# deliberately TWO operators, both families each - one operator outage must not take the
-# whole second opinion (inherited single-1.1.1.1 since the fork).
-le_dns_has_record() { # NAME [RESOLVER]  -  A or AAAA counts, the challenge rides either family
+# The fallback resolvers are IP literals (naming them needs the resolver that failed): two operators,
+# both families each, so one operator outage does not take the whole second opinion.
+le_dns_has_record() { # NAME [RESOLVER]: A or AAAA counts, the challenge rides either family
 	if [ -n "$2" ]; then
 		nslookup -timeout=3 -retry=1 -query=A "$1" "$2" > /dev/null 2>&1 \
 			|| nslookup -timeout=3 -retry=1 -query=AAAA "$1" "$2" > /dev/null 2>&1
@@ -224,7 +196,7 @@ if [ "$proto" = "http-01" ]; then
 		case $? in
 			0) ;;
 			1)
-				# Customers keep DNS elsewhere: a webmail name they have not created yet must not cost them mail.<domain>.
+				# DNS lives elsewhere: a webmail name not created yet must not cost the customer mail.<domain>.
 				if [ -n "$mail" ] && [ "$name" = "$WEBMAIL_ALIAS.$root_domain" ]; then
 					echo "Notice: no DNS record for $identifier, left out of the certificate"
 					debug_log "DNS" "- $identifier has no record, left out"
@@ -238,7 +210,7 @@ if [ "$proto" = "http-01" ]; then
 	done
 fi
 
-# Requesting nonce / STEP 1
+# Step 1: nonce
 answer=$(curl --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 -s -I "$LE_API/directory")
 nonce=$(echo "$answer" | grep -i nonce | cut -f2 -d \  | tr -d '\r\n')
 status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
@@ -249,7 +221,7 @@ if [[ "$status" -ne 200 ]]; then
 	check_result "$E_CONNECT" "Let's Encrypt nonce request status $status ($domain)"
 fi
 
-# Placing new order / STEP 2
+# Step 2: new order
 url="$LE_API/acme/new-order"
 payload='{"identifiers":['
 for identifier in $(echo $domain,$aliases | tr ',' '\n' | sort -u); do
@@ -273,7 +245,7 @@ if [[ "$status" -ne 201 ]]; then
 	check_result $E_CONNECT "Let's Encrypt new auth status $status ($domain)"
 fi
 
-# Requesting authorization token / STEP 3
+# Step 3: authorizations
 for auth in $authz; do
 	payload=''
 	answer=$(query_le_v2 "$auth" "$payload" "$nonce")
@@ -294,8 +266,7 @@ for auth in $authz; do
 		continue
 	fi
 
-	# Accepting challenge / STEP 4
-	# The token names a file below: base64url only.
+	# Step 4: challenge. The token names a file below: base64url only.
 	if [[ ! "$token" =~ ^[A-Za-z0-9_-]+$ ]]; then
 		check_result "$E_INVALID" "Let's Encrypt sent an unusable challenge token ($domain)"
 	fi
@@ -352,7 +323,7 @@ for auth in $authz; do
 		check_result $? "Web restart failed" > /dev/null
 	fi
 
-	# Requesting ACME validation / STEP 5
+	# Step 5: validation
 	validation_check=$(echo "$answer" | grep '"valid"')
 	if [[ -n "$validation_check" ]]; then
 		validation='valid'
@@ -361,7 +332,6 @@ for auth in $authz; do
 		sleep 5
 	fi
 
-	# Doing pol check on status
 	i=1
 	while [ "$validation" = 'pending' ]; do
 		i=0
@@ -385,7 +355,6 @@ for auth in $authz; do
 		debug_log "Step 5" "- status: ${status}\n- url: ${url}\n- nonce: ${nonce}\n- validation: ${validation}\n- details: ${details}\n- answer: ${answer}"
 
 		if [[ "$status" -ne 200 ]]; then
-			# Download debug info from LE server
 			result=$(wget -qO- --timeout=15 --tries=2 "$url")
 			debug_log "Debug information Step 5" "$result"
 			details=$(echo $result | jq '.error.detail')
@@ -407,11 +376,10 @@ for auth in $authz; do
 	fi
 done
 
-# Generating new ssl certificate
 ssl_dir=$($BIN/h-generate-ssl-cert "$domain" "info@$domain" "US" "California" \
 	"San Francisco" "Hestia" "IT" "$aliases" | tail -n1 | awk '{print $2}')
 
-# Sending CSR to finalize order / STEP 6
+# Step 6: finalize with the CSR
 csr=$(openssl req -in $ssl_dir/$domain.csr -outform DER | encode_base64)
 payload='{"csr":"'$csr'"}'
 answer=$(query_le_v2 "$finalize" "$payload" "$nonce")
@@ -445,7 +413,7 @@ if [ -z "$certificate" ]; then
 	done
 fi
 
-# Downloading signed certificate / STEP 7
+# Step 7: download
 status=0
 retry=0
 
@@ -463,7 +431,7 @@ while [[ $status != 200 && $retry -lt 3 ]]; do
 
 done
 
-# Fallback on depreciated download method for certs (unauthenticated GET)
+# Fallback: the deprecated unauthenticated GET.
 if [[ $status != 200 ]]; then
 	answer=$(curl --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 --retry 5 --retry-connrefused --silent --dump-header /dev/stdout "$certificate" --output "$ssl_dir/$domain.pem")
 	status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
@@ -479,7 +447,6 @@ if [[ "$status" -ne 200 ]]; then
 	check_result "$E_NOTEXIST" "Let's Encrypt downloading signed cert failed status:$status ($domain)"
 fi
 
-# Splitting up downloaded pem
 crt_end=$(grep -n 'END CERTIFICATE' $ssl_dir/$domain.pem | head -n1 | cut -f1 -d:)
 head -n $crt_end $ssl_dir/$domain.pem > $ssl_dir/$domain.crt
 
@@ -490,13 +457,12 @@ tail -n $ca_end $ssl_dir/$domain.pem > $ssl_dir/$domain.ca
 
 debug_log "CERT CRT" "$(cat "$ssl_dir/$domain.crt")"
 debug_log "CERT CA-1" "$(cat "$ssl_dir/$domain.ca")"
-# Temporary fix for double "END CERTIFICATE"
+# Some chains arrive with a doubled END CERTIFICATE line.
 if [[ $(head -n 1 $ssl_dir/$domain.ca) = "-----END CERTIFICATE-----" ]]; then
 	sed -i '1,2d' $ssl_dir/$domain.ca
 fi
 debug_log "CERT CA-2" "$(cat "$ssl_dir/$domain.ca")"
 
-# Rename certs for mail
 if [ -n "$mail" ]; then
 	mv $ssl_dir/$domain.ca $ssl_dir/$root_domain.ca
 	mv $ssl_dir/$domain.crt $ssl_dir/$root_domain.crt
@@ -505,7 +471,6 @@ if [ -n "$mail" ]; then
 	mv $ssl_dir/$domain.pem $ssl_dir/$root_domain.pem
 fi
 
-# Adding SSL
 if [ -z "$mail" ]; then
 	ssl_enabled="$(get_object_value 'web' 'DOMAIN' "$domain" '$SSL')"
 	if [ "$ssl_enabled" = "yes" ]; then
@@ -514,7 +479,6 @@ if [ -z "$mail" ]; then
 		$BIN/h-add-web-domain-ssl "$user" "$domain" "$ssl_dir" "" "updatessl"
 	fi
 else
-	# TODO replace with h-update-mail-domain-ssl if ssl is enabled
 	ssl_enabled="$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$SSL')"
 	if [ "$ssl_enabled" = "yes" ]; then
 		$BIN/h-update-mail-domain-ssl "$user" "$root_domain" "$ssl_dir" "updatessl"
@@ -530,7 +494,6 @@ if [ "$ssl_rc" -ne 0 ]; then
 	check_result "$ssl_rc" "SSL install" > /dev/null
 fi
 
-# Adding LE autorenew cronjob
 # A missing crontab is syshealth's to restore with owner and mode.
 _ct=/var/spool/cron/crontabs/hestia
 if [ -f "$_ct" ] && ! grep -qF "$BIN/h-update-letsencrypt-ssl" "$_ct"; then
@@ -540,7 +503,6 @@ if [ -f "$_ct" ] && ! grep -qF "$BIN/h-update-letsencrypt-ssl" "$_ct"; then
 	echo "$min $hour * * * sudo $BIN/h-update-letsencrypt-ssl" >> "$_ct"
 fi
 
-# Updating letsencrypt key
 if [ -z "$mail" ]; then
 	if [ -z "$LETSENCRYPT" ]; then
 		add_object_key "web" 'DOMAIN' "$domain" 'LETSENCRYPT' 'FTP_USER'
@@ -567,7 +529,6 @@ else
 	update_object_value 'mail' 'DOMAIN' "$root_domain" '$LETSENCRYPT_FAIL_COUNT' "0"
 fi
 
-# LE Post-Hook
 if [ -x "$CONF_DIR/hooks/le_post.sh" ]; then
 	$CONF_DIR/hooks/le_post.sh "$user" "$domain" "$aliases" "$mail"
 fi
@@ -577,20 +538,12 @@ if [ -n "$acme_name" ]; then
 	rm -rf "${ACME_APACHE_DIR:?}/$acme_name"
 fi
 
-# Remove temporary SSL folder
 [ -d "$ssl_dir" ] && rm -rf "$ssl_dir"
 
-#----------------------------------------------------------#
-#                        Hestia                            #
-#----------------------------------------------------------#
-
-# Notifying user
 send_notice 'LETSENCRYPT' "$domain SSL has been installed successfully"
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
-# Cleanup debug since the SSL was issues successfully
 rm -f "$log_file"
 
 exit

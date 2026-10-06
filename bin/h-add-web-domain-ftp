@@ -4,40 +4,26 @@
 #
 # example: h-add-web-domain-ftp alice wonderland.com alice_ftp p4$$vvOrD
 #
-# This function creates additional ftp account for web domain.
+# Adds an FTP/SFTP sub-account of the domain, chrooted to FTP_PATH below the domain folder.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
-# Accounts are stored as <owner>_<name>. Take either form: add used to prefix while delete and
-# the change-* commands wanted the stored name, so the name that worked here failed there.
+# Stored as <owner>_<name>; either form is accepted, as by the delete and change-* commands.
 if [[ "$3" == "${1}_"* ]]; then ftp_user="$3"; else ftp_user="${1}_${3}"; fi
 password=$4
 HIDE=4
 ftp_path=$5
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN FTP_USER FTP_PASSWORD [FTP_PATH]'
 is_format_valid 'user' 'domain' 'ftp_user'
@@ -53,28 +39,19 @@ if getent passwd "$ftp_user" > /dev/null && [ "$FTP_USER" != "$ftp_user" ]; then
 fi
 is_password_valid
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get domain values
 get_domain_values 'web'
 
-# Defining ftp user shell
 shell=$(which nologin)
 if [ -n "$FTP_SHELL" ]; then
 	shell=$FTP_SHELL
 fi
 
-# Defining path
 if [ -z "$ftp_path" ]; then
 	ftp_path_a="$HOMEDIR/$user/web/$domain"
 else
-	# Validating absolute path
 	ftp_path_a=$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")
 	is_record_path_valid "$ftp_path_a" "$HOMEDIR/$user/web/$domain" 'ftp path'
 
-	# Creating ftp user home directory
 	if [ ! -e "$ftp_path_a" ]; then
 		mkdir -p "$ftp_path_a"
 		chown --no-dereference $user:$user "$ftp_path_a"
@@ -82,7 +59,6 @@ else
 	fi
 fi
 
-# Adding ftp user
 /usr/sbin/useradd $ftp_user \
 	-s $shell \
 	-o -u $(id -u $user) \
@@ -90,11 +66,9 @@ fi
 	-G hestia-users \
 	-M -d "$ftp_path_a" > /dev/null 2>&1
 
-# Set ftp user password
 echo "$ftp_user:$password" | /usr/sbin/chpasswd
 
 if [ $? -ne 0 ]; then
-	# Delete user on failure again
 	/usr/sbin/deluser "$ftp_user" > /dev/null 2>&1
 	echo "Error: Password not accepted due to PAM restrictions"
 	exit 2
@@ -102,20 +76,13 @@ fi
 
 ftp_md5=$(awk -v user=$ftp_user -F : 'user == $1 {print $2}' /etc/shadow)
 
-# Adding jailed sftp env
 $BIN/h-add-user-sftp-jail "$ftp_user"
 
-# SSH AllowUsers co-maintenance for the FTP sub-account (#413)
 manage_sshd_allowusers add "$ftp_user"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Transforming absolute path to relative
 ftp_path_r=$(echo $ftp_path_a | sed "s%$HOMEDIR/$user/web/$domain%%")
 
-# Concatenating ftp variables. ftp_user becomes the stored list here, so keep the account name.
+# ftp_user becomes the stored list here, so keep the account name.
 ftp_account="$ftp_user"
 if [ ! -z "$FTP_USER" ]; then
 	ftp_user="$FTP_USER:$ftp_user"
@@ -123,15 +90,12 @@ if [ ! -z "$FTP_USER" ]; then
 	ftp_path="$FTP_PATH:$ftp_path_r"
 fi
 
-# Adding new key into web.conf
 add_object_key "web" 'DOMAIN' "$domain" 'FTP_PATH' 'PROXY'
 
-# Updating config
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_USER' "$ftp_user"
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' "$ftp_md5"
 update_object_value 'web' 'DOMAIN' "$domain" '$FTP_PATH' "$ftp_path"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Added new FTP account (Name: $ftp_account@$domain)."
 log_event "$OK" "$ARGUMENTS"
 

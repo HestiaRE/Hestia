@@ -4,25 +4,17 @@
 #
 # example: h-list-web-domains alice
 #
-# This function to obtain the list of all user web domains.
+# Lists all web domains of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -30,7 +22,6 @@ json_list() {
 	echo "{"
 	while read -r str; do
 		parse_object_kv_list "$str"
-		# Set correct document root path
 		if [ -n "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -75,7 +66,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "DOMAIN   IP   TPL   SSL   DISK   BW   SPND   DATE"
@@ -86,12 +76,10 @@ shell_list() {
 	done < <(cat $USER_DATA/web.conf)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
 		parse_object_kv_list "$str"
-		# Set correct document root path
 		if [ ! -z "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -104,19 +92,10 @@ plain_list() {
 	done < <(cat $USER_DATA/web.conf)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
@@ -125,9 +104,5 @@ case $format in
 esac
 
 unset docroot
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -4,26 +4,18 @@
 #
 # example: h-list-web-domain admin example.com
 #
-# This function to obtain web domain parameters.
+# Lists the parameters of a web domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	echo '{'
 	json_escape DOMAIN IP IP6 DOCROOT U_DISK U_BANDWIDTH TPL ALIAS STATS STATS_USER SSL SSL_FORCE SSL_HSTS HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT WP FTP_USER FTP_PATH AUTH_USER BACKEND PHP_VERSION PROXY PROXY_EXT FASTCGI_CACHE FASTCGI_DURATION PROXY_CACHE PROXY_CACHE_DURATION REDIRECT REDIRECT_CODE CUSTOM_DOCROOT BOTLIMIT CROWDSEC OFFLINE ALLOW_USERS SUSPENDED TIME DATE
@@ -71,7 +63,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "DOMAIN:           $DOMAIN"
 	echo "ALIAS:            ${ALIAS//,/ }"
@@ -159,7 +150,6 @@ shell_list() {
 	echo "DATE:             $DATE"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -ne "$DOMAIN\t$IP\t$IP6\t$DOCROOT\t$U_DISK\t$U_BANDWIDTH\t$TPL\t"
 	echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$SSL_FORCE\t$SSL_HSTS\t$LETSENCRYPT\t"
@@ -167,20 +157,11 @@ plain_list() {
 	echo -e "$PROXY_EXT\t$SUSPENDED\t$TIME\t$DATE"
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing domain
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
 if [ -n "$CUSTOM_DOCROOT" ]; then
@@ -189,16 +170,11 @@ else
 	DOCROOT="$HOMEDIR/$user/web/$DOMAIN/public_html/"
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

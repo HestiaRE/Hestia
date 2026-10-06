@@ -6,27 +6,16 @@
 #
 # Counterpart to h-add-web-domain-offline: restores the domain's regular vhost.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=${3-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -36,35 +25,23 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Load domain data
 # shellcheck disable=SC2046  # word splitting carries the record into KEY='v' tokens
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-# add_object_key is idempotent on key presence, so no value guard needed
+# add_object_key is idempotent on key presence, so no value guard.
 add_object_key "web" 'DOMAIN' "$domain" 'OFFLINE' 'SUSPENDED'
 update_object_value 'web' 'DOMAIN' "$domain" '$OFFLINE' 'no'
 
-# the rebuild restores the regular vhost; checked, or a failed rebuild leaves the domain
-# stuck offline while the log says $OK
+# Checked, or a failed rebuild leaves the domain offline while the log says $OK.
 $BIN/h-rebuild-web-domain "$user" "$domain" 'no'
 check_result $? "Web rebuild failed" > /dev/null
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting web server
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Website brought back online (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

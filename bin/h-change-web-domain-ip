@@ -4,19 +4,13 @@
 #
 # example: h-change-web-domain-ip admin example.com 167.86.105.230 yes
 #
-# This function is used for changing domain ip
+# Moves the domain to another v4 address.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 ip=$3
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,18 +19,11 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN IP [RESTART]'
 is_format_valid 'user' 'domain' 'ip' 'restart'
@@ -47,62 +34,45 @@ is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 is_ip_valid "$ip" "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Preparing variables for vhost replace
 get_domain_values 'web'
 old=$(get_real_ip "$IP")
 new=$(get_real_ip "$ip")
 
-# Replacing vhost. An empty old address is a domain that has no v4 listen line at all, so
-# there is nothing to substitute - that case renders instead, after the record update below.
-# One .conf holds both server blocks now (#593), so the IP is replaced in both at once
+# No old address means no v4 listen line to substitute; that case renders after the record update below.
 if [ -n "$old" ]; then
 	replace_web_config "$WEB_SYSTEM" "$TPL.tpl"
 
-	# Replacing proxy vhost
 	if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
 		replace_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 	fi
 fi
 
-# The HTTP/3 quic listen carries the IP, and its fragment is not a .conf so replace_web_config
-# skips it (#613) - re-emit it under the new address, through the same capability gate
+# The HTTP/3 quic fragment carries the IP and is no .conf, so replace_web_config skips it.
 if [ "$HTTP3" = 'yes' ] && nginx_has_http3; then
 	add_web_http3_config "$new" "$IP6"
 fi
 
-# Check for webmail (only when a mail domain of this name exists)
+# Only when a mail domain of this name exists.
 if [ -n "$IMAP_SYSTEM" ] && grep -qF "DOMAIN='$domain'" "$USER_DATA/mail.conf" 2> /dev/null; then
 	$BIN/h-rebuild-mail-domain "$user" "$domain"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$IP' "$3"
 
-# the vhosts carry no v4 line yet, so they are rendered from the updated record
+# The vhosts carry no v4 line yet, so they are rendered from the updated record.
 [ -z "$old" ] && $BIN/h-rebuild-web-domain "$user" "$domain" no
 
-# Update counters
 increase_ip_value "$new"
 if [ -n "$old" ] && [ -e "$CONF_DIR/ips/$old" ]; then
 	decrease_ip_value "$old"
 fi
 
-# Restart web server
 $BIN/h-restart-web "$restart"
 check_result $? "WEB restart failed" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web domain IP address changed (IP: $3, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

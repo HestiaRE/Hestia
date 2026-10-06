@@ -301,6 +301,8 @@ else
 		version="$version_source"
 	fi
 	rm -fr "$tx_peek"
+	sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null \
+		|| check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
 fi
 
 # re-render mail domains so they pick up the new client immediately

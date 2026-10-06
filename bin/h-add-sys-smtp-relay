@@ -35,6 +35,10 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '1' "$#" 'HOST [USERNAME] [PASSWORD] [PORT]'
 # secret via /tmp file, not argv - resolve before the value is format-checked
 is_password_valid
+# The panel never shows the stored password, so an empty one next to the same username keeps it.
+if [ -z "$password" ] && [ -n "$username" ] && [ "$(record_value_decode "$SMTP_RELAY_USER")" = "$username" ]; then
+	password=$(sed -n 's/^pass://p' /etc/exim4/smtp_relay.conf 2> /dev/null | head -n1)
+fi
 is_format_valid 'port' 'host' 'password'
 is_username_format_valid "$username" 'username'
 format_no_quotes "$password" 'password'

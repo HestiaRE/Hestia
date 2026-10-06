@@ -616,6 +616,30 @@
         "/etc/exim4/exim4.conf.template"
       ],
       "reversible": false
+    },
+    {
+      "id": "tachyon-private-folders",
+      "description": "The Tachyon listener answers its data and tmp folders with 404",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/caddy/webmail-tachyon.conf"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/panel-caddy/webmail-tachyon.conf",
+          "target": "/etc/caddy/webmail-tachyon.conf"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/panel-caddy/webmail-tachyon.conf",
+        "target": "/etc/caddy/webmail-tachyon.conf"
+      },
+      "paths": [
+        "/etc/caddy/webmail-tachyon.conf"
+      ],
+      "reversible": true
     }
   ]
 }

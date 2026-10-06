@@ -81,6 +81,7 @@ for _p in dovecot-managesieved dovecot-lmtpd; do
 done
 
 cp -f "$DCDIR/sieve/"* /etc/dovecot/conf.d/
+sieve_managesieve_bind_local || echo "Warning!: ManageSieve could not be bound to loopback, it listens on every address." >&2
 # global script dir referenced by the sieve config (pipe/global extensions)
 mkdir -p /etc/dovecot/sieve
 

@@ -687,6 +687,30 @@
         "/etc/dovecot/sieve/report-ham.sieve"
       ],
       "reversible": false
+    },
+    {
+      "id": "managesieve-loopback",
+      "description": "ManageSieve listens on loopback only, where the webmails reach it",
+      "conditions": [
+        {
+          "type": "key_is",
+          "name": "SIEVE_SYSTEM",
+          "value": "yes"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/dovecot/conf.d/20-managesieve.conf",
+          "value": "127.0.0.1"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "sieve_managesieve_local_apply"
+      },
+      "paths": [
+        "/etc/dovecot/conf.d/20-managesieve.conf"
+      ],
+      "reversible": false
     }
   ]
 }

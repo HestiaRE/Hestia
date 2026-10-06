@@ -35,7 +35,9 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 
 # Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
 # The status key is part of the condition, so nothing needs writing here: it already says rspamd.
-if [ "$ANTISPAM_SYSTEM" = 'rspamd' ] && dpkg -l rspamd 2> /dev/null | grep -q '^ii'; then
+# The macro too: a re-run of the installer's mail stage lays down a template with it commented out.
+if [ "$ANTISPAM_SYSTEM" = 'rspamd' ] && dpkg -l rspamd 2> /dev/null | grep -q '^ii' \
+	&& grep -q '^RSPAMD = yes' /etc/exim4/exim4.conf.template; then
 	echo "INFO: rspamd is already installed."
 	exit 0
 fi

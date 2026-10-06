@@ -43,14 +43,24 @@ fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_system_enabled "$IMAP_SYSTEM" 'IMAP_SYSTEM'
 
+# version-specific overlay (2.3/2.4) replacing the package defaults
+DOVECOT_VER=$(dovecot --version 2> /dev/null | cut -d. -f1,2 || echo "2.3")
+if [ "$(printf '%s\n2.4' "$DOVECOT_VER" | sort -V | head -1)" = "2.4" ]; then
+	DCDIR="$HESTIA/share/dovecot/2.4"
+else
+	DCDIR="$HESTIA/share/dovecot/2.3"
+fi
+
 # Already at the target state, which for this component is presence: rc 0 and say so (E13, #945).
 # The status key is part of the condition, so it already says yes.
 # The deployed configuration is the target state, not the packages: a run that installed them
 # and then died on the dovecot restart would otherwise read as done. 25-lmtp.conf is laid down
 # last, so its presence is what "finished" means (#596).
+# The exim macro and the sieve 15-lda.conf too: a re-run of the installer's mail stage lays down stock ones.
 if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii' \
 	&& dpkg -l dovecot-lmtpd 2> /dev/null | grep -q '^ii' \
-	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ]; then
+	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ] && grep -q '^SIEVE = yes' /etc/exim4/exim4.conf.template \
+	&& cmp -s "$DCDIR/sieve/15-lda.conf" /etc/dovecot/conf.d/15-lda.conf; then
 	echo "INFO: sieve is already installed."
 	exit 0
 fi
@@ -70,13 +80,6 @@ for _p in dovecot-managesieved dovecot-lmtpd; do
 	fi
 done
 
-# version-specific overlay (2.3/2.4) replacing the package defaults
-DOVECOT_VER=$(dovecot --version 2> /dev/null | cut -d. -f1,2 || echo "2.3")
-if [ "$(printf '%s\n2.4' "$DOVECOT_VER" | sort -V | head -1)" = "2.4" ]; then
-	DCDIR="$HESTIA/share/dovecot/2.4"
-else
-	DCDIR="$HESTIA/share/dovecot/2.3"
-fi
 cp -f "$DCDIR/sieve/"* /etc/dovecot/conf.d/
 # global script dir referenced by the sieve config (pipe/global extensions)
 mkdir -p /etc/dovecot/sieve

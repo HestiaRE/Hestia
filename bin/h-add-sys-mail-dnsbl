@@ -35,7 +35,9 @@ check_args '1' "$#" 'HOST [RESTART]'
 # A host, optionally with exim's "!=" result filter (some.dnsbl.tld!=127.0.0.10). The value goes into
 # a colon-joined exim dnslists expression, so anything else here becomes a broken ACL rather than a
 # rejected argument.
-if [[ ! "$host" =~ ^[a-zA-Z0-9.-]+(!=[0-9.,]+)?$ ]]; then
+# Spelled out: under a German locale a-z matches umlauts.
+an='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+if [[ ! "$host" =~ ^[$an]([$an.-]*[$an])?(!=[0123456789.,]+)?$ ]]; then
 	check_result "$E_INVALID" "invalid dnsbl host format :: $host"
 fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
@@ -45,7 +47,7 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 #----------------------------------------------------------#
 
 touch "$DNSBL_CONF"
-if grep -qxF "$host" "$DNSBL_CONF"; then
+if grep -qxF -- "$host" "$DNSBL_CONF"; then
 	check_result "$E_EXISTS" "dnsbl host $host already exists"
 fi
 

@@ -34,7 +34,7 @@ if [[ ! "$host" =~ ^[a-zA-Z0-9.-]+(!=[0-9.,]+)?$ ]]; then
 fi
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 
-if [ ! -f "$DNSBL_CONF" ] || ! grep -qxF "$host" "$DNSBL_CONF"; then
+if [ ! -f "$DNSBL_CONF" ] || ! grep -qxF -- "$host" "$DNSBL_CONF"; then
 	check_result "$E_NOTEXIST" "dnsbl host $host doesn't exist"
 fi
 
@@ -45,7 +45,7 @@ fi
 # grep -vxF, not sed: the host may contain '.' and exim's '!=' filter, both of which a sed pattern
 # would reinterpret - and an unanchored match would take neighbouring entries with it.
 tmp=$(mktemp)
-grep -vxF "$host" "$DNSBL_CONF" > "$tmp"
+grep -vxF -- "$host" "$DNSBL_CONF" > "$tmp"
 cat "$tmp" > "$DNSBL_CONF"
 rm -f "$tmp"
 chmod 644 "$DNSBL_CONF"

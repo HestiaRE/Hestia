@@ -16,7 +16,7 @@ username=$2
 password=$3
 # Read while main.sh is sourced, so it has to stand before the includes.
 HIDE=3
-port=${4-587}
+port=${4:-587}
 
 # Includes
 # shellcheck source=/etc/hestia/hestia.env

@@ -204,16 +204,13 @@ if [ "$UPDATE" == "no" ]; then
 
 	r=""
 	if [ "$TX_DB_BACKEND" = "mysql" ]; then
-		if [ -f '/usr/bin/mariadb' ]; then
-			mariadb -e "CREATE DATABASE tachyon" 2>&1
-			r=$(generate_password)
-			mariadb -e "GRANT ALL ON tachyon.*
-			 TO tachyon@localhost IDENTIFIED BY '$r'"
-		else
-			mysql -e "CREATE DATABASE tachyon" 2>&1
-			r=$(generate_password)
-			mysql -e "GRANT ALL ON tachyon.*
-			 TO tachyon@localhost IDENTIFIED BY '$r'"
+		db_client="mysql"
+		[ -x /usr/bin/mariadb ] && db_client="mariadb"
+		r=$(generate_password)
+		if ! $db_client -e "CREATE DATABASE IF NOT EXISTS tachyon" \
+			|| ! $db_client -e "GRANT ALL ON tachyon.* TO tachyon@localhost IDENTIFIED BY '$r'"; then
+			echo "ERROR: could not create the tachyon database or its user. Installation aborted."
+			exit 2
 		fi
 	fi
 	# Temporarily set the permissions to www-data

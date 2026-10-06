@@ -19,19 +19,21 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
+is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 message_count=$(exim -bpc)
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
 
+answer=''
 if [ "$message_count" -gt 0 ]; then
 	read -p "Are you sure you want to delete $message_count messages from the exim queue? [y/N] " answer
-
-	if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
-		exiqgrep -i | xargs exim -Mrm
-	fi
 fi
+if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+	exit
+fi
+exiqgrep -i | xargs -r exim -Mrm
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#

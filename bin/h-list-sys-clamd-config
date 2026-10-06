@@ -46,16 +46,8 @@ plain_list() {
 #----------------------------------------------------------#
 
 # Defining config path
-if [ -e '/etc/clamav/clamd.conf' ]; then
-	config_path='/etc/clamav/clamd.conf'
-else
-	if [ -e '/etc/clamd.conf' ]; then
-		config_path='/etc/clamd.conf'
-	fi
-	if [ -e '/etc/clamd.d/clamd.conf' ]; then
-		config_path='/etc/clamav/clamd.conf'
-	fi
-fi
+config_path=''
+[ ! -e '/etc/clamav/clamd.conf' ] || config_path='/etc/clamav/clamd.conf'
 
 # Listing data
 case $format in

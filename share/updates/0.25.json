@@ -17,6 +17,53 @@
       },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "proftpd-chroot-symlinks",
+      "description": "proftpd refuses an ftp home that passes through a link, so a customer cannot swap a sub-account's directory for another one",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/proftpd/proftpd.conf"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/proftpd/proftpd.conf",
+          "value": "AllowChrootSymlinks"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "proftpd_chroot_symlinks_apply"
+      },
+      "paths": [
+        "/etc/proftpd/proftpd.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "sftp-jail-home-link",
+      "description": "The SFTP jail refuses a home that passes through a link, the same rule as proftpd",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/security/namespace.d/hestia-jail.init"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/security/hestia-jail.init",
+          "target": "/etc/security/namespace.d/hestia-jail.init"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/security/hestia-jail.init",
+        "target": "/etc/security/namespace.d/hestia-jail.init"
+      },
+      "paths": [
+        "/etc/security/namespace.d/hestia-jail.init"
+      ],
+      "reversible": true
     }
   ]
 }

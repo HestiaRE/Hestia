@@ -612,7 +612,9 @@ function send_email($to, $subject, $mailtext, $from, $from_name, $to_name = "")
 		$mail->Mailer = "smtp";
 		$mail->SMTPDebug = 0;
 		$mail->SMTPAuth = true;
-		$mail->SMTPSecure = $_SESSION["SERVER_SMTP_SECURITY"];
+		// A value stored before the command normalised it (STARTTLS, SSL) means the same to us, not to PHPMailer.
+		$smtp_security = strtolower($_SESSION["SERVER_SMTP_SECURITY"] ?? "");
+		$mail->SMTPSecure = $smtp_security === "starttls" ? "tls" : ($smtp_security === "smtps" ? "ssl" : $smtp_security);
 		$mail->Port = $_SESSION["SERVER_SMTP_PORT"];
 		$mail->Host = $_SESSION["SERVER_SMTP_HOST"];
 		$mail->Username = $_SESSION["SERVER_SMTP_USER"];

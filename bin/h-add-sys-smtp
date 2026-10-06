@@ -2,7 +2,7 @@
 # info: Add SMTP Account for logging, notification and internal mail
 # options: DOMAIN PORT SMTP_SECURITY USERNAME PASSWORD EMAIL
 #
-# example: h-add-sys-smtp example.com 587 STARTTLS test@domain.com securepassword test@example.com
+# example: h-add-sys-smtp example.com 587 tls test@domain.com securepassword test@example.com
 #
 # This function allows configuring a SMTP account for the server to use
 # for logging, notification and warn emails etc.
@@ -38,7 +38,13 @@ is_password_valid
 is_format_valid 'domain' 'port' 'email' 'password'
 is_username_format_valid "$username" 'username'
 format_no_quotes "$password" 'password'
-is_common_format_valid "$smtp_security" "SMTP_SECURITY"
+# PHPMailer knows tls and ssl only, and in lowercase; anything else silently sends without them.
+case "${smtp_security,,}" in
+	tls | starttls) smtp_security='tls' ;;
+	ssl | smtps) smtp_security='ssl' ;;
+	none) smtp_security='' ;;
+	*) check_result "$E_INVALID" "invalid SMTP_SECURITY :: $smtp_security (tls, ssl or none)" ;;
+esac
 
 #----------------------------------------------------------#
 #                       Action                             #

@@ -18,6 +18,8 @@
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/sieve.sh
+source $HESTIA/include/sieve.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -59,6 +61,18 @@ rmdir /etc/systemd/system/caddy.service.d 2> /dev/null || true
 gpasswd -d caddy _rspamd > /dev/null 2>&1 || true
 systemctl daemon-reload
 systemctl try-restart caddy 2> /dev/null || true
+
+# Dovecot names the group in mail_access_groups; once it is gone, every login and delivery would fail.
+# Decided by the file, not SIEVE_SYSTEM: the group in dovecot is what breaks.
+if grep -qE '^[[:space:]]*mail_access_groups[[:space:]]*=.*\b_rspamd-ctrl\b' "$DOVECOT_MAIL_CONF" 2> /dev/null; then
+	sieve_mail_group_del
+	sieve_imap_plugin_del
+	systemctl restart dovecot
+	if ! systemctl is-active --quiet dovecot; then
+		echo "ERROR: dovecot failed to restart without IMAP learning, rspamd stays installed."
+		exit "$E_RESTART"
+	fi
+fi
 
 systemctl disable --now rspamd > /dev/null 2>&1
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge rspamd > /dev/null 2>&1

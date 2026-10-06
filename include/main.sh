@@ -1642,7 +1642,9 @@ spam_list_write() { # FILE COMMA_LIST
 
 # Alias forman validator
 is_alias_format_valid() {
-	for object in ${1//,/ }; do
+	local object _list
+	IFS=, read -ra _list <<< "$1"
+	for object in "${_list[@]}"; do
 		exclude='[][!@#$^&()+={},<>?_/\\"|'\''`;%~:[:space:]]'
 		if [[ $object =~ $exclude ]] \
 			|| [[ $object =~ \.\. ]] \

@@ -41,21 +41,26 @@ is_restart_format_valid "$restart"
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Delete old webmail configuration
+# Read before the delete empties it: each domain keeps its client. A suspended domain has no webmail vhost and keeps
+# its record, its unsuspend renders it under the new alias.
+rows=()
 for user in $("$BIN/h-list-users" list); do
-	for domain in $($BIN/h-list-mail-domains "$user" plain | cut -f 1); do
-		$BIN/h-delete-mail-domain-webmail "$user" "$domain" 'no'
-	done
+	while IFS='|' read -r domain suspended webmail; do
+		[ -n "$domain" ] && [ "$suspended" != 'yes' ] || continue
+		rows+=("$user|$domain|$webmail")
+	done < <("$BIN/h-list-mail-domains" "$user" plain | awk -F'\t' -v OFS='|' '{print $1, $9, $13}')
 done
 
-# Set new webmail alias
+for row in "${rows[@]}"; do
+	IFS='|' read -r user domain webmail <<< "$row"
+	$BIN/h-delete-mail-domain-webmail "$user" "$domain" 'no'
+done
+
 $BIN/h-change-sys-config-value 'WEBMAIL_ALIAS' "$NEW_ALIAS"
 
-# Add new webmail configuration
-for user in $("$BIN/h-list-users" list); do
-	for domain in $($BIN/h-list-mail-domains "$user" plain | cut -f 1); do
-		$BIN/h-add-mail-domain-webmail "$user" "$domain"
-	done
+for row in "${rows[@]}"; do
+	IFS='|' read -r user domain webmail <<< "$row"
+	$BIN/h-add-mail-domain-webmail "$user" "$domain" "$webmail"
 done
 
 if [ -s /etc/apache2/apache2.conf ]; then

@@ -508,13 +508,14 @@ else
 		$BIN/h-add-mail-domain-ssl "$user" "$root_domain" "$ssl_dir" "updatessl"
 	fi
 fi
+ssl_rc=$?
 
-if [ "$?" -ne '0' ]; then
+if [ "$ssl_rc" -ne 0 ]; then
 	[ -d "$ssl_dir" ] && rm -rf "$ssl_dir"
 	touch $CONF_DIR/queue/letsencrypt.pipe
 	sed -i "/ ${domain//./\\.} /d" $CONF_DIR/queue/letsencrypt.pipe
 	send_notice 'LETSENCRYPT' "$domain certificate installation failed ($domain)"
-	check_result $? "SSL install" > /dev/null
+	check_result "$ssl_rc" "SSL install" > /dev/null
 fi
 
 # Adding LE autorenew cronjob

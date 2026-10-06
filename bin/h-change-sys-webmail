@@ -18,10 +18,9 @@ NEW_ALIAS=$1
 restart=${2-yes}
 
 check_args '1' "$#" 'WEBMAIL [RESTART]'
-is_common_format_valid "$NEW_ALIAS" "Alias"
-# Must die here: the action tears down every domain's webmail before the write that would reject an empty alias.
-if [ -z "$NEW_ALIAS" ]; then
-	check_result "$E_INVALID" "alias cannot be empty"
+# One DNS label: it becomes a host name in every mail domain's vhost and certificate. Checked before the teardown below.
+if ! [[ "$NEW_ALIAS" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
+	check_result "$E_INVALID" "invalid alias format :: $NEW_ALIAS (one DNS label: a-z, 0-9, inner hyphens)"
 fi
 is_restart_format_valid "$restart"
 

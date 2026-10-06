@@ -93,7 +93,7 @@ requested=",$(
 for domain in "${domains[@]}"; do
 	if [[ "$web" = '*' || "$requested" == *",${domain},"* ]]; then
 		# Cleanup previous domain keys
-		unset -v DOMAIN IP IP6 ALIAS TPL SSL SSL_HOME SSL_FORCE SSL_HSTS HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT FTP_USER FTP_MD5 FTP_PATH BACKEND PHP_VERSION PHP_PROFILE PROXY PROXY_EXT PROXY_CACHE PROXY_CACHE_DURATION FASTCGI_CACHE FASTCGI_DURATION REDIRECT REDIRECT_CODE STATS STATS_USER STATS_CRYPT U_DISK OFFLINE CUSTOM_DOCROOT CUSTOM_PHPROOT restore_web_effect restore_proxy_effect
+		unset -v DOMAIN IP IP6 ALIAS TPL SSL SSL_FORCE SSL_HSTS HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT FTP_USER FTP_MD5 FTP_PATH BACKEND PHP_VERSION PHP_PROFILE PROXY PROXY_EXT PROXY_CACHE PROXY_CACHE_DURATION FASTCGI_CACHE FASTCGI_DURATION REDIRECT REDIRECT_CODE STATS STATS_USER STATS_CRYPT U_DISK OFFLINE CUSTOM_DOCROOT CUSTOM_PHPROOT restore_web_effect restore_proxy_effect
 
 		# Checking domain existence
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)
@@ -325,7 +325,7 @@ for domain in "${domains[@]}"; do
 				$HOMEDIR/$user/web/$domain/stats
 
 			chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
-			chown root:$user /var/log/$WEB_SYSTEM/domains/$domain.*
+			web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 		fi
 		# Rebuilding web config for the second time to make sure ftp users keep working
 		# (rebuild reconciles the http3 quic fragment from the HTTP3 field through the gate)

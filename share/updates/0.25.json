@@ -1,0 +1,159 @@
+{
+  "version": "0.25",
+  "entries": [
+    {
+      "id": "mail-ssl-renewal-group",
+      "description": "A renewed mail certificate was left root:root, so exim failed TLS on 465/587 for that domain until a rebuild; the files get user:mail again",
+      "conditions": [
+        {
+          "type": "file_group_differs",
+          "path": "/home/*/conf/mail/*/ssl/*",
+          "value": "mail"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "mail_ssl_modes_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "proftpd-chroot-symlinks",
+      "description": "proftpd refuses an ftp home that passes through a link, so a customer cannot swap a sub-account's directory for another one",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/proftpd/proftpd.conf"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/proftpd/proftpd.conf",
+          "value": "AllowChrootSymlinks"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "proftpd_chroot_symlinks_apply"
+      },
+      "paths": [
+        "/etc/proftpd/proftpd.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "sftp-jail-home-link",
+      "description": "The SFTP jail refuses a home that passes through a link, the same rule as proftpd",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/security/namespace.d/hestia-jail.init"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/security/hestia-jail.init",
+          "target": "/etc/security/namespace.d/hestia-jail.init"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/security/hestia-jail.init",
+        "target": "/etc/security/namespace.d/hestia-jail.init"
+      },
+      "paths": [
+        "/etc/security/namespace.d/hestia-jail.init"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "remove-h-schedule-letsencrypt-domain",
+      "description": "h-schedule-letsencrypt-domain is gone: nothing scheduled through it, the panel orders certificates directly",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-cron-letsencrypt-job",
+      "description": "h-add-cron-letsencrypt-job is gone with the queue it served",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-letsencrypt-pipe",
+      "description": "The Let's Encrypt queue is gone; every certificate order left its empty pipe behind",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/queue/letsencrypt.pipe"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/etc/hestia/queue/letsencrypt.pipe"
+      },
+      "paths": [
+        "/etc/hestia/queue/letsencrypt.pipe"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-web-domain-ssl-preset",
+      "description": "h-add-web-domain-ssl-preset is gone: nothing called it, h-add-web-domain-ssl-force sets the same flag",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-update-web-domain-traff",
+      "description": "h-update-web-domain-traff is gone: nothing called it, the nightly h-update-web-domains-traff counts every domain",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-update-web-domain-traff"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-update-web-domain-traff"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-update-web-domain-traff"
+      ],
+      "reversible": false
+    }
+  ]
+}

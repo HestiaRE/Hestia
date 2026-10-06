@@ -158,10 +158,8 @@ rebuild_user_conf() {
 		chmod 770 $USER_DATA/ssl
 		touch $USER_DATA/web.conf
 		chmod 660 $USER_DATA/web.conf
-		if [ "$(grep -w $user $CONF_DIR/queue/traffic.pipe)" ]; then
-			echo "$BIN/h-update-web-domains-traff $user" \
-				>> $CONF_DIR/queue/traffic.pipe
-		fi
+		sed -i "/ $user$/d" $CONF_DIR/queue/traffic.pipe
+		echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 		echo "$BIN/h-update-web-domains-disk $user" \
 			>> $CONF_DIR/queue/disk.pipe
 
@@ -175,7 +173,7 @@ rebuild_user_conf() {
 		chmod 751 $HOMEDIR/$user/web
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
 		chmod 700 $HOMEDIR/$user/tmp
-		chown --no-dereference $root:$user $HOMEDIR/$user/web
+		chown --no-dereference root:"$user" $HOMEDIR/$user/web
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
 		fi
@@ -296,11 +294,13 @@ rebuild_web_domain_conf() {
 		/var/log/$WEB_SYSTEM/domains/$domain.log \
 		/var/log/$WEB_SYSTEM/domains/$domain.error.log
 
-	# Creating symlinks
-	cd $HOMEDIR/$user/web/$domain/logs/
-	ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log .
-	ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.error.log .
-	cd /
+	# root writes into a customer-owned directory here, so never through a link.
+	if [ -L "$HOMEDIR/$user/web/$domain/logs" ]; then
+		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a symlink, log links not created" >&2
+	else
+		ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
+			"$HOMEDIR/$user/web/$domain/logs/"
+	fi
 
 	# A restore or rebuild recreates the log, and fail2ban only globs at jail start. Idempotent.
 	if [ -n "$FIREWALL_EXTENSION" ]; then
@@ -316,7 +316,7 @@ rebuild_web_domain_conf() {
 		$HOMEDIR/$user/web/$domain/cgi-bin \
 		$HOMEDIR/$user/web/$domain/public_*html
 	chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
-	chown root:$user /var/log/$WEB_SYSTEM/domains/$domain.*
+	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
 	# Adding vhost configuration
 	conf="$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf"
@@ -457,33 +457,37 @@ rebuild_web_domain_conf() {
 	# here, the record keeps the account and the unsuspend rebuild creates it (the loop fires on
 	# absence from /etc/passwd, which is exactly the state it is in).
 	local -a _ftp_user_list
-	IFS=: read -ra _ftp_user_list <<< "$FTP_USER"
+	local _ftp_i=0 _ftp_i_now _ftp_users="$FTP_USER" _ftp_md5s="$FTP_MD5" _ftp_paths="$FTP_PATH" _ftp_hash
+	IFS=: read -ra _ftp_user_list <<< "$_ftp_users"
 	for ftp_user in "${_ftp_user_list[@]}"; do
+		_ftp_i=$((_ftp_i + 1))
 		[ -n "$ftp_user" ] || continue
-		if [ "$SUSPENDED" != 'yes' ] && [ -z "$(grep ^$ftp_user: /etc/passwd)" ]; then
-			position=$(echo $FTP_USER | tr ':' '\n' | grep -n '' \
-				| grep ":$ftp_user$" | cut -f 1 -d:)
-			ftp_path=$(echo $FTP_PATH | tr ':' '\n' | grep -n '' \
-				| grep "^$position:" | cut -f 2 -d :)
-			ftp_md5=$(echo $FTP_MD5 | tr ':' '\n' | grep -n '' \
-				| grep "^$position:" | cut -f 2 -d :)
+		if [ "$SUSPENDED" != 'yes' ] && ! getent passwd "$ftp_user" > /dev/null; then
+			ftp_path=$(ftp_list_get "$_ftp_paths" "$_ftp_i")
+			ftp_md5=$(ftp_list_get "$_ftp_md5s" "$_ftp_i")
 			# A path stored before the character check would be refused after the delete, and the account would leave
 			# the record as well. Kept, so the customer can give it a new path.
 			if ! record_path_ok "$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")" "$HOMEDIR/$user/web/$domain"; then
 				echo "Warning!: FTP account $ftp_user of $domain is not re-created, its path is not accepted any more"
 				continue
 			fi
-			# rebuild S/FTP users
 			$BIN/h-delete-web-domain-ftp "$user" "$domain" "$ftp_user"
-			# Generate temporary password to add user but update afterwards
-			temp_password=$(generate_password)
-			$BIN/h-add-web-domain-ftp "$user" "$domain" "${ftp_user##*_}" "$temp_password" "$ftp_path"
-			# Updating ftp user password
-			chmod u+w /etc/shadow
-			sed -i "s|^$ftp_user:[^:]*:|$ftp_user:$ftp_md5:|" /etc/shadow
-			chmod u-w /etc/shadow
-			#Update web.conf for next rebuild or move
-			update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' "$ftp_md5"
+			# The stored name, prefix included: stripping up to the last _ renamed alice_web_dev to alice_dev.
+			if ! $BIN/h-add-web-domain-ftp "$user" "$domain" "$ftp_user" "$(generate_password)" "$ftp_path" > /dev/null; then
+				echo "Warning!: FTP account $ftp_user of $domain could not be re-created"
+				continue
+			fi
+			# The hash comes from the record, possibly an archive: only a crypt string goes in, else the account
+			# keeps the random password and the customer sets a new one.
+			if [[ "$ftp_md5" =~ ^[!*]?[A-Za-z0-9./$]+$ ]]; then
+				echo "$ftp_user:$ftp_md5" | /usr/sbin/chpasswd -e
+			else
+				echo "Warning!: FTP account $ftp_user of $domain has no usable password hash, set a new password"
+			fi
+			_ftp_hash=$(getent shadow "$ftp_user" | cut -f 2 -d :)
+			_ftp_i_now=$(ftp_list_index "$(get_object_value 'web' 'DOMAIN' "$domain" '$FTP_USER')" "$ftp_user")
+			update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' \
+				"$(ftp_list_edit "$(get_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5')" "$_ftp_i_now" "$_ftp_hash")"
 		fi
 	done
 
@@ -578,7 +582,7 @@ auth_basic_user_file    $htpasswd;"
 		$HOMEDIR/$user/web/$domain/cgi-bin \
 		$HOMEDIR/$user/web/$domain/public_*html \
 		$HOMEDIR/$user/web/$domain/document_errors
-	chmod 640 /var/log/$WEB_SYSTEM/domains/$domain.*
+	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done
 
 	chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
 }

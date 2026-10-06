@@ -13,12 +13,12 @@
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
     "aggregate": {
-      "upstream_mapped_files": 410,
+      "upstream_mapped_files": 406,
       "eigenbau_files": 117,
       "weighted_pct": 33,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 527,
-      "files_mapped": 410
+      "files_total": 523,
+      "files_mapped": 406
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -83,22 +83,6 @@
         "added": 17,
         "removed": 43,
         "pct": 37,
-        "measured_at": "2026-10-06"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-add-cron-letsencrypt-job",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-cron-letsencrypt-job",
-      "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
-      "divergence": {
-        "upstream_lines": 46,
-        "our_lines": 23,
-        "added": 8,
-        "removed": 31,
-        "pct": 56,
         "measured_at": "2026-10-06"
       },
       "note": ""
@@ -1356,22 +1340,6 @@
         "added": 19,
         "removed": 18,
         "pct": 20,
-        "measured_at": "2026-10-06"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-add-web-domain-ssl-preset",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-web-domain-ssl-preset",
-      "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
-      "divergence": {
-        "upstream_lines": 60,
-        "our_lines": 58,
-        "added": 7,
-        "removed": 9,
-        "pct": 13,
         "measured_at": "2026-10-06"
       },
       "note": ""
@@ -6269,22 +6237,6 @@
       "note": ""
     },
     {
-      "path": "h-schedule-letsencrypt-domain",
-      "source_type": "derived",
-      "upstream_path": "bin/v-schedule-letsencrypt-domain",
-      "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
-      "divergence": {
-        "upstream_lines": 68,
-        "our_lines": 65,
-        "added": 11,
-        "removed": 14,
-        "pct": 18,
-        "measured_at": "2026-10-06"
-      },
-      "note": ""
-    },
-    {
       "path": "h-schedule-user-backup",
       "source_type": "derived",
       "upstream_path": "bin/v-schedule-user-backup",
@@ -7525,22 +7477,6 @@
         "added": 10,
         "removed": 11,
         "pct": 7,
-        "measured_at": "2026-10-06"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-update-web-domain-traff",
-      "source_type": "derived",
-      "upstream_path": "bin/v-update-web-domain-traff",
-      "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
-      "divergence": {
-        "upstream_lines": 92,
-        "our_lines": 91,
-        "added": 7,
-        "removed": 8,
-        "pct": 8,
         "measured_at": "2026-10-06"
       },
       "note": ""

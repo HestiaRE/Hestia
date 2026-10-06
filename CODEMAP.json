@@ -78,7 +78,7 @@
           "pattern": "bin/h-*-sys*"
         },
         "web": {
-          "count": 80,
+          "count": 88,
           "pattern": "bin/h-*-web*"
         },
         "mail": {
@@ -107,7 +107,7 @@
           "pattern": "bin/h-*-backup*"
         },
         "letsencrypt": {
-          "count": 8,
+          "count": 6,
           "pattern": "bin/h-*-letsencrypt*"
         },
         "other": {
@@ -782,6 +782,62 @@
       "invariants": "An addon reports active only when the exim template carries its armed macro and exim came back; a failed restart disarms and restarts exim. rspamd and sieve wire the learning chain whichever comes second, and removing rspamd takes _rspamd-ctrl out of dovecot before the group goes, or logins and delivery break. Add and delete run on any leftover artefact, so a half install can be repaired by running the add again. h-change-sys-webmail re-renders every unsuspended mail domain with the client its record names.",
       "panel": "web/edit/server (service links, clamav-daemon), web/inc/main.php.",
       "upstream_ref": "bin/v-*-sys-{smtp,smtp-relay,roundcube,snappymail,mail-queue,mail-dnsbl,webmail,clamd-config,dovecot-config}, v-update-mail-templates (tachyon took the place of snappymail); rspamd, sieve, clamav and h-learn-mail-message are hestiare-native"
+    },
+    "web_domain": {
+      "description": "Customer web domains: the record in /etc/hestia/users/<user>/web.conf, the folder /home/<user>/web/<domain> (its logs/ holds links to /var/log/<web>/domains), the vhost fragments in /home/<user>/conf/web/<domain>. SSL from a certificate directory or Let's Encrypt over HTTP-01 only (no DNS zones, so no wildcard certificates), aliases, FTP/SFTP sub-accounts.",
+      "commands": [
+        "bin/h-add-letsencrypt-domain",
+        "bin/h-add-letsencrypt-host",
+        "bin/h-add-letsencrypt-user",
+        "bin/h-add-web-domain",
+        "bin/h-add-web-domain-alias",
+        "bin/h-add-web-domain-allow-users",
+        "bin/h-add-web-domain-ftp",
+        "bin/h-add-web-domain-offline",
+        "bin/h-add-web-domain-ssl",
+        "bin/h-add-web-domain-ssl-force",
+        "bin/h-add-web-domain-ssl-hsts",
+        "bin/h-change-web-domain-dirlist",
+        "bin/h-change-web-domain-docroot",
+        "bin/h-change-web-domain-ftp-password",
+        "bin/h-change-web-domain-ftp-path",
+        "bin/h-change-web-domain-ip",
+        "bin/h-change-web-domain-ip6",
+        "bin/h-change-web-domain-name",
+        "bin/h-change-web-domain-sslcert",
+        "bin/h-delete-letsencrypt-domain",
+        "bin/h-delete-web-domain",
+        "bin/h-delete-web-domain-alias",
+        "bin/h-delete-web-domain-allow-users",
+        "bin/h-delete-web-domain-ftp",
+        "bin/h-delete-web-domain-offline",
+        "bin/h-delete-web-domain-ssl",
+        "bin/h-delete-web-domain-ssl-force",
+        "bin/h-delete-web-domain-ssl-hsts",
+        "bin/h-delete-web-domains",
+        "bin/h-generate-ssl-cert",
+        "bin/h-list-letsencrypt-user",
+        "bin/h-list-web-domain",
+        "bin/h-list-web-domain-accesslog",
+        "bin/h-list-web-domain-errorlog",
+        "bin/h-list-web-domain-ssl",
+        "bin/h-list-web-domains",
+        "bin/h-rebuild-web-domain",
+        "bin/h-rebuild-web-domains",
+        "bin/h-suspend-web-domain",
+        "bin/h-suspend-web-domains",
+        "bin/h-unsuspend-web-domain",
+        "bin/h-unsuspend-web-domains",
+        "bin/h-update-letsencrypt-ssl",
+        "bin/h-update-web-domain-disk",
+        "bin/h-update-web-domain-ssl",
+        "bin/h-update-web-domains-disk",
+        "bin/h-update-web-domains-traff"
+      ],
+      "core": "include/domain.sh: prepare_web_domain_values, add_web_config, del_web_config; web_domain_logs (the three log files of a domain); web_ssl_replace; acme_apache_publish with ACME_APACHE_DIR (http-01 tokens for an apache front in a root-owned directory, never a docroot); ftp_list_index/get/edit (FTP_USER, FTP_PATH, FTP_MD5 are parallel colon lists); is_base_domain_owner; mail_ssl_modes. include/main.sh: le_conf_load (reads le.conf as data, never sources it), is_alias_format_valid. include/helper.sh: update callable proftpd_chroot_symlinks_apply. bin/h-add-letsencrypt-domain: le_dns_check.",
+      "invariants": "h-add-web-domain takes back what it created until the record is written. A rename refuses SSL, FTP accounts, a custom docroot (its own or one pointing in), WordPress and statistics, which carry the old name where a rename does not reach (#1197 to carry them). An FTP or SFTP home that passes through a link is refused (proftpd AllowChrootSymlinks off, the hestia-jail check). An ACME token is checked as base64url before it names a file; an authorization already valid is skipped. The renewal cron line is repaired in place; a missing crontab is syshealth's.",
+      "panel": "web/add/web, web/edit/web, web/list/web, web/delete/web, web/templates/pages/list_web.php.",
+      "upstream_ref": "bin/v-*-web-domain*, v-*-letsencrypt*, v-generate-ssl-cert; the LE queue (v-schedule-letsencrypt-domain, v-add-cron-letsencrypt-job), v-add-web-domain-ssl-preset and v-update-web-domain-traff are gone."
     },
     "make_release": {
       "description": "Pure-bash installer. install.sh (bootstrap) → include/wizard.sh (manifest-driven Q&A → /etc/hestia/install.conf) → sbin/h-install-hestia (non-interactive, COMPONENT_*-gated). Migrated from Justfile/just/* to bash h-* commands in Issue #112 (epic); just removed (was Makefile→Justfile in #102, Justfile→bash in #112).",

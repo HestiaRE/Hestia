@@ -101,7 +101,7 @@ fi
 # The three fields carry the whole state, render and pool reconcile off them centrally: one
 # rebuild flips everything. add_object_key is idempotent on key presence.
 for key in DOCKER DOCKER_PORT DOCKER_OCTET; do
-	add_object_key "web" 'DOMAIN' "$domain" "$key" 'SSL_HOME'
+	add_object_key "web" 'DOMAIN' "$domain" "$key" 'LETSENCRYPT'
 done
 update_object_value 'web' 'DOMAIN' "$domain" '$DOCKER' "$template"
 update_object_value 'web' 'DOMAIN' "$domain" '$DOCKER_PORT' "$docker_port"

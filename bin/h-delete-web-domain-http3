@@ -57,7 +57,7 @@ del_web_http3_config
 #----------------------------------------------------------#
 
 if [ -z "$HTTP3" ]; then
-	add_object_key "web" 'DOMAIN' "$domain" 'HTTP3' 'SSL_HOME'
+	add_object_key "web" 'DOMAIN' "$domain" 'HTTP3' 'LETSENCRYPT'
 fi
 update_object_value 'web' 'DOMAIN' "$domain" '$HTTP3' 'no'
 

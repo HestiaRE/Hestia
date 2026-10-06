@@ -4,21 +4,12 @@
 #
 # example: h-add-web-domain-allow-users admin admin.com
 #
-# Bypass the rule check for Enforce subdomain ownership for a specific domain.
-# A base domain only. ENFORCE_SUBDOMAIN_OWNERSHIP='no' in hestia.conf (CLI only) lifts the check box-wide.
-# The panel offers this as the Share switch of the web domain.
-# eg: admin adds admin.com
-# user can create user.admin.com
+# Lets other users create subdomains of this base domain (the panel's Share switch).
+# ENFORCE_SUBDOMAIN_OWNERSHIP='no' in hestia.conf (CLI only) lifts the check box-wide.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,16 +18,10 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
@@ -50,22 +35,12 @@ if [ "$basedomain" != "$domain" ]; then
 	check_result "$E_INVALID" "$domain is not a base domain, sharing is decided on $basedomain"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Load domain data
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ -z "$ALLOW_USERS" ]; then
 	add_object_key "web" 'DOMAIN' "$domain" 'ALLOW_USERS' 'TIME'
 fi
 
-# Adding new alias
 update_object_value 'web' 'DOMAIN' "$domain" '$ALLOW_USERS' "yes"
 
 $BIN/h-log-action "$user" "Warning" "Web" "Subdomain ownership enforcement disabled (Domain: $domain)."

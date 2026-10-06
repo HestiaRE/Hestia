@@ -4,21 +4,13 @@
 #
 # example: h-delete-web-domain admin wonderland.com
 #
-# The call of function leads to the removal of domain and all its components
-# (statistics, folders contents, ssl certificates, etc.). This operation is
-# not fully supported by "undo" function, so the data recovery is possible
-# only with a help of reserve copy.
+# Deletes a web domain with everything that belongs to it: files, logs, certificates, statistics,
+# FTP accounts. Only a backup brings the data back.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,18 +19,11 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -46,22 +31,15 @@ is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing domain values
 get_domain_values 'web'
 local_ip=$(get_real_ip "$IP")
 
-# A managed WordPress would leave its database and a cron entry hammering a dead docroot
-# behind; the DB name must be read from wp-config BEFORE the files go, so this runs first.
+# The WordPress DB name is read from wp-config, so this runs before the files go.
 if [ "${WP:-}" = "yes" ]; then
 	$BIN/h-delete-web-domain-wordpress "$user" "$domain" delete > /dev/null 2>&1 \
 		|| echo "WARN: WordPress cleanup failed - check databases and cron entries of $user"
 fi
 
-# Deleting ftp users
 if [ -n "$FTP_USER" ]; then
 	IFS=: read -ra _ftp_user_list <<< "$FTP_USER"
 	for ftp_user in "${_ftp_user_list[@]}"; do
@@ -70,23 +48,19 @@ if [ -n "$FTP_USER" ]; then
 	done
 fi
 
-# Deleting web backend
 if [ -n "$WEB_BACKEND" ]; then
 	$BIN/h-delete-web-domain-backend "$user" "$domain" 'no'
 fi
 
-# Deleting vhost configuration
 del_web_config "$WEB_SYSTEM" "$TPL.tpl"
 
-# Deleting SSL configuration and certificates
 if [ "$SSL" = 'yes' ]; then
 	$BIN/h-delete-web-domain-ssl-force "$user" "$domain" 'no' 'yes'
 	rm -f $HOMEDIR/$user/conf/web/$domain/ssl/$domain.*
-	rm -f $USER_DATA/ssl/$domain.*
+	rm -f $USER_DATA/ssl/$domain.crt $USER_DATA/ssl/$domain.key $USER_DATA/ssl/$domain.pem $USER_DATA/ssl/$domain.ca
 fi
 
 if [ "$FASTCGI_CACHE" = "yes" ]; then
-	# make sure no trails left behind
 	$BIN/h-delete-fastcgi-cache "$user" "$domain"
 fi
 
@@ -94,40 +68,30 @@ if [ "$PROXY_CACHE" = "yes" ]; then
 	$BIN/h-delete-web-domain-cache "$user" "$domain"
 fi
 
-# Deleting domain from web.conf - dots escaped, or a.b.com also drops the aXb.com record
+# Dots escaped, or a.b.com also drops the aXb.com record.
 sed -i "/DOMAIN='${domain//./\\.}'/ d" "$USER_DATA/web.conf"
 
-# Deleting proxy
 if [ -n "$PROXY_SYSTEM" ]; then
 	del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 fi
 
-# Deleting web stats
 if [ -n "$STATS" ] && [ "$STATS" != 'no' ]; then
 	sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
 	rm -f $HOMEDIR/$user/conf/web/$domain/$STATS.conf
 	rm -f /etc/awstats/$STATS.$domain.conf
 fi
 
-# Deleting logs - detach first, or the jail keeps polling a path that is gone
+# Detach first, or the jail keeps polling a path that is gone.
 if [ -n "$FIREWALL_EXTENSION" ]; then
 	# shellcheck source=/usr/local/hestia/include/fail2ban.sh
 	source $HESTIA/include/fail2ban.sh
 	fail2ban_watch_domain del "$domain"
 fi
-rm -f /var/log/$WEB_SYSTEM/domains/$domain.log*
-rm -f /var/log/$WEB_SYSTEM/domains/$domain.bytes
-rm -f /var/log/$WEB_SYSTEM/domains/$domain.error*
+web_domain_logs "$domain" | while IFS= read -r f; do rm -f "$f"; done
 
-# Deleting directory
 rm -rf $HOMEDIR/$user/web/$domain
 rm -rf $HOMEDIR/$user/conf/web/$domain
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Decreasing user counters
 if [ -n "$local_ip" ] && [ -e "$CONF_DIR/ips/$local_ip" ]; then
 	decrease_ip_value "$local_ip"
 fi
@@ -143,34 +107,28 @@ if [ -n "$ALIAS" ]; then
 	decrease_user_value "$user" '$U_WEB_ALIASES' "$aliases"
 fi
 
-# Check if is suspended to decrease the suspended value
 if [ -n "$SUSPENDED" ]; then
 	if [ "$SUSPENDED" == "yes" ]; then
 		decrease_user_value "$user" '$SUSPENDED_WEB'
 	fi
 fi
 
-# Restart the version this domain ran (its own field), else the system default
+# Restart the version this domain ran, else the system default.
 if [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
 	version="$PHP_VERSION"
 else
 	version=$(multiphp_default_version)
 fi
-# Restarting web server
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
-# Restarting proxy server
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Restarting php interpreter
 $BIN/h-restart-web-backend "$restart" "$version"
 check_result $? "PHP restart failed" > /dev/null
 
-# Logging
-
-# first/last log on the box arms/disarms the fail2ban web jails (change-detected)
+# The first or last log on the box arms or disarms the fail2ban web jails.
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh
 declare -F fail2ban_regate_web_apply > /dev/null 2>&1 || source "$HESTIA/include/fail2ban.sh"
 fail2ban_regate_web_apply

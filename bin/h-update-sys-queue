@@ -53,7 +53,6 @@ case $queue in
 	daily) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
 	traffic) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
 	dns-cluster) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
-	letsencrypt) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
 	*) check_args '1' '0' 'QUEUE' ;;
 esac
 

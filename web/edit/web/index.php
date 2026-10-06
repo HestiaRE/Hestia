@@ -137,7 +137,6 @@ $v_letsencrypt = $data[$v_domain]["LETSENCRYPT"];
 if (empty($v_letsencrypt)) {
 	$v_letsencrypt = "no";
 }
-$v_ssl_home = $data[$v_domain]["SSL_HOME"] ?? "";
 $v_backend_template = $data[$v_domain]["BACKEND"] ?? "";
 $v_php_version = $data[$v_domain]["PHP_VERSION"] ?? "";
 $v_nginx_cache = $data[$v_domain]["FASTCGI_CACHE"] ?? "";
@@ -1045,7 +1044,6 @@ if (!empty($_POST["save"])) {
 					fwrite($fp, str_replace("\r\n", "\n", $_POST["v_ssl_ca"]));
 					fclose($fp);
 				}
-				//keep using the original value for v_ssl_home
 				exec(
 					HESTIA_CMD .
 						"h-add-web-domain-ssl " .
@@ -1055,8 +1053,7 @@ if (!empty($_POST["save"])) {
 						" " .
 						$tmpdir .
 						" " .
-						quoteshellarg($v_ssl_home) .
-						" 'no'",
+						" '' 'no'",
 					$output,
 					$return_var,
 				);

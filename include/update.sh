@@ -191,6 +191,22 @@ upd_cond_file_mode_wider() {
 	return 1
 }
 
+# Same pattern rule; true when one of the files belongs to another group. For a writer that left root:root
+# behind, which the mode alone does not show.
+upd_cond_file_group_differs() {
+	local f g
+	[ -n "$1" ] && [[ "$2" =~ ^[a-z_][-a-z0-9_]*$ ]] || {
+		echo "update: file_group_differs needs a path pattern and a group name" >&2
+		return 2
+	}
+	while read -r f; do
+		[ -n "$f" ] || continue
+		g=$(stat -L -c '%G' "$f" 2> /dev/null) || continue
+		[ "$g" != "$2" ] && return 0
+	done < <(compgen -G "$1")
+	return 1
+}
+
 # For a file the box generates: no tree source to compare against, so the marker is what the OLD
 # version wrote. That is what makes this false once the file has been rewritten. The path may be a
 # pattern, for a file that sits once per PHP version; true when one of the matches carries the marker.
@@ -325,7 +341,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	panel_locale_apply fail2ban_mail_grace_apply firewall_keep_private_apply v_aliases_remove_apply
 	cron_record_review_apply exim_one_domain_apply exim_reject_antispam_apply
 	exim_lists_unexpanded_apply exim_relay_dkim_apply sieve_learn_ham_apply
-	sieve_managesieve_local_apply)
+	sieve_managesieve_local_apply proftpd_chroot_symlinks_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -435,7 +451,7 @@ upd_condition() {
 		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending | file_mode_wider)
 			"upd_cond_$t" "$@"
 			;;
-		language_unlisted | locale_missing)
+		language_unlisted | locale_missing | file_group_differs)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -631,7 +647,7 @@ def argv(t):
     then [.name // "", .value // ""]
   elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
-  elif t=="file_contains" or t=="file_lacks" or t=="file_mode_wider" then [.path // "", .value // ""]
+  elif t=="file_contains" or t=="file_lacks" or t=="file_mode_wider" or t=="file_group_differs" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
   elif t=="file_differs" or t=="file_patch_pending"
     then [.source // "", .target // ""]

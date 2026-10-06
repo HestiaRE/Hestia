@@ -549,6 +549,17 @@ login_defs_guard() {
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
 # The overlay copies the tree and nothing else: what sits outside it, or came from apt, stays old.
 
+# proftpd.conf is operator surface, so the line goes in rather than the whole file over it.
+proftpd_chroot_symlinks_apply() {
+	local f='/etc/proftpd/proftpd.conf'
+	grep -q '^DefaultRoot[[:space:]]' "$f" 2> /dev/null || return 0
+	grep -q '^AllowChrootSymlinks[[:space:]]' "$f" || sed -i '/^DefaultRoot[[:space:]]/a AllowChrootSymlinks          off' "$f" || return 1
+	grep -q '^AllowChrootSymlinks[[:space:]]*off' "$f" || return 1
+	proftpd -t > /dev/null 2>&1 || return 1
+	systemctl -q is-active proftpd 2> /dev/null || return 0
+	systemctl restart proftpd
+}
+
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
 # directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {

@@ -12,7 +12,23 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
-_Nothing yet._
+### Security
+
+- **Web domain, SSL and FTP commands are stricter** (#1176). An FTP or SFTP account whose home passes through a link
+  is refused, Let's Encrypt validation no longer writes into the customer's docroot, and a domain or alias name is
+  held to what a vhost can carry.
+
+### Removed
+
+- **The Let's Encrypt queue, `h-add-web-domain-ssl-preset` and `h-update-web-domain-traff`** (#1176). An update
+  deletes them from the box.
+- **`public_shtml` and a separate SSL docroot** (#1176): https serves `public_html` like http.
+
+### Fixed
+
+- **Let's Encrypt on web and mail domains** (#1176): an SSL domain with aliases, a renewal of an already validated
+  name, a webmail name without DNS, and mail-only boxes. A renewed mail certificate is readable by exim again.
+- **Renaming a web domain** (#1176) moves its aliases, logs and configs and refuses what it cannot carry along.
 
 ## v0.24 (2026-10-06)
 

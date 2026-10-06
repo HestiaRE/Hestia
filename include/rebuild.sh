@@ -316,7 +316,7 @@ rebuild_web_domain_conf() {
 		$HOMEDIR/$user/web/$domain/cgi-bin \
 		$HOMEDIR/$user/web/$domain/public_*html
 	chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
-	chown root:$user /var/log/$WEB_SYSTEM/domains/$domain.*
+	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
 	# Adding vhost configuration
 	conf="$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf"
@@ -582,7 +582,7 @@ auth_basic_user_file    $htpasswd;"
 		$HOMEDIR/$user/web/$domain/cgi-bin \
 		$HOMEDIR/$user/web/$domain/public_*html \
 		$HOMEDIR/$user/web/$domain/document_errors
-	chmod 640 /var/log/$WEB_SYSTEM/domains/$domain.*
+	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done
 
 	chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
 }

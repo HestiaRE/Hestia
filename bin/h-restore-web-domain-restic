@@ -325,7 +325,7 @@ for domain in "${domains[@]}"; do
 				$HOMEDIR/$user/web/$domain/stats
 
 			chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
-			chown root:$user /var/log/$WEB_SYSTEM/domains/$domain.*
+			web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 		fi
 		# Rebuilding web config for the second time to make sure ftp users keep working
 		# (rebuild reconciles the http3 quic fragment from the HTTP3 field through the gate)

@@ -813,6 +813,16 @@ is_web_domain_cert_valid() {
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
 }
 
+# The log files of a web domain and their rotations, one path per line. By name: $domain.* also matches
+# example.com.au, which may belong to another customer.
+web_domain_logs() { # DOMAIN
+	local _d="/var/log/$WEB_SYSTEM/domains" _f
+	for _f in "$_d/$1.log" "$_d/$1.error.log" "$_d/$1.bytes" "$_d/$1.log".* "$_d/$1.error.log".*; do
+		[ -e "$_f" ] || continue
+		echo "$_f"
+	done
+}
+
 # FTP_USER, FTP_MD5 and FTP_PATH are parallel colon lists. Positions count from 1, an empty field keeps its place,
 # and names compare as whole strings: an account name may carry a dot.
 ftp_list_index() { # LIST NAME

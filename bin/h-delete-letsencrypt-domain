@@ -77,7 +77,7 @@ $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
 if [ -n "$PROXY_SYSTEM" ]; then
-	$BIN/h-restart-web "$restart" > /dev/null
+	$BIN/h-restart-proxy "$restart" > /dev/null
 	check_result $? "Proxy restart failed" > /dev/null
 fi
 

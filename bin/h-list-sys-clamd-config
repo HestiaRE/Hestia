@@ -4,7 +4,7 @@
 #
 # example: h-list-sys-clamd-config
 #
-# This function for obtaining the list of clamd config parameters.
+# The clamd config file the panel editor offers, empty when ClamAV is not installed.
 
 format=${1-shell}
 

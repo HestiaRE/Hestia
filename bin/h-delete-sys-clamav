@@ -3,12 +3,10 @@
 # options: [FORCE]
 #
 # example: h-delete-sys-clamav
+# example: h-delete-sys-clamav yes
 #
-# Unwires and uninstalls ClamAV: the exim CLAMD macro back to inert (mail flows
-# unscanned), packages purged, ANTIVIRUS_SYSTEM cleared. Saved-state (like rspamd):
-# per-domain antivirus flags + mail.conf ANTIVIRUS='yes' STAY — the macro gate makes
-# them inert, and h-add-sys-clamav restores them on reinstall. The virus DB in
-# /var/lib/clamav is kept by default (PURGE_DATA=yes wipes it).
+# Disarms exim, purges the packages and clears ANTIVIRUS_SYSTEM. The per-domain antivirus flags stay and act
+# again after a reinstall. yes cleans up without the package; the virus DB stays unless PURGE_DATA=yes.
 
 FORCE=$1
 

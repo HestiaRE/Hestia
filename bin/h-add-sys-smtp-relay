@@ -4,7 +4,8 @@
 #
 # example: h-add-sys-smtp-relay srv.smtprelay.tld uname123 pass12345
 #
-# This function adds system wide smtp relay support.
+# Routes all outgoing mail through HOST, port 587 unless given. An empty password keeps the stored one
+# when the username stays the same.
 
 host=$1
 username=$2

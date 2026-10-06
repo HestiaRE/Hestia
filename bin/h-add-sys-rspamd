@@ -4,10 +4,8 @@
 #
 # example: h-add-sys-rspamd
 #
-# Installs and wires rspamd as the antispam system: curated local.d set (controller
-# + scan worker on group-restricted sockets), random controller password, panel web
-# UI via Panel-Caddy, exim macros. Redis is the Bayes backend — unrestricted if
-# DB_REDIS, else the hard-capped companion (h-add/delete-sys-redis promote/demote it).
+# rspamd with group-restricted sockets, its web UI in the panel and the exim macros. Redis is the Bayes
+# backend, hard-capped unless REDIS_SYSTEM makes it a general service. With sieve, IMAP learning too.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

@@ -1,8 +1,10 @@
 #!/bin/bash
 # info: Delete Tachyon webmail client
-# options: None
+# options: NONE
 #
-# This function removes the Tachyon webmail client.
+# example: h-delete-sys-tachyon
+#
+# Removes Tachyon, its database and the panel integration. Also cleans up after a failed install.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

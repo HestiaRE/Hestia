@@ -4,8 +4,7 @@
 #
 # example: h-delete-sys-smtp
 #
-# This function allows configuring a SMTP account for the server to use
-# for logging, notification and warn emails etc.
+# The server sends its own mail through the local MTA again.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

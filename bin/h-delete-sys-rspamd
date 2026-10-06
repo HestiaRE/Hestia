@@ -4,10 +4,8 @@
 #
 # example: h-delete-sys-rspamd
 #
-# Unwires and uninstalls rspamd: exim macros back to inert (mail flows unscanned;
-# per-domain flags + spam-tuning files stay, reactivating on h-add-sys-rspamd),
-# panel UI route removed, package purged. Redis goes with it unless it is the
-# user's general service (DB_REDIS).
+# Disarms exim, takes IMAP learning out of dovecot and purges rspamd; Redis goes too unless REDIS_SYSTEM.
+# Per-domain spam settings stay and act again after h-add-sys-rspamd.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

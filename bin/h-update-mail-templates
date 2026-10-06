@@ -4,7 +4,7 @@
 #
 # example: h-update-mail-templates
 #
-# This function for obtaining updated webmail templates from Hestia package.
+# Rebuilds every user's mail domains, so the webmail vhosts follow the installed clients, then reloads.
 
 restart=${1:-yes}
 skip=$2

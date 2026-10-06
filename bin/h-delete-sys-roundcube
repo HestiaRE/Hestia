@@ -2,8 +2,9 @@
 # info: Remove Roundcube webmail client
 # options: NONE
 #
-# This function removes Roundcube packages, drops the dedicated database
-# and user, removes configuration, and clears the panel integration.
+# example: h-delete-sys-roundcube
+#
+# Removes Roundcube, its database and the panel integration. Also cleans up after a failed install.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

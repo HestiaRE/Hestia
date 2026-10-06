@@ -1,10 +1,10 @@
 #!/bin/bash
 # info: list mail status
-# options:
+# options: NONE
 #
 # example: h-list-sys-mail-status
 #
-# This function lists mail server status
+# The exim queue and eximstats over the main log, for the admin's server page.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

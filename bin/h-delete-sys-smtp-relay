@@ -1,10 +1,10 @@
 #!/bin/bash
 # info: disable system wide smtp relay support
-# options:
+# options: NONE
 #
 # example: h-delete-sys-smtp-relay
 #
-# This function disables system wide smtp relay support.
+# Outgoing mail is delivered directly again.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

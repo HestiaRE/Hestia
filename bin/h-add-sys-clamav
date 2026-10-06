@@ -4,11 +4,8 @@
 #
 # example: h-add-sys-clamav
 #
-# Installs ClamAV and wires it as the mail antivirus, mirroring h-add-sys-rspamd.
-# Arms the exim CLAMD macro + ANTIVIRUS_SYSTEM=clamav ONLY once clamd answers on the
-# socket: av_scanner=clamd: with malware=*/defer_ok is FAIL-OPEN, so an armed-but-blind
-# clamd would silently accept mail unscanned. DB still downloading -> macro stays OFF
-# + WARN to re-run. Idempotent. Also called by the installer.
+# Arms the exim CLAMD macro and ANTIVIRUS_SYSTEM only once clamd answers: the scan is fail-open, so an armed
+# clamd that cannot scan would pass mail unscanned. Without an answer it ends non-zero; run it again later.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

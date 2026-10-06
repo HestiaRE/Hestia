@@ -4,8 +4,7 @@
 #
 # example: h-add-sys-smtp example.com 587 tls test@domain.com securepassword test@example.com
 #
-# This function allows configuring a SMTP account for the server to use
-# for logging, notification and warn emails etc.
+# The account the server sends its own mail through. SMTP_SECURITY is tls, ssl or none.
 
 domain=$1
 port=$2

@@ -2,9 +2,9 @@
 # info: change webmail alias url
 # options: WEBMAIL [RESTART]
 #
-# example: h-change-sys-webmail YourtrickyURLhere
+# example: h-change-sys-webmail mymail
 #
-# This function changes the webmail url in apache2 or nginx configuration.
+# Changes the webmail alias (WEBMAIL.domain) for every mail domain; each keeps its client.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

@@ -5,7 +5,7 @@
 #
 # example: h-list-sys-webmail
 #
-# List available webmail clients
+# The installed webmail clients, in the order a new mail domain picks its default from.
 
 format=${1-shell}
 

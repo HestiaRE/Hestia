@@ -4,10 +4,8 @@
 #
 # example: h-delete-sys-sieve
 #
-# Unwires and uninstalls sieve: exim's SIEVE macro back to inert, sieve packages purged, and
-# 15-lda.conf restored to the base variant (it belongs to dovecot-core, so the purge does not bring
-# it back). On dovecot 2.4 the sieve package itself STAYS - core depends on it there - and only its
-# configuration goes. Per-account scripts stay in the maildirs.
+# Moves the autoreplies back to exim and removes sieve. On dovecot 2.4 the sieve package stays, core
+# depends on it. Per-account scripts stay in the maildirs and no longer run.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

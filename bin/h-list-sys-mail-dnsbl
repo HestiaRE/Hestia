@@ -4,7 +4,7 @@
 #
 # example: h-list-sys-mail-dnsbl json
 #
-# This function lists the DNSBL servers exim checks incoming mail against.
+# Lists the DNSBL zones exim checks incoming mail against.
 
 format=${1-shell}
 

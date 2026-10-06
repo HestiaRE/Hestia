@@ -4,15 +4,8 @@
 #
 # example: h-add-sys-sieve
 #
-# Installs dovecot-managesieved + dovecot-sieve: the version-specific sieve conf.d
-# overlay enables sieve on port 4190 (localhost-only) and stores per-account
-# scripts in the maildir. exim's SIEVE macro switches clean local delivery to
-# dovecot-lda so scripts run at delivery; spam keeps the direct .Spam appendfile.
-#
-# QUIRK: sieve runs ONLY on non-spam mail — rspamd-tagged spam bypasses dovecot-lda
-# and lands in .Spam directly, so customer sieve rules never see it (spam foldering
-# is exim's job). Over-quota behaviour is identical on both paths (defer, not bounce)
-# via quota_full_tempfail + return_fail_output.
+# ManageSieve on loopback for the webmails, delivery through LMTP so the scripts run, autoreplies moved
+# into Sieve. Mail exim files as spam goes to .Spam directly, so customer rules never see it.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

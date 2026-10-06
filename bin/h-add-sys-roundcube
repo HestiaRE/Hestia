@@ -2,9 +2,10 @@
 # info: Install Roundcube webmail client
 # options: NONE
 #
-# This function installs Roundcube from OS repositories, sets up a
-# dedicated MySQL database, deploys the HestiaRE password driver, and
-# configures panel integration.
+# example: h-add-sys-roundcube
+#
+# Roundcube from the OS packages on MariaDB when the box has it, SQLite otherwise, with the HestiaRE
+# password driver, served by the panel Caddy.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

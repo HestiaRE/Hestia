@@ -1,11 +1,10 @@
 #!/bin/bash
 # info: delete exim mail queue
-# options: none
+# options: NONE
 #
 # example: h-delete-sys-mail-queue
 #
-# This function checks for messages stuck in the exim mail queue
-# and prompts the user to clear the queue if desired.
+# Asks before removing every message in the exim queue; interactive only.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

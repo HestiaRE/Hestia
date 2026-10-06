@@ -2,9 +2,9 @@
 # info: delete a dnsbl host
 # options: HOST [RESTART]
 #
-# example: h-delete-sys-mail-dnsbl zen.spamhaus.org
+# example: h-delete-sys-mail-dnsbl bl.spamcop.net
 #
-# This function removes a DNSBL server from the list exim checks.
+# Removes a DNSBL zone from the list exim checks.
 
 host=$1
 

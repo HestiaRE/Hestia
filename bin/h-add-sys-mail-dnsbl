@@ -2,9 +2,9 @@
 # info: add a dnsbl host for exim to check
 # options: HOST [RESTART]
 #
-# example: h-add-sys-mail-dnsbl bl.spamcop.net
+# example: h-add-sys-mail-dnsbl zen.spamhaus.org
 #
-# This function adds a DNSBL server exim checks incoming mail against.
+# Adds a DNSBL zone to the list exim checks incoming mail against, optionally with exim's != result filter.
 
 host=$1
 

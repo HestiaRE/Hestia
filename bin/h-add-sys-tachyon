@@ -2,14 +2,10 @@
 # info: Install Tachyon webmail client
 # options: NONE
 #
-# This function installs the Tachyon webmail client (the maintained SnappyMail fork,
-# adopted in #584 after SnappyMail upstream went dormant).
+# example: h-add-sys-tachyon
 #
-# Source is the GitHub release for the version pinned in share/manifest.json: a pinned
-# version is the only one we can verify.
-#
-# Fetched and verified before anything is removed - an unreachable source must not take an
-# existing installation down with it.
+# Installs or upgrades Tachyon, the maintained SnappyMail fork, at the release pinned in share/manifest.json.
+# Everything is fetched and verified before anything is removed.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

@@ -4,7 +4,7 @@
 #
 # example: h-list-sys-dovecot-config
 #
-# This function for obtaining the list of dovecot config parameters.
+# The dovecot config files the panel editor offers.
 
 format=${1-shell}
 

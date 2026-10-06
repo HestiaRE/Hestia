@@ -77,10 +77,11 @@ if [ "$RC_DB_BACKEND" = "mysql" ]; then
 	db_client="mysql"
 	[ -x /usr/bin/mariadb ] && db_client="mariadb"
 
-	# bail on a foreign 'roundcube' DB - CREATE IF NOT EXISTS would adopt it and write
-	# a mismatched password, leaving a silently-broken config
-	if $db_client -e "SHOW DATABASES LIKE 'roundcube'" 2> /dev/null | grep -q 'roundcube'; then
-		echo "ERROR: Database 'roundcube' already exists but is not managed by this HestiaRE instance."
+	# A 'roundcube' DB with tables is someone's data; an empty one is what an aborted run leaves, and is reused.
+	rc_tables=$($db_client -N -e \
+		"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='roundcube'" 2> /dev/null)
+	if [ "${rc_tables:-0}" != 0 ]; then
+		echo "ERROR: Database 'roundcube' already exists and holds tables, it is not reused."
 		echo "       Remove it manually first, or run h-delete-sys-roundcube if it was a previous install."
 		exit 1
 	fi

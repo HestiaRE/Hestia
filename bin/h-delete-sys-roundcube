@@ -44,7 +44,7 @@ fi
 # Remove packages (both DB backend variants listed - only the installed one is purged)
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y purge \
 	roundcube roundcube-core roundcube-mysql roundcube-sqlite3 roundcube-plugins
-DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y autoremove
+# No autoremove: it acts on every orphan of the box, not on what this purge left.
 
 # INTENTIONAL DATA LOSS: the roundcube DB (UI prefs + contacts, NOT mail - that
 # lives in Dovecot) is dropped; no migration across a delete/re-add cycle.

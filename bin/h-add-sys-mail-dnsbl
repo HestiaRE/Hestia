@@ -51,6 +51,8 @@ if grep -qxF -- "$host" "$DNSBL_CONF"; then
 	check_result "$E_EXISTS" "dnsbl host $host already exists"
 fi
 
+# A hand-edited file without a final newline would glue the new host onto the last one.
+[ ! -s "$DNSBL_CONF" ] || [ -z "$(tail -c1 "$DNSBL_CONF")" ] || echo >> "$DNSBL_CONF"
 echo "$host" >> "$DNSBL_CONF"
 chmod 644 "$DNSBL_CONF"
 

@@ -1595,7 +1595,8 @@ is_login_name_reserved() {
 # Domain format validator
 is_domain_format_valid() {
 	object_name=${2-domain}
-	exclude='[][!@#$^&*()+={},<>?_/\\"|'\''`;%[:space:]]'
+	# ~ starts an nginx server_name regex, : is no part of a host name.
+	exclude='[][!@#$^&*()+={},<>?_/\\"|'\''`;%~:[:space:]]'
 	if [[ $1 =~ $exclude ]] \
 		|| [[ $1 =~ ^[0-9]+$ ]] \
 		|| [[ $1 =~ \.\. ]] \
@@ -1642,7 +1643,7 @@ spam_list_write() { # FILE COMMA_LIST
 # Alias forman validator
 is_alias_format_valid() {
 	for object in ${1//,/ }; do
-		exclude='[][!@#$^&()+={},<>?_/\\"|'\''`;%[:space:]]'
+		exclude='[][!@#$^&()+={},<>?_/\\"|'\''`;%~:[:space:]]'
 		if [[ $object =~ $exclude ]] \
 			|| [[ $object =~ \.\. ]] \
 			|| [[ $object =~ ^- ]] \

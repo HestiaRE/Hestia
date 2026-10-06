@@ -291,6 +291,12 @@ for auth in $authz; do
 		check_result "$E_CONNECT" "Let's Encrypt acme/authz bad status $status ($domain)"
 	fi
 
+	# A name LE validated recently has no pending challenge and needs none.
+	if [ "$(echo "$answer" | sed '1,/^\r*$/d' | jq -r '.status' 2> /dev/null)" = 'valid' ]; then
+		debug_log "Step 3" "- authorization already valid, no challenge"
+		continue
+	fi
+
 	# Accepting challenge / STEP 4
 	# The token names a file below: base64url only.
 	if [[ ! "$token" =~ ^[A-Za-z0-9_-]+$ ]]; then

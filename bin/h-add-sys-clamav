@@ -135,6 +135,11 @@ fi
 # Arm ONLY when clamd answers — otherwise leave the macro off and stay honest.
 if [ "$clamd_up" = 1 ]; then
 	sed -i 's/^#CLAMD = yes/CLAMD = yes/' "$EXIM_TPL"
+	# The macro is fail-open, so a template without the line would scan nothing and say nothing.
+	if ! grep -q '^CLAMD = yes' "$EXIM_TPL"; then
+		echo "ERROR: no CLAMD macro in $EXIM_TPL, antivirus is NOT active."
+		exit "$E_NOTEXIST"
+	fi
 	systemctl restart exim4
 	if ! systemctl is-active --quiet exim4; then
 		echo "ERROR: exim4 failed to restart with ClamAV enabled."

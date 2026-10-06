@@ -81,7 +81,8 @@ for _p in dovecot-managesieved dovecot-lmtpd; do
 done
 
 cp -f "$DCDIR/sieve/"* /etc/dovecot/conf.d/
-sieve_managesieve_bind_local || echo "Warning!: ManageSieve could not be bound to loopback, it listens on every address." >&2
+sieve_managesieve_bind_local \
+	|| echo "Warning!: ManageSieve could not be bound to loopback, it listens on every address." >&2
 # global script dir referenced by the sieve config (pipe/global extensions)
 mkdir -p /etc/dovecot/sieve
 
@@ -122,11 +123,6 @@ vacation_all sieve
 vacation_rc=$?
 
 echo "sieve is now active (ManageSieve on 4190, filters and vacation in the webmail)."
-# Into the exit code, not only the log: a caller reading the status must see the missing half (#746).
-if [ -n "$learn_failures" ]; then
-	check_result "$E_PARSING" "IMAP-triggered spam learning is NOT wired:$learn_failures"
-fi
-[ "$vacation_rc" -eq 0 ] || check_result "$E_UPDATE" "some autoreplies were not moved to Sieve, exim still answers them"
 
 #----------------------------------------------------------#
 #                       Hestia                             #
@@ -134,6 +130,15 @@ fi
 
 # Logging
 $BIN/h-log-action "system" "Info" "System" "Installed sieve mail filtering."
+
+# Into the exit code, not only the log: a caller reading the status must see the missing half (#746).
+# Both halves in one message, logged first: the install itself did happen.
+learn_msg="IMAP-triggered spam learning is NOT wired:$learn_failures"
+vacation_msg="some autoreplies were not moved to Sieve, exim still answers them"
+if [ "$vacation_rc" -ne 0 ]; then
+	check_result "$E_UPDATE" "$vacation_msg${learn_failures:+; $learn_msg}"
+fi
+[ -z "$learn_failures" ] || check_result "$E_PARSING" "$learn_msg"
 log_event "$OK" "$ARGUMENTS"
 
 exit

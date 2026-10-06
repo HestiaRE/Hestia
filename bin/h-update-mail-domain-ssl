@@ -57,6 +57,7 @@ cp -f $USER_DATA/ssl/mail.$domain.pem $HOMEDIR/$user/conf/mail/$domain/ssl/$doma
 if [ -e "$USER_DATA/ssl/mail.$domain.ca" ]; then
 	cp -f $USER_DATA/ssl/mail.$domain.ca $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.ca
 fi
+mail_ssl_modes "$user" "$domain"
 
 $BIN/h-restart-mail "$restart"
 check_result $? "Mail restart failed" > /dev/null

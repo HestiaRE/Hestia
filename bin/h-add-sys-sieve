@@ -113,7 +113,9 @@ if ! grep -q '^SIEVE = yes' /etc/exim4/exim4.conf.template; then
 fi
 systemctl restart exim4
 if ! systemctl is-active --quiet exim4; then
-	echo "ERROR: exim4 failed to restart with sieve delivery enabled."
+	sed -i 's/^SIEVE = yes/#SIEVE = yes/' /etc/exim4/exim4.conf.template
+	systemctl restart exim4
+	echo "ERROR: exim4 failed to restart with sieve delivery enabled, it runs again without it."
 	exit "$E_RESTART"
 fi
 

@@ -124,7 +124,12 @@ if ! grep -q '^RSPAMD = yes' /etc/exim4/exim4.conf.template; then
 fi
 systemctl restart exim4
 if ! systemctl is-active --quiet exim4; then
-	echo "ERROR: exim4 failed to restart with rspamd enabled."
+	sed -i -e 's/^RSPAMD = yes/#RSPAMD = yes/' \
+		-e 's/^SPAM_SCORE = /#SPAM_SCORE = /' \
+		-e 's/^SPAM_REJECT_SCORE = /#SPAM_REJECT_SCORE = /' \
+		/etc/exim4/exim4.conf.template
+	systemctl restart exim4
+	echo "ERROR: exim4 failed to restart with rspamd enabled, it runs again without it."
 	exit "$E_RESTART"
 fi
 

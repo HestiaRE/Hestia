@@ -32,8 +32,6 @@ if [ "$(id -u)" != '0' ]; then
 	exit 10
 fi
 
-if [ -z "$HESTIA" ]; then HESTIA="/usr/local/hestia"; fi
-
 # DB backend, decided ONCE here and recorded in the written config (the artefact every
 # later path reads): MySQL when the box has it, otherwise SQLite (roundcube-sqlite3 from
 # the OS repo - one file, no daemon). A MariaDB added later never flips an existing

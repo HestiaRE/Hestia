@@ -70,19 +70,15 @@ plain_list() {
 #----------------------------------------------------------#
 
 # Defining config path
-if [ -e '/etc/dovecot.conf' ]; then
-	config_path='/etc/dovecot.conf'
-else
-	config_path='/etc/dovecot/dovecot.conf'
-	config_path1='/etc/dovecot/conf.d/10-auth.conf'
-	config_path2='/etc/dovecot/conf.d/10-logging.conf'
-	config_path3='/etc/dovecot/conf.d/10-mail.conf'
-	config_path4='/etc/dovecot/conf.d/10-master.conf'
-	config_path5='/etc/dovecot/conf.d/10-ssl.conf'
-	config_path6='/etc/dovecot/conf.d/20-imap.conf'
-	config_path7='/etc/dovecot/conf.d/20-pop3.conf'
-	config_path8='/etc/dovecot/conf.d/auth-passwdfile.conf.ext'
-fi
+config_path='/etc/dovecot/dovecot.conf'
+config_path1='/etc/dovecot/conf.d/10-auth.conf'
+config_path2='/etc/dovecot/conf.d/10-logging.conf'
+config_path3='/etc/dovecot/conf.d/10-mail.conf'
+config_path4='/etc/dovecot/conf.d/10-master.conf'
+config_path5='/etc/dovecot/conf.d/10-ssl.conf'
+config_path6='/etc/dovecot/conf.d/20-imap.conf'
+config_path7='/etc/dovecot/conf.d/20-pop3.conf'
+config_path8='/etc/dovecot/conf.d/auth-passwdfile.conf.ext'
 
 # Listing data
 case $format in

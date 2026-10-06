@@ -28,8 +28,6 @@ if [ "$(id -u)" != '0' ]; then
 	exit 10
 fi
 
-if [ -z "$HESTIA" ]; then HESTIA="/usr/local/hestia"; fi
-
 # Any artefact is enough: the hint of a failed h-add-sys-roundcube sends the admin here before the token exists.
 if [[ ",$WEBMAIL_SYSTEM," != *,roundcube,* ]] && [ ! -e /etc/php/hestia/fpm/pool.d/roundcube.conf ] \
 	&& [ ! -e /etc/caddy/webmail-roundcube.conf ] && [ ! -e "$RC_CONFIG_DIR" ]; then

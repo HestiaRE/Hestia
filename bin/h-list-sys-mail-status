@@ -37,13 +37,7 @@ echo -en "\n---------------------------------------------"
 echo -en "---------------------------------------------\n\n"
 
 # Displaying exim stats
-if [ -e "/var/log/exim4/mainlog" ]; then
-	eximstats /var/log/exim4/mainlog 2> /dev/null
-else
-	eximstats /var/log/exim/main.log 2> /dev/null
-fi
-
-if [ $? -ne 0 ]; then
+if ! eximstats /var/log/exim4/mainlog 2> /dev/null; then
 	echo "[Exim4] No valid log lines read"
 	exit 0
 fi

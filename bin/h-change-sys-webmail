@@ -18,9 +18,6 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Get existing system webmail alias
-export WEBMAIL_ALIAS="$WEBMAIL_ALIAS"
-
 # Define aliases
 OLD_ALIAS=$WEBMAIL_ALIAS
 NEW_ALIAS=$1

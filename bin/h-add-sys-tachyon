@@ -63,6 +63,36 @@ tx_fetch_plugin() {
 }
 
 TX_PLUGINS="change-password change-password-hestia add-x-originating-ip-header"
+TX_PLUGIN_DIR="$TX_CONFIG_DIR/data/_data_/_default_/plugins"
+declare -A tx_plugin_tmp
+
+# All fetched and verified before anything is touched.
+tx_fetch_plugins() {
+	local p q
+	for p in "$@"; do
+		tx_plugin_tmp[$p]="$(mktemp -t tachyon-plugin.XXXXXX.tgz)"
+		if ! tx_fetch_plugin "$p" "${tx_plugin_tmp[$p]}"; then
+			for q in "$@"; do rm -f "${tx_plugin_tmp[$q]}"; done
+			echo "ERROR: could not fetch/verify Tachyon plugin $p (pin in share/manifest.json)"
+			return 1
+		fi
+	done
+}
+
+# Over the installed ones: a plugin's config lives in configs/, not in its directory.
+tx_unpack_plugins() {
+	local p
+	mkdir -p "$TX_PLUGIN_DIR"
+	for p in "$@"; do
+		tar -xzf "${tx_plugin_tmp[$p]}" -C "$TX_PLUGIN_DIR/" || return 1
+		rm -f "${tx_plugin_tmp[$p]}"
+		chown -R caddy:caddy "$TX_PLUGIN_DIR/$p"
+		chmod -R 750 "$TX_PLUGIN_DIR/$p"
+	done
+	# Ours on top of the pinned driver: it names the client, for the mail password grace.
+	cp -f "$HESTIA/share/tachyon/plugins/change-password-hestia/driver.php" \
+		"$TX_PLUGIN_DIR/change-password-hestia/driver.php"
+}
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -144,18 +174,11 @@ if [ "$UPDATE" == "no" ]; then
 		exit 2
 	fi
 
-	# Plugins under the same rule: all fetched and verified before anything is removed.
-	declare -A tx_plugin_tmp
-	for p in $TX_PLUGINS; do
-		tx_plugin_tmp[$p]="$(mktemp -t tachyon-plugin.XXXXXX.tgz)"
-		if ! tx_fetch_plugin "$p" "${tx_plugin_tmp[$p]}"; then
-			rm -f "$tx_tmp"
-			for q in $TX_PLUGINS; do rm -f "${tx_plugin_tmp[$q]}"; done
-			echo "ERROR: could not fetch/verify Tachyon plugin $p (pin in share/manifest.json)"
-			echo "       Installation aborted - nothing was changed."
-			exit 2
-		fi
-	done
+	if ! tx_fetch_plugins $TX_PLUGINS; then
+		rm -f "$tx_tmp"
+		echo "       Installation aborted - nothing was changed."
+		exit 2
+	fi
 
 	rm -f -r $TX_INSTALL_DIR
 	rm -f -r $TX_CONFIG_DIR
@@ -190,15 +213,11 @@ if [ "$UPDATE" == "no" ]; then
 	# Create cache folder and set permissions
 	mkdir -p "$TX_CONFIG_DIR/data/_data_/_default_/cache/"
 
-	# Unpack the verified plugins; install.php only writes their config and enables them.
-	mkdir -p "$TX_CONFIG_DIR/data/_data_/_default_/plugins/"
-	for p in $TX_PLUGINS; do
-		tar -xzf "${tx_plugin_tmp[$p]}" -C "$TX_CONFIG_DIR/data/_data_/_default_/plugins/"
-		rm -f "${tx_plugin_tmp[$p]}"
-	done
-	# Ours on top of the pinned driver: it names the client, for the mail password grace (#1155).
-	cp -f "$HESTIA/share/tachyon/plugins/change-password-hestia/driver.php" \
-		"$TX_CONFIG_DIR/data/_data_/_default_/plugins/change-password-hestia/driver.php"
+	# install.php only writes their config and enables them.
+	if ! tx_unpack_plugins $TX_PLUGINS; then
+		echo "ERROR: a Tachyon plugin did not unpack. Installation aborted."
+		exit 2
+	fi
 
 	chown -R www-data:www-data ./data
 
@@ -273,6 +292,19 @@ else
 		exit 2
 	fi
 
+	# The plugins come from the same release, so a bump of the pin may carry new ones.
+	tx_stale=()
+	for p in $TX_PLUGINS; do
+		pin=$(manifest_get ".software_versions.tachyon_plugins[\"$p\"].version")
+		grep -qE "VERSION[[:space:]]*=[[:space:]]*'${pin//./\\.}'" "$TX_PLUGIN_DIR/$p/index.php" 2> /dev/null \
+			|| tx_stale+=("$p")
+	done
+	if [ "${#tx_stale[@]}" -gt 0 ] && ! tx_fetch_plugins "${tx_stale[@]}"; then
+		rm -f "${TX_INSTALL_DIR}/${TX_FILE}"
+		echo "       Update aborted - the installed version is untouched."
+		exit 2
+	fi
+
 	version=$(cat $TX_INSTALL_DIR/data/VERSION)
 	cd "$TX_INSTALL_DIR" || exit 2
 	tx_peek=$(mktemp -d -t tachyon-peek.XXXXXX)
@@ -301,6 +333,9 @@ else
 		version="$version_source"
 	fi
 	rm -fr "$tx_peek"
+	if [ "${#tx_stale[@]}" -gt 0 ] && ! tx_unpack_plugins "${tx_stale[@]}"; then
+		check_result "$E_PARSING" "a Tachyon $tx_v plugin did not unpack"
+	fi
 	sys_key_token_set WEBMAIL_SYSTEM add tachyon > /dev/null \
 		|| check_result "$E_UPDATE" "WEBMAIL_SYSTEM: could not record tachyon"
 fi

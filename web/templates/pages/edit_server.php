@@ -413,7 +413,7 @@
 								<span class="u-ml5">
 									<?= tohtml($_SESSION["ANTIVIRUS_SYSTEM"]) ?>
 								</span>
-								<a href="/edit/server/<?= tohtml(rawurlencode($_SESSION["ANTIVIRUS_SYSTEM"])) ?>/" class="u-ml5">
+								<a href="/edit/server/clamav-daemon/" class="u-ml5">
 									<i class="fas fa-pencil icon-orange"></i>
 								</a>
 							</p>

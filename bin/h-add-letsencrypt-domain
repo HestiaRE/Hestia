@@ -319,7 +319,8 @@ for auth in $authz; do
 			check_result $? "Web restart failed" > /dev/null
 		fi
 	else
-		if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
+		# The webmail vhost answers here; on mail-only that is nginx with no WEB_SYSTEM at all.
+		if [ "$(webmail_front)" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
 			conf="$HOMEDIR/$user/conf/mail/$root_domain/nginx.conf_letsencrypt"
 			sconf="$HOMEDIR/$user/conf/mail/$root_domain/nginx.ssl.conf_letsencrypt"
 			echo 'location ~ "^/\.well-known/acme-challenge/(.*)$" {' \

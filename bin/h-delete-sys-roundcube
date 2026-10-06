@@ -26,6 +26,10 @@ if [[ ",$WEBMAIL_SYSTEM," != *,roundcube,* ]] && [ ! -e /etc/php/hestia/fpm/pool
 	exit 1
 fi
 
+# Ours, not dpkg's, and gone before the purge, which leaves a directory that still holds a file.
+rm -f "/usr/share/roundcube/plugins/password/drivers/hestia.php"
+rm -f /usr/share/roundcube/plugins/{newmail_notifier,zipdownload}/config.inc.php
+
 # Both DB backend packages are listed, apt purges the one that is installed.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y purge \
 	roundcube roundcube-core roundcube-mysql roundcube-sqlite3 roundcube-plugins
@@ -45,10 +49,6 @@ rm -rf /var/lib/roundcube/db
 
 # Holds the DB password.
 rm -f "$RC_CONFIG_DIR/debian-db.php"
-
-# Ours, not dpkg's: the purge leaves them.
-rm -f "/usr/share/roundcube/plugins/password/drivers/hestia.php"
-rm -f /usr/share/roundcube/plugins/{newmail_notifier,zipdownload}/config.inc.php
 
 # What the add created beside the package: the purge leaves non-empty dirs, the login log holds customer addresses.
 rm -rf /etc/php/hestia/roundcube-cli /var/log/roundcube /var/lib/roundcube/temp

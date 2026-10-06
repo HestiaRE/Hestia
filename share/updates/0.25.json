@@ -1,0 +1,22 @@
+{
+  "version": "0.25",
+  "entries": [
+    {
+      "id": "mail-ssl-renewal-group",
+      "description": "A renewed mail certificate was left root:root, so exim failed TLS on 465/587 for that domain until a rebuild; the files get user:mail again",
+      "conditions": [
+        {
+          "type": "file_group_differs",
+          "path": "/home/*/conf/mail/*/ssl/*",
+          "value": "mail"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "mail_ssl_modes_apply"
+      },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

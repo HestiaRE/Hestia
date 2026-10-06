@@ -64,6 +64,60 @@
         "/etc/security/namespace.d/hestia-jail.init"
       ],
       "reversible": true
+    },
+    {
+      "id": "remove-h-schedule-letsencrypt-domain",
+      "description": "h-schedule-letsencrypt-domain is gone: nothing scheduled through it, the panel orders certificates directly",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-cron-letsencrypt-job",
+      "description": "h-add-cron-letsencrypt-job is gone with the queue it served",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-letsencrypt-pipe",
+      "description": "The Let's Encrypt queue is gone; every certificate order left its empty pipe behind",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/queue/letsencrypt.pipe"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/etc/hestia/queue/letsencrypt.pipe"
+      },
+      "paths": [
+        "/etc/hestia/queue/letsencrypt.pipe"
+      ],
+      "reversible": false
     }
   ]
 }

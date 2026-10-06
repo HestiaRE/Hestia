@@ -60,7 +60,7 @@ $BIN/h-change-sys-config-value 'WEBMAIL_ALIAS' "$NEW_ALIAS"
 
 for row in "${rows[@]}"; do
 	IFS='|' read -r user domain webmail <<< "$row"
-	$BIN/h-add-mail-domain-webmail "$user" "$domain" "$webmail"
+	$BIN/h-add-mail-domain-webmail "$user" "$domain" "$webmail" 'no'
 done
 
 if [ -s /etc/apache2/apache2.conf ]; then

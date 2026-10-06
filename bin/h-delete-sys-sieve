@@ -45,7 +45,8 @@ fi
 #----------------------------------------------------------#
 
 # While doveadm can still write the scripts: exim takes over every vacation that is on right now.
-vacation_all exim || echo "Warning!: not every autoreply was moved back to exim." >&2
+vacation_rc=0
+vacation_all exim || vacation_rc=1
 
 # Unwire exim first: clean local delivery back to the appendfile transport
 sed -i 's/^SIEVE = yes/#SIEVE = yes/' /etc/exim4/exim4.conf.template
@@ -116,6 +117,11 @@ echo "sieve has been removed (stored scripts remain in the maildirs)."
 
 # Logging
 $BIN/h-log-action "system" "Info" "System" "Removed sieve mail filtering."
+
+# Filters and forwards stop with the service, by design; the admin learns how many.
+scripts=$(find "$HOMEDIR"/*/mail -mindepth 3 -maxdepth 3 -name dovecot.sieve 2> /dev/null | wc -l)
+[ "$scripts" -eq 0 ] || echo "NOTE: $scripts mailboxes keep a Sieve script, its filters and forwards no longer run."
+[ "$vacation_rc" -eq 0 ] || check_result "$E_UPDATE" "not every autoreply was moved back to exim, see the warnings above"
 log_event "$OK" "$ARGUMENTS"
 
 exit

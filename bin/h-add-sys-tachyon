@@ -110,6 +110,11 @@ fi
 # Get current version
 if [ -f "/var/lib/tachyon/data/VERSION" ]; then
 	version=$(cat $TX_INSTALL_DIR/data/VERSION)
+	# The pool is written last; without it an earlier run stopped halfway, and wiping here could cost contacts.
+	if [ ! -f /etc/php/hestia/fpm/pool.d/tachyon.conf ]; then
+		echo "ERROR: Tachyon $version is unpacked but not set up. Run h-delete-sys-tachyon, then this command again."
+		exit 2
+	fi
 	if [ "$version" == "$tx_v" ]; then
 		# The one component whose target state is more than presence: the pin. Standing on it is success,
 		# not failure (E13, #945). rc 2 here also meant "no pin", "download failed" and "no sqlite driver",
@@ -221,7 +226,11 @@ if [ "$UPDATE" == "no" ]; then
 		exit 2
 	fi
 	panel_php="php$(cat /etc/php/hestia/php-version)"
-	env PHP_INI_SCAN_DIR=/etc/php/hestia/fpm/conf.d "$panel_php" -f $HESTIA/share/tachyon/install.php "admin_$key" "admin_$suffix" "$admin_password" "$r" "$BACKEND_PORT" "$TX_DB_BACKEND"
+	if ! env PHP_INI_SCAN_DIR=/etc/php/hestia/fpm/conf.d "$panel_php" -f $HESTIA/share/tachyon/install.php \
+		"admin_$key" "admin_$suffix" "$admin_password" "$r" "$BACKEND_PORT" "$TX_DB_BACKEND"; then
+		echo "ERROR: Tachyon setup (install.php) failed. Installation aborted."
+		exit 2
+	fi
 
 	# back to caddy (the FPM pool user); explicit 0750 keeps the data dir caddy-private
 	chown -R caddy:caddy $TX_CONFIG_DIR/

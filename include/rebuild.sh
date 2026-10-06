@@ -296,11 +296,13 @@ rebuild_web_domain_conf() {
 		/var/log/$WEB_SYSTEM/domains/$domain.log \
 		/var/log/$WEB_SYSTEM/domains/$domain.error.log
 
-	# Creating symlinks
-	cd $HOMEDIR/$user/web/$domain/logs/
-	ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log .
-	ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.error.log .
-	cd /
+	# root writes into a customer-owned directory here, so never through a link.
+	if [ -L "$HOMEDIR/$user/web/$domain/logs" ]; then
+		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a symlink, log links not created" >&2
+	else
+		ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
+			"$HOMEDIR/$user/web/$domain/logs/"
+	fi
 
 	# A restore or rebuild recreates the log, and fail2ban only globs at jail start. Idempotent.
 	if [ -n "$FIREWALL_EXTENSION" ]; then

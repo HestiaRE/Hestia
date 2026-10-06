@@ -133,6 +133,7 @@ done
 touch /var/log/$WEB_SYSTEM/domains/$domain.bytes \
 	/var/log/$WEB_SYSTEM/domains/$domain.log \
 	/var/log/$WEB_SYSTEM/domains/$domain.error.log
+[ -L "$HOMEDIR/$user/web/$domain/logs" ] && check_result "$E_FORBIDEN" "$HOMEDIR/$user/web/$domain/logs is a symlink"
 ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
 	$HOMEDIR/$user/web/$domain/logs/
 

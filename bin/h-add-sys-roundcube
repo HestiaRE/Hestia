@@ -91,7 +91,9 @@ if [ "$RC_DB_BACKEND" = "mysql" ]; then
 			echo "ERROR: Failed to create roundcube database"
 			exit 1
 		}
-	$db_client -e "CREATE USER IF NOT EXISTS 'roundcube'@'localhost' IDENTIFIED BY '$dbpass'" \
+	# ALTER as well: a user left from an earlier install would otherwise keep its old password.
+	$db_client -e "CREATE USER IF NOT EXISTS 'roundcube'@'localhost' IDENTIFIED BY '$dbpass';
+		ALTER USER 'roundcube'@'localhost' IDENTIFIED BY '$dbpass'" \
 		|| {
 			echo "ERROR: Failed to create roundcube database user"
 			exit 1

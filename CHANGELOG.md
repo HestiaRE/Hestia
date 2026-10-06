@@ -61,6 +61,7 @@ before v0.20.0 are folded into one section by theme.
   it can read back.
 - **Mail account commands are stricter about account names, passwords and the mailbox directory** (#1176).
 - **Mail domain commands are stricter about what they write and where** (#1176).
+- **Tachyon webmail serves only what belongs to the browser** (#1176).
 
 ### Removed
 

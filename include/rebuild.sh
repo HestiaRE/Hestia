@@ -49,19 +49,9 @@ rebuild_user_conf() {
 	# band (#388). The archived uid is deliberately ignored: tar resolves ownership by
 	# name on extract, and this runs BEFORE the unpack, so the files land here by
 	# themselves. An existing account keeps its uid.
-	# From the record, never the caller's environment: SHELL is a registry key, so
-	# sanitize_config_file unsets it, and grep -w "" then matches every line of /etc/shells -
-	# head -n1 hands its comment banner to useradd. Off the allowlist becomes nologin, and the
-	# answer must start with / so a comment line can never be it.
-	shell_name=$(sed -n "s/^SHELL='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)
-	list_allowed_shells | grep -qxF "$shell_name" 2> /dev/null || shell_name='nologin'
-	shell=$(grep -w "$shell_name" /etc/shells | grep -m1 '^/')
-	# Picked by existence, not spelling: usrmerge decides which of the two paths is real.
-	if [ -z "$shell" ]; then
-		for _c in /usr/sbin/nologin /sbin/nologin; do
-			[ -x "$_c" ] && shell="$_c" && break
-		done
-	fi
+	# From the record, never the caller's environment: SHELL is a registry key that
+	# sanitize_config_file unsets.
+	shell=$(resolve_login_shell "$(sed -n "s/^SHELL='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)")
 	if ! id "$user" > /dev/null 2>&1; then
 		local user_uid
 		read -r user_uid _ < <(identity_allocate "$user")

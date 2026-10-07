@@ -76,9 +76,7 @@ is_package_valid
 # Parsing package data
 pkg_data=$(cat $CONF_DIR/packages/$package.pkg | egrep -v "TIME|DATE")
 
-# Checking shell
-shell_conf=$(echo "$pkg_data" | grep -m1 'SHELL' | cut -f 2 -d \')
-shell=$(grep -w "$shell_conf" /etc/shells | head -n1)
+shell=$(resolve_login_shell "$(echo "$pkg_data" | grep -m1 '^SHELL=' | cut -f 2 -d \')")
 
 # Adding user
 # Allocated from the panel band, not derived - see include/identity.sh (#388).

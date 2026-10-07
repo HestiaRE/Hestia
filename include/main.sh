@@ -2313,6 +2313,21 @@ list_allowed_shells() {
 	done
 }
 
+# A shell name from a package or a record to its /etc/shells path. Off the allowlist, or not in
+# /etc/shells, it becomes nologin; the answer starts with / so the banner of /etc/shells never is it.
+resolve_login_shell() {
+	local name="$1" path c
+	list_allowed_shells | grep -qxF -- "$name" 2> /dev/null || name='nologin'
+	path=$(grep -w -- "$name" /etc/shells | grep -m1 '^/')
+	# Picked by existence, not spelling: usrmerge decides which of the two paths is real.
+	if [ -z "$path" ]; then
+		for c in /usr/sbin/nologin /sbin/nologin; do
+			[ -x "$c" ] && path="$c" && break
+		done
+	fi
+	echo "$path"
+}
+
 # shell must be one of the curated, /etc/shells-backed login shells
 is_format_valid_shell() {
 	local shell

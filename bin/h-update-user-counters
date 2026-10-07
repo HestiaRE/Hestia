@@ -75,7 +75,7 @@ for user in $user_list; do
 	U_DISK=0
 	U_DISK_DIRS=$(get_user_value '$U_DISK_DIRS')
 	[[ "$U_DISK_DIRS" =~ ^[0-9]+$ ]] || U_DISK_DIRS=0
-	DISK=$((DISK + U_DISK_DIRS))
+	DISK=$U_DISK_DIRS
 	U_DISK_WEB=0
 	U_DISK_MAIL=0
 	U_DISK_DB=0

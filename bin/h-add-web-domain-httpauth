@@ -83,7 +83,7 @@ else
 fi
 
 # Adding httpasswd user
-auth_hash=$($BIN/h-generate-password-hash htpasswd htpasswd $password)
+auth_hash=$(printf '%s\n' "$password" | $BIN/h-generate-password-hash htpasswd htpasswd)
 touch $htpasswd
 chmod 644 $htpasswd $htaccess
 chgrp $user $htpasswd $htaccess

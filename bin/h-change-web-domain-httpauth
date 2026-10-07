@@ -56,7 +56,7 @@ fi
 #----------------------------------------------------------#
 
 # Adding httpasswd user
-auth_hash=$($BIN/h-generate-password-hash htpasswd htpasswd "$password")
+auth_hash=$(printf '%s\n' "$password" | $BIN/h-generate-password-hash htpasswd htpasswd)
 touch $htpasswd
 sed -i "/^$auth_user:/d" $htpasswd
 echo "$auth_user:$auth_hash" >> $htpasswd

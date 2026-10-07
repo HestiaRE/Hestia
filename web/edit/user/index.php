@@ -19,8 +19,9 @@ if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 	$user = $_GET["user"];
 	$v_username = $_GET["user"];
 } else {
-	$user = $_SESSION["user"];
-	$v_username = $_SESSION["user"];
+	// The effective user: while an admin impersonates, $_SESSION["user"] is the admin.
+	$user = !empty($_SESSION["look"]) ? $_SESSION["look"] : $_SESSION["user"];
+	$v_username = $user;
 }
 
 // Fail closed: if ROOT_USER is unknown the guard below can't identify what it protects, so

@@ -39,6 +39,7 @@ check_args '1' "$#" 'USER [RESTART]'
 }
 
 is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
 
 # System module must be installed first (secret + code + port)
 if [ ! -s "$SECRET_FILE" ] || [ ! -f "$CODE_DIR/index.php" ]; then
@@ -69,10 +70,14 @@ fi
 # Customer-owned session/upload dir (the one the web pool uses; persists over reboot)
 home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
 
-# Pool (runs as the customer)
+# Pool (runs as the customer). A pool php-fpm refuses would take every site of that version down at its next start.
 mkdir -p "$(dirname "$pool")"
 sed "s|%user%|$user|g" "$HESTIA/share/filemanager/fpm-pool.tpl" > "$pool"
 chmod 644 "$pool"
+if ! "/usr/sbin/php-fpm$ver" -t > /dev/null 2>&1; then
+	rm -f "$pool"
+	check_result "$E_INVALID" "php$ver-fpm config test fails with the file manager pool for $user"
+fi
 systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
 
 # Wait for the pool's listen socket before returning: php-fpm creates it a moment

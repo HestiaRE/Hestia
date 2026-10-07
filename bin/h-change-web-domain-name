@@ -101,6 +101,10 @@ if [ -n "$PROXY_SYSTEM" ]; then
 	rm -f "/etc/nginx/conf.d/cache-zone.$domain.conf"
 	rm -rf "/var/cache/nginx/$domain"
 fi
+if [ "$WEB_SYSTEM" = 'nginx' ]; then
+	remove_pool_zone /etc/nginx/conf.d/fastcgi_cache_pool.conf "$domain"
+	rm -rf "/var/cache/nginx/micro/$domain"
+fi
 
 if [ -n "$BACKEND" ]; then
 	prepare_web_backend

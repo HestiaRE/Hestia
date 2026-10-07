@@ -58,8 +58,8 @@ json_list() {
 
 shell_list() {
 	IFS=$'\n'
-	echo "DATE~TIME~IP~SESSION~ACTIVE~STATUS"
-	echo "----~----~--~-----------~------"
+	echo "DATE~TIME~IP~ACTION~STATUS~USER_AGENT~SESSION~ACTIVE"
+	echo "----~----~--~------~------~----------~-------~------"
 	for str in $logs; do
 		DATE=$(echo "$str" | cut -f 2 -d \')
 		TIME=$(echo "$str" | cut -f 4 -d \')

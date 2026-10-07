@@ -234,7 +234,7 @@ php_module_pkgs() {
 # apt_key_fetch NAME URL KEYRING: an external repo's signing key, kept only as the key whose fingerprint
 # share/manifest.json pins. Exported from a scratch keyring, so nothing else the download carries becomes trusted.
 apt_key_fetch() {
-	local want d rc=1
+	local want d got rc=1
 	want=$(jq -r --arg n "$1" '.software_versions.apt_key_fpr[$n] // empty' "${HESTIA:-/usr/local/hestia}/share/manifest.json" 2> /dev/null)
 	[ -n "$want" ] || {
 		echo "ERROR: no pinned key fingerprint for $1" >&2
@@ -247,6 +247,11 @@ apt_key_fetch() {
 	elif ! gpg --batch --quiet --homedir "$d/gnupg" --import "$d/key" > /dev/null 2>&1 \
 		|| ! gpg --batch --homedir "$d/gnupg" --export "$want" > "$d/keyring" 2> /dev/null || [ ! -s "$d/keyring" ]; then
 		echo "ERROR: the $1 signing key does not carry the pinned fingerprint $want" >&2
+	# The export also matches a subkey, and any certificate can carry the real key as one: the pin is the primary,
+	# and the only one.
+	elif ! got=$(gpg --batch --homedir "$d/gnupg" --with-colons --show-keys "$d/keyring" 2> /dev/null \
+		| awk -F: '$1 == "pub" {p = 1; next} p && $1 == "fpr" {print $10; p = 0}') || [ "$got" != "$want" ]; then
+		echo "ERROR: the $1 signing key's primary is not the pinned fingerprint $want" >&2
 	elif install -m 0644 "$d/keyring" "$3"; then
 		rc=0
 	fi

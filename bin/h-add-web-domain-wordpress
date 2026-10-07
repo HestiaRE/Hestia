@@ -197,7 +197,7 @@ fi
 # CLI context does not write it (no apache detection), so permalinks flipped via wp-cli would
 # 404 until someone saves them in wp-admin - seeded, they work the moment the option changes.
 if [ "$WEB_SYSTEM" = "apache2" ]; then
-	cat > "$docroot/.htaccess" << 'HTACCESS'
+	user_exec tee "$docroot/.htaccess" > /dev/null << 'HTACCESS'
 # BEGIN WordPress
 <IfModule mod_rewrite.c>
 RewriteEngine On
@@ -209,8 +209,6 @@ RewriteRule . /index.php [L]
 </IfModule>
 # END WordPress
 HTACCESS
-	chown "$user":"$user" "$docroot/.htaccess"
-	chmod 644 "$docroot/.htaccess"
 fi
 
 # deterministic cron instead of pageview-triggered wp-cron (DISABLE_WP_CRON is set above);

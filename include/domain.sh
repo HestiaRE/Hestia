@@ -370,6 +370,12 @@ web_stats_auth_clear() {
 	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
 }
 
+# A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
+# "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
+is_web_domain_name_valid() { # DOMAIN
+	[[ "$1" == ?*.?* ]] || check_result "$E_INVALID" "a web domain needs at least two labels :: $1"
+}
+
 # Drops one http auth account; the name is matched as a whole field, a dot in it is no wildcard.
 web_htpasswd_drop() { # FILE NAME
 	[ -f "$1" ] || return 0

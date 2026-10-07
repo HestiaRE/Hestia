@@ -40,8 +40,7 @@ fi
 # Unconditional: POLICY_USER_VIEW_SUSPENDED governs a running suspension, and after this command there
 # is none. Every step is a no-op where the suspend side skipped it (#1055).
 
-# Deleting '!' in front of the password
-/usr/sbin/usermod --unlock $user
+/usr/sbin/usermod --unlock --expiredate '' "$user"
 
 # Unsuspending ftp accounts
 for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do

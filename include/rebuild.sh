@@ -103,9 +103,11 @@ rebuild_user_conf() {
 		echo "Warning: the record of $user carries no usable password hash, the account is locked" >&2
 		/usr/sbin/usermod --lock "$user"
 	fi
-	# Setting the hash unlocks; a suspended record stays locked as h-suspend-user left it.
+	# Setting the hash unlocks; a suspended record stays locked and expired as h-suspend-user left it.
 	if [ "$SUSPENDED" = 'yes' ] && [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
-		/usr/sbin/usermod --lock "$user"
+		/usr/sbin/usermod --lock --expiredate 1 "$user"
+	else
+		/usr/sbin/usermod --expiredate '' "$user"
 	fi
 
 	# The customer owns the home and can put a link where conf was: refused before root touches it.

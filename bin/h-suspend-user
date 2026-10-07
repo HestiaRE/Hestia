@@ -40,8 +40,8 @@ fi
 
 # Only the permissive literal keeps the account open; anything else locks it (#1055).
 if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
-	# Adding '!' in front of the password
-	/usr/sbin/usermod --lock "$user"
+	# The lock stops passwords only; the expiry is what sshd and PAM refuse a key login on.
+	/usr/sbin/usermod --lock --expiredate 1 "$user"
 
 	# Suspending ftp accounts
 	for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do

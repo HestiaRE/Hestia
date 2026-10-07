@@ -44,21 +44,21 @@ case $type in
 			is_web_template_valid "$template"
 		fi
 		read -r template _ <<< "$tpl_accepted"
-		update_user_value "$user" '$WEB_TEMPLATE' "$template"
+		update_user_value "$user" '$WEB_TEMPLATE' "$template" || check_result "$E_NOTEXIST" "WEB_TEMPLATE is missing from the record of $user"
 		;;
 	PROXY)
 		if ! tpl_accepted=$(accept_web_template 'proxy' "$template" strict); then
 			is_proxy_template_valid "$template"
 		fi
 		read -r template _ <<< "$tpl_accepted"
-		update_user_value "$user" '$PROXY_TEMPLATE' "$template"
+		update_user_value "$user" '$PROXY_TEMPLATE' "$template" || check_result "$E_NOTEXIST" "PROXY_TEMPLATE is missing from the record of $user"
 		;;
 	BACKEND)
 		if ! tpl_accepted=$(accept_web_template 'backend' "$template" strict); then
 			is_backend_template_valid "$template"
 		fi
 		read -r template _ <<< "$tpl_accepted"
-		update_user_value "$user" '$BACKEND_TEMPLATE' "$template"
+		update_user_value "$user" '$BACKEND_TEMPLATE' "$template" || check_result "$E_NOTEXIST" "BACKEND_TEMPLATE is missing from the record of $user"
 		;;
 	*) check_args '1' '0' 'USER TYPE TEMPLATE' ;;
 esac

@@ -37,7 +37,7 @@ is_object_unsuspended 'user' 'USER' "$user"
 
 # Changing user contact email
 old_email=$(get_user_value '$CONTACT')
-update_user_value "$user" '$CONTACT' "$email"
+update_user_value "$user" '$CONTACT' "$email" || check_result "$E_NOTEXIST" "CONTACT is missing from the record of $user"
 pw_str=$(grep -n "^$user:" /etc/passwd)
 str=$(echo "$pw_str" | cut -f 1 -d :)
 sed -i "$str s/$old_email/$email/g" /etc/passwd

@@ -65,7 +65,7 @@ fi
 user_exec sed -i "/alias php='env/d" "$FILE"
 echo "alias php='env php$version'" | user_exec tee -a "$FILE" > /dev/null \
 	|| check_result "$E_FORBIDEN" "$FILE is not writable by $user"
-update_user_value "$user" '$PHPCLI' "$version"
+update_user_value "$user" '$PHPCLI' "$version" || check_result "$E_NOTEXIST" "PHPCLI is missing from the record of $user"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

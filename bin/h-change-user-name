@@ -42,9 +42,9 @@ fi
 
 # Changing ns values
 if [ -n "$lname" ]; then
-	update_user_value "$user" '$NAME' "$name $lname"
+	update_user_value "$user" '$NAME' "$name $lname" || check_result "$E_NOTEXIST" "NAME is missing from the record of $user"
 else
-	update_user_value "$user" '$NAME' "$name"
+	update_user_value "$user" '$NAME' "$name" || check_result "$E_NOTEXIST" "NAME is missing from the record of $user"
 fi
 
 #----------------------------------------------------------#

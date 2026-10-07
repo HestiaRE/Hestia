@@ -62,7 +62,7 @@ fi
 #----------------------------------------------------------#
 
 # Changing user shell
-update_user_value "$user" '$SHELL' "$shell"
+update_user_value "$user" '$SHELL' "$shell" || check_result "$E_NOTEXIST" "SHELL is missing from the record of $user"
 
 # Logging
 $BIN/h-log-action "system" "Info" "System" "User SSH shell changed (Shell: $shell, User: $user)."

@@ -48,13 +48,13 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Set theme value
-check_ckey=$(grep "THEME" $USER_DATA/user.conf)
-if [ -z "$check_ckey" ]; then
-	# Rebuild user configuration to repair missing value
-	$BIN/h-rebuild-user "$user"
+# A missing key comes from the record repair, not a full rebuild with its system side effects.
+if ! grep -q "^THEME='" "$USER_DATA/user.conf"; then
+	# shellcheck source=/usr/local/hestia/include/syshealth.sh
+	source "$HESTIA/include/syshealth.sh"
+	syshealth_repair_user_config > /dev/null
 fi
-update_user_value "$user" '$THEME' "$theme"
+update_user_value "$user" '$THEME' "$theme" || check_result "$E_NOTEXIST" "THEME is missing from the record of $user"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

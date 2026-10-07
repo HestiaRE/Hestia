@@ -1230,6 +1230,9 @@ update_user_value() {
 		# contain. A delete+insert loses the last line: the file is then $lnr-1 long, so inserting
 		# before $lnr addresses past EOF and writes nothing.
 		sed -i "${lnr}c\\$key='${3}'" $CONF_DIR/users/$1/user.conf
+	else
+		# The key is not in the record: nothing was written, and the caller has to say so.
+		return 1
 	fi
 }
 

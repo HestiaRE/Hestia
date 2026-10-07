@@ -78,7 +78,7 @@ add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 #----------------------------------------------------------#
 
 # Updating config
-update_object_value 'web' 'DOMAIN' "$domain" '$PROXY' "$PROXY"
+update_object_value 'web' 'DOMAIN' "$domain" '$PROXY' "$template"
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY_EXT' "$extentions"
 
 # 'caching' is the cache switch now, so honour the intent behind the old value

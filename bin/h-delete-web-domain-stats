@@ -65,6 +65,9 @@ sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
 
 # Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS' ''
+# The password files went with the folder; a stats user left in the record would come back without them.
+update_object_value 'web' 'DOMAIN' "$domain" '$STATS_USER' ''
+update_object_value 'web' 'DOMAIN' "$domain" '$STATS_CRYPT' ''
 
 # Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web traffic analyzer disabled (Domain: $domain)."

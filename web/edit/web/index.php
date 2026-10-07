@@ -739,6 +739,7 @@ if (!empty($_POST["save"])) {
 		$waliases = preg_replace("/\s+/", " ", $waliases);
 		$waliases = trim($waliases);
 		$aliases = explode(" ", $waliases);
+		$aliases_changed = array_diff($valiases, $aliases) || array_diff($aliases, $valiases);
 		$v_aliases = str_replace(" ", "\n", $waliases);
 		$result = array_diff($valiases, $aliases);
 		foreach ($result as $alias) {
@@ -819,7 +820,7 @@ if (!empty($_POST["save"])) {
 			}
 		}
 
-		if (!empty($v_stats) && $post_stats == "awstats" && empty($_SESSION["error_msg"])) {
+		if ($aliases_changed && !empty($v_stats) && $post_stats == "awstats" && empty($_SESSION["error_msg"])) {
 			// Update statistics configuration when changing domain aliases
 			$v_stats = quoteshellarg($post_stats);
 			exec(

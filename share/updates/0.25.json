@@ -399,6 +399,84 @@
       },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "filemanager-catchall",
+      "description": "The private file manager port gets a catch-all that refuses every Host no customer listener carries; a box from before it has none",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/nginx/conf.d/fm--default.conf"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/apache2/conf.d/fm--default.conf"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listener-private-nginx",
+      "description": "The file manager listeners carry the secret every customer's listener shares and were readable by every local account",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_mode_wider",
+          "path": "/etc/nginx/conf.d/fm-*.conf",
+          "value": "600"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listener-private-apache",
+      "description": "The file manager listeners carry the secret every customer's listener shares and were readable by every local account",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_mode_wider",
+          "path": "/etc/apache2/conf.d/fm-*.conf",
+          "value": "600"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

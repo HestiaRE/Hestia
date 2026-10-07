@@ -25,33 +25,37 @@ fm_code_install() {
 
 # The catch-all refuses a Host no customer vhost carries and holds the port from install on, so nothing else can bind
 # it. Apache takes the first vhost of a port as its default: the name sorts before every fm-<user>.conf, and no user
-# name starts with '-'.
+# name starts with '-'. Root-only like the customer listeners, so the update's mode check covers every fm-*.conf.
 fm_front_write() {
-	local port="${FILE_MANAGER_PORT:-8092}"
+	local port="${FILE_MANAGER_PORT:-8092}" front
+	front=$(fm_front)
 	rm -f /etc/nginx/conf.d/fm--default.conf /etc/apache2/conf.d/fm--default.conf /etc/apache2/conf.d/fm-listen.conf
-	case "$(fm_front)" in
-		nginx)
-			cat > /etc/nginx/conf.d/fm--default.conf <<- EOF
-				server {
-				    listen 127.0.0.1:$port default_server;
-				    server_name _;
-				    return 403;
-				}
-			EOF
-			;;
-		apache2)
-			echo "Listen 127.0.0.1:$port" > /etc/apache2/conf.d/fm-listen.conf
-			cat > /etc/apache2/conf.d/fm--default.conf <<- EOF
-				<VirtualHost 127.0.0.1:$port>
-				    ServerName fm-default.invalid
-				    <Location />
-				        Require all denied
-				    </Location>
-				</VirtualHost>
-			EOF
-			;;
-		*) return 1 ;;
-	esac
+	(
+		umask 077
+		case "$front" in
+			nginx)
+				cat > /etc/nginx/conf.d/fm--default.conf <<- EOF
+					server {
+					    listen 127.0.0.1:$port default_server;
+					    server_name _;
+					    return 403;
+					}
+				EOF
+				;;
+			apache2)
+				echo "Listen 127.0.0.1:$port" > /etc/apache2/conf.d/fm-listen.conf
+				cat > /etc/apache2/conf.d/fm--default.conf <<- EOF
+					<VirtualHost 127.0.0.1:$port>
+					    ServerName fm-default.invalid
+					    <Location />
+					        Require all denied
+					    </Location>
+					</VirtualHost>
+				EOF
+				;;
+			*) exit 1 ;;
+		esac
+	)
 }
 
 # Code, front files and every enabled customer's listener, rendered for the current web model. The departing model's

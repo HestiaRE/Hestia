@@ -23,7 +23,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # JSON list function
 json_list() {
-	parse_object_kv_list "$(echo "$config" | egrep "$keys" | tr -d ';' | awk '{print $1"="$2}')"
+	parse_object_kv_list "$(directives | awk '{print $1"="$2}')"
 	json_escape worker_processes worker_connections send_timeout proxy_connect_timeout proxy_send_timeout proxy_read_timeout client_max_body_size gzip gzip_comp_level charset config_path
 	echo '{'
 	echo '    "CONFIG": {'
@@ -44,13 +44,13 @@ json_list() {
 
 # SHELL list function
 shell_list() {
-	echo "$config" | egrep "$keys" | tr -d ';'
+	directives
 	echo "config_path    $config_path"
 }
 
 # PLAIN list function
 plain_list() {
-	echo "$config" | egrep "$keys" | tr -d ';'
+	directives
 	echo "config_path $config_path"
 }
 
@@ -61,14 +61,14 @@ plain_list() {
 # Defining config path
 config_path='/etc/nginx/nginx.conf'
 
-# Defining keys
-keys="worker_processes |worker_connections |send_timeout"
-keys="$keys |proxy_connect_timeout |proxy_send_timeout"
-keys="$keys |proxy_read_timeout |client_max_body_size"
-keys="$keys |gzip |gzip_comp_level |charset "
+keys="worker_processes worker_connections send_timeout proxy_connect_timeout proxy_send_timeout proxy_read_timeout"
+keys="$keys client_max_body_size gzip gzip_comp_level charset"
 
-# Reading nginx config
-config=$(cat $config_path)
+# The directive itself, never a comment mentioning one: a key line the strict parser cannot read breaks the editor.
+directives() {
+	awk -v keys="$keys" 'BEGIN { split(keys, k, " "); for (i in k) want[k[i]] = 1 }
+		{ sub(/^[ \t]+/, ""); sub(/;.*/, "") } want[$1] { print }' "$config_path"
+}
 
 # Listing data
 case $format in

@@ -4,9 +4,10 @@
 # labels: internal
 # caller: the panel user settings
 #
-# example: h-change-user-config-value admin ROLE admin
+# example: h-change-user-config-value alice LOGIN_DISABLED yes
 #
-# Changes key/value for specified user.
+# Changes one of the login and display settings the panel stores for a user. Role, password, suspension and the
+# counters have their own commands, with the logging and session handling this one lacks.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -29,15 +30,20 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER KEY VALUE'
-is_format_valid 'user' 'key'
-# LOGIN_ALLOW_IPS carries addresses and networks; the common deny list rejects them on the colon
-# and the slash alone, so that one key gets the list validator (#894).
-if [ "${key^^}" = 'LOGIN_ALLOW_IPS' ]; then
-	is_ip_list_format_valid "$value" "$key"
-else
-	is_common_format_valid "$value" "$key"
-fi
+check_args '3' "$#" 'USER KEY VALUE'
+is_format_valid 'user'
+key="${key^^}"
+case "$key" in
+	LOGIN_DISABLED | LOGIN_USE_IPLIST)
+		[[ "$value" =~ ^(yes|no)$ ]] || check_result "$E_INVALID" "$key is yes or no"
+		;;
+	# Addresses and networks: the common deny list would reject them on the colon and the slash alone.
+	LOGIN_ALLOW_IPS) [ -z "$value" ] || is_ip_list_format_valid "$value" "$key" ;;
+	PREF_UI_SORT)
+		[[ "$value" =~ ^(name|date)$ ]] || check_result "$E_INVALID" "$key is name or date"
+		;;
+	*) check_result "$E_FORBIDEN" "$key is not a setting this command changes" ;;
+esac
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
@@ -46,12 +52,12 @@ is_object_unsuspended 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 # Set theme value
-check_ckey=$(grep "^${key^^}" $USER_DATA/user.conf)
+check_ckey=$(grep "^$key='" $USER_DATA/user.conf)
 if [ -z "$check_ckey" ]; then
 	# Rebuild user configuration to repair missing value
 	$BIN/h-rebuild-user "$user"
 fi
-update_user_value "$user" "${key^^}" "$value"
+update_user_value "$user" "$key" "$value"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

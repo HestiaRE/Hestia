@@ -55,8 +55,9 @@ fi
 
 # Checking statistics directory
 dir="$HOMEDIR/$user/web/$domain/stats"
-if [ ! -e "$dir" ]; then
-	mkdir -p $dir
+if [ ! -e "$dir" ] && [ ! -L "$dir" ]; then
+	mkdir "$dir"
+	chown -h "$user:$user" "$dir"
 fi
 
 # Defining functions
@@ -78,32 +79,18 @@ build_awstats() {
         urldetail urlentry urlexit osdetail browserdetail unknownbrowser
         unknownos refererse refererpages keyphrases keywords errors404'
 
-	# Checking statistics directory
-	if [ ! -e "$dir/$month" ]; then
-		mkdir -p $dir/$month
-	fi
+	# The folder is the customer's: everything below runs as the customer, awstats with its data files too.
+	user_exec mkdir -p "$dir/$month"
+	[ -e "$dir/logo.svg" ] || user_exec cp "$HESTIA/web/images/logo.svg" "$dir/"
+	[ -e "$dir/icon" ] || user_exec cp -r "$wwwroot/icon" "$dir/"
 
-	# Logo check
-	if [ ! -e "$dir/logo.svg" ]; then
-		cp -r $HESTIA/web/images/logo.svg $dir/
-	fi
-
-	# Icon directory check
-	if [ ! -e "$dir/icon" ]; then
-		cp -r $wwwroot/icon $dir/
-	fi
-
-	# Creating main awstats page
-	$awstats $opts | sed "s%awstats.$domain.%%g" > $dir/$month/index.html
-
-	# Creating suplemental awstats pages
+	user_exec $awstats $opts | sed "s%awstats.$domain.%%g" | user_exec tee "$dir/$month/index.html" > /dev/null
 	for format in $output; do
-		$awstats $opts=$format \
-			| sed "s%awstats.$domain.%%g" > $dir/$month/$format.html
+		user_exec $awstats $opts=$format \
+			| sed "s%awstats.$domain.%%g" | user_exec tee "$dir/$month/$format.html" > /dev/null
 	done
 
-	# Creating index page
-	cat $SHARETPL/awstats/index.tpl | sed "s/%month%/$month/g" > $dir/index.html
+	sed "s/%month%/$month/g" < $SHARETPL/awstats/index.tpl | user_exec tee "$dir/index.html" > /dev/null
 
 	# Creating navigation page
 	months=$(find $dir -type d | sed -e "s%$dir/%%g" -e "s%$dir%%g" \
@@ -127,17 +114,19 @@ build_awstats() {
 		esac
 		select_m="$select_m<option value=$link>$month $year<\/option>\n"
 	done
-	cat $SHARETPL/awstats/nav.tpl | sed "s/%select_month%/$select_m/" > $dir/nav.html
+	sed "s/%select_month%/$select_m/" < $SHARETPL/awstats/nav.tpl | user_exec tee "$dir/nav.html" > /dev/null
 }
 
-# Switching on statistics type
+# The folder is 551 by design; the build opens it for itself and closes it again.
+dir_closed=''
+if ! user_exec test -w "$dir"; then
+	user_exec chmod u+w "$dir"
+	dir_closed=yes
+fi
 case $STATS in
 	awstats) build_awstats ;;
 esac
-
-# Chown
-groups=$(groups "$user" | cut -f 3 -d ' ')
-chown -R $user:$groups "$dir"
+[ -n "$dir_closed" ] && user_exec chmod u-w "$dir"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

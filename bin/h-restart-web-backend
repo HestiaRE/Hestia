@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: restart php interpreter
-# options: NONE
+# options: [RESTART] [VERSION]
 #
 # example: h-restart-web-backend
 #

@@ -53,13 +53,13 @@ else
 	htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
 	shtaccess="$HOMEDIR/$user/conf/web/$domain/apache2.ssl.conf_htaccess"
 	if [ ! -f "$htaccess" ]; then
-		# The whole vhost, whatever its docroot: a custom one is not public_html.
-		echo "<Location />" > $htaccess
+		# The whole vhost whatever its docroot, minus the ACME alias: a plain Location would override its grant.
+		echo '<LocationMatch "^/(?!\.well-known/acme-challenge/)">' > $htaccess
 		echo "    AuthUserFile $htpasswd" >> $htaccess
 		echo "    AuthName \"$domain access\"" >> $htaccess
 		echo "    AuthType Basic" >> $htaccess
 		echo "    Require valid-user" >> $htaccess
-		echo "</Location>" >> $htaccess
+		echo "</LocationMatch>" >> $htaccess
 		ln -s $htaccess $shtaccess
 		restart_required='yes'
 	fi

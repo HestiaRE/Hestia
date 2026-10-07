@@ -501,12 +501,12 @@ auth_basic_user_file    $htpasswd;"
 		shtaccess="$apache_shtaccess"
 		stale_htaccess="$nginx_htaccess"
 		stale_shtaccess="$nginx_shtaccess"
-		htaccess_want="<Location />
+		htaccess_want="<LocationMatch \"^/(?!\\.well-known/acme-challenge/)\">
     AuthUserFile $htpasswd
     AuthName \"$domain access\"
     AuthType Basic
     Require valid-user
-</Location>"
+</LocationMatch>"
 	fi
 
 	# The other web server's pair is inert here, so a wrong path in it stays unnoticed until the

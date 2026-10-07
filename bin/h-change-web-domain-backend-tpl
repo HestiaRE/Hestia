@@ -55,36 +55,13 @@ get_domain_values 'web'
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Prepare new backend configuration
+# One pool writer: h-add-web-domain-backend also knows 'none', a docker domain and a custom PHP root.
 prepare_web_backend
-
-# Deleting current backend
 delete_web_backend
-
-# Allocating backend port
-backend_port=9000
-ports=$(grep -v '^;' $pool/* 2> /dev/null | grep listen | grep -o :[0-9].*)
-ports=$(echo "$ports" | sed "s/://" | sort -n)
-for port in $ports; do
-	if [ "$backend_port" -eq "$port" ]; then
-		backend_port=$((backend_port + 1))
-	fi
-done
-
-# Changing backend config
-cat $PHPTPL/$template.tpl \
-	| sed -e "s|%backend_port%|$backend_port|" \
-		-e "s|%user%|$user|g" \
-		-e "s|%domain%|$domain|g" \
-		-e "s|%domain_idn%|$domain_idn|" \
-		-e "s|%backend%|$backend_type|g" \
-		-e "s|%backend_version%|$backend_version|g" > $pool/$backend_type.conf
-
-# Set correct document root path
-if [ -n "$CUSTOM_DOCROOT" ]; then
-	docroot="$CUSTOM_DOCROOT"
-	sed -i "s|/home\/$user\/web\/$domain\/public_html|$docroot|g" $pool/$backend_type.conf
-fi
+add_object_key "web" 'DOMAIN' "$domain" 'BACKEND' 'PROXY'
+update_object_value 'web' 'DOMAIN' "$domain" '$BACKEND' "$template"
+$BIN/h-add-web-domain-backend "$user" "$domain" "$template" no
+check_result $? "pool not written"
 
 # Rebuild this domain's vhost against the new pool profile (BACKEND is the profile now;
 # the per-user shared pool was WEB_BACKEND_POOL, removed with #550)
@@ -102,10 +79,6 @@ if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
 	del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 	add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 fi
-
-# Update config
-add_object_key "web" 'DOMAIN' "$domain" 'BACKEND' 'PROXY'
-update_object_value 'web' 'DOMAIN' "$domain" '$BACKEND' "$template"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

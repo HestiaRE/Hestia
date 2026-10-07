@@ -877,7 +877,8 @@ _web_htaccess_files() {
 	echo "  scanning customer .htaccess under public_html..." >&2
 	while IFS= read -r u; do
 		[ -n "$u" ] || continue
-		find "$HOMEDIR/$u/web/"*/public_html -name .htaccess 2> /dev/null
+		# Regular files only: the root grep on a customer FIFO named .htaccess would block the switch forever.
+		find "$HOMEDIR/$u/web/"*/public_html -name .htaccess -type f 2> /dev/null
 	done < <(web_users)
 }
 

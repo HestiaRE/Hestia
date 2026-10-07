@@ -314,6 +314,27 @@
       },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "filemanager-refresh",
+      "description": "The file manager code and listeners were copied once and never refreshed; they follow the tree now, with a catch-all on the private port. Decided by index.php, the app is that one file",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/filemanager/fm/index.php",
+          "target": "/usr/share/filemanager/fm/index.php"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

@@ -71,3 +71,7 @@ fm_refresh() { # RESTART
 	[ "$1" = 'no' ] && return 0
 	"$BIN/h-restart-service" "$(fm_front)" > /dev/null 2>&1
 }
+
+filemanager_refresh_apply() {
+	fm_refresh yes
+}

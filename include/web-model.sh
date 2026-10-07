@@ -569,14 +569,9 @@ web_model_run() {
 				}
 		fi
 	done < <(web_users)
-	if [ -s /etc/hestia/conf/.filemanager.key ]; then
-		while IFS= read -r u; do
-			[ -n "$u" ] || continue
-			if grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$u/user.conf" 2> /dev/null; then
-				"$BIN/h-add-user-filemanager" "$u" > /dev/null 2>&1 || true
-			fi
-		done < <(web_users)
-	fi
+	# shellcheck source=/usr/local/hestia/include/filemanager.sh
+	source "$HESTIA/include/filemanager.sh"
+	fm_refresh no || echo "Warning: file manager listeners not rebuilt for the new model" >&2
 
 	echo "[ * ] Validating..."
 	if web_model_uses_nginx "$target"; then

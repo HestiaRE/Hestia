@@ -19,6 +19,8 @@ before v0.20.0 are folded into one section by theme.
   held to what a vhost can carry.
 - **Stats, HTTP auth, redirect, cache and WordPress commands are stricter** (#1176).
 - **The Sury and Docker repository keys are checked against a pinned fingerprint** (#1176).
+- **User commands are stricter** (#1176). A suspended account no longer gets in by SSH key, a password reset no
+  longer logs the user in past 2FA and the address list, and a login names a suspension only after the right password.
 
 ### Removed
 
@@ -38,6 +40,8 @@ before v0.20.0 are folded into one section by theme.
 - **Web model switch, ProFTPD, Docker, Redis and PHP commands** (#1176): a switch carries phpMyAdmin, bot rate
   limiting and the file manager to the new front and takes them back on a rollback, FTP behind NAT and its fail2ban
   jail follow the addon, and removing Docker no longer strands customers who still use it.
+- **User suspend, delete and counters** (#1176): suspending a user no longer locks another customer whose name starts
+  with it, deleting one ends its processes, and the suspended and IP counters stay right.
 
 ## v0.24 (2026-10-06)
 

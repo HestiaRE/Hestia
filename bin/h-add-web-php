@@ -137,13 +137,14 @@ rm -f "$apt_log"
 
 # Check if required modules for apache2 are enabled
 if [ "$WEB_SYSTEM" = "apache2" ]; then
+	mods_changed=""
 	if ! a2query -q -m proxy_fcgi; then
-		a2enmod -q proxy_fcgi
+		a2enmod -q proxy_fcgi && mods_changed=yes
 	fi
 	if ! a2query -q -m setenvif; then
-		a2enmod -q setenvif
+		a2enmod -q setenvif && mods_changed=yes
 	fi
-	$BIN/h-restart-web "yes"
+	[ -n "$mods_changed" ] && $BIN/h-restart-web "yes"
 fi
 
 # Configure fpm. Only the distro pool goes: a re-run on a live version must not take the

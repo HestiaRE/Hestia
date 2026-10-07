@@ -82,18 +82,7 @@ fi
 echo "Adding the Docker repository..."
 install -m 0755 -d /usr/share/keyrings
 if [ ! -s "$DOCKER_KEYRING" ]; then
-	curl -fsSL "https://download.docker.com/linux/$os_id/gpg" -o /tmp/docker_apt.gpg \
-		|| {
-			echo "ERROR: failed to download the Docker signing key"
-			exit "$E_CONNECT"
-		}
-	gpg --dearmor < /tmp/docker_apt.gpg > "$DOCKER_KEYRING" \
-		|| {
-			echo "ERROR: failed to dearmor the Docker signing key"
-			rm -f /tmp/docker_apt.gpg
-			exit "$E_INVALID"
-		}
-	rm -f /tmp/docker_apt.gpg
+	apt_key_fetch docker "https://download.docker.com/linux/$os_id/gpg" "$DOCKER_KEYRING" || exit "$E_CONNECT"
 fi
 [ -s "$DOCKER_KEYRING" ] || {
 	echo "ERROR: Docker keyring empty"

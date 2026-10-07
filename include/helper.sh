@@ -231,6 +231,29 @@ php_module_pkgs() {
 	printf '%s\n' "${out# }"
 }
 
+# apt_key_fetch NAME URL KEYRING: an external repo's signing key, kept only as the key whose fingerprint
+# share/manifest.json pins. Exported from a scratch keyring, so nothing else the download carries becomes trusted.
+apt_key_fetch() {
+	local want d rc=1
+	want=$(jq -r --arg n "$1" '.software_versions.apt_key_fpr[$n] // empty' "$HESTIA/share/manifest.json" 2> /dev/null)
+	[ -n "$want" ] || {
+		echo "ERROR: no pinned key fingerprint for $1" >&2
+		return 1
+	}
+	d=$(mktemp -d) || return 1
+	mkdir -m 700 "$d/gnupg"
+	if ! curl -fsSL --connect-timeout 10 --max-time 60 "$2" -o "$d/key"; then
+		echo "ERROR: failed to download the $1 signing key" >&2
+	elif ! gpg --batch --quiet --homedir "$d/gnupg" --import "$d/key" > /dev/null 2>&1 \
+		|| ! gpg --batch --homedir "$d/gnupg" --export "$want" > "$d/keyring" 2> /dev/null || [ ! -s "$d/keyring" ]; then
+		echo "ERROR: the $1 signing key does not carry the pinned fingerprint $want" >&2
+	elif install -m 0644 "$d/keyring" "$3"; then
+		rc=0
+	fi
+	rm -rf "$d"
+	return "$rc"
+}
+
 # ── Sury PHP repository (shared by wizard + installer) ──────────────────────
 # Idempotent, single canonical definition (keyring + signed-by + source file) -
 # two diverging ones trip apt's "Conflicting values set for option Signed-By".
@@ -248,18 +271,7 @@ add_sury_repo() {
 	# drop any legacy/foreign Sury definition that would conflict on Signed-By
 	rm -f /etc/apt/sources.list.d/sury-php.list /etc/apt/trusted.gpg.d/sury-php.gpg
 	if [ ! -s "$keyring" ]; then
-		curl -fsSL https://packages.sury.org/php/apt.gpg -o /tmp/sury_apt.gpg \
-			|| {
-				echo "ERROR: failed to download Sury PHP signing key" >&2
-				return 1
-			}
-		gpg --dearmor < /tmp/sury_apt.gpg > "$keyring" \
-			|| {
-				echo "ERROR: failed to dearmor Sury PHP signing key" >&2
-				rm -f /tmp/sury_apt.gpg
-				return 1
-			}
-		rm -f /tmp/sury_apt.gpg
+		apt_key_fetch sury https://packages.sury.org/php/apt.gpg "$keyring" || return 1
 	fi
 	[ -s "$keyring" ] || {
 		echo "ERROR: Sury keyring empty" >&2

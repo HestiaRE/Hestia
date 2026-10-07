@@ -24,6 +24,8 @@
       "aarch64": "b091974aa80a76bd798d71fd5209797d93749b0be13eaff978a3dbe0106b9e1f"
     },
     "$comment_php_supported": "The release-tested PHP set: h-add-web-php validates against it, and the wizard offers only the intersection with Sury's packages - Sury ships pre-release builds, so availability alone offered versions the installer refused (#688). Bump per release. Checked 2026-09-22 for v0.21 on bookworm: 8.5 is still the newest GA (8.5.10-1), Sury's php8.6 is still 8.6.0~alpha1, so no bump. Checked 2026-09-26 for v0.23 on bookworm: 8.5.11-1 is the newest GA, php8.6 is 8.6.0~beta3, so no bump. Checked 2026-10-06 for v0.24 on bookworm, trixie and noble: unchanged, 8.5.11-1 and 8.6.0~beta3, so no bump.",
+    "$comment_apt_key_fpr": "Primary-key fingerprints of the external apt repos whose key is fetched at install (apt_key_fetch in include/helper.sh); a download carrying another key is refused. A rotation shows up as a refused install: check the new key against the vendor's published fingerprint, then bump. Set 2026-10-07: Docker's matches its published fingerprint, Sury's (expires 2028-02) matches the keyrings already on the fleet.",
+    "apt_key_fpr": { "docker": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88", "sury": "15058500A0235D97F5D10063B188E2B695BD4743" },
     "php_supported": ["5.6", "7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
   },
 

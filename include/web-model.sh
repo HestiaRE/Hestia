@@ -99,19 +99,19 @@ configure_apache2() {
 	cp -f /etc/apache2/mods-available/status.load /etc/apache2/mods-available/hestia-status.load
 	cp -f "$HESTIA/share/apache2/logrotate" /etc/logrotate.d/apache2
 
-	local m
+	local m failed=''
 	for m in rewrite suexec ssl actions headers; do
-		a2enmod -q "$m" > /dev/null 2>&1 || true
+		a2enmod -q "$m" > /dev/null 2>&1 || failed="$failed $m"
 	done
 	a2dismod -q status > /dev/null 2>&1 || true
-	a2enmod -q hestia-status > /dev/null 2>&1 || true
+	a2enmod -q hestia-status > /dev/null 2>&1 || failed="$failed hestia-status"
 
 	# php-fpm backend: event MPM + proxy_fcgi for the FastCGI SetHandler directives
 	a2dismod -q mpm_prefork > /dev/null 2>&1 || true
-	a2enmod -q mpm_event > /dev/null 2>&1 || true
-	a2enmod -q proxy_fcgi setenvif > /dev/null 2>&1 || true
 	# proxy_http: apache webmail vhosts reverse-proxy to the Caddy webmail listeners
-	a2enmod -q proxy_http > /dev/null 2>&1 || true
+	for m in mpm_event proxy_fcgi setenvif proxy_http; do
+		a2enmod -q "$m" > /dev/null 2>&1 || failed="$failed $m"
+	done
 	cp -f "$HESTIA/share/apache2/hestia-event.conf" /etc/apache2/conf.d/
 
 	# no distro default site, no global Listen ports
@@ -126,6 +126,10 @@ configure_apache2() {
 	chmod 751 /var/log/apache2/domains
 
 	update-rc.d apache2 defaults > /dev/null 2>&1
+	if [ -n "$failed" ]; then
+		echo "Error: apache2 modules not enabled:$failed" >&2
+		return 1
+	fi
 	# restart, not start: replace the distro config the package start brought up
 	systemctl restart apache2
 }
@@ -536,11 +540,10 @@ web_model_run() {
 
 	if web_model_uses_apache "$target"; then
 		echo "[ * ] Setting up apache2..."
-		configure_apache2
-		command -v apache2ctl > /dev/null 2>&1 || {
-			_wm_fail "apache2 install failed"
+		if ! configure_apache2 || ! command -v apache2ctl > /dev/null 2>&1; then
+			_wm_fail "apache2 setup failed"
 			return 1
-		}
+		fi
 	fi
 
 	# rotate-before-switch (plan step 4): seal the current domain logs so the target

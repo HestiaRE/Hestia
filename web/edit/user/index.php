@@ -201,14 +201,14 @@ if (!empty($_POST["save"])) {
 	}
 
 	// Change default sort order
-	if ($v_sort_order != $_POST["v_sort_order"] && empty($_SESSION["error_msg"])) {
-		$v_sort_order = quoteshellarg($_POST["v_sort_order"]);
+	if (isset($_POST["v_sort_order"]) && $v_sort_order != $_POST["v_sort_order"] && empty($_SESSION["error_msg"])) {
+		$v_sort_order = $_POST["v_sort_order"];
 		exec(
 			HESTIA_CMD .
 				"h-change-user-sort-order " .
 				quoteshellarg($v_username) .
 				" " .
-				$v_sort_order,
+				quoteshellarg($v_sort_order),
 			$output,
 			$return_var,
 		);

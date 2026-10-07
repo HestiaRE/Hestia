@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: updates user role
+# info: change user sort order
 # options: USER SORT_ORDER
 # labels: internal
 # caller: the panel user settings
@@ -30,7 +30,10 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '2' "$#" 'USER SORT_ORDER'
 is_format_valid 'user'
-is_common_format_valid "$sort_order" "sort_order"
+case "$sort_order" in
+	name | date) ;;
+	*) check_result "$E_INVALID" "invalid sort order :: $sort_order (name or date)" ;;
+esac
 is_object_valid 'user' 'USER' "$user"
 
 is_object_unsuspended 'user' 'USER' "$user"
@@ -40,12 +43,14 @@ is_object_unsuspended 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 $BIN/h-change-user-config-value "$user" 'PREF_UI_SORT' "$sort_order"
+check_result $? "the sort order of $user could not be changed"
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
 
 # Logging
-$BIN/h-log-action "$user" "Warning" "System" "Change user setting ($key)"
+$BIN/h-log-action "$user" "Info" "System" "Sort order changed (Value: $sort_order)."
+log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -80,8 +80,10 @@ else
 	rm -f "$setup_tmp"
 	# Mandatory purge: package + phar together is a shadowed state the next admin cannot see;
 	# on failure the phar already serves. No autoremove - it is not scoped to composer.
-	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y purge composer > /dev/null 2>&1 \
-		|| check_result "$E_UPDATE" "composer OS package purge failed - the upstream phar is installed and shadows it; fix the apt state and re-run"
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y purge composer > /dev/null 2>&1 || {
+		composer_status_record
+		check_result "$E_UPDATE" "composer OS package purge failed - the upstream phar is installed and shadows it; fix the apt state and re-run"
+	}
 	new_source="upstream installer ($("$UPSTREAM_BIN" --no-plugins --version 2> /dev/null | awk '{print $3}'))"
 fi
 

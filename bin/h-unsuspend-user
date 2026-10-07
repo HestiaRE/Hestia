@@ -85,13 +85,13 @@ fi
 
 # Restarting system services
 $BIN/h-restart-web "$restart"
-check_result $? "Web restart failed" > /dev/null
+check_result $? "Web restart failed"
 
 $BIN/h-restart-proxy "$restart"
-check_result $? "Proxy restart failed" > /dev/null
+check_result $? "Proxy restart failed"
 
 $BIN/h-restart-cron "$restart"
-check_result $? "Cron restart failed" > /dev/null
+check_result $? "Cron restart failed"
 
 # Logging
 $BIN/h-log-action "system" "Info" "Users" "Unsuspended user account (User: $user)."

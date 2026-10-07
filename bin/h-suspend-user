@@ -82,22 +82,20 @@ fi
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Restarting system services
-$BIN/h-restart-web "$restart"
-check_result $? "Web restart failed" > /dev/null
-
-$BIN/h-restart-proxy "$restart"
-check_result $? "Proxy restart failed" > /dev/null
-
-$BIN/h-restart-cron "$restart"
-check_result $? "Cron restart failed" > /dev/null
-
-# Changing suspend value
+# Before the restarts: a failing one must not leave the objects suspended under an active record.
 update_user_value "$user" '$SUSPENDED' 'yes'
 increase_user_value "$ROOT_USER" '$SUSPENDED_USERS'
-
-# Logging
 $BIN/h-log-action "system" "Info" "Users" "Suspended user account (Name: $user)."
+
+$BIN/h-restart-web "$restart"
+check_result $? "Web restart failed"
+
+$BIN/h-restart-proxy "$restart"
+check_result $? "Proxy restart failed"
+
+$BIN/h-restart-cron "$restart"
+check_result $? "Cron restart failed"
+
 log_event "$OK" "$ARGUMENTS"
 
 exit

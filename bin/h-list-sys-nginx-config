@@ -4,24 +4,16 @@
 #
 # example: h-list-sys-nginx-config
 #
-# This function for obtaining the list of nginx config parameters.
+# The tunable directives of /etc/nginx/nginx.conf, as the server editor reads them.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	parse_object_kv_list "$(directives | awk '{print $1"="$2}')"
 	json_escape worker_processes worker_connections send_timeout proxy_connect_timeout proxy_send_timeout proxy_read_timeout client_max_body_size gzip gzip_comp_level charset config_path
@@ -42,23 +34,16 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	directives
 	echo "config_path    $config_path"
 }
 
-# PLAIN list function
 plain_list() {
 	directives
 	echo "config_path $config_path"
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining config path
 config_path='/etc/nginx/nginx.conf'
 
 keys="worker_processes worker_connections send_timeout proxy_connect_timeout proxy_send_timeout proxy_read_timeout"
@@ -70,16 +55,11 @@ directives() {
 		{ sub(/^[ \t]+/, ""); sub(/;.*/, "") } want[$1] { print }' "$config_path"
 }
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

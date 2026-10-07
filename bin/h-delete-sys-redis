@@ -4,50 +4,30 @@
 #
 # example: h-delete-sys-redis
 #
-# Removes the general-service role (DB_REDIS=false). If rspamd is installed, Redis
-# is NOT uninstalled — it is demoted back to the hard-capped companion (cap
-# re-appended, Bayes data kept). Only without rspamd is redis-server purged.
+# Ends Redis as a general service. With rspamd it stays as the capped Bayes store, data kept; without, it is purged.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 limit_marker='HestiaRE rspamd-bayes limit'
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# Same truth as the add: the artefact (package present, no rspamd cap), never the recipe. A recipe that
-# says false while redis runs as a general service must still demote here, and the status key it
-# clears on the way out must describe the box, not the wizard answer (#965, one level down).
+# Decided by the box, like the add, never by the recipe.
 if ! dpkg -l redis-server 2> /dev/null | grep -q '^ii' || grep -q "$limit_marker" /etc/redis/redis.conf 2> /dev/null; then
 	echo "ERROR: Redis is not installed as a general service."
 	change_sys_value "REDIS_SYSTEM" ""
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 if [ "$ANTISPAM_SYSTEM" = "rspamd" ]; then
-	# demote, don't uninstall: re-apply the cap so it shrinks back to the companion
-	# (Bayes data survives — volatile-ttl only evicts if the cap is hit)
+	# volatile-ttl evicts only once the cap is hit, so the Bayes data survives.
 	if ! grep -q "$limit_marker" /etc/redis/redis.conf 2> /dev/null; then
 		cat "$HESTIA/share/rspamd/redis-rspamd-limit.conf" >> /etc/redis/redis.conf
 	fi
@@ -58,7 +38,6 @@ if [ "$ANTISPAM_SYSTEM" = "rspamd" ]; then
 	fi
 	echo "rspamd is installed — Redis kept as its hard-capped Bayes companion (demoted, not uninstalled)."
 else
-	# No consumer left — actually remove it.
 	systemctl disable --now redis-server > /dev/null 2>&1
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge redis-server > /dev/null 2>&1
 	dpkg-query -W -f='${db:Status-Status}\n' redis-server 2> /dev/null | grep -qx installed \
@@ -68,11 +47,6 @@ fi
 
 change_sys_value "REDIS_SYSTEM" ""
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Removed Redis as a general service."
 log_event "$OK" "$ARGUMENTS"
 

@@ -1,46 +1,34 @@
 #!/bin/bash
 # info: Change default php version server wide
 # options: VERSION
-
+#
 # example: h-change-sys-php 8.0
+#
+# Moves the default customer PHP: every domain on the default is rebuilt onto it, and the file manager pools follow.
 
 version=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'VERSION'
 
-# Verify php version format
 if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
 	echo "The specified PHP version format is invalid, it should look like [0-9].[0-9]."
 	echo "Example: 7.0, 7.4, 8.0"
 	exit "$E_INVALID"
 fi
 
-# Check if php version exists
 version_check=$($BIN/h-list-sys-php plain | grep -xF -- "$version")
 if [ -z "$version_check" ]; then
 	echo "ERROR: Specified PHP version is not installed."
 	exit "$E_INVALID"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# update-alternatives must switch BEFORE the rebuild loop: the rebuild reads the default
-# via multiphp_default_version and recreates every default-domain pool against it. No
-# shared www pool to re-home - each domain has its own pool, so rebuild + restart suffice.
+# Before the rebuild, which reads the default from update-alternatives.
 update-alternatives --set php "/usr/bin/php$version" > /dev/null 2>&1
 [ "$(readlink -f /etc/alternatives/php)" = "$(readlink -f "/usr/bin/php$version")" ] \
 	|| check_result "$E_UPDATE" "the php alternative could not be set to $version"
@@ -60,16 +48,11 @@ for pool in /etc/php/*/fpm/pool.d/fm-*.conf; do
 done
 fm_refresh no || echo "Warning: file manager pools not moved to PHP $version" >&2
 
-# Reload the new default version first, then everything
 $BIN/h-restart-web-backend '' $(multiphp_default_version)
 $BIN/h-restart-web-backend
 $BIN/h-restart-web
 $BIN/h-restart-proxy
 
 [ -z "$failed" ] || check_result "$E_UPDATE" "PHP $version is the default, but the web rebuild failed for:$failed"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 log_event "$OK" "$ARGUMENTS"

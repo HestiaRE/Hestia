@@ -4,27 +4,17 @@
 #
 # example: h-add-web-php 8.0
 #
-# Install php-fpm for provided version.
+# Installs one PHP version (FPM, CLI and the module set) for customer use. Re-running it configures again.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 version=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/limits.sh
 source $HESTIA/include/limits.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'VERSION'
 
@@ -32,33 +22,22 @@ if [ -z "$WEB_BACKEND" ]; then
 	echo "Multiple php versions are not supported for modphp"
 fi
 
-# Verify php version format
 if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
 	echo "The specified PHP version format is invalid, it should look like [0-9].[0-9]."
 	echo "Example: 7.0, 7.4, 8.0"
 	exit "$E_INVALID"
 fi
 
-# No "already installed" abort: the panel version is apt-installed before the multi-PHP loop
-# reaches it, and that run is what gives it the full extension set. Re-running configures.
+# No "already installed" abort: at install the panel version is there before the loop that gives it its extensions.
 
-# Check if php version is supported (release manifest, share/manifest.json)
 readarray -t php_supported < <(manifest_get '.software_versions.php_supported[]')
 if [[ " ${php_supported[*]} " != *" $version "* ]]; then
 	echo "ERROR: Specified PHP version is not supported or does not exist."
 	exit "$E_INVALID"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Sury retrofit (#191): an os_single box carries no Sury repo. Asking for a version
-# the configured repos cannot install IS the retrofit path - arm Sury then. Keyed on
-# installability, not on a recorded mode: a hand-removed repo heals the same way.
-# Fresh lists first, or a stale cache turns an installable OS version into a retrofit -
-# and a FAILED update must stop here: reading a mirror outage as "not available" would
-# permanently put Sury on a box whose preset promises none.
+# A version the configured repos cannot install arms Sury. Fresh lists first, and a failed update stops here: a
+# mirror outage read as "not available" would put Sury on a box whose preset promises none.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update || check_result "$E_CONNECT" "apt-get update failed - cannot judge package availability"
 # Only a missing candidate means "not in these repos"; a failing simulation can be a held or broken package.
 candidate=$(LC_ALL=C apt-cache policy "php$version-fpm" 2> /dev/null | awk '/Candidate:/{print $2}')
@@ -71,15 +50,13 @@ if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
 	)
 	echo "php$version is not available from the configured repos - adding the Sury repo"
 	add_sury_repo "$codename" || check_result "$E_CONNECT" "Sury repo setup failed"
-	# From here the box IS a Sury box, whatever the recipe promised: the repo also carries the OS version
-	# and takes it over on the next apt run. So the status follows the retrofit, not the install result.
+	# The status follows the repo, not the install result: Sury takes over the OS version on the next apt run.
 	change_sys_value "PHP_SOURCE" "sury"
 
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update || check_result "$E_CONNECT" "apt-get update failed after adding the Sury repo"
 fi
 
-# The set lives in php_module_pkgs; opcache has no package from 8.5 on, so it drops loudly instead of failing
-# the whole install, but cli+fpm must survive the filter.
+# opcache has no package from 8.5 on, so a missing one drops loudly; cli and fpm must survive the filter.
 # shellcheck source=/usr/local/hestia/include/helper.sh
 command -v php_module_pkgs > /dev/null 2>&1 || source "$HESTIA/include/helper.sh"
 # shellcheck disable=SC2046
@@ -94,14 +71,13 @@ case " $mph " in *" php$version-cli "*) ;; *)
 	;;
 esac
 
-# Install php packages. Not /dev/null: a failure has to leave something to read.
+# Not /dev/null: a failure has to leave something to read.
 apt_log=$(mktemp)
 # shellcheck disable=SC2086
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq -o Dpkg::Options::="--force-confold" install $mph > "$apt_log" 2>&1 &
 
 BACK_PID=$!
 
-# Check if package installation is done, print a spinner
 echo "Installing PHP-$version, please wait..."
 spinner="/-\|"
 spin_i=1
@@ -110,16 +86,12 @@ while kill -0 $BACK_PID > /dev/null 2>&1; do
 	sleep 0.5
 done
 
-# The spinner loop only waits; wait hands over the exit code nobody used to collect.
 wait "$BACK_PID"
 apt_rc=$?
 
-# Do a blank echo to get the \n back
 echo
 
-# Abort instead of reporting success, so a caller sees a half-installed version. Asked of the
-# requested list, not of one file: the init script this used to check is already there whenever the
-# panel stage installed that version.
+# Asked of the whole requested list: the panel stage may already have installed part of this version.
 missing=""
 for _p in $mph; do
 	[ "$(dpkg-query -W -f='${db:Status-Status}' "$_p" 2> /dev/null)" = installed ] || missing="$missing $_p"
@@ -135,7 +107,6 @@ if [ "$apt_rc" -ne 0 ] || [ -n "$missing" ]; then
 fi
 rm -f "$apt_log"
 
-# Check if required modules for apache2 are enabled
 if [ "$WEB_SYSTEM" = "apache2" ]; then
 	mods_changed=""
 	if ! a2query -q -m proxy_fcgi; then
@@ -147,8 +118,7 @@ if [ "$WEB_SYSTEM" = "apache2" ]; then
 	[ -n "$mods_changed" ] && $BIN/h-restart-web "yes"
 fi
 
-# Configure fpm. Only the distro pool goes: a re-run on a live version must not take the
-# customer pools with it (the command is idempotent now, so that path is reachable).
+# Only the distro pool goes: a re-run on a live version keeps the customer pools.
 update-rc.d php$version-fpm defaults > /dev/null 2>&1
 rm -f /etc/php/$version/fpm/pool.d/www.conf
 cp -f $HESTIA/share/php-fpm/dummy.conf /etc/php/$version/fpm/pool.d/
@@ -156,19 +126,16 @@ sed -i "s/%backend_version%/$version/g" /etc/php/$version/fpm/pool.d/dummy.conf
 cp -f $HESTIA/share/php-fpm/php-fpm.conf /etc/php/$version/fpm/
 sed -i "s/fpm_v/$version/g" /etc/php/$version/fpm/php-fpm.conf
 
-# Increase max upload and max post size
 sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 100M/g" /etc/php/$version/fpm/php.ini
 sed -i "s/post_max_size = 8M/post_max_size = 100M/g" /etc/php/$version/fpm/php.ini
 sed -i "s/max_execution_time = 30/max_execution_time = 60/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;max_input_vars = 1000/max_input_vars = 4000/g" /etc/php/$version/fpm/php.ini
 
-# Disable exec and other harmfull php functions
 sed -i "s/disable_functions =.*/disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,exec,system,passthru,shell_exec,proc_open,popen/g" /etc/php/$version/fpm/php.ini
 
 # The CLI stays open: occ and the Magento indexers fork, and the FPM list above is what faces the web.
 sed -i "s/^disable_functions =.*/disable_functions =/" /etc/php/$version/cli/php.ini
 
-# Other use full changes
 sed -i "s/;opcache.enable=1/opcache.enable=1/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.memory_consumption=128/opcache.memory_consumption=512/g" /etc/php/$version/fpm/php.ini
 sed -i "s/;opcache.max_accelerated_files=10000/opcache.max_accelerated_files=100000/g" /etc/php/$version/fpm/php.ini
@@ -185,26 +152,15 @@ if [ -n "${IONCUBE_SYSTEM:-}" ]; then
 	esac
 fi
 
-# Into the customer PHP slice (#212). The whole apply, not just this version's drop-in:
-# the units may not exist yet on a box updated into this, and it restarts only the masters
-# actually outside the slice - here, the one apt just started.
+# The whole apply, not this version's drop-in alone: it also restarts the master apt just started outside the slice.
 customer_php_limit_apply
 
-# No per-version pool profile anymore (#591/#620): the version is the PHP_VERSION field, the
-# profile set is default/small/high. Sweep a stale one so a reinstall heals the selector too.
+# A stale per-version pool profile would reappear in the selector.
 rm -f "$PHPTPL/PHP-${version/\./_}.tpl"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# The version is on the box now, so the status says so; a re-run adds nothing twice (#933).
-# The stricter of two answers, on purpose: if the record fails, the command fails although the version is
-# installed. The status is part of the job, and a silent gap here is worse than a loud one; the packages
-# stay, a re-run records them.
+# A failed record fails the command although the version is installed: a silent status gap is worse.
 sys_key_token_set PHP_VERSIONS add "$version" > /dev/null || check_result "$E_UPDATE" "PHP_VERSIONS: could not record $version"
 
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Installed PHP $version."
 log_event "$OK" "$ARGUMENTS"
 

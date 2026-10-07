@@ -4,22 +4,15 @@
 #
 # example: h-restart-web-backend
 #
-# This function reloads php interpreter configuration.
+# Restarts every customer PHP-FPM master, or only VERSION's; 'no' skips, 'scheduled' queues it.
 
 restart=$1
-# For backward compatibility might change in the feature
 version=$2
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 send_email_report() {
@@ -30,10 +23,6 @@ send_email_report() {
 	[[ -f "$tmpfile" ]] && rm -f $tmpfile
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 is_format_valid 'restart'
 
 if [ -n "$version" ]; then
@@ -43,11 +32,7 @@ if [ -n "$version" ]; then
 		exit "$E_INVALID"
 	fi
 fi
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
-# Exit
 if [ -z "$WEB_BACKEND" ]; then
 	exit
 fi
@@ -56,7 +41,6 @@ if [ "$1" = "no" ]; then
 	exit
 fi
 
-# Schedule restart
 if [ "$1" = 'scheduled' ] || [ -z "$1" ] && [ "$SCHEDULED_RESTART" = 'yes' ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	echo "$BIN/$SCRIPT now" >> $CONF_DIR/queue/restart.pipe
@@ -85,14 +69,9 @@ if [ -n "$failed" ]; then
 fi
 rm -f "$tmpfile"
 
-# Update restart queue
 if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 [[ -f "$tmpfile" ]] && rm -f $tmpfile
 exit

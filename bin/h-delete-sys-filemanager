@@ -4,20 +4,13 @@
 #
 # example: h-delete-sys-filemanager
 #
-# Reverses h-add-sys-filemanager: route first, then every per-customer pool + vhost,
-# the code, secret, tmpfiles and port. Per-user FILE_MANAGER flags STAY (saved state)
-# — a later h-add-sys-filemanager reactivates them (see saved-state pattern).
+# Route first, so the endpoint stops answering, then every customer's pool and vhost, the code and the secret.
+# The per-user flags stay as saved state for a later h-add-sys-filemanager.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 CODE_DIR="/usr/share/filemanager"
@@ -25,26 +18,16 @@ SECRET_FILE="/etc/hestia/conf/.filemanager.key"
 ROUTE="/etc/caddy/apps/filemanager.conf"
 TMPFILES="/etc/tmpfiles.d/hestia-fm.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 [ "$(id -u)" = '0' ] || {
 	echo "ERROR: h-delete-sys-filemanager must be run as root"
 	exit 10
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 echo "[ * ] Removing file manager module..."
 
-# 1. Route first, so the endpoint stops answering
 rm -f "$ROUTE"
 $BIN/h-restart-service caddy > /dev/null 2>&1 || true
 
-# 2. Every per-customer pool + vhost (flags stay = saved state)
 for pool in /etc/php/*/fpm/pool.d/fm-*.conf; do
 	[ -f "$pool" ] || continue
 	ver=$(echo "$pool" | sed -nE 's|/etc/php/([^/]+)/.*|\1|p')
@@ -56,14 +39,9 @@ rm -rf /run/hestia/fm
 [ -n "$PROXY_SYSTEM" ] && $BIN/h-restart-service "$PROXY_SYSTEM" > /dev/null 2>&1 || true
 $BIN/h-restart-service "$WEB_SYSTEM" > /dev/null 2>&1 || true
 
-# 3. Code, secret, tmpfiles, port
 rm -rf "$CODE_DIR"
 rm -f "$SECRET_FILE" "$TMPFILES"
 $BIN/h-change-sys-config-value 'FILE_MANAGER_PORT' ''
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 echo "[ OK ] File manager removed (per-user flags kept as saved state)."
 $BIN/h-log-action "system" "Info" "Plugins" "File manager removed."

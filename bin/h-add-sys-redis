@@ -4,36 +4,22 @@
 #
 # example: h-add-sys-redis
 #
-# Installs redis-server as an unrestricted general service (DB_REDIS=true). If it
-# is already present as rspamd's hard-capped Bayes companion, the cap is removed
-# (the "promote" side of the lifecycle contract; h-delete-sys-redis demotes).
+# Redis as a general service. Already present as rspamd's capped Bayes store, it is promoted: the cap goes.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 limit_marker='HestiaRE rspamd-bayes limit'
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Checking root permissions
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
 	exit 10
 fi
 
-# installed = redis-server present AND not the rspamd-capped companion; capped
-# falls through to promote. Guard on the artefact, not COMPONENT_* (wizard selection).
+# Installed = the package without the rspamd cap; a capped one falls through to the promote.
 if dpkg -l redis-server 2> /dev/null | grep -q '^ii' \
 	&& ! grep -q "$limit_marker" /etc/redis/redis.conf 2> /dev/null; then
 	echo "INFO: Redis is already installed as a general service."
@@ -41,11 +27,6 @@ if dpkg -l redis-server 2> /dev/null | grep -q '^ii' \
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Install (no-op if already present as the rspamd companion)
 if ! dpkg -l redis-server 2> /dev/null | grep -q '^ii'; then
 	echo "Installing redis-server..."
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install redis-server > /dev/null 2>&1
@@ -55,7 +36,7 @@ if ! dpkg -l redis-server 2> /dev/null | grep -q '^ii'; then
 	fi
 fi
 
-# promote: drop the rspamd-bayes cap block (the tail from redis-rspamd-limit.conf)
+# The cap is the tail appended from redis-rspamd-limit.conf.
 if grep -q "$limit_marker" /etc/redis/redis.conf 2> /dev/null; then
 	sed -i "/$limit_marker/,/^maxmemory-policy/d" /etc/redis/redis.conf
 	echo "Removed the rspamd-bayes memory cap (Redis promoted to general service)."
@@ -69,16 +50,10 @@ if ! systemctl is-active --quiet redis-server; then
 	exit "$E_RESTART"
 fi
 
-# status: Redis as a general service; rspamd's capped companion leaves this empty (#936)
 change_sys_value "REDIS_SYSTEM" "redis"
 
 echo "Redis is now available as a general service."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Installed Redis as a general service."
 log_event "$OK" "$ARGUMENTS"
 

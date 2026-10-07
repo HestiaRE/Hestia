@@ -4,11 +4,9 @@
 #
 # example: h-delete-sys-nginx yes
 #
-# Thin entry point over the shared web-model switch core (include/web-model.sh, #120).
-# The model is derived from the resulting component set; MODE omitted/not 'yes'
-# previews, 'yes' applies.
+# Entry point to the web-model switch in include/web-model.sh: the model follows from the resulting component set.
+# Without MODE 'yes' it only previews.
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -17,18 +15,12 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source $HESTIA/include/web-model.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# CrowdSec is nginx-only and stays that way - apache is not a supported front for it, so
-# moving the model off nginx would strand it. Refuse until the addon is torn down first
-# (h-delete-sys-crowdsec, #123) - a deliberate two-step teardown (#186), never automatic:
-# the removal must be the operator's explicit act, because it discards state.
-# Artefact- and status-based, so a half-install trips: the nginx glue file OR the status key, which the
-# engine writes and a delete clears. Not the recipe, which says what was chosen, not what is there (#945).
+# CrowdSec runs on nginx only, and removing it discards state, so that stays the operator's own step.
+# The glue file or the status key, so a half-install counts too.
 if [ -f /etc/nginx/conf.d/crowdsec_init.conf ] || [ -n "$CROWDSEC_SYSTEM" ]; then
-	# One message, not a series of echoes: check_result writes the first line itself, and
-	# separate echoes interleave with it in the terminal
+	# One message: separate echoes interleave with the line check_result writes itself.
 	msg="CrowdSec is active and only supports nginx; apache-only cannot run it."
 	msg="$msg\n       Remove it first, then retry:  h-delete-sys-crowdsec"
 	msg="$msg\n       This discards the local decision database, the ban history and, if"

@@ -4,28 +4,17 @@
 #
 # example: h-delete-web-php 7.3
 #
-# This function checks and delete a fpm php version if not used by any domain.
+# Purges one PHP version, refused while anything still runs on it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 version=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/limits.sh
 source $HESTIA/include/limits.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'VERSION'
 
@@ -39,10 +28,7 @@ if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
 	exit "$E_INVALID"
 fi
 
-# Refuse deleting the version the panel FPM runs on. The pinned version is the
-# single source of truth in /etc/php/hestia/php-version (read by the hestia-php /
-# hestia-php-fpm wrappers); reading it dynamically means the guard follows the
-# panel automatically after h-change-sys-panel-php.
+# The panel's version, read from the file its wrappers read.
 panel_php=$(cat /etc/php/hestia/php-version 2> /dev/null)
 if [ -n "$panel_php" ] && [ "$version" = "$panel_php" ]; then
 	echo "ERROR: PHP $version is the panel FPM version and cannot be removed."
@@ -50,20 +36,15 @@ if [ -n "$panel_php" ] && [ "$version" = "$panel_php" ]; then
 	exit "$E_INVALID"
 fi
 
-# Check if php version exists
 version_check=$($BIN/h-list-sys-php plain | grep -xF -- "$version")
 if [ -z "$version_check" ]; then
-	# A token without a package is drift (a purge outside HestiaRE); clear it here, before the exit, so
-	# the status can be repaired by the command that owns it instead of by hand (Halt 1b build rule).
-	# rc dropped on purpose: this is a repair on the way out, and a write problem must not turn a clear
-	# "not installed" into a different error
+	# A status token without the package is drift: cleared on the way out, its rc ignored so the message stays clear.
 	sys_key_token_set PHP_VERSIONS remove "$version" > /dev/null 2>&1
 	echo "ERROR: Specified PHP version is not installed."
 	exit "$E_INVALID"
 fi
 
-# Everything that runs on this version: the default, domains (a legacy PHP-X_Y backend counts), shell aliases and
-# file manager pools. The panel shows the same list; the check lives here so no caller can skip it.
+# Here and not only in the panel, so no caller can skip it. A legacy PHP-X_Y backend counts.
 [ "$(multiphp_default_version)" = "$version" ] \
 	&& check_result "$E_INUSE" "PHP $version is the default version, change it first: h-change-sys-php <version>"
 in_use=""
@@ -84,19 +65,12 @@ for pool in /etc/php/"$version"/fpm/pool.d/fm-*.conf; do
 done
 [ -z "$in_use" ] || check_result "$E_INUSE" "PHP $version is in use:$in_use"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Whatever dpkg knows of this version rather than a list of our own: that one drifted (no gmp, no sqlite3),
-# and an extension an older release installed is still on the box after the list dropped it.
+# Whatever dpkg knows of this version: an extension an older release installed outlives any list of ours.
 mph=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' "php$version" "php$version-*" 2> /dev/null \
 	| awk '$2 != "not-installed" {print $1}' | tr '\n' ' ')
 
-# apt also removes what depends on a purged package. This version's php-<ext> metas may go with it, but on the
-# version the php-* metas point at, phpmyadmin and roundcube hang on it as well, and -y takes them silently.
-# The guard trusts the simulation only when it lists every package asked for: a failed or silent run would
-# otherwise read as "nothing else goes".
+# apt -y would take phpmyadmin or roundcube with the version the php-* metas point at. The simulation counts only
+# when it lists every package asked for; a silent one would read as "nothing else goes".
 # shellcheck disable=SC2086 # one package name per word, from dpkg
 sim=$(LC_ALL=C apt-get -s purge $mph 2> /dev/null) || check_result "$E_INVALID" "apt cannot simulate the purge of PHP $version"
 removed=$(awk '/^(Purg|Remv) /{print $2}' <<< "$sim")
@@ -114,18 +88,15 @@ if [ -n "$collateral" ]; then
 	exit "$E_INVALID"
 fi
 
-# ioncube.so belongs to no package, so the purge would leave it behind. Its directory is read now, the binary
-# that knows it goes with the purge; the loader itself goes only once the purge went through.
+# ioncube.so belongs to no package. Its directory is read now, while the binary that knows it is still there.
 # shellcheck source=/usr/local/hestia/include/ioncube.sh
 source "$HESTIA/include/ioncube.sh"
 ion_ext=$(ioncube_ext_dir "$version")
 
-# Purge php packages
 # shellcheck disable=SC2086 # one package name per word, from dpkg
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y purge $mph > /dev/null 2>&1 &
 BACK_PID=$!
 
-# Check if package removal is done, print a spinner
 echo "Removing PHP-$version, please wait..."
 spinner="/-\|"
 spin_i=1
@@ -134,10 +105,8 @@ while kill -0 $BACK_PID > /dev/null 2>&1; do
 	sleep 0.5
 done
 
-# Do a blank echo to get the \n back
 echo
 
-# Judged by what dpkg still holds, not by an init script some packages never shipped.
 # shellcheck disable=SC2086 # one package name per word, from dpkg
 left=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' $mph 2> /dev/null | awk '$2 != "not-installed" {print $1}' | tr '\n' ' ')
 if [ -n "$left" ]; then
@@ -148,27 +117,17 @@ fi
 
 [ -n "$ion_ext" ] && rm -f "$ion_ext/ioncube.so"
 
-# A legacy backend template of this version; only after the checks, a refused delete leaves it alone.
+# After the checks, so a refused delete leaves it alone.
 rm -f "$PHPTPL/PHP-${version/./_}.tpl"
 
-# Cleanup php folder
 [[ -d /etc/php/$version ]] && rm -rf "/etc/php/$version"
 
-# The unit is gone with the package; its drop-in directory is ours to remove (#212).
 customer_php_slice_remove "$version"
 systemctl daemon-reload
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Only after the purge succeeded: a token removed before a failed purge would say "gone" about a
-# version that is still there (#933).
-# Same rule as the add: a failed record fails the command although the purge went through; the status
-# must not keep a version that is gone, so the exit says so and a re-run of the delete clears it.
+# After the purge, and a failed record fails the command: the status must not keep a version that is gone.
 sys_key_token_set PHP_VERSIONS remove "$version" > /dev/null || check_result "$E_UPDATE" "PHP_VERSIONS: could not drop $version"
 
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Uninstalled PHP $version."
 log_event "$OK" "$ARGUMENTS"
 

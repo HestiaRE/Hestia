@@ -1053,6 +1053,10 @@ is_password_valid() {
 			fi
 		fi
 	fi
+	# chpasswd reads one account per line: a line break would set a second account's password.
+	if [[ "$password" == *$'\n'* ]]; then
+		check_result "$E_INVALID" "invalid password format :: it contains a line break"
+	fi
 }
 
 # Check if hash is transmitted via file

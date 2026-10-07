@@ -34,8 +34,13 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '2' "$#" 'USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]'
+check_args '3' "$#" 'USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]'
 is_format_valid 'user' 'ip46'
+# Anything but failed is recorded as an active session, so only the two known words pass.
+case "$status" in
+	success | failed) ;;
+	*) check_result "$E_INVALID" "invalid status :: $status (success or failed)" ;;
+esac
 is_common_format_valid "$session_id" "SESSION_ID"
 # The client picks its agent string, and a refusal here would drop the line fail2ban counts: stored, not judged.
 user_agent=$(printf '%s' "$user_agent" | tr -c '[:print:]' '_')

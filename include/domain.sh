@@ -335,6 +335,39 @@ web_backend_addr() {
 	fi
 }
 
+# Stats password protection. nginx parses its fragment as root, so it lives in the root-owned conf folder; the
+# rest sits in the customer's stats/ and is written as the customer. Keep in step with web_render_template.
+web_stats_auth_write() { # STATS_USER STATS_CRYPT
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed=''
+	if [ "$WEB_SYSTEM" = 'nginx' ]; then
+		printf '%s\n' 'auth_basic "Web Statistics";' "auth_basic_user_file $stats_dir/.htpasswd;" \
+			> "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
+	fi
+	user_exec test -w "$stats_dir" || {
+		user_exec chmod u+w "$stats_dir"
+		closed=yes
+	}
+	user_exec rm -f "$stats_dir/auth.conf"
+	if [ "$WEB_SYSTEM" != 'nginx' ]; then
+		printf '%s\n' "AuthUserFile $stats_dir/.htpasswd" 'AuthName "Web Statistics"' 'AuthType Basic' 'Require valid-user' \
+			| user_exec tee "$stats_dir/.htaccess" > /dev/null
+	fi
+	echo "$1:$2" | user_exec tee "$stats_dir/.htpasswd" > /dev/null
+	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+}
+
+web_stats_auth_clear() {
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed=''
+	rm -f "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
+	[ -d "$stats_dir" ] || return 0
+	user_exec test -w "$stats_dir" || {
+		user_exec chmod u+w "$stats_dir"
+		closed=yes
+	}
+	user_exec rm -f "$stats_dir/auth.conf" "$stats_dir/.htaccess" "$stats_dir/.htpasswd"
+	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+}
+
 # The ONE substitution engine (#890): stdin template in, rendered text out. Divergent
 # values arrive in _r_* (webmail renders %domain% as the alias, %web_system% as the
 # front). Removing or renaming a token breaks every custom template that uses it.
@@ -348,7 +381,9 @@ web_render_template() {
 	local _del=''
 	[ -z "$_r_ip" ] && _del="/%ip%/d; "
 	[ -z "$_r_ip6" ] && _del="${_del}/%ip6%/d; "
+	# An older or custom template still includes stats/auth.conf from the customer's folder: nginx must never parse it.
 	sed -e "$_del" \
+		-e "s|%home%/%user%/web/%domain%/stats/auth\.conf|%home%/%user%/conf/web/%domain%/nginx.stats_auth.conf|g" \
 		-e "s|%ip%|$_r_ip|g" \
 		-e "s|%ip6%|$_r_ip6|g" \
 		-e "s|%vhost%|$_r_vhost|g" \

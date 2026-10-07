@@ -45,13 +45,8 @@ is_object_value_exist 'web' 'DOMAIN' "$domain" '$STATS_USER'
 #----------------------------------------------------------#
 
 # Deleting statistic dir
-stats_dir="$HOMEDIR/$user/web/$domain/stats"
-rm -f "$stats_dir/.htpasswd"
-rm -f "$stats_dir/.htaccess"
-
-# Deleting nginx auth config
+web_stats_auth_clear
 if [ "$WEB_SYSTEM" = 'nginx' ]; then
-	rm -f $stats_dir/auth.conf 2> /dev/null
 	$BIN/h-restart-web "$restart"
 	check_result $? "Web restart failed" > /dev/null
 fi

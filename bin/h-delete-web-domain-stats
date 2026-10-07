@@ -54,6 +54,7 @@ rm -rf "$HOMEDIR/$user/web/$domain/stats"
 # Deleting config
 rm -f "/etc/awstats/$STATS.$domain_idn.conf"
 rm -f "$HOMEDIR/$user/conf/web/$domain/$STATS.conf"
+rm -f "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

@@ -48,7 +48,7 @@ fi
 # Install (no-op if already present as the rspamd companion)
 if ! dpkg -l redis-server 2> /dev/null | grep -q '^ii'; then
 	echo "Installing redis-server..."
-	apt-get -y -qq install redis-server > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install redis-server > /dev/null 2>&1
 	if ! dpkg -l redis-server 2> /dev/null | grep -q '^ii'; then
 		echo "ERROR: redis-server installation failed."
 		exit "$E_INVALID"

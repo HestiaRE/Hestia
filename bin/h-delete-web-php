@@ -122,7 +122,7 @@ ion_ext=$(ioncube_ext_dir "$version")
 
 # Purge php packages
 # shellcheck disable=SC2086 # one package name per word, from dpkg
-apt-get -y purge $mph > /dev/null 2>&1 &
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y purge $mph > /dev/null 2>&1 &
 BACK_PID=$!
 
 # Check if package removal is done, print a spinner
@@ -130,7 +130,7 @@ echo "Removing PHP-$version, please wait..."
 spinner="/-\|"
 spin_i=1
 while kill -0 $BACK_PID > /dev/null 2>&1; do
-	printf "\b${spinner:spin_i++%${#spinner}:1}"
+	[ -t 1 ] && printf "\b${spinner:spin_i++%${#spinner}:1}"
 	sleep 0.5
 done
 

@@ -60,8 +60,9 @@ if [ "$ANTISPAM_SYSTEM" = "rspamd" ]; then
 else
 	# No consumer left — actually remove it.
 	systemctl disable --now redis-server > /dev/null 2>&1
-	apt-get -y -qq purge redis-server > /dev/null 2>&1
-	apt-get -y -qq autoremove > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge redis-server > /dev/null 2>&1
+	dpkg-query -W -f='${db:Status-Status}\n' redis-server 2> /dev/null | grep -qx installed \
+		&& check_result "$E_UPDATE" "redis-server purge failed"
 	echo "Redis has been uninstalled."
 fi
 

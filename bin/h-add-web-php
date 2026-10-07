@@ -59,7 +59,7 @@ fi
 # Fresh lists first, or a stale cache turns an installable OS version into a retrofit -
 # and a FAILED update must stop here: reading a mirror outage as "not available" would
 # permanently put Sury on a box whose preset promises none.
-apt-get -qq update || check_result "$E_CONNECT" "apt-get update failed - cannot judge package availability"
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update || check_result "$E_CONNECT" "apt-get update failed - cannot judge package availability"
 # Only a missing candidate means "not in these repos"; a failing simulation can be a held or broken package.
 candidate=$(LC_ALL=C apt-cache policy "php$version-fpm" 2> /dev/null | awk '/Candidate:/{print $2}')
 if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
@@ -75,7 +75,7 @@ if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
 	# and takes it over on the next apt run. So the status follows the retrofit, not the install result.
 	change_sys_value "PHP_SOURCE" "sury"
 
-	apt-get -qq update || check_result "$E_CONNECT" "apt-get update failed after adding the Sury repo"
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update || check_result "$E_CONNECT" "apt-get update failed after adding the Sury repo"
 fi
 
 # The set lives in php_module_pkgs; opcache has no package from 8.5 on, so it drops loudly instead of failing
@@ -97,7 +97,7 @@ esac
 # Install php packages. Not /dev/null: a failure has to leave something to read.
 apt_log=$(mktemp)
 # shellcheck disable=SC2086
-apt-get -y -qq -o Dpkg::Options::="--force-confold" install $mph > "$apt_log" 2>&1 &
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq -o Dpkg::Options::="--force-confold" install $mph > "$apt_log" 2>&1 &
 
 BACK_PID=$!
 
@@ -106,7 +106,7 @@ echo "Installing PHP-$version, please wait..."
 spinner="/-\|"
 spin_i=1
 while kill -0 $BACK_PID > /dev/null 2>&1; do
-	printf "\b${spinner:spin_i++%${#spinner}:1}"
+	[ -t 1 ] && printf "\b${spinner:spin_i++%${#spinner}:1}"
 	sleep 0.5
 done
 

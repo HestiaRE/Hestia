@@ -60,7 +60,7 @@ proftpd_pkgs="proftpd-core proftpd-mod-vroot proftpd-mod-crypto"
 # a broken config on re-run. Guard on the package, not COMPONENT_* (wizard selection).
 echo "Installing ProFTPD ($proftpd_pkgs)..."
 # shellcheck disable=SC2086
-apt-get -y -qq install $proftpd_pkgs > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install $proftpd_pkgs > /dev/null 2>&1
 if ! dpkg -l proftpd-core 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: ProFTPD installation failed."
 	exit "$E_INVALID"

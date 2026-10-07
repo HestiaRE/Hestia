@@ -55,14 +55,21 @@ fi
 #----------------------------------------------------------#
 
 echo "Removing Docker packages..."
-apt-get -y -qq purge docker-ce docker-ce-cli docker-ce-rootless-extras \
-	docker-compose-plugin docker-buildx-plugin containerd.io > /dev/null 2>&1
-apt-get -y -qq autoremove > /dev/null 2>&1
+# Only names dpkg holds: apt refuses the whole purge over one it does not know. The repository goes only after.
+docker_pkgs=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' docker-ce docker-ce-cli docker-ce-rootless-extras \
+	docker-compose-plugin docker-buildx-plugin containerd.io 2> /dev/null | awk '$2 != "not-installed" {print $1}')
+if [ -n "$docker_pkgs" ]; then
+	# shellcheck disable=SC2086 # one package name per word, from dpkg
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge $docker_pkgs > /dev/null 2>&1
+	# shellcheck disable=SC2086
+	dpkg-query -W -f='${db:Status-Status}\n' $docker_pkgs 2> /dev/null | grep -qx installed \
+		&& check_result "$E_UPDATE" "Docker purge failed, repository and settings left as they are"
+fi
 
 echo "Removing the Docker repository..."
 # Also the pin an earlier revision installed, so an upgraded box does not keep it.
 rm -f "$DOCKER_LIST" "$DOCKER_KEYRING" /etc/apt/preferences.d/hestia-docker.pref
-apt-get -qq update > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update > /dev/null 2>&1
 
 # Left by an earlier revision: an upgraded box must not keep a global cgroup widening
 # the add side no longer installs.

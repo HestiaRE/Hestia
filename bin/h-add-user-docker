@@ -125,6 +125,8 @@ companion="${user}-docker"
 companion_uid=$((uid - IDENTITY_BLOCK))
 sub_base="$(identity_sub_base_from_k "$k")"
 companion_home="$HOMEDIR/$user/.companion"
+# useradd -m would build the home through a link the customer left there.
+[ -L "$companion_home" ] && check_result "$E_FORBIDEN" "$companion_home is a link"
 
 existing="$(getent passwd "$companion_uid" | cut -d: -f1)"
 if [ -n "$existing" ] && [ "$existing" != "$companion" ]; then
@@ -221,9 +223,7 @@ if ! getent passwd "$companion" > /dev/null 2>&1; then
 fi
 
 # The DIRECTORY carries the customer's group at 0710: traverse to the socket, no listing.
-mkdir -p "$companion_home"
-chown "$companion":"$gid" "$companion_home"
-chmod 0710 "$companion_home"
+home_dir_own "$companion_home" "$companion:$gid" 0710 || check_result "$E_FORBIDEN" "$companion_home is not a directory"
 
 # Order is semantic: newuidmap consumes the lines in file order, giving container
 # 1-999, container 1000 = the customer, container 1001-65536. Deleted before appending

@@ -2644,6 +2644,16 @@ user_exec() {
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
 }
 
+# home_dir_own PATH OWNER MODE: root sets up a directory inside a customer's home, which the customer can rename.
+# A link is refused and chown never follows one; a swap between the test and chmod is not covered.
+home_dir_own() {
+	if [ -L "$1" ]; then
+		echo "Error: $1 is a link" >&2
+		return 1
+	fi
+	mkdir -p "$1" && chown -h "$2" "$1" && chmod "$3" "$1"
+}
+
 # path_within PATH BASE...: PATH, resolved, is one of the BASEs or lies below one. A prefix match would let
 # /home/fsa admit /home/fsab. Second line only: the fs commands act through user_exec, the UID is the boundary.
 path_within() {

@@ -67,8 +67,7 @@ else
 fi
 
 # Customer-owned session/upload dir (the one the web pool uses; persists over reboot)
-mkdir -p "$HOMEDIR/$user/tmp"
-chown "$user:$user" "$HOMEDIR/$user/tmp"
+home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
 
 # Pool (runs as the customer)
 mkdir -p "$(dirname "$pool")"

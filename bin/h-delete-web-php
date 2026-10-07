@@ -114,10 +114,11 @@ if [ -n "$collateral" ]; then
 	exit "$E_INVALID"
 fi
 
-# ioncube.so belongs to no package, so the purge would leave it behind.
+# ioncube.so belongs to no package, so the purge would leave it behind. Its directory is read now, the binary
+# that knows it goes with the purge; the loader itself goes only once the purge went through.
 # shellcheck source=/usr/local/hestia/include/ioncube.sh
 source "$HESTIA/include/ioncube.sh"
-ioncube_version_remove "$version"
+ion_ext=$(ioncube_ext_dir "$version")
 
 # Purge php packages
 # shellcheck disable=SC2086 # one package name per word, from dpkg
@@ -144,6 +145,8 @@ if [ -n "$left" ]; then
 	echo "apt-get purge $mph"
 	exit "$E_INVALID"
 fi
+
+[ -n "$ion_ext" ] && rm -f "$ion_ext/ioncube.so"
 
 # A legacy backend template of this version; only after the checks, a refused delete leaves it alone.
 rm -f "$PHPTPL/PHP-${version/./_}.tpl"

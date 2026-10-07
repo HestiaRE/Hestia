@@ -362,7 +362,8 @@ rebuild_web_domain_conf() {
 			$BIN/h-add-web-domain-ssl-hsts $user $domain no yes
 		fi
 
-		if [ "$FASTCGI_CACHE" = 'yes' ]; then
+		# Only where nginx is the web server; elsewhere the delete would clear the flag and the add refuse.
+		if [ "$FASTCGI_CACHE" = 'yes' ] && [ "$WEB_SYSTEM" = 'nginx' ]; then
 			$BIN/h-delete-fastcgi-cache $user $domain
 			$BIN/h-add-fastcgi-cache $user $domain "$FASTCGI_DURATION"
 		fi

@@ -46,7 +46,7 @@ is_object_unsuspended 'web' 'DOMAIN' "$domain"
 is_password_valid
 get_domain_values 'web'
 is_user_format_valid "$auth_user" "Auth user"
-if [ -n "$(echo "$AUTH_USER" | tr : '\n' | grep ^$auth_user$)" ]; then
+if tr : '\n' <<< "$AUTH_USER" | grep -qxF -- "$auth_user"; then
 	echo "Error: auth user $auth_user already exists"
 	log_event "$E_EXISTS" "$ARGUMENTS"
 	exit "$E_EXISTS"
@@ -87,7 +87,7 @@ auth_hash=$(printf '%s\n' "$password" | $BIN/h-generate-password-hash htpasswd h
 touch $htpasswd
 chmod 644 $htpasswd $htaccess
 chgrp $user $htpasswd $htaccess
-sed -i "/^$auth_user:/d" $htpasswd
+web_htpasswd_drop "$htpasswd" "$auth_user"
 echo "$auth_user:$auth_hash" >> $htpasswd
 
 # Restarting web server

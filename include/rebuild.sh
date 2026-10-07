@@ -520,8 +520,7 @@ auth_basic_user_file    $htpasswd;"
 		IFS=: read -ra _auth_user_list <<< "$AUTH_USER"
 		for auth_user in "${_auth_user_list[@]}"; do
 			[ -n "$auth_user" ] || continue
-			position=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' \
-				| grep ":$auth_user$" | cut -f 1 -d:)
+			position=$(tr ':' '\n' <<< "$AUTH_USER" | grep -nxF -- "$auth_user" | head -n1 | cut -d: -f1)
 			auth_hash=$(echo $AUTH_HASH | tr ':' '\n' | grep -n '' \
 				| grep "^$position:" | cut -f 2 -d :)
 			# The two lists are joined by position and can arrive out of step. A line with no hash

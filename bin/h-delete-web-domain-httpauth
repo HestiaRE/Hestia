@@ -36,9 +36,9 @@ is_format_valid 'user' 'domain' 'restart'
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
-is_password_valid
+is_user_format_valid "$auth_user" "Auth user"
 get_domain_values 'web'
-if [ -z "$(echo "$AUTH_USER" | tr : '\n' | grep ^$auth_user$)" ]; then
+if ! tr : '\n' <<< "$AUTH_USER" | grep -qxF -- "$auth_user"; then
 	echo "Error: auth user $auth_user doesn't exist"
 	log_event "$E_NOTEXIST" "$ARGUMENTS"
 	exit "$E_NOTEXIST"
@@ -50,7 +50,7 @@ fi
 
 htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
 # Deleting auth user
-sed -i "/^$auth_user:/d" $htpasswd
+web_htpasswd_drop "$htpasswd" "$auth_user"
 
 # Deleting password protection
 if [ "$(echo "$AUTH_USER" | tr : '\n' | wc -l)" -le 1 ]; then
@@ -78,8 +78,7 @@ fi
 #----------------------------------------------------------#
 
 # Rebuilding FTP variables
-position=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' | grep ":$auth_user$" \
-	| cut -f 1 -d:)
+position=$(tr ':' '\n' <<< "$AUTH_USER" | grep -nxF -- "$auth_user" | head -n1 | cut -d: -f1)
 auth_user=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' | grep -v "^$position:" \
 	| cut -f 2 -d : | sed -e "/^$/d" | sed -e ':a;N;$!ba;s/\n/:/g')
 auth_hash=$(echo $AUTH_HASH | tr ':' '\n' | grep -n '' | grep -v "^$position:" \

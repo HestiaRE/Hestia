@@ -370,6 +370,14 @@ web_stats_auth_clear() {
 	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
 }
 
+# Drops one http auth account; the name is matched as a whole field, a dot in it is no wildcard.
+web_htpasswd_drop() { # FILE NAME
+	[ -f "$1" ] || return 0
+	local rest
+	rest=$(awk -F: -v u="$2" '$1 != u' "$1") || return 1
+	printf '%s\n' "$rest" | sed '/^$/d' > "$1"
+}
+
 # Update entry: a vhost rendered before the fragment moved still includes it from the customer's folder.
 stats_auth_fragment_apply() {
 	local f rest seen=" " rc=0

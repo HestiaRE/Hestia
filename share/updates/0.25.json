@@ -279,6 +279,24 @@
         "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
       ],
       "reversible": false
+    },
+    {
+      "id": "remove-h-update-web-templates",
+      "description": "h-update-web-templates is gone: nothing called it, and it fetched nothing any more",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-update-web-templates"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-update-web-templates"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-update-web-templates"
+      ],
+      "reversible": false
     }
   ]
 }

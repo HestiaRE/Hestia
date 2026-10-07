@@ -1776,6 +1776,7 @@ is_ip46_format_valid() {
 # hardened, and that is the one nothing calls. A mask is an unsigned integer in its family's range,
 # so ctype_digit does both bounds at once; "x/" carries no mask but is not the same as "x".
 # filter_var alone decides the address; an extra pattern rejects nothing it accepts.
+# Callers accept only the literal 0: an error text from php must refuse, not pass.
 _is_cidr_valid() {
 	$HESTIA_PHP -r '$p = explode("/", $argv[1]);
 		if (count($p) > 2) { echo 1; exit; }
@@ -1784,12 +1785,12 @@ _is_cidr_valid() {
 		$fam = $argv[2];
 		if (!($fam === "46" ? ($v4 || $v6) : ($fam === "4" ? $v4 : $v6))) { echo 1; exit; }
 		if (count($p) === 1) { echo 0; exit; }
-		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' "$1" "$2"
+		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' -- "$1" "$2"
 }
 
 is_ipv4_cidr_format_valid() {
 	object_name=${2-ip}
-	if [ "$(_is_cidr_valid "$1" 4)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 4)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
@@ -1798,14 +1799,14 @@ is_ipv4_cidr_format_valid() {
 # validators stay for the places that genuinely mean one family (an IP object, a NAT address).
 is_ip_cidr_format_valid() {
 	object_name=${2-ip}
-	if [ "$(_is_cidr_valid "$1" 46)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 46)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
 
 is_ipv6_cidr_format_valid() {
 	object_name=${2-ipv6}
-	if [ "$(_is_cidr_valid "$1" 6)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 6)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }

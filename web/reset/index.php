@@ -176,7 +176,7 @@ if (!empty($_POST["user"]) && empty($_POST["code"])) {
 if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"])) {
 	// Check token
 	verify_csrf($_POST);
-	if ($_POST["password"] == $_POST["password_confirm"]) {
+	if ($_POST["password"] === $_POST["password_confirm"] && validate_password($_POST["password"])) {
 		$v_user = quoteshellarg($_POST["user"]);
 		$user = $_POST["user"];
 		$data = cli_json("h-list-user " . $v_user . " json");
@@ -222,8 +222,10 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 			sleep(5);
 			$error = _("Invalid username or code");
 		}
-	} else {
+	} elseif ($_POST["password"] !== $_POST["password_confirm"]) {
 		$error = _("Passwords do not match");
+	} else {
+		$error = _("Password does not match the minimum requirements.");
 	}
 }
 

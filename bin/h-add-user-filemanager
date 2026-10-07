@@ -91,12 +91,16 @@ if [ ! -S "$sock" ]; then
 	check_result "$E_NOTEXIST" "file manager pool socket did not appear ($sock) — php$ver-fpm reload may have failed"
 fi
 
-# Private-listener vhost (secret-gated)
-sed -e "s|%user%|$user|g" \
-	-e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" \
-	-e "s|%FM_SECRET%|$secret|g" \
-	"$HESTIA/share/filemanager/$tpl.tpl" > "$vhost"
-chmod 644 "$vhost"
+# Private-listener vhost. It carries the secret every customer's vhost shares, so root only, from the first byte.
+rm -f "$vhost"
+(
+	umask 077
+	sed -e "s|%user%|$user|g" \
+		-e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" \
+		-e "s|%FM_SECRET%|$secret|g" \
+		"$HESTIA/share/filemanager/$tpl.tpl" > "$vhost"
+)
+chmod 600 "$vhost"
 if [ "$restart" != 'no' ]; then
 	$BIN/h-restart-service "$fm_web" > /dev/null 2>&1 || true
 fi

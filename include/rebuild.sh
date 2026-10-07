@@ -96,10 +96,17 @@ rebuild_user_conf() {
 	# line and silently locked out of SSH/SFTP after the restore (#412)
 	manage_sshd_allowusers add "$user"
 
-	# Update password
-	chmod u+w /etc/shadow
-	sed -i "s|^$user:[^:]*:|$user:$MD5:|" /etc/shadow
-	chmod u-w /etc/shadow
+	# The record may come from an archive: only a crypt hash is set, anything else locks the account.
+	if [[ "$MD5" =~ ^!?[$./A-Za-z0-9]+$ ]]; then
+		echo "$user:$MD5" | /usr/sbin/chpasswd -e
+	else
+		echo "Warning: the record of $user carries no usable password hash, the account is locked" >&2
+		/usr/sbin/usermod --lock "$user"
+	fi
+	# Setting the hash unlocks; a suspended record stays locked as h-suspend-user left it.
+	if [ "$SUSPENDED" = 'yes' ] && [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
+		/usr/sbin/usermod --lock "$user"
+	fi
 
 	# Building directory tree
 	if [ -e "$HOMEDIR/$user/conf" ]; then

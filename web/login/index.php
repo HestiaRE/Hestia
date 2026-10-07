@@ -401,6 +401,13 @@ if (empty($_SESSION["language"])) {
 	$_SESSION["language"] = in_array($lang, $languages) ? $lang : "en";
 }
 
+// Shown once, on the password step the reset page leads to.
+$notice = "";
+if (!empty($_SESSION["login"]["reset_done"])) {
+	$notice = _("Your password has been changed. Please log in.");
+	unset($_SESSION["login"]["reset_done"]);
+}
+
 // Generate CSRF token
 $token = bin2hex(random_bytes(16));
 $_SESSION["token"] = $token;

@@ -204,8 +204,10 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 						sleep(5);
 						$error = _("An internal error occurred");
 					} else {
-						$_SESSION["user"] = $_POST["user"];
-						header("Location: /");
+						// No session from here: the login applies 2FA, LOGIN_DISABLED and the address list.
+						$_SESSION["login"]["username"] = $_POST["user"];
+						$_SESSION["login"]["reset_done"] = true;
+						header("Location: /login/");
 						exit();
 					}
 				} else {

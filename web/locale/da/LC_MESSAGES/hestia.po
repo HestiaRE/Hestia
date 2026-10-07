@@ -176,6 +176,7 @@ msgstr "Adgangskode"
 
 #: web/add/db/index.php web/add/mail/index.php web/add/user/index.php
 #: web/edit/db/index.php web/edit/mail/index.php web/edit/user/index.php
+#: web/reset/index.php
 msgid "Password does not match the minimum requirements."
 msgstr "Adgangskoden svarer ikke til minimumskravene."
 
@@ -881,6 +882,10 @@ msgstr "Ugyldigt brugernavn eller adgangskode"
 #: web/login/index.php
 msgid "Unsupported hash method"
 msgstr "Ikke-understøttet hash-metode"
+
+#: web/login/index.php
+msgid "Your password has been changed. Please log in."
+msgstr ""
 
 #: web/reset/index.php
 msgid "Code has been expired"

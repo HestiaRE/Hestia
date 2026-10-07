@@ -176,6 +176,7 @@ msgstr "Passwort"
 
 #: web/add/db/index.php web/add/mail/index.php web/add/user/index.php
 #: web/edit/db/index.php web/edit/mail/index.php web/edit/user/index.php
+#: web/reset/index.php
 msgid "Password does not match the minimum requirements."
 msgstr "Das Passwort entspricht nicht den Minimalanforderungen."
 
@@ -881,6 +882,10 @@ msgstr "Falscher Benutzername oder Passwort"
 #: web/login/index.php
 msgid "Unsupported hash method"
 msgstr "Nicht unterstützte Hash-Methode"
+
+#: web/login/index.php
+msgid "Your password has been changed. Please log in."
+msgstr "Ihr Passwort wurde geändert. Bitte melden Sie sich an."
 
 #: web/reset/index.php
 msgid "Code has been expired"

@@ -37,7 +37,10 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '2' "$#" 'USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]'
 is_format_valid 'user' 'ip46'
 is_common_format_valid "$session_id" "SESSION_ID"
-format_no_quotes "$user_agent" "USER_AGENT"
+# The client picks its agent string, and a refusal here would drop the line fail2ban counts: stored, not judged.
+user_agent=$(printf '%s' "$user_agent" | tr -c '[:print:]' '_')
+user_agent=${user_agent//[\'\"\`\\|]/_}
+user_agent=${user_agent:0:256}
 is_common_format_valid "$authlog" "AUTHLOG"
 format_no_quotes "$reason" "REASON"
 

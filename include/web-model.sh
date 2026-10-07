@@ -408,6 +408,26 @@ web_model_rollback() {
 	fi
 }
 
+# The bot rate-limit server config belongs to the public front, and the per-domain fragments rebuilt after it name
+# its zones. The departing front's copy goes; a rollback restores it from the snapshot.
+web_model_botlimit_sync() {
+	# shellcheck source=/usr/local/hestia/include/botpolicy.sh
+	source "$HESTIA/include/botpolicy.sh"
+	botpolicy_seed_families
+	if [ "$1" = 'apache' ]; then
+		rm -f /etc/nginx/conf.d/hestia_botlimit.conf
+		if _web_apt_install libapache2-mod-qos > /dev/null 2>&1 && a2enmod -q qos > /dev/null 2>&1; then
+			botpolicy_render_apache
+		else
+			echo "Warning: mod_qos is not available, bot rate limiting stays off" >&2
+		fi
+	else
+		rm -f /etc/apache2/conf.d/hestia_botlimit.conf
+		web_model_uses_nginx "$1" && [ -d /etc/nginx/conf.d ] && botpolicy_render_nginx
+	fi
+	return 0
+}
+
 # List helpers
 web_sys_ips() { "$BIN/h-list-sys-ips" plain 2> /dev/null | cut -f1; }
 web_users() { "$BIN/h-list-users" list 2> /dev/null; }
@@ -548,6 +568,8 @@ web_model_run() {
 	# The customer vhosts include it optionally, so a server that arrives without it silently loses the route.
 	web_model_uses_nginx "$target" && pma_proxy_include_write nginx
 	web_model_uses_apache "$target" && pma_proxy_include_write apache2
+
+	web_model_botlimit_sync "$target"
 
 	echo "[ * ] Rebuilding per-IP + per-domain + webmail configs for $target..."
 	local ip u

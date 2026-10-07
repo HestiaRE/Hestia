@@ -33,7 +33,7 @@ if (!empty($_POST["user"]) && empty($_POST["code"])) {
 		// cli_value(), not cli_json(): this is a timestamp, and an empty array answers both
 		// comparisons below the opposite way - the expiry check would stop rejecting anything.
 		$rkeyexp = cli_value("h-get-user-value " . $v_user . " RKEYEXP");
-		if ($rkeyexp === null || $rkeyexp < time() - 1) {
+		if ($rkeyexp === null || $rkeyexp < time() - 900) {
 			// Strict, and both sides non-empty: a loose compare against a missing CONTACT made an
 			// empty submitted address match, which is the one comparison here that gates a reset.
 			if ($email !== "" && $email === ($data[$user]["CONTACT"] ?? "")) {

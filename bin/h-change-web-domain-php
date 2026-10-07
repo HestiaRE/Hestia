@@ -79,6 +79,10 @@ update_object_value 'web' 'DOMAIN' "$domain" '$PHP_VERSION' "$version"
 $BIN/h-rebuild-web-domain "$user" "$domain" "$restart"
 check_result $? "Rebuild failed" > /dev/null
 
+if [ "$(get_object_value 'web' 'DOMAIN' "$domain" '$WP')" = 'yes' ]; then
+	wp_cron_sync "$domain" || echo "WARN: the wp-cron entry could not be moved to PHP $version"
+fi
+
 # The old master still holds the now-removed pool's socket until it reloads. Checked like the
 # rebuild: a failed restart must not report success while the domain serves a dead socket.
 if [ -n "$old_version" ] && [ "$old_version" != "$version" ]; then

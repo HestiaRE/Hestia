@@ -23,6 +23,8 @@ scope=${3-core}
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -51,13 +53,10 @@ wp_state=$(get_object_value 'web' 'DOMAIN' "$domain" '$WP')
 #----------------------------------------------------------#
 
 docroot="$HOMEDIR/$user/web/$domain/public_html"
-php_ver=$(get_object_value 'web' 'DOMAIN' "$domain" '$PHP_VERSION')
-wp_php="/usr/bin/php${php_ver:-}"
-[ -x "$wp_php" ] || wp_php="/usr/bin/php"
+wp_php=$(wp_domain_php "$domain")
 
 wp_user() {
-	user_exec env HOME="$HOMEDIR/$user" WP_CLI_PHP="$wp_php" timeout 600 \
-		"$WP_BIN" "$@" --path="$docroot"
+	user_exec env HOME="$HOMEDIR/$user" timeout 600 "$wp_php" "$WP_BIN" "$@" --path="$docroot"
 }
 
 before=$(wp_user core version 2> /dev/null)

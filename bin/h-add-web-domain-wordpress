@@ -27,6 +27,8 @@ title=$4
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -103,14 +105,10 @@ fi
 
 [ -n "$title" ] || title="$domain"
 
-# wp-cli runs with the PHP version that serves the domain, not the PATH CLI
-php_ver=$(get_object_value 'web' 'DOMAIN' "$domain" '$PHP_VERSION')
-wp_php="/usr/bin/php${php_ver:-}"
-[ -x "$wp_php" ] || wp_php="/usr/bin/php"
+wp_php=$(wp_domain_php "$domain")
 
 wp_user() {
-	user_exec env HOME="$HOMEDIR/$user" WP_CLI_PHP="$wp_php" timeout 600 \
-		"$WP_BIN" "$@" --path="$docroot"
+	user_exec env HOME="$HOMEDIR/$user" timeout 600 "$wp_php" "$WP_BIN" "$@" --path="$docroot"
 }
 
 # DB name deterministic per domain, inside the user_ prefix convention; the password
@@ -212,12 +210,8 @@ RewriteRule . /index.php [L]
 HTACCESS
 fi
 
-# deterministic cron instead of pageview-triggered wp-cron (DISABLE_WP_CRON is set above);
-# absolute paths (cron's default PATH has no /usr/local/bin), and the SAME PHP the domain
-# serves with - the PATH CLI would fatal every 5 minutes on a version-mismatched domain,
-# silenced by --quiet and cron
-$BIN/h-add-cron-job "$user" "*/5" "*" "*" "*" "*" \
-	"env WP_CLI_PHP=$wp_php $WP_BIN cron event run --due-now --path=$docroot --quiet" > /dev/null 2>&1 \
+# deterministic cron instead of pageview-triggered wp-cron (DISABLE_WP_CRON is set above)
+wp_cron_sync "$domain" \
 	|| echo "WARN: could not add the wp-cron entry (CRON quota?) - scheduled WP tasks will not run"
 
 # the record field says only "panel-managed"; add_object_key is idempotent on key presence

@@ -370,6 +370,28 @@ web_stats_auth_clear() {
 	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
 }
 
+# The PHP that serves the domain. wp-cli is started through it: a phar run directly takes the PATH php and ignores
+# WP_CLI_PHP, and a version-mismatched domain then fatals.
+wp_domain_php() { # DOMAIN
+	local v
+	v=$(get_object_value 'web' 'DOMAIN' "$1" '$PHP_VERSION')
+	if [ -n "$v" ] && [ -x "/usr/bin/php$v" ]; then
+		echo "/usr/bin/php$v"
+	else
+		echo /usr/bin/php
+	fi
+}
+
+# The five-minute wp-cron job of a managed WordPress, matched by its docroot and re-pointed when the PHP changes.
+wp_cron_sync() { # DOMAIN
+	local docroot="$HOMEDIR/$user/web/$1/public_html" job
+	for job in $("$BIN/h-list-cron-jobs" "$user" plain 2> /dev/null | grep -F "cron event run --due-now --path=$docroot" | cut -f 1); do
+		"$BIN/h-delete-cron-job" "$user" "$job" > /dev/null 2>&1
+	done
+	"$BIN/h-add-cron-job" "$user" "*/5" "*" "*" "*" "*" \
+		"$(wp_domain_php "$1") /usr/local/bin/wp cron event run --due-now --path=$docroot --quiet" > /dev/null 2>&1
+}
+
 # A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
 # "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
 is_web_domain_name_valid() { # DOMAIN

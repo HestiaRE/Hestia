@@ -60,12 +60,14 @@ read -r template tpl_effect <<< "$tpl_accepted"
 
 # Defining domain parameters
 get_domain_values 'web'
+PROXY="$template"
 prepare_web_domain_values
 local_ip=$(get_real_ip "$IP")
 
-# Preparing domain values for the template substitution
+# Preparing domain values for the template substitution; an offline domain keeps rendering its override
 PROXY_EXT="$extentions"
-add_web_config "$PROXY_SYSTEM" "$template.tpl"
+add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
+check_result $? "proxy vhost not written"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

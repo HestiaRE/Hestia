@@ -5,7 +5,7 @@
 # example: h-delete-user whistler
 #
 # This function deletes a certain user and all his resources such as domains,
-# databases, cron jobs, etc.
+# databases, cron jobs, etc. Every process still running as the user is ended.
 
 #----------------------------------------------------------#
 #                Variables & Functions                     #
@@ -94,6 +94,12 @@ $BIN/h-delete-user-filemanager "$user" no > /dev/null 2>&1
 # read before the userdel kills the uid; the limit reset below keeps repquota
 # free of dead projects - a report with corpses stops being read (#211)
 _quota_uid=$(id -u "$user" 2> /dev/null)
+
+# A process outliving the account keeps its uid, and a new account of the same name gets that uid back.
+if [[ "$_quota_uid" =~ ^[0-9]+$ ]] && [ "$_quota_uid" -ne 0 ]; then
+	loginctl terminate-user "$user" > /dev/null 2>&1
+	pkill -KILL -u "$_quota_uid" > /dev/null 2>&1
+fi
 
 # Deleting system user
 /usr/sbin/userdel -f "$user" >> /dev/null 2>&1

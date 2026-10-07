@@ -43,10 +43,14 @@ update_user_value "$user" '$ROLE' "$role" || check_result "$E_NOTEXIST" "ROLE is
 $BIN/h-log-action "system" "Warning" "Security" "User privileges changed (User: $user, Role: $role, Previous: $ROLE)."
 
 # A session carries the rights it was opened with, so the new role only reaches it once it is gone.
-$BIN/h-delete-user-sessions "$user" > /dev/null
+# The role is written by now: a failure here is reported, not the result of the change.
+if ! $BIN/h-delete-user-sessions "$user" > /dev/null; then
+	echo "Warning: the role of $user is changed, but the open sessions could not be ended" >&2
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-exit
+log_event "$OK" "$ARGUMENTS"
+exit 0

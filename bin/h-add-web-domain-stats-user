@@ -49,6 +49,7 @@ is_password_valid
 salt=$(generate_password "$PW_MATRIX" "8")
 stats_pass=$($BIN/h-generate-password-hash md5 $salt $password)
 web_stats_auth_write "$stats_user" "$stats_pass"
+check_result $? "stats password files not written"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

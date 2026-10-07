@@ -197,6 +197,7 @@ fi
 # CLI context does not write it (no apache detection), so permalinks flipped via wp-cli would
 # 404 until someone saves them in wp-admin - seeded, they work the moment the option changes.
 if [ "$WEB_SYSTEM" = "apache2" ]; then
+	user_exec rm -f "$docroot/.htaccess"
 	user_exec tee "$docroot/.htaccess" > /dev/null << 'HTACCESS'
 # BEGIN WordPress
 <IfModule mod_rewrite.c>

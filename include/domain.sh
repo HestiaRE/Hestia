@@ -338,7 +338,7 @@ web_backend_addr() {
 # Stats password protection. nginx parses its fragment as root, so it lives in the root-owned conf folder; the
 # rest sits in the customer's stats/ and is written as the customer. Keep in step with web_render_template.
 web_stats_auth_write() { # STATS_USER STATS_CRYPT
-	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed=''
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed='' rc=0
 	if [ "$WEB_SYSTEM" = 'nginx' ]; then
 		printf '%s\n' 'auth_basic "Web Statistics";' "auth_basic_user_file $stats_dir/.htpasswd;" \
 			> "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
@@ -347,13 +347,15 @@ web_stats_auth_write() { # STATS_USER STATS_CRYPT
 		user_exec chmod u+w "$stats_dir"
 		closed=yes
 	}
-	user_exec rm -f "$stats_dir/auth.conf"
+	# Replaced, not overwritten: an older version left these root-owned, and the customer cannot write into those.
+	user_exec rm -f "$stats_dir/auth.conf" "$stats_dir/.htaccess" "$stats_dir/.htpasswd"
 	if [ "$WEB_SYSTEM" != 'nginx' ]; then
 		printf '%s\n' "AuthUserFile $stats_dir/.htpasswd" 'AuthName "Web Statistics"' 'AuthType Basic' 'Require valid-user' \
-			| user_exec tee "$stats_dir/.htaccess" > /dev/null
+			| user_exec tee "$stats_dir/.htaccess" > /dev/null || rc=1
 	fi
-	echo "$1:$2" | user_exec tee "$stats_dir/.htpasswd" > /dev/null
+	echo "$1:$2" | user_exec tee "$stats_dir/.htpasswd" > /dev/null || rc=1
 	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+	return $rc
 }
 
 web_stats_auth_clear() {

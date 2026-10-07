@@ -59,6 +59,12 @@ if ! grep -q "^$key='" "$USER_DATA/user.conf"; then
 fi
 update_user_value "$user" "$key" "$value" || check_result "$E_NOTEXIST" "$key is missing from the record of $user"
 
+# The login reads these once: a session opened before the change stays unless it ends here.
+case "$key" in
+	LOGIN_USE_IPLIST | LOGIN_ALLOW_IPS) $BIN/h-delete-user-sessions "$user" > /dev/null ;;
+	LOGIN_DISABLED) [ "$value" = 'no' ] || $BIN/h-delete-user-sessions "$user" > /dev/null ;;
+esac
+
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#

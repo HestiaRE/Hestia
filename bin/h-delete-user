@@ -131,6 +131,9 @@ fi
 #                       Hestia                             #
 #----------------------------------------------------------#
 
+# A panel session outlives the account, and a new account of the same name would inherit it.
+$BIN/h-delete-user-sessions "$user" > /dev/null 2>&1
+
 # Logging
 $BIN/h-log-action "system" "Info" "Users" "User deleted (User: $user)."
 log_event "$OK" "$ARGUMENTS"

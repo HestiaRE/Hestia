@@ -317,6 +317,7 @@ if (!empty($_POST["save"])) {
 				unset($output);
 				$v_login_use_iplist = $post_use_iplist;
 				$data[$user]["LOGIN_USE_IPLIST"] = $post_use_iplist;
+				$login_rules_changed = $return_var == 0;
 			}
 			// switching the list off empties it, so a re-enable cannot resurrect an old allowlist
 			$want_allowed_ips = $post_use_iplist === "yes" ? $post_allowed_ips : "";
@@ -333,6 +334,11 @@ if (!empty($_POST["save"])) {
 				check_return_code($return_var, $output);
 				unset($output);
 				$v_login_allowed_ips = $want_allowed_ips;
+				$login_rules_changed = ($login_rules_changed ?? false) || $return_var == 0;
+			}
+			// The command ended this user's sessions; the own one carries on under a fresh id, as after a password change.
+			if (!empty($login_rules_changed) && $v_username === $_SESSION["user"]) {
+				session_regenerate_id(true);
 			}
 		}
 	}

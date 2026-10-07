@@ -102,9 +102,16 @@ mph=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' "php$version" "php$ver
 
 # apt also removes what depends on a purged package. This version's php-<ext> metas may go with it, but on the
 # version the php-* metas point at, phpmyadmin and roundcube hang on it as well, and -y takes them silently.
-collateral=""
+# The guard trusts the simulation only when it lists every package asked for: a failed or silent run would
+# otherwise read as "nothing else goes".
 # shellcheck disable=SC2086 # one package name per word, from dpkg
-for _p in $(LC_ALL=C apt-get -s purge $mph 2> /dev/null | awk '/^(Purg|Remv) /{print $2}'); do
+sim=$(LC_ALL=C apt-get -s purge $mph 2> /dev/null) || check_result "$E_INVALID" "apt cannot simulate the purge of PHP $version"
+removed=$(awk '/^(Purg|Remv) /{print $2}' <<< "$sim")
+for _p in $mph; do
+	grep -qxF -- "$_p" <<< "$removed" || check_result "$E_INVALID" "apt would not remove $_p, PHP $version left as it is"
+done
+collateral=""
+for _p in $removed; do
 	case "$_p" in "php$version" | "php$version-"*) continue ;; esac
 	case " $mph " in *" php$version-${_p#php-} "*) continue ;; esac
 	collateral="$collateral $_p"

@@ -48,6 +48,16 @@ for user in $("$BIN/h-list-users" list); do
 	$BIN/h-rebuild-mail-domains "$user" 'no' > /dev/null 2>&1
 done
 
+# File manager pools live in the default version's pool.d and move with it; two masters would share one socket.
+# shellcheck source=/usr/local/hestia/include/filemanager.sh
+source "$HESTIA/include/filemanager.sh"
+for pool in /etc/php/*/fpm/pool.d/fm-*.conf; do
+	[ -e "$pool" ] || continue
+	case "$pool" in /etc/php/"$version"/*) continue ;; esac
+	rm -f "$pool"
+done
+fm_refresh no || echo "Warning: file manager pools not moved to PHP $version" >&2
+
 # Reload the new default version first, then everything
 $BIN/h-restart-web-backend '' $(multiphp_default_version)
 $BIN/h-restart-web-backend

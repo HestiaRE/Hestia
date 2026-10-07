@@ -36,9 +36,10 @@ fi
 
 if [ -z "$HESTIA" ]; then HESTIA="/usr/local/hestia"; fi
 
-# installed = package present AND registered. Both halves: a package the OS dragged in without our
-# config is not an installation, and the installer must still get through on a half-built box.
-if dpkg -l proftpd-core 2> /dev/null | grep -q '^ii' && [ "$FTP_SYSTEM" = 'proftpd' ]; then
+# installed = package present, registered and running. A package the OS dragged in without our config is not an
+# installation, and a run that died before the daemon came up must be repairable by running it again.
+if dpkg -l proftpd-core 2> /dev/null | grep -q '^ii' && [ "$FTP_SYSTEM" = 'proftpd' ] \
+	&& systemctl is-active --quiet proftpd; then
 	echo "INFO: ProFTPD is already installed."
 	exit 0
 fi
@@ -92,12 +93,8 @@ if ! proftpd -t > /tmp/hst-proftpd-test.log 2>&1; then
 fi
 rm -f /tmp/hst-proftpd-test.log
 
-# FTP_SYSTEM was never set before, leaving h-restart-ftp/RRD/NAT/smoke inert
-$BIN/h-change-sys-config-value 'FTP_SYSTEM' 'proftpd'
-
 # firewall: passive range read from PassivePorts (single source)
-if is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM' > /dev/null 2>&1 \
-	&& [ -f "$CONF_DIR/firewall/rules.conf" ]; then
+if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != 'no' ] && [ -f "$CONF_DIR/firewall/rules.conf" ]; then
 	pp=$(awk '/^PassivePorts/{print $2"-"$3}' /etc/proftpd/proftpd.conf)
 	if [ -n "$pp" ]; then
 		fw_ports="21,$pp"
@@ -117,6 +114,9 @@ if ! systemctl is-active --quiet proftpd; then
 	echo "ERROR: proftpd failed to start."
 	exit "$E_RESTART"
 fi
+
+# Registered only once the daemon runs, so a failed run is not taken for an installation.
+$BIN/h-change-sys-config-value 'FTP_SYSTEM' 'proftpd'
 
 # fail2ban's proftpd jail is pruned at install time (proftpd is not installed until this addon stage, after
 # fail2ban), so re-arm it now the daemon and its log exist. Ensure the file first, or the jail's reload

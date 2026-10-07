@@ -67,8 +67,7 @@ if [ "$FTP_SYSTEM" = 'proftpd' ]; then
 fi
 
 # firewall: drop the FTP rule by its COMMENT='FTP' id
-if is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM' > /dev/null 2>&1 \
-	&& [ -f "$CONF_DIR/firewall/rules.conf" ]; then
+if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != 'no' ] && [ -f "$CONF_DIR/firewall/rules.conf" ]; then
 	ftp_rule=$(grep "COMMENT='FTP'" "$CONF_DIR/firewall/rules.conf" \
 		| sed -n "s/.*RULE='\([0-9]*\)'.*/\1/p" | head -n1)
 	if [ -n "$ftp_rule" ]; then

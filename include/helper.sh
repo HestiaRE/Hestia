@@ -235,7 +235,7 @@ php_module_pkgs() {
 # share/manifest.json pins. Exported from a scratch keyring, so nothing else the download carries becomes trusted.
 apt_key_fetch() {
 	local want d rc=1
-	want=$(jq -r --arg n "$1" '.software_versions.apt_key_fpr[$n] // empty' "$HESTIA/share/manifest.json" 2> /dev/null)
+	want=$(jq -r --arg n "$1" '.software_versions.apt_key_fpr[$n] // empty' "${HESTIA:-/usr/local/hestia}/share/manifest.json" 2> /dev/null)
 	[ -n "$want" ] || {
 		echo "ERROR: no pinned key fingerprint for $1" >&2
 		return 1

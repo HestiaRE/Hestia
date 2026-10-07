@@ -60,7 +60,9 @@ fi
 # and a FAILED update must stop here: reading a mirror outage as "not available" would
 # permanently put Sury on a box whose preset promises none.
 apt-get -qq update || check_result "$E_CONNECT" "apt-get update failed - cannot judge package availability"
-if ! apt-get -qq -s install "php$version-fpm" > /dev/null 2>&1; then
+# Only a missing candidate means "not in these repos"; a failing simulation can be a held or broken package.
+candidate=$(LC_ALL=C apt-cache policy "php$version-fpm" 2> /dev/null | awk '/Candidate:/{print $2}')
+if [ -z "$candidate" ] || [ "$candidate" = "(none)" ]; then
 	# shellcheck source=/usr/local/hestia/include/helper.sh
 	source "$HESTIA/include/helper.sh"
 	codename=$(

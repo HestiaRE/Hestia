@@ -141,12 +141,13 @@ $v_backend_template = $data[$v_domain]["BACKEND"] ?? "";
 $v_php_version = $data[$v_domain]["PHP_VERSION"] ?? "";
 $v_nginx_cache = $data[$v_domain]["FASTCGI_CACHE"] ?? "";
 $v_nginx_cache_duration = $data[$v_domain]["FASTCGI_DURATION"] ?? "";
-$v_nginx_cache_check = "";
-if (empty($v_nginx_cache_duration)) {
-	$v_nginx_cache_duration = "2m";
-	$v_nginx_cache_check = "";
-} else {
+if ($v_nginx_cache == "yes") {
 	$v_nginx_cache_check = "on";
+} else {
+	$v_nginx_cache_check = "";
+	if (empty($v_nginx_cache_duration) || $v_nginx_cache_duration == "0s") {
+		$v_nginx_cache_duration = "2m";
+	}
 }
 $v_proxy_cache = $data[$v_domain]["PROXY_CACHE"] ?? "";
 $v_proxy_cache_duration = $data[$v_domain]["PROXY_CACHE_DURATION"] ?? "";

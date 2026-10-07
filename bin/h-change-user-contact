@@ -35,12 +35,10 @@ is_object_unsuspended 'user' 'USER' "$user"
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Changing user contact email
-old_email=$(get_user_value '$CONTACT')
+# The passwd comment carries the email too; usermod takes the passwd lock a bare sed -i does not.
+/usr/sbin/usermod -c "$email" "$user"
+check_result $? "the passwd comment of $user could not be set"
 update_user_value "$user" '$CONTACT' "$email" || check_result "$E_NOTEXIST" "CONTACT is missing from the record of $user"
-pw_str=$(grep -n "^$user:" /etc/passwd)
-str=$(echo "$pw_str" | cut -f 1 -d :)
-sed -i "$str s/$old_email/$email/g" /etc/passwd
 
 # Update crontab email
 $BIN/h-rebuild-cron-jobs "$user" > /dev/null 2>&1

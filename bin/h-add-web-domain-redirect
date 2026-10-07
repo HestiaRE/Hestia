@@ -96,6 +96,9 @@ if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
 	sconf="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_redirect"
 fi
 
+# Stored as entered: the LE renewal re-adds from the record, and a stripped slash would drop the request path.
+stored_redirect="$redirect"
+
 # Prevent $request_uri being added if ends in .html
 requesturi=0
 if [ -n "$path" ]; then
@@ -148,7 +151,7 @@ if [ -z "$REDIRECT" ]; then
 fi
 
 # Update values for domain
-update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT' "$redirect"
+update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT' "$stored_redirect"
 update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT_CODE' "$code"
 
 if [ "$restart" = "yes" ]; then

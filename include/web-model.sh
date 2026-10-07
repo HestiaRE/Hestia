@@ -527,6 +527,8 @@ web_model_run() {
 		web_lock_release
 		echo "       Rolled back (site kept serving the old config). Snapshot: $snap" >&2
 		echo "       Manual restore if needed: cp -a $snap/hestia.conf $HESTIA/conf/hestia.conf; tar xzf $snap/state.tar.gz -C /; systemctl restart nginx apache2" >&2
+		"$BIN/h-log-action" "system" "Error" "System" "Web model switch to $(web_model_label "$target") failed ($1), rolled back." > /dev/null 2>&1
+		log_event "$E_RESTART" "$oplabel $current -> $target: $1"
 	}
 
 	echo "[ * ] Snapshotting current state..."
@@ -689,6 +691,8 @@ web_model_run() {
 
 	rm -f "$(web_model_sentinel)"
 	web_lock_release
+	"$BIN/h-log-action" "system" "Info" "System" "Web model switched to $(web_model_label "$target")." > /dev/null 2>&1
+	log_event "$OK" "$oplabel $current -> $target"
 	echo "[ ok ] Web model is now $(web_model_label "$target"). Snapshot kept at: $snap"
 	return 0
 }

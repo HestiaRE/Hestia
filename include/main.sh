@@ -189,12 +189,19 @@ copy_record_filtered() {
 		[ -n "${_line// /}" ] || continue
 		_lhs=${_line%%=*}
 		case "$_allow" in
-			*" $_lhs "*)
-				printf '%s\n' "$_line" >> "$_tmp"
-				_kept=$((_kept + 1))
+			*" $_lhs "*) ;;
+			*)
+				echo "Warning: dropping unknown key '$_lhs' from the archived $_type record" >&2
+				continue
 				;;
-			*) echo "Warning: dropping unknown key '$_lhs' from the archived $_type record" >&2 ;;
 		esac
+		# Readers source these records: one quoted field per line, or a second key or text after the quote comes along.
+		if ! record_line_valid "$_line" || [ "$(record_keys "$_line")" != "$_lhs" ]; then
+			echo "Warning: dropping a malformed '$_lhs' line from the archived $_type record" >&2
+			continue
+		fi
+		printf '%s\n' "$_line" >> "$_tmp"
+		_kept=$((_kept + 1))
 	done < "$_src"
 	if [ "$_kept" -eq 0 ]; then
 		rm -f "$_tmp"

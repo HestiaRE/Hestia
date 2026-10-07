@@ -37,7 +37,7 @@ is_object_unsuspended 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 # Reading user values
-source $USER_DATA/user.conf
+source_conf "$USER_DATA/user.conf"
 
 AUTHKEY_FILE="$HOMEDIR/$user/.ssh/authorized_keys"
 [ -z "$(readlink -f "$AUTHKEY_FILE" | egrep "^$HOMEDIR/$user/.ssh/")" ] && check_result "$E_FORBIDEN" "Invalid authorized keys path"

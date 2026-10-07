@@ -103,8 +103,9 @@ fi
 #----------------------------------------------------------#
 
 # Preparing web.conf keys
+auth_users="$auth_user"
 if [ -n "$AUTH_USER" ]; then
-	auth_user="$AUTH_USER:$auth_user"
+	auth_users="$AUTH_USER:$auth_user"
 	auth_hash="$AUTH_HASH:$auth_hash"
 else
 	# Adding new key into web.conf
@@ -113,11 +114,11 @@ else
 fi
 
 # Updating config
-update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_USER' "$auth_user"
+update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_USER' "$auth_users"
 update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_HASH' "$auth_hash"
 
 # Logging
-$BIN/h-log-action "$user" "Info" "Web" "Password protection enabled (Domain: $domain, Username: $httpauth_user)."
+$BIN/h-log-action "$user" "Info" "Web" "Password protection enabled (Domain: $domain, Username: $auth_user)."
 log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -391,6 +391,10 @@ web_model_rollback() {
 			rm -f "/etc/$pfx/conf.d/$ip.conf"
 		done < <(web_sys_ips)
 	done
+	# The failed target's listeners stay behind otherwise, secret included, and would claim the port from its tree.
+	# shellcheck source=/usr/local/hestia/include/filemanager.sh
+	source "$HESTIA/include/filemanager.sh"
+	fm_refresh no || echo "Warning: file manager listeners not restored" >&2
 	# Bring the restored model's servers back with reload-or-restart, NOT a hard restart:
 	# on a failure before the restart stage (validate/inventory) the live server was never
 	# stopped and is still serving its loaded config, so a hard stop+start whose start then

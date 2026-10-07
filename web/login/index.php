@@ -127,9 +127,7 @@ function authenticate_user($user, $password, $twofa = "")
 		unset($output);
 		if ($return_var > 0) {
 			sleep(2);
-			if ($return_var == 5) {
-				$error = _("Account has been suspended");
-			} elseif ($return_var == 1) {
+			if ($return_var == 1) {
 				$error = _("Unsupported hash method");
 			} else {
 				$error = _("Invalid username or password");
@@ -205,7 +203,11 @@ function authenticate_user($user, $password, $twofa = "")
 			// Remove tmp file
 			unlink($v_hash);
 			// Check API answer
-			if ($return_var > 0) {
+			if ($return_var == 5) {
+				// Only a correct password learns that the account is suspended.
+				sleep(2);
+				return _("Account has been suspended");
+			} elseif ($return_var > 0) {
 				sleep(2);
 				$error = _("Invalid username or password");
 				$v_session_id = quoteshellarg($_POST["token"]);

@@ -175,6 +175,12 @@ is_protected_key() {
 	return 1
 }
 
+USER_NUMERIC_KEYS="SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED WEB_DOMAINS
+WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH BACKUPS U_USERS U_DISK
+U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DKIM U_MAIL_ACCOUNTS
+U_MAIL_DOMAINS U_DATABASES U_CRON_JOBS U_BACKUPS"
+USER_NUMERIC_KEYS=${USER_NUMERIC_KEYS//$'\n'/ }
+
 # An archived record is hostile input, so only registry-known keys reach the instance. Catches what
 # the floors above cannot: names legitimate in another file (ROOT_USER in hestia.conf, REPO in
 # restic.conf). A filter that keeps nothing fails rather than install an empty record.
@@ -200,6 +206,15 @@ copy_record_filtered() {
 			echo "Warning: dropping a malformed '$_lhs' line from the archived $_type record" >&2
 			continue
 		fi
+		# Counters and limits reach bash arithmetic, which evaluates a subscript in a value.
+		case " $USER_NUMERIC_KEYS " in
+			*" $_lhs "*)
+				if [ "$_type" = user ] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
+					echo "Warning: dropping a non-numeric '$_lhs' from the archived $_type record" >&2
+					continue
+				fi
+				;;
+		esac
 		printf '%s\n' "$_line" >> "$_tmp"
 		_kept=$((_kept + 1))
 	done < "$_src"

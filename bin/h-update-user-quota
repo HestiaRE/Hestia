@@ -50,8 +50,10 @@ quota=$(get_user_value '$DISK_QUOTA')
 # a soft window without a warning channel is just a delayed hard limit
 if [ "$quota" = 'unlimited' ] || [ -z "$quota" ]; then
 	setquota -P "$uid" 0 0 0 0 "$QUOTA_MNT" 2> /dev/null
-else
+elif [[ "$quota" =~ ^[0-9]+$ ]]; then
 	setquota -P "$uid" 0 $((quota * 1024)) 0 0 "$QUOTA_MNT" 2> /dev/null
+else
+	check_result "$E_INVALID" "DISK_QUOTA of $user is not a number"
 fi
 
 #----------------------------------------------------------#

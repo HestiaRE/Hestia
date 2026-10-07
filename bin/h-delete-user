@@ -65,8 +65,10 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 	check_result "$?" "database deletion failed"
 fi
 
-# Unsuspend user just in case
-$BIN/h-unsuspend-user "$user"
+# Unsuspend first so the admin's SUSPENDED_USERS counter gives the account back.
+if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
+	$BIN/h-unsuspend-user "$user" "$restart"
+fi
 
 # Releasing user ips
 $BIN/h-delete-user-ips "$user"

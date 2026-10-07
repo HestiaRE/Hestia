@@ -32,6 +32,10 @@ is_object_valid 'user' 'USER' "$user"
 if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
+# Nothing to undo, and the admin counter must not drop for an account that never raised it.
+if [ "$(get_user_value '$SUSPENDED')" != 'yes' ]; then
+	exit
+fi
 
 #----------------------------------------------------------#
 #                       Action                             #

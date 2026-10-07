@@ -46,10 +46,9 @@ is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 # The version must be installed; 'none' is the explicit "no pool" value
 if [ "$version" != 'none' ]; then
-	case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
-		*" $version "*) : ;;
-		*) check_result "$E_NOTEXIST" "PHP version $version is not installed" ;;
-	esac
+	[[ "$version" =~ ^[0-9]+\.[0-9]+$ ]] || check_result "$E_INVALID" "invalid PHP version $version"
+	[ -n "$($BIN/h-list-sys-php plain | grep -xF -- "$version")" ] \
+		|| check_result "$E_NOTEXIST" "PHP version $version is not installed"
 fi
 
 #----------------------------------------------------------#

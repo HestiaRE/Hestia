@@ -52,6 +52,10 @@ rm -f $USER_DATA/ssl/$domain.key
 rm -f $USER_DATA/ssl/$domain.pem
 
 $BIN/h-delete-web-domain-ssl-force "$user" "$domain" 'no' 'yes'
+# HTTP/3 needs SSL; left on, it would come back unasked with the next certificate.
+if [ "$HTTP3" = 'yes' ]; then
+	$BIN/h-delete-web-domain-http3 "$user" "$domain" 'no' 'yes'
+fi
 
 if [ -n "$LETSENCRYPT" ]; then
 	update_object_value 'web' 'DOMAIN' "$domain" '$LETSENCRYPT' 'no'

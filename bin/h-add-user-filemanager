@@ -24,8 +24,8 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-SECRET_FILE="/etc/hestia/conf/.filemanager.key"
-CODE_DIR="/usr/share/filemanager/fm"
+# shellcheck source=/usr/local/hestia/include/filemanager.sh
+source "$HESTIA/include/filemanager.sh"
 : "${FILE_MANAGER_PORT:=8092}"
 
 #----------------------------------------------------------#
@@ -39,41 +39,61 @@ check_args '1' "$#" 'USER [RESTART]'
 }
 
 is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
 
 # System module must be installed first (secret + code + port)
-if [ ! -s "$SECRET_FILE" ] || [ ! -f "$CODE_DIR/index.php" ]; then
+if [ ! -s "$FM_SECRET_FILE" ] || [ ! -f "$FM_CODE_DIR/index.php" ]; then
 	echo "ERROR: file manager module not installed — run h-add-sys-filemanager first"
 	exit "$E_NOTEXIST"
 fi
-secret="$(cat "$SECRET_FILE")"
+secret="$(cat "$FM_SECRET_FILE")"
+fm_web=$(fm_front)
+[ -n "$fm_web" ] || check_result "$E_DISABLED" "the file manager needs a customer web server, this box has none"
+
+# Saved state. A key that predates this feature goes BEFORE the TIME line: update_user_value
+# deletes and reinserts by line number, and a last-line key would vanish.
+fm_flag_set() {
+	if grep -q "^FILE_MANAGER='" "$USER_DATA/user.conf" 2> /dev/null; then
+		update_user_value "$user" '$FILE_MANAGER' 'yes'
+	else
+		sed -i "/^TIME=/i FILE_MANAGER='yes'" "$USER_DATA/user.conf"
+	fi
+}
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
 
+# A suspended account keeps the choice; h-unsuspend-user builds the listener.
+if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
+	fm_flag_set
+	log_event "$OK" "$ARGUMENTS"
+	exit
+fi
+
 # PHP version = the server default; never pin one as mandatory (multiphp)
 ver="$(multiphp_default_version)"
 pool="/etc/php/$ver/fpm/pool.d/fm-$user.conf"
 
-# FM front: nginx if it fronts the stack (nginx-only or nginx+apache), else apache
-if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
-	fm_web='nginx'
+if [ "$fm_web" = 'nginx' ]; then
 	vhost="/etc/nginx/conf.d/fm-$user.conf"
 	tpl='nginx'
 else
-	fm_web='apache2'
 	vhost="/etc/apache2/conf.d/fm-$user.conf"
 	tpl='apache'
 fi
 
 # Customer-owned session/upload dir (the one the web pool uses; persists over reboot)
-mkdir -p "$HOMEDIR/$user/tmp"
-chown "$user:$user" "$HOMEDIR/$user/tmp"
+home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
 
-# Pool (runs as the customer)
+# Pool (runs as the customer). A pool php-fpm refuses would take every site of that version down at its next start.
 mkdir -p "$(dirname "$pool")"
 sed "s|%user%|$user|g" "$HESTIA/share/filemanager/fpm-pool.tpl" > "$pool"
 chmod 644 "$pool"
+if ! "/usr/sbin/php-fpm$ver" -t > /dev/null 2>&1; then
+	rm -f "$pool"
+	check_result "$E_INVALID" "php$ver-fpm config test fails with the file manager pool for $user"
+fi
 systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
 
 # Wait for the pool's listen socket before returning: php-fpm creates it a moment
@@ -88,27 +108,26 @@ done
 # OK here would leave FILE_MANAGER='yes' with a dead listener that always 403s. Bail
 # BEFORE the vhost + flag are written, so a failed enable is a clean no-op.
 if [ ! -S "$sock" ]; then
+	rm -f "$pool"
+	systemctl reload "php$ver-fpm" 2> /dev/null
 	check_result "$E_NOTEXIST" "file manager pool socket did not appear ($sock) — php$ver-fpm reload may have failed"
 fi
 
-# Private-listener vhost (secret-gated)
-sed -e "s|%user%|$user|g" \
-	-e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" \
-	-e "s|%FM_SECRET%|$secret|g" \
-	"$HESTIA/share/filemanager/$tpl.tpl" > "$vhost"
-chmod 644 "$vhost"
+# Private-listener vhost. It carries the secret every customer's vhost shares, so root only, from the first byte.
+rm -f "$vhost"
+(
+	umask 077
+	sed -e "s|%user%|$user|g" \
+		-e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" \
+		-e "s|%FM_SECRET%|$secret|g" \
+		"$HESTIA/share/filemanager/$tpl.tpl" > "$vhost"
+)
+chmod 600 "$vhost"
 if [ "$restart" != 'no' ]; then
 	$BIN/h-restart-service "$fm_web" > /dev/null 2>&1 || true
 fi
 
-# Set the flag (saved state). If the key predates this feature, insert it BEFORE the
-# TIME line — never append at EOF: update_user_value deletes+reinserts by line number,
-# and a last-line key fails to reinsert (the address lands past EOF) and vanishes.
-if grep -q "^FILE_MANAGER='" "$USER_DATA/user.conf" 2> /dev/null; then
-	update_user_value "$user" '$FILE_MANAGER' 'yes'
-else
-	sed -i "/^TIME=/i FILE_MANAGER='yes'" "$USER_DATA/user.conf"
-fi
+fm_flag_set
 
 #----------------------------------------------------------#
 #                       Hestia                             #

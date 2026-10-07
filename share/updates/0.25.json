@@ -42,6 +42,52 @@
       "reversible": false
     },
     {
+      "id": "proftpd-systemlog",
+      "description": "proftpd logs to the file the fail2ban FTP jail reads, so repeated failed FTP logins get banned",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/proftpd/proftpd.conf"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/proftpd/proftpd.conf",
+          "value": "SystemLog"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "proftpd_systemlog_apply"
+      },
+      "paths": [
+        "/etc/proftpd/proftpd.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "pma-proxy-nginx-boundary",
+      "description": "the phpMyAdmin alias on customer domains behind nginx no longer takes customer paths that only start with it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/nginx/conf.d/phpmyadmin.inc"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/nginx/conf.d/phpmyadmin.inc",
+          "value": "location = /"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "pma_proxy_nginx_apply"
+      },
+      "paths": [
+        "/etc/nginx/conf.d/phpmyadmin.inc"
+      ],
+      "reversible": false
+    },
+    {
       "id": "sftp-jail-home-link",
       "description": "The SFTP jail refuses a home that passes through a link, the same rule as proftpd",
       "conditions": [
@@ -296,6 +342,140 @@
       "paths": [
         "/usr/local/hestia/bin/h-update-web-templates"
       ],
+      "reversible": false
+    },
+    {
+      "id": "remove-share-multiphp-tpl",
+      "description": "share/php-fpm/multiphp.tpl is gone: nothing rendered it, the customer pools come from templates/php",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "web-model-snapshot-private",
+      "description": "The web-model switch snapshots carry every customer's TLS and DKIM keys and were readable by every local account",
+      "conditions": [
+        {
+          "type": "file_mode_wider",
+          "path": "/var/lib/hestia/web-model-switch",
+          "value": "700"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "web_model_snap_dir_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-refresh",
+      "description": "The file manager code and listeners were copied once and never refreshed; they follow the tree now, with a catch-all on the private port. Decided by index.php, the app is that one file",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/filemanager/fm/index.php",
+          "target": "/usr/share/filemanager/fm/index.php"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-catchall",
+      "description": "The private file manager port gets a catch-all that refuses every Host no customer listener carries; a box from before it has none",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/nginx/conf.d/fm--default.conf"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/apache2/conf.d/fm--default.conf"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listener-private-nginx",
+      "description": "The file manager listeners carry the secret every customer's listener shares and were readable by every local account",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_mode_wider",
+          "path": "/etc/nginx/conf.d/fm-*.conf",
+          "value": "600"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listener-private-apache",
+      "description": "The file manager listeners carry the secret every customer's listener shares and were readable by every local account",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_mode_wider",
+          "path": "/etc/apache2/conf.d/fm-*.conf",
+          "value": "600"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
       "reversible": false
     }
   ]

@@ -4,50 +4,31 @@
 #
 # example: h-list-sys-web-status
 #
-# This function lists web server status
+# The status pages of the web server and the nginx proxy, as HTML for the panel. mod_status escapes request lines itself.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
-#format=${1-shell}
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking web system
 if [ -z "$WEB_SYSTEM" ]; then
 	exit
 fi
 
-# Displaying proxy status
 if [ "$PROXY_SYSTEM" = 'nginx' ]; then
 	echo "<h2>$PROXY_SYSTEM STATUS</h2>" | tr '[:lower:]' '[:upper:]'
-	wget -qO- http://localhost:8084/
+	wget -T 5 -t 1 -qO- http://localhost:8084/
 	echo "<br><br><br>"
 fi
 
-# Displaying web server status
 echo "<h2>$WEB_SYSTEM STATUS</h2>" | tr '[:lower:]' '[:upper:]'
 if [ "$WEB_SYSTEM" != 'nginx' ]; then
-	wget -qO- http://localhost:8081/server-status/ \
-		| egrep -v "html|DOCTYPE|h1>|title|head"
+	# Bounded: a wedged server would otherwise hold the admin page, its PHP worker and this sudo.
+	wget -T 5 -t 1 -qO- http://localhost:8081/server-status/ \
+		| grep -Ev "html|DOCTYPE|h1>|title|head"
 else
-	wget -qO- http://localhost:8084/
+	wget -T 5 -t 1 -qO- http://localhost:8084/
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

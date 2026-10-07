@@ -15,12 +15,12 @@
     "third_party_note": "Third-party vendored code is tracked in VENDORED.json, not here; those paths are excluded to keep the two manifests disjoint.",
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
-      "upstream_mapped_files": 73,
+      "upstream_mapped_files": 72,
       "eigenbau_files": 151,
       "weighted_pct": 10,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 224,
-      "files_mapped": 73
+      "files_total": 223,
+      "files_mapped": 72
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -1864,22 +1864,6 @@
         "added": 4,
         "removed": 4,
         "pct": 18,
-        "measured_at": "2026-10-06"
-      },
-      "note": "exact install/deb path"
-    },
-    {
-      "path": "php-fpm/multiphp.tpl",
-      "source_type": "verbatim",
-      "upstream_path": "install/deb/php-fpm/multiphp.tpl",
-      "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
-      "divergence": {
-        "upstream_lines": 31,
-        "our_lines": 31,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
         "measured_at": "2026-10-06"
       },
       "note": "exact install/deb path"

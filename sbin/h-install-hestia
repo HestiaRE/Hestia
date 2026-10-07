@@ -577,8 +577,10 @@ install_db() {
 	# Redis install/promote in h-add-sys-redis. Fail-soft: a cache must not abort install.
 	if is_on "${COMPONENT_DB_REDIS:-}"; then
 		echo "[ * ] Installing Redis..."
-		"$BIN/h-add-sys-redis" >> "$LOG" 2>&1 \
-			|| echo "[ ! ] Redis install reported an issue (see $LOG)"
+		if ! "$BIN/h-add-sys-redis" >> "$LOG" 2>&1; then
+			echo "[ ! ] Redis install reported an issue (see $LOG)"
+			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}db redis: h-add-sys-redis failed"$'\n'
+		fi
 	fi
 
 	stage_mark db

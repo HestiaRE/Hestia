@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 9,
-      "eigenbau_files": 20,
+      "eigenbau_files": 21,
       "weighted_pct": 53,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 29,
+      "files_total": 30,
       "files_mapped": 9
     },
     "scope": "include",
@@ -122,6 +122,15 @@
       "last_reconciled": "2026-08-14",
       "divergence": null,
       "note": "Jail rendering as a modular addon (#525)."
+    },
+    {
+      "path": "filemanager.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-10-07",
+      "divergence": null,
+      "note": "File manager front, catch-all and refresh (#419, #1176); upstream ships FileGator instead."
     },
     {
       "path": "firewall.sh",

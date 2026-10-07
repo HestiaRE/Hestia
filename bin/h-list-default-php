@@ -3,25 +3,15 @@
 # options: [FORMAT]
 #
 # example: h-list-default-php
-#
-# List the default version used by the default template
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	i=1
 	objects=$(echo "${versions[@]}" | wc -w)
@@ -38,7 +28,6 @@ json_list() {
 	echo "]"
 }
 
-# SHELL list function
 shell_list() {
 	echo "VERSION"
 	echo "--------"
@@ -47,33 +36,21 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	for version in "${versions[@]}"; do
 		echo "$version"
 	done
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 declare -a versions
-# The default web PHP version is the system default (update-alternatives),
-# reported by multiphp_default_version(). It was previously inferred from the
-# presence of the shared www.conf pool, removed in #397.
+# The system default from update-alternatives.
 versions+=("$(multiphp_default_version)")
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

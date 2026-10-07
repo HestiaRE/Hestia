@@ -4,26 +4,17 @@
 #
 # example: h-list-sys-php-config json 8.3
 #
-# This function for obtaining the list of php config parameters of one fpm version, the system default
-# when VERSION is left out.
+# The php.ini values of one FPM version, the system default when VERSION is left out.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 version=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	parse_object_kv_list "$(echo "$config" | egrep "$keys" \
 		| sed -e "s/[ ]*=/=/" -e "s/=[ ]*/=\'/" -e "s/$/'/")"
@@ -43,45 +34,32 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "$config" | egrep "$keys" | tr -d '='
 	echo "config_path $config_path"
 	echo "version $version"
 }
 
-# PLAIN list function
 plain_list() {
 	echo "$config" | egrep "$keys" | tr -d '='
 	echo "config_path $config_path"
 	echo "version $version"
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 config_path=$(php_ini_path "$version") || check_result "$E_NOTEXIST" "php ${version:-default} has no fpm php.ini"
 version=$(php_ini_version "$config_path")
 
-# Defining keys
 keys="memory_limit |max_execution_time |max_input_time"
 keys="$keys |upload_max_filesize |post_max_size"
 keys="$keys |display_errors |error_reporting "
 
-# Reading config
 config=$(cat $config_path | grep -v "^;")
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -231,6 +231,34 @@ php_module_pkgs() {
 	printf '%s\n' "${out# }"
 }
 
+# apt_key_fetch NAME URL KEYRING: an external repo's signing key, kept only as the key whose fingerprint
+# share/manifest.json pins. Exported from a scratch keyring, so nothing else the download carries becomes trusted.
+apt_key_fetch() {
+	local want d got rc=1
+	want=$(jq -r --arg n "$1" '.software_versions.apt_key_fpr[$n] // empty' "${HESTIA:-/usr/local/hestia}/share/manifest.json" 2> /dev/null)
+	[ -n "$want" ] || {
+		echo "ERROR: no pinned key fingerprint for $1" >&2
+		return 1
+	}
+	d=$(mktemp -d) || return 1
+	mkdir -m 700 "$d/gnupg"
+	if ! curl -fsSL --connect-timeout 10 --max-time 60 "$2" -o "$d/key"; then
+		echo "ERROR: failed to download the $1 signing key" >&2
+	elif ! gpg --batch --quiet --homedir "$d/gnupg" --import "$d/key" > /dev/null 2>&1 \
+		|| ! gpg --batch --homedir "$d/gnupg" --export "$want" > "$d/keyring" 2> /dev/null || [ ! -s "$d/keyring" ]; then
+		echo "ERROR: the $1 signing key does not carry the pinned fingerprint $want" >&2
+	# The export also matches a subkey, and any certificate can carry the real key as one: the pin is the primary,
+	# and the only one.
+	elif ! got=$(gpg --batch --homedir "$d/gnupg" --with-colons --show-keys "$d/keyring" 2> /dev/null \
+		| awk -F: '$1 == "pub" {p = 1; next} p && $1 == "fpr" {print $10; p = 0}') || [ "$got" != "$want" ]; then
+		echo "ERROR: the $1 signing key's primary is not the pinned fingerprint $want" >&2
+	elif install -m 0644 "$d/keyring" "$3"; then
+		rc=0
+	fi
+	rm -rf "$d"
+	return "$rc"
+}
+
 # ── Sury PHP repository (shared by wizard + installer) ──────────────────────
 # Idempotent, single canonical definition (keyring + signed-by + source file) -
 # two diverging ones trip apt's "Conflicting values set for option Signed-By".
@@ -248,18 +276,7 @@ add_sury_repo() {
 	# drop any legacy/foreign Sury definition that would conflict on Signed-By
 	rm -f /etc/apt/sources.list.d/sury-php.list /etc/apt/trusted.gpg.d/sury-php.gpg
 	if [ ! -s "$keyring" ]; then
-		curl -fsSL https://packages.sury.org/php/apt.gpg -o /tmp/sury_apt.gpg \
-			|| {
-				echo "ERROR: failed to download Sury PHP signing key" >&2
-				return 1
-			}
-		gpg --dearmor < /tmp/sury_apt.gpg > "$keyring" \
-			|| {
-				echo "ERROR: failed to dearmor Sury PHP signing key" >&2
-				rm -f /tmp/sury_apt.gpg
-				return 1
-			}
-		rm -f /tmp/sury_apt.gpg
+		apt_key_fetch sury https://packages.sury.org/php/apt.gpg "$keyring" || return 1
 	fi
 	[ -s "$keyring" ] || {
 		echo "ERROR: Sury keyring empty" >&2
@@ -549,15 +566,51 @@ login_defs_guard() {
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
 # The overlay copies the tree and nothing else: what sits outside it, or came from apt, stays old.
 
-# proftpd.conf is operator surface, so the line goes in rather than the whole file over it.
+# proftpd.conf is operator surface, so a line goes in rather than the whole file over it. A failed test puts the
+# file back, so it still lacks the line and the next update retries.
+proftpd_conf_line_add() { # DIRECTIVE LINE
+	local f='/etc/proftpd/proftpd.conf' bak
+	grep -q "^$1[[:space:]]" "$f" && return 0
+	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+	if ! sed -i "/^DefaultRoot[[:space:]]/a $2" "$f" || ! proftpd -t > /dev/null 2>&1; then
+		cp -p "$bak" "$f"
+		rm -f "$bak"
+		return 1
+	fi
+	rm -f "$bak"
+}
+
 proftpd_chroot_symlinks_apply() {
 	local f='/etc/proftpd/proftpd.conf'
 	grep -q '^DefaultRoot[[:space:]]' "$f" 2> /dev/null || return 0
-	grep -q '^AllowChrootSymlinks[[:space:]]' "$f" || sed -i '/^DefaultRoot[[:space:]]/a AllowChrootSymlinks          off' "$f" || return 1
+	proftpd_conf_line_add AllowChrootSymlinks 'AllowChrootSymlinks          off' || return 1
 	grep -q '^AllowChrootSymlinks[[:space:]]*off' "$f" || return 1
 	proftpd -t > /dev/null 2>&1 || return 1
 	systemctl -q is-active proftpd 2> /dev/null || return 0
 	systemctl restart proftpd
+}
+
+proftpd_systemlog_apply() {
+	grep -q '^DefaultRoot[[:space:]]' /etc/proftpd/proftpd.conf 2> /dev/null || return 0
+	proftpd_conf_line_add SystemLog 'SystemLog                       /var/log/proftpd/proftpd.log' || return 1
+	systemctl -q is-active proftpd 2> /dev/null || return 0
+	systemctl restart proftpd
+}
+
+# An nginx alias location without its slash took every customer path starting with the alias. A failed test puts
+# the old file back, so the reload never meets a broken include.
+pma_proxy_nginx_apply() {
+	local f='/etc/nginx/conf.d/phpmyadmin.inc' bak
+	[ -f "$f" ] || return 0
+	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+	if ! pma_proxy_include_write nginx || ! nginx -t > /dev/null 2>&1; then
+		cp -p "$bak" "$f"
+		rm -f "$bak"
+		return 1
+	fi
+	rm -f "$bak"
+	systemctl -q is-active nginx 2> /dev/null || return 0
+	systemctl reload nginx
 }
 
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a

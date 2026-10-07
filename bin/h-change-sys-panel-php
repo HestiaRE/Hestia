@@ -4,30 +4,20 @@
 #
 # example: h-change-sys-panel-php 8.4
 #
-# Moves the panel to another PHP version: installs it (full extension set) if
-# missing, rewrites the single source of truth /etc/php/hestia/php-version and
-# restarts hestia-php. The delete-guard in h-delete-web-php reads that same file,
-# so protection follows the panel automatically and the previous version becomes
-# removable. Distinct from h-change-sys-php, which changes the default *web* PHP.
+# Moves the panel's own FPM to another PHP version, installing it if missing, and rolls back if it will not start.
+# h-change-sys-php is the customer default.
 
 version=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'VERSION'
 
-# Verify php version format
-if [[ ! $version =~ ^[0-9]+\.[0-9]+ ]]; then
+if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
 	echo "The specified PHP version format is invalid, it should look like [0-9].[0-9]."
 	echo "Example: 7.4, 8.3, 8.4"
 	exit "$E_INVALID"
@@ -36,17 +26,11 @@ fi
 version_file="/etc/php/hestia/php-version"
 current=$(cat "$version_file" 2> /dev/null)
 
-# Nothing to do if the panel already runs on this version
 if [ "$version" = "$current" ]; then
 	echo "PHP $version is already the panel FPM version."
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Install the target version (full extension set) if it is not present yet.
 if [ -z "$($BIN/h-list-sys-php plain | grep -xF -- "$version")" ]; then
 	echo "PHP $version is not installed yet — installing it for the panel..."
 	if ! $BIN/h-add-web-php "$version"; then
@@ -55,29 +39,21 @@ if [ -z "$($BIN/h-list-sys-php plain | grep -xF -- "$version")" ]; then
 	fi
 fi
 
-# The wrapper launches /usr/sbin/php-fpm<version>; make sure it exists.
+# The wrapper launches /usr/sbin/php-fpm<version>.
 if [ ! -x "/usr/sbin/php-fpm$version" ]; then
 	echo "ERROR: /usr/sbin/php-fpm$version not found after install. Panel version unchanged."
 	exit "$E_INVALID"
 fi
 
-# Flip the pin and rebuild the panel's isolated conf.d for the new version
-# (mods-available is version-specific), then restart. On failure roll back to the
-# previous version so the panel never ends up pointing at a version that will not
-# start.
 echo "$version" > "$version_file"
-"$SBIN/hestia-php-confd" "$version"
-systemctl restart hestia-php
-
-if ! systemctl is-active --quiet hestia-php; then
-	echo "ERROR: hestia-php failed to start on PHP $version — rolling back."
+# A conf.d without a critical extension still lets the pool start, so its rc decides as well.
+if ! "$SBIN/hestia-php-confd" "$version" || ! systemctl restart hestia-php || ! systemctl is-active --quiet hestia-php; then
+	echo "ERROR: PHP $version cannot carry the panel, rolling back."
 	if [ -n "$current" ]; then
 		echo "$current" > "$version_file"
 		"$SBIN/hestia-php-confd" "$current"
 	else
-		# No previous pin to roll back to: drop the failed pin and rebuild the
-		# conf.d for the version the wrapper falls back to (newest installed, same
-		# logic as hestia-php-fpm) so conf.d is not left linked to the failed one.
+		# No previous pin: conf.d follows the version the wrapper falls back to (keep in step with hestia-php-fpm).
 		rm -f "$version_file"
 		fallback=$(ls -1 /usr/sbin/php-fpm[0-9].[0-9] 2> /dev/null | sort -V | tail -n1 | sed 's#.*/php-fpm##')
 		[ -n "$fallback" ] && "$SBIN/hestia-php-confd" "$fallback"
@@ -88,11 +64,6 @@ fi
 
 echo "Panel FPM now runs on PHP $version."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Changed panel PHP version to $version."
 log_event "$OK" "$ARGUMENTS"
 

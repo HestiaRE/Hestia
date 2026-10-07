@@ -5,31 +5,18 @@
 # example: h-update-sys-composer os
 # example: h-update-sys-composer upstream
 #
-# Switches between the OS package (apt-maintained, automatic security backports) and the signed
-# upstream installer (newest composer, no auto-updates). The new source is installed and verified
-# before the old one is removed; removal is mandatory - /usr/local/bin shadows /usr/bin, a
-# leftover phar would silently mask the OS package. Per-user copies stay untouched.
+# OS package (security backports) or the signed upstream phar (newest, no auto-updates). The new source is verified
+# before the old goes, and the old must go: /usr/local/bin shadows /usr/bin. Per-user copies stay.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 source_arg=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 UPSTREAM_BIN="/usr/local/bin/composer"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "ERROR: h-update-sys-composer can only be executed by the root user"
@@ -41,18 +28,13 @@ if [ "$source_arg" != 'os' ] && [ "$source_arg" != 'upstream' ]; then
 	check_result "$E_INVALID" "SOURCE must be 'os' or 'upstream'"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 if [ "$source_arg" = 'os' ]; then
 	if dpkg -s composer > /dev/null 2>&1 && [ ! -f "$UPSTREAM_BIN" ]; then
 		echo "composer already comes from the OS package"
 		composer_status_record
 		exit 0
 	fi
-	# install before remove: a failed apt run must not leave the box composer-less.
-	# Lock::Timeout: unattended-upgrades commonly holds the apt lock (#480).
+	# Install before remove: a failed apt run must not leave the box without composer.
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y install composer \
 		|| check_result "$E_UPDATE" "composer OS package install failed"
 	rm -f "$UPSTREAM_BIN"
@@ -63,7 +45,6 @@ else
 		composer_status_record
 		exit 0
 	fi
-	# verify the new source before touching the old (same signed mechanism as install_composer_upstream)
 	sig="$(curl -fsS --max-time 30 https://composer.github.io/installer.sig)" \
 		|| check_result "$E_CONNECT" "could not fetch the composer installer signature"
 	setup_tmp=$(mktemp -t composer-setup.XXXXXX.php)
@@ -78,16 +59,13 @@ else
 			check_result "$E_UPDATE" "composer upstream install failed"
 		}
 	rm -f "$setup_tmp"
-	# Mandatory purge: package + phar together is a shadowed state the next admin cannot see;
-	# on failure the phar already serves. No autoremove - it is not scoped to composer.
-	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y purge composer > /dev/null 2>&1 \
-		|| check_result "$E_UPDATE" "composer OS package purge failed - the upstream phar is installed and shadows it; fix the apt state and re-run"
+	# Package and phar together is a shadowed state nobody sees. No autoremove: it is not scoped to composer.
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq -y purge composer > /dev/null 2>&1 || {
+		composer_status_record
+		check_result "$E_UPDATE" "composer OS package purge failed - the upstream phar is installed and shadows it; fix the apt state and re-run"
+	}
 	new_source="upstream installer ($("$UPSTREAM_BIN" --no-plugins --version 2> /dev/null | awk '{print $3}'))"
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 composer_status_record
 $BIN/h-log-action "system" "Info" "System" "Composer source switched to $new_source."

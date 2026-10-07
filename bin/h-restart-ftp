@@ -1,25 +1,18 @@
 #!/bin/bash
 # info: restart ftp service
-# options: NONE
+# options: [RESTART]
 #
 # example: h-restart-ftp
 #
-# This function tells ftp server to reread its configuration.
+# Restarts the FTP server now, or queues it; 'no' skips.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition. Assigned here rather than left to $1 further down: the verification block validates
-# `restart`, and a variable that is never assigned validates nothing at all.
+# Assigned, or is_format_valid 'restart' validates nothing.
 restart=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 send_email_report() {
@@ -33,17 +26,8 @@ send_email_report() {
 	rm -f $tmpfile
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 is_format_valid 'restart'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Exit
 if [ -z "$FTP_SYSTEM" ]; then
 	exit
 fi
@@ -52,27 +36,20 @@ if [ "$1" = "no" ]; then
 	exit
 fi
 
-# Schedule restart
 if [ "$1" = 'scheduled' ] || [ -z "$1" ] && [ "$SCHEDULED_RESTART" = 'yes' ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	echo "$BIN/$SCRIPT now" >> $CONF_DIR/queue/restart.pipe
 	exit
 fi
 
-# Restart system
 $BIN/h-restart-service "$FTP_SYSTEM" "$1" > /dev/null 2>&1
 if [ $? -ne 0 ]; then
 	send_email_report
 	check_result "$E_RESTART" "$FTP_SYSTEM restart failed"
 fi
 
-# Update restart queue
 if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

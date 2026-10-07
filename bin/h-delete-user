@@ -86,6 +86,9 @@ if getent passwd "${user}-docker" > /dev/null 2>&1; then
 	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
 fi
 
+# The file manager pool runs as this account; php-fpm refuses a pool whose user is gone.
+$BIN/h-delete-user-filemanager "$user" no > /dev/null 2>&1
+
 # read before the userdel kills the uid; the limit reset below keeps repquota
 # free of dead projects - a report with corpses stops being read (#211)
 _quota_uid=$(id -u "$user" 2> /dev/null)

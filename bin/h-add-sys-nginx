@@ -4,11 +4,9 @@
 #
 # example: h-add-sys-nginx yes
 #
-# Thin entry point over the shared web-model switch core (include/web-model.sh, #120).
-# The model is derived from the resulting component set; MODE omitted/not 'yes'
-# previews, 'yes' applies.
+# Entry point to the web-model switch in include/web-model.sh: the model follows from the resulting component set.
+# Without MODE 'yes' it only previews.
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -17,7 +15,6 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source $HESTIA/include/web-model.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 web_component_main add nginx "$@"

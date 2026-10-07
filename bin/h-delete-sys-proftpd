@@ -4,26 +4,16 @@
 #
 # example: h-delete-sys-proftpd
 #
-# Counterpart to h-add-sys-proftpd: purges all proftpd* packages, removes our
-# drop-ins, clears FTP_SYSTEM and the FTP firewall rule.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Purges every proftpd package and our drop-ins, clears FTP_SYSTEM, the FTP firewall rule and the FTP jail.
+# FTP accounts stay in the records.
 
 FORCE=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "ERROR: h-delete-sys-proftpd can only be executed by the root user"
@@ -32,42 +22,45 @@ fi
 
 if [ -z "$HESTIA" ]; then HESTIA="/usr/local/hestia"; fi
 
-# guard on the package, not COMPONENT_* — old inline installs never set the flag
 if ! dpkg -l proftpd-core 2> /dev/null | grep -q '^ii' && [ "$FORCE" != 'yes' ]; then
 	echo "ERROR: ProFTPD is not installed. Use FORCE=yes to clean up anyway."
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 systemctl disable --now proftpd > /dev/null 2>&1 || true
-# purge every installed proftpd* package (glob — OS-agnostic, no error on absent names)
 proftpd_installed="$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' 'proftpd*' 2> /dev/null \
 	| awk '$2 == "installed" {print $1}')"
 if [ -n "$proftpd_installed" ]; then
 	# shellcheck disable=SC2086
-	apt-get -y -qq purge $proftpd_installed > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge $proftpd_installed > /dev/null 2>&1
+	if dpkg-query -W -f='${db:Status-Status}\n' proftpd-core 2> /dev/null | grep -qx installed; then
+		systemctl enable --now proftpd > /dev/null 2>&1
+		check_result "$E_UPDATE" "ProFTPD purge failed, nothing else changed"
+	fi
 fi
-apt-get -y -qq autoremove > /dev/null 2>&1
 
-# our own drop-ins (purge leaves them behind): NAT include + AppArmor override
+# The purge leaves our drop-ins behind.
 rm -f /etc/proftpd/conf.d/external_ip.conf
 rm -f /etc/apparmor.d/local/proftpd
-# reload if the profile outlived the purge (FORCE=yes edge) so the override stops applying
 if [ -f /etc/apparmor.d/proftpd ]; then
 	apparmor_parser -r /etc/apparmor.d/proftpd > /dev/null 2>&1 || true
 fi
 
-# clear FTP_SYSTEM only if it is proftpd (symmetric to the add side)
+# The purge takes /var/log/proftpd along, and fail2ban refuses to start with an enabled jail that has no log.
+if [ -f "$HESTIA/include/fail2ban.sh" ]; then
+	# shellcheck source=/usr/local/hestia/include/fail2ban.sh
+	source "$HESTIA/include/fail2ban.sh"
+	if fail2ban_jail_enabled proftpd-iptables; then
+		fail2ban_set_enabled proftpd-iptables 'false'
+		systemctl -q is-active fail2ban && fail2ban_restart reload
+	fi
+fi
+
 if [ "$FTP_SYSTEM" = 'proftpd' ]; then
 	$BIN/h-change-sys-config-value 'FTP_SYSTEM' ''
 fi
 
-# firewall: drop the FTP rule by its COMMENT='FTP' id
-if is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM' > /dev/null 2>&1 \
-	&& [ -f "$CONF_DIR/firewall/rules.conf" ]; then
+if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != 'no' ] && [ -f "$CONF_DIR/firewall/rules.conf" ]; then
 	ftp_rule=$(grep "COMMENT='FTP'" "$CONF_DIR/firewall/rules.conf" \
 		| sed -n "s/.*RULE='\([0-9]*\)'.*/\1/p" | head -n1)
 	if [ -n "$ftp_rule" ]; then
@@ -76,10 +69,6 @@ if is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM' > /dev/null 2>&1 \
 fi
 
 echo "ProFTPD has been removed."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Removed ProFTPD FTP server."
 log_event "$OK" "$ARGUMENTS"

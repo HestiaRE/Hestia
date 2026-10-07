@@ -47,15 +47,13 @@ if [ "$type" = "pma" ] || [ "$type" = "PMA" ] || [ "$type" = "phpmyadmin" ]; the
 	sed -i "s|%alias%|$alias|g" /etc/caddy/apps/phpmyadmin.conf
 	$BIN/h-restart-service caddy
 
-	# The port is a placeholder, not a literal: a moved panel port has to reach these two files too.
+	DB_PMA_ALIAS="$alias"
 	if [ -d /etc/nginx/conf.d ]; then
-		cp -f "$HESTIA/share/nginx/apps/phpmyadmin.inc" /etc/nginx/conf.d/phpmyadmin.inc
-		sed -i -e "s|%pma_alias%|$alias|g" -e "s|%panel_port%|$BACKEND_PORT|g" /etc/nginx/conf.d/phpmyadmin.inc
+		pma_proxy_include_write nginx
 		$BIN/h-restart-service nginx
 	fi
 	if [ -d /etc/apache2/conf.d ]; then
-		cp -f "$HESTIA/share/apache2/apps/phpmyadmin.conf" /etc/apache2/conf.d/phpmyadmin.inc
-		sed -i -e "s|%pma_alias%|$alias|g" -e "s|%panel_port%|$BACKEND_PORT|g" /etc/apache2/conf.d/phpmyadmin.inc
+		pma_proxy_include_write apache2
 		$BIN/h-restart-service apache2
 	fi
 fi

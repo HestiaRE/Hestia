@@ -482,6 +482,19 @@ is_system_enabled() {
 # still fronts the webmail vhosts via WEBMAIL_FRONT. On every other model the two are identical.
 webmail_front() { echo "${WEBMAIL_FRONT:-$WEB_SYSTEM}"; }
 
+# phpMyAdmin's proxy include for a customer web server whose tree exists. Ports are placeholders, so a moved panel
+# port reaches the file too. Writers: h-change-sys-db-alias and the web-model switch.
+pma_proxy_include_write() { # nginx|apache2
+	local src
+	[ -d "/etc/$1/conf.d" ] && [ -n "$DB_PMA_ALIAS" ] && [ -n "$BACKEND_PORT" ] || return 0
+	case "$1" in
+		nginx) src="$HESTIA/share/nginx/apps/phpmyadmin.inc" ;;
+		apache2) src="$HESTIA/share/apache2/apps/phpmyadmin.conf" ;;
+		*) return 1 ;;
+	esac
+	sed -e "s|%pma_alias%|$DB_PMA_ALIAS|g" -e "s|%panel_port%|$BACKEND_PORT|g" "$src" > "/etc/$1/conf.d/phpmyadmin.inc"
+}
+
 # What this customer's package file says for KEY, or nothing. Same file h-add-user seeds a new
 # user.conf from, so it is not a second opinion. KEY reaches a sed pattern: registry only, never input.
 package_key_value() {

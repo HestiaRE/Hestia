@@ -545,6 +545,10 @@ web_model_run() {
 		apache_remoteip_disable
 	fi
 
+	# The customer vhosts include it optionally, so a server that arrives without it silently loses the route.
+	web_model_uses_nginx "$target" && pma_proxy_include_write nginx
+	web_model_uses_apache "$target" && pma_proxy_include_write apache2
+
 	echo "[ * ] Rebuilding per-IP + per-domain + webmail configs for $target..."
 	local ip u
 	while IFS= read -r ip; do

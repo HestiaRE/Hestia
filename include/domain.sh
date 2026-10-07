@@ -335,6 +335,95 @@ web_backend_addr() {
 	fi
 }
 
+# Stats password protection. nginx parses its fragment as root, so it lives in the root-owned conf folder; the
+# rest sits in the customer's stats/ and is written as the customer. Keep in step with web_render_template.
+web_stats_auth_write() { # STATS_USER STATS_CRYPT
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed='' rc=0
+	if [ "$WEB_SYSTEM" = 'nginx' ]; then
+		printf '%s\n' 'auth_basic "Web Statistics";' "auth_basic_user_file $stats_dir/.htpasswd;" \
+			> "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
+	fi
+	user_exec test -w "$stats_dir" || {
+		user_exec chmod u+w "$stats_dir"
+		closed=yes
+	}
+	# Replaced, not overwritten: an older version left these root-owned, and the customer cannot write into those.
+	user_exec rm -f "$stats_dir/auth.conf" "$stats_dir/.htaccess" "$stats_dir/.htpasswd"
+	if [ "$WEB_SYSTEM" != 'nginx' ]; then
+		printf '%s\n' "AuthUserFile $stats_dir/.htpasswd" 'AuthName "Web Statistics"' 'AuthType Basic' 'Require valid-user' \
+			| user_exec tee "$stats_dir/.htaccess" > /dev/null || rc=1
+	fi
+	echo "$1:$2" | user_exec tee "$stats_dir/.htpasswd" > /dev/null || rc=1
+	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+	return $rc
+}
+
+web_stats_auth_clear() {
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed=''
+	rm -f "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
+	[ -d "$stats_dir" ] || return 0
+	user_exec test -w "$stats_dir" || {
+		user_exec chmod u+w "$stats_dir"
+		closed=yes
+	}
+	user_exec rm -f "$stats_dir/auth.conf" "$stats_dir/.htaccess" "$stats_dir/.htpasswd"
+	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+}
+
+# The PHP that serves the domain. wp-cli is started through it: a phar run directly takes the PATH php and ignores
+# WP_CLI_PHP, and a version-mismatched domain then fatals.
+wp_domain_php() { # DOMAIN
+	local v
+	v=$(get_object_value 'web' 'DOMAIN' "$1" '$PHP_VERSION')
+	if [ -n "$v" ] && [ -x "/usr/bin/php$v" ]; then
+		echo "/usr/bin/php$v"
+	else
+		echo /usr/bin/php
+	fi
+}
+
+# The five-minute wp-cron job of a managed WordPress, matched by its docroot and re-pointed when the PHP changes.
+wp_cron_sync() { # DOMAIN
+	local docroot="$HOMEDIR/$user/web/$1/public_html" job
+	for job in $("$BIN/h-list-cron-jobs" "$user" plain 2> /dev/null | grep -F "cron event run --due-now --path=$docroot" | cut -f 1); do
+		"$BIN/h-delete-cron-job" "$user" "$job" > /dev/null 2>&1
+	done
+	"$BIN/h-add-cron-job" "$user" "*/5" "*" "*" "*" "*" \
+		"$(wp_domain_php "$1") /usr/local/bin/wp cron event run --due-now --path=$docroot --quiet" > /dev/null 2>&1
+}
+
+# A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
+# "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
+is_web_domain_name_valid() { # DOMAIN
+	[[ "$1" == ?*.?* ]] || check_result "$E_INVALID" "a web domain needs at least two labels :: $1"
+}
+
+# Drops one http auth account; the name is matched as a whole field, a dot in it is no wildcard.
+web_htpasswd_drop() { # FILE NAME
+	[ -f "$1" ] || return 0
+	local rest
+	rest=$(awk -F: -v u="$2" '$1 != u' "$1") || return 1
+	printf '%s\n' "$rest" | sed '/^$/d' > "$1"
+}
+
+# Update entry: a vhost rendered before the fragment moved still includes it from the customer's folder.
+stats_auth_fragment_apply() {
+	local f rest seen=" " rc=0
+	for f in "$HOMEDIR"/*/conf/web/*/nginx*.conf; do
+		[ -e "$f" ] || continue
+		grep -qF '/stats/auth.conf' "$f" || continue
+		rest=${f#"$HOMEDIR"/}
+		rest=${rest%/*}
+		case $seen in *" $rest "*) continue ;; esac
+		seen="$seen$rest "
+		"$BIN/h-rebuild-web-domain" "${rest%%/*}" "${rest##*/}" no || rc=1
+	done
+	[ "$seen" = " " ] && return $rc
+	"$BIN/h-restart-web" || rc=1
+	"$BIN/h-restart-proxy" || rc=1
+	return $rc
+}
+
 # The ONE substitution engine (#890): stdin template in, rendered text out. Divergent
 # values arrive in _r_* (webmail renders %domain% as the alias, %web_system% as the
 # front). Removing or renaming a token breaks every custom template that uses it.
@@ -348,7 +437,9 @@ web_render_template() {
 	local _del=''
 	[ -z "$_r_ip" ] && _del="/%ip%/d; "
 	[ -z "$_r_ip6" ] && _del="${_del}/%ip6%/d; "
+	# An older or custom template still includes stats/auth.conf from the customer's folder: nginx must never parse it.
 	sed -e "$_del" \
+		-e "s|%home%/%user%/web/%domain%/stats/auth\.conf|%home%/%user%/conf/web/%domain%/nginx.stats_auth.conf|g" \
 		-e "s|%ip%|$_r_ip|g" \
 		-e "s|%ip6%|$_r_ip6|g" \
 		-e "s|%vhost%|$_r_vhost|g" \

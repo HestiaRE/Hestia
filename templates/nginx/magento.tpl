@@ -187,7 +187,7 @@ server {
 
 	location /vstats/ {
 		alias   %home%/%user%/web/%domain%/stats/;
-		include %home%/%user%/web/%domain%/stats/auth.conf*;
+		include %home%/%user%/conf/web/%domain%/nginx.stats_auth.conf*;
 	}
 
 	include /etc/nginx/conf.d/phpmyadmin.inc*;
@@ -398,7 +398,7 @@ server {
 
 	location /vstats/ {
 		alias   %home%/%user%/web/%domain%/stats/;
-		include %home%/%user%/web/%domain%/stats/auth.conf*;
+		include %home%/%user%/conf/web/%domain%/nginx.stats_auth.conf*;
 	}
 
 	proxy_hide_header Upgrade;

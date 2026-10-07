@@ -4,31 +4,20 @@
 #
 # example: h-add-web-domain-redirect user domain.tld
 #
-# Function delete a forced redirect to a domain
+# Deletes the forced redirect of a domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=${3-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -37,11 +26,6 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Check if proxy is active
 if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
 	rm "$HOMEDIR/$user/conf/web/$domain/nginx.conf_redirect"
 	rm "$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_redirect"
@@ -49,10 +33,6 @@ else
 	echo "Non supported please use .htaccess instead"
 	exit 2
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT' ""
 update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT_CODE' ""
@@ -63,7 +43,6 @@ check_result $? "Web restart failed" > /dev/null
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Domain redirection disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

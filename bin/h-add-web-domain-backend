@@ -4,32 +4,21 @@
 #
 # example: h-add-web-domain-backend admin example.com default yes
 #
-# This function is used to add the web backend configuration.
+# Writes the PHP-FPM pool of a web domain from its record and a pool profile.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 template=${3-default}
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [TEMPLATE] [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -41,16 +30,10 @@ if ! tpl_accepted=$(accept_web_template 'backend' "$template" strict); then
 fi
 read -r template tpl_effect <<< "$tpl_accepted"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Read the record first: prepare_web_backend needs PHP_VERSION (the version is its
-# own field now, no longer encoded in BACKEND).
+# The record first: prepare_web_backend reads PHP_VERSION.
 get_domain_values 'web'
 
-# 'none' and a docker domain both mean no pool - the container serves everything. Remove any
-# pool the domain had and stop; central here so all callers reconcile identically.
+# 'none' and a docker domain mean no pool; decided here so every caller reconciles alike.
 if [ "$PHP_VERSION" = 'none' ] || [ -n "$DOCKER" ]; then
 	backend_type="$domain"
 	delete_web_backend
@@ -63,7 +46,6 @@ if [[ -n "$BACKEND" && "$BACKEND" != "$template" ]]; then
 	check_result "$E_EXISTS" "Pool already exists"
 fi
 
-# Allocating backend port
 backend_port=9000
 ports=$(grep -v '^;' $pool/* 2> /dev/null | grep listen | grep -o :[0-9].*)
 ports=$(echo "$ports" | sed "s/://" | sort -n)
@@ -73,7 +55,6 @@ for port in $ports; do
 	fi
 done
 
-# Adding backend config
 cat $PHPTPL/$template.tpl \
 	| sed -e "s|%backend_port%|$backend_port|" \
 		-e "s|%user%|$user|g" \
@@ -81,7 +62,6 @@ cat $PHPTPL/$template.tpl \
 		-e "s|%backend%|$backend_type|g" \
 		-e "s|%backend_version%|$backend_version|g" > $pool/$backend_type.conf
 
-# Set correct document root path
 if [ -n "$CUSTOM_DOCROOT" ]; then
 	docroot="$CUSTOM_DOCROOT"
 	if [ -n "$CUSTOM_PHPROOT" ]; then
@@ -92,15 +72,9 @@ else
 	docroot="$HOMEDIR/$user/web/$domain/public_html/"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restart php interpreter
 $BIN/h-restart-web-backend "$restart" "$backend_version"
 check_result $? "PHP restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web domain configuration applied (Domain: $domain, Backend: $WEB_BACKEND)."
 log_event "$OK" "$ARGUMENTS"
 

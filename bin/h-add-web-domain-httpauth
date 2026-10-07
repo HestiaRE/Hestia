@@ -4,13 +4,8 @@
 #
 # example: h-add-web-domain-httpauth admin acme.com user02 super_pass
 #
-# This function is used for securing web domain with http auth
+# Protects a web domain with HTTP basic auth; each call adds one account.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 auth_user=$3
@@ -18,24 +13,16 @@ password=$4
 HIDE=4
 restart=${5-yes}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Defining htpasswd file
 htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-docroot="$HOMEDIR/$user/web/$domain/public_html"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN AUTH_USER AUTH_PASSWORD [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -47,17 +34,12 @@ is_object_unsuspended 'web' 'DOMAIN' "$domain"
 is_password_valid
 get_domain_values 'web'
 is_user_format_valid "$auth_user" "Auth user"
-if [ -n "$(echo "$AUTH_USER" | tr : '\n' | grep ^$auth_user$)" ]; then
+if tr : '\n' <<< "$AUTH_USER" | grep -qxF -- "$auth_user"; then
 	echo "Error: auth user $auth_user already exists"
 	log_event "$E_EXISTS" "$ARGUMENTS"
 	exit "$E_EXISTS"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Adding htaccess password protection
 if [ "$WEB_SYSTEM" = "nginx" ] || [ "$PROXY_SYSTEM" = "nginx" ]; then
 	htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
 	shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
@@ -71,26 +53,25 @@ else
 	htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
 	shtaccess="$HOMEDIR/$user/conf/web/$domain/apache2.ssl.conf_htaccess"
 	if [ ! -f "$htaccess" ]; then
-		echo "<Directory $docroot>" > $htaccess
+		# The whole vhost whatever its docroot, minus the ACME alias: a plain Location would override its grant.
+		echo '<LocationMatch "^/(?!\.well-known/acme-challenge/)">' > $htaccess
 		echo "    AuthUserFile $htpasswd" >> $htaccess
 		echo "    AuthName \"$domain access\"" >> $htaccess
 		echo "    AuthType Basic" >> $htaccess
 		echo "    Require valid-user" >> $htaccess
-		echo "</Directory>" >> $htaccess
+		echo "</LocationMatch>" >> $htaccess
 		ln -s $htaccess $shtaccess
 		restart_required='yes'
 	fi
 fi
 
-# Adding httpasswd user
-auth_hash=$($BIN/h-generate-password-hash htpasswd htpasswd $password)
+auth_hash=$(printf '%s\n' "$password" | $BIN/h-generate-password-hash htpasswd htpasswd)
 touch $htpasswd
 chmod 644 $htpasswd $htaccess
 chgrp $user $htpasswd $htaccess
-sed -i "/^$auth_user:/d" $htpasswd
+web_htpasswd_drop "$htpasswd" "$auth_user"
 echo "$auth_user:$auth_hash" >> $htpasswd
 
-# Restarting web server
 if [ "$restart" != 'no' ] && [ "$restart_required" = 'yes' ]; then
 	$BIN/h-restart-web
 	if [ -n "$PROXY_SYSTEM" ]; then
@@ -98,26 +79,19 @@ if [ "$restart" != 'no' ] && [ "$restart_required" = 'yes' ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Preparing web.conf keys
+auth_users="$auth_user"
 if [ -n "$AUTH_USER" ]; then
-	auth_user="$AUTH_USER:$auth_user"
+	auth_users="$AUTH_USER:$auth_user"
 	auth_hash="$AUTH_HASH:$auth_hash"
 else
-	# Adding new key into web.conf
 	add_object_key "web" 'DOMAIN' "$domain" 'AUTH_USER' 'U_DISK'
 	add_object_key "web" 'DOMAIN' "$domain" 'AUTH_HASH' 'U_DISK'
 fi
 
-# Updating config
-update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_USER' "$auth_user"
+update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_USER' "$auth_users"
 update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_HASH' "$auth_hash"
 
-# Logging
-$BIN/h-log-action "$user" "Info" "Web" "Password protection enabled (Domain: $domain, Username: $httpauth_user)."
+$BIN/h-log-action "$user" "Info" "Web" "Password protection enabled (Domain: $domain, Username: $auth_user)."
 log_event "$OK" "$ARGUMENTS"
 
 exit

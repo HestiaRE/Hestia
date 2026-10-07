@@ -141,12 +141,13 @@ $v_backend_template = $data[$v_domain]["BACKEND"] ?? "";
 $v_php_version = $data[$v_domain]["PHP_VERSION"] ?? "";
 $v_nginx_cache = $data[$v_domain]["FASTCGI_CACHE"] ?? "";
 $v_nginx_cache_duration = $data[$v_domain]["FASTCGI_DURATION"] ?? "";
-$v_nginx_cache_check = "";
-if (empty($v_nginx_cache_duration)) {
-	$v_nginx_cache_duration = "2m";
-	$v_nginx_cache_check = "";
-} else {
+if ($v_nginx_cache == "yes") {
 	$v_nginx_cache_check = "on";
+} else {
+	$v_nginx_cache_check = "";
+	if (empty($v_nginx_cache_duration) || $v_nginx_cache_duration == "0s") {
+		$v_nginx_cache_duration = "2m";
+	}
 }
 $v_proxy_cache = $data[$v_domain]["PROXY_CACHE"] ?? "";
 $v_proxy_cache_duration = $data[$v_domain]["PROXY_CACHE_DURATION"] ?? "";
@@ -634,6 +635,8 @@ if (!empty($_POST["save"])) {
 		if ($v_proxy_template === "panel" && !$panel_tpl_allowed("")) {
 			$v_proxy_template = "default";
 		}
+		// Empty means the command's default list
+		$ext = "";
 		if (!empty($post_proxy_ext)) {
 			$ext = preg_replace("/\n/", " ", $post_proxy_ext);
 			$ext = preg_replace("/,/", " ", $ext);
@@ -697,7 +700,7 @@ if (!empty($_POST["save"])) {
 			check_return_code($return_var, $output);
 			unset($output);
 		}
-		$restart_web = "yes";
+		$restart_proxy = "yes";
 	}
 
 	// Take the website offline / back online (customer switch, serves 503)
@@ -738,6 +741,7 @@ if (!empty($_POST["save"])) {
 		$waliases = preg_replace("/\s+/", " ", $waliases);
 		$waliases = trim($waliases);
 		$aliases = explode(" ", $waliases);
+		$aliases_changed = array_diff($valiases, $aliases) || array_diff($aliases, $valiases);
 		$v_aliases = str_replace(" ", "\n", $waliases);
 		$result = array_diff($valiases, $aliases);
 		foreach ($result as $alias) {
@@ -818,7 +822,7 @@ if (!empty($_POST["save"])) {
 			}
 		}
 
-		if (!empty($v_stats) && $post_stats == "awstats" && empty($_SESSION["error_msg"])) {
+		if ($aliases_changed && !empty($v_stats) && $post_stats == "awstats" && empty($_SESSION["error_msg"])) {
 			// Update statistics configuration when changing domain aliases
 			$v_stats = quoteshellarg($post_stats);
 			exec(

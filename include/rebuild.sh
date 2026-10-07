@@ -362,7 +362,8 @@ rebuild_web_domain_conf() {
 			$BIN/h-add-web-domain-ssl-hsts $user $domain no yes
 		fi
 
-		if [ "$FASTCGI_CACHE" = 'yes' ]; then
+		# Only where nginx is the web server; elsewhere the delete would clear the flag and the add refuse.
+		if [ "$FASTCGI_CACHE" = 'yes' ] && [ "$WEB_SYSTEM" = 'nginx' ]; then
 			$BIN/h-delete-fastcgi-cache $user $domain
 			$BIN/h-add-fastcgi-cache $user $domain "$FASTCGI_DURATION"
 		fi
@@ -428,17 +429,7 @@ rebuild_web_domain_conf() {
 		fi
 
 		if [ -n "$STATS_USER" ]; then
-			stats_dir="$HOMEDIR/$user/web/$domain/stats"
-			if [ "$WEB_SYSTEM" = 'nginx' ]; then
-				echo "auth_basic \"Web Statistics\";" | user_exec tee $stats_dir/auth.conf > /dev/null
-				echo "auth_basic_user_file $stats_dir/.htpasswd;" | user_exec tee -a $stats_dir/auth.conf > /dev/null
-			else
-				echo "AuthUserFile $stats_dir/.htpasswd" | user_exec tee $stats_dir/.htaccess > /dev/null
-				echo "AuthName \"Web Statistics\"" | user_exec tee -a $stats_dir/.htaccess > /dev/null
-				echo "AuthType Basic" | user_exec tee -a $stats_dir/.htaccess > /dev/null
-				echo "Require valid-user" | user_exec tee -a $stats_dir/.htaccess > /dev/null
-			fi
-			echo "$STATS_USER:$STATS_CRYPT" | user_exec tee $stats_dir/.htpasswd > /dev/null
+			web_stats_auth_write "$STATS_USER" "$STATS_CRYPT"
 		fi
 	fi
 
@@ -494,7 +485,6 @@ rebuild_web_domain_conf() {
 	# Http auth, derived from the record on every rebuild. The archive carries both files with an
 	# absolute path inside them, so keeping one points the protection at whatever home made it.
 	htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-	docroot="$HOMEDIR/$user/web/$domain/public_html"
 	nginx_htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
 	nginx_shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
 	apache_htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
@@ -511,12 +501,12 @@ auth_basic_user_file    $htpasswd;"
 		shtaccess="$apache_shtaccess"
 		stale_htaccess="$nginx_htaccess"
 		stale_shtaccess="$nginx_shtaccess"
-		htaccess_want="<Directory $docroot>
+		htaccess_want="<LocationMatch \"^/(?!\\.well-known/acme-challenge/)\">
     AuthUserFile $htpasswd
     AuthName \"$domain access\"
     AuthType Basic
     Require valid-user
-</Directory>"
+</LocationMatch>"
 	fi
 
 	# The other web server's pair is inert here, so a wrong path in it stays unnoticed until the
@@ -531,8 +521,7 @@ auth_basic_user_file    $htpasswd;"
 		IFS=: read -ra _auth_user_list <<< "$AUTH_USER"
 		for auth_user in "${_auth_user_list[@]}"; do
 			[ -n "$auth_user" ] || continue
-			position=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' \
-				| grep ":$auth_user$" | cut -f 1 -d:)
+			position=$(tr ':' '\n' <<< "$AUTH_USER" | grep -nxF -- "$auth_user" | head -n1 | cut -d: -f1)
 			auth_hash=$(echo $AUTH_HASH | tr ':' '\n' | grep -n '' \
 				| grep "^$position:" | cut -f 2 -d :)
 			# The two lists are joined by position and can arrive out of step. A line with no hash

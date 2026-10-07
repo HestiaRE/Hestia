@@ -1748,14 +1748,12 @@ is_netmask_format_valid() {
 	fi
 }
 
-# Proxy extention format validator
+# Proxy extension list: joined into the regex of an nginx location, so plain names only.
 is_extention_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
-	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|@|<|>|?|/|\|\"|'|;|%|\`| ]"
-	if [[ "$1" =~ $exclude ]]; then
-		check_result "$E_INVALID" "invalid proxy extention format :: $1"
+	local ext_list='^[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*$'
+	if ! [[ "$1" =~ $ext_list ]] || [ ${#1} -ge 400 ]; then
+		check_result "$E_INVALID" "invalid proxy extension list :: $1"
 	fi
-	is_no_new_line_format "$1"
 }
 
 # Number format validator
@@ -1764,6 +1762,19 @@ is_number_format_valid() {
 	if ! [[ "$1" =~ ^[0-9]+$ ]]; then
 		check_result "$E_INVALID" "invalid $object_name format :: $1"
 	fi
+}
+
+# Cache lifetime, verbatim into an nginx fragment: nginx refuses a time beyond its range, so the bound is a year.
+is_cache_duration_format_valid() {
+	local n=${1%[smd]}
+	if ! [[ "$1" =~ ^[1-9][0-9]{0,7}[smd]$ ]]; then
+		check_result "$E_INVALID" "invalid duration format :: $1"
+	fi
+	case $1 in
+		*m) n=$((n * 60)) ;;
+		*d) n=$((n * 86400)) ;;
+	esac
+	[ "$n" -le 31536000 ] || check_result "$E_INVALID" "duration $1 exceeds a year"
 }
 
 # Autoreply format validator
@@ -2292,7 +2303,7 @@ is_format_valid() {
 				email) is_email_format_valid "$arg" ;;
 				email_forward) is_email_format_valid "$arg" ;;
 				exp) is_date_format_valid "$arg" ;;
-				extentions) is_common_format_valid "$arg" 'extentions' ;;
+				extentions) is_extention_format_valid "$arg" ;;
 				format) is_type_valid 'plain json shell' "$arg" ;;
 				ftp_password) is_password_format_valid "$arg" ;;
 				ftp_user) is_user_format_valid "$arg" "$arg_name" ;;

@@ -7,42 +7,26 @@
 # Clears the docker fields and rebuilds: the domain returns to its stored TPL/PROXY templates
 # (they were never touched) and its FPM pool comes back through the regular backend reconcile.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart="$3"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 update_object_value 'web' 'DOMAIN' "$domain" '$DOCKER' ''
 update_object_value 'web' 'DOMAIN' "$domain" '$DOCKER_PORT' ''
@@ -51,11 +35,6 @@ update_object_value 'web' 'DOMAIN' "$domain" '$DOCKER_OCTET' ''
 $BIN/h-rebuild-web-domain "$user" "$domain" "$restart"
 check_result $? "rebuild failed" > /dev/null
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Docker proxy disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

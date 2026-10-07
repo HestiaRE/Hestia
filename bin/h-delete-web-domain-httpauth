@@ -4,55 +4,38 @@
 #
 # example: h-delete-web-domain-httpauth admin example.com alice
 #
-# This function is used for deleting http auth user
+# Deletes one HTTP auth account; the last one takes the protection along.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 auth_user=$3
 restart=${4-yes}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN AUTH_USER [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
-is_password_valid
+is_user_format_valid "$auth_user" "Auth user"
 get_domain_values 'web'
-if [ -z "$(echo "$AUTH_USER" | tr : '\n' | grep ^$auth_user$)" ]; then
+if ! tr : '\n' <<< "$AUTH_USER" | grep -qxF -- "$auth_user"; then
 	echo "Error: auth user $auth_user doesn't exist"
 	log_event "$E_NOTEXIST" "$ARGUMENTS"
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-# Deleting auth user
-sed -i "/^$auth_user:/d" $htpasswd
+web_htpasswd_drop "$htpasswd" "$auth_user"
 
-# Deleting password protection
 if [ "$(echo "$AUTH_USER" | tr : '\n' | wc -l)" -le 1 ]; then
 	if [ "$WEB_SYSTEM" = "nginx" ] || [ "$PROXY_SYSTEM" = "nginx" ]; then
 		htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
@@ -65,7 +48,6 @@ if [ "$(echo "$AUTH_USER" | tr : '\n' | wc -l)" -le 1 ]; then
 	restart_required='yes'
 fi
 
-# Restarting web server
 if [ "$restart" != 'no' ] && [ "$restart_required" = 'yes' ]; then
 	$BIN/h-restart-web
 	if [ -n "$PROXY_SYSTEM" ]; then
@@ -73,23 +55,15 @@ if [ "$restart" != 'no' ] && [ "$restart_required" = 'yes' ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Rebuilding FTP variables
-position=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' | grep ":$auth_user$" \
-	| cut -f 1 -d:)
+position=$(tr ':' '\n' <<< "$AUTH_USER" | grep -nxF -- "$auth_user" | head -n1 | cut -d: -f1)
 auth_user=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' | grep -v "^$position:" \
 	| cut -f 2 -d : | sed -e "/^$/d" | sed -e ':a;N;$!ba;s/\n/:/g')
 auth_hash=$(echo $AUTH_HASH | tr ':' '\n' | grep -n '' | grep -v "^$position:" \
 	| cut -f 2 -d : | sed -e ':a;N;$!ba;s/\n/:/g')
 
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_USER' "$auth_user"
 update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_HASH' "$auth_hash"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web domain password disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

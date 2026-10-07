@@ -66,6 +66,23 @@
       "reversible": true
     },
     {
+      "id": "stats-auth-fragment",
+      "description": "nginx read the stats password fragment from the customer's own folder; vhosts rendered before it moved to conf are rebuilt",
+      "conditions": [
+        {
+          "type": "file_contains",
+          "path": "/home/*/conf/web/*/nginx*.conf",
+          "value": "/stats/auth.conf"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "stats_auth_fragment_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
       "id": "remove-h-schedule-letsencrypt-domain",
       "description": "h-schedule-letsencrypt-domain is gone: nothing scheduled through it, the panel orders certificates directly",
       "conditions": [
@@ -152,6 +169,132 @@
       },
       "paths": [
         "/usr/local/hestia/bin/h-update-web-domain-traff"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-apache2-stpl",
+      "description": "The suspend apache2 template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-nginx-stpl",
+      "description": "The suspend nginx template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-proxy-stpl",
+      "description": "The suspend proxy template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-apache2-stpl",
+      "description": "The offline apache2 template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-nginx-stpl",
+      "description": "The offline nginx template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-proxy-stpl",
+      "description": "The offline proxy template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-update-web-templates",
+      "description": "h-update-web-templates is gone: nothing called it, and it fetched nothing any more",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-update-web-templates"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-update-web-templates"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-update-web-templates"
       ],
       "reversible": false
     }

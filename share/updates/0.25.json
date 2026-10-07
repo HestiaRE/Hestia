@@ -171,6 +171,114 @@
         "/usr/local/hestia/bin/h-update-web-domain-traff"
       ],
       "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-apache2-stpl",
+      "description": "The suspend apache2 template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-nginx-stpl",
+      "description": "The suspend nginx template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-proxy-stpl",
+      "description": "The suspend proxy template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-apache2-stpl",
+      "description": "The offline apache2 template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-nginx-stpl",
+      "description": "The offline nginx template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-proxy-stpl",
+      "description": "The offline proxy template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+      ],
+      "reversible": false
     }
   ]
 }

@@ -65,6 +65,29 @@
       "reversible": false
     },
     {
+      "id": "pma-proxy-nginx-boundary",
+      "description": "the phpMyAdmin alias on customer domains behind nginx no longer takes customer paths that only start with it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/nginx/conf.d/phpmyadmin.inc"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/nginx/conf.d/phpmyadmin.inc",
+          "value": "location = /"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "pma_proxy_nginx_apply"
+      },
+      "paths": [
+        "/etc/nginx/conf.d/phpmyadmin.inc"
+      ],
+      "reversible": false
+    },
+    {
       "id": "sftp-jail-home-link",
       "description": "The SFTP jail refuses a home that passes through a link, the same rule as proftpd",
       "conditions": [

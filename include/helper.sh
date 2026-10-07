@@ -592,6 +592,22 @@ proftpd_systemlog_apply() {
 	systemctl restart proftpd
 }
 
+# An nginx alias location without its slash took every customer path starting with the alias. A failed test puts
+# the old file back, so the reload never meets a broken include.
+pma_proxy_nginx_apply() {
+	local f='/etc/nginx/conf.d/phpmyadmin.inc' bak
+	[ -f "$f" ] || return 0
+	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+	if ! pma_proxy_include_write nginx || ! nginx -t > /dev/null 2>&1; then
+		cp -p "$bak" "$f"
+		rm -f "$bak"
+		return 1
+	fi
+	rm -f "$bak"
+	systemctl -q is-active nginx 2> /dev/null || return 0
+	systemctl reload nginx
+}
+
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
 # directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {

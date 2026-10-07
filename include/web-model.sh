@@ -307,9 +307,15 @@ web_model_sentinel_check() {
 }
 
 # ── snapshot / rollback ─────────────────────────────────────────────────────
+# The snapshots hold every customer's TLS and DKIM keys.
+web_model_snap_dir_apply() {
+	[ -d "$WEB_MODEL_SNAP_DIR" ] || return 0
+	chmod 700 "$WEB_MODEL_SNAP_DIR"
+}
+
 web_model_snapshot() {
 	local snap="$1" u
-	mkdir -p "$snap"
+	mkdir -p "$WEB_MODEL_SNAP_DIR" && chmod 700 "$WEB_MODEL_SNAP_DIR" && mkdir -p "$snap" || return 1
 	cp -a "$HESTIA/conf/hestia.conf" "$snap/hestia.conf"
 	local -a paths=()
 	[ -d /etc/nginx/conf.d ] && paths+=("etc/nginx/conf.d")
@@ -331,7 +337,7 @@ web_model_snapshot() {
 	done < <(web_users)
 	# The snapshot IS the rollback - a swallowed tar failure leaves an empty archive that
 	# only surfaces when a rollback is needed. Hard-fail, then verify the archive is real.
-	if ! tar czf "$snap/state.tar.gz" -C / "${paths[@]}" 2> /dev/null; then
+	if ! (umask 077 && tar czf "$snap/state.tar.gz" -C / "${paths[@]}" 2> /dev/null); then
 		echo "Error: snapshot tar failed (disk full? permissions? a path vanished mid-run?)." >&2
 		return 1
 	fi

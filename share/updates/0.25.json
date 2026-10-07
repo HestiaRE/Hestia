@@ -297,6 +297,23 @@
         "/usr/local/hestia/bin/h-update-web-templates"
       ],
       "reversible": false
+    },
+    {
+      "id": "web-model-snapshot-private",
+      "description": "The web-model switch snapshots carry every customer's TLS and DKIM keys and were readable by every local account",
+      "conditions": [
+        {
+          "type": "file_mode_wider",
+          "path": "/var/lib/hestia/web-model-switch",
+          "value": "700"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "web_model_snap_dir_apply"
+      },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

@@ -549,22 +549,33 @@ login_defs_guard() {
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
 # The overlay copies the tree and nothing else: what sits outside it, or came from apt, stays old.
 
-# proftpd.conf is operator surface, so the line goes in rather than the whole file over it.
-proftpd_chroot_symlinks_apply() {
+# proftpd.conf is operator surface, so a line goes in rather than the whole file over it. A failed test puts the
+# file back, so it still lacks the line and the next update retries.
+proftpd_conf_line_add() { # DIRECTIVE LINE
 	local f='/etc/proftpd/proftpd.conf' bak
-	grep -q '^DefaultRoot[[:space:]]' "$f" 2> /dev/null || return 0
-	if ! grep -q '^AllowChrootSymlinks[[:space:]]' "$f"; then
-		bak=$(mktemp) && cp -p "$f" "$bak" || return 1
-		# A failed test puts the file back, so it still lacks the line and the next update retries.
-		if ! sed -i '/^DefaultRoot[[:space:]]/a AllowChrootSymlinks          off' "$f" || ! proftpd -t > /dev/null 2>&1; then
-			cp -p "$bak" "$f"
-			rm -f "$bak"
-			return 1
-		fi
+	grep -q "^$1[[:space:]]" "$f" && return 0
+	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+	if ! sed -i "/^DefaultRoot[[:space:]]/a $2" "$f" || ! proftpd -t > /dev/null 2>&1; then
+		cp -p "$bak" "$f"
 		rm -f "$bak"
+		return 1
 	fi
+	rm -f "$bak"
+}
+
+proftpd_chroot_symlinks_apply() {
+	local f='/etc/proftpd/proftpd.conf'
+	grep -q '^DefaultRoot[[:space:]]' "$f" 2> /dev/null || return 0
+	proftpd_conf_line_add AllowChrootSymlinks 'AllowChrootSymlinks          off' || return 1
 	grep -q '^AllowChrootSymlinks[[:space:]]*off' "$f" || return 1
 	proftpd -t > /dev/null 2>&1 || return 1
+	systemctl -q is-active proftpd 2> /dev/null || return 0
+	systemctl restart proftpd
+}
+
+proftpd_systemlog_apply() {
+	grep -q '^DefaultRoot[[:space:]]' /etc/proftpd/proftpd.conf 2> /dev/null || return 0
+	proftpd_conf_line_add SystemLog 'SystemLog                       /var/log/proftpd/proftpd.log' || return 1
 	systemctl -q is-active proftpd 2> /dev/null || return 0
 	systemctl restart proftpd
 }

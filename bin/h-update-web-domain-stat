@@ -126,7 +126,9 @@ fi
 case $STATS in
 	awstats) build_awstats ;;
 esac
-[ -n "$dir_closed" ] && user_exec chmod u-w "$dir"
+if [ -n "$dir_closed" ]; then
+	user_exec chmod u-w "$dir"
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #

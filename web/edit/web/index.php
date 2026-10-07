@@ -635,6 +635,8 @@ if (!empty($_POST["save"])) {
 		if ($v_proxy_template === "panel" && !$panel_tpl_allowed("")) {
 			$v_proxy_template = "default";
 		}
+		// Empty means the command's default list
+		$ext = "";
 		if (!empty($post_proxy_ext)) {
 			$ext = preg_replace("/\n/", " ", $post_proxy_ext);
 			$ext = preg_replace("/,/", " ", $ext);

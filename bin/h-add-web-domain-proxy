@@ -17,7 +17,7 @@ domain=$2
 template=$3
 default_extentions="jpg,jpeg,gif,png,webp,ico,svg,css,zip,tgz,gz,rar,bz2,doc,xls,\
 exe,pdf,ppt,txt,odt,ods,odp,odf,tar,wav,bmp,rtf,js,mp3,avi,mpeg,flv,html,htm"
-extentions=${4-$default_extentions}
+extentions=${4:-$default_extentions}
 restart="$5"
 
 # Includes

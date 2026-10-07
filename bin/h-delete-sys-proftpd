@@ -61,6 +61,16 @@ if [ -f /etc/apparmor.d/proftpd ]; then
 	apparmor_parser -r /etc/apparmor.d/proftpd > /dev/null 2>&1 || true
 fi
 
+# The purge takes /var/log/proftpd along, and fail2ban refuses to start with an enabled jail that has no log.
+if [ -f "$HESTIA/include/fail2ban.sh" ]; then
+	# shellcheck source=/usr/local/hestia/include/fail2ban.sh
+	source "$HESTIA/include/fail2ban.sh"
+	if fail2ban_jail_enabled proftpd-iptables; then
+		fail2ban_set_enabled proftpd-iptables 'false'
+		systemctl -q is-active fail2ban && fail2ban_restart reload
+	fi
+fi
+
 # clear FTP_SYSTEM only if it is proftpd (symmetric to the add side)
 if [ "$FTP_SYSTEM" = 'proftpd' ]; then
 	$BIN/h-change-sys-config-value 'FTP_SYSTEM' ''

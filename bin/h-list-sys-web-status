@@ -6,7 +6,6 @@
 #
 # The status pages of the web server and the nginx proxy, as HTML for the panel. mod_status escapes request lines itself.
 
-
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh

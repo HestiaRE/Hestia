@@ -4,34 +4,20 @@
 #
 # example: h-delete-web-domain-stats-user admin acme.com
 #
-# This function removes authentication of statistics system. If the script is
-# called without naming a certain user, all users will be removed. After
-# deleting all of them statistics will be accessible for view without an
-# authentication.
+# Removes the password protection of a domain's stats.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -40,26 +26,15 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_value_exist 'web' 'DOMAIN' "$domain" '$STATS_USER'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting statistic dir
 web_stats_auth_clear
 if [ "$WEB_SYSTEM" = 'nginx' ]; then
 	$BIN/h-restart-web "$restart"
 	check_result $? "Web restart failed" > /dev/null
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS_USER' ''
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS_CRYPT' ''
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web traffic analyzer password enabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

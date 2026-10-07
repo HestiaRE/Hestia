@@ -4,14 +4,8 @@
 #
 # example: h-add-web-domain-proxy admin example.com
 #
-# This function enables proxy support for a domain. This can significantly
-# improve website speed.
+# Puts the nginx proxy in front of a domain's web server.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 template=$3
@@ -20,7 +14,6 @@ exe,pdf,ppt,txt,odt,ods,odp,odf,tar,wav,bmp,rtf,js,mp3,avi,mpeg,flv,html,htm"
 extentions=${4:-$default_extentions}
 restart="$5"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -29,13 +22,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [TEMPLATE] [EXTENTIONS] [RESTART]'
 is_format_valid 'user' 'domain' 'extentions' 'restart'
@@ -54,30 +42,19 @@ if ! tpl_accepted=$(accept_web_template 'proxy' "$template" strict); then
 fi
 read -r template tpl_effect <<< "$tpl_accepted"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining domain parameters
 get_domain_values 'web'
 PROXY="$template"
 prepare_web_domain_values
 local_ip=$(get_real_ip "$IP")
 
-# Preparing domain values for the template substitution; an offline domain keeps rendering its override
+# An offline domain renders its override, which prepare_web_domain_values has put into PROXY.
 PROXY_EXT="$extentions"
 add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 check_result $? "proxy vhost not written"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY' "$template"
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY_EXT' "$extentions"
 
-# Restarting web server
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 

@@ -4,36 +4,24 @@
 #
 # example: h-change-web-domain-httpauth admin acme.com alice white_rA$$bIt
 #
-# This function is used for changing http auth user password
+# Changes the password of one HTTP auth account of a domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 auth_user=$3
 password=$4
 HIDE=4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Defining htpasswd file
 htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN AUTH_USER AUTH_PASSWORD [RESTART]'
 is_format_valid 'user' 'domain'
@@ -51,30 +39,18 @@ if ! tr : '\n' <<< "$AUTH_USER" | grep -qxF -- "$auth_user"; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Adding httpasswd user
 auth_hash=$(printf '%s\n' "$password" | $BIN/h-generate-password-hash htpasswd htpasswd)
 touch $htpasswd
 web_htpasswd_drop "$htpasswd" "$auth_user"
 echo "$auth_user:$auth_hash" >> $htpasswd
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Rebuilding AUTH_HASH variable
 position=$(tr ':' '\n' <<< "$AUTH_USER" | grep -nxF -- "$auth_user" | head -n1 | cut -d: -f1)
 auth_hash=$(echo "$AUTH_HASH" | tr ':' '\n' | grep -n '' \
 	| sed -e "s%^$position:.*%$position:$auth_hash%" \
 	| cut -f 2 -d : | sed -e "/^$/d" | sed -e ':a;N;$!ba;s/\n/:/g')
 
-# Updating config
 update_object_value 'web' 'DOMAIN' "$domain" '$AUTH_HASH' "$auth_hash"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web domain password changed (User: $auth_user, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

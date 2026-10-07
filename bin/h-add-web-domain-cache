@@ -4,32 +4,20 @@
 #
 # example: h-add-web-domain-cache user domain.tld 30m
 #
-# Cache directives land as a per-domain fragment in nginx.location.d/ (read inside
-# location / of the proxy vhost); the zone is one file per domain, so removal is a plain
-# rm. Duration: seconds (10s), minutes (10m) or days (10d). "yes" restarts nginx.
+# Enables the nginx proxy cache of a domain: one zone file per domain, a fragment inside location /.
+# DURATION is <n>s, <n>m or <n>d, at most a year.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 duration=${3-5m}
 restart=${4-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [DURATION] [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -40,27 +28,19 @@ is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
 is_cache_duration_format_valid "$duration"
 
-# The cache sits in the nginx proxy vhost, so it needs the proxy role
 if [ "$PROXY_SYSTEM" != 'nginx' ]; then
 	echo "Error: nginx proxy is not available in this web model"
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Load domain data
 # shellcheck disable=SC2046  # word splitting carries the record into KEY='v' tokens
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-# Zone before fragment: the fragment references the zone, so the target must exist
-# first, or a concurrent reload in between sees a dangling reference and nginx -t fails
+# Zone before fragment: a reload in between would otherwise meet a dangling zone and fail -t.
 echo "proxy_cache_path /var/cache/nginx/$domain levels=1:2 use_temp_path=off keys_zone=$domain:10m inactive=60m max_size=256m;" \
 	> "/etc/nginx/conf.d/cache-zone.$domain.conf"
 
-# bypass keeps logged-in/admin traffic out of the cache. Every nginx variable is \$-escaped;
-# $domain/$duration are the only shell expansions
+# The bypass keeps logged-in traffic out of the cache. Every nginx variable is \$-escaped.
 frag_dir="$HOMEDIR/$user/conf/web/$domain/nginx.location.d"
 mkdir -p "$frag_dir"
 chown root:$user "$frag_dir"
@@ -91,23 +71,16 @@ EOF
 chown root:$user $frag_dir/proxy_cache.conf
 chmod 640 $frag_dir/proxy_cache.conf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# add_object_key is idempotent on key presence; a value guard would also fire on an
-# existing-but-empty key and re-insert it (the double-key class)
+# add_object_key is idempotent; a value guard would re-insert an existing empty key.
 add_object_key "web" 'DOMAIN' "$domain" 'PROXY_CACHE' 'ALIAS'
 add_object_key "web" 'DOMAIN' "$domain" 'PROXY_CACHE_DURATION' 'ALIAS'
 
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY_CACHE' 'yes'
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY_CACHE_DURATION' "$duration"
 
-# Restarting proxy server
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Proxy cache enabled (Domain: $domain, Duration: $duration)."
 log_event "$OK" "$ARGUMENTS"
 

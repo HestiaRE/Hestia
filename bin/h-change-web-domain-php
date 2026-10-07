@@ -4,20 +4,13 @@
 #
 # example: h-change-web-domain-php admin acme.com 8.3
 #
-# This function changes the PHP version a web domain runs on. The version is its own
-# field since #591; the pool profile (BACKEND) is left untouched.
+# Changes the PHP version a web domain runs on; the pool profile (BACKEND) stays.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 version=$3
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -26,16 +19,10 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN VERSION [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -51,28 +38,17 @@ if [ "$version" != 'none' ]; then
 		|| check_result "$E_NOTEXIST" "PHP version $version is not installed"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Read this domain's own record with a literal match (get_domain_values greps unescaped, #594)
 web_record=$(grep -F "DOMAIN='$domain'" "$USER_DATA/web.conf")
 stored_version=$(grep -oE "PHP_VERSION='[^']*'" <<< "$web_record" | cut -d "'" -f 2)
 
-# Skip only when the FIELD already holds this version. An empty field is the pre-#591 sentinel
-# ("follow the system default"): always write it, even when the effective version is unchanged,
-# so the domain is pinned instead of drifting on the next system-default change.
+# An empty field means "follow the system default": written even when nothing changes, so the domain is pinned.
 if [ -n "$stored_version" ] && [ "$stored_version" = "$version" ]; then
 	exit
 fi
 
-# The version the domain actually runs right now, before the rebuild moves the pool - this is
-# what still holds the old socket. Restart derives from it, not from a guessed default, so a
-# first-run legacy domain does not needlessly restart the default version's master.
+# Read before the rebuild moves the pool: that version's master still holds the old socket.
 old_version=$(web_domain_pool_version "$domain" "$user")
 
-# Write the field, then rebuild this one domain: the pool moves to the new version and the
-# vhost picks up the new fastcgi socket.
 add_object_key 'web' 'DOMAIN' "$domain" 'PHP_VERSION' 'BACKEND'
 update_object_value 'web' 'DOMAIN' "$domain" '$PHP_VERSION' "$version"
 
@@ -83,16 +59,10 @@ if [ "$(get_object_value 'web' 'DOMAIN' "$domain" '$WP')" = 'yes' ]; then
 	wp_cron_sync "$domain" || echo "WARN: the wp-cron entry could not be moved to PHP $version"
 fi
 
-# The old master still holds the now-removed pool's socket until it reloads. Checked like the
-# rebuild: a failed restart must not report success while the domain serves a dead socket.
 if [ -n "$old_version" ] && [ "$old_version" != "$version" ]; then
 	$BIN/h-restart-web-backend "$restart" "$old_version"
 	check_result $? "PHP restart failed" > /dev/null
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "$user" "Info" "Web" "PHP version changed (Domain: $domain, Version: $version)."
 log_event "$OK" "$ARGUMENTS"

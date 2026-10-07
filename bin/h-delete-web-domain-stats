@@ -4,35 +4,22 @@
 #
 # example: h-delete-web-domain-stats user02 h1.example.com
 #
-# This function of deleting site's system of statistics. Its type is
-# automatically chooses from client's configuration file.
+# Disables the stats of a domain: config, pipe entry, folder content and stats user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN'
 is_format_valid 'user' 'domain'
@@ -41,35 +28,22 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_value_exist 'web' 'DOMAIN' "$domain" '$STATS'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining statistic type
 get_domain_values 'web'
 
-# Deleting dir content
 rm -rf "$HOMEDIR/$user/web/$domain/stats"
 
-# Deleting config
 rm -f "/etc/awstats/$STATS.$domain_idn.conf"
 rm -f "$HOMEDIR/$user/conf/web/$domain/$STATS.conf"
 rm -f "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Deleting pipe command - dots escaped, or a.b.com takes aXb.com's entry
+# Dots escaped, or a.b.com takes aXb.com's entry.
 sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
 
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS' ''
 # The password files went with the folder; a stats user left in the record would come back without them.
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS_USER' ''
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS_CRYPT' ''
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web traffic analyzer disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

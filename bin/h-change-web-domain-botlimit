@@ -4,13 +4,8 @@
 #
 # example: h-change-web-domain-botlimit admin acme.com ai strict
 #
-# Sets one bot family's rate-limit level (off|lenient|strict) for the domain. Families + their
-# lenient/strict rates live in the system bot-family conf (h-list-sys-botfamily). Server-native
-# (nginx limit_req / apache mod_qos, 429), independent of CrowdSec. 'off' removes the family.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Sets one bot family's rate limit for the domain: off, lenient or strict, at the rates of h-list-sys-botfamily.
+# Served by the web server itself (nginx limit_req, apache mod_qos), independent of CrowdSec.
 
 user=$1
 domain=$2
@@ -19,22 +14,16 @@ level=$4
 restart="$5"
 quiet="$6"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/botpolicy.sh
 source $HESTIA/include/botpolicy.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
 FAMOBJ="$CONF_DIR/botfamilies"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '4' "$#" 'USER DOMAIN FAMILY LEVEL [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
@@ -51,19 +40,13 @@ case "$level" in
 		;;
 esac
 
-# family must exist in the system conf (get_object_value takes the object base, appends .conf)
 if [ ! -f "$FAMOBJ.conf" ] || [ -z "$(get_object_value "$FAMOBJ" 'FAMILY' "$family" '$FAMILY' 2> /dev/null)" ]; then
 	echo "Error: unknown bot family '$family' (see h-list-sys-botfamily)"
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-# rebuild the compact "fam:level,fam:level" field without this family, then append unless 'off'
 new=''
 # shellcheck disable=SC2086 # comma-split of the compact BOTLIMIT field is intentional
 IFS=, read -ra _e_list <<< "$BOTLIMIT"
@@ -80,10 +63,6 @@ fi
 update_object_value 'web' 'DOMAIN' "$domain" '$BOTLIMIT' "$new"
 
 botpolicy_render_domain_fragment "$user" "$domain"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null

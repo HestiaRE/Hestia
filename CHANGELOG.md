@@ -18,6 +18,7 @@ before v0.20.0 are folded into one section by theme.
   is refused, Let's Encrypt validation no longer writes into the customer's docroot, and a domain or alias name is
   held to what a vhost can carry.
 - **Stats, HTTP auth, redirect, cache and WordPress commands are stricter** (#1176).
+- **The Sury and Docker repository keys are checked against a pinned fingerprint** (#1176).
 
 ### Removed
 
@@ -25,6 +26,7 @@ before v0.20.0 are folded into one section by theme.
   deletes them from the box.
 - **`public_shtml` and a separate SSL docroot** (#1176): https serves `public_html` like http.
 - **`h-update-web-templates`** (#1176).
+- **`share/php-fpm/multiphp.tpl`** (#1176), unused.
 
 ### Fixed
 
@@ -33,6 +35,9 @@ before v0.20.0 are folded into one section by theme.
 - **Renaming a web domain** (#1176) moves its aliases, logs and configs and refuses what it cannot carry along.
 - **Template, proxy, backend and PHP changes on a web domain** (#1176) keep the record and the vhost in step, and the
   suspend and offline pages show over https as well.
+- **Web model switch, ProFTPD, Docker, Redis and PHP commands** (#1176): a switch carries phpMyAdmin, bot rate
+  limiting and the file manager to the new front and takes them back on a rollback, FTP behind NAT and its fail2ban
+  jail follow the addon, and removing Docker no longer strands customers who still use it.
 
 ## v0.24 (2026-10-06)
 

@@ -257,7 +257,7 @@ panel process, not the kernel UID. System-wide, no per-customer isolation.
 **HestiaRE.** A vendored, forked single-file TinyFileManager with app-auth disabled,
 in a three-layer model (#218/#419):
 1. **Shared code**, one root-owned copy: `/usr/share/filemanager/fm`
-   (`bin/h-add-sys-filemanager:60-65`).
+   (`fm_code_install` in `include/filemanager.sh`).
 2. **Per-customer FPM pool run AS the customer**: `fm-<user>` on the customer PHP,
    `user=%user%`, `listen=/run/hestia/fm/<user>.sock`,
    `open_basedir=/usr/share/filemanager/fm:/home/%user%`, `env[FM_ROOT]=/home/%user%`

@@ -24,8 +24,8 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-SECRET_FILE="/etc/hestia/conf/.filemanager.key"
-CODE_DIR="/usr/share/filemanager/fm"
+# shellcheck source=/usr/local/hestia/include/filemanager.sh
+source "$HESTIA/include/filemanager.sh"
 : "${FILE_MANAGER_PORT:=8092}"
 
 #----------------------------------------------------------#
@@ -42,11 +42,13 @@ is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
 # System module must be installed first (secret + code + port)
-if [ ! -s "$SECRET_FILE" ] || [ ! -f "$CODE_DIR/index.php" ]; then
+if [ ! -s "$FM_SECRET_FILE" ] || [ ! -f "$FM_CODE_DIR/index.php" ]; then
 	echo "ERROR: file manager module not installed — run h-add-sys-filemanager first"
 	exit "$E_NOTEXIST"
 fi
-secret="$(cat "$SECRET_FILE")"
+secret="$(cat "$FM_SECRET_FILE")"
+fm_web=$(fm_front)
+[ -n "$fm_web" ] || check_result "$E_DISABLED" "the file manager needs a customer web server, this box has none"
 
 #----------------------------------------------------------#
 #                       Action                             #
@@ -56,13 +58,10 @@ secret="$(cat "$SECRET_FILE")"
 ver="$(multiphp_default_version)"
 pool="/etc/php/$ver/fpm/pool.d/fm-$user.conf"
 
-# FM front: nginx if it fronts the stack (nginx-only or nginx+apache), else apache
-if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
-	fm_web='nginx'
+if [ "$fm_web" = 'nginx' ]; then
 	vhost="/etc/nginx/conf.d/fm-$user.conf"
 	tpl='nginx'
 else
-	fm_web='apache2'
 	vhost="/etc/apache2/conf.d/fm-$user.conf"
 	tpl='apache'
 fi
@@ -92,6 +91,8 @@ done
 # OK here would leave FILE_MANAGER='yes' with a dead listener that always 403s. Bail
 # BEFORE the vhost + flag are written, so a failed enable is a clean no-op.
 if [ ! -S "$sock" ]; then
+	rm -f "$pool"
+	systemctl reload "php$ver-fpm" 2> /dev/null
 	check_result "$E_NOTEXIST" "file manager pool socket did not appear ($sock) — php$ver-fpm reload may have failed"
 fi
 

@@ -50,9 +50,26 @@ secret="$(cat "$FM_SECRET_FILE")"
 fm_web=$(fm_front)
 [ -n "$fm_web" ] || check_result "$E_DISABLED" "the file manager needs a customer web server, this box has none"
 
+# Saved state. A key that predates this feature goes BEFORE the TIME line: update_user_value
+# deletes and reinserts by line number, and a last-line key would vanish.
+fm_flag_set() {
+	if grep -q "^FILE_MANAGER='" "$USER_DATA/user.conf" 2> /dev/null; then
+		update_user_value "$user" '$FILE_MANAGER' 'yes'
+	else
+		sed -i "/^TIME=/i FILE_MANAGER='yes'" "$USER_DATA/user.conf"
+	fi
+}
+
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
+
+# A suspended account keeps the choice; h-unsuspend-user builds the listener.
+if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
+	fm_flag_set
+	log_event "$OK" "$ARGUMENTS"
+	exit
+fi
 
 # PHP version = the server default; never pin one as mandatory (multiphp)
 ver="$(multiphp_default_version)"
@@ -110,14 +127,7 @@ if [ "$restart" != 'no' ]; then
 	$BIN/h-restart-service "$fm_web" > /dev/null 2>&1 || true
 fi
 
-# Set the flag (saved state). If the key predates this feature, insert it BEFORE the
-# TIME line — never append at EOF: update_user_value deletes+reinserts by line number,
-# and a last-line key fails to reinsert (the address lands past EOF) and vanishes.
-if grep -q "^FILE_MANAGER='" "$USER_DATA/user.conf" 2> /dev/null; then
-	update_user_value "$user" '$FILE_MANAGER' 'yes'
-else
-	sed -i "/^TIME=/i FILE_MANAGER='yes'" "$USER_DATA/user.conf"
-fi
+fm_flag_set
 
 #----------------------------------------------------------#
 #                       Hestia                             #

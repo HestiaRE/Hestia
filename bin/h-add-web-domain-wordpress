@@ -118,10 +118,13 @@ db_pass=$(generate_password)
 # h-add-database takes the suffix, everything else (incl. h-delete-database) the full name
 db_name="${user}_${db_suffix}"
 db_user="${user}_${db_suffix}"
-# MariaDB caps user names at 80 - fail here with a name, not deep inside h-add-database
-[ ${#db_user} -le 80 ] || check_result "$E_LIMIT" "database user name '$db_user' exceeds 80 characters"
-$BIN/h-add-database "$user" "$db_suffix" "$db_suffix" "$db_pass" > /dev/null
-check_result $? "database creation failed"
+# The password travels as a private file, out of argv; the name's length is h-add-database's to judge.
+db_pass_file=$(mktemp /tmp/hestia-wp.XXXXXXXX) || check_result "$E_DISK" "no temp file for the database password"
+printf '%s\n' "$db_pass" > "$db_pass_file"
+db_out=$($BIN/h-add-database "$user" "$db_suffix" "$db_suffix" "$db_pass_file")
+db_rc=$?
+rm -f "$db_pass_file"
+check_result "$db_rc" "database creation failed: $db_out"
 
 cleanup_failed_install() {
 	$BIN/h-delete-database "$user" "$db_name" > /dev/null 2>&1

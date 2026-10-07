@@ -60,8 +60,11 @@ rebuild_user_conf() {
 			return 1
 		fi
 		getent group "$user" > /dev/null 2>&1 || /usr/sbin/groupadd -g "$user_uid" "$user"
-		/usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
-			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1
+		if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
+			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1; then
+			echo "Error: the account $user could not be created"
+			return 1
+		fi
 	fi
 
 	# Add a general group for normal users created by Hestia

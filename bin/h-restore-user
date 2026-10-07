@@ -439,7 +439,7 @@ if [ "$create_user" = 'yes' ]; then
 	# Creates the account with a freshly allocated uid, before anything is unpacked, so
 	# tar can resolve the archived owner name onto it - and puts the project id on the
 	# fresh home, so everything unpacked below inherits it.
-	rebuild_user_conf
+	rebuild_user_conf || check_result "$E_INVALID" "account $user could not be created"
 fi
 
 if quota_is_active && quota_home_fs; then

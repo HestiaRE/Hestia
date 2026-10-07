@@ -44,6 +44,10 @@ is_user_free() {
 	if getent passwd "$user" > /dev/null 2>&1 || [ -e "$USER_DATA" ]; then
 		check_result "$E_EXISTS" "user $user exists"
 	fi
+	# useradd -m keeps an existing home, and root would then chown and chmod through what an old account left there.
+	if [ -e "$HOMEDIR/$user" ] || [ -L "$HOMEDIR/$user" ]; then
+		check_result "$E_EXISTS" "$HOMEDIR/$user already exists"
+	fi
 	if getent group "$user" > /dev/null 2>&1; then
 		check_result "$E_EXISTS" "group $user exists"
 	fi

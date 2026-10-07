@@ -108,14 +108,17 @@ rebuild_user_conf() {
 		/usr/sbin/usermod --lock "$user"
 	fi
 
-	# Building directory tree
+	# The customer owns the home and can put a link where conf was: refused before root touches it.
+	if [ -L "$HOMEDIR/$user/conf" ]; then
+		echo "Error: $HOMEDIR/$user/conf is a link" >&2
+		return 1
+	fi
 	if [ -e "$HOMEDIR/$user/conf" ]; then
 		chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
 	fi
 
 	# Create default writeable folders
 	mkdir -p \
-		$HOMEDIR/$user/conf \
 		$HOMEDIR/$user/.config \
 		$HOMEDIR/$user/.cache \
 		$HOMEDIR/$user/.local \
@@ -125,7 +128,7 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
 	chmod a+x $HOMEDIR/$user
-	chmod a+x $HOMEDIR/$user/conf
+	home_dir_own "$HOMEDIR/$user/conf" root:root 755 || return 1
 	chown --no-dereference $user:$user \
 		$HOMEDIR/$user \
 		$HOMEDIR/$user/.config \
@@ -136,7 +139,6 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.ssh \
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
-	chown root:root $HOMEDIR/$user/conf
 
 	# project id BEFORE any restore unpacks: everything created below inherits;
 	# for a pre-arming tree this is the one-time migration (#211)
@@ -173,14 +175,11 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/web" ]]; then
 			rm $HOMEDIR/$user/web
 		fi
+		home_dir_own "$HOMEDIR/$user/conf/web" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/web/$domain
-		mkdir -p $HOMEDIR/$user/web
-		mkdir -p $HOMEDIR/$user/tmp
-		chmod 751 $HOMEDIR/$user/conf/web
-		chmod 751 $HOMEDIR/$user/web
+		home_dir_own "$HOMEDIR/$user/web" "root:$user" 751 || return 1
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
-		chmod 700 $HOMEDIR/$user/tmp
-		chown --no-dereference root:"$user" $HOMEDIR/$user/web
+		home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
 		fi
@@ -197,11 +196,9 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/mail" ]]; then
 			rm $HOMEDIR/$user/mail
 		fi
+		home_dir_own "$HOMEDIR/$user/conf/mail" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
-		mkdir -p $HOMEDIR/$user/mail
-		chown --no-dereference root:root $HOMEDIR/$user/mail
-		chmod 751 $HOMEDIR/$user/mail
-		chmod 751 $HOMEDIR/$user/conf/mail
+		home_dir_own "$HOMEDIR/$user/mail" root:root 751 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-mail-domains $user
 		fi

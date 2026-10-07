@@ -551,9 +551,18 @@ login_defs_guard() {
 
 # proftpd.conf is operator surface, so the line goes in rather than the whole file over it.
 proftpd_chroot_symlinks_apply() {
-	local f='/etc/proftpd/proftpd.conf'
+	local f='/etc/proftpd/proftpd.conf' bak
 	grep -q '^DefaultRoot[[:space:]]' "$f" 2> /dev/null || return 0
-	grep -q '^AllowChrootSymlinks[[:space:]]' "$f" || sed -i '/^DefaultRoot[[:space:]]/a AllowChrootSymlinks          off' "$f" || return 1
+	if ! grep -q '^AllowChrootSymlinks[[:space:]]' "$f"; then
+		bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+		# A failed test puts the file back, so it still lacks the line and the next update retries.
+		if ! sed -i '/^DefaultRoot[[:space:]]/a AllowChrootSymlinks          off' "$f" || ! proftpd -t > /dev/null 2>&1; then
+			cp -p "$bak" "$f"
+			rm -f "$bak"
+			return 1
+		fi
+		rm -f "$bak"
+	fi
 	grep -q '^AllowChrootSymlinks[[:space:]]*off' "$f" || return 1
 	proftpd -t > /dev/null 2>&1 || return 1
 	systemctl -q is-active proftpd 2> /dev/null || return 0

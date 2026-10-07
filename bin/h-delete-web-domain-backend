@@ -48,13 +48,8 @@ is_object_valid 'web' 'DOMAIN' "$domain"
 get_domain_values 'web'
 BACKEND="$template"
 
-# Defining pool directory
-pool=$(find -L /etc/php/ -name "$domain.conf" -exec dirname {} \;)
-if [ ! -e "$pool" ]; then
-	check_result "$E_NOTEXIST" "php-fpm pool doesn't exist"
-fi
-
-# Defining backend type
+# No pool is the normal state for PHP 'none' and a docker domain; with two, both go. Read before they go.
+pool_version=$(web_domain_pool_version "$domain" "$user")
 backend_type="$domain"
 
 # Deleting backend
@@ -64,8 +59,10 @@ delete_web_backend
 #                       Hestia                             #
 #----------------------------------------------------------#
 
-# Restart the version this domain actually ran (its own field), else the system default
-if [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
+# Restart the version the pool ran on, else the domain's own field, else the system default
+if [ -n "$pool_version" ]; then
+	version="$pool_version"
+elif [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
 	version="$PHP_VERSION"
 else
 	version=$(multiphp_default_version)

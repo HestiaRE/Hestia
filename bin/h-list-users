@@ -95,7 +95,7 @@ json_list() {
 # SHELL list function
 shell_list() {
 	echo "USER   ROLE   PKG   WEB   MAIL   DB   DISK   BW   SPND   DATE"
-	echo "----   ----   ---   ---   ---   ---    --   ----   --   ----   ----"
+	echo "----   ----   ---   ---   ----   --   ----   --   ----   ----"
 	while read USER; do
 		if [ ! -f "$CONF_DIR/users/$USER/user.conf" ]; then
 			continue

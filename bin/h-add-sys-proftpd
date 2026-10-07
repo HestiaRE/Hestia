@@ -22,6 +22,8 @@
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -83,6 +85,9 @@ if [ -f /etc/apparmor.d/proftpd ]; then
 	cp -f "$HESTIA/share/proftpd/apparmor-local" /etc/apparmor.d/local/proftpd
 	apparmor_parser -r /etc/apparmor.d/proftpd > /dev/null 2>&1 || true
 fi
+
+# A NAT set before proftpd existed was never written for it.
+proftpd_nat_apply
 
 # fail loud instead of a flapping service
 if ! proftpd -t > /tmp/hst-proftpd-test.log 2>&1; then

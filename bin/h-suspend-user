@@ -44,9 +44,9 @@ if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" != 'y
 	/usr/sbin/usermod --lock --expiredate 1 "$user"
 
 	# Suspending ftp accounts
-	for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do
+	while IFS= read -r ftp; do
 		/usr/sbin/usermod --lock "$ftp" 2> /dev/null
-	done
+	done < <(user_ftp_accounts)
 
 	# The file manager runs as the customer via an FPM pool, so it does NOT hang on
 	# the Unix password — usermod --lock above stops SFTP/FTP/SSH but not the FM.

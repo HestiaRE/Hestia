@@ -1227,6 +1227,22 @@ search_objects() {
 }
 
 # Get user value
+# The user's ftp sub-accounts: listed in a web record and sharing the user's uid. A name prefix would
+# also match a customer called <user>_x, and a restored record can name any account.
+user_ftp_accounts() {
+	local line n uid ftp_names
+	uid=$(id -u "$user" 2> /dev/null) || return 0
+	[ -e "$USER_DATA/web.conf" ] || return 0
+	while IFS= read -r line; do
+		[[ "$line" =~ (^|\ )FTP_USER=\'([^\']*)\' ]] || continue
+		IFS=: read -ra ftp_names <<< "${BASH_REMATCH[2]}"
+		for n in "${ftp_names[@]}"; do
+			[ -n "$n" ] && [ "$(id -u "$n" 2> /dev/null)" = "$uid" ] && echo "$n"
+		done
+	done < "$USER_DATA/web.conf"
+	return 0
+}
+
 get_user_value() {
 	grep "^${1//$/}=" $USER_DATA/user.conf | head -1 | awk -F "'" '{print $2}'
 }

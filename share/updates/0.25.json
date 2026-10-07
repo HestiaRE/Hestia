@@ -345,6 +345,24 @@
       "reversible": false
     },
     {
+      "id": "remove-share-multiphp-tpl",
+      "description": "share/php-fpm/multiphp.tpl is gone: nothing rendered it, the customer pools come from templates/php",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+      ],
+      "reversible": false
+    },
+    {
       "id": "web-model-snapshot-private",
       "description": "The web-model switch snapshots carry every customer's TLS and DKIM keys and were readable by every local account",
       "conditions": [

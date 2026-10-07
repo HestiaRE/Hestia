@@ -138,7 +138,7 @@ into **five** on that one `hestia` master:
 | `roundcube.conf` | `caddy` | `/run/hestia-webmail-roundcube.sock` | Caddy `:8090` |
 | `tachyon.conf` | `caddy` | `/run/hestia-webmail-tachyon.sock` | Caddy `:8091` |
 
-Plus per-customer pools on the **customer** PHP (`share/php-fpm/multiphp.tpl`,
+Plus per-customer pools on the **customer** PHP (`templates/php/{default,small,high}.tpl`,
 `user=%user%`) and the FM pool (delta 5).
 
 **Why.** Isolate by trust boundary (see the system-user table). Upstream already

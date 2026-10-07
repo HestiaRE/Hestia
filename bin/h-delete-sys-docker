@@ -42,17 +42,32 @@ if [ "x$(id -u)" != 'x0' ]; then
 	exit 10
 fi
 
-# <user>-docker identifies an enabled customer without reading every user.conf.
-enabled=$(getent passwd | cut -d: -f1 | grep -c -- '-docker$' || true)
-if [ "$enabled" -gt 0 ] && [ "$force" != 'yes' ]; then
-	echo "ERROR: $enabled customer(s) still have Docker enabled."
+# Whatever h-delete-user-docker would clean up: an address in the record or the companion account.
+docker_users=''
+for uconf in "$CONF_DIR"/users/*/user.conf; do
+	[ -e "$uconf" ] || continue
+	u=$(basename "$(dirname "$uconf")")
+	if grep -q "^DOCKER_IP='[^']" "$uconf" || getent passwd "$u-docker" > /dev/null 2>&1; then
+		docker_users="$docker_users $u"
+	fi
+done
+if [ -n "$docker_users" ] && [ "$force" != 'yes' ]; then
+	echo "ERROR: Docker is still enabled for:$docker_users"
 	echo "       Disable it for them first, or re-run with: h-delete-sys-docker yes"
+	echo "       (that disables it for them, and their containers and images are removed)"
 	exit "$E_INVALID"
 fi
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
+
+# A purge under running companions leaves daemons without binaries, their ranges, addresses and firewall rules.
+for u in $docker_users; do
+	echo "Disabling Docker for $u..."
+	$BIN/h-delete-user-docker "$u" > /dev/null 2>&1 \
+		|| check_result "$E_INVALID" "could not disable Docker for $u, packages kept"
+done
 
 echo "Removing Docker packages..."
 # Only names dpkg holds: apt refuses the whole purge over one it does not know. The repository goes only after.

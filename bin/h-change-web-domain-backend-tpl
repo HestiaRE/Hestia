@@ -97,11 +97,11 @@ else
 fi
 
 $BIN/h-restart-web-backend "$restart" "$version"
+check_result $? "PHP restart failed" > /dev/null
 if [ "$version" != "$backend_version" ]; then
 	$BIN/h-restart-web-backend "$restart" "$backend_version"
+	check_result $? "PHP restart failed" > /dev/null
 fi
-
-check_result $? "PHP restart failed" > /dev/null
 
 # Logging
 $BIN/h-log-action "$user" "Info" "Web" "Backend template applied (Domain: $domain, Template: $template)."

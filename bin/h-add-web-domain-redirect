@@ -37,7 +37,10 @@ web_lock_acquire || exit 1
 
 check_args '3' "$#" 'USER DOMAIN REDIRECT [HTTPCODE] [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
-is_number_format_valid "$code" "code"
+case $code in
+	301 | 302 | 307 | 308) ;;
+	*) check_result "$E_INVALID" "invalid redirect code $code, use 301, 302, 307 or 308" ;;
+esac
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
@@ -78,6 +81,10 @@ else
 		check_result $E_INVALID "Invalid redirect"
 	fi
 fi
+
+# The target lands unquoted in an nginx directive and in the record: plain URL characters only, the rest percent-encoded.
+url_chars='^[A-Za-z0-9._~:/@!&+,=%-]+$'
+[[ "$redirect" =~ $url_chars ]] || check_result "$E_INVALID" "Invalid redirect, characters outside a plain URL"
 
 #----------------------------------------------------------#
 #                       Action                             #

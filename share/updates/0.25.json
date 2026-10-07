@@ -66,6 +66,23 @@
       "reversible": true
     },
     {
+      "id": "stats-auth-fragment",
+      "description": "nginx read the stats password fragment from the customer's own folder; vhosts rendered before it moved to conf are rebuilt",
+      "conditions": [
+        {
+          "type": "file_contains",
+          "path": "/home/*/conf/web/*/nginx*.conf",
+          "value": "/stats/auth.conf"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "stats_auth_fragment_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
       "id": "remove-h-schedule-letsencrypt-domain",
       "description": "h-schedule-letsencrypt-domain is gone: nothing scheduled through it, the panel orders certificates directly",
       "conditions": [

@@ -368,6 +368,24 @@ web_stats_auth_clear() {
 	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
 }
 
+# Update entry: a vhost rendered before the fragment moved still includes it from the customer's folder.
+stats_auth_fragment_apply() {
+	local f rest seen=" " rc=0
+	for f in "$HOMEDIR"/*/conf/web/*/nginx*.conf; do
+		[ -e "$f" ] || continue
+		grep -qF '/stats/auth.conf' "$f" || continue
+		rest=${f#"$HOMEDIR"/}
+		rest=${rest%/*}
+		case $seen in *" $rest "*) continue ;; esac
+		seen="$seen$rest "
+		"$BIN/h-rebuild-web-domain" "${rest%%/*}" "${rest##*/}" no || rc=1
+	done
+	[ "$seen" = " " ] && return $rc
+	"$BIN/h-restart-web" || rc=1
+	"$BIN/h-restart-proxy" || rc=1
+	return $rc
+}
+
 # The ONE substitution engine (#890): stdin template in, rendered text out. Divergent
 # values arrive in _r_* (webmail renders %domain% as the alias, %web_system% as the
 # front). Removing or renaming a token breaks every custom template that uses it.

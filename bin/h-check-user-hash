@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: check user hash
 # options: USER HASH [IP]
+# labels: internal
+# caller: the panel login
 #
 # example: h-check-user-hash admin CN5JY6SMEyNGnyCuvmK5z4r7gtHAC4mRZ...
 #
@@ -36,9 +38,9 @@ check_args '2' "$#" 'USER HASH [IP]'
 is_format_valid 'user' 'ip46'
 
 # Checking user
-if [ ! -d "$CONF_DIR/users/$user" ] && [ "$user" != 'root' ]; then
+if [ ! -d "$CONF_DIR/users/$user" ]; then
 	echo "Error: password missmatch"
-	echo "$date $time $user $ip failed to login" >> $HESTIA/log/auth.log
+	echo "$date $time $user $ip46 failed to login" >> $HESTIA/log/auth.log
 	exit 9
 fi
 

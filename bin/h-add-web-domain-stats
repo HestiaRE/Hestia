@@ -100,7 +100,8 @@ update_object_value 'web' 'DOMAIN' "$domain" '$STATS' "$type"
 $BIN/h-log-action "$user" "Info" "Web" "Web traffic analyzer enabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 
-# Build stats
+# Build stats; the record is written, so the box-wide web lock is not held through the awstats run.
+web_lock_release
 exec $BIN/h-update-web-domain-stat "$user" "$domain"
 
 exit

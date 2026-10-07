@@ -390,6 +390,8 @@ web_model_rollback() {
 			[ -n "$ip" ] || continue
 			rm -f "/etc/$pfx/conf.d/$ip.conf"
 		done < <(web_sys_ips)
+		# Written for the target before validation; a server installed later would load them.
+		rm -f "/etc/$pfx/conf.d/hestia_botlimit.conf" "/etc/$pfx/conf.d/phpmyadmin.inc"
 	done
 	# The failed target's listeners stay behind otherwise, secret included, and would claim the port from its tree.
 	# shellcheck source=/usr/local/hestia/include/filemanager.sh

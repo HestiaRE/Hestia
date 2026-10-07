@@ -4,28 +4,16 @@
 #
 # example: h-change-user-php-cli user 7.4
 #
-# add line to .bash_aliases to set default php command line
-# version when multi-php is enabled.
+# Sets the user's default php version on the command line, through .bash_aliases.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 version=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 FILE=$HOMEDIR/$user/.bash_aliases
 
@@ -34,7 +22,6 @@ is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-# Reading user values
 source_conf "$USER_DATA/user.conf"
 
 versions=$($BIN/h-list-sys-php plain)
@@ -58,18 +45,10 @@ if user_exec grep -q "alias php='env php$version'" "$FILE"; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 user_exec sed -i "/alias php='env/d" "$FILE"
 echo "alias php='env php$version'" | user_exec tee -a "$FILE" > /dev/null \
 	|| check_result "$E_FORBIDEN" "$FILE is not writable by $user"
 update_user_value "$user" '$PHPCLI' "$version" || check_result "$E_NOTEXIST" "PHPCLI is missing from the record of $user"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Users" "Default PHP CLI version changed (User: $user, Version: $version)."
 

@@ -4,24 +4,16 @@
 #
 # example: h-list-user admin
 #
-# This function to obtain user parameters.
+# Lists the record of one user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# JSON list function
 json_list() {
 	json_escape USER NAME PACKAGE DOCKER_IP DOCKER_LIMIT WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS DATABASES CRON_JOBS DISK_QUOTA BANDWIDTH HOME SHELL BACKUPS CONTACT CRON_REPORTS RKEY TWOFA QRCODE ROLE SUSPENDED SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED U_USERS U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS BACKUPS_MODE LANGUAGE THEME NOTIFICATIONS PREF_UI_SORT FILE_MANAGER LOGIN_DISABLED LOGIN_USE_IPLIST LOGIN_ALLOW_IPS PHPCLI TIME DATE
 	echo '{'
@@ -90,7 +82,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "USERNAME:      $USER"
 	echo "FULL NAME:     $NAME"
@@ -114,7 +105,6 @@ shell_list() {
 	echo "DATE:          $DATE"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -ne "$USER\t$NAME\t$PACKAGE\t$WEB_TEMPLATE\t"
 	echo -ne "$BACKEND_TEMPLATE\t$PROXY_TEMPLATE\t"
@@ -132,19 +122,10 @@ plain_list() {
 	echo -e "$U_CRON_JOBS\t$U_BACKUPS\t$LANGUAGE\t$THEME\t$TIME\t$DATE"
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining config
 USER=$user
 HOME=$HOMEDIR/$user
 # A key missing from the record must not show the caller's environment (SHELL, LANGUAGE).
@@ -153,16 +134,11 @@ source_conf "$CONF_DIR/users/$user/user.conf"
 U_USERS=$(awk -F"'" '/^U_USERS=/ {print $2}' "$CONF_DIR/users/$ROOT_USER/user.conf")
 SUSPENDED_USERS=$(awk -F"'" '/^SUSPENDED_USERS=/ {print $2}' "$CONF_DIR/users/$ROOT_USER/user.conf")
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

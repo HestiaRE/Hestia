@@ -4,27 +4,16 @@
 #
 # example: h-change-user-role alice admin
 #
-# Give/revoke user administrator rights to manage all accounts as admin
+# Gives or takes a user's administrator rights.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 role=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER ROLE'
 ROLE=$(get_user_value '$ROLE')
@@ -35,10 +24,6 @@ is_format_valid 'user' 'role'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 update_user_value "$user" '$ROLE' "$role" || check_result "$E_NOTEXIST" "ROLE is missing from the record of $user"
 $BIN/h-log-action "system" "Warning" "Security" "User privileges changed (User: $user, Role: $role, Previous: $ROLE)."
 
@@ -47,10 +32,6 @@ $BIN/h-log-action "system" "Warning" "Security" "User privileges changed (User: 
 if ! $BIN/h-delete-user-sessions "$user" > /dev/null; then
 	echo "Warning: the role of $user is changed, but the open sessions could not be ended" >&2
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 log_event "$OK" "$ARGUMENTS"
 exit 0

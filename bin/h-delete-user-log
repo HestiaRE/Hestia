@@ -4,26 +4,15 @@
 #
 # example: h-delete-user-log user
 #
-# This function for deleting a users log file
+# Clears a user's history, or the system activity log for the name system.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
@@ -31,21 +20,14 @@ if [ "$user" != "system" ]; then
 	is_object_valid 'user' 'USER' "$user"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Set correct path for log file (system or user)
 if [ "$user" = "system" ]; then
 	log_file="$HESTIA/log/activity.log"
 else
 	log_file="$CONF_DIR/users/$user/history.log"
 fi
 
-# Verify log file exists before deleting to prevent errors
 if [ -f "$log_file" ]; then
 	rm -f "$log_file"
-	# Add event to user and system logs specifying that the log history was cleared
 	if [ "$user" = "system" ]; then
 		$BIN/h-log-action "system" "Warning" "Security" "System log history deleted."
 	else

@@ -4,27 +4,16 @@
 #
 # example: h-unsuspend-user bob
 #
-# This function unsuspends user and all his objects.
+# Unsuspends a user and all their objects.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
@@ -37,57 +26,40 @@ if [ "$(get_user_value '$SUSPENDED')" != 'yes' ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Unconditional: POLICY_USER_VIEW_SUSPENDED governs a running suspension, and after this command there
-# is none. Every step is a no-op where the suspend side skipped it (#1055).
+# Unconditional: the policy governs a running suspension, and after this there is none. Each step is a no-op
+# where the suspend skipped it.
 
 /usr/sbin/usermod --unlock --expiredate '' "$user"
 
-# Unsuspending ftp accounts
 while IFS= read -r ftp; do
 	/usr/sbin/usermod --unlock "$ftp" 2> /dev/null
 done < <(user_ftp_accounts)
 
-# Changing suspend value
 update_user_value "$user" '$SUSPENDED' 'no'
 decrease_user_value "$ROOT_USER" '$SUSPENDED_USERS'
 
-# Restore the file manager listener if the user had it enabled and the module is
-# installed (mirror of the suspend teardown; the saved FILE_MANAGER='yes' drives
-# it). restart='no': the web/proxy restart below picks the vhost up. After SUSPENDED
-# is cleared, since the add only remembers the choice for a suspended account.
+# After SUSPENDED is cleared: for a suspended account the add only remembers the choice.
+# The web restart below picks the vhost up.
 if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$user/user.conf" 2> /dev/null; then
 	$BIN/h-add-user-filemanager "$user" no > /dev/null 2>&1 || true
 fi
 
-# Unsuspending web domains
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-web-domains "$user" "no"
 fi
 
-# Unsuspending mail domains
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-mail-domains "$user" "no"
 fi
 
-# Unsuspending datbabases
 if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-databases "$user"
 fi
 
-# Unsuspending cron jobs
 if [ -n "$CRON_SYSTEM" ] && [ "$CRON_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-cron-jobs "$user" "no"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting system services
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed"
 
@@ -97,7 +69,6 @@ check_result $? "Proxy restart failed"
 $BIN/h-restart-cron "$restart"
 check_result $? "Cron restart failed"
 
-# Logging
 $BIN/h-log-action "system" "Info" "Users" "Unsuspended user account (User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -4,39 +4,24 @@
 #
 # example: h-change-user-template admin WEB wordpress
 #
-# This function changes default user web template.
+# Changes a user's default web template.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 type=$(echo "$2" | tr '[:lower:]' '[:upper:]')
 template=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER TYPE TEMPLATE'
 is_format_valid 'user' 'template'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 case $type in
 	WEB)
@@ -63,11 +48,6 @@ case $type in
 	*) check_args '1' '0' 'USER TYPE TEMPLATE' ;;
 esac
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Default domain template changed (Type: $type, Template: $template)."
 log_event "$OK" "$ARGUMENTS"
 

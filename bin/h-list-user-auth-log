@@ -2,25 +2,17 @@
 # info: list user log
 # options: USER [FORMAT]
 #
-# This function of obtaining the list of 10 last users commands.
+# Lists a user's login history.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -73,7 +65,6 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	for str in $logs; do
@@ -89,19 +80,10 @@ plain_list() {
 	done
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing history log
 logs=$(tail -n 10 $USER_DATA/auth.log 2> /dev/null)
 
 case $format in
@@ -110,9 +92,5 @@ case $format in
 	shell) shell_list | column -t -s '~' ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

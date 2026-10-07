@@ -9,26 +9,15 @@
 #
 # Changes web UI display theme for specified user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 theme=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/conf/hestia.conf
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER THEME'
 is_format_valid 'user' 'theme'
@@ -43,10 +32,6 @@ if [ -n "$theme" ] && ! "$BIN/h-list-sys-themes" plain | grep -qxF -- "$theme"; 
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 # A missing key comes from the record repair, not a full rebuild with its system side effects.
 if ! grep -q "^THEME='" "$USER_DATA/user.conf"; then
 	# shellcheck source=/usr/local/hestia/include/syshealth.sh
@@ -55,11 +40,6 @@ if ! grep -q "^THEME='" "$USER_DATA/user.conf"; then
 fi
 update_user_value "$user" '$THEME' "$theme" || check_result "$E_NOTEXIST" "THEME is missing from the record of $user"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "System" "Applied theme to user interface (Theme: $theme)."
 
 exit

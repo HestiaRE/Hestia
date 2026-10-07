@@ -4,28 +4,20 @@
 #
 # example: h-list-users
 #
-# This function to obtain the list of all system users.
+# Lists all panel users.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Argument definition
 format=${1-shell}
 
 # Cleared before each record: source_conf sets only the keys a record has, and a missing one would
 # show the previous account's value.
 LIST_KEYS=(NAME PACKAGE WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS CONTACT CRON_REPORTS ROLE SUSPENDED SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED U_USERS U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS LANGUAGE TIME DATE)
 
-# JSON list function
 json_list() {
 	echo '{'
 	i=1
@@ -92,7 +84,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "USER   ROLE   PKG   WEB   MAIL   DB   DISK   BW   SPND   DATE"
 	echo "----   ----   ---   ---   ----   --   ----   --   ----   ----"
@@ -107,7 +98,6 @@ shell_list() {
 	done < <(grep '@' /etc/passwd | cut -f1 -d:)
 }
 
-# PLAIN list function
 plain_list() {
 	while read USER; do
 		if [ ! -f "$CONF_DIR/users/$USER/user.conf" ]; then
@@ -132,7 +122,6 @@ plain_list() {
 	done < <(grep '@' /etc/passwd | cut -f1 -d:)
 }
 
-# USER ONLY list function
 only_user_list() {
 	while read USER; do
 		if [ ! -f "$CONF_DIR/users/$USER/user.conf" ]; then
@@ -143,11 +132,6 @@ only_user_list() {
 	done < <(grep '@' /etc/passwd | cut -f1 -d:)
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
@@ -155,9 +139,5 @@ case $format in
 	list) only_user_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

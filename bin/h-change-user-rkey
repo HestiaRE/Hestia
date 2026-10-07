@@ -4,27 +4,16 @@
 # labels: internal
 # caller: the panel password reset
 #
-# This function changes user's RKEY value thats has been used for security value to be used forgot password function only.
+# Sets the password reset key and the time it was issued.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 hash=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [HASH]'
 is_format_valid 'user'
@@ -38,27 +27,17 @@ if [ -n "$hash" ]; then
 else
 	hash=$(generate_password)
 fi
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 d=$(date +%s)
 
-# Changing RKEY value
 update_user_value "$user" '$RKEY' "$hash"
 
-#check if RKEYEXP exists
 if [ -z "$(grep RKEYEXP $USER_DATA/user.conf)" ]; then
 	sed -i "s/^RKEY/RKEYEXP='$d'\nRKEY/g" $USER_DATA/user.conf
 else
 	update_user_value "$user" '$RKEYEXP' "$d"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Warning" "Users" "Password reset requested (User: $user)."
 $BIN/h-log-action "$user" "Warning" "System" "Password reset requested."
 log_event "$OK" "$ARGUMENTS"

@@ -4,40 +4,25 @@
 #
 # example: h-update-user-counters admin
 #
-# Function updates usage counters like U_WEB_DOMAINS, U_MAIL_ACCOUNTS, etc.
+# Recounts the usage counters of one user or of all; check prints them without writing.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Argument definition
 user=$1
 mode=${2-apply}
 
-# The counters this command derives, in one list: the write loop and the 'check' output both read
-# it, so a counter added here is written AND verified, and one that is never added is visible as
-# missing rather than living outside both (U_MAIL_SSL did that for years). h-check-sys-smoke asks
-# this command instead of keeping counting rules of its own.
-# An array, not a string: the loop below runs with IFS=$'\n', which would leave the whole list
-# as one "word" - and the write path would silently stop writing.
+# One list for the write loop and the check output, so a counter is written and verified, or visibly missing.
+# h-check-sys-smoke asks this command instead of counting itself. An array: the loop runs with IFS=$'\n'.
 COUNTER_KEYS=(
 	SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON
 	IP_AVAIL IP_OWNED U_USERS U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH
 	U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS
 	U_DATABASES U_CRON_JOBS U_BACKUPS
 )
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '0' "$#" '[USER] [MODE]'
 case "$mode" in
@@ -49,21 +34,14 @@ if [ -n "$user" ]; then
 	is_object_valid 'user' 'USER' "$user"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Creating user_list
 if [ -z "$user" ]; then
 	user_list="$("$BIN/h-list-users" list)"
 else
 	user_list="$user"
 fi
 
-# Updating user stats
 for user in $user_list; do
 	USER_DATA=$CONF_DIR/users/$user
-	# Cleaning counters
 	SUSPENDED_USERS=0
 	SUSPENDED_WEB=0
 	SUSPENDED_MAIL=0
@@ -91,10 +69,8 @@ for user in $user_list; do
 	U_CRON_JOBS=0
 	U_BACKUPS=0
 
-	# New IFS
 	IFS=$'\n'
 
-	# Checking users
 	if [ "$user" = "$ROOT_USER" ]; then
 		spnd=$(grep "SUSPENDED='yes'" $CONF_DIR/users/*/user.conf | wc -l)
 		SUSPENDED_USERS=$spnd
@@ -102,7 +78,6 @@ for user in $user_list; do
 	fi
 
 	ips=$(ls $CONF_DIR/ips)
-	# Checking ip
 	for ip in $ips; do
 		source $CONF_DIR/ips/$ip
 		if [ "$OWNER" = "$user" ]; then
@@ -117,7 +92,6 @@ for user in $user_list; do
 		IP_AVAIL=$(ls $CONF_DIR/ips | wc -l)
 	fi
 
-	# Checking web system
 	U_WEB_DOMAINS=0
 	if [ -f $USER_DATA/web.conf ]; then
 		for domain_str in $(cat $USER_DATA/web.conf); do
@@ -140,7 +114,6 @@ for user in $user_list; do
 		DISK=$((DISK + U_DISK_WEB))
 	fi
 
-	# Checking mail system
 	if [ -f $USER_DATA/mail.conf ]; then
 		for domain_str in $(cat $USER_DATA/mail.conf); do
 			parse_object_kv_list "$domain_str"
@@ -159,7 +132,6 @@ for user in $user_list; do
 		DISK=$((DISK + U_DISK_MAIL))
 	fi
 
-	# Checking db system
 	if [ -f $USER_DATA/db.conf ]; then
 		for db_str in $(cat $USER_DATA/db.conf); do
 			parse_object_kv_list "$db_str"
@@ -172,7 +144,6 @@ for user in $user_list; do
 		DISK=$((DISK + U_DISK_DB))
 	fi
 
-	# Checking cron system
 	if [ -f $USER_DATA/cron.conf ]; then
 		for cron_str in $(cat $USER_DATA/cron.conf); do
 			parse_object_kv_list "$cron_str"
@@ -183,19 +154,16 @@ for user in $user_list; do
 		done
 	fi
 
-	# Checking backup
 	if [ -f $USER_DATA/backup.conf ]; then
 		for backup_str in $(cat $USER_DATA/backup.conf); do
 			U_BACKUPS=$((U_BACKUPS + 1))
 		done
 	fi
 
-	# Update values
 	U_DISK=$DISK
 	U_BANDWIDTH=$BANDWIDTH
 	if [ "$mode" = 'check' ]; then
-		# What the counters WOULD become, without touching the record: the smoke guard reads
-		# this, so the counting rules live here only.
+		# What the counters would become, record untouched: the smoke guard reads this.
 		for _k in "${COUNTER_KEYS[@]}"; do printf "%s='%s'\n" "$_k" "${!_k}"; done
 		continue
 	fi
@@ -204,11 +172,7 @@ for user in $user_list; do
 	done
 done
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging - a check run reads only, so it is not an event
+# A check run only reads, so it is no event.
 [ "$mode" = 'check' ] || log_event "$OK" "$ARGUMENTS"
 
 exit

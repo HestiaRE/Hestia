@@ -9,26 +9,15 @@
 # Changes one of the login and display settings the panel stores for a user. Role, password, suspension and the
 # counters have their own commands, with the logging and session handling this one lacks.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 key="$2"
 value="$3"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER KEY VALUE'
 is_format_valid 'user'
@@ -47,10 +36,6 @@ esac
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 # A missing key comes from the record repair, not a full rebuild with its system side effects.
 if ! grep -q "^$key='" "$USER_DATA/user.conf"; then
 	# shellcheck source=/usr/local/hestia/include/syshealth.sh
@@ -64,9 +49,5 @@ case "$key" in
 	LOGIN_USE_IPLIST | LOGIN_ALLOW_IPS) $BIN/h-delete-user-sessions "$user" > /dev/null ;;
 	LOGIN_DISABLED) [ "$value" = 'no' ] || $BIN/h-delete-user-sessions "$user" > /dev/null ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -7,36 +7,21 @@
 # Applies the package DISK_QUOTA as a project quota hard limit on the home tree
 # (project id = uid): every writer counts against the customer, subuids included.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/quota.sh
 source $HESTIA/include/quota.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# gated here, not only in the callers: a fifth caller must inherit the safety
+# Gated here as well as in the callers, so a new caller inherits it.
 quota_is_active || exit 0
 quota_home_fs || exit 0
 
@@ -46,8 +31,7 @@ uid=$(id -u "$user" 2> /dev/null)
 [ -n "$uid" ] || exit 0
 quota=$(get_user_value '$DISK_QUOTA')
 
-# record sentinel stays 'unlimited', 0 is setquota's "no limit"; hard only -
-# a soft window without a warning channel is just a delayed hard limit
+# 'unlimited' in the record is setquota's 0. Hard only: without a warning channel a soft window is a late hard limit.
 if [ "$quota" = 'unlimited' ] || [ -z "$quota" ]; then
 	setquota -P "$uid" 0 0 0 0 "$QUOTA_MNT" 2> /dev/null
 elif [[ "$quota" =~ ^[0-9]+$ ]]; then
@@ -56,11 +40,6 @@ else
 	check_result "$E_INVALID" "DISK_QUOTA of $user is not a number"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

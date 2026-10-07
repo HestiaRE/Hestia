@@ -31,7 +31,6 @@ web_lock_acquire || exit 1
 
 # Defining htpasswd file
 htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-docroot="$HOMEDIR/$user/web/$domain/public_html"
 
 #----------------------------------------------------------#
 #                    Verifications                         #
@@ -71,12 +70,13 @@ else
 	htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
 	shtaccess="$HOMEDIR/$user/conf/web/$domain/apache2.ssl.conf_htaccess"
 	if [ ! -f "$htaccess" ]; then
-		echo "<Directory $docroot>" > $htaccess
+		# The whole vhost, whatever its docroot: a custom one is not public_html.
+		echo "<Location />" > $htaccess
 		echo "    AuthUserFile $htpasswd" >> $htaccess
 		echo "    AuthName \"$domain access\"" >> $htaccess
 		echo "    AuthType Basic" >> $htaccess
 		echo "    Require valid-user" >> $htaccess
-		echo "</Directory>" >> $htaccess
+		echo "</Location>" >> $htaccess
 		ln -s $htaccess $shtaccess
 		restart_required='yes'
 	fi

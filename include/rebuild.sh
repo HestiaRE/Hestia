@@ -484,7 +484,6 @@ rebuild_web_domain_conf() {
 	# Http auth, derived from the record on every rebuild. The archive carries both files with an
 	# absolute path inside them, so keeping one points the protection at whatever home made it.
 	htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-	docroot="$HOMEDIR/$user/web/$domain/public_html"
 	nginx_htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
 	nginx_shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
 	apache_htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
@@ -501,12 +500,12 @@ auth_basic_user_file    $htpasswd;"
 		shtaccess="$apache_shtaccess"
 		stale_htaccess="$nginx_htaccess"
 		stale_shtaccess="$nginx_shtaccess"
-		htaccess_want="<Directory $docroot>
+		htaccess_want="<Location />
     AuthUserFile $htpasswd
     AuthName \"$domain access\"
     AuthType Basic
     Require valid-user
-</Directory>"
+</Location>"
 	fi
 
 	# The other web server's pair is inert here, so a wrong path in it stays unnoticed until the

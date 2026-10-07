@@ -33,14 +33,10 @@ if [ -z "$WEB_BACKEND" ]; then
 	echo "Multiple php versions are not supported for modphp"
 fi
 
-# Set file locations
-php_fpm="/etc/init.d/php$version-fpm"
-
-# Verify php version format
-if [[ ! $version =~ ^[0-9]+\.[0-9]+ ]]; then
+if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
 	echo "The PHP version format is invalid, it should look like [0-9].[0-9]."
 	echo "Example:  7.0, 7.4"
-	exit
+	exit "$E_INVALID"
 fi
 
 # Refuse deleting the version the panel FPM runs on. The pinned version is the
@@ -53,9 +49,6 @@ if [ -n "$panel_php" ] && [ "$version" = "$panel_php" ]; then
 	echo "       Move the panel to another version first: h-change-sys-panel-php <version>"
 	exit "$E_INVALID"
 fi
-
-# Remove backend template
-[ -f $PHPTPL/PHP-${version/\./_}.tpl ] && rm -f $PHPTPL/PHP-${version/\./_}.tpl
 
 # Check if php version exists
 version_check=$($BIN/h-list-sys-php plain | grep -xF -- "$version")
@@ -127,6 +120,7 @@ source "$HESTIA/include/ioncube.sh"
 ioncube_version_remove "$version"
 
 # Purge php packages
+# shellcheck disable=SC2086 # one package name per word, from dpkg
 apt-get -y purge $mph > /dev/null 2>&1 &
 BACK_PID=$!
 
@@ -142,12 +136,17 @@ done
 # Do a blank echo to get the \n back
 echo
 
-# Check if removal was successful
-if [ -f "$php_fpm" ]; then
-	echo "ERROR: Uninstallation failed, please run the following command manually for debugging:"
+# Judged by what dpkg still holds, not by an init script some packages never shipped.
+# shellcheck disable=SC2086 # one package name per word, from dpkg
+left=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' $mph 2> /dev/null | awk '$2 != "not-installed" {print $1}' | tr '\n' ' ')
+if [ -n "$left" ]; then
+	echo "ERROR: Uninstallation failed, still installed: $left"
 	echo "apt-get purge $mph"
-	exit 1
+	exit "$E_INVALID"
 fi
+
+# A legacy backend template of this version; only after the checks, a refused delete leaves it alone.
+rm -f "$PHPTPL/PHP-${version/./_}.tpl"
 
 # Cleanup php folder
 [[ -d /etc/php/$version ]] && rm -rf "/etc/php/$version"

@@ -698,7 +698,7 @@ if (!empty($_POST["save"])) {
 			check_return_code($return_var, $output);
 			unset($output);
 		}
-		$restart_web = "yes";
+		$restart_proxy = "yes";
 	}
 
 	// Take the website offline / back online (customer switch, serves 503)

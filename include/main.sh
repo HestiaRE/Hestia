@@ -1766,6 +1766,19 @@ is_number_format_valid() {
 	fi
 }
 
+# Cache lifetime, verbatim into an nginx fragment: nginx refuses a time beyond its range, so the bound is a year.
+is_cache_duration_format_valid() {
+	local n=${1%[smd]}
+	if ! [[ "$1" =~ ^[1-9][0-9]{0,7}[smd]$ ]]; then
+		check_result "$E_INVALID" "invalid duration format :: $1"
+	fi
+	case $1 in
+		*m) n=$((n * 60)) ;;
+		*d) n=$((n * 86400)) ;;
+	esac
+	[ "$n" -le 31536000 ] || check_result "$E_INVALID" "duration $1 exceeds a year"
+}
+
 # Autoreply format validator
 is_autoreply_format_valid() {
 	if [ 10240 -le ${#1} ]; then

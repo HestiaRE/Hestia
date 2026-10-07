@@ -38,12 +38,7 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
-# Anchored and no wildcard: the value goes verbatim into a fragment read inside
-# location /, so anything but <digits><unit> is an injection into the customer's vhost
-if ! [[ "$duration" =~ ^[1-9][0-9]*[smd]$ ]]; then
-	echo "Invalid duration"
-	exit 2
-fi
+is_cache_duration_format_valid "$duration"
 
 # The cache sits in the nginx proxy vhost, so it needs the proxy role
 if [ "$PROXY_SYSTEM" != 'nginx' ]; then

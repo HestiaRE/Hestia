@@ -69,6 +69,28 @@ if [ -z "$version_check" ]; then
 	exit "$E_INVALID"
 fi
 
+# Everything that runs on this version: the default, domains (a legacy PHP-X_Y backend counts), shell aliases and
+# file manager pools. The panel shows the same list; the check lives here so no caller can skip it.
+[ "$(multiphp_default_version)" = "$version" ] \
+	&& check_result "$E_INUSE" "PHP $version is the default version, change it first: h-change-sys-php <version>"
+in_use=""
+for uconf in "$CONF_DIR"/users/*/user.conf; do
+	[ -e "$uconf" ] || continue
+	u=$(basename "$(dirname "$uconf")")
+	grep -qF "PHPCLI='$version'" "$uconf" && in_use="$in_use $u(cli)"
+	[ -f "$CONF_DIR/users/$u/web.conf" ] || continue
+	for d in $(grep -F -e "PHP_VERSION='$version'" -e "BACKEND='PHP-${version/./_}'" "$CONF_DIR/users/$u/web.conf" \
+		| sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p"); do
+		in_use="$in_use $u/$d"
+	done
+done
+for pool in /etc/php/"$version"/fpm/pool.d/fm-*.conf; do
+	[ -e "$pool" ] || continue
+	pool=${pool##*/fm-}
+	in_use="$in_use ${pool%.conf}(file manager)"
+done
+[ -z "$in_use" ] || check_result "$E_INUSE" "PHP $version is in use:$in_use"
+
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#

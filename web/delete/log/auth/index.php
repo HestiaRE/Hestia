@@ -20,7 +20,7 @@ unset($output);
 
 $ip = get_real_user_ip();
 $v_ip = quoteshellarg($ip);
-$user_agent = $_SERVER["HTTP_USER_AGENT"];
+$user_agent = (string) ($_SERVER["HTTP_USER_AGENT"] ?? "");
 $v_user_agent = quoteshellarg($user_agent);
 
 $v_session_id = quoteshellarg($_SESSION["token"]);

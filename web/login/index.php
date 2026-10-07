@@ -111,7 +111,7 @@ function authenticate_user($user, $password, $twofa = "")
 	if (verify_csrf($_POST, true)) {
 		$v_user = quoteshellarg($user);
 		$ip = get_real_user_ip();
-		$user_agent = $_SERVER["HTTP_USER_AGENT"];
+		$user_agent = (string) ($_SERVER["HTTP_USER_AGENT"] ?? "");
 
 		$v_ip = quoteshellarg($ip);
 		$v_user_agent = quoteshellarg($user_agent);

@@ -73,8 +73,8 @@ $BIN/h-delete-user-ips "$user"
 check_result "$?" "user ip release failed"
 
 # Deleteing user pipes
-sed -i "/ $user$/d" "$CONF_DIR/queue/disk.pipe"
-sed -i "/ $user$/d" "$CONF_DIR/queue/traffic.pipe"
+remove_user_queue_jobs "$CONF_DIR/queue/disk.pipe" "$user"
+remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 
 # Deleting sftp jail
 $BIN/h-delete-user-sftp-jail "$user"

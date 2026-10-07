@@ -1195,6 +1195,16 @@ remove_exact_line() {
 	mv -f "$file.tmp" "$file"
 }
 
+# Drops every queue job whose last word is the user, compared as text: a name is no pattern.
+remove_user_queue_jobs() {
+	local file="$1" user="$2"
+	[ -e "$file" ] || return 0
+	awk -v u="$user" '$NF != u' "$file" > "$file.tmp"
+	chown --reference="$file" "$file.tmp" 2> /dev/null
+	chmod --reference="$file" "$file.tmp" 2> /dev/null
+	mv -f "$file.tmp" "$file"
+}
+
 # The only accessor that stays a regex: its search value is a flag, and h-backup-user-config passes
 # "*" to mean "any". The guard below keeps that from decaying into matching a domain by accident;
 # a comment cannot stop the next caller, a refusal can.
@@ -1617,6 +1627,8 @@ is_login_name_reserved() {
 		aria aria_log mysql_upgrade ib ib_buffer ddl ddl_recovery performance sudo
 		# h-backup-server writes server.*.tar into the same /backup namespace as customer archives
 		server
+		# the user name the log commands read as the global activity log
+		system
 	)
 	for r in "${reserved[@]}"; do
 		if [ "$name" = "$r" ]; then

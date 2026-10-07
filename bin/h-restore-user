@@ -111,6 +111,9 @@ if [ -z "$check_user" ]; then
 	email=$(get_user_value '$CONTACT')
 else
 	create_user="yes"
+	# A new account gets the rules h-add-user applies, the backup is no proof of them.
+	FROM_V_ADD_USER=true is_user_format_valid "$user" 'user'
+	is_login_name_reserved "$user"
 	email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f2 -d \')
 	! db_namespace_taken "$user" \
 		|| check_result "$E_EXISTS" "user $user is not available: another account holds database names starting with ${user}_"
@@ -827,7 +830,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 
 	# Adding user to traffic queue. Deleting by name is right HERE: this drops any older entry for
 	# the customer before adding one, it is not a job cleaning up after itself.
-	sed -i "/ $user$/d" $CONF_DIR/queue/traffic.pipe
+	remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 	echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 
 	# Restarting web server

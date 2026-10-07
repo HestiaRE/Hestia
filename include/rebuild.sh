@@ -158,7 +158,7 @@ rebuild_user_conf() {
 	fi
 
 	# Update disk pipe
-	sed -i "/ $user$/d" $CONF_DIR/queue/disk.pipe
+	remove_user_queue_jobs "$CONF_DIR/queue/disk.pipe" "$user"
 	echo "$BIN/h-update-user-disk $user" >> $CONF_DIR/queue/disk.pipe
 
 	# WEB
@@ -167,7 +167,7 @@ rebuild_user_conf() {
 		chmod 770 $USER_DATA/ssl
 		touch $USER_DATA/web.conf
 		chmod 660 $USER_DATA/web.conf
-		sed -i "/ $user$/d" $CONF_DIR/queue/traffic.pipe
+		remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 		echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 		echo "$BIN/h-update-web-domains-disk $user" \
 			>> $CONF_DIR/queue/disk.pipe

@@ -66,11 +66,9 @@ fi
 # previous version so the panel never ends up pointing at a version that will not
 # start.
 echo "$version" > "$version_file"
-"$SBIN/hestia-php-confd" "$version"
-systemctl restart hestia-php
-
-if ! systemctl is-active --quiet hestia-php; then
-	echo "ERROR: hestia-php failed to start on PHP $version — rolling back."
+# A conf.d without a critical extension still lets the pool start, so its rc decides as well.
+if ! "$SBIN/hestia-php-confd" "$version" || ! systemctl restart hestia-php || ! systemctl is-active --quiet hestia-php; then
+	echo "ERROR: PHP $version cannot carry the panel, rolling back."
 	if [ -n "$current" ]; then
 		echo "$current" > "$version_file"
 		"$SBIN/hestia-php-confd" "$current"

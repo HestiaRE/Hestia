@@ -289,12 +289,17 @@ companion_run dockerd-rootless-setuptool.sh install > "$setup_log" 2>&1 || true
 
 # Both sockets and the numeric group: see the template header. Placeholders are __UPPER__
 # so substitution cannot rewrite the prose around them.
-mkdir -p "$override_dir"
-printf '%s\n' "$override_want" > "$override_dir/hestia.conf"
+# Written as the companion: the customer can plant links below .companion before it is handed over.
+companion_write() {
+	setpriv --reuid "$companion_uid" --regid "$companion_uid" --clear-groups -- \
+		sh -c 'mkdir -p "${1%/*}" && cat > "$1"' _ "$1"
+}
+printf '%s\n' "$override_want" | companion_write "$override_dir/hestia.conf" \
+	|| check_result "$E_FORBIDEN" "cannot write $override_dir/hestia.conf as $companion"
 
 # The daemon reads it at start; the restart below picks up an address change
-mkdir -p "$companion_home/.config/docker"
-printf '%s\n' "$daemon_json_want" > "$daemon_json"
+printf '%s\n' "$daemon_json_want" | companion_write "$daemon_json" \
+	|| check_result "$E_FORBIDEN" "cannot write $daemon_json as $companion"
 chown -R "$companion":"$gid" "$companion_home/.config"
 
 install -m 644 "$HESTIA/share/docker/profile.d-hestia-docker.sh" /etc/profile.d/hestia-docker.sh

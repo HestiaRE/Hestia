@@ -4,67 +4,44 @@
 #
 # example: h-change-user-shell admin nologin
 #
-# This function changes system shell of a user. Shell gives ability to use ssh.
+# Changes a user's login shell; nologin puts the user into the sftp jail.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 shell=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER SHELL'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-# Gate the shell against the curated allowlist (#412) — EXCEPT when it equals the
-# user's current shell: re-asserting an existing, possibly legacy off-allowlist shell
-# (e.g. one a restore left in place) is always allowed; only a genuine change is gated.
+# The allowlist gates a change only: re-asserting the current shell, possibly a legacy one a restore left, passes.
+# It compares the path /etc/shells resolves, not the request, whose last part could be any name.
+[ -n "$shell" ] || check_result "$E_INVALID" "no shell given"
+shell_path=$(grep -wF -- "$shell" /etc/shells | grep -m1 '^/')
+[ -n "$shell_path" ] || check_result "$E_INVALID" "shell $shell is not listed in /etc/shells"
 cur_shell=$(basename -- "$(getent passwd "$user" | cut -d : -f 7)")
-if [ "$(basename -- "$shell")" != "$cur_shell" ]; then
-	is_format_valid_shell "$shell"
+if [ "$(basename -- "$shell_path")" != "$cur_shell" ]; then
+	is_format_valid_shell "$shell_path"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get shell full path
-shell_path=$(grep -w "$shell" /etc/shells | head -n1)
-
-# Changing passwd file
 /usr/bin/chsh -s "$shell_path" "$user" > /dev/null 2>&1
+check_result $? "the shell of $user could not be changed"
 shell=$(basename "$shell_path")
 
-# Adding jailed sftp env
-if [[ "$shell" =~ nologin ]] || [[ "$shell" =~ rssh ]]; then
+if [[ "$shell" =~ nologin ]]; then
 	$BIN/h-add-user-sftp-jail "$user" > /dev/null 2>&1
 else
 	$BIN/h-delete-user-sftp-jail "$user" > /dev/null 2>&1
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+update_user_value "$user" '$SHELL' "$shell" || check_result "$E_NOTEXIST" "SHELL is missing from the record of $user"
 
-# Changing user shell
-update_user_value "$user" '$SHELL' "$shell"
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "User SSH shell changed (Shell: $shell, User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

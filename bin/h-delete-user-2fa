@@ -34,7 +34,7 @@ is_object_valid 'user' 'USER' "$user"
 #----------------------------------------------------------#
 
 # Reading user values
-source $USER_DATA/user.conf
+source_conf "$USER_DATA/user.conf"
 
 # Check if 2FA is enabled
 if [ -z "$TWOFA" ]; then

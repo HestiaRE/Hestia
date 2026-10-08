@@ -49,19 +49,9 @@ rebuild_user_conf() {
 	# band (#388). The archived uid is deliberately ignored: tar resolves ownership by
 	# name on extract, and this runs BEFORE the unpack, so the files land here by
 	# themselves. An existing account keeps its uid.
-	# From the record, never the caller's environment: SHELL is a registry key, so
-	# sanitize_config_file unsets it, and grep -w "" then matches every line of /etc/shells -
-	# head -n1 hands its comment banner to useradd. Off the allowlist becomes nologin, and the
-	# answer must start with / so a comment line can never be it.
-	shell_name=$(sed -n "s/^SHELL='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)
-	list_allowed_shells | grep -qxF "$shell_name" 2> /dev/null || shell_name='nologin'
-	shell=$(grep -w "$shell_name" /etc/shells | grep -m1 '^/')
-	# Picked by existence, not spelling: usrmerge decides which of the two paths is real.
-	if [ -z "$shell" ]; then
-		for _c in /usr/sbin/nologin /sbin/nologin; do
-			[ -x "$_c" ] && shell="$_c" && break
-		done
-	fi
+	# From the record, never the caller's environment: SHELL is a registry key that
+	# sanitize_config_file unsets.
+	shell=$(resolve_login_shell "$(sed -n "s/^SHELL='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)")
 	if ! id "$user" > /dev/null 2>&1; then
 		local user_uid
 		read -r user_uid _ < <(identity_allocate "$user")
@@ -70,8 +60,11 @@ rebuild_user_conf() {
 			return 1
 		fi
 		getent group "$user" > /dev/null 2>&1 || /usr/sbin/groupadd -g "$user_uid" "$user"
-		/usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
-			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1
+		if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
+			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1; then
+			echo "Error: the account $user could not be created"
+			return 1
+		fi
 	fi
 
 	# Add a general group for normal users created by Hestia
@@ -96,19 +89,31 @@ rebuild_user_conf() {
 	# line and silently locked out of SSH/SFTP after the restore (#412)
 	manage_sshd_allowusers add "$user"
 
-	# Update password
-	chmod u+w /etc/shadow
-	sed -i "s|^$user:[^:]*:|$user:$MD5:|" /etc/shadow
-	chmod u-w /etc/shadow
+	# The record may come from an archive: only a crypt hash is set, anything else locks the account.
+	if [[ "$MD5" =~ ^!?[$./A-Za-z0-9]+$ ]]; then
+		echo "$user:$MD5" | /usr/sbin/chpasswd -e
+	else
+		echo "Warning: the record of $user carries no usable password hash, the account is locked" >&2
+		/usr/sbin/usermod --lock "$user"
+	fi
+	# Setting the hash unlocks; a suspended record stays locked and expired as h-suspend-user left it.
+	if [ "$SUSPENDED" = 'yes' ] && [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
+		/usr/sbin/usermod --lock --expiredate 1 "$user"
+	else
+		/usr/sbin/usermod --expiredate '' "$user"
+	fi
 
-	# Building directory tree
+	# The customer owns the home and can put a link where conf was: refused before root touches it.
+	if [ -L "$HOMEDIR/$user/conf" ]; then
+		echo "Error: $HOMEDIR/$user/conf is a link" >&2
+		return 1
+	fi
 	if [ -e "$HOMEDIR/$user/conf" ]; then
 		chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
 	fi
 
 	# Create default writeable folders
 	mkdir -p \
-		$HOMEDIR/$user/conf \
 		$HOMEDIR/$user/.config \
 		$HOMEDIR/$user/.cache \
 		$HOMEDIR/$user/.local \
@@ -118,7 +123,7 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
 	chmod a+x $HOMEDIR/$user
-	chmod a+x $HOMEDIR/$user/conf
+	home_dir_own "$HOMEDIR/$user/conf" root:root 755 || return 1
 	chown --no-dereference $user:$user \
 		$HOMEDIR/$user \
 		$HOMEDIR/$user/.config \
@@ -129,7 +134,6 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.ssh \
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
-	chown root:root $HOMEDIR/$user/conf
 
 	# project id BEFORE any restore unpacks: everything created below inherits;
 	# for a pre-arming tree this is the one-time migration (#211)
@@ -149,7 +153,7 @@ rebuild_user_conf() {
 	fi
 
 	# Update disk pipe
-	sed -i "/ $user$/d" $CONF_DIR/queue/disk.pipe
+	remove_user_queue_jobs "$CONF_DIR/queue/disk.pipe" "$user"
 	echo "$BIN/h-update-user-disk $user" >> $CONF_DIR/queue/disk.pipe
 
 	# WEB
@@ -158,7 +162,7 @@ rebuild_user_conf() {
 		chmod 770 $USER_DATA/ssl
 		touch $USER_DATA/web.conf
 		chmod 660 $USER_DATA/web.conf
-		sed -i "/ $user$/d" $CONF_DIR/queue/traffic.pipe
+		remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 		echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 		echo "$BIN/h-update-web-domains-disk $user" \
 			>> $CONF_DIR/queue/disk.pipe
@@ -166,14 +170,11 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/web" ]]; then
 			rm $HOMEDIR/$user/web
 		fi
+		home_dir_own "$HOMEDIR/$user/conf/web" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/web/$domain
-		mkdir -p $HOMEDIR/$user/web
-		mkdir -p $HOMEDIR/$user/tmp
-		chmod 751 $HOMEDIR/$user/conf/web
-		chmod 751 $HOMEDIR/$user/web
+		home_dir_own "$HOMEDIR/$user/web" "root:$user" 751 || return 1
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
-		chmod 700 $HOMEDIR/$user/tmp
-		chown --no-dereference root:"$user" $HOMEDIR/$user/web
+		home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
 		fi
@@ -190,11 +191,9 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/mail" ]]; then
 			rm $HOMEDIR/$user/mail
 		fi
+		home_dir_own "$HOMEDIR/$user/conf/mail" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
-		mkdir -p $HOMEDIR/$user/mail
-		chown --no-dereference root:root $HOMEDIR/$user/mail
-		chmod 751 $HOMEDIR/$user/mail
-		chmod 751 $HOMEDIR/$user/conf/mail
+		home_dir_own "$HOMEDIR/$user/mail" root:root 751 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-mail-domains $user
 		fi

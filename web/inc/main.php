@@ -303,6 +303,21 @@ function cli_log($cmd): void
 	exec(HESTIA_CMD . $cmd, $output, $return_var);
 }
 
+// The log pages show the delete button and the delete handlers act on this one gate, so a crafted
+// request cannot do what the page does not offer.
+function can_delete_logs(): bool
+{
+	if (
+		($_SESSION["adminContext"] ?? "") === "admin" &&
+		($_SESSION["look"] ?? "") === "admin" &&
+		($_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] ?? "") === "yes"
+	) {
+		return false;
+	}
+	return $_SESSION["userContext"] === "admin" ||
+		($_SESSION["userContext"] === "user" && ($_SESSION["POLICY_USER_DELETE_LOGS"] ?? "") !== "no");
+}
+
 // After a bulk loop: name what failed. One failed object must not read as "all done", and the
 // ones that worked must not read as failed, so this appends to error_msg instead of replacing it.
 function bulk_note_failures(array $failed, int $total): void

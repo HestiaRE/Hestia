@@ -12,6 +12,11 @@ if (isset($_SESSION["user"])) {
 // Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
+// The failed attempts below feed the auth log and fail2ban; unset, the arguments shifted and nothing was logged.
+$v_ip = quoteshellarg(get_real_user_ip());
+$v_session_id = quoteshellarg((string) ($_POST["token"] ?? ""));
+$v_user_agent = quoteshellarg((string) ($_SERVER["HTTP_USER_AGENT"] ?? ""));
+
 //Check values
 if (!empty($_POST["user"]) && !empty($_POST["twofa"])) {
 	// Check token

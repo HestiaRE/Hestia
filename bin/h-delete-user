@@ -4,18 +4,11 @@
 #
 # example: h-delete-user whistler
 #
-# This function deletes a certain user and all his resources such as domains,
-# databases, cron jobs, etc.
+# Deletes a user with all domains, databases and cron jobs, and ends every process still running as the user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -26,12 +19,7 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
@@ -40,48 +28,39 @@ if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting web domains
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-web-domains "$user" "$restart"
 	$BIN/h-delete-web-domains "$user" "$restart"
 	check_result "$?" "web domain deletion failed"
 fi
 
-# Deleting mail domains
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-mail-domains "$user"
 	$BIN/h-delete-mail-domains "$user"
 	check_result "$?" "mail domain deletion failed"
 fi
 
-# Deleting databases
 if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-databases "$user"
 	$BIN/h-delete-databases "$user"
 	check_result "$?" "database deletion failed"
 fi
 
-# Unsuspend user just in case
-$BIN/h-unsuspend-user "$user"
+# Unsuspend first so the admin's SUSPENDED_USERS counter gives the account back.
+if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
+	$BIN/h-unsuspend-user "$user" "$restart"
+fi
 
-# Releasing user ips
 $BIN/h-delete-user-ips "$user"
 check_result "$?" "user ip release failed"
 
-# Deleteing user pipes
-sed -i "/ $user$/d" "$CONF_DIR/queue/disk.pipe"
-sed -i "/ $user$/d" "$CONF_DIR/queue/traffic.pipe"
+remove_user_queue_jobs "$CONF_DIR/queue/disk.pipe" "$user"
+remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 
-# Deleting sftp jail
 $BIN/h-delete-user-sftp-jail "$user"
 
-# Deleting the Docker companion. Must precede the userdel below: the companion lives
-# inside this home and holds subordinate id ranges, and its uid becomes free again -
-# leaving it behind would orphan files that a later account on that uid would inherit.
+# Before userdel: the Docker companion lives in this home and holds subordinate id ranges, and a later account
+# on its uid would inherit what it left.
 if getent passwd "${user}-docker" > /dev/null 2>&1; then
 	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
 fi
@@ -89,11 +68,15 @@ fi
 # The file manager pool runs as this account; php-fpm refuses a pool whose user is gone.
 $BIN/h-delete-user-filemanager "$user" no > /dev/null 2>&1
 
-# read before the userdel kills the uid; the limit reset below keeps repquota
-# free of dead projects - a report with corpses stops being read (#211)
+# Read before userdel; the limit reset below keeps dead projects out of repquota.
 _quota_uid=$(id -u "$user" 2> /dev/null)
 
-# Deleting system user
+# A process outliving the account keeps its uid, and a new account of the same name gets that uid back.
+if [[ "$_quota_uid" =~ ^[0-9]+$ ]] && [ "$_quota_uid" -ne 0 ]; then
+	loginctl terminate-user "$user" > /dev/null 2>&1
+	pkill -KILL -u "$_quota_uid" > /dev/null 2>&1
+fi
+
 /usr/sbin/userdel -f "$user" >> /dev/null 2>&1
 if [ $? -ne 0 ]; then
 	sed -i "/^$user:/d" /etc/passwd
@@ -105,7 +88,6 @@ if [ $? -ne 0 ]; then
 	sed -i "/^$user:/d" /etc/group
 fi
 
-# Deleting user directories
 chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
 rm -rf $HOMEDIR/$user
 rm -f /var/spool/mail/$user
@@ -113,7 +95,7 @@ rm -f /var/spool/cron/$user
 rm -f /var/spool/cron/crontabs/$user
 rm -rf $USER_DATA
 
-# Co-maintain the SSH AllowUsers allowlist (no-op unless the operator seeded/activated one)
+# A no-op unless the operator activated an AllowUsers list.
 manage_sshd_allowusers del "$user"
 
 # shellcheck source=/usr/local/hestia/include/quota.sh
@@ -122,16 +104,13 @@ if [ -n "$_quota_uid" ] && quota_is_active && quota_home_fs; then
 	setquota -P "$_quota_uid" 0 0 0 0 "$QUOTA_MNT" 2> /dev/null
 fi
 
-# Updating admin counter
 if [ "$user" != "$ROOT_USER" ]; then
 	decrease_user_value "$ROOT_USER" '$U_USERS'
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+# A panel session outlives the account, and a new account of the same name would inherit it.
+$BIN/h-delete-user-sessions "$user" > /dev/null 2>&1
 
-# Logging
 $BIN/h-log-action "system" "Info" "Users" "User deleted (User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

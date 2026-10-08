@@ -71,7 +71,7 @@ for user in $user_list; do
 		continue
 	fi
 	USER_DATA=$CONF_DIR/users/$user
-	source $USER_DATA/user.conf
+	source_conf "$USER_DATA/user.conf"
 	next_month=$(date +'%m/01/%y' -d "$(date +%Y-%m-15) 1 month")
 	DATE=$(date -d "$next_month -1day" +%F)
 

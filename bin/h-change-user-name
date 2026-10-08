@@ -4,28 +4,17 @@
 #
 # example: h-change-user-name admin John Smith
 #
-# This function allow to change user's full name.
+# Changes the full name of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 name=$2
 lname=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER NAME [LAST_NAME]'
 is_format_valid 'user' 'name'
@@ -36,22 +25,12 @@ if [ -n "$lname" ]; then
 	is_common_format_spaces_valid "$lname" "last name"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Changing ns values
 if [ -n "$lname" ]; then
-	update_user_value "$user" '$NAME' "$name $lname"
+	update_user_value "$user" '$NAME' "$name $lname" || check_result "$E_NOTEXIST" "NAME is missing from the record of $user"
 else
-	update_user_value "$user" '$NAME' "$name"
+	update_user_value "$user" '$NAME' "$name" || check_result "$E_NOTEXIST" "NAME is missing from the record of $user"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "System" "User display name changed (Value: $name)."
 log_event "$OK" "$ARGUMENTS"
 

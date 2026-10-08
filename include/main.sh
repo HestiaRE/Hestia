@@ -175,6 +175,12 @@ is_protected_key() {
 	return 1
 }
 
+USER_NUMERIC_KEYS="SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED WEB_DOMAINS
+WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH BACKUPS U_USERS U_DISK
+U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DKIM U_MAIL_ACCOUNTS
+U_MAIL_DOMAINS U_DATABASES U_CRON_JOBS U_BACKUPS"
+USER_NUMERIC_KEYS=${USER_NUMERIC_KEYS//$'\n'/ }
+
 # An archived record is hostile input, so only registry-known keys reach the instance. Catches what
 # the floors above cannot: names legitimate in another file (ROOT_USER in hestia.conf, REPO in
 # restic.conf). A filter that keeps nothing fails rather than install an empty record.
@@ -189,12 +195,28 @@ copy_record_filtered() {
 		[ -n "${_line// /}" ] || continue
 		_lhs=${_line%%=*}
 		case "$_allow" in
-			*" $_lhs "*)
-				printf '%s\n' "$_line" >> "$_tmp"
-				_kept=$((_kept + 1))
+			*" $_lhs "*) ;;
+			*)
+				echo "Warning: dropping unknown key '$_lhs' from the archived $_type record" >&2
+				continue
 				;;
-			*) echo "Warning: dropping unknown key '$_lhs' from the archived $_type record" >&2 ;;
 		esac
+		# Readers source these records: one quoted field per line, or a second key or text after the quote comes along.
+		if ! record_line_valid "$_line" || [ "$(record_keys "$_line")" != "$_lhs" ]; then
+			echo "Warning: dropping a malformed '$_lhs' line from the archived $_type record" >&2
+			continue
+		fi
+		# Counters and limits reach bash arithmetic, which evaluates a subscript in a value.
+		case " $USER_NUMERIC_KEYS " in
+			*" $_lhs "*)
+				if [ "$_type" = user ] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
+					echo "Warning: dropping a non-numeric '$_lhs' from the archived $_type record" >&2
+					continue
+				fi
+				;;
+		esac
+		printf '%s\n' "$_line" >> "$_tmp"
+		_kept=$((_kept + 1))
 	done < "$_src"
 	if [ "$_kept" -eq 0 ]; then
 		rm -f "$_tmp"
@@ -1031,6 +1053,10 @@ is_password_valid() {
 			fi
 		fi
 	fi
+	# chpasswd reads one account per line: a line break would set a second account's password.
+	if [[ "$password" == *$'\n'* ]]; then
+		check_result "$E_INVALID" "invalid password format :: it contains a line break"
+	fi
 }
 
 # Check if hash is transmitted via file
@@ -1173,6 +1199,16 @@ remove_exact_line() {
 	mv -f "$file.tmp" "$file"
 }
 
+# Drops every queue job whose last word is the user, compared as text: a name is no pattern.
+remove_user_queue_jobs() {
+	local file="$1" user="$2"
+	[ -e "$file" ] || return 0
+	awk -v u="$user" '$NF != u' "$file" > "$file.tmp"
+	chown --reference="$file" "$file.tmp" 2> /dev/null
+	chmod --reference="$file" "$file.tmp" 2> /dev/null
+	mv -f "$file.tmp" "$file"
+}
+
 # The only accessor that stays a regex: its search value is a flag, and h-backup-user-config passes
 # "*" to mean "any". The guard below keeps that from decaying into matching a domain by accident;
 # a comment cannot stop the next caller, a refusal can.
@@ -1195,6 +1231,22 @@ search_objects() {
 }
 
 # Get user value
+# The user's ftp sub-accounts: listed in a web record and sharing the user's uid. A name prefix would
+# also match a customer called <user>_x, and a restored record can name any account.
+user_ftp_accounts() {
+	local line n uid ftp_names
+	uid=$(id -u "$user" 2> /dev/null) || return 0
+	[ -e "$USER_DATA/web.conf" ] || return 0
+	while IFS= read -r line; do
+		[[ "$line" =~ (^|\ )FTP_USER=\'([^\']*)\' ]] || continue
+		IFS=: read -ra ftp_names <<< "${BASH_REMATCH[2]}"
+		for n in "${ftp_names[@]}"; do
+			[ -n "$n" ] && [ "$(id -u "$n" 2> /dev/null)" = "$uid" ] && echo "$n"
+		done
+	done < "$USER_DATA/web.conf"
+	return 0
+}
+
 get_user_value() {
 	grep "^${1//$/}=" $USER_DATA/user.conf | head -1 | awk -F "'" '{print $2}'
 }
@@ -1208,6 +1260,9 @@ update_user_value() {
 		# contain. A delete+insert loses the last line: the file is then $lnr-1 long, so inserting
 		# before $lnr addresses past EOF and writes nothing.
 		sed -i "${lnr}c\\$key='${3}'" $CONF_DIR/users/$1/user.conf
+	else
+		# The key is not in the record: nothing was written, and the caller has to say so.
+		return 1
 	fi
 }
 
@@ -1592,6 +1647,8 @@ is_login_name_reserved() {
 		aria aria_log mysql_upgrade ib ib_buffer ddl ddl_recovery performance sudo
 		# h-backup-server writes server.*.tar into the same /backup namespace as customer archives
 		server
+		# the user name the log commands read as the global activity log
+		system
 	)
 	for r in "${reserved[@]}"; do
 		if [ "$name" = "$r" ]; then
@@ -1719,6 +1776,7 @@ is_ip46_format_valid() {
 # hardened, and that is the one nothing calls. A mask is an unsigned integer in its family's range,
 # so ctype_digit does both bounds at once; "x/" carries no mask but is not the same as "x".
 # filter_var alone decides the address; an extra pattern rejects nothing it accepts.
+# Callers accept only the literal 0: an error text from php must refuse, not pass.
 _is_cidr_valid() {
 	$HESTIA_PHP -r '$p = explode("/", $argv[1]);
 		if (count($p) > 2) { echo 1; exit; }
@@ -1727,12 +1785,12 @@ _is_cidr_valid() {
 		$fam = $argv[2];
 		if (!($fam === "46" ? ($v4 || $v6) : ($fam === "4" ? $v4 : $v6))) { echo 1; exit; }
 		if (count($p) === 1) { echo 0; exit; }
-		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' "$1" "$2"
+		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' -- "$1" "$2"
 }
 
 is_ipv4_cidr_format_valid() {
 	object_name=${2-ip}
-	if [ "$(_is_cidr_valid "$1" 4)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 4)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
@@ -1741,14 +1799,14 @@ is_ipv4_cidr_format_valid() {
 # validators stay for the places that genuinely mean one family (an IP object, a NAT address).
 is_ip_cidr_format_valid() {
 	object_name=${2-ip}
-	if [ "$(_is_cidr_valid "$1" 46)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 46)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
 
 is_ipv6_cidr_format_valid() {
 	object_name=${2-ipv6}
-	if [ "$(_is_cidr_valid "$1" 6)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 6)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
@@ -2254,6 +2312,21 @@ list_allowed_shells() {
 			echo "$allow"
 		fi
 	done
+}
+
+# A shell name from a package or a record to its /etc/shells path. Off the allowlist, or not in
+# /etc/shells, it becomes nologin; the answer starts with / so the banner of /etc/shells never is it.
+resolve_login_shell() {
+	local name="$1" path c
+	list_allowed_shells | grep -qxF -- "$name" 2> /dev/null || name='nologin'
+	path=$(grep -w -- "$name" /etc/shells | grep -m1 '^/')
+	# Picked by existence, not spelling: usrmerge decides which of the two paths is real.
+	if [ -z "$path" ]; then
+		for c in /usr/sbin/nologin /sbin/nologin; do
+			[ -x "$c" ] && path="$c" && break
+		done
+	fi
+	echo "$path"
 }
 
 # shell must be one of the curated, /etc/shells-backed login shells

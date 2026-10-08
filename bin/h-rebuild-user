@@ -4,17 +4,11 @@
 #
 # example: h-rebuild-user admin yes
 #
-# This function rebuilds system user account.
+# Rebuilds a user's system account, home tree and record.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,12 +21,7 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
@@ -42,32 +31,19 @@ if [ -n "$check_user" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# project quota (self-gated, #211); rebuild_user_conf below carries the
-# one-time project-id migration for pre-arming trees
+# The quota command gates itself; rebuild_user_conf carries the project id onto trees from before quota.
 $BIN/h-update-user-quota "$user"
 
 # The docker cap is per docker customer, applied whatever else is capped on the box.
 source $HESTIA/include/docker.sh
 docker_slice_apply "$user" "$(get_user_value '$DOCKER_LIMIT')"
 
-# Rebuild user
 rebuild_user_conf
 
-# Update user counters
 $BIN/h-update-user-counters "$user"
 
-# Update account usage statistics
 $BIN/h-update-user-stats "$user"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Rebuilt user profile (User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

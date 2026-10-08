@@ -549,7 +549,9 @@ level remains only as the hand-off spot for a migration archive an operator drop
 hand, plus `server.<stamp>.tar` for box state (`h-backup-server`, #710) - `server` is a
 reserved login name for that reason. Records keep bare basenames, so the backup FORMAT is
 untouched and bidirectional compatibility holds: a HestiaCP archive placed at the hand-off
-spot restores, and our archives restore there (#789).
+spot restores, and our archives restore there (#789). A restore that creates the account applies the
+name rules of `h-add-user`, reserved names included, so an archive of an account named `server` is refused
+rather than colliding (#1176).
 
 **Why.** Path privacy and one rights picture per customer. One resolver in
 `include/backup.sh` (`backup_archive_path`) carries the two-place rule and the symlink

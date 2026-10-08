@@ -4,11 +4,6 @@
 # labels: internal
 # caller: the panel login
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 ip46=$2
 status=$3
@@ -22,28 +17,29 @@ if [ "$status" = "failed" ]; then
 	active="no"
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-check_args '2' "$#" 'USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]'
+check_args '3' "$#" 'USER IP STATUS [SESSION_ID] [USER_AGENT] [AUTHLOG] [REASON]'
 is_format_valid 'user' 'ip46'
+# Anything but failed is recorded as an active session, so only the two known words pass.
+case "$status" in
+	success | failed) ;;
+	*) check_result "$E_INVALID" "invalid status :: $status (success or failed)" ;;
+esac
 is_common_format_valid "$session_id" "SESSION_ID"
-format_no_quotes "$user_agent" "USER_AGENT"
+# The client picks its agent string, and a refusal here would drop the line fail2ban counts: stored, not judged.
+user_agent=$(printf '%s' "$user_agent" | tr -c '[:print:]' '_')
+user_agent=${user_agent//[\'\"\`\\|]/_}
+user_agent=${user_agent:0:256}
 is_common_format_valid "$authlog" "AUTHLOG"
 format_no_quotes "$reason" "REASON"
 
 is_object_valid 'user' 'USER' "$user"
 
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
@@ -52,18 +48,10 @@ if [ ! -f "$USER_DATA/auth.log" ]; then
 	touch "$USER_DATA/auth.log"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 echo "DATE='$date' TIME='$time' IP='$ip46' ACTION='login' STATUS='$status' USER_AGENT='$user_agent' SESSION='$session_id' ACTIVE='$active'" >> "$USER_DATA/auth.log"
 
 if [ "$authlog" = "yes" ]; then
 	echo "$date $time $user $ip46 failed to login ($reason)" >> "$HESTIA/log/auth.log"
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

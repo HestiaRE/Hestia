@@ -111,7 +111,7 @@ function authenticate_user($user, $password, $twofa = "")
 	if (verify_csrf($_POST, true)) {
 		$v_user = quoteshellarg($user);
 		$ip = get_real_user_ip();
-		$user_agent = $_SERVER["HTTP_USER_AGENT"];
+		$user_agent = (string) ($_SERVER["HTTP_USER_AGENT"] ?? "");
 
 		$v_ip = quoteshellarg($ip);
 		$v_user_agent = quoteshellarg($user_agent);
@@ -127,9 +127,7 @@ function authenticate_user($user, $password, $twofa = "")
 		unset($output);
 		if ($return_var > 0) {
 			sleep(2);
-			if ($return_var == 5) {
-				$error = _("Account has been suspended");
-			} elseif ($return_var == 1) {
+			if ($return_var == 1) {
 				$error = _("Unsupported hash method");
 			} else {
 				$error = _("Invalid username or password");
@@ -205,7 +203,11 @@ function authenticate_user($user, $password, $twofa = "")
 			// Remove tmp file
 			unlink($v_hash);
 			// Check API answer
-			if ($return_var > 0) {
+			if ($return_var == 5) {
+				// Only a correct password learns that the account is suspended.
+				sleep(2);
+				return _("Account has been suspended");
+			} elseif ($return_var > 0) {
 				sleep(2);
 				$error = _("Invalid username or password");
 				$v_session_id = quoteshellarg($_POST["token"]);
@@ -397,6 +399,13 @@ if (empty($_SESSION["language"])) {
 	$lang = $config["config"]["LANGUAGE"] ?? "";
 	$languages = cli_json("h-list-sys-languages json");
 	$_SESSION["language"] = in_array($lang, $languages) ? $lang : "en";
+}
+
+// Shown once, on the password step the reset page leads to.
+$notice = "";
+if (!empty($_SESSION["login"]["reset_done"])) {
+	$notice = _("Your password has been changed. Please log in.");
+	unset($_SESSION["login"]["reset_done"]);
 }
 
 // Generate CSRF token

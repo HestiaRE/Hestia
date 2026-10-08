@@ -17,7 +17,8 @@ if (empty($_POST["action"])) {
 	header("Location: /list/user");
 	exit();
 }
-$user = $_POST["user"];
+// An empty name means "every user" to the commands, which no bulk selection asks for.
+$user = array_values(array_filter((array) $_POST["user"], fn ($v) => is_string($v) && $v !== ""));
 $action = $_POST["action"];
 
 if ($_SESSION["userContext"] === "admin") {
@@ -62,6 +63,8 @@ if ($_SESSION["userContext"] === "admin") {
 			exit();
 	}
 } else {
+	// A customer acts on their own account only, whatever names the form carried.
+	$user = [$user_plain];
 	switch ($action) {
 		case "update counters":
 			$cmd = "h-update-user-counters";

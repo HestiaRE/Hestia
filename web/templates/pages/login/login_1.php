@@ -7,6 +7,9 @@
 		<h1 class="login-title">
 			<?= tohtml(_("Welcome")) ?> <?= tohtml($_SESSION["login"]["username"]) ?>!
 		</h1>
+		<?php if (!empty($notice)) { ?>
+			<div class="inline-alert inline-alert-success u-mb20" role="alert"><i class="fas fa-circle-check"></i><p><?= tohtml($notice) ?></p></div>
+		<?php } ?>
 		<div class="u-mb20">
 			<label for="password" class="form-label u-side-by-side">
 				<?= tohtml(_("Password")) ?>

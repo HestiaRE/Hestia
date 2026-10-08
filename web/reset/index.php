@@ -8,6 +8,11 @@ $TAB = "RESET PASSWORD";
 // Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 
+// The failed attempts below feed the auth log and fail2ban; unset, the arguments shifted and nothing was logged.
+$v_ip = quoteshellarg(get_real_user_ip());
+$v_session_id = quoteshellarg((string) ($_POST["token"] ?? ""));
+$v_user_agent = quoteshellarg((string) ($_SERVER["HTTP_USER_AGENT"] ?? ""));
+
 if (isset($_SESSION["user"])) {
 	header("Location: /list/user");
 }
@@ -28,7 +33,7 @@ if (!empty($_POST["user"]) && empty($_POST["code"])) {
 		// cli_value(), not cli_json(): this is a timestamp, and an empty array answers both
 		// comparisons below the opposite way - the expiry check would stop rejecting anything.
 		$rkeyexp = cli_value("h-get-user-value " . $v_user . " RKEYEXP");
-		if ($rkeyexp === null || $rkeyexp < time() - 1) {
+		if ($rkeyexp === null || $rkeyexp < time() - 900) {
 			// Strict, and both sides non-empty: a loose compare against a missing CONTACT made an
 			// empty submitted address match, which is the one comparison here that gates a reset.
 			if ($email !== "" && $email === ($data[$user]["CONTACT"] ?? "")) {
@@ -171,7 +176,7 @@ if (!empty($_POST["user"]) && empty($_POST["code"])) {
 if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"])) {
 	// Check token
 	verify_csrf($_POST);
-	if ($_POST["password"] == $_POST["password_confirm"]) {
+	if ($_POST["password"] === $_POST["password_confirm"] && validate_password($_POST["password"])) {
 		$v_user = quoteshellarg($_POST["user"]);
 		$user = $_POST["user"];
 		$data = cli_json("h-list-user " . $v_user . " json");
@@ -199,8 +204,10 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 						sleep(5);
 						$error = _("An internal error occurred");
 					} else {
-						$_SESSION["user"] = $_POST["user"];
-						header("Location: /");
+						// No session from here: the login applies 2FA, LOGIN_DISABLED and the address list.
+						$_SESSION["login"]["username"] = $_POST["user"];
+						$_SESSION["login"]["reset_done"] = true;
+						header("Location: /login/");
 						exit();
 					}
 				} else {
@@ -217,8 +224,10 @@ if (!empty($_POST["user"]) && !empty($_POST["code"]) && !empty($_POST["password"
 			sleep(5);
 			$error = _("Invalid username or code");
 		}
-	} else {
+	} elseif ($_POST["password"] !== $_POST["password_confirm"]) {
 		$error = _("Passwords do not match");
+	} else {
+		$error = _("Password does not match the minimum requirements.");
 	}
 }
 

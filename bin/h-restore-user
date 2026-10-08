@@ -1464,10 +1464,8 @@ if [ "$udir" != 'no' ]; then
 fi
 
 # Create tmp/
-mkdir -p "$HOMEDIR/$user/tmp"
-chown -R "$user:$user" "$HOMEDIR/$user/tmp"
-# The mode as the customer: root's chmod follows a link the home owner may have put there.
-user_exec chmod 700 "$HOMEDIR/$user/tmp"
+home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 \
+	|| echo "Warning: $HOMEDIR/$user/tmp is not a directory, left as it is" | tee -a $tmpdir/restore.log
 
 # Delete Hestia File manager key
 rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key

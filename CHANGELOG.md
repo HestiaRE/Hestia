@@ -12,8 +12,16 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.25 (2026-10-08)
+
+The command audit covers web domains, the web stack and users, and Tachyon moves to 4.4.1 for nine security fixes.
+
 ### Security
 
+- **Tachyon 4.4.1** (#1207). 4.4.0 closes nine security issues, among them header injection through a reply and
+  two-step verification that a session alone could switch off. An update brings existing boxes onto it.
 - **Web domain, SSL and FTP commands are stricter** (#1176). An FTP or SFTP account whose home passes through a link
   is refused, Let's Encrypt validation no longer writes into the customer's docroot, and a domain or alias name is
   held to what a vhost can carry.

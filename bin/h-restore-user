@@ -442,7 +442,7 @@ if ! restore_passwd_read "$tmpdir/pam/passwd"; then
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_PARSING" "the archived passwd entry is not a valid account"
 fi
-new_uid=$(grep "^$user:" /etc/passwd | cut -f 3 -d :)
+new_uid=$(awk -F : -v u="$user" '$1 == u {print $3; exit}' /etc/passwd)
 
 if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 	echo -e "\n-- WEB --" | tee -a $tmpdir/restore.log

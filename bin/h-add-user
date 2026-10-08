@@ -57,7 +57,7 @@ is_user_free "$user"
 is_password_valid
 is_package_valid
 
-pkg_data=$(cat $CONF_DIR/packages/$package.pkg | egrep -v "TIME|DATE")
+pkg_data=$(grep -E "^(${PACKAGE_KEYS// /|})=" "$CONF_DIR/packages/$package.pkg")
 
 shell=$(resolve_login_shell "$(echo "$pkg_data" | grep -m1 '^SHELL=' | cut -f 2 -d \')")
 

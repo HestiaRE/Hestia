@@ -181,6 +181,11 @@ U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL
 U_MAIL_DOMAINS U_DATABASES U_CRON_JOBS U_BACKUPS"
 USER_NUMERIC_KEYS=${USER_NUMERIC_KEYS//$'\n'/ }
 
+# What a package defines and hands to its users; nothing else of a package file reaches a user record.
+PACKAGE_KEYS="WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT
+DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS BACKUPS_MODE"
+PACKAGE_KEYS=${PACKAGE_KEYS//$'\n'/ }
+
 # An archived record is hostile input, so only registry-known keys reach the instance. Catches what
 # the floors above cannot: names legitimate in another file (ROOT_USER in hestia.conf, REPO in
 # restic.conf). A filter that keeps nothing fails rather than install an empty record.
@@ -209,7 +214,7 @@ copy_record_filtered() {
 		# Counters and limits reach bash arithmetic, which evaluates a subscript in a value.
 		case " $USER_NUMERIC_KEYS " in
 			*" $_lhs "*)
-				if [ "$_type" = user ] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
+				if [[ "$_type" =~ ^(user|package)$ ]] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
 					echo "Warning: dropping a non-numeric '$_lhs' from the archived $_type record" >&2
 					continue
 				fi
@@ -525,6 +530,7 @@ package_key_value() {
 	_pkg=$(sed -n "s/^PACKAGE='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)
 	[ -n "$_pkg" ] || return 1
 	[ -f "$CONF_DIR/packages/$_pkg.pkg" ] || return 1
+	case " $PACKAGE_KEYS " in *" $1 "*) ;; *) return 1 ;; esac
 	sed -n "s/^$1='\(.*\)'$/\1/p" "$CONF_DIR/packages/$_pkg.pkg" | head -n1
 }
 

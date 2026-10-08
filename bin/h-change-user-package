@@ -76,10 +76,7 @@ change_user_package() {
 	local key
 	source_conf "$CONF_DIR/packages/$package.pkg"
 	update_user_value "$user" '$PACKAGE' "$package"
-	for key in WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES \
-		MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT DATABASES CRON_JOBS DISK_QUOTA \
-		DOCKER_LIMIT BANDWIDTH \
-		SHELL BACKUPS BACKUPS_MODE; do
+	for key in $PACKAGE_KEYS; do
 		# A hand-made package may lack a key; the user's value stays rather than turning empty.
 		grep -q "^$key='" "$CONF_DIR/packages/$package.pkg" || continue
 		update_user_value "$user" "\$$key" "${!key}"

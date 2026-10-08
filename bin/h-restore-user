@@ -428,9 +428,7 @@ if [ "$create_user" = 'yes' ]; then
 			if [ -e "$_dest" ]; then
 				echo "$(date "+%F %T") package $(basename "$_pkg") exists on target, kept unchanged" >> $tmpdir/restore.log 2> /dev/null || true
 			else
-				# Package files are source_conf'd too, and their keys are a subset of the user set
-				# (measured: no package key is outside it).
-				copy_record_filtered "$_pkg" "$_dest" user \
+				copy_record_filtered "$_pkg" "$_dest" package \
 					|| echo "Warning!: the archived package $(basename "$_pkg") carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
 			fi
 		done

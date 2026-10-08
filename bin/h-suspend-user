@@ -29,7 +29,7 @@ if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" != 'y
 	/usr/sbin/usermod --lock --expiredate 1 "$user"
 
 	while IFS= read -r ftp; do
-		/usr/sbin/usermod --lock "$ftp" 2> /dev/null
+		/usr/sbin/usermod --lock --expiredate 1 "$ftp" 2> /dev/null
 	done < <(user_ftp_accounts)
 
 	# The file manager runs as the customer in an FPM pool and ignores the lock, so its listener goes too.

@@ -32,7 +32,7 @@ fi
 /usr/sbin/usermod --unlock --expiredate '' "$user"
 
 while IFS= read -r ftp; do
-	/usr/sbin/usermod --unlock "$ftp" 2> /dev/null
+	/usr/sbin/usermod --unlock --expiredate '' "$ftp" 2> /dev/null
 done < <(user_ftp_accounts)
 
 update_user_value "$user" '$SUSPENDED' 'no'

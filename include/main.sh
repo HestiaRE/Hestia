@@ -3012,8 +3012,9 @@ jail_sshd_subsystem_apply() {
 	# Temp file NEXT TO the target so the rename is atomic, mode and owner from the target because
 	# sshd refuses a config with wrong permissions and a truncated sshd_config is a box nobody logs
 	# into. A killed run leaves its temp behind, which sshd ignores but nobody would notice piling up.
-	rm -f "$config".?????? 2> /dev/null || true
-	_tmp=$(mktemp "$config.XXXXXX") || return 1
+	# Our own prefix: a bare six-character suffix also matched an admin's sshd_config.backup.
+	rm -f "$config".hst-?????? 2> /dev/null || true
+	_tmp=$(mktemp "$config.hst-XXXXXX") || return 1
 	_prev_trap=$(trap -p EXIT)
 	# shellcheck disable=SC2064 # expand now on purpose: _tmp is local and gone when the trap fires
 	trap "rm -f '$_tmp'" EXIT

@@ -13,12 +13,12 @@
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
     "aggregate": {
-      "upstream_mapped_files": 405,
+      "upstream_mapped_files": 404,
       "eigenbau_files": 117,
       "weighted_pct": 33,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 522,
-      "files_mapped": 405
+      "files_total": 521,
+      "files_mapped": 404
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -1071,22 +1071,6 @@
         "added": 13,
         "removed": 57,
         "pct": 44,
-        "measured_at": "2026-10-06"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-add-user-sftp-key",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-user-sftp-key",
-      "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
-      "divergence": {
-        "upstream_lines": 92,
-        "our_lines": 79,
-        "added": 5,
-        "removed": 18,
-        "pct": 13,
         "measured_at": "2026-10-06"
       },
       "note": ""

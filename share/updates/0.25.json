@@ -477,6 +477,24 @@
       },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "remove-h-add-user-sftp-key",
+      "description": "h-add-user-sftp-key is gone: it made the SSH key of HestiaCP's file manager, which does not exist here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-user-sftp-key"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-user-sftp-key"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-user-sftp-key"
+      ],
+      "reversible": false
     }
   ]
 }

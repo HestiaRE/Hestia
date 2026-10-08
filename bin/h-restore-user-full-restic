@@ -99,12 +99,19 @@ rebuild_user_conf
 # Restore web domains
 # A failed part does not stop the rest, but the run must not end as a success.
 failed=''
-echo "[ * ] Restore Web domains"
-$BIN/h-restore-web-domain-restic "$user" "$snapshot" '*' 'no' 'yes' || failed="$failed web"
-echo "[ * ] Restore Mail domains"
-$BIN/h-restore-mail-domain-restic "$user" "$snapshot" '*' || failed="$failed mail"
-echo "[ * ] Restore Databases"
-$BIN/h-restore-database-restic "$user" "$snapshot" '*' || failed="$failed db"
+# A section this host does not run is skipped, as in h-restore-user: not a failed part.
+if [ -n "$WEB_SYSTEM" ]; then
+	echo "[ * ] Restore Web domains"
+	$BIN/h-restore-web-domain-restic "$user" "$snapshot" '*' 'no' 'yes' || failed="$failed web"
+fi
+if [ -n "$MAIL_SYSTEM" ]; then
+	echo "[ * ] Restore Mail domains"
+	$BIN/h-restore-mail-domain-restic "$user" "$snapshot" '*' || failed="$failed mail"
+fi
+if [ -n "$DB_SYSTEM" ]; then
+	echo "[ * ] Restore Databases"
+	$BIN/h-restore-database-restic "$user" "$snapshot" '*' || failed="$failed db"
+fi
 echo "[ * ] Restore Cronjobs"
 $BIN/h-restore-cron-job-restic "$user" "$snapshot" || failed="$failed cron"
 echo "[ * ] Restore user files"

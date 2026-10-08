@@ -46,7 +46,6 @@ if [ ! -s "$FM_SECRET_FILE" ] || [ ! -f "$FM_CODE_DIR/index.php" ]; then
 	echo "ERROR: file manager module not installed — run h-add-sys-filemanager first"
 	exit "$E_NOTEXIST"
 fi
-secret="$(cat "$FM_SECRET_FILE")"
 fm_web=$(fm_front)
 [ -n "$fm_web" ] || check_result "$E_DISABLED" "the file manager needs a customer web server, this box has none"
 
@@ -117,10 +116,7 @@ fi
 rm -f "$vhost"
 (
 	umask 077
-	sed -e "s|%user%|$user|g" \
-		-e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" \
-		-e "s|%FM_SECRET%|$secret|g" \
-		"$HESTIA/share/filemanager/$tpl.tpl" > "$vhost"
+	fm_render "$HESTIA/share/filemanager/$tpl.tpl" "$user" > "$vhost"
 )
 chmod 600 "$vhost"
 if [ "$restart" != 'no' ]; then

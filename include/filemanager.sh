@@ -6,6 +6,18 @@ FM_CODE_SRC="$HESTIA/share/filemanager/fm"
 FM_CODE_DIR="/usr/share/filemanager/fm"
 FM_SECRET_FILE="/etc/hestia/conf/.filemanager.key"
 
+# fm_render TEMPLATE [USER]: the template with port, secret and user filled in. Builtins only, so the secret
+# never shows in a process's argv.
+fm_render() {
+	local text p_user='%user%' p_port='%FILE_MANAGER_PORT%' p_secret='%FM_SECRET%' secret
+	secret=$(< "$FM_SECRET_FILE") || return 1
+	text=$(< "$1") || return 1
+	text=${text//"$p_user"/"${2-}"}
+	text=${text//"$p_port"/"$FILE_MANAGER_PORT"}
+	text=${text//"$p_secret"/"$secret"}
+	printf '%s\n' "$text"
+}
+
 # nginx wherever it fronts the stack, apache2 in apache-only, nothing on mail-only.
 fm_front() {
 	if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then

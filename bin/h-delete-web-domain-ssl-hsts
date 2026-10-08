@@ -4,32 +4,21 @@
 #
 # example: h-delete-web-domain-ssl-hsts user domain.tld
 #
-# This function removes force SSL configurations.
+# Turns off HSTS for the domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 quiet=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
@@ -37,33 +26,21 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_valid 'web' 'DOMAIN' "$domain" "$SSL_FORCE"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Load domain data
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-# Same resolution as the add side, or the file removed is not the file written
+# Same resolution as the add side, or the file removed is not the file written.
 hstsconf="$HOMEDIR/$user/conf/web/$domain/${PROXY_SYSTEM:-$WEB_SYSTEM}.hsts.conf"
 
 rm -f $hstsconf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Set forcessl flag to enabled
 update_object_value 'web' 'DOMAIN' "$domain" '$SSL_HSTS' 'no'
 
-# Restart services if requested
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 if [ "$quiet" != "yes" ]; then
 	$BIN/h-log-action "$user" "Info" "Web" "HTTP Strict Transport Security disabled (Domain: $domain)."
 fi

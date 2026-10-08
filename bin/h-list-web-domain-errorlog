@@ -4,34 +4,25 @@
 #
 # example: h-list-web-domain-errorlog admin acme.com
 #
-# This function of obtaining raw error web domain logs.
+# Lists the raw error log of a web domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 ttl=${3-70}
 format=${4-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	i=1
 	objects=$(echo "$lines" | wc -l)
 	echo '['
 	for str in $lines; do
-		# json_escape replaces the old sed: that one covered " but not the backslash, so a log
-		# line containing one already produced JSON the panel could not decode.
+		# json_escape, not a sed: a backslash in a log line must not break the JSON.
 		json_escape str
 		if [ "$i" -lt "$objects" ]; then
 			printf '\t"%s",\n' "$str"
@@ -43,30 +34,19 @@ json_list() {
 	echo "]"
 }
 
-# SHELL list function
 shell_list() {
 	echo "$lines"
 }
 
-# PLAIN list function
 plain_list() {
 	echo "$lines"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [LINES] [FORMAT]'
 is_format_valid 'user' 'domain' 'ttl'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Check number of output lines
 if [ "$ttl" -gt '3000' ]; then
 	read_cmd="cat"
 else
@@ -76,16 +56,11 @@ fi
 lines=$($read_cmd /var/log/$WEB_SYSTEM/domains/$domain.error.log)
 IFS=$'\n'
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

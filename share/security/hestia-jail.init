@@ -34,6 +34,12 @@ if [ -z "$home" ] || [ ! -d "$home" ]; then
 	exit 1
 fi
 
+# A link anywhere on the path would be bound in its target's place; proftpd refuses the same (AllowChrootSymlinks).
+if [ "$(readlink -f "$home")" != "$home" ]; then
+	logger -t "$tag" "FAIL $user: home '$home' passes through a link"
+	exit 1
+fi
+
 root="$polydir/$user"
 target="$root$home"
 mkdir -p "$target" || {

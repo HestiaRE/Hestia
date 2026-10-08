@@ -4,107 +4,69 @@
 #
 # example: h-add-sys-filemanager
 #
-# Installs the file manager module (#419): deploys the shared read-only app code to
-# /usr/share/filemanager/fm, generates the Caddy<->listener secret, adds the
-# Panel-Caddy /fm/ forward_auth route + tmpfiles socket dir, and reactivates any
-# saved per-user flags. Per customer, h-add-user-filemanager then adds a pool + vhost
-# that run as that customer. Reverse: h-delete-sys-filemanager.
+# The shared app code, the secret Caddy proves to the private listeners, and the panel route. The pool and vhost of
+# each customer come from h-add-user-filemanager; flags saved before an uninstall come back.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-CODE_SRC="$HESTIA/share/filemanager/fm"
-CODE_DIR="/usr/share/filemanager/fm"
-SECRET_FILE="/etc/hestia/conf/.filemanager.key"
+# shellcheck source=/usr/local/hestia/include/filemanager.sh
+source "$HESTIA/include/filemanager.sh"
+
 ROUTE="/etc/caddy/apps/filemanager.conf"
 TMPFILES="/etc/tmpfiles.d/hestia-fm.conf"
 : "${FILE_MANAGER_PORT:=8092}"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 [ "$(id -u)" = '0' ] || {
 	echo "ERROR: h-add-sys-filemanager must be run as root"
 	exit 10
 }
 
-[ -s "$CODE_SRC/index.php" ] || {
-	echo "ERROR: FM app code missing ($CODE_SRC)"
+[ -s "$FM_CODE_SRC/index.php" ] || {
+	echo "ERROR: FM app code missing ($FM_CODE_SRC)"
 	exit "$E_NOTEXIST"
 }
+front=$(fm_front)
+[ -n "$front" ] || check_result "$E_DISABLED" "the file manager needs a customer web server, this box has none"
 
-if [ -f "$CODE_DIR/index.php" ] && [ -s "$SECRET_FILE" ] && [ -f "$ROUTE" ]; then
-	echo "INFO: file manager is already installed."
+if [ -f "$FM_CODE_DIR/index.php" ] && [ -s "$FM_SECRET_FILE" ] && [ -f "$ROUTE" ]; then
+	fm_refresh yes || check_result "$E_RESTART" "file manager refresh failed"
+	echo "INFO: file manager is already installed, code and listeners refreshed."
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 echo "[ * ] Installing file manager module..."
 
-# 1. Shared read-only app code — one copy for all customers, outside /home + backups
-mkdir -p "$CODE_DIR"
-cp -rf "$CODE_SRC/." "$CODE_DIR/"
-chown -R root:root "$CODE_DIR"
-find "$CODE_DIR" -type d -exec chmod 755 {} +
-find "$CODE_DIR" -type f -exec chmod 644 {} +
-
-# 2. Secret: Caddy proves it to the private listener; only root reads it (baked into
-# the caddy config below), so caddy itself never needs to read the file.
-if [ ! -s "$SECRET_FILE" ]; then
-	(umask 077 && openssl rand -hex 32 > "$SECRET_FILE")
+# Root only: it is baked into the Caddy route, so caddy never reads the file.
+if [ ! -s "$FM_SECRET_FILE" ]; then
+	(umask 077 && openssl rand -hex 32 > "$FM_SECRET_FILE")
 fi
-chown root:root "$SECRET_FILE"
-chmod 600 "$SECRET_FILE"
-secret="$(cat "$SECRET_FILE")"
+chown root:root "$FM_SECRET_FILE"
+chmod 600 "$FM_SECRET_FILE"
 
-# 3. Port
 $BIN/h-change-sys-config-value 'FILE_MANAGER_PORT' "$FILE_MANAGER_PORT"
 
-# 4. Runtime socket dir (tmpfs, recreated each boot)
 cp -f "$HESTIA/share/tmpfiles.d/hestia-fm.conf" "$TMPFILES"
 systemd-tmpfiles --create "$TMPFILES" > /dev/null 2>&1
 
-# 5. apache-only front needs a global Listen on the private port (nginx self-listens)
-if ! { [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; }; then
-	echo "Listen 127.0.0.1:$FILE_MANAGER_PORT" > /etc/apache2/conf.d/fm-listen.conf
-	$BIN/h-restart-service apache2 > /dev/null 2>&1 || true
-fi
+# Code, catch-all and the listeners of customers that had it enabled before a prior uninstall.
+fm_code_install || check_result "$E_NOTEXIST" "file manager code not installed"
+fm_refresh yes || check_result "$E_RESTART" "$front restart failed"
 
-# 6. Panel-Caddy /fm/ route (carries the secret -> 0640 root:caddy)
+# The route goes last: until it exists the module counts as not installed, so a re-run repeats every step.
 mkdir -p /etc/caddy/apps
-sed -e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" -e "s|%FM_SECRET%|$secret|g" \
-	"$HESTIA/share/panel-caddy/apps/filemanager.tpl" > "$ROUTE"
+(umask 077 && fm_render "$HESTIA/share/panel-caddy/apps/filemanager.tpl" > "$ROUTE")
 chown root:caddy "$ROUTE"
 chmod 640 "$ROUTE"
-$BIN/h-restart-service caddy > /dev/null 2>&1 || true
-
-# 7. Saved state: reactivate customers that had it enabled before a prior uninstall.
-# Batch the pools with no per-user webserver restart, then reload the front once.
-for uconf in "$CONF_DIR"/users/*/user.conf; do
-	[ -f "$uconf" ] || continue
-	if grep -q "^FILE_MANAGER='yes'" "$uconf"; then
-		u=$(basename "$(dirname "$uconf")")
-		$BIN/h-add-user-filemanager "$u" no > /dev/null 2>&1 || true
-	fi
-done
-$BIN/h-restart-service "${PROXY_SYSTEM:-$WEB_SYSTEM}" > /dev/null 2>&1 || true
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+if ! $BIN/h-restart-service caddy > /dev/null 2>&1; then
+	# Without the route the panel comes back as it was.
+	rm -f "$ROUTE"
+	$BIN/h-restart-service caddy > /dev/null 2>&1
+	check_result "$E_RESTART" "caddy restart failed, file manager route withdrawn"
+fi
 
 echo "[ OK ] File manager installed."
 $BIN/h-log-action "system" "Info" "Plugins" "File manager installed."

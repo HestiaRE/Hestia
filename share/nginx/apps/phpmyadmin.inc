@@ -2,7 +2,11 @@
 # from a dedicated caddy FPM pool. Included per customer domain vhost via
 # `include /etc/nginx/conf.d/phpmyadmin.inc*;`. %pma_alias% = DB_PMA_ALIAS, %panel_port% = BACKEND_PORT.
 # Delivery is centralised on the panel; this block only proxies the alias.
-location /%pma_alias% {
+# With the slash, a customer path that merely starts with the alias stays the customer's.
+location = /%pma_alias% {
+	return 301 /%pma_alias%/;
+}
+location /%pma_alias%/ {
 	proxy_pass https://127.0.0.1:%panel_port%;
 	proxy_set_header Host $host;
 	proxy_set_header X-Real-IP $remote_addr;

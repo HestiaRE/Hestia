@@ -4,25 +4,17 @@
 #
 # example: h-list-letsencrypt-user admin
 #
-# This function for obtaining the letsencrypt key thumbprint
+# Lists the user's Let's Encrypt account key data and thumbprint.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	echo '{'
 	json_escape user EMAIL EXPONENT MODULUS THUMB KID
@@ -36,7 +28,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "USER:           $user"
 	echo "EMAIL:          $EMAIL"
@@ -46,14 +37,9 @@ shell_list() {
 	echo "KID:            $KID"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -e "$user\t$EMAIL\t$EXPONENT\t$MODULUS\t$THUMB\t$KID"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
@@ -62,23 +48,13 @@ if [ ! -e "$USER_DATA/ssl/le.conf" ]; then
 	check_result "$E_NOTEXIST" "LetsEncrypt user account doesn't exist"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+le_conf_load "$USER_DATA/ssl/le.conf"
 
-# load config file
-source_conf "$USER_DATA/ssl/le.conf"
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -49,23 +49,19 @@
 		</div>
 		<div class="toolbar-buttons">
 			<a href="javascript:location.reload();" class="button button-secondary"><i class="fas fa-arrow-rotate-right icon-green"></i><?= tohtml(_("Refresh")) ?></a>
-			<?php if ($_SESSION["adminContext"] === "admin" && $_SESSION["look"] === "admin" && $_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] === "yes") { ?>
-				<!-- Hide delete buttons-->
-			<?php } else { ?>
-				<?php if ($_SESSION["userContext"] === "admin" || ($_SESSION["userContext"] === "user" && $_SESSION["POLICY_USER_DELETE_LOGS"] !== "no")) { ?>
-					<a
-						class="button button-secondary button-danger data-controls js-confirm-action"
-						<?php if ($_SESSION["userContext"] === "admin" && isset($_GET["user"])) { ?>
-							href="/delete/log/?<?= tohtml(http_build_query(["user" => $_GET["user"], "token" => $_SESSION["token"]])) ?>"
-						<?php } else { ?>
-							href="/delete/log/?<?= tohtml(http_build_query(["token" => $_SESSION["token"]])) ?>"
-						<?php } ?>
-						data-confirm-title="<?= tohtml(_("Delete")) ?>"
-						data-confirm-message="<?= tohtml(_("Are you sure you want to delete the logs?")) ?>"
-					>
-						<i class="fas fa-circle-xmark icon-red"></i><?= tohtml(_("Delete")) ?>
-					</a>
-				<?php } ?>
+			<?php if (can_delete_logs()) { ?>
+				<a
+					class="button button-secondary button-danger data-controls js-confirm-action"
+					<?php if ($_SESSION["userContext"] === "admin" && isset($_GET["user"])) { ?>
+						href="/delete/log/?<?= tohtml(http_build_query(["user" => $_GET["user"], "token" => $_SESSION["token"]])) ?>"
+					<?php } else { ?>
+						href="/delete/log/?<?= tohtml(http_build_query(["token" => $_SESSION["token"]])) ?>"
+					<?php } ?>
+					data-confirm-title="<?= tohtml(_("Delete")) ?>"
+					data-confirm-message="<?= tohtml(_("Are you sure you want to delete the logs?")) ?>"
+				>
+					<i class="fas fa-circle-xmark icon-red"></i><?= tohtml(_("Delete")) ?>
+				</a>
 			<?php } ?>
 		</div>
 	</div>

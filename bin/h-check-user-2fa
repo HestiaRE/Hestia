@@ -4,54 +4,33 @@
 #
 # example: h-check-user-2fa admin 493690
 #
-# This function verifies user 2fa token.
+# Checks a user's two-factor token.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 token=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER TOKEN'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+source_conf "$USER_DATA/user.conf"
 
-# Reading user values
-source $USER_DATA/user.conf
-
-# Check if 2FA is enabled
 if [ -z "$TWOFA" ]; then
 	echo "Error: Two-factor authentication is not enabled."
 	exit "$E_NOTEXIST"
 fi
 
-# Check if token is valid
-result=$($HESTIA_PHP $HESTIA/web/inc/2fa/check.php "$TWOFA" "$token")
+is_no_new_line_format "$token"
+result=$(printf '%s\n%s\n' "$TWOFA" "$token" | $HESTIA_PHP $HESTIA/web/inc/2fa/check.php)
 if [ "$result" != "ok" ]; then
 	echo "Error: Authentication token mismatch."
 	exit 9
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

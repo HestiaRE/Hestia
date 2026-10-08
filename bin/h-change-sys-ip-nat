@@ -72,16 +72,13 @@ if [ -n "$old" ] && [ -n "$WEB_SYSTEM" ]; then
 fi
 
 # Updating FTP
-if [ -n "$old" ] && [ -n "$FTP_SYSTEM" ]; then
+if [ -n "$FTP_SYSTEM" ]; then
 	ftp_conf="$(find /etc -maxdepth 2 -name "$FTP_SYSTEM.conf")"
-	if [ -e "$ftp_conf" ]; then
+	if [ -n "$old" ] && [ -e "$ftp_conf" ]; then
 		sed -i "s/$old/$new/g" "$ftp_conf"
 	fi
-	if [ "$FTP_SYSTEM" = 'proftpd' ]; then
-		ext_ip_conf="/etc/$FTP_SYSTEM/conf.d/external_ip.conf"
-		content="MasqueradeAddress ${nat_ip}"
-		echo "$content" > "$ext_ip_conf"
-	fi
+	# Also on the first NAT, which has no old address to replace.
+	proftpd_nat_apply
 	$BIN/h-restart-ftp "$restart"
 fi
 

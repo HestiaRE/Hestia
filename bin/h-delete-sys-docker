@@ -4,85 +4,81 @@
 #
 # example: h-delete-sys-docker
 #
-# Counterpart to h-add-sys-docker: purges the packages and takes the repo and keyring
-# with them, so a box without the addon carries no Docker repo.
-#
-# Refuses while customers still have it enabled, else their companion, subid entries and
-# container data are left with nothing to manage them. FORCE overrides.
-#
-# Image data under a companion's home is NOT touched: it belongs to the customer's
-# backup unit.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Purges the packages, the repo and the keyring. Refuses while customers still have Docker;
+# FORCE disables it for them first, which removes their containers and images.
 
 force=${1-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/helper.sh
 source $HESTIA/include/helper.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 DOCKER_KEYRING='/usr/share/keyrings/docker-keyring.gpg'
 DOCKER_LIST='/etc/apt/sources.list.d/docker.list'
 DOCKER_DELEGATE='/etc/systemd/system/user@.service.d/hestia-delegate.conf'
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "ERROR: h-delete-sys-docker can only be executed by the root user"
 	exit 10
 fi
 
-# <user>-docker identifies an enabled customer without reading every user.conf.
-enabled=$(getent passwd | cut -d: -f1 | grep -c -- '-docker$' || true)
-if [ "$enabled" -gt 0 ] && [ "$force" != 'yes' ]; then
-	echo "ERROR: $enabled customer(s) still have Docker enabled."
+# Whatever h-delete-user-docker would clean up: an address in the record or the companion account.
+docker_users=''
+for uconf in "$CONF_DIR"/users/*/user.conf; do
+	[ -e "$uconf" ] || continue
+	u=$(basename "$(dirname "$uconf")")
+	if grep -q "^DOCKER_IP='[^']" "$uconf" || getent passwd "$u-docker" > /dev/null 2>&1; then
+		docker_users="$docker_users $u"
+	fi
+done
+if [ -n "$docker_users" ] && [ "$force" != 'yes' ]; then
+	echo "ERROR: Docker is still enabled for:$docker_users"
 	echo "       Disable it for them first, or re-run with: h-delete-sys-docker yes"
+	echo "       (that disables it for them, and their containers and images are removed)"
 	exit "$E_INVALID"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# A purge under running companions leaves daemons without binaries, their ranges, addresses and firewall rules.
+for u in $docker_users; do
+	echo "Disabling Docker for $u..."
+	$BIN/h-delete-user-docker "$u" > /dev/null 2>&1 \
+		|| check_result "$E_INVALID" "could not disable Docker for $u, packages kept"
+done
 
 echo "Removing Docker packages..."
-apt-get -y -qq purge docker-ce docker-ce-cli docker-ce-rootless-extras \
-	docker-compose-plugin docker-buildx-plugin containerd.io > /dev/null 2>&1
-apt-get -y -qq autoremove > /dev/null 2>&1
+# Only names dpkg holds: apt refuses the whole purge over one it does not know. The repository goes only after.
+docker_pkgs=$(dpkg-query -W -f='${Package} ${db:Status-Status}\n' docker-ce docker-ce-cli docker-ce-rootless-extras \
+	docker-compose-plugin docker-buildx-plugin containerd.io 2> /dev/null | awk '$2 != "not-installed" {print $1}')
+if [ -n "$docker_pkgs" ]; then
+	# shellcheck disable=SC2086 # one package name per word, from dpkg
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq purge $docker_pkgs > /dev/null 2>&1
+	# shellcheck disable=SC2086
+	dpkg-query -W -f='${db:Status-Status}\n' $docker_pkgs 2> /dev/null | grep -qx installed \
+		&& check_result "$E_UPDATE" "Docker purge failed, repository and settings left as they are"
+fi
 
 echo "Removing the Docker repository..."
 # Also the pin an earlier revision installed, so an upgraded box does not keep it.
 rm -f "$DOCKER_LIST" "$DOCKER_KEYRING" /etc/apt/preferences.d/hestia-docker.pref
-apt-get -qq update > /dev/null 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update > /dev/null 2>&1
 
-# Left by an earlier revision: an upgraded box must not keep a global cgroup widening
-# the add side no longer installs.
+# Left by an earlier revision: a global cgroup widening the add side no longer installs.
 rm -f "$DOCKER_DELEGATE"
 rmdir "$(dirname "$DOCKER_DELEGATE")" 2> /dev/null || true
 systemctl daemon-reload
 
-# The purge above does not take the bridge with it, so a removed addon would otherwise leave
-# 172.17.0.0/16 claimed on a host that has no Docker at all.
+# The purge leaves the bridge and its 172.17.0.0/16 behind.
 docker_drop_orphan_bridge
 
-# procvis stays: it is the /proc hardening exemption group (#565), not ours to remove.
+# procvis stays: it is the /proc hardening exemption group, not ours to remove.
 
 $BIN/h-change-sys-config-value 'DOCKER_SYSTEM' ''
 
 echo "Docker has been removed."
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Removed Docker."
 log_event "$OK" "$ARGUMENTS"

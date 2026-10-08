@@ -7,6 +7,11 @@ include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
 // Check token
 verify_csrf($_GET);
 
+if (!can_delete_logs()) {
+	header("Location: /list/log/auth/");
+	exit();
+}
+
 // Check if administrator is viewing system log (currently 'admin' user)
 if ($_SESSION["userContext"] === "admin" && isset($_GET["user"])) {
 	$user = quoteshellarg($_GET["user"]);
@@ -20,7 +25,7 @@ unset($output);
 
 $ip = get_real_user_ip();
 $v_ip = quoteshellarg($ip);
-$user_agent = $_SERVER["HTTP_USER_AGENT"];
+$user_agent = (string) ($_SERVER["HTTP_USER_AGENT"] ?? "");
 $v_user_agent = quoteshellarg($user_agent);
 
 $v_session_id = quoteshellarg($_SESSION["token"]);

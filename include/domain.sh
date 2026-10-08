@@ -271,15 +271,6 @@ prepare_web_domain_values() {
 	fi
 	group="$user"
 	docroot="$HOMEDIR/$user/web/$domain/public_html"
-	sdocroot="$docroot"
-	# SSL_HOME='single' gives the https vhost its own docroot. Not a dead read: it can be set when
-	# SSL is enabled or carried in by a restore, only no longer flipped afterwards.
-	if [ "$SSL_HOME" = 'single' ]; then
-		sdocroot="$HOMEDIR/$user/web/$domain/public_shtml"
-		$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/public_shtml"
-		chmod 751 $HOMEDIR/$user/web/$domain/public_shtml
-		chown www-data:$user $HOMEDIR/$user/web/$domain/public_shtml
-	fi
 
 	if [ -n "$WEB_BACKEND" ]; then
 		prepare_web_backend "$BACKEND"
@@ -304,10 +295,8 @@ prepare_web_domain_values() {
 	if [ -n "$CUSTOM_DOCROOT" ]; then
 		custom_docroot="$CUSTOM_DOCROOT"
 		docroot="$custom_docroot"
-		sdocroot="$docroot"
 	else
 		docroot="$HOMEDIR/$user/web/$domain/public_html"
-		sdocroot="$docroot"
 	fi
 
 	# Rendered from share/ because the selectable tree has no apache variant. Admin suspension
@@ -316,11 +305,9 @@ prepare_web_domain_values() {
 	WEBTPL_OVERRIDE=''
 	if [ "$SUSPENDED" = 'yes' ]; then
 		docroot="$SHARETPL/suspend/pages/admin"
-		sdocroot="$docroot"
 		WEBTPL_OVERRIDE="$SHARETPL/suspend/admin"
 	elif [ "$OFFLINE" = 'yes' ]; then
 		docroot="$SHARETPL/suspend/pages/offline"
-		sdocroot="$docroot"
 		WEBTPL_OVERRIDE="$SHARETPL/suspend/offline"
 	fi
 	if [ -n "$WEBTPL_OVERRIDE" ]; then
@@ -348,6 +335,95 @@ web_backend_addr() {
 	fi
 }
 
+# Stats password protection. nginx parses its fragment as root, so it lives in the root-owned conf folder; the
+# rest sits in the customer's stats/ and is written as the customer. Keep in step with web_render_template.
+web_stats_auth_write() { # STATS_USER STATS_CRYPT
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed='' rc=0
+	if [ "$WEB_SYSTEM" = 'nginx' ]; then
+		printf '%s\n' 'auth_basic "Web Statistics";' "auth_basic_user_file $stats_dir/.htpasswd;" \
+			> "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
+	fi
+	user_exec test -w "$stats_dir" || {
+		user_exec chmod u+w "$stats_dir"
+		closed=yes
+	}
+	# Replaced, not overwritten: an older version left these root-owned, and the customer cannot write into those.
+	user_exec rm -f "$stats_dir/auth.conf" "$stats_dir/.htaccess" "$stats_dir/.htpasswd"
+	if [ "$WEB_SYSTEM" != 'nginx' ]; then
+		printf '%s\n' "AuthUserFile $stats_dir/.htpasswd" 'AuthName "Web Statistics"' 'AuthType Basic' 'Require valid-user' \
+			| user_exec tee "$stats_dir/.htaccess" > /dev/null || rc=1
+	fi
+	echo "$1:$2" | user_exec tee "$stats_dir/.htpasswd" > /dev/null || rc=1
+	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+	return $rc
+}
+
+web_stats_auth_clear() {
+	local stats_dir="$HOMEDIR/$user/web/$domain/stats" closed=''
+	rm -f "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
+	[ -d "$stats_dir" ] || return 0
+	user_exec test -w "$stats_dir" || {
+		user_exec chmod u+w "$stats_dir"
+		closed=yes
+	}
+	user_exec rm -f "$stats_dir/auth.conf" "$stats_dir/.htaccess" "$stats_dir/.htpasswd"
+	[ -z "$closed" ] || user_exec chmod u-w "$stats_dir"
+}
+
+# The PHP that serves the domain. wp-cli is started through it: a phar run directly takes the PATH php and ignores
+# WP_CLI_PHP, and a version-mismatched domain then fatals.
+wp_domain_php() { # DOMAIN
+	local v
+	v=$(get_object_value 'web' 'DOMAIN' "$1" '$PHP_VERSION')
+	if [ -n "$v" ] && [ -x "/usr/bin/php$v" ]; then
+		echo "/usr/bin/php$v"
+	else
+		echo /usr/bin/php
+	fi
+}
+
+# The five-minute wp-cron job of a managed WordPress, matched by its docroot and re-pointed when the PHP changes.
+wp_cron_sync() { # DOMAIN
+	local docroot="$HOMEDIR/$user/web/$1/public_html" job
+	for job in $("$BIN/h-list-cron-jobs" "$user" plain 2> /dev/null | grep -F "cron event run --due-now --path=$docroot" | cut -f 1); do
+		"$BIN/h-delete-cron-job" "$user" "$job" > /dev/null 2>&1
+	done
+	"$BIN/h-add-cron-job" "$user" "*/5" "*" "*" "*" "*" \
+		"$(wp_domain_php "$1") /usr/local/bin/wp cron event run --due-now --path=$docroot --quiet" > /dev/null 2>&1
+}
+
+# A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
+# "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
+is_web_domain_name_valid() { # DOMAIN
+	[[ "$1" == ?*.?* ]] || check_result "$E_INVALID" "a web domain needs at least two labels :: $1"
+}
+
+# Drops one http auth account; the name is matched as a whole field, a dot in it is no wildcard.
+web_htpasswd_drop() { # FILE NAME
+	[ -f "$1" ] || return 0
+	local rest
+	rest=$(awk -F: -v u="$2" '$1 != u' "$1") || return 1
+	printf '%s\n' "$rest" | sed '/^$/d' > "$1"
+}
+
+# Update entry: a vhost rendered before the fragment moved still includes it from the customer's folder.
+stats_auth_fragment_apply() {
+	local f rest seen=" " rc=0
+	for f in "$HOMEDIR"/*/conf/web/*/nginx*.conf; do
+		[ -e "$f" ] || continue
+		grep -qF '/stats/auth.conf' "$f" || continue
+		rest=${f#"$HOMEDIR"/}
+		rest=${rest%/*}
+		case $seen in *" $rest "*) continue ;; esac
+		seen="$seen$rest "
+		"$BIN/h-rebuild-web-domain" "${rest%%/*}" "${rest##*/}" no || rc=1
+	done
+	[ "$seen" = " " ] && return $rc
+	"$BIN/h-restart-web" || rc=1
+	"$BIN/h-restart-proxy" || rc=1
+	return $rc
+}
+
 # The ONE substitution engine (#890): stdin template in, rendered text out. Divergent
 # values arrive in _r_* (webmail renders %domain% as the alias, %web_system% as the
 # front). Removing or renaming a token breaks every custom template that uses it.
@@ -361,7 +437,9 @@ web_render_template() {
 	local _del=''
 	[ -z "$_r_ip" ] && _del="/%ip%/d; "
 	[ -z "$_r_ip6" ] && _del="${_del}/%ip6%/d; "
+	# An older or custom template still includes stats/auth.conf from the customer's folder: nginx must never parse it.
 	sed -e "$_del" \
+		-e "s|%home%/%user%/web/%domain%/stats/auth\.conf|%home%/%user%/conf/web/%domain%/nginx.stats_auth.conf|g" \
 		-e "s|%ip%|$_r_ip|g" \
 		-e "s|%ip6%|$_r_ip6|g" \
 		-e "s|%vhost%|$_r_vhost|g" \
@@ -393,7 +471,7 @@ web_render_template() {
 		-e "s|%group%|$user|g" \
 		-e "s|%home%|$HOMEDIR|g" \
 		-e "s|%docroot%|$docroot|g" \
-		-e "s|%sdocroot%|$sdocroot|g" \
+		-e "s|%sdocroot%|$docroot|g" \
 		-e "s|%ssl_crt%|$ssl_crt|g" \
 		-e "s|%ssl_key%|$ssl_key|g" \
 		-e "s|%ssl_pem%|$ssl_pem|g" \
@@ -473,8 +551,8 @@ add_web_config() {
 	if [ -n "$DOCKER" ] && [ -z "$WEBTPL_OVERRIDE" ]; then
 		# DOCKER without DOCKER_IP renders "http://:PORT", and nginx and apache refuse their WHOLE
 		# configuration over such an upstream - one record would take the box's web front down.
-		if [ -z "$(get_user_value '$DOCKER_IP')" ]; then
-			echo "Error: $domain is a docker domain but $user has no DOCKER_IP - $1 vhost not written" >&2
+		if ! docker_ip_valid "$(get_user_value '$DOCKER_IP')"; then
+			echo "Error: $domain is a docker domain but $user has no valid DOCKER_IP - $1 vhost not written" >&2
 			web_config_skipped=$((${web_config_skipped:-0} + 1))
 			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf"
 			conf_link_drop "/etc/$1/conf.d/domains/$domain.conf" "$user"
@@ -824,6 +902,106 @@ is_web_domain_cert_valid() {
 	disown &> /dev/null
 	kill $pid &> /dev/null
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
+}
+
+# http-01 on an apache front: the token sits in a root-owned directory per name, published by an Alias in the vhost's
+# conf_letsencrypt fragment. Never a docroot, which the customer controls, nor a directory customers share.
+ACME_APACHE_DIR=/var/lib/hestia-acme
+acme_apache_publish() { # CONF_DIR NAME TOKEN KEY_AUTHORIZATION
+	local _dir="$ACME_APACHE_DIR/$2"
+	mkdir -p "$_dir"
+	chmod 755 "$ACME_APACHE_DIR" "$(dirname "$_dir")" "$_dir"
+	echo "$4" > "$_dir/$3"
+	chmod 644 "$_dir/$3"
+	cat > "$1/apache2.conf_letsencrypt" <<- EOF
+		Alias /.well-known/acme-challenge/ $_dir/
+		<Directory $_dir/>
+		    Options None
+		    AllowOverride None
+		    Require all granted
+		</Directory>
+	EOF
+	[ -e "$1/apache2.ssl.conf_letsencrypt" ] || ln -s "$1/apache2.conf_letsencrypt" "$1/apache2.ssl.conf_letsencrypt"
+}
+
+# The log files of a web domain and their rotations, one path per line. By name: $domain.* also matches
+# example.com.au, which may belong to another customer.
+web_domain_logs() { # DOMAIN
+	local _d="/var/log/$WEB_SYSTEM/domains" _f
+	for _f in "$_d/$1.log" "$_d/$1.error.log" "$_d/$1.bytes" "$_d/$1.log".* "$_d/$1.error.log".*; do
+		[ -e "$_f" ] || continue
+		echo "$_f"
+	done
+}
+
+# FTP_USER, FTP_MD5 and FTP_PATH are parallel colon lists. Positions count from 1, an empty field keeps its place,
+# and names compare as whole strings: an account name may carry a dot.
+ftp_list_index() { # LIST NAME
+	local _rest="$1:" _i=1
+	while [ -n "$_rest" ]; do
+		[ "${_rest%%:*}" = "$2" ] && echo "$_i" && return 0
+		_rest="${_rest#*:}"
+		_i=$((_i + 1))
+	done
+	return 1
+}
+
+ftp_list_get() { # LIST N
+	local _rest="$1:" _i=1
+	while [ -n "$_rest" ]; do
+		[ "$_i" -eq "$2" ] && echo "${_rest%%:*}" && return 0
+		_rest="${_rest#*:}"
+		_i=$((_i + 1))
+	done
+}
+
+# LIST with field N set to VALUE, or dropped when VALUE is not given.
+ftp_list_edit() { # LIST N [VALUE]
+	local _rest="$1:" _i=1 _out=()
+	while [ -n "$_rest" ] || { [ $# -ge 3 ] && [ "$_i" -le "$2" ]; }; do
+		if [ "$_i" -eq "$2" ]; then
+			[ $# -lt 3 ] || _out+=("$3")
+		else
+			_out+=("${_rest%%:*}")
+		fi
+		_rest="${_rest#*:}"
+		_i=$((_i + 1))
+	done
+	local IFS=:
+	echo "${_out[*]}"
+}
+
+# Replaces the certificate of $domain with the one in SSL_DIR, in the user's store and in the copy the vhost reads,
+# and re-renders the vhost: a chain file that came or went changes the apache template.
+web_ssl_replace() {
+	local ssl_dir="$1" ext store="$USER_DATA/ssl" live="$HOMEDIR/$user/conf/web/$domain/ssl"
+	# By name, never $domain.*: that also matches the files of example.com.au.
+	for ext in crt key pem ca; do
+		rm -f "$store/$domain.$ext" "$live/$domain.$ext"
+	done
+	cp -f "$ssl_dir/$domain.crt" "$store/$domain.crt"
+	cp -f "$ssl_dir/$domain.key" "$store/$domain.key"
+	cp -f "$ssl_dir/$domain.crt" "$store/$domain.pem"
+	if [ -e "$ssl_dir/$domain.ca" ]; then
+		cp -f "$ssl_dir/$domain.ca" "$store/$domain.ca"
+		echo >> "$store/$domain.pem"
+		cat "$store/$domain.ca" >> "$store/$domain.pem"
+	fi
+	for ext in crt key pem ca; do
+		[ -e "$store/$domain.$ext" ] || continue
+		chmod 660 "$store/$domain.$ext"
+		cp -f "$store/$domain.$ext" "$live/$domain.$ext"
+	done
+
+	get_domain_values 'web'
+	local_ip=$(get_real_ip "$IP")
+	prepare_web_domain_values
+	del_web_config "$WEB_SYSTEM" "$TPL.tpl"
+	add_web_config "$WEB_SYSTEM" "$TPL.tpl"
+	if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
+		del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
+		add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
+	fi
 }
 #----------------------------------------------------------#
 #                       MAIL                               #
@@ -1392,35 +1570,29 @@ get_base_domain() {
 	fi
 }
 
+# The base domain needs the public suffix list, which is fetched; without enforcement it is never looked at.
 is_base_domain_owner() {
-	for object in ${1//,/ }; do
-		if [ "$object" != "none" ]; then
-			get_base_domain $object
-			web=$(grep -F -H -h "DOMAIN='$basedomain'" $CONF_DIR/users/*/web.conf)
-			if [ "$ENFORCE_SUBDOMAIN_OWNERSHIP" = "yes" ]; then
-				if [ -n "$web" ]; then
-					# Subshell: this is the PARENT's record - parsed in place, its keys (SSL, ...)
-					# leaked into the caller's vhost rendering. Only ALLOW_USERS leaves this line.
-					allow_users=$(
-						parse_object_kv_list "$web" 2> /dev/null
-						echo "${ALLOW_USERS:-}"
-					)
-					if [ "$allow_users" != "yes" ]; then
-						# an existing $basedomain is fine as long as the current user owns it
-						check=$(is_domain_new "" $basedomain)
-						if [ $? -ne 0 ]; then
-							echo "Error: Unable to add $object. $basedomain belongs to a different user"
-							exit 4
-						fi
-					fi
-				else
-					check=$(is_domain_new "" "$basedomain")
-					if [ $? -ne 0 ]; then
-						echo "Error: Unable to add $object. $basedomain belongs to a different user"
-						exit 4
-					fi
-				fi
-			fi
+	[ "$ENFORCE_SUBDOMAIN_OWNERSHIP" = "yes" ] || return 0
+	local object _list
+	IFS=, read -ra _list <<< "$1"
+	for object in "${_list[@]}"; do
+		[ -n "$object" ] && [ "$object" != "none" ] || continue
+		get_base_domain "$object"
+		web=$(grep -F -H -h "DOMAIN='$basedomain'" "$CONF_DIR"/users/*/web.conf)
+		if [ -n "$web" ]; then
+			# Subshell: this is the PARENT's record - parsed in place, its keys (SSL, ...)
+			# leaked into the caller's vhost rendering. Only ALLOW_USERS leaves this line.
+			allow_users=$(
+				parse_object_kv_list "$web" 2> /dev/null
+				echo "${ALLOW_USERS:-}"
+			)
+			[ "$allow_users" = "yes" ] && continue
+		fi
+		# an existing $basedomain is fine as long as the current user owns it
+		check=$(is_domain_new "" "$basedomain")
+		if [ $? -ne 0 ]; then
+			echo "Error: Unable to add $object. $basedomain belongs to a different user"
+			exit 4
 		fi
 	done
 }

@@ -400,6 +400,15 @@ check_addons_swallowed() {
 			no "addon $a requested but its artefact is missing ($type $val)" "the installer swallowed the failure - see the install log"
 		fi
 	done <<< "$pairs"
+	# Redis installs inline in the db stage, and its package is also rspamd's Bayes companion: the key is the proof.
+	if is_on "${COMPONENT_DB_REDIS:-}"; then
+		n=$((n + 1))
+		if [ -n "$REDIS_SYSTEM" ]; then
+			ok "redis installed (REDIS_SYSTEM set)"
+		else
+			no "redis requested but REDIS_SYSTEM is empty" "the installer swallowed the failure - see the install log"
+		fi
+	fi
 	if [ "$n" -eq 0 ]; then
 		skip "addon recount (none of the swallowed addons requested)"
 	fi

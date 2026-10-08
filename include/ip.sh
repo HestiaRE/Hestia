@@ -321,3 +321,16 @@ is_ip_valid() {
 		fi
 	fi
 }
+
+# proftpd has one MasqueradeAddress for the daemon: the first IP record carrying a NAT address, or no drop-in at all,
+# since an empty directive fails the config test. Read from the records, so its writers cannot disagree.
+proftpd_nat_apply() {
+	local f='/etc/proftpd/conf.d/external_ip.conf' nat
+	[ -d /etc/proftpd/conf.d ] || return 0
+	nat=$(sed -n "s/^NAT='\([^']\{1,\}\)'$/\1/p" "$CONF_DIR"/ips/* 2> /dev/null | head -n1)
+	if [ -n "$nat" ]; then
+		echo "MasqueradeAddress $nat" > "$f"
+	else
+		rm -f "$f"
+	fi
+}

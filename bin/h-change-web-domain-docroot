@@ -10,48 +10,32 @@
 #          # remove custom docroot
 #          # returns document root to default value for domain.
 #
-# This call changes the document root of a chosen web domain
-# to another available domain under the user context.
+# Serves the domain from another domain's public_html, or a directory below it; "default" undoes it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 
-# Export target domain and directory
-# so they are correctly passed through to domain.sh
 export target_domain=$3
 export target_directory=$4
 export php=$5
 restart=$6
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [TARGET_DOMAIN] [DIRECTORY] [PHP] [RESTART]'
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
-# Check to ensure that target domain is valid if we're
-# not setting the docroot value back to defaults
 if [ "$target_domain" != "default" ]; then
-	is_format_valid 'user' 'domain' 'target_domain' 'restart'
+	is_format_valid 'user' 'domain' 'restart'
+	is_domain_format_valid "$target_domain" 'target_domain'
 	is_object_valid 'web' 'DOMAIN' "$target_domain"
 else
 	is_format_valid 'user' 'domain' 'restart'
@@ -64,31 +48,21 @@ is_object_value_empty 'web' 'DOMAIN' "$domain" '$docroot'
 is_dir_symlink "$HOMEDIR/$user/web"
 is_dir_symlink "$HOMEDIR/$user/web/$target_domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Unset existing custom document root path
 if [ -n "$CUSTOM_DOCROOT" ]; then
 	update_object_value 'web' 'DOMAIN' "$domain" '$CUSTOM_DOCROOT' ""
 	update_object_value 'web' 'DOMAIN' "$domain" '$CUSTOM_PHPROOT' ""
 fi
 
-# If target domain value is 'default', remove the custom document root
-# value and rebuild web domain to restore default configuration.
-# Otherwise, set target document root path accordingly based on passed values.
 if [ "$target_domain" = "default" ]; then
 	update_object_value 'web' 'DOMAIN' "$domain" '$CUSTOM_DOCROOT' ""
 	update_object_value 'web' 'DOMAIN' "$domain" '$CUSTOM_PHPROOT' ""
 else
-	# Check for existence of specified directory under target domain's public_html folder
 	target_domain_directory="$HOMEDIR/$user/web/$target_domain"
 	if [ -n "$target_directory" ]; then
-		# Checking destination path
 		real_target_directory="$(readlink -e "${target_domain_directory}/public_html/$target_directory/")"
 		if [ ! -e "$real_target_directory" ]; then
 			check_result "$E_NOTEXIST" "Directory $target_directory does not exist under $HOMEDIR/$user/web/$target_domain/public_html/."
-		elif [ -z "$(echo $real_target_directory | egrep "^$target_domain_directory\b")" ]; then
+		elif ! path_within "$real_target_directory" "$target_domain_directory"; then
 			check_result "$E_FORBIDEN" "Target dir outside of target domain dir"
 		else
 			is_record_path_valid "$real_target_directory" "$target_domain_directory" 'directory'
@@ -108,19 +82,13 @@ else
 	add_object_key 'web' 'DOMAIN' "$domain" 'CUSTOM_PHPROOT' 'IP6'
 
 	update_object_value 'web' 'DOMAIN' "$domain" '$CUSTOM_DOCROOT' "$CUSTOM_DOCROOT"
-	# CUSTOM_PHPROOT got overwriten by default
+	# update_object_value parsed the record, which reset CUSTOM_PHPROOT to its stored value.
 	CUSTOM_PHPROOT=$custom_phproot
 	update_object_value 'web' 'DOMAIN' "$domain" '$CUSTOM_PHPROOT' "$CUSTOM_PHPROOT"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Rebuild domain configuration
 $BIN/h-rebuild-web-domain "$user" "$domain" "$restart"
 
-# Logging
 if [ "$target_domain" = "default" ]; then
 	$BIN/h-log-action "$user" "Info" "Web" "Domain document root reset (Domain: $domain)."
 else
@@ -129,7 +97,6 @@ fi
 
 log_event "$OK" "$ARGUMENTS"
 
-# Unset variables
 unset target_domain
 unset target_directory
 

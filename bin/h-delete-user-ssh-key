@@ -1,57 +1,57 @@
 #!/bin/bash
-# info: add ssh key
+# info: delete ssh key
 # options: USER KEY_ID
 #
 # example: h-delete-user-ssh-key user unique_id
 #
-# Delete user ssh key from authorized_keys
+# Deletes an SSH key from a user's authorized_keys, by fingerprint or by the ID h-list-user-ssh-key shows.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 keyid=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# Additional argument formatting
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER KEY_ID'
 is_format_valid 'user'
-is_no_new_line_format "$key_id"
+is_no_new_line_format "$keyid"
+[ -n "$keyid" ] || check_result "$E_ARGS" "empty key id"
 is_object_valid 'user' 'USER' "$user"
 
-source "$USER_DATA/user.conf"
+source_conf "$USER_DATA/user.conf"
 
-AUTHKEY_FILE="$HOMEDIR/$user/.ssh/authorized_keys"
-[ -z "$(readlink -f "$AUTHKEY_FILE" | egrep "^$HOMEDIR/$user/.ssh/")" ] && check_result "$E_FORBIDEN" "Invalid authorized keys path"
+AUTHKEY_FILE=$(authkeys_file)
+path_within "$AUTHKEY_FILE" "$HOMEDIR/$user/.ssh" || check_result "$E_FORBIDEN" "Invalid authorized keys path"
 
 if [ ! -f "$AUTHKEY_FILE" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# Compared whole, never as a pattern.
+kept=()
+removed=0
+by_id=0
+while IFS= read -r line || [ -n "$line" ]; do
+	if ids=$(authkey_ids "$line") && { [ "${ids% *}" = "$keyid" ] || [ "${ids#* }" = "$keyid" ]; }; then
+		removed=$((removed + 1))
+		[ "${ids% *}" = "$keyid" ] || by_id=$((by_id + 1))
+		continue
+	fi
+	kept+=("$line")
+done < <(authkeys_read)
+[ "$removed" -gt 0 ] || check_result "$E_NOTEXIST" "ssh key $keyid doesn't exist"
+# An id is only the comment's last word; several keys can share it.
+[ "$by_id" -le 1 ] || check_result "$E_INVALID" "$by_id keys carry the id $keyid, name the one to delete by its fingerprint"
+if [ "${#kept[@]}" -gt 0 ]; then
+	printf '%s\n' "${kept[@]}" | authkeys_write
+else
+	: | authkeys_write
+fi
+check_result $? "authorized_keys of $user could not be written"
 
-sed -i "/${keyid}/d" "$AUTHKEY_FILE"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "SSH" "SSH key deleted (Key ID: $keyid)."
 log_event "$OK" "$ARGUMENTS"
 

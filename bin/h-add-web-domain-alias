@@ -4,20 +4,13 @@
 #
 # example: h-add-web-domain-alias admin acme.com www.acme.com yes
 #
-# This function adds one or more aliases to a domain (it is also called
-# "domain parking"). This function supports wildcards <*.domain.tld>.
+# Adds one or more aliases to a domain, wildcards (*.domain.tld) included.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 aliases=$3
 restart="$4"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -26,19 +19,12 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
 format_aliases
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ -z "$aliases" ]; then
 	check_result "$E_INVALID" "Invalid alias format: empty"
@@ -54,13 +40,8 @@ is_object_unsuspended 'web' 'DOMAIN' "$domain"
 is_domain_new 'web' "$aliases"
 is_base_domain_owner "$aliases"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 get_domain_values 'web'
 
-# Preparing domain values for the template substitution
 local_ip=$(get_real_ip $IP)
 if [ -z "$ALIAS" ]; then
 	ALIAS="$aliases"
@@ -71,29 +52,20 @@ prepare_web_domain_values
 
 is_package_full 'WEB_ALIASES'
 
-# Rebuilding vhost
 del_web_config "$WEB_SYSTEM" "$TPL.tpl"
 add_web_config "$WEB_SYSTEM" "$TPL.tpl"
 
-# Rebuilding proxy configuration
 if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
 	del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 	add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Adding new alias
 update_object_value 'web' 'DOMAIN' "$domain" '$ALIAS' "$ALIAS"
 increase_user_value "$user" '$U_WEB_ALIASES'
 
-# Restarting web server
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
-# Restarting proxy server
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 

@@ -4,36 +4,23 @@
 #
 # example: h-delete-web-domain-proxy alice lookinglass.com
 #
-# This function of deleting the virtualhost proxy configuration.
+# Takes the nginx proxy out from in front of a domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -42,27 +29,15 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_value_exist 'web' 'DOMAIN' "$domain" '$PROXY'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining domain parameters
 get_domain_values 'web'
 del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update config
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY' ''
 update_object_value 'web' 'DOMAIN' "$domain" '$PROXY_EXT' ''
 
-# Restart proxy server
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Proxy disabled (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

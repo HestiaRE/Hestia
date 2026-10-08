@@ -4,27 +4,16 @@
 #
 # example: h-delete-user-notification admin 1
 #
-# This function deletes user notification.
+# Deletes one notification of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 id=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER NOTIFICATION'
 if [ "$id" = "all" ]; then
@@ -34,18 +23,12 @@ else
 fi
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 if [ "$id" = "all" ]; then
 	notice='no'
 	rm $USER_DATA/notifications.conf
 	touch $USER_DATA/notifications.conf
 else
-	# Deleting notification
 	sed -i "/NID='$id' /d" $USER_DATA/notifications.conf 2> /dev/null
-	# Checking last notification
 	if [ -e "$USER_DATA/notifications.conf" ]; then
 		if [ -z "$(grep NID= $USER_DATA/notifications.conf)" ]; then
 			notice='no'
@@ -57,11 +40,7 @@ else
 		notice='no'
 	fi
 fi
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
-# Updating notification counter
 if [ "$notice" = 'no' ]; then
 	if [ -z "$(grep NOTIFICATIONS $USER_DATA/user.conf)" ]; then
 		sed -i "s/^TIME/NOTIFICATIONS='no'\nTIME/g" $USER_DATA/user.conf
@@ -70,7 +49,6 @@ if [ "$notice" = 'no' ]; then
 	fi
 fi
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

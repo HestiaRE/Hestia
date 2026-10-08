@@ -4,27 +4,18 @@
 #
 # example: h-suspend-user alice yes
 #
-# This function suspends a certain user and all his objects.
+# Suspends a user and all their objects.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/docker.sh
+source $HESTIA/include/docker.sh
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
@@ -34,70 +25,59 @@ if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Only the permissive literal keeps the account open; anything else locks it (#1055).
+# Only the permissive literal keeps the account open; anything else locks it.
 if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
-	# Adding '!' in front of the password
-	/usr/sbin/usermod --lock "$user"
+	# The lock stops passwords only; the expiry is what sshd and PAM refuse a key login on.
+	/usr/sbin/usermod --lock --expiredate 1 "$user"
 
-	# Suspending ftp accounts
-	for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do
-		/usr/sbin/usermod --lock "$ftp" 2> /dev/null
-	done
+	while IFS= read -r ftp; do
+		/usr/sbin/usermod --lock --expiredate 1 "$ftp" 2> /dev/null
+	done < <(user_ftp_accounts)
 
-	# The file manager runs as the customer via an FPM pool, so it does NOT hang on
-	# the Unix password — usermod --lock above stops SFTP/FTP/SSH but not the FM.
-	# Tear the listener down too so a suspended customer loses FM access, keeping the
-	# saved FILE_MANAGER flag so unsuspend restores it. Gated by the SAME
-	# POLICY_USER_VIEW_SUSPENDED check, so 'view suspended' keeps FM open like SFTP.
+	# The file manager runs as the customer in an FPM pool and ignores the lock, so its listener goes too.
+	# FILE_MANAGER stays 'yes' for the unsuspend, and the same policy gate keeps it open like SFTP.
 	if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$user/user.conf" 2> /dev/null; then
 		$BIN/h-delete-user-filemanager "$user" no keep > /dev/null 2>&1 || true
 	fi
 fi
 
-# Suspending web domains
+# Containers are a service like the vhosts, so they stop whatever the policy; linger off keeps a reboot
+# from starting them again.
+if getent passwd "$(companion_name "$user")" > /dev/null 2>&1; then
+	companion_disable_linger "$user"
+	companion_stop "$user" || echo "Warning: the docker companion of $user did not stop completely" >&2
+fi
+
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-suspend-web-domains "$user" "no"
 fi
 
-# Suspending mail domains
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
 	$BIN/h-suspend-mail-domains "$user" "no"
 fi
 
-# Suspending datbabases
 if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 	$BIN/h-suspend-databases "$user"
 fi
 
-# Suspending cron jobs
 if [ -n "$CRON_SYSTEM" ] && [ "$CRON_SYSTEM" != 'no' ]; then
 	$BIN/h-suspend-cron-jobs "$user" "no"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting system services
-$BIN/h-restart-web "$restart"
-check_result $? "Web restart failed" > /dev/null
-
-$BIN/h-restart-proxy "$restart"
-check_result $? "Proxy restart failed" > /dev/null
-
-$BIN/h-restart-cron "$restart"
-check_result $? "Cron restart failed" > /dev/null
-
-# Changing suspend value
+# Before the restarts: a failing one must not leave the objects suspended under an active record.
 update_user_value "$user" '$SUSPENDED' 'yes'
 increase_user_value "$ROOT_USER" '$SUSPENDED_USERS'
-
-# Logging
 $BIN/h-log-action "system" "Info" "Users" "Suspended user account (Name: $user)."
+
+$BIN/h-restart-web "$restart"
+check_result $? "Web restart failed"
+
+$BIN/h-restart-proxy "$restart"
+check_result $? "Proxy restart failed"
+
+$BIN/h-restart-cron "$restart"
+check_result $? "Cron restart failed"
+
 log_event "$OK" "$ARGUMENTS"
 
 exit

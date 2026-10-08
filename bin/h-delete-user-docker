@@ -4,32 +4,18 @@
 #
 # example: h-delete-user-docker john
 #
-# Counterpart to h-add-user-docker: stops the daemon and removes the companion, its
-# subordinate ranges and its home. Idempotent. Running containers go with the session.
-#
-# The home IS removed: leaving it would put files owned by a freed uid inside the
-# customer home, and that uid becomes available again. Images are pulled again, and
-# payload lives in the customer's own tree.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Stops the customer's Docker daemon and removes the companion, its subordinate ranges and its home, whose
+# files would otherwise keep a uid that is given out again.
 
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/docker.sh
 source $HESTIA/include/docker.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
@@ -45,24 +31,17 @@ companion_home="$HOMEDIR/$user/.companion"
 if ! getent passwd "$companion" > /dev/null 2>&1; then
 	echo "Docker is not enabled for $user."
 	# Sweep anyway: a partial enable can leave ranges or a home behind.
-	sed -i "/^${companion}:/d" /etc/subuid /etc/subgid 2> /dev/null
-	rm -rf "$companion_home"
+	sed -i "/^${companion//./\\.}:/d" /etc/subuid /etc/subgid 2> /dev/null
+	# A directory of that name the customer made is theirs; a partial enable leaves one the customer does not own.
+	[ "$(stat -c %u "$companion_home" 2> /dev/null)" = "$(id -u "$user" 2> /dev/null)" ] || rm -rf "$companion_home"
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# The domains first: their DOCKER field outlives the companion otherwise, which leaves a vhost
-# proxying to an address that no longer answers - and a panel that shows neither the docker
-# controls (no /24 left) nor the PHP selector (still a docker domain). Reverting them here makes
-# the switch the whole operation the admin thinks it is.
+# The domains first, or their vhosts proxy to an address nothing answers on.
 reverted=0
 if [ -f "$USER_DATA/web.conf" ]; then
 	for dom in $(grep -o "DOMAIN='[^']*'" "$USER_DATA/web.conf" | cut -f 2 -d \'); do
-		# Escaped, not -F: the pattern carries a deliberate .*, so it must stay a regex - but the
-		# domain's own dots would match any character (#583 class).
+		# Escaped, not -F: the pattern needs its .*, the domain's dots must not match anything.
 		grep -q "DOMAIN='${dom//./\\.}'.*DOCKER='[^']" "$USER_DATA/web.conf" || continue
 		"$BIN/h-delete-web-domain-docker" "$user" "$dom" > /dev/null 2>&1 \
 			&& reverted=$((reverted + 1)) \
@@ -75,10 +54,9 @@ fi
 
 companion_uid="$(id -u "$companion")"
 
-# userdel refuses while the account owns processes, and fails quietly enough that a
-# later re-enable would silently reuse the old account.
+# userdel refuses while the account has processes.
 echo "Stopping the companion's daemon..."
-# before the account goes: the uid is how the cap is addressed
+# The uid addresses the cap.
 docker_slice_clear "$user"
 companion_disable_linger "$user"
 if ! companion_stop "$user"; then
@@ -93,25 +71,27 @@ if ! /usr/sbin/userdel "$companion" > /dev/null 2>&1; then
 fi
 getent group "$companion" > /dev/null 2>&1 && /usr/sbin/groupdel "$companion" > /dev/null 2>&1
 
-sed -i "/^${companion}:/d" /etc/subuid /etc/subgid 2> /dev/null
+sed -i "/^${companion//./\\.}:/d" /etc/subuid /etc/subgid 2> /dev/null
 rm -rf "$companion_home"
 
-# Free the address: a lingering field would hold it forever against the first-free allocation.
-# DOCKER_BACKUP stays (a preference, not a held resource).
+# The address is freed; DOCKER_BACKUP stays, a preference holds nothing.
 sed -i "/^DOCKER_IP='/d" "$USER_DATA/user.conf" 2> /dev/null
 
-# profile.d stays: guarded on the socket, so inert here, and others may still use it.
+# profile.d stays: guarded on the socket, and other customers use it.
+
+# Files containers wrote into bind mounts keep the companion's or a subordinate uid, which the customer cannot
+# change. Reported, not chowned: root walking a customer tree to chown races every rename in it.
+stray=$(find "$HOMEDIR/$user" -xdev -nouser 2> /dev/null | wc -l)
+if [ "$stray" -gt 0 ]; then
+	echo "Warning: $stray file(s) in $HOMEDIR/$user belong to no account now (written by containers); find $HOMEDIR/$user -xdev -nouser"
+fi
 
 echo "Docker is disabled for $user."
 
-# The /24 separation rule renders from the user records; follow enable/disable immediately
+# The /24 separation rule renders from the user records.
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	$BIN/h-update-firewall > /dev/null 2>&1
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Disabled rootless Docker for $user."
 log_event "$OK" "$ARGUMENTS"

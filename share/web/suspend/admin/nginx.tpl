@@ -29,3 +29,41 @@ server {
 
 	include %home%/%user%/conf/web/%domain%/nginx.conf_lets*;
 }
+#=HESTIARE-SSL-VHOST=#
+# Rendered for suspended domains in every web model - not user-selectable
+
+server {
+	listen      %ip%:%web_ssl_port% ssl;
+	listen      [%ip6%]:%web_ssl_port% ssl;
+	server_name %domain_idn% %alias_idn%;
+	include %home%/%user%/conf/web/%domain%/nginx.crowdsec.conf*;
+	include %home%/%user%/conf/web/%domain%/nginx.botlimit.conf*;
+	root        %docroot%;
+	index       index.html;
+	access_log  /var/log/%web_system%/domains/%domain%.log combined;
+	access_log  /var/log/%web_system%/domains/%domain%.bytes bytes;
+	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
+
+	ssl_certificate     %ssl_pem%;
+	ssl_certificate_key %ssl_key%;
+
+	if ($anti_replay = 307) { return 307 https://$host$request_uri; }
+	if ($anti_replay = 425) { return 425; }
+
+	include %home%/%user%/conf/web/%domain%/nginx.hsts.conf*;
+
+	location ~ /\.(?!well-known\/) {
+		deny all;
+		return 404;
+	}
+
+	location / {
+		try_files $uri /index.html;
+
+		location ~* ^.+\.(jpeg|jpg|png|webp|gif|bmp|ico|svg|css|js)$ {
+			expires max;
+		}
+	}
+
+	include %home%/%user%/conf/web/%domain%/nginx.ssl.conf_lets*;
+}

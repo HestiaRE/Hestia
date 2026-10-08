@@ -2,30 +2,19 @@
 # info: Adding hsts to a domain
 # options: USER DOMAIN [RESTART] [QUIET]
 #
-# This function enables HSTS for the requested domain.
+# Turns on HSTS for the domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart="$3"
 quiet="$4"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
@@ -34,22 +23,14 @@ is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Load domain data
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-# Check if SSL is enabled
 if [ "$SSL" != 'yes' ]; then
 	echo "Error: SSL is not enabled"
 	exit "$E_NOTEXIST"
 fi
 
-# The front that will read the fragment decides both its name and its syntax. Only the name used
-# to follow the front, so an apache box got an nginx directive - which no apache template included,
-# so the switch reported success and no browser was ever told (#638).
+# The front that reads the fragment decides both its name and its syntax.
 front="${PROXY_SYSTEM:-$WEB_SYSTEM}"
 hstsconf="$HOMEDIR/$user/conf/web/$domain/$front.hsts.conf"
 
@@ -62,26 +43,18 @@ fi
 chown root:$user $hstsconf
 chmod 640 $hstsconf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
 if [ -z "$SSL_HSTS" ]; then
 	add_object_key "web" 'DOMAIN' "$domain" 'SSL_HSTS' 'SSL_FORCE'
 fi
 
-# Set forcessl flag to enabled
 update_object_value 'web' 'DOMAIN' "$domain" '$SSL_HSTS' 'yes'
 
-# Restart web server
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
-# Restart proxy
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 if [ "$quiet" != "yes" ]; then
 	$BIN/h-log-action "$user" "Info" "Web" "HTTP Strict Transport Security (HSTS) enabled (Domain: $domain)."
 fi

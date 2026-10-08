@@ -6,30 +6,22 @@
 #
 # example: h-get-user-salt admin
 #
-# This function provides users salt
+# Gives the panel login the hash method and salt of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 ip46=${2-127.0.0.1}
 format=${3-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# JSON list function
 json_list() {
 	echo '{'
 	json_escape user method salt time date
@@ -42,37 +34,27 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "METHOD:         $method"
 	echo "SALT:           $salt"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -e "$method\t$salt"
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [IP] [FORMAT]'
 is_format_valid 'user' 'ip46'
 
-# Checking user
 if [ ! -d "$CONF_DIR/users/$user" ]; then
 	echo "Error: password missmatch"
 	echo "$date $time $user $ip46 failed to login" >> $HESTIA/log/auth.log
 	exit 9
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing user's salt
-shadow=$(grep "^$user:" /etc/shadow | cut -f 2 -d :)
+shadow=$(awk -F : -v u="$user" '$1 == u {print $2; exit}' /etc/shadow)
+# A locked account answers like an open one: the suspension is named only after a correct password.
+shadow=${shadow#!}
 
 if echo "$shadow" | grep -qE '^\$[0-9a-z]+\$[^\$]+\$'; then
 	salt=$(echo "$shadow" | cut -f 3 -d \$)
@@ -89,10 +71,6 @@ if echo "$shadow" | grep -qE '^\$[0-9a-z]+\$[^\$]+\$'; then
 		echo "$date $time $user $ip46 failed to login" >> $HESTIA/log/auth.log
 		exit 9
 	fi
-elif [[ "$shadow" =~ ! ]]; then
-	echo "Error: Account has been suspended"
-	echo "$date $time $user $ip46 has been suspended" >> $HESTIA/log/auth.log
-	exit 5
 else
 	salt=${shadow:0:2}
 	method='des'
@@ -104,16 +82,11 @@ if [ -z "$salt" ]; then
 	exit 9
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

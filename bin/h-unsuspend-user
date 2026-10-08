@@ -4,27 +4,16 @@
 #
 # example: h-unsuspend-user bob
 #
-# This function unsuspends user and all his objects.
+# Unsuspends a user and all their objects.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
@@ -32,68 +21,59 @@ is_object_valid 'user' 'USER' "$user"
 if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
+# Nothing to undo, and the admin counter must not drop for an account that never raised it.
+if [ "$(get_user_value '$SUSPENDED')" != 'yes' ]; then
+	exit
+fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# Unconditional: the policy governs a running suspension, and after this there is none. Each step is a no-op
+# where the suspend skipped it.
 
-# Unconditional: POLICY_USER_VIEW_SUSPENDED governs a running suspension, and after this command there
-# is none. Every step is a no-op where the suspend side skipped it (#1055).
+/usr/sbin/usermod --unlock --expiredate '' "$user"
 
-# Deleting '!' in front of the password
-/usr/sbin/usermod --unlock $user
+while IFS= read -r ftp; do
+	/usr/sbin/usermod --unlock --expiredate '' "$ftp" 2> /dev/null
+done < <(user_ftp_accounts)
 
-# Unsuspending ftp accounts
-for ftp in $(grep "^${user}_" /etc/passwd | cut -f 1 -d :); do
-	/usr/sbin/usermod --unlock $ftp 2> /dev/null
-done
+update_user_value "$user" '$SUSPENDED' 'no'
+decrease_user_value "$ROOT_USER" '$SUSPENDED_USERS'
 
-# Restore the file manager listener if the user had it enabled and the module is
-# installed (mirror of the suspend teardown; the saved FILE_MANAGER='yes' drives
-# it). restart='no' — the web/proxy restart below picks the vhost up.
+# After SUSPENDED is cleared: for a suspended account the add only remembers the choice.
+# The web restart below picks the vhost up.
 if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$user/user.conf" 2> /dev/null; then
 	$BIN/h-add-user-filemanager "$user" no > /dev/null 2>&1 || true
 fi
 
-# Changing suspend value
-update_user_value "$user" '$SUSPENDED' 'no'
-decrease_user_value "$ROOT_USER" '$SUSPENDED_USERS'
+# The enable is the healing path: it turns linger back on and starts the daemon the suspend stopped.
+if [ -n "$(get_user_value '$DOCKER_IP')" ] && [ -x "$BIN/h-add-user-docker" ]; then
+	$BIN/h-add-user-docker "$user" > /dev/null 2>&1 || echo "Warning: docker for $user did not come back, re-run h-add-user-docker" >&2
+fi
 
-# Unsuspending web domains
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-web-domains "$user" "no"
 fi
 
-# Unsuspending mail domains
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-mail-domains "$user" "no"
 fi
 
-# Unsuspending datbabases
 if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-databases "$user"
 fi
 
-# Unsuspending cron jobs
 if [ -n "$CRON_SYSTEM" ] && [ "$CRON_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-cron-jobs "$user" "no"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting system services
 $BIN/h-restart-web "$restart"
-check_result $? "Web restart failed" > /dev/null
+check_result $? "Web restart failed"
 
 $BIN/h-restart-proxy "$restart"
-check_result $? "Proxy restart failed" > /dev/null
+check_result $? "Proxy restart failed"
 
 $BIN/h-restart-cron "$restart"
-check_result $? "Cron restart failed" > /dev/null
+check_result $? "Cron restart failed"
 
-# Logging
 $BIN/h-log-action "system" "Info" "Users" "Unsuspended user account (User: $user)."
 log_event "$OK" "$ARGUMENTS"
 

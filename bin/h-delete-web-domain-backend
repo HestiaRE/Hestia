@@ -4,36 +4,23 @@
 #
 # example: h-delete-web-domain-backend admin acme.com
 #
-# This function of deleting the virtualhost backend configuration.
+# Deletes the PHP-FPM pool of a web domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-# TODO: $domain_idn not used in this script - maybe $domain should be converted to $doman_idn ?
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -41,40 +28,26 @@ is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 get_domain_values 'web'
 BACKEND="$template"
 
-# Defining pool directory
-pool=$(find -L /etc/php/ -name "$domain.conf" -exec dirname {} \;)
-if [ ! -e "$pool" ]; then
-	check_result "$E_NOTEXIST" "php-fpm pool doesn't exist"
-fi
-
-# Defining backend type
+# No pool is the normal state for PHP 'none' and a docker domain; with two, both go. Read before they go.
+pool_version=$(web_domain_pool_version "$domain" "$user")
 backend_type="$domain"
 
-# Deleting backend
 delete_web_backend
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restart the version this domain actually ran (its own field), else the system default
-if [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
+# Restart the version the pool ran on, else the domain's own field, else the system default
+if [ -n "$pool_version" ]; then
+	version="$pool_version"
+elif [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
 	version="$PHP_VERSION"
 else
 	version=$(multiphp_default_version)
 fi
-# Restarting php interpreter
 $BIN/h-restart-web-backend "$restart" "$version"
 check_result $? "PHP restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Web domain configuration deleted (Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

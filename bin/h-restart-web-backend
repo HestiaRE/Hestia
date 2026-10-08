@@ -1,25 +1,18 @@
 #!/bin/bash
 # info: restart php interpreter
-# options: NONE
+# options: [RESTART] [VERSION]
 #
 # example: h-restart-web-backend
 #
-# This function reloads php interpreter configuration.
+# Restarts every customer PHP-FPM master, or only VERSION's; 'no' skips, 'scheduled' queues it.
 
 restart=$1
-# For backward compatibility might change in the feature
 version=$2
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 send_email_report() {
@@ -30,24 +23,16 @@ send_email_report() {
 	[[ -f "$tmpfile" ]] && rm -f $tmpfile
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 is_format_valid 'restart'
 
 if [ -n "$version" ]; then
-	if [[ ! $version =~ ^[0-9]+\.[0-9]+ ]]; then
+	if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
 		echo "The specified PHP version format is invalid, it should look like [0-9].[0-9]."
 		echo "Example: 7.0, 7.4, 8.0"
 		exit "$E_INVALID"
 	fi
 fi
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
-# Exit
 if [ -z "$WEB_BACKEND" ]; then
 	exit
 fi
@@ -56,7 +41,6 @@ if [ "$1" = "no" ]; then
 	exit
 fi
 
-# Schedule restart
 if [ "$1" = 'scheduled' ] || [ -z "$1" ] && [ "$SCHEDULED_RESTART" = 'yes' ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	echo "$BIN/$SCRIPT now" >> $CONF_DIR/queue/restart.pipe
@@ -65,38 +49,28 @@ fi
 
 tmpfile=$(mktemp)
 
+# Every master gets its restart; one that fails must not keep the others on their old pools.
+failed=""
 if [ -z "$version" ]; then
-	# Substitute php-fpm service name formats
 	for version in $($BIN/h-list-sys-php plain); do
 		v_php="php$version-fpm"
 		if [ ! -f "/etc/php/${version}/fpm/pool.d/dummy.conf" ]; then
 			cp -f "$HESTIA/share/php-fpm/dummy.conf" "/etc/php/${version}/fpm/pool.d/"
 			sed -i "s/%backend_version%/${version}/g" "/etc/php/${version}/fpm/pool.d/dummy.conf"
 		fi
-
-		$BIN/h-restart-service "$v_php" "$restart"
-		if [ $? -ne 0 ]; then
-			send_email_report
-			check_result "$E_RESTART" "$v_php restart failed"
-		fi
+		$BIN/h-restart-service "$v_php" "$restart" >> "$tmpfile" 2>&1 || failed="$failed $v_php"
 	done
 else
-	v_php="php$version-fpm"
-	$BIN/h-restart-service "$v_php" "$restart"
-	if [ $? -ne 0 ]; then
-		send_email_report
-		check_result "$E_RESTART" "$v_php restart failed"
-	fi
+	$BIN/h-restart-service "php$version-fpm" "$restart" >> "$tmpfile" 2>&1 || failed="php$version-fpm"
 fi
+if [ -n "$failed" ]; then
+	send_email_report
+	check_result "$E_RESTART" "restart failed:$failed"
+fi
+rm -f "$tmpfile"
 
-# Update restart queue
 if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-[[ -f "$tmpfile" ]] && rm -f $tmpfile
 exit

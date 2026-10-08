@@ -2,36 +2,20 @@
 # info: Delete auth log file for user
 # options: USER
 #
-# This function for deleting a users auth log file
+# Clears a user's login history.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Remove log file and log event
 if [ -f "$USER_DATA/auth.log" ]; then
 	rm -f $USER_DATA/auth.log
 	$BIN/h-log-action "system" "Warning" "Security" "User authentication log deleted (User: $user)."

@@ -4,19 +4,13 @@
 #
 # example: h-change-web-domain-backend-tpl admin acme.com PHP-7_4
 #
-# This function changes backend template
+# Switches the PHP-FPM pool profile of a domain; the version is h-change-web-domain-php's.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 template=$3
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,17 +19,11 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-# Additional argument formatting
 format_domain
 format_domain_idn
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER DOMAIN TEMPLATE [RESTART]'
 is_format_valid 'user' 'domain' 'template' 'restart'
@@ -51,72 +39,31 @@ fi
 read -r template tpl_effect <<< "$tpl_accepted"
 get_domain_values 'web'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Prepare new backend configuration
+# One pool writer: h-add-web-domain-backend also knows 'none', a docker domain and a custom PHP root.
 prepare_web_backend
-
-# Deleting current backend
 delete_web_backend
+add_object_key "web" 'DOMAIN' "$domain" 'BACKEND' 'PROXY'
+update_object_value 'web' 'DOMAIN' "$domain" '$BACKEND' "$template"
+$BIN/h-add-web-domain-backend "$user" "$domain" "$template" no
+check_result $? "pool not written"
 
-# Allocating backend port
-backend_port=9000
-ports=$(grep -v '^;' $pool/* 2> /dev/null | grep listen | grep -o :[0-9].*)
-ports=$(echo "$ports" | sed "s/://" | sort -n)
-for port in $ports; do
-	if [ "$backend_port" -eq "$port" ]; then
-		backend_port=$((backend_port + 1))
-	fi
-done
-
-# Changing backend config
-cat $PHPTPL/$template.tpl \
-	| sed -e "s|%backend_port%|$backend_port|" \
-		-e "s|%user%|$user|g" \
-		-e "s|%domain%|$domain|g" \
-		-e "s|%domain_idn%|$domain_idn|" \
-		-e "s|%backend%|$backend_type|g" \
-		-e "s|%backend_version%|$backend_version|g" > $pool/$backend_type.conf
-
-# Set correct document root path
-if [ -n "$CUSTOM_DOCROOT" ]; then
-	docroot="$CUSTOM_DOCROOT"
-	sed -i "s|/home\/$user\/web\/$domain\/public_html|$docroot|g" $pool/$backend_type.conf
-fi
-
-# Rebuild this domain's vhost against the new pool profile (BACKEND is the profile now;
-# the per-user shared pool was WEB_BACKEND_POOL, removed with #550)
 get_domain_values 'web'
 local_ip=$(get_real_ip "$IP")
 BACKEND="$template"
 prepare_web_domain_values
 
-# Rebuilding vhost
 del_web_config "$WEB_SYSTEM" "$TPL.tpl"
 add_web_config "$WEB_SYSTEM" "$TPL.tpl"
 
-# Rebuilding proxy configuration
 if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
 	del_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 	add_web_config "$PROXY_SYSTEM" "$PROXY.tpl"
 fi
 
-# Update config
-add_object_key "web" 'DOMAIN' "$domain" 'BACKEND' 'PROXY'
-update_object_value 'web' 'DOMAIN' "$domain" '$BACKEND' "$template"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Restarting web
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
-# This command changes the pool profile, not the version - restart the version this
-# domain runs (its own field), else the system default
+# Restart the version the domain runs, else the system default.
 if [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
 	version="$PHP_VERSION"
 else
@@ -124,13 +71,12 @@ else
 fi
 
 $BIN/h-restart-web-backend "$restart" "$version"
+check_result $? "PHP restart failed" > /dev/null
 if [ "$version" != "$backend_version" ]; then
 	$BIN/h-restart-web-backend "$restart" "$backend_version"
+	check_result $? "PHP restart failed" > /dev/null
 fi
 
-check_result $? "PHP restart failed" > /dev/null
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Backend template applied (Domain: $domain, Template: $template)."
 log_event "$OK" "$ARGUMENTS"
 

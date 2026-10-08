@@ -89,7 +89,7 @@ server {
 		location ~* ^.+\.(%proxy_extensions%)$ {
 			try_files  $uri @fallback;
 
-			root       %sdocroot%;
+			root       %docroot%;
 			access_log /var/log/%web_system%/domains/%domain%.log combined;
 			access_log /var/log/%web_system%/domains/%domain%.bytes bytes;
 

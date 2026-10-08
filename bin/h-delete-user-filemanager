@@ -4,30 +4,20 @@
 #
 # example: h-delete-user-filemanager alice
 #
-# Removes the customer's FM pool + vhost, drops the socket, and clears FILE_MANAGER.
-# Idempotent. Reverse of h-add-user-filemanager. A non-empty KEEP_FLAG tears the
-# listener down but LEAVES FILE_MANAGER as-is — used by h-suspend-user, which must
-# keep the saved 'yes' so h-unsuspend-user can restore the listener.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Disables the file manager for a user. With KEEP_FLAG the listener goes but FILE_MANAGER stays, so the
+# unsuspend can bring it back.
 
 user="$1"
 restart="$2"
 keep_flag="$3"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
+# shellcheck source=/usr/local/hestia/include/filemanager.sh
+source "$HESTIA/include/filemanager.sh"
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART] [KEEP_FLAG]'
 [ "$(id -u)" = '0' ] || {
@@ -37,11 +27,7 @@ check_args '1' "$#" 'USER [RESTART] [KEEP_FLAG]'
 
 is_format_valid 'user'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Pool (whichever php version holds it) + reload that fpm
+# Whichever php version holds the pool.
 for pool in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
 	[ -f "$pool" ] || continue
 	ver=$(echo "$pool" | sed -nE 's|/etc/php/([^/]+)/.*|\1|p')
@@ -49,23 +35,15 @@ for pool in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
 	systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
 done
 
-# vhost (nginx or apache) + stray socket
 rm -f "/etc/nginx/conf.d/fm-$user.conf" "/etc/apache2/conf.d/fm-$user.conf"
 rm -f "/run/hestia/fm/$user.sock"
-if [ "$restart" != 'no' ]; then
-	[ -n "$PROXY_SYSTEM" ] && $BIN/h-restart-service "$PROXY_SYSTEM" > /dev/null 2>&1 || true
-	$BIN/h-restart-service "$WEB_SYSTEM" > /dev/null 2>&1 || true
+if [ "$restart" != 'no' ] && [ -n "$(fm_front)" ]; then
+	$BIN/h-restart-service "$(fm_front)" > /dev/null 2>&1 || true
 fi
 
-# Clear the flag if present — unless the caller asked to keep it (suspend path
-# tears the listener down but preserves FILE_MANAGER='yes' as saved state).
 if [ -z "$keep_flag" ] && grep -q "^FILE_MANAGER='" "$USER_DATA/user.conf" 2> /dev/null; then
 	update_user_value "$user" '$FILE_MANAGER' 'no'
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "Plugins" "File manager disabled for $user."
 log_event "$OK" "$ARGUMENTS"

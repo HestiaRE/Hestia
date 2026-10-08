@@ -4,24 +4,16 @@
 #
 # example: h-list-web-templates-backend
 #
-# This function for obtaining the list of available backend templates.
+# Lists the PHP-FPM pool profiles.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	i=1
 	objects=$(echo "$templates" | wc -w)
@@ -38,7 +30,6 @@ json_list() {
 	echo "]"
 }
 
-# SHELL list function
 shell_list() {
 	echo "TEMPLATE"
 	echo "--------"
@@ -47,18 +38,12 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	for template in $templates; do
 		echo "$template"
 	done
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing backend templates
 if [ -n "$WEB_BACKEND" ]; then
 	templates=$(ls -t $PHPTPL \
 		| cut -f1 -d . \
@@ -66,16 +51,11 @@ if [ -n "$WEB_BACKEND" ]; then
 		| sort -u)
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

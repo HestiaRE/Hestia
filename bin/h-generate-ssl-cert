@@ -4,13 +4,8 @@
 #
 # example: h-generate-ssl-cert example.com mail@yahoo.com USA California Monterey ACME.COM IT
 #
-# This function generates self signed SSL certificate and CSR request
+# Generates a self-signed certificate and a CSR.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 domain=$1
 domain=$(echo "$domain" | sed -e 's/\.*$//g' -e 's/^\.*//g')
 domain_alias=$domain
@@ -25,20 +20,17 @@ format=${9-shell}
 KEY_SIZE=4096
 DAYS=365
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Json function
 json_list_ssl() {
 	i='1' # iterator
 	echo '{'
-	# From the RAW files: json_escape encodes the newlines itself, and running it over the
-	# already-encoded $crt would turn each of its \n into two visible characters.
+	# From the RAW files: json_escape encodes the newlines itself, and over the encoded $crt each \n would
+	# become two visible characters.
 	local crt="${crt_raw}" key="${key_raw}" csr="${csr_raw}"
 	json_escape domain crt key csr workdir
 	printf '\t"%s": {\n' "$domain"
@@ -49,7 +41,6 @@ json_list_ssl() {
 	echo -e "\t}\n}"
 }
 
-# Shell function
 shell_list_ssl() {
 	if [ -n "$crt" ]; then
 		echo -e "$crt"
@@ -63,7 +54,6 @@ shell_list_ssl() {
 	echo -e "\nDirectory: $workdir"
 }
 
-# Additional argument formatting
 format_domain_idn
 if [[ "$email" = *[![:ascii:]]* ]]; then
 	local=$(echo "$email" | cut -f1 -d'@')
@@ -71,10 +61,6 @@ if [[ "$email" = *[![:ascii:]]* ]]; then
 	email_domain_idn=$(idn2 --quiet $email_domain)
 	email="$local"@"$email_domain_idn"
 fi
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='DOMAIN EMAIL COUNTRY STATE CITY ORG UNIT [ALIASES] [FORMAT]'
 check_args '7' "$#" "$args_usage"
@@ -94,19 +80,12 @@ if [ ! -f /root/.rnd ]; then
 	touch /root/.rnd
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Create temporary work directory
 workdir=$(mktemp -d)
 cd $workdir
 
-# Generate private key
 openssl genrsa "$KEY_SIZE" > "$domain.key" 2> /dev/null
 
 subj=""
-# Generate the CSR
 if [ -n "$email" ]; then
 	subj="/emailAddress=$email"
 fi
@@ -147,7 +126,6 @@ else
 		-out $domain.csr > /dev/null 2>&1
 fi
 
-# Generate the cert 1 year
 if [ -z "$aliases" ]; then
 	openssl x509 -req -sha256 \
 		-days $DAYS \
@@ -166,7 +144,6 @@ else
 		-out $domain.crt > /dev/null 2>&1
 fi
 
-# Listing certificates
 if [ -e "$domain.crt" ]; then
 	crt_raw=$(cat $domain.crt)
 	crt=$(echo "$crt_raw" | sed ':a;N;$!ba;s/\n/\\n/g')
@@ -192,18 +169,10 @@ case $format in
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
 
-# Don't allow non root users view folder
+# The private key is in there: no access for others, and gone after 15 minutes.
 chmod 660 $workdir
-# Clean up the mess
 echo "rm -rf $workdir" | at -M "now +15 minute" > /dev/null 2>&1
-# Delete tmp dir
-#rm -rf $workdir
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

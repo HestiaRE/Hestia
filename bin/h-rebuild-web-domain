@@ -4,18 +4,12 @@
 #
 # example: h-rebuild-web-domain user domain.tld
 #
-# This function rebuilds web configuration files.
+# Renders the vhost, proxy and backend configuration of one web domain from its record.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -28,13 +22,8 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/rebuild.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
@@ -46,11 +35,6 @@ if [ -n "$check_user" ]; then
 fi
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting old web configs
 if [ -e "/etc/$WEB_SYSTEM/conf.d/hestia.conf" ]; then
 	sed -i "/.*\/$user\/conf\/web\//d" /etc/$WEB_SYSTEM/conf.d/hestia.conf
 fi
@@ -64,7 +48,6 @@ if [ -e "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf" ]; then
 	conf_link_drop "/etc/$WEB_SYSTEM/conf.d/domains/$domain.ssl.conf" "$user"
 fi
 
-# Deleting old proxy configs
 if [ -n "$PROXY_SYSTEM" ]; then
 	if [ -e "/etc/$PROXY_SYSTEM/conf.d/hestia.conf" ]; then
 		sed -i "/.*\/$user\/conf\/web\//d" /etc/$PROXY_SYSTEM/conf.d/hestia.conf
@@ -81,7 +64,6 @@ if [ -n "$PROXY_SYSTEM" ]; then
 	fi
 fi
 
-# Deleting backend configs
 if [ -n "$WEB_BACKEND" ]; then
 	template=$(get_object_value 'web' 'DOMAIN' "$domain" '$BACKEND')
 	if [ -z "$template" ]; then
@@ -95,26 +77,19 @@ fi
 
 rebuild_web_domain_conf
 
-# Balance line, not exit code (see h-rebuild-web-domains)
+# Balance line, not exit code (see h-rebuild-web-domains).
 if [ "${web_config_skipped:-0}" -gt 0 ]; then
 	echo "Warning: $web_config_skipped vhost config(s) skipped over an unusable record (see errors above)."
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating user counters
 $BIN/h-update-user-counters "$user"
 
-# Restarting web server
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Rebuilt web domain (User: $user, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
 

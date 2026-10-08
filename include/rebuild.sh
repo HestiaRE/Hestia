@@ -49,19 +49,9 @@ rebuild_user_conf() {
 	# band (#388). The archived uid is deliberately ignored: tar resolves ownership by
 	# name on extract, and this runs BEFORE the unpack, so the files land here by
 	# themselves. An existing account keeps its uid.
-	# From the record, never the caller's environment: SHELL is a registry key, so
-	# sanitize_config_file unsets it, and grep -w "" then matches every line of /etc/shells -
-	# head -n1 hands its comment banner to useradd. Off the allowlist becomes nologin, and the
-	# answer must start with / so a comment line can never be it.
-	shell_name=$(sed -n "s/^SHELL='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)
-	list_allowed_shells | grep -qxF "$shell_name" 2> /dev/null || shell_name='nologin'
-	shell=$(grep -w "$shell_name" /etc/shells | grep -m1 '^/')
-	# Picked by existence, not spelling: usrmerge decides which of the two paths is real.
-	if [ -z "$shell" ]; then
-		for _c in /usr/sbin/nologin /sbin/nologin; do
-			[ -x "$_c" ] && shell="$_c" && break
-		done
-	fi
+	# From the record, never the caller's environment: SHELL is a registry key that
+	# sanitize_config_file unsets.
+	shell=$(resolve_login_shell "$(sed -n "s/^SHELL='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)")
 	if ! id "$user" > /dev/null 2>&1; then
 		local user_uid
 		read -r user_uid _ < <(identity_allocate "$user")
@@ -70,8 +60,11 @@ rebuild_user_conf() {
 			return 1
 		fi
 		getent group "$user" > /dev/null 2>&1 || /usr/sbin/groupadd -g "$user_uid" "$user"
-		/usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
-			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1
+		if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
+			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1; then
+			echo "Error: the account $user could not be created"
+			return 1
+		fi
 	fi
 
 	# Add a general group for normal users created by Hestia
@@ -96,19 +89,31 @@ rebuild_user_conf() {
 	# line and silently locked out of SSH/SFTP after the restore (#412)
 	manage_sshd_allowusers add "$user"
 
-	# Update password
-	chmod u+w /etc/shadow
-	sed -i "s|^$user:[^:]*:|$user:$MD5:|" /etc/shadow
-	chmod u-w /etc/shadow
+	# The record may come from an archive: only a crypt hash is set, anything else locks the account.
+	if [[ "$MD5" =~ ^!?[$./A-Za-z0-9]+$ ]]; then
+		echo "$user:$MD5" | /usr/sbin/chpasswd -e
+	else
+		echo "Warning: the record of $user carries no usable password hash, the account is locked" >&2
+		/usr/sbin/usermod --lock "$user"
+	fi
+	# Setting the hash unlocks; a suspended record stays locked and expired as h-suspend-user left it.
+	if [ "$SUSPENDED" = 'yes' ] && [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
+		/usr/sbin/usermod --lock --expiredate 1 "$user"
+	else
+		/usr/sbin/usermod --expiredate '' "$user"
+	fi
 
-	# Building directory tree
+	# The customer owns the home and can put a link where conf was: refused before root touches it.
+	if [ -L "$HOMEDIR/$user/conf" ]; then
+		echo "Error: $HOMEDIR/$user/conf is a link" >&2
+		return 1
+	fi
 	if [ -e "$HOMEDIR/$user/conf" ]; then
 		chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
 	fi
 
 	# Create default writeable folders
 	mkdir -p \
-		$HOMEDIR/$user/conf \
 		$HOMEDIR/$user/.config \
 		$HOMEDIR/$user/.cache \
 		$HOMEDIR/$user/.local \
@@ -118,7 +123,7 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
 	chmod a+x $HOMEDIR/$user
-	chmod a+x $HOMEDIR/$user/conf
+	home_dir_own "$HOMEDIR/$user/conf" root:root 755 || return 1
 	chown --no-dereference $user:$user \
 		$HOMEDIR/$user \
 		$HOMEDIR/$user/.config \
@@ -129,7 +134,6 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.ssh \
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
-	chown root:root $HOMEDIR/$user/conf
 
 	# project id BEFORE any restore unpacks: everything created below inherits;
 	# for a pre-arming tree this is the one-time migration (#211)
@@ -149,7 +153,7 @@ rebuild_user_conf() {
 	fi
 
 	# Update disk pipe
-	sed -i "/ $user$/d" $CONF_DIR/queue/disk.pipe
+	remove_user_queue_jobs "$CONF_DIR/queue/disk.pipe" "$user"
 	echo "$BIN/h-update-user-disk $user" >> $CONF_DIR/queue/disk.pipe
 
 	# WEB
@@ -158,24 +162,19 @@ rebuild_user_conf() {
 		chmod 770 $USER_DATA/ssl
 		touch $USER_DATA/web.conf
 		chmod 660 $USER_DATA/web.conf
-		if [ "$(grep -w $user $CONF_DIR/queue/traffic.pipe)" ]; then
-			echo "$BIN/h-update-web-domains-traff $user" \
-				>> $CONF_DIR/queue/traffic.pipe
-		fi
+		remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
+		echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 		echo "$BIN/h-update-web-domains-disk $user" \
 			>> $CONF_DIR/queue/disk.pipe
 
 		if [[ -L "$HOMEDIR/$user/web" ]]; then
 			rm $HOMEDIR/$user/web
 		fi
+		home_dir_own "$HOMEDIR/$user/conf/web" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/web/$domain
-		mkdir -p $HOMEDIR/$user/web
-		mkdir -p $HOMEDIR/$user/tmp
-		chmod 751 $HOMEDIR/$user/conf/web
-		chmod 751 $HOMEDIR/$user/web
+		home_dir_own "$HOMEDIR/$user/web" "root:$user" 751 || return 1
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
-		chmod 700 $HOMEDIR/$user/tmp
-		chown --no-dereference $root:$user $HOMEDIR/$user/web
+		home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
 		fi
@@ -192,11 +191,9 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/mail" ]]; then
 			rm $HOMEDIR/$user/mail
 		fi
+		home_dir_own "$HOMEDIR/$user/conf/mail" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
-		mkdir -p $HOMEDIR/$user/mail
-		chown --no-dereference root:root $HOMEDIR/$user/mail
-		chmod 751 $HOMEDIR/$user/mail
-		chmod 751 $HOMEDIR/$user/conf/mail
+		home_dir_own "$HOMEDIR/$user/mail" root:root 751 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-mail-domains $user
 		fi
@@ -296,11 +293,13 @@ rebuild_web_domain_conf() {
 		/var/log/$WEB_SYSTEM/domains/$domain.log \
 		/var/log/$WEB_SYSTEM/domains/$domain.error.log
 
-	# Creating symlinks
-	cd $HOMEDIR/$user/web/$domain/logs/
-	ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log .
-	ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.error.log .
-	cd /
+	# root writes into a customer-owned directory here, so never through a link.
+	if [ -L "$HOMEDIR/$user/web/$domain/logs" ]; then
+		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a symlink, log links not created" >&2
+	else
+		ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
+			"$HOMEDIR/$user/web/$domain/logs/"
+	fi
 
 	# A restore or rebuild recreates the log, and fail2ban only globs at jail start. Idempotent.
 	if [ -n "$FIREWALL_EXTENSION" ]; then
@@ -316,7 +315,7 @@ rebuild_web_domain_conf() {
 		$HOMEDIR/$user/web/$domain/cgi-bin \
 		$HOMEDIR/$user/web/$domain/public_*html
 	chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
-	chown root:$user /var/log/$WEB_SYSTEM/domains/$domain.*
+	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
 	# Adding vhost configuration
 	conf="$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf"
@@ -362,7 +361,8 @@ rebuild_web_domain_conf() {
 			$BIN/h-add-web-domain-ssl-hsts $user $domain no yes
 		fi
 
-		if [ "$FASTCGI_CACHE" = 'yes' ]; then
+		# Only where nginx is the web server; elsewhere the delete would clear the flag and the add refuse.
+		if [ "$FASTCGI_CACHE" = 'yes' ] && [ "$WEB_SYSTEM" = 'nginx' ]; then
 			$BIN/h-delete-fastcgi-cache $user $domain
 			$BIN/h-add-fastcgi-cache $user $domain "$FASTCGI_DURATION"
 		fi
@@ -428,26 +428,13 @@ rebuild_web_domain_conf() {
 		fi
 
 		if [ -n "$STATS_USER" ]; then
-			stats_dir="$HOMEDIR/$user/web/$domain/stats"
-			if [ "$WEB_SYSTEM" = 'nginx' ]; then
-				echo "auth_basic \"Web Statistics\";" | user_exec tee $stats_dir/auth.conf > /dev/null
-				echo "auth_basic_user_file $stats_dir/.htpasswd;" | user_exec tee -a $stats_dir/auth.conf > /dev/null
-			else
-				echo "AuthUserFile $stats_dir/.htpasswd" | user_exec tee $stats_dir/.htaccess > /dev/null
-				echo "AuthName \"Web Statistics\"" | user_exec tee -a $stats_dir/.htaccess > /dev/null
-				echo "AuthType Basic" | user_exec tee -a $stats_dir/.htaccess > /dev/null
-				echo "Require valid-user" | user_exec tee -a $stats_dir/.htaccess > /dev/null
-			fi
-			echo "$STATS_USER:$STATS_CRYPT" | user_exec tee $stats_dir/.htpasswd > /dev/null
+			web_stats_auth_write "$STATS_USER" "$STATS_CRYPT"
 		fi
 	fi
 
 	# Adding ftp users
 	if [ -z "$FTP_SHELL" ]; then
 		shell=$(which nologin)
-		if [ -e "/usr/bin/rssh" ]; then
-			shell='/usr/bin/rssh'
-		fi
 	else
 		shell=$FTP_SHELL
 	fi
@@ -457,40 +444,43 @@ rebuild_web_domain_conf() {
 	# here, the record keeps the account and the unsuspend rebuild creates it (the loop fires on
 	# absence from /etc/passwd, which is exactly the state it is in).
 	local -a _ftp_user_list
-	IFS=: read -ra _ftp_user_list <<< "$FTP_USER"
+	local _ftp_i=0 _ftp_i_now _ftp_users="$FTP_USER" _ftp_md5s="$FTP_MD5" _ftp_paths="$FTP_PATH" _ftp_hash
+	IFS=: read -ra _ftp_user_list <<< "$_ftp_users"
 	for ftp_user in "${_ftp_user_list[@]}"; do
+		_ftp_i=$((_ftp_i + 1))
 		[ -n "$ftp_user" ] || continue
-		if [ "$SUSPENDED" != 'yes' ] && [ -z "$(grep ^$ftp_user: /etc/passwd)" ]; then
-			position=$(echo $FTP_USER | tr ':' '\n' | grep -n '' \
-				| grep ":$ftp_user$" | cut -f 1 -d:)
-			ftp_path=$(echo $FTP_PATH | tr ':' '\n' | grep -n '' \
-				| grep "^$position:" | cut -f 2 -d :)
-			ftp_md5=$(echo $FTP_MD5 | tr ':' '\n' | grep -n '' \
-				| grep "^$position:" | cut -f 2 -d :)
+		if [ "$SUSPENDED" != 'yes' ] && ! getent passwd "$ftp_user" > /dev/null; then
+			ftp_path=$(ftp_list_get "$_ftp_paths" "$_ftp_i")
+			ftp_md5=$(ftp_list_get "$_ftp_md5s" "$_ftp_i")
 			# A path stored before the character check would be refused after the delete, and the account would leave
 			# the record as well. Kept, so the customer can give it a new path.
 			if ! record_path_ok "$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")" "$HOMEDIR/$user/web/$domain"; then
 				echo "Warning!: FTP account $ftp_user of $domain is not re-created, its path is not accepted any more"
 				continue
 			fi
-			# rebuild S/FTP users
 			$BIN/h-delete-web-domain-ftp "$user" "$domain" "$ftp_user"
-			# Generate temporary password to add user but update afterwards
-			temp_password=$(generate_password)
-			$BIN/h-add-web-domain-ftp "$user" "$domain" "${ftp_user##*_}" "$temp_password" "$ftp_path"
-			# Updating ftp user password
-			chmod u+w /etc/shadow
-			sed -i "s|^$ftp_user:[^:]*:|$ftp_user:$ftp_md5:|" /etc/shadow
-			chmod u-w /etc/shadow
-			#Update web.conf for next rebuild or move
-			update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' "$ftp_md5"
+			# The stored name, prefix included: stripping up to the last _ renamed alice_web_dev to alice_dev.
+			if ! $BIN/h-add-web-domain-ftp "$user" "$domain" "$ftp_user" "$(generate_password)" "$ftp_path" > /dev/null; then
+				echo "Warning!: FTP account $ftp_user of $domain could not be re-created"
+				continue
+			fi
+			# The hash comes from the record, possibly an archive: only a crypt string goes in, else the account
+			# keeps the random password and the customer sets a new one.
+			if [[ "$ftp_md5" =~ ^[!*]?[A-Za-z0-9./$]+$ ]]; then
+				echo "$ftp_user:$ftp_md5" | /usr/sbin/chpasswd -e
+			else
+				echo "Warning!: FTP account $ftp_user of $domain has no usable password hash, set a new password"
+			fi
+			_ftp_hash=$(getent shadow "$ftp_user" | cut -f 2 -d :)
+			_ftp_i_now=$(ftp_list_index "$(get_object_value 'web' 'DOMAIN' "$domain" '$FTP_USER')" "$ftp_user")
+			update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' \
+				"$(ftp_list_edit "$(get_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5')" "$_ftp_i_now" "$_ftp_hash")"
 		fi
 	done
 
 	# Http auth, derived from the record on every rebuild. The archive carries both files with an
 	# absolute path inside them, so keeping one points the protection at whatever home made it.
 	htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-	docroot="$HOMEDIR/$user/web/$domain/public_html"
 	nginx_htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
 	nginx_shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
 	apache_htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
@@ -507,12 +497,12 @@ auth_basic_user_file    $htpasswd;"
 		shtaccess="$apache_shtaccess"
 		stale_htaccess="$nginx_htaccess"
 		stale_shtaccess="$nginx_shtaccess"
-		htaccess_want="<Directory $docroot>
+		htaccess_want="<LocationMatch \"^/(?!\\.well-known/acme-challenge/)\">
     AuthUserFile $htpasswd
     AuthName \"$domain access\"
     AuthType Basic
     Require valid-user
-</Directory>"
+</LocationMatch>"
 	fi
 
 	# The other web server's pair is inert here, so a wrong path in it stays unnoticed until the
@@ -527,8 +517,7 @@ auth_basic_user_file    $htpasswd;"
 		IFS=: read -ra _auth_user_list <<< "$AUTH_USER"
 		for auth_user in "${_auth_user_list[@]}"; do
 			[ -n "$auth_user" ] || continue
-			position=$(echo $AUTH_USER | tr ':' '\n' | grep -n '' \
-				| grep ":$auth_user$" | cut -f 1 -d:)
+			position=$(tr ':' '\n' <<< "$AUTH_USER" | grep -nxF -- "$auth_user" | head -n1 | cut -d: -f1)
 			auth_hash=$(echo $AUTH_HASH | tr ':' '\n' | grep -n '' \
 				| grep "^$position:" | cut -f 2 -d :)
 			# The two lists are joined by position and can arrive out of step. A line with no hash
@@ -578,7 +567,7 @@ auth_basic_user_file    $htpasswd;"
 		$HOMEDIR/$user/web/$domain/cgi-bin \
 		$HOMEDIR/$user/web/$domain/public_*html \
 		$HOMEDIR/$user/web/$domain/document_errors
-	chmod 640 /var/log/$WEB_SYSTEM/domains/$domain.*
+	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done
 
 	chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
 }

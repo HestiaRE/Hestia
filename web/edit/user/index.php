@@ -19,8 +19,9 @@ if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 	$user = $_GET["user"];
 	$v_username = $_GET["user"];
 } else {
-	$user = $_SESSION["user"];
-	$v_username = $_SESSION["user"];
+	// The effective user: while an admin impersonates, $_SESSION["user"] is the admin.
+	$user = !empty($_SESSION["look"]) ? $_SESSION["look"] : $_SESSION["user"];
+	$v_username = $user;
 }
 
 // Fail closed: if ROOT_USER is unknown the guard below can't identify what it protects, so
@@ -200,14 +201,14 @@ if (!empty($_POST["save"])) {
 	}
 
 	// Change default sort order
-	if ($v_sort_order != $_POST["v_sort_order"] && empty($_SESSION["error_msg"])) {
-		$v_sort_order = quoteshellarg($_POST["v_sort_order"]);
+	if (isset($_POST["v_sort_order"]) && $v_sort_order != $_POST["v_sort_order"] && empty($_SESSION["error_msg"])) {
+		$v_sort_order = $_POST["v_sort_order"];
 		exec(
 			HESTIA_CMD .
 				"h-change-user-sort-order " .
 				quoteshellarg($v_username) .
 				" " .
-				$v_sort_order,
+				quoteshellarg($v_sort_order),
 			$output,
 			$return_var,
 		);
@@ -316,6 +317,7 @@ if (!empty($_POST["save"])) {
 				unset($output);
 				$v_login_use_iplist = $post_use_iplist;
 				$data[$user]["LOGIN_USE_IPLIST"] = $post_use_iplist;
+				$login_rules_changed = $return_var == 0;
 			}
 			// switching the list off empties it, so a re-enable cannot resurrect an old allowlist
 			$want_allowed_ips = $post_use_iplist === "yes" ? $post_allowed_ips : "";
@@ -332,6 +334,11 @@ if (!empty($_POST["save"])) {
 				check_return_code($return_var, $output);
 				unset($output);
 				$v_login_allowed_ips = $want_allowed_ips;
+				$login_rules_changed = ($login_rules_changed ?? false) || $return_var == 0;
+			}
+			// The command ended this user's sessions; the own one carries on under a fresh id, as after a password change.
+			if (!empty($login_rules_changed) && $v_username === $_SESSION["user"]) {
+				session_regenerate_id(true);
 			}
 		}
 	}

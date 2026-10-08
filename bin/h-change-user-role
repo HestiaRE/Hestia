@@ -2,49 +2,36 @@
 # info: updates user role
 # options: USER ROLE
 #
-# example: h-change-user-role user administrator
+# example: h-change-user-role alice admin
 #
-# Give/revoke user administrator rights to manage all accounts as admin
+# Gives or takes a user's administrator rights.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 role=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER ROLE'
 ROLE=$(get_user_value '$ROLE')
 
 is_format_valid 'user' 'role'
+# is_format_valid skips an empty value, and an empty ROLE reads as neither.
+[ -n "$role" ] || check_result "$E_INVALID" "the role is admin or user"
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
+update_user_value "$user" '$ROLE' "$role" || check_result "$E_NOTEXIST" "ROLE is missing from the record of $user"
 $BIN/h-log-action "system" "Warning" "Security" "User privileges changed (User: $user, Role: $role, Previous: $ROLE)."
-update_user_value "$user" '$ROLE' "$role"
 
 # A session carries the rights it was opened with, so the new role only reaches it once it is gone.
-$BIN/h-delete-user-sessions "$user" > /dev/null
+# The role is written by now: a failure here is reported, not the result of the change.
+if ! $BIN/h-delete-user-sessions "$user" > /dev/null; then
+	echo "Warning: the role of $user is changed, but the open sessions could not be ended" >&2
+fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-exit
+log_event "$OK" "$ARGUMENTS"
+exit 0

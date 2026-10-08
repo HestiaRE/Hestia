@@ -4,24 +4,20 @@
 #
 # example: h-list-users
 #
-# This function to obtain the list of all system users.
+# Lists all panel users.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Argument definition
 format=${1-shell}
 
-# JSON list function
+# Cleared before each record: source_conf sets only the keys a record has, and a missing one would
+# show the previous account's value.
+LIST_KEYS=(NAME PACKAGE WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS CONTACT CRON_REPORTS ROLE SUSPENDED SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED U_USERS U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS LANGUAGE TIME DATE)
+
 json_list() {
 	echo '{'
 	i=1
@@ -32,8 +28,9 @@ json_list() {
 		if [ $i -gt 1 ]; then
 			echo ","
 		fi
+		unset "${LIST_KEYS[@]}"
 		source_conf "$CONF_DIR/users/$USER/user.conf"
-		json_escape USER NAME PACKAGE WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS CONTACT CRON_REPORTS RKEY ROLE SUSPENDED SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED U_USERS U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS LANGUAGE TIME DATE
+		json_escape USER "${LIST_KEYS[@]}"
 		printf '    "%s": {\n' "$USER"
 		printf '        "NAME": "%s",\n' "$NAME"
 		printf '        "PACKAGE": "%s",\n' "$PACKAGE"
@@ -53,7 +50,6 @@ json_list() {
 		printf '        "BACKUPS": "%s",\n' "$BACKUPS"
 		printf '        "CONTACT": "%s",\n' "$CONTACT"
 		printf '        "CRON_REPORTS": "%s",\n' "$CRON_REPORTS"
-		printf '        "RKEY": "%s",\n' "$RKEY"
 		printf '        "ROLE": "%s",\n' "$ROLE"
 		printf '        "SUSPENDED": "%s",\n' "$SUSPENDED"
 		printf '        "SUSPENDED_USERS": "%s",\n' "$SUSPENDED_USERS"
@@ -88,33 +84,33 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "USER   ROLE   PKG   WEB   MAIL   DB   DISK   BW   SPND   DATE"
-	echo "----   ----   ---   ---   ---   ---    --   ----   --   ----   ----"
+	echo "----   ----   ---   ---   ----   --   ----   --   ----   ----"
 	while read USER; do
 		if [ ! -f "$CONF_DIR/users/$USER/user.conf" ]; then
 			continue
 		fi
+		unset "${LIST_KEYS[@]}"
 		source_conf "$CONF_DIR/users/$USER/user.conf"
 		echo -n "$USER $ROLE $PACKAGE $U_WEB_DOMAINS $U_MAIL_DOMAINS"
 		echo " $U_DATABASES $U_DISK $U_BANDWIDTH $SUSPENDED $DATE"
 	done < <(grep '@' /etc/passwd | cut -f1 -d:)
 }
 
-# PLAIN list function
 plain_list() {
 	while read USER; do
 		if [ ! -f "$CONF_DIR/users/$USER/user.conf" ]; then
 			continue
 		fi
+		unset "${LIST_KEYS[@]}"
 		source_conf "$CONF_DIR/users/$USER/user.conf"
 		echo -ne "$USER\t$NAME\t$PACKAGE\t$WEB_TEMPLATE\t"
 		echo -ne "$BACKEND_TEMPLATE\t$PROXY_TEMPLATE\t"
 		echo -ne "$WEB_DOMAINS\t$WEB_ALIASES\t"
 		echo -ne "$MAIL_DOMAINS\t$MAIL_ACCOUNTS\t$DATABASES\t$CRON_JOBS\t"
 		echo -ne "$DISK_QUOTA\t$BANDWIDTH\t$SHELL\t$BACKUPS\t"
-		echo -ne "$CONTACT\t$CRON_REPORTS\t$RKEY\t$ROLE\t$SUSPENDED\t"
+		echo -ne "$CONTACT\t$CRON_REPORTS\t$ROLE\t$SUSPENDED\t"
 		echo -ne "$SUSPENDED_USERS\t$SUSPENDED_WEB\t"
 		echo -ne "$SUSPENDED_MAIL\t$SUSPENDED_DB\t$SUSPENDED_CRON\t"
 		echo -ne "$IP_AVAIL\t$IP_OWNED\t$U_USERS\t$U_DISK\t$U_DISK_DIRS\t"
@@ -126,7 +122,6 @@ plain_list() {
 	done < <(grep '@' /etc/passwd | cut -f1 -d:)
 }
 
-# USER ONLY list function
 only_user_list() {
 	while read USER; do
 		if [ ! -f "$CONF_DIR/users/$USER/user.conf" ]; then
@@ -137,11 +132,6 @@ only_user_list() {
 	done < <(grep '@' /etc/passwd | cut -f1 -d:)
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
@@ -149,9 +139,5 @@ case $format in
 	list) only_user_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

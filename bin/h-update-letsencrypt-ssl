@@ -4,42 +4,29 @@
 #
 # example: h-update-letsencrypt-ssl
 #
-# This function for renew letsencrypt expired ssl certificate for all users
+# Renews the Let's Encrypt certificates of all users that are about to expire.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Set LE counter
 lecounter=0
 max_LE_failures=30
 days_valid_setting=31
 if [ "$LE_STAGING" = "yes" ]; then
-	# Overwrite setting to allow testing for renewal to be done easier
+	# Staging renews early, so a renewal can be tested.
 	days_valid_setting=181
 fi
 
-# Checking user certificates
 for user in $("$BIN/h-list-users" list); do
 	USER_DATA=$CONF_DIR/users/$user
 
 	for domain in $(search_objects 'web' 'LETSENCRYPT' 'yes' 'DOMAIN'); do
-		# Clear any keys related to web domains
 		sanitize_config_file "web"
 		domain_suspended="$(get_object_value 'web' 'DOMAIN' "$domain" '$SUSPENDED')"
 		if [ "$domain_suspended" = "yes" ]; then
@@ -62,35 +49,23 @@ for user in $("$BIN/h-list-users" list); do
 				sleep 10
 			fi
 			((lecounter++))
-			aliases=$(echo "$crt_data" | grep DNS:)
-			aliases=$(echo "$aliases" | sed -e "s/DNS://g" -e "s/,//g")
-			aliases=$(echo "$aliases" | tr ' ' '\n' | sed "/^$/d")
-			aliases=$(echo "$aliases" | egrep -v "^$domain,?$")
-			aliases=$(echo "$aliases" | sed -e ':a;N;$!ba;s/\n/,/g')
+			san=",$(echo "$crt_data" | grep DNS: | sed -e 's/DNS://g' -e 's/[[:space:]]//g'),"
 
-			# Parsing domain
 			parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-			# Split aliases into array
-			IFS=',' read -r -a ALIASES <<< "$ALIAS"
-
-			# Unset f_aliases
+			# The certificate holds punycode, the record the name as typed.
 			f_aliases=''
-
-			# Loop through all crt aliases
-			IFS=, read -ra _alias_list <<< "$aliases"
+			IFS=, read -ra _alias_list <<< "$ALIAS"
 			for alias in "${_alias_list[@]}"; do
 				[ -n "$alias" ] || continue
-				# Validate if the alias still exists in web.conf
-				if [[ ",$ALIAS," =~ ,$alias, ]]; then
-					f_aliases+="$alias,"
+				alias_idn=$alias
+				if [[ "$alias" = *[![:ascii:]]* ]]; then
+					alias_idn=$(idn2 --quiet "$alias")
+				fi
+				if [[ "$san" == *",$alias_idn,"* ]]; then
+					f_aliases+="${f_aliases:+,}$alias"
 				fi
 			done
-
-			# Remove leading comma
-			if [[ ${f_aliases: -1} = ',' ]]; then f_aliases=${f_aliases::-1}; fi
-
-			# Write the filtered alias list to the default var
 			aliases=$f_aliases
 
 			msg=$($BIN/h-add-letsencrypt-domain "$user" "$domain" "$aliases")
@@ -158,17 +133,12 @@ for user in $("$BIN/h-list-users" list); do
 
 done
 
-# Restart related services
 $BIN/h-restart-web
 $BIN/h-restart-mail
 
 if [ -n "$PROXY_SYSTEM" ]; then
 	$BIN/h-restart-proxy
 fi
-
-#----------------------------------------------------------#
-#                        Hestia                            #
-#----------------------------------------------------------#
 
 log_event "$OK" "$EVENT"
 

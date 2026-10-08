@@ -4,32 +4,21 @@
 #
 # example: h-delete-web-domain-ssl-force admin domain.tld
 #
-# This function removes force SSL configurations.
+# Stops redirecting http to https for the domain.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart="$3"
 quiet="$4"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART] [QUIET]'
 is_format_valid 'user' 'domain' 'restart'
@@ -37,14 +26,8 @@ is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_valid 'web' 'DOMAIN' "$domain" "$SSL_FORCE"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Load domain data
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
-# Remove forcessl configs
 if [ -f "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.forcessl.conf" ]; then
 	rm -f $HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.forcessl.conf
 fi
@@ -52,24 +35,18 @@ if [ -f "$HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.forcessl.conf" ]; then
 	rm -f $HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.forcessl.conf
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
 if [ -z "$SSL_FORCE" ]; then
-	add_object_key "web" 'DOMAIN' "$domain" 'SSL_FORCE' 'SSL_HOME'
+	add_object_key "web" 'DOMAIN' "$domain" 'SSL_FORCE' 'LETSENCRYPT'
 fi
 
 update_object_value 'web' 'DOMAIN' "$domain" '$SSL_FORCE' 'no'
 
-# Restart services if requested
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "Proxy restart failed" > /dev/null
 
-# Logging
 if [ "$quiet" != "yes" ]; then
 	$BIN/h-log-action "$user" "Info" "Web" "Automatic HTTPS redirection disabled (Domain: $domain)."
 fi

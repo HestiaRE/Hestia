@@ -175,6 +175,17 @@ is_protected_key() {
 	return 1
 }
 
+USER_NUMERIC_KEYS="SUSPENDED_USERS SUSPENDED_WEB SUSPENDED_MAIL SUSPENDED_DB SUSPENDED_CRON IP_AVAIL IP_OWNED WEB_DOMAINS
+WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT DATABASES CRON_JOBS DISK_QUOTA BANDWIDTH BACKUPS U_USERS U_DISK
+U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DKIM U_MAIL_ACCOUNTS
+U_MAIL_DOMAINS U_DATABASES U_CRON_JOBS U_BACKUPS"
+USER_NUMERIC_KEYS=${USER_NUMERIC_KEYS//$'\n'/ }
+
+# What a package defines and hands to its users; nothing else of a package file reaches a user record.
+PACKAGE_KEYS="WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT
+DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS BACKUPS_MODE"
+PACKAGE_KEYS=${PACKAGE_KEYS//$'\n'/ }
+
 # An archived record is hostile input, so only registry-known keys reach the instance. Catches what
 # the floors above cannot: names legitimate in another file (ROOT_USER in hestia.conf, REPO in
 # restic.conf). A filter that keeps nothing fails rather than install an empty record.
@@ -189,12 +200,28 @@ copy_record_filtered() {
 		[ -n "${_line// /}" ] || continue
 		_lhs=${_line%%=*}
 		case "$_allow" in
-			*" $_lhs "*)
-				printf '%s\n' "$_line" >> "$_tmp"
-				_kept=$((_kept + 1))
+			*" $_lhs "*) ;;
+			*)
+				echo "Warning: dropping unknown key '$_lhs' from the archived $_type record" >&2
+				continue
 				;;
-			*) echo "Warning: dropping unknown key '$_lhs' from the archived $_type record" >&2 ;;
 		esac
+		# Readers source these records: one quoted field per line, or a second key or text after the quote comes along.
+		if ! record_line_valid "$_line" || [ "$(record_keys "$_line")" != "$_lhs" ]; then
+			echo "Warning: dropping a malformed '$_lhs' line from the archived $_type record" >&2
+			continue
+		fi
+		# Counters and limits reach bash arithmetic, which evaluates a subscript in a value.
+		case " $USER_NUMERIC_KEYS " in
+			*" $_lhs "*)
+				if [[ "$_type" =~ ^(user|package)$ ]] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
+					echo "Warning: dropping a non-numeric '$_lhs' from the archived $_type record" >&2
+					continue
+				fi
+				;;
+		esac
+		printf '%s\n' "$_line" >> "$_tmp"
+		_kept=$((_kept + 1))
 	done < "$_src"
 	if [ "$_kept" -eq 0 ]; then
 		rm -f "$_tmp"
@@ -226,6 +253,17 @@ source_conf() {
 			declare -g $lhs="$rhs"
 		fi
 	done < $1
+}
+
+# The ACME account file of a user, read by key: it can arrive in an archive, and THUMB lands in vhost configs. A value
+# outside the characters these fields use reads as empty.
+le_conf_load() {
+	local _k _v
+	for _k in EXPONENT MODULUS THUMB EMAIL KID; do
+		_v=$(sed -n "s/^$_k='\(.*\)'\$/\1/p" "$1" 2> /dev/null | tail -n 1)
+		[[ "$_v" =~ ^[A-Za-z0-9_.:/@+=-]*$ ]] || _v=''
+		printf -v "$_k" '%s' "$_v"
+	done
 }
 
 # Read from share/manifest.json; empty on miss. jq is an install.sh prereq, so it is always there.
@@ -471,6 +509,19 @@ is_system_enabled() {
 # still fronts the webmail vhosts via WEBMAIL_FRONT. On every other model the two are identical.
 webmail_front() { echo "${WEBMAIL_FRONT:-$WEB_SYSTEM}"; }
 
+# phpMyAdmin's proxy include for a customer web server whose tree exists. Ports are placeholders, so a moved panel
+# port reaches the file too. Writers: h-change-sys-db-alias and the web-model switch.
+pma_proxy_include_write() { # nginx|apache2
+	local src
+	[ -d "/etc/$1/conf.d" ] && [ -n "$DB_PMA_ALIAS" ] && [ -n "$BACKEND_PORT" ] || return 0
+	case "$1" in
+		nginx) src="$HESTIA/share/nginx/apps/phpmyadmin.inc" ;;
+		apache2) src="$HESTIA/share/apache2/apps/phpmyadmin.conf" ;;
+		*) return 1 ;;
+	esac
+	sed -e "s|%pma_alias%|$DB_PMA_ALIAS|g" -e "s|%panel_port%|$BACKEND_PORT|g" "$src" > "/etc/$1/conf.d/phpmyadmin.inc"
+}
+
 # What this customer's package file says for KEY, or nothing. Same file h-add-user seeds a new
 # user.conf from, so it is not a second opinion. KEY reaches a sed pattern: registry only, never input.
 package_key_value() {
@@ -479,6 +530,7 @@ package_key_value() {
 	_pkg=$(sed -n "s/^PACKAGE='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)
 	[ -n "$_pkg" ] || return 1
 	[ -f "$CONF_DIR/packages/$_pkg.pkg" ] || return 1
+	case " $PACKAGE_KEYS " in *" $1 "*) ;; *) return 1 ;; esac
 	sed -n "s/^$1='\(.*\)'$/\1/p" "$CONF_DIR/packages/$_pkg.pkg" | head -n1
 }
 
@@ -620,26 +672,37 @@ generate_password() {
 	return 1
 }
 
-# Package existence check
+# Package existence; an empty name would address $CONF_DIR/packages/.pkg, a package no listing shows.
 is_package_valid() {
-	if [ -z $1 ]; then
-		if [ ! -e "$CONF_DIR/packages/$package.pkg" ]; then
-			check_result "$E_NOTEXIST" "package $package doesn't exist"
-		fi
-	else
-		if [ ! -e "$CONF_DIR/packages/$1.pkg" ]; then
-			check_result "$E_NOTEXIST" "package $1 doesn't exist"
-		fi
-	fi
-
+	local p=${1:-$package}
+	[ -n "$p" ] || check_result "$E_INVALID" "no package given"
+	[ -e "$CONF_DIR/packages/$p.pkg" ] || check_result "$E_NOTEXIST" "package $p doesn't exist"
 }
 
 is_package_new() {
+	[ -n "$1" ] || check_result "$E_INVALID" "no package given"
 	if [ -e "$CONF_DIR/packages/$1.pkg" ]; then
 		echo "Error: package $1 already exists."
 		log_event "$E_EXISTS" "$ARGUMENTS"
 		exit "$E_EXISTS"
 	fi
+}
+
+# The packages h-add-user and the installer rely on.
+is_package_builtin() {
+	case "$1" in
+		default | system) check_result "$E_FORBIDEN" "package $1 is built in and cannot be $2" ;;
+	esac
+}
+
+# package_users PACKAGE: the users on exactly this package, one per line.
+package_users() {
+	local uconf
+	for uconf in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$uconf" ] || continue
+		[ "$(grep -m1 "^PACKAGE=" "$uconf" | cut -d "'" -f 2)" = "$1" ] || continue
+		basename "$(dirname "$uconf")"
+	done
 }
 
 # Validate system type
@@ -1007,6 +1070,10 @@ is_password_valid() {
 			fi
 		fi
 	fi
+	# chpasswd reads one account per line: a line break would set a second account's password.
+	if [[ "$password" == *$'\n'* ]]; then
+		check_result "$E_INVALID" "invalid password format :: it contains a line break"
+	fi
 }
 
 # Check if hash is transmitted via file
@@ -1149,6 +1216,16 @@ remove_exact_line() {
 	mv -f "$file.tmp" "$file"
 }
 
+# Drops every queue job whose last word is the user, compared as text: a name is no pattern.
+remove_user_queue_jobs() {
+	local file="$1" user="$2"
+	[ -e "$file" ] || return 0
+	awk -v u="$user" '$NF != u' "$file" > "$file.tmp"
+	chown --reference="$file" "$file.tmp" 2> /dev/null
+	chmod --reference="$file" "$file.tmp" 2> /dev/null
+	mv -f "$file.tmp" "$file"
+}
+
 # The only accessor that stays a regex: its search value is a flag, and h-backup-user-config passes
 # "*" to mean "any". The guard below keeps that from decaying into matching a domain by accident;
 # a comment cannot stop the next caller, a refusal can.
@@ -1171,6 +1248,22 @@ search_objects() {
 }
 
 # Get user value
+# The user's ftp sub-accounts: listed in a web record and sharing the user's uid. A name prefix would
+# also match a customer called <user>_x, and a restored record can name any account.
+user_ftp_accounts() {
+	local line n uid ftp_names
+	uid=$(id -u "$user" 2> /dev/null) || return 0
+	[ -e "$USER_DATA/web.conf" ] || return 0
+	while IFS= read -r line; do
+		[[ "$line" =~ (^|\ )FTP_USER=\'([^\']*)\' ]] || continue
+		IFS=: read -ra ftp_names <<< "${BASH_REMATCH[2]}"
+		for n in "${ftp_names[@]}"; do
+			[ -n "$n" ] && [ "$(id -u "$n" 2> /dev/null)" = "$uid" ] && echo "$n"
+		done
+	done < "$USER_DATA/web.conf"
+	return 0
+}
+
 get_user_value() {
 	grep "^${1//$/}=" $USER_DATA/user.conf | head -1 | awk -F "'" '{print $2}'
 }
@@ -1184,6 +1277,9 @@ update_user_value() {
 		# contain. A delete+insert loses the last line: the file is then $lnr-1 long, so inserting
 		# before $lnr addresses past EOF and writes nothing.
 		sed -i "${lnr}c\\$key='${3}'" $CONF_DIR/users/$1/user.conf
+	else
+		# The key is not in the record: nothing was written, and the caller has to say so.
+		return 1
 	fi
 }
 
@@ -1568,6 +1664,8 @@ is_login_name_reserved() {
 		aria aria_log mysql_upgrade ib ib_buffer ddl ddl_recovery performance sudo
 		# h-backup-server writes server.*.tar into the same /backup namespace as customer archives
 		server
+		# the user name the log commands read as the global activity log
+		system
 	)
 	for r in "${reserved[@]}"; do
 		if [ "$name" = "$r" ]; then
@@ -1584,7 +1682,8 @@ is_login_name_reserved() {
 # Domain format validator
 is_domain_format_valid() {
 	object_name=${2-domain}
-	exclude='[][!@#$^&*()+={},<>?_/\\"|'\''`;%[:space:]]'
+	# ~ starts an nginx server_name regex, : is no part of a host name.
+	exclude='[][!@#$^&*()+={},<>?_/\\"|'\''`;%~:[:space:]]'
 	if [[ $1 =~ $exclude ]] \
 		|| [[ $1 =~ ^[0-9]+$ ]] \
 		|| [[ $1 =~ \.\. ]] \
@@ -1630,8 +1729,10 @@ spam_list_write() { # FILE COMMA_LIST
 
 # Alias forman validator
 is_alias_format_valid() {
-	for object in ${1//,/ }; do
-		exclude='[][!@#$^&()+={},<>?_/\\"|'\''`;%[:space:]]'
+	local object _list
+	IFS=, read -ra _list <<< "$1"
+	for object in "${_list[@]}"; do
+		exclude='[][!@#$^&()+={},<>?_/\\"|'\''`;%~:[:space:]]'
 		if [[ $object =~ $exclude ]] \
 			|| [[ $object =~ \.\. ]] \
 			|| [[ $object =~ ^- ]] \
@@ -1692,6 +1793,7 @@ is_ip46_format_valid() {
 # hardened, and that is the one nothing calls. A mask is an unsigned integer in its family's range,
 # so ctype_digit does both bounds at once; "x/" carries no mask but is not the same as "x".
 # filter_var alone decides the address; an extra pattern rejects nothing it accepts.
+# Callers accept only the literal 0: an error text from php must refuse, not pass.
 _is_cidr_valid() {
 	$HESTIA_PHP -r '$p = explode("/", $argv[1]);
 		if (count($p) > 2) { echo 1; exit; }
@@ -1700,12 +1802,12 @@ _is_cidr_valid() {
 		$fam = $argv[2];
 		if (!($fam === "46" ? ($v4 || $v6) : ($fam === "4" ? $v4 : $v6))) { echo 1; exit; }
 		if (count($p) === 1) { echo 0; exit; }
-		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' "$1" "$2"
+		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' -- "$1" "$2"
 }
 
 is_ipv4_cidr_format_valid() {
 	object_name=${2-ip}
-	if [ "$(_is_cidr_valid "$1" 4)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 4)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
@@ -1714,14 +1816,14 @@ is_ipv4_cidr_format_valid() {
 # validators stay for the places that genuinely mean one family (an IP object, a NAT address).
 is_ip_cidr_format_valid() {
 	object_name=${2-ip}
-	if [ "$(_is_cidr_valid "$1" 46)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 46)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
 
 is_ipv6_cidr_format_valid() {
 	object_name=${2-ipv6}
-	if [ "$(_is_cidr_valid "$1" 6)" -ne 0 ]; then
+	if [ "$(_is_cidr_valid "$1" 6)" != 0 ]; then
 		check_result "$E_INVALID" "invalid $object_name :: $1"
 	fi
 }
@@ -1734,14 +1836,12 @@ is_netmask_format_valid() {
 	fi
 }
 
-# Proxy extention format validator
+# Proxy extension list: joined into the regex of an nginx location, so plain names only.
 is_extention_format_valid() {
-	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
-	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|@|<|>|?|/|\|\"|'|;|%|\`| ]"
-	if [[ "$1" =~ $exclude ]]; then
-		check_result "$E_INVALID" "invalid proxy extention format :: $1"
+	local ext_list='^[A-Za-z0-9_-]+(,[A-Za-z0-9_-]+)*$'
+	if ! [[ "$1" =~ $ext_list ]] || [ ${#1} -ge 400 ]; then
+		check_result "$E_INVALID" "invalid proxy extension list :: $1"
 	fi
-	is_no_new_line_format "$1"
 }
 
 # Number format validator
@@ -1750,6 +1850,19 @@ is_number_format_valid() {
 	if ! [[ "$1" =~ ^[0-9]+$ ]]; then
 		check_result "$E_INVALID" "invalid $object_name format :: $1"
 	fi
+}
+
+# Cache lifetime, verbatim into an nginx fragment: nginx refuses a time beyond its range, so the bound is a year.
+is_cache_duration_format_valid() {
+	local n=${1%[smd]}
+	if ! [[ "$1" =~ ^[1-9][0-9]{0,7}[smd]$ ]]; then
+		check_result "$E_INVALID" "invalid duration format :: $1"
+	fi
+	case $1 in
+		*m) n=$((n * 60)) ;;
+		*d) n=$((n * 86400)) ;;
+	esac
+	[ "$n" -le 31536000 ] || check_result "$E_INVALID" "duration $1 exceeds a year"
 }
 
 # Autoreply format validator
@@ -2218,6 +2331,21 @@ list_allowed_shells() {
 	done
 }
 
+# A shell name from a package or a record to its /etc/shells path. Off the allowlist, or not in
+# /etc/shells, it becomes nologin; the answer starts with / so the banner of /etc/shells never is it.
+resolve_login_shell() {
+	local name="$1" path c
+	list_allowed_shells | grep -qxF -- "$name" 2> /dev/null || name='nologin'
+	path=$(grep -w -- "$name" /etc/shells | grep -m1 '^/')
+	# Picked by existence, not spelling: usrmerge decides which of the two paths is real.
+	if [ -z "$path" ]; then
+		for c in /usr/sbin/nologin /sbin/nologin; do
+			[ -x "$c" ] && path="$c" && break
+		done
+	fi
+	echo "$path"
+}
+
 # shell must be one of the curated, /etc/shells-backed login shells
 is_format_valid_shell() {
 	local shell
@@ -2278,7 +2406,7 @@ is_format_valid() {
 				email) is_email_format_valid "$arg" ;;
 				email_forward) is_email_format_valid "$arg" ;;
 				exp) is_date_format_valid "$arg" ;;
-				extentions) is_common_format_valid "$arg" 'extentions' ;;
+				extentions) is_extention_format_valid "$arg" ;;
 				format) is_type_valid 'plain json shell' "$arg" ;;
 				ftp_password) is_password_format_valid "$arg" ;;
 				ftp_user) is_user_format_valid "$arg" "$arg_name" ;;
@@ -2619,6 +2747,31 @@ user_exec() {
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
 }
 
+# A customer's docker address as h-add-user-docker hands it out. A restored record is the only other
+# writer, and its value lands in nft rules, vhosts and daemon.json.
+docker_ip_valid() {
+	[[ "$1" =~ ^127\.20\.(0|[1-9][0-9]{0,2})\.1$ ]] && [ "${BASH_REMATCH[1]}" -le 254 ]
+}
+
+# bash_alias_set NAME VALUE: exactly one "alias NAME=VALUE" in $user's .bash_aliases, written as $user,
+# since root writing there follows whatever link the customer put in its place.
+bash_alias_set() {
+	local file="$HOMEDIR/$user/.bash_aliases"
+	user_exec touch "$file" || return 1
+	user_exec sed -i "/^alias $1=/d" "$file" || return 1
+	echo "alias $1=$2" | user_exec tee -a "$file" > /dev/null
+}
+
+# home_dir_own PATH OWNER MODE: root sets up a directory inside a customer's home, which the customer can rename.
+# A link is refused and chown never follows one; a swap between the test and chmod is not covered.
+home_dir_own() {
+	if [ -L "$1" ]; then
+		echo "Error: $1 is a link" >&2
+		return 1
+	fi
+	mkdir -p "$1" && chown -h "$2" "$1" && chmod "$3" "$1"
+}
+
 # path_within PATH BASE...: PATH, resolved, is one of the BASEs or lies below one. A prefix match would let
 # /home/fsa admit /home/fsab. Second line only: the fs commands act through user_exec, the UID is the boundary.
 path_within() {
@@ -2631,6 +2784,28 @@ path_within() {
 		case "$p" in "$b" | "$b"/*) return 0 ;; esac
 	done
 	return 1
+}
+
+# The customer's authorized_keys, read and replaced as the customer: root follows no link planted in ~/.ssh.
+authkeys_file() { echo "$HOMEDIR/$user/.ssh/authorized_keys"; }
+authkeys_read() { user_exec cat -- "$(authkeys_file)" 2> /dev/null; }
+authkeys_write() {
+	local file tmp
+	file=$(authkeys_file)
+	user_exec mkdir -p -m 700 -- "${file%/*}" || return 1
+	tmp=$(user_exec mktemp -- "$file.XXXXXX") || return 1
+	if ! user_exec tee -- "$tmp" > /dev/null || ! user_exec mv -f -- "$tmp" "$file"; then
+		user_exec rm -f -- "$tmp"
+		return 1
+	fi
+}
+
+# authkey_ids LINE: "FINGERPRINT ID" of a key line, ID being the last word of its comment as the key list shows it.
+authkey_ids() {
+	local out
+	[[ -n "$1" && "$1" != \#* ]] || return 1
+	out=$(ssh-keygen -l -f - <<< "$1" 2> /dev/null) || return 1
+	awk '{print $2, $(NF-1)}' <<< "$out"
 }
 
 # Simple chmod wrapper that skips symlink files after glob expand
@@ -2869,8 +3044,9 @@ jail_sshd_subsystem_apply() {
 	# Temp file NEXT TO the target so the rename is atomic, mode and owner from the target because
 	# sshd refuses a config with wrong permissions and a truncated sshd_config is a box nobody logs
 	# into. A killed run leaves its temp behind, which sshd ignores but nobody would notice piling up.
-	rm -f "$config".?????? 2> /dev/null || true
-	_tmp=$(mktemp "$config.XXXXXX") || return 1
+	# Our own prefix: a bare six-character suffix also matched an admin's sshd_config.backup.
+	rm -f "$config".hst-?????? 2> /dev/null || true
+	_tmp=$(mktemp "$config.hst-XXXXXX") || return 1
 	_prev_trap=$(trap -p EXIT)
 	# shellcheck disable=SC2064 # expand now on purpose: _tmp is local and gone when the trap fires
 	trap "rm -f '$_tmp'" EXIT

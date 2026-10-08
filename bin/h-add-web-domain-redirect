@@ -9,35 +9,27 @@
 # example: h-add-web-domain-redirect user domain.tld shop.different-domain.com
 # example: h-add-web-domain-redirect user domain.tld different-domain.com 302
 #
-# Function creates a forced redirect to a domain
+# Redirects every request of the domain to another host or URL. nginx front only.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 redirect=$3
 code=${4-301}
 restart=${5-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '3' "$#" 'USER DOMAIN REDIRECT [HTTPCODE] [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
-is_number_format_valid "$code" "code"
+case $code in
+	301 | 302 | 307 | 308) ;;
+	*) check_result "$E_INVALID" "invalid redirect code $code, use 301, 302, 307 or 308" ;;
+esac
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
@@ -79,17 +71,19 @@ else
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# The target lands unquoted in an nginx directive and in the record: plain URL characters only, the rest percent-encoded.
+url_chars='^[A-Za-z0-9._~:/@!&+,=%-]+$'
+[[ "$redirect" =~ $url_chars ]] || check_result "$E_INVALID" "Invalid redirect, characters outside a plain URL"
 
-# Check if proxy is active
 if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
 	conf="$HOMEDIR/$user/conf/web/$domain/nginx.conf_redirect"
 	sconf="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_redirect"
 fi
 
-# Prevent $request_uri being added if ends in .html
+# Stored as entered: the LE renewal re-adds from the record, and a stripped slash would drop the request path.
+stored_redirect="$redirect"
+
+# A target ending in a slash, or without a path, passes the request path on.
 requesturi=0
 if [ -n "$path" ]; then
 	lastchr=${path#${path%?}}
@@ -101,7 +95,6 @@ else
 	requesturi=1
 fi
 
-# Insert redirect commands
 if [ -n "$PROXY_SYSTEM" ] || [ "$WEB_SYSTEM" = 'nginx' ]; then
 	if [ "$scheme_check" = 1 ]; then
 		if [ "$requesturi" = 1 ]; then
@@ -130,22 +123,15 @@ else
 	exit 2
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update object keys
 if [ -z "$REDIRECT" ]; then
 	add_object_key "web" 'DOMAIN' "$domain" 'REDIRECT' 'U_DISK'
 	add_object_key "web" 'DOMAIN' "$domain" 'REDIRECT_CODE' 'U_DISK'
 fi
 
-# Update values for domain
-update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT' "$redirect"
+update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT' "$stored_redirect"
 update_object_value 'web' 'DOMAIN' "$domain" '$REDIRECT_CODE' "$code"
 
 if [ "$restart" = "yes" ]; then
-	# Restarting web server
 	$BIN/h-restart-web "$restart"
 	check_result $? "Web restart failed" > /dev/null
 
@@ -153,7 +139,6 @@ if [ "$restart" = "yes" ]; then
 	check_result $? "Proxy restart failed" > /dev/null
 fi
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Web" "Domain redirection enabled (Domain: $domain, Redirect to: $redirect)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -358,7 +358,7 @@ fw_restrict_docker_nets() {
 	for uconf in "$CONF_DIR"/users/*/user.conf; do
 		[ -f "$uconf" ] || continue
 		net=$(grep -o "^DOCKER_IP='[^']*'" "$uconf" | cut -d"'" -f2)
-		[ -n "$net" ] || continue
+		docker_ip_valid "$net" || continue
 		u=$(basename "$(dirname "$uconf")")
 		uid=$(id -u "$u" 2> /dev/null) || continue
 		# the companion runs the daemon and rootlesskit, which does the actual binding

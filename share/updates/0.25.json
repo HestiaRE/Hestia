@@ -1,0 +1,540 @@
+{
+  "version": "0.25",
+  "entries": [
+    {
+      "id": "mail-ssl-renewal-group",
+      "description": "A renewed mail certificate was left root:root, so exim failed TLS on 465/587 for that domain until a rebuild; the files get user:mail again",
+      "conditions": [
+        {
+          "type": "file_group_differs",
+          "path": "/home/*/conf/mail/*/ssl/*",
+          "value": "mail"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "mail_ssl_modes_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "proftpd-chroot-symlinks",
+      "description": "proftpd refuses an ftp home that passes through a link, so a customer cannot swap a sub-account's directory for another one",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/proftpd/proftpd.conf"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/proftpd/proftpd.conf",
+          "value": "AllowChrootSymlinks"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "proftpd_chroot_symlinks_apply"
+      },
+      "paths": [
+        "/etc/proftpd/proftpd.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "proftpd-systemlog",
+      "description": "proftpd logs to the file the fail2ban FTP jail reads, so repeated failed FTP logins get banned",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/proftpd/proftpd.conf"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/proftpd/proftpd.conf",
+          "value": "SystemLog"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "proftpd_systemlog_apply"
+      },
+      "paths": [
+        "/etc/proftpd/proftpd.conf"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "pma-proxy-nginx-boundary",
+      "description": "the phpMyAdmin alias on customer domains behind nginx no longer takes customer paths that only start with it",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/nginx/conf.d/phpmyadmin.inc"
+        },
+        {
+          "type": "file_lacks",
+          "path": "/etc/nginx/conf.d/phpmyadmin.inc",
+          "value": "location = /"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "pma_proxy_nginx_apply"
+      },
+      "paths": [
+        "/etc/nginx/conf.d/phpmyadmin.inc"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "sftp-jail-home-link",
+      "description": "The SFTP jail refuses a home that passes through a link, the same rule as proftpd",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/security/namespace.d/hestia-jail.init"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/security/hestia-jail.init",
+          "target": "/etc/security/namespace.d/hestia-jail.init"
+        }
+      ],
+      "action": {
+        "type": "file_copy",
+        "source": "share/security/hestia-jail.init",
+        "target": "/etc/security/namespace.d/hestia-jail.init"
+      },
+      "paths": [
+        "/etc/security/namespace.d/hestia-jail.init"
+      ],
+      "reversible": true
+    },
+    {
+      "id": "stats-auth-fragment",
+      "description": "nginx read the stats password fragment from the customer's own folder; vhosts rendered before it moved to conf are rebuilt",
+      "conditions": [
+        {
+          "type": "file_contains",
+          "path": "/home/*/conf/web/*/nginx*.conf",
+          "value": "/stats/auth.conf"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "stats_auth_fragment_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-schedule-letsencrypt-domain",
+      "description": "h-schedule-letsencrypt-domain is gone: nothing scheduled through it, the panel orders certificates directly",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-schedule-letsencrypt-domain"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-cron-letsencrypt-job",
+      "description": "h-add-cron-letsencrypt-job is gone with the queue it served",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-cron-letsencrypt-job"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-letsencrypt-pipe",
+      "description": "The Let's Encrypt queue is gone; every certificate order left its empty pipe behind",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/queue/letsencrypt.pipe"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/etc/hestia/queue/letsencrypt.pipe"
+      },
+      "paths": [
+        "/etc/hestia/queue/letsencrypt.pipe"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-web-domain-ssl-preset",
+      "description": "h-add-web-domain-ssl-preset is gone: nothing called it, h-add-web-domain-ssl-force sets the same flag",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-web-domain-ssl-preset"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-update-web-domain-traff",
+      "description": "h-update-web-domain-traff is gone: nothing called it, the nightly h-update-web-domains-traff counts every domain",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-update-web-domain-traff"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-update-web-domain-traff"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-update-web-domain-traff"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-apache2-stpl",
+      "description": "The suspend apache2 template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/apache2.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-nginx-stpl",
+      "description": "The suspend nginx template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/nginx.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-admin-proxy-stpl",
+      "description": "The suspend proxy template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/admin/proxy.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-apache2-stpl",
+      "description": "The offline apache2 template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/apache2.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-nginx-stpl",
+      "description": "The offline nginx template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/nginx.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-suspend-offline-proxy-stpl",
+      "description": "The offline proxy template holds its SSL block itself now, the separate .stpl is gone",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/web/suspend/offline/proxy.stpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-update-web-templates",
+      "description": "h-update-web-templates is gone: nothing called it, and it fetched nothing any more",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-update-web-templates"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-update-web-templates"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-update-web-templates"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "remove-share-multiphp-tpl",
+      "description": "share/php-fpm/multiphp.tpl is gone: nothing rendered it, the customer pools come from templates/php",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+      },
+      "paths": [
+        "/usr/local/hestia/share/php-fpm/multiphp.tpl"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "web-model-snapshot-private",
+      "description": "The web-model switch snapshots carry every customer's TLS and DKIM keys and were readable by every local account",
+      "conditions": [
+        {
+          "type": "file_mode_wider",
+          "path": "/var/lib/hestia/web-model-switch",
+          "value": "700"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "web_model_snap_dir_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-refresh",
+      "description": "The file manager code and listeners were copied once and never refreshed; they follow the tree now, with a catch-all on the private port. Decided by index.php, the app is that one file",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "file_differs",
+          "source": "share/filemanager/fm/index.php",
+          "target": "/usr/share/filemanager/fm/index.php"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-catchall",
+      "description": "The private file manager port gets a catch-all that refuses every Host no customer listener carries; a box from before it has none",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/nginx/conf.d/fm--default.conf"
+        },
+        {
+          "type": "path_absent",
+          "path": "/etc/apache2/conf.d/fm--default.conf"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listener-private-nginx",
+      "description": "The file manager listeners carry the secret every customer's listener shares and were readable by every local account",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_mode_wider",
+          "path": "/etc/nginx/conf.d/fm-*.conf",
+          "value": "600"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listener-private-apache",
+      "description": "The file manager listeners carry the secret every customer's listener shares and were readable by every local account",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/share/filemanager/fm/index.php"
+        },
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_mode_wider",
+          "path": "/etc/apache2/conf.d/fm-*.conf",
+          "value": "600"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "filemanager-listen-rename",
+      "description": "The apache Listen file of the file manager had the name a customer called listen gets for their listener, so enabling theirs overwrote the port",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_contains",
+          "path": "/etc/apache2/conf.d/fm-listen.conf",
+          "value": "Listen 127.0.0.1:"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-user-sftp-key",
+      "description": "h-add-user-sftp-key is gone: it made the SSH key of HestiaCP's file manager, which does not exist here",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/usr/local/hestia/bin/h-add-user-sftp-key"
+        }
+      ],
+      "action": {
+        "type": "path_delete",
+        "path": "/usr/local/hestia/bin/h-add-user-sftp-key"
+      },
+      "paths": [
+        "/usr/local/hestia/bin/h-add-user-sftp-key"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "tachyon-pin",
+      "description": "Tachyon 4.4.1: 4.4.0 closes nine security issues, 4.4.1 a login failure right after that upgrade. The 0.20.0 entry that moved the pin lies below the update bound",
+      "conditions": [
+        {
+          "type": "pin_differs",
+          "name": "tachyon",
+          "path": "/var/lib/tachyon/data/VERSION"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "tachyon_pin_apply"
+      },
+      "paths": [
+        "/var/lib/tachyon"
+      ],
+      "reversible": false
+    }
+  ]
+}

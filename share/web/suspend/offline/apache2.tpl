@@ -16,6 +16,7 @@
     ErrorDocument 503 /offline/index.html
     Alias /offline/ %docroot%/
     RedirectMatch 503 ^/(?!offline/|\.well-known/)
+    IncludeOptional %home%/%user%/conf/web/%domain%/%web_system%.conf_letsencrypt
 
     <Directory %docroot%>
         AllowOverride All
@@ -23,6 +24,40 @@
         # page dir is outside the granted /home paths
         Require all granted
     </Directory>
+
+    IncludeOptional /etc/apache2/conf.d/*.inc
+</VirtualHost>
+#=HESTIARE-SSL-VHOST=#
+# Rendered for offline domains in every web model - not user-selectable
+
+<VirtualHost %vhost_ssl%>
+
+    ServerName %domain_idn%
+    IncludeOptional %home%/%user%/conf/web/%domain%/botlimit.apache2.conf*
+    %alias_string%
+    ServerAdmin %email%
+    DocumentRoot %docroot%
+    CustomLog /var/log/%web_system%/domains/%domain%.bytes bytes
+    CustomLog /var/log/%web_system%/domains/%domain%.log combined
+    ErrorLog /var/log/%web_system%/domains/%domain%.error.log
+
+    ErrorDocument 503 /offline/index.html
+    Alias /offline/ %docroot%/
+    RedirectMatch 503 ^/(?!offline/|\.well-known/)
+    IncludeOptional %home%/%user%/conf/web/%domain%/%web_system%.ssl.conf_letsencrypt
+
+    <Directory %docroot%>
+        AllowOverride All
+        SSLRequireSSL
+        Options -Indexes
+        # page dir is outside the granted /home paths
+        Require all granted
+    </Directory>
+    SSLEngine on
+    SSLVerifyClient none
+    SSLCertificateFile %ssl_crt%
+    SSLCertificateKeyFile %ssl_key%
+    %ssl_ca_str%SSLCertificateChainFile %ssl_ca%
 
     IncludeOptional /etc/apache2/conf.d/*.inc
 </VirtualHost>

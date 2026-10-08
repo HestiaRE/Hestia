@@ -5,53 +5,42 @@
 # example: h-delete-user-stats user
 # example: h-delete-user-stats admin overall
 #
-# This function deletes user statistics data.
+# Clears a user's usage statistics, or with overall the totals of the root user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 mode=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [MODE]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
+case "$mode" in
+	'') ;;
+	overall) [ "$user" = "$ROOT_USER" ] || check_result "$E_INVALID" "overall statistics belong to $ROOT_USER" ;;
+	*) check_result "$E_INVALID" "invalid mode :: $mode (empty or overall)" ;;
+esac
 
-#----------------------------------------------------------#
-#                       Actions                            #
-#----------------------------------------------------------#
-
-if [ "$user" = "$ROOT_USER" ] && [ "$mode" = "overall" ]; then
+if [ "$mode" = "overall" ]; then
 	log_file="$USER_DATA/overall_stats.log"
 else
 	log_file="$USER_DATA/stats.log"
 fi
 
-if [ -f "$USER_DATA/stats.log" ]; then
-	rm -f "$log_file"
-	touch "$log_file"
+if [ -f "$log_file" ]; then
+	: > "$log_file"
+	chmod 660 "$log_file"
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$mode" = "overall" ]; then
 	$BIN/h-log-action "system" "Info" "System" "Overall usage statistics deleted."
 else
 	$BIN/h-log-action "system" "Info" "System" "Usage statistics deleted (User: $user)."
 fi
+log_event "$OK" "$ARGUMENTS"
+
+exit

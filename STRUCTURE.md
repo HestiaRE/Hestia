@@ -138,7 +138,7 @@ into **five** on that one `hestia` master:
 | `roundcube.conf` | `caddy` | `/run/hestia-webmail-roundcube.sock` | Caddy `:8090` |
 | `tachyon.conf` | `caddy` | `/run/hestia-webmail-tachyon.sock` | Caddy `:8091` |
 
-Plus per-customer pools on the **customer** PHP (`share/php-fpm/multiphp.tpl`,
+Plus per-customer pools on the **customer** PHP (`templates/php/{default,small,high}.tpl`,
 `user=%user%`) and the FM pool (delta 5).
 
 **Why.** Isolate by trust boundary (see the system-user table). Upstream already
@@ -257,7 +257,7 @@ panel process, not the kernel UID. System-wide, no per-customer isolation.
 **HestiaRE.** A vendored, forked single-file TinyFileManager with app-auth disabled,
 in a three-layer model (#218/#419):
 1. **Shared code**, one root-owned copy: `/usr/share/filemanager/fm`
-   (`bin/h-add-sys-filemanager:60-65`).
+   (`fm_code_install` in `include/filemanager.sh`).
 2. **Per-customer FPM pool run AS the customer**: `fm-<user>` on the customer PHP,
    `user=%user%`, `listen=/run/hestia/fm/<user>.sock`,
    `open_basedir=/usr/share/filemanager/fm:/home/%user%`, `env[FM_ROOT]=/home/%user%`
@@ -549,7 +549,9 @@ level remains only as the hand-off spot for a migration archive an operator drop
 hand, plus `server.<stamp>.tar` for box state (`h-backup-server`, #710) - `server` is a
 reserved login name for that reason. Records keep bare basenames, so the backup FORMAT is
 untouched and bidirectional compatibility holds: a HestiaCP archive placed at the hand-off
-spot restores, and our archives restore there (#789).
+spot restores, and our archives restore there (#789). A restore that creates the account applies the
+name rules of `h-add-user`, reserved names included, so an archive of an account named `server` is refused
+rather than colliding (#1176).
 
 **Why.** Path privacy and one rights picture per customer. One resolver in
 `include/backup.sh` (`backup_archive_path`) carries the two-place rule and the symlink

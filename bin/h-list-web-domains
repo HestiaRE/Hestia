@@ -4,25 +4,17 @@
 #
 # example: h-list-web-domains alice
 #
-# This function to obtain the list of all user web domains.
+# Lists all web domains of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -30,13 +22,12 @@ json_list() {
 	echo "{"
 	while read -r str; do
 		parse_object_kv_list "$str"
-		# Set correct document root path
 		if [ -n "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
 			DOCROOT="$HOMEDIR/$user/web/$DOMAIN/public_html/"
 		fi
-		json_escape DOMAIN IP IP6 DOCROOT U_DISK U_BANDWIDTH TPL ALIAS STATS STATS_USER SSL SSL_HOME HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT WP FTP_USER FTP_PATH AUTH_USER BACKEND PHP_VERSION PROXY PROXY_EXT SUSPENDED TIME DATE
+		json_escape DOMAIN IP IP6 DOCROOT U_DISK U_BANDWIDTH TPL ALIAS STATS STATS_USER SSL HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT WP FTP_USER FTP_PATH AUTH_USER BACKEND PHP_VERSION PROXY PROXY_EXT SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$DOMAIN"
 		printf '        "IP": "%s",\n' "$IP"
 		printf '        "IP6": "%s",\n' "$IP6"
@@ -48,7 +39,6 @@ json_list() {
 		printf '        "STATS": "%s",\n' "$STATS"
 		printf '        "STATS_USER": "%s",\n' "$STATS_USER"
 		printf '        "SSL": "%s",\n' "$SSL"
-		printf '        "SSL_HOME": "%s",\n' "$SSL_HOME"
 		printf '        "HTTP3": "%s",\n' "$HTTP3"
 		printf '        "DOCKER": "%s",\n' "$DOCKER"
 		printf '        "DOCKER_PORT": "%s",\n' "$DOCKER_PORT"
@@ -76,7 +66,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "DOMAIN   IP   TPL   SSL   DISK   BW   SPND   DATE"
@@ -87,37 +76,26 @@ shell_list() {
 	done < <(cat $USER_DATA/web.conf)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
 		parse_object_kv_list "$str"
-		# Set correct document root path
 		if [ ! -z "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
 			DOCROOT="$HOMEDIR/$user/web/$DOMAIN/public_html/"
 		fi
 		echo -ne "$DOMAIN\t$IP\t$IP6\t$DOCROOT\t$U_DISK\t$U_BANDWIDTH\t$TPL\t"
-		echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$SSL_HOME\t$LETSENCRYPT\t"
+		echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$LETSENCRYPT\t"
 		echo -ne "$FTP_USER\t$FTP_PATH\t$AUTH_USER\t$BACKEND\t$PROXY\t"
 		echo -e "$PROXY_EXT\t$SUSPENDED\t$TIME\t$DATE"
 	done < <(cat $USER_DATA/web.conf)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
@@ -126,9 +104,5 @@ case $format in
 esac
 
 unset docroot
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

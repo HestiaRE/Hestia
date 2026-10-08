@@ -4,20 +4,13 @@
 #
 # example: h-add-sys-sftp-jail yes
 #
-# Installs the pam_namespace SFTP jail: tmpfiles mountpoint, iscript,
-# namespace.conf, PAM group-gate, and one static `Match Group sftp-jailed` block.
-# Idempotent; also called by the installer. Design: PR / CHANGELOG.
+# Installs the pam_namespace SFTP jail: mountpoint, iscript, namespace.conf, the PAM group gate and one
+# Match Group sftp-jailed block. Idempotent; the installer calls it too.
 
-#----------------------------------------------------------#
-# Variables & Functions #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 restart=$1
@@ -28,34 +21,23 @@ nsconf='/etc/security/namespace.conf'
 nsdir='/etc/security/namespace.d'
 nsinit="$nsdir/hestia-jail.init"
 
-#----------------------------------------------------------#
-# Verifications #
-#----------------------------------------------------------#
-
-#----------------------------------------------------------#
-# Action #
-#----------------------------------------------------------#
-
 getent group sftp-jailed > /dev/null 2>&1 || groupadd sftp-jailed
 
-# Runtime mountpoint (create now so the first login works)
 cp -f "$HESTIA/share/tmpfiles.d/hestia-jail.conf" /etc/tmpfiles.d/hestia-jail.conf
 systemd-tmpfiles --create /etc/tmpfiles.d/hestia-jail.conf > /dev/null 2>&1
 
-# Per-session jail builder for pam_namespace
 mkdir -p "$nsdir"
 cp -f "$HESTIA/share/security/hestia-jail.init" "$nsinit"
 chmod 755 "$nsinit"
 
-# namespace.conf (field 4 blank, the PAM stack already scopes to the group)
+# Field 4 blank: the PAM stack already scopes to the group.
 nsline="/run/hestia/jail   /run/hestia/jail-inst/   tmpfs:mntopts=size=1M,nosuid,nodev,noexec:iscript=hestia-jail.init"
 if ! grep -q '^/run/hestia/jail[[:space:]]' "$nsconf" 2> /dev/null; then
 	echo "$nsline" >> "$nsconf"
 fi
 
-# PAM: pam_succeed_if success=1 skips pam_namespace when the user is NOT in the group,
-# so it runs only for jailed members (the two lines must stay adjacent)
-if ! grep -q 'pam_namespace.so' "$pam" 2> /dev/null; then
+# success=1 skips pam_namespace for anyone outside the group, so the two lines must stay adjacent.
+if ! grep -qE '^[[:space:]]*session[[:space:]].*pam_namespace\.so' "$pam" 2> /dev/null; then
 	{
 		echo ""
 		echo "# HestiaRE SFTP jail (#413): run pam_namespace only for the sftp-jailed group"
@@ -65,24 +47,22 @@ if ! grep -q 'pam_namespace.so' "$pam" 2> /dev/null; then
 fi
 
 # The Subsystem line, from the one place that decides it.
-[ "$(jail_sshd_subsystem_apply)" = changed ] && restart='yes'
+changed=''
+[ "$(jail_sshd_subsystem_apply)" = changed ] && changed='yes'
 
-# Replace any existing "# Hestia SFTP Chroot" block (marker + following Match/indented
-# lines) with the single static Match Group block
-if grep -q "^# Hestia SFTP Chroot" $config; then
-	# A blank line is held back and printed only if the marker does not come next: the append below
-	# writes its own, and keeping both made the file grow by a line every run.
-	awk '
-		held && !/^# Hestia SFTP Chroot$/ { print ""; held=0 }
-		/^$/ && !held && !skip { held=1; next }
-		/^# Hestia SFTP Chroot$/ { skip=1; held=0; next }
-		skip && (/^Match / || /^[[:space:]]/ || /^$/) { next }
-		skip { skip=0 }
-		{ print }
-		END { if (held) print "" }
-	' "$config" > "$config.hst" && cat "$config.hst" > "$config" && rm -f "$config.hst"
-	restart='yes'
-fi
+# Our block is the marker, one Match line and its indented lines; whatever follows is the admin's and stays.
+# Built and checked in a copy, so a refused config never becomes the live one.
+tmp=$(mktemp "$config.hst-XXXXXX") || check_result "$E_DISK" "no temp file next to $config"
+awk '
+	held && !/^# Hestia SFTP Chroot$/ { print ""; held=0 }
+	/^$/ && !held && !skip { held=1; next }
+	/^# Hestia SFTP Chroot$/ { skip=1; seen=0; held=0; next }
+	skip && /^Match / && !seen { seen=1; next }
+	skip && /^[[:space:]]/ { next }
+	skip { skip=0 }
+	{ print }
+	END { if (held) print "" }
+' "$config" > "$tmp"
 {
 	echo ""
 	echo "# Hestia SFTP Chroot"
@@ -91,31 +71,35 @@ fi
 	echo "    X11Forwarding no"
 	echo "    AllowTCPForwarding no"
 	echo "    ForceCommand internal-sftp"
-} >> $config
-restart='yes'
+} >> "$tmp"
 
-# Validate before restarting; mail root on failure (never leave sshd unrestartable)
+# A refused config mails root and never goes live: sshd must stay restartable.
 subj="OpenSSH restart failed"
 email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" 2> /dev/null | cut -f 2 -d \')
-if ! /usr/sbin/sshd -t > /dev/null 2>&1; then
-	mail_text="OpenSSH can not be restarted. Please check config:
-            \n\n$(/usr/sbin/sshd -t 2>&1)"
+if ! /usr/sbin/sshd -t -f "$tmp" > /dev/null 2>&1; then
+	mail_text="The SFTP jail was not written, OpenSSH would refuse the config:
+            \n\n$(/usr/sbin/sshd -t -f "$tmp" 2>&1)"
+	rm -f "$tmp"
 	[ -n "$email" ] && echo -e "$mail_text" | $SENDMAIL -s "$subj" $email
-	echo "ERROR: sshd config invalid after SFTP jail setup, not restarting."
+	echo "ERROR: sshd config invalid with the SFTP jail, left as it was."
 	log_event "$E_INVALID" "$ARGUMENTS"
 	exit "$E_INVALID"
 fi
+if cmp -s "$tmp" "$config"; then
+	rm -f "$tmp"
+else
+	chmod --reference="$config" "$tmp" && chown --reference="$config" "$tmp" && mv -f "$tmp" "$config" \
+		|| {
+			rm -f "$tmp"
+			check_result "$E_DISK" "$config could not be replaced"
+		}
+	changed='yes'
+fi
 
-# Restart ssh (unless explicitly told not to)
-if [ "$restart" != 'no' ]; then
+if [ "$changed" = 'yes' ] && [ "$restart" != 'no' ]; then
 	service ssh restart > /dev/null 2>&1
 fi
 
-#----------------------------------------------------------#
-# Hestia #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -17,6 +17,21 @@ record_set_field() {
 	_rec_ref="$_rsf_new"
 }
 
+# record_zero_counters VAR KEY...: a counter in the record held in VAR that is not a number becomes 0. Readers add
+# these in bash arithmetic, which evaluates a subscript in the value; the disk queue counts them again anyway.
+record_zero_counters() {
+	local -n _rzc_ref="$1"
+	local _rzc_key _rzc_val _rzc_new
+	shift
+	for _rzc_key in "$@"; do
+		_rzc_val=$(record_field "$_rzc_ref" "$_rzc_key") || continue
+		[[ "$_rzc_val" =~ ^[0-9]*$ ]] && continue
+		record_rewrite _rzc_new "$_rzc_ref" set "$_rzc_key" 0 || return 1
+		_rzc_ref="$_rzc_new"
+		echo "Warning!: a non-numeric $_rzc_key in the archived record is set to 0"
+	done
+}
+
 # restore_parse_record KEYVAR LINE - parse a record and remember, in KEYVAR, which keys it set.
 # Derived per parse site, so the cleanup between two objects cannot cover less than was parsed.
 restore_parse_record() {

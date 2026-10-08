@@ -4,26 +4,15 @@
 #
 # example: h-schedule-user-backup admin
 #
-# This function for scheduling user backup creation.
+# Queues the creation of a backup of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
@@ -32,19 +21,9 @@ is_object_valid 'user' 'USER' "$user"
 is_backup_enabled
 is_backup_scheduled 'backup'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Adding backup task to  the queue
 log=$HESTIA/log/backup.log
 echo "$BIN/h-backup-user $user yes >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

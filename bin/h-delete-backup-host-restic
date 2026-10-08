@@ -1,43 +1,21 @@
 #!/bin/bash
-# info: delete backup ftp server
+# info: delete the restic backup host
 # options: [NONE]
 #
 # example: h-delete-backup-host-restic
 #
-# This function deletes ftp backup host
+# Deletes the restic backup host configuration and switches the incremental mode off.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting host config
 rm -f $HESTIA/conf/restic.conf
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-change-sys-config-value 'BACKUP_INCREMENTAL' 'no'
 
-# Logging
 $BIN/h-log-action "system" "Info" "Backup" "Removed remote backup host (Type: Restic)."
 log_event "$OK" "$ARGUMENTS"
 

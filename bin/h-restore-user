@@ -5,18 +5,11 @@
 # example: h-restore-user admin 2019-04-22_01-00-00.tar
 # example: h-restore-user admin 2019-04-22_01-00-00.tar '' '' '' '' '' '' no all,php-fallback
 #
-# This function for restoring user from backup. To be able to restore the backup,
-# the archive needs to be placed in /backup.
+# Restores a customer from a backup archive found in the backup folder.
 #
-# CONSENT is a comma list from a closed set - all, web, mail, db, cron, udir, php-fallback - saying
-# which sections this run may write. Only needed where nobody can be asked: a terminal is prompted
-# per section, and a selector naming objects is itself the consent. Without it, nothing is written.
+# CONSENT is a comma list (all, web, mail, db, cron, udir, php-fallback) naming the sections this run may write;
+# needed only where nobody can be asked: a terminal is prompted and a selector naming objects is itself consent.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 web=$3
@@ -28,12 +21,10 @@ udir=$8
 notify=${9-no}
 consent=${10}
 
-# Define backup dir
 if [ -z "$BACKUP" ]; then
 	BACKUP=/backup
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -54,41 +45,27 @@ source $HESTIA/include/docker.sh
 source $HESTIA/include/syshealth.sh
 # shellcheck source=/usr/local/hestia/include/quota.sh
 source $HESTIA/include/quota.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER BACKUP [WEB] [DNS] [MAIL] [DB] [CRON] [UDIR] [NOTIFY] [CONSENT]'
 check_args '2' "$#" "$args_usage"
 is_format_valid 'user' 'backup'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Check if backup folder exists and have the correct permission
 if [[ ! -d "$BACKUP" ]]; then
 	mkdir -p "$BACKUP"
 fi
-# 711, not 755: customer names and run dates are not for local users to enumerate (#789).
+# 711, not 755: customer names and run dates are not for local users to enumerate.
 if [ $(stat -c %a "$BACKUP") != 711 ]; then
 	chmod 711 "$BACKUP"
 fi
 
-# Checking local backup - customer folder first, then the flat hand-off spot (#789)
 backup_archive_path "$user" "$backup"
 case $? in
 	2) check_result "$E_INVALID" "$backup does not resolve to a file inside '${BACKUP}'" ;;
 	1)
-		# A chain, and the CONTENT decides: the next transport is only skipped once the file is
-		# actually here. First-match-only left an archive stranded on the second remote while
-		# the first answered with silence (stage-0 protocol, D1).
+		# A chain decided by content: the next transport is skipped only once the file is actually here.
 		for remote_type in sftp ftp rclone; do
-			# Comma-bounded, not =~: ftp is a substring of sftp, and first-match-only used to mask
-			# exactly that (same form as backup_db_type_supported).
+			# Comma-bounded, not =~: ftp is a substring of sftp (same form as backup_db_type_supported).
 			[[ ",$BACKUP_SYSTEM," == *",$remote_type,"* ]] || continue
 			${remote_type}_download "$backup"
 			backup_archive_path "$user" "$backup" && break
@@ -99,11 +76,10 @@ esac
 if ! backup_archive_path "$user" "$backup"; then
 	check_result "$E_NOTEXIST" "backup file $backup doesn't exist in '$BACKUP/$user' or '${BACKUP}'"
 fi
-# Into plain variables NOW: the resolver globals get overwritten by the base lookup below.
+# Into plain variables now: the resolver globals are overwritten by the base lookup below.
 backup_path="$BACKUP_ARCHIVE"
 backup_at="$BACKUP_ARCHIVE_DIR"
 
-# Checking user existence on the server
 check_user=$(is_object_valid 'user' 'USER' "$user")
 if [ -z "$check_user" ]; then
 	is_object_unsuspended 'user' 'USER' "$user"
@@ -119,7 +95,6 @@ else
 		|| check_result "$E_EXISTS" "user $user is not available: another account holds database names starting with ${user}_"
 fi
 
-# Checking available disk space
 disk_usage=$(df $BACKUP | tail -n1 | tr ' ' '\n' | grep % | cut -f 1 -d %)
 if [ "$disk_usage" -ge "$BACKUP_DISK_LIMIT" ]; then
 	echo "Error: Not enough disk space" | $SENDMAIL -s "$subj" $email $notify
@@ -127,7 +102,6 @@ if [ "$disk_usage" -ge "$BACKUP_DISK_LIMIT" ]; then
 	check_result "$E_DISK" "Not enough disk space"
 fi
 
-# Checking load average
 la=$(cat /proc/loadavg | cut -f 1 -d ' ' | cut -f 1 -d '.')
 i=0
 while [ "$la" -ge "$BACKUP_LA_LIMIT" ]; do
@@ -147,23 +121,19 @@ if [ -z "$BACKUP_TEMP" ]; then
 	BACKUP_TEMP=$BACKUP
 fi
 
-# Creating temporary directory
 tmpdir=$(mktemp -p $BACKUP_TEMP -d) || {
 	echo "Can't create tmp dir in $BACKUP_TEMP" | $SENDMAIL -s "$subj" $email $notify
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_NOTEXIST" "Can't create tmp dir"
 }
-# On EVERY exit: ten of the aborts below have no rm of their own and left the unpacked members
-# behind, pam material included. ONE trap owner - later stages add work via flags, never via a
-# second `trap ... EXIT` (replaces silently, and only in its own branch).
+# On every exit, one trap owner: later stages add work via flags, never a second `trap ... EXIT` (it replaces silently).
 quota_cap_lifted=''
 counters_recount=''
 restore_cleanup() {
 	rm -rf "$tmpdir"
-	# an aborted restore must not leave the customer unlimited
+	# An aborted restore must not leave the customer unlimited.
 	[ "$quota_cap_lifted" = 'yes' ] && "$BIN/h-update-user-quota" "$user" > /dev/null 2>&1
-	# Also after an abort: the account and domains exist from the first write on, and a later h-delete-user
-	# subtracts what was never counted (#1137).
+	# Also after an abort: a later h-delete-user would subtract what was never counted.
 	if [ "$counters_recount" = 'yes' ]; then
 		[ -e "$USER_DATA/user.conf" ] && "$BIN/h-update-user-counters" "$user" > /dev/null 2>&1
 		"$BIN/h-update-user-counters" "$ROOT_USER" > /dev/null 2>&1
@@ -172,16 +142,13 @@ restore_cleanup() {
 }
 trap restore_cleanup EXIT
 
-# Parts that did not come back. Collected through the run and reported at the end, so one broken
-# object does not abandon the rest and does not pass as a success either.
+# Collected and reported at the end: one broken object must not abandon the rest nor pass as a success.
 restore_failures=''
 
-# This run's queue line as fixed text: a queued BACKUP for the same customer must not go with it
-# (it used to).
+# Fixed text: a queued BACKUP for the same customer must not go with this line.
 QUEUE_JOB="h-restore-user '$user' '$backup'"
 
-# Read the archive once, before anything is written, and say what this host will not be able to
-# restore from it. Answers that come out DURING a run arrive after the write they were about.
+# Read the archive once before anything is written: answers arriving during a run come after the write they were about.
 if ! backup_probe "$backup_path" "$tmpdir/.probe"; then
 	rm -rf "$tmpdir"
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
@@ -193,12 +160,11 @@ if [ "$backup_at" = 'root' ]; then
 	echo "   found at the hand-off location $BACKUP, not the customer folder" | tee -a "$tmpdir/restore.log"
 fi
 
-# Diff base checked NOW: a restore that discovers it at the third member has already written two.
+# Diff base checked now: discovering it at the third member means two are already written.
 backup_diff_probe "$backup_path" "$tmpdir/.diff"
 if [ -n "$DIFF_BASE" ]; then
 	echo "   differential archive, base $DIFF_BASE" | tee -a "$tmpdir/restore.log"
-	# The base follows the same chain as the archive itself (#790 stage 3): on remote-only the
-	# base was never local, and a diff whose base a remote still holds must restore without help.
+	# The base follows the same chain as the archive: a diff whose base only a remote holds must restore without help.
 	if ! backup_archive_path "$user" "$DIFF_BASE"; then
 		for remote_type in sftp ftp rclone; do
 			[[ ",$BACKUP_SYSTEM," == *",$remote_type,"* ]] || continue
@@ -209,8 +175,7 @@ if [ -n "$DIFF_BASE" ]; then
 	if ! backup_archive_path "$user" "$DIFF_BASE"; then
 		rm -rf "$tmpdir"
 		queue_drop_job "$CONF_DIR/queue/backup.pipe"
-		# The refusal claims exactly what was searched: the remote clause only when a remote
-		# was configured and therefore actually asked.
+		# The refusal claims only what was searched: the remote clause appears only if a remote was configured.
 		base_missing="$backup is differential and its base $DIFF_BASE is neither in $BACKUP/$user nor $BACKUP"
 		case ",$BACKUP_SYSTEM," in
 			*,ftp,* | *,sftp,* | *,rclone,*) base_missing="$base_missing, and no configured remote target has it" ;;
@@ -223,8 +188,7 @@ if [ -n "$DIFF_BASE" ]; then
 		queue_drop_job "$CONF_DIR/queue/backup.pipe"
 		check_result "$E_PARSING" "base $DIFF_BASE carries no content map - it cannot serve as one"
 	fi
-	# MAPHASH: built against the local mirror, read against the base archive's map - a same-named
-	# archive from elsewhere passes every name check and fails exactly here.
+	# MAPHASH is built against the local mirror and read against the base's map: a same-named archive fails here.
 	base_maphash=$(sed -n "s/.*MAPHASH='\([^']*\)'.*/\1/p" "$tmpdir/.diff/backup.base")
 	base_maphash_live=$(tar -xOf "$base_path" "./$BACKUP_CONTAINER/backup.map" 2> /dev/null \
 		| sha256sum | cut -d' ' -f1)
@@ -234,30 +198,24 @@ if [ -n "$DIFF_BASE" ]; then
 		check_result "$E_PARSING" "base $DIFF_BASE is not the archive this diff was built against (map hash mismatch)"
 	fi
 fi
-# Outer guard: a garbled backup.base would silently skip the diff branch and unpack diff members
-# as whole - a tree of only the changed files that looks complete. backup.members says whether
-# that may happen.
+# Outer guard: a garbled backup.base would skip the diff branch and unpack diff members as whole, a tree that looks
+# complete.
 if [ -z "$DIFF_BASE" ] && grep -qv '=full$' "$tmpdir/.diff/backup.members" 2> /dev/null; then
 	rm -rf "$tmpdir"
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_PARSING" "$backup marks differential members but names no readable base - refusing a restore that would only look complete"
 fi
 
-# Refused before the first write: supporting a second container shape would constrain every path
-# join in this file, for a panel that has not produced an archive in years.
+# Refused before the first write: a second container shape would constrain every path join in this file.
 if [ "$PROBE_VESTA" = 'yes' ]; then
 	rm -rf "$tmpdir"
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_PARSING" "$backup is a Vesta archive - HestiaRE restores HestiaCP and HestiaRE archives only"
 fi
 
-# Plan, then consent, then write - a gate inside a section leaves half an account behind when it
-# refuses. The web list is derived ONCE, so the PHP question matches what this run touches.
-
-# Creating web domain restore list
+# Plan, then consent, then write: a gate inside a section leaves half an account behind. The web list is derived once.
 backup_domains=$(tar -tf "$backup_path" | grep "^./web")
-# Both spellings: a diff payload is named domain_data.diff.tar.* (#840), and archives from before
-# that spelled it like a whole member.
+# Both spellings: a diff payload is domain_data.diff.tar.*, older archives use the whole-member name.
 if [ "$backup_mode" = "zstd" ]; then
 	backup_domains=$(echo "$backup_domains" | grep -E 'domain_data(\.diff)?\.tar\.zst')
 else
@@ -271,24 +229,18 @@ else
 	domains=$(echo "$backup_domains" | grep -E -x -f $tmpdir/selected.txt)
 fi
 
-# The queue cleanup below matches on the customer name, not the line, so two queued jobs for one
-# customer both go. Pre-existing, tracked in #733.
+# The queue cleanup at the end matches the customer name, not the line: two queued jobs for one customer both go.
 if ! restore_consent_parse "$consent"; then
 	rm -rf "$tmpdir"
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_INVALID" "unknown consent token in '$consent' - allowed: ${RESTORE_CONSENT_TOKENS// /, }"
 fi
-# No env channel for consent. The rule is written twice in this tree (include/backup.sh and
-# bin/h-backup-user:15): the consent word is an ARGUMENT because of GHSA-2xw3, and a second control
-# channel through the environment reopens what that closed. RESTORE_ASSUME_YES and
-# RESTORE_PHP_FALLBACK used to be read here and were exactly that, while granting nothing the
-# argument cannot: 'all' and 'php-fallback' are both tokens of CONSENT (#1004). The restic commands
-# are the one place where the environment stays the way in, and for a reason that is not the same:
-# they have no consent argument at all, so it is the only channel there, not a second one.
+# No env channel for consent (GHSA-2xw3): a second control channel reopens what the argument closed. The rule also lives
+# in include/backup.sh and bin/h-backup-user. The restic commands keep the environment, having no consent argument.
 
 restore_refused=''
-# Per section: off, selected (which IS the consent), or asked. ONE list, read twice - a sixth
-# section added to only one reader would make a named run look like a full one.
+# Per section: off, selected (which is the consent) or asked. One list, read twice: a section added to only one
+# reader would make a named run look like a full one.
 restore_sections='web:WEB_SYSTEM:PROBE_WEB mail:MAIL_SYSTEM:PROBE_MAIL db:DB_SYSTEM:PROBE_DB
 cron:CRON_SYSTEM:PROBE_CRON udir::PROBE_UDIR'
 for _sec in $restore_sections; do
@@ -305,15 +257,14 @@ for _sec in $restore_sections; do
 		|| restore_refused="$restore_refused $_name"
 done
 
-# A consent like the others: a domain whose version is missing lands on the system default, and
-# that is a change to what the customer runs.
+# Consent like the others: a missing version lands on the system default, which changes what the customer runs.
 php_missing=''
 if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && [ -n "$domains" ]; then
 	# Called plainly, NOT in a substitution: in a subshell the register below never reaches here.
 	backup_php_missing "$domains"
 	php_missing="$BACKUP_PHP_MISSING"
-	# A record the probe did not extract means the question was never asked - refuse rather than
-	# read the empty answer as "nothing is missing".
+	# A record the probe did not extract means the question was never asked: refuse, do not read it as 'nothing
+	# missing'.
 	if [ -n "$BACKUP_PHP_UNREADABLE" ]; then
 		rm -rf "$tmpdir"
 		queue_drop_job "$CONF_DIR/queue/backup.pipe"
@@ -325,17 +276,15 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && [ -n "$domains" ]; then
 			|| restore_refused="$restore_refused php-fallback"
 	fi
 fi
-# Assigned in both directions, not only on a hit: the variable is also the internal flag :580 reads,
-# so leaving it alone on a miss would let the environment answer for the consent it was just refused.
+# Assigned in both directions: it is also the internal flag read later, and a miss must not let the environment answer.
 if restore_consent_has 'php-fallback'; then
 	RESTORE_PHP_FALLBACK='yes'
 else
 	RESTORE_PHP_FALLBACK=''
 fi
 
-# Handover writes customer data into the home, so it is a section and asks like one. Whole-archive
-# runs only - a run that names objects was not asked for the rest, and the h-restore-* wrappers
-# must not stop on a stray DNS zone.
+# A section like the others, as it writes into the home. Whole-archive runs only: wrappers naming objects must not
+# stop on a stray DNS zone.
 LEFTOVERS_PATTERNS=''
 leftovers_partial=''
 for _sec in $restore_sections; do
@@ -358,10 +307,8 @@ if [ -n "$restore_refused" ]; then
 fi
 counters_recount='yes'
 
-# Restoring user account
 if [ "$create_user" = 'yes' ]; then
 
-	# Add check if user already exists as Linux User
 	getent passwd "$user" > /dev/null 2>&1
 	if [ "$?" == 0 ]; then
 		check_result "$E_EXISTS" "User already exists"
@@ -370,7 +317,6 @@ if [ "$create_user" = 'yes' ]; then
 	echo "-- USER --" | tee $tmpdir/restore.log
 	echo -e "$(date "+%F %T") $user" | tee -a $tmpdir/restore.log
 
-	# Unpacking user container
 	tar xf "$backup_path" -C "$tmpdir" --no-wildcards "./$BACKUP_CONTAINER" 2> /dev/null
 	if [ "$?" -ne 0 ]; then
 		rm -rf $tmpdir
@@ -379,13 +325,11 @@ if [ "$create_user" = 'yes' ]; then
 		check_result "$E_PARSING" "Can't unpack user container"
 	fi
 
-	# Restoring user.conf
 	mkdir $USER_DATA
-	# Filtered, not copied: the archive is hostile input (#807).
+	# Filtered, not copied: the archive is hostile input.
 	copy_record_filtered "$tmpdir/$BACKUP_CONTAINER/user.conf" "$USER_DATA/user.conf" user \
 		|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"
-	# A language this panel does not offer (one dropped in #1160, or any of HestiaCP's) becomes en.
-	# rc 2, an unusable list, leaves the value alone rather than resetting every restored account.
+	# A language this panel does not offer becomes en; rc 2 (an unusable list) leaves the value alone.
 	_lang=$(grep -m1 "^LANGUAGE=" "$USER_DATA/user.conf" | cut -d "'" -f 2)
 	if [ -n "$_lang" ]; then
 		language_offered "$_lang"
@@ -396,8 +340,7 @@ if [ "$create_user" = 'yes' ]; then
 	fi
 	cp -r $tmpdir/$BACKUP_CONTAINER/ssl $USER_DATA/ > /dev/null 2>&1
 
-	# Everything else the container holds. Skipped: BACKUP_USER_DATA_CORE and BACKUP_CONTAINER_META
-	# (about the archive, not the customer), plus user.conf and ssl above and packages below.
+	# Everything else the container holds, minus archive metadata and the parts handled separately.
 	# A superset on purpose: this is the side that takes in foreign archives.
 	for _entry in "$tmpdir/$BACKUP_CONTAINER"/*; do
 		[ -e "$_entry" ] || continue
@@ -405,10 +348,9 @@ if [ "$create_user" = 'yes' ]; then
 		[[ " $BACKUP_USER_DATA_CORE $BACKUP_CONTAINER_META user.conf ssl packages " == *" $_name "* ]] && continue
 		# Out of the archive and joined onto a path we write to: a plain basename or nothing.
 		case "$_name" in '' | .* | */* | *[!A-Za-z0-9._-]*) continue ;; esac
-		# Anything that later runs through source_conf is filtered by its key set. A poisoned
-		# exclusion list cannot bind PATH any more, but it could still set MAIL_SYSTEM='' and skip
-		# the mail section of every future backup while the run stays green (#807).
-		# Notices describe this box's events and render as HTML in the bell: a foreign one never passed the sanitizer.
+		# Whatever later runs through source_conf is filtered by its key set: a poisoned exclusion list could blank
+		# MAIL_SYSTEM and skip the mail section of every future backup while the run stays green.
+		# Notices render as HTML in the bell: a foreign one never passed the sanitizer.
 		[ "$_name" = "notifications.conf" ] && continue
 		# Read back as records; a line outside the grammar would set whatever its keys name.
 		if [ "$_name" = "stats.log" ]; then
@@ -426,10 +368,8 @@ if [ "$create_user" = 'yes' ]; then
 			|| echo "Warning!: $_name from the archive could not be written to the data directory" | tee -a $tmpdir/restore.log
 	done
 
-	# The user's hosting package, if the archive carried one. ADD ONLY: a package of that name
-	# already on this box is left exactly as it is, even if its values differ - the admin owns the
-	# target definition, and a restore may never rewrite it. Without this a custom package missing on
-	# the target left the user pointing at a .pkg that is not there.
+	# The hosting package, ADD ONLY: one of that name already here is kept as is, the admin owns the target definition.
+	# Without it a custom package missing on the target leaves the user pointing at a .pkg that is not there.
 	if [ -d "$tmpdir/$BACKUP_CONTAINER/packages" ]; then
 		for _pkg in "$tmpdir/$BACKUP_CONTAINER/packages/"*; do
 			[ -e "$_pkg" ] || continue
@@ -443,41 +383,37 @@ if [ "$create_user" = 'yes' ]; then
 		done
 	fi
 
-	# Creates the account with a freshly allocated uid, before anything is unpacked, so
-	# tar can resolve the archived owner name onto it - and puts the project id on the
-	# fresh home, so everything unpacked below inherits it.
+	# Creates the account with a fresh uid before anything is unpacked, so tar resolves the archived owner onto it,
+	# and puts the project id on the fresh home so everything unpacked below inherits it.
 	rebuild_user_conf || check_result "$E_INVALID" "account $user could not be created"
 fi
 
 if quota_is_active && quota_home_fs; then
-	# XFS enforces against root: a restore into a full home would die mid-run.
-	# Lift the cap; the flag routes the reapply through the one EXIT trap.
+	# XFS enforces against root: a restore into a full home would die mid-run. The flag routes the reapply through the
+	# EXIT trap.
 	setquota -P "$(id -u "$user" 2> /dev/null)" 0 0 0 0 "$QUOTA_MNT" 2> /dev/null
 	quota_cap_lifted='yes'
 else
-	# the package field travels in the backup, the capability does not: name the loss
+	# The package field travels in the backup, the capability does not: name the loss.
 	_dq=$(get_user_value '$DISK_QUOTA')
 	if [ -n "$_dq" ] && [ "$_dq" != 'unlimited' ]; then
 		echo "NOTE: the package carries DISK_QUOTA=${_dq}MB but this box does not enforce it (PROJECT_QUOTA=${PROJECT_QUOTA:-unset})" | tee -a $tmpdir/restore.log
 	fi
 fi
 
-# What this host cannot restore, handed over rather than left inside the archive. Timestamped, so a
-# second restore does not overwrite the first.
+# What this host cannot restore is handed over, timestamped so a second restore does not overwrite the first.
 echo -e "\n-- LEFTOVERS --" | tee -a $tmpdir/restore.log
 if [ -n "$leftovers_partial" ]; then
-	# Not the same sentence as an archive with nothing in it: this run was asked for named objects,
-	# and the rest of the archive may well hold things this host cannot restore.
+	# Not the sentence for an empty archive: this run named objects, the rest may hold things this host cannot restore.
 	echo "$(date '+%F %T') skipped - this run restored named objects only" | tee -a $tmpdir/restore.log
 elif [ -z "$LEFTOVERS_PATTERNS" ]; then
-	# Printed, never silence: "nothing to hand over" and "the export never ran" have to look different.
+	# Printed, never silent: 'nothing to hand over' and 'the export never ran' must look different.
 	echo "$(date '+%F %T') nothing to hand over - this host can restore everything in the archive" \
 		| tee -a $tmpdir/restore.log
 else
 	leftovers_dir="$HOMEDIR/$user/leftovers/$(date '+%F_%H-%M-%S')"
 	backup_leftovers_export "$backup_path" "$leftovers_dir" "$user"
-	# What LANDED, not what was planned: the two differ exactly when something went wrong, and that
-	# is the moment the log must not claim the plan.
+	# What landed, not what was planned: they differ exactly when something went wrong.
 	[ -n "$LEFTOVERS_DONE" ] \
 		&& echo "$LEFTOVERS_DONE" | sed '/^$/d;s|^|'"$(date '+%F %T')"' |' | tee -a $tmpdir/restore.log
 	if [ -n "$LEFTOVERS_FAILED" ]; then
@@ -485,16 +421,14 @@ else
 		restore_failures="$restore_failures$(printf '\n  not handed over:%s' "$(tr '\n' ';' <<< "$LEFTOVERS_FAILED" | sed 's/;$//;s/;/, /g')")"
 	fi
 	[ -n "$LEFTOVERS_DONE" ] && echo "$(date '+%F %T') -> $leftovers_dir" | tee -a $tmpdir/restore.log
-	# Handing the objects to the customer is the friendly half; the status has to carry the rest.
-	# Otherwise a queue reads three missing databases as a restore that worked, while one missing
-	# database - the same loss, reached by another branch - already ends the run in red.
+	# Handing objects over is the friendly half; the status must carry the rest, or a queue reads missing databases as
+	# success.
 	while IFS= read -r _degraded; do
 		[ -n "$_degraded" ] || continue
 		restore_failures="$restore_failures$(printf '\n  %s - handed over instead of restored' "$_degraded")"
 	done <<< "$LEFTOVERS_DEGRADED"
 fi
 
-# Unpacking pam container
 chown "$user" "$tmpdir"
 tar xf "$backup_path" -C $tmpdir ./pam
 if [ "$?" -ne 0 ]; then
@@ -510,26 +444,21 @@ if ! restore_passwd_read "$tmpdir/pam/passwd"; then
 fi
 new_uid=$(grep "^$user:" /etc/passwd | cut -f 3 -d :)
 
-# Restoring web domains
 if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 	echo -e "\n-- WEB --" | tee -a $tmpdir/restore.log
 
-	# Restoring web domain. The list comes from the archive's member paths, not from a validator,
-	# so a member with a space in its name would split into two - and one of the halves could match
-	# a domain that is not in the archive at all. Read on fd 3: with the list on the loop's stdin,
-	# a command in the body could consume the rest of it.
+	# The list comes from archive member paths, not a validator: a member with a space would split in two.
+	# Read on fd 3 so a command in the body cannot consume the rest of the list.
 	while IFS= read -r -u 3 domain; do
 		[ -n "$domain" ] || continue
 		echo -e "$(date "+%F %T") $domain" | tee -a $tmpdir/restore.log
 
-		# Cleanup previous domain keys, derived from the record that set them rather than from a
-		# list. The list was the leak: it never learned CROWDSEC and BOTLIMIT, so a domain that had
-		# them handed them to the next domain in the same run, which had not.
+		# Derived from the record that set them, not a list: a list never learned CROWDSEC and BOTLIMIT and leaked them
+		# on.
 		restore_forget_record prev_web_keys
 		# Not record keys, so not covered above: what this loop derives per domain.
 		unset -v restore_web_effect restore_proxy_effect old_ip check_ip
 
-		# Checking domain existence
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)
 		if [ -z "$check_config" ]; then
 			check_new=$(is_domain_new 'web' $domain)
@@ -542,7 +471,6 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			fi
 		fi
 
-		# Unpacking domain container
 		tar xf "$backup_path" -C $tmpdir ./web/$domain
 		if [ "$?" -ne 0 ]; then
 			rm -rf $tmpdir
@@ -552,11 +480,9 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			check_result "$E_PARSING" "$error"
 		fi
 
-		# Restoring web.conf
 		if [ -z "$check_config" ]; then
-			# The archived line is the record. It is read once, gated, and then edited in place -
-			# quoted at the call, because unquoted it would word-split and GLOB before the tokenizer
-			# ever sees it.
+			# The archived line is the record, read once, gated, edited in place; quoted at the call, or it word-splits
+			# and globs.
 			archived_record=$(head -n1 "$tmpdir/web/$domain/$BACKUP_CONTAINER/web.conf")
 			if ! record_line_valid "$archived_record"; then
 				rm -rf $tmpdir
@@ -567,7 +493,6 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			fi
 			restore_parse_record prev_web_keys "$archived_record"
 
-			# Deleting conflicting aliases
 			# The list is archive content: filtered in the shell, never spliced into a sed program.
 			IFS=, read -ra _dom_alias_list <<< "$ALIAS"
 			ALIAS=''
@@ -578,7 +503,6 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
 			done
 
-			# Checking IP address
 			check_ip=$(is_ip_valid $IP $user)
 			if [ -n "$check_ip" ]; then
 				local_ip=''
@@ -586,8 +510,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				old_ip=$IP
 				IP=$ip
 			fi
-			# The v6 twin: a foreign box's v6 must not survive verbatim (it would render a
-			# listen on an address this box does not have). Remap to our default v6, else drop.
+			# A foreign box's v6 must not survive verbatim (it would listen on a missing address): remap to ours, else
+			# drop.
 			if [ -n "$IP6" ] && [ ! -e "$CONF_DIR/ips/$IP6" ]; then
 				if get_user_ip6; then
 					IP6="$ip6"
@@ -596,13 +520,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				fi
 			fi
 
-			# Templates through the legacy mapping: an archive can carry values this model
-			# has no file for (foreign install, other web model, removed template)
+			# Templates through the legacy mapping: an archive can carry values this model has no file for.
 			read -r TPL restore_web_effect <<< "$(accept_web_template 'web' "$TPL")"
 			read -r PROXY restore_proxy_effect <<< "$(accept_web_template 'proxy' "$PROXY")"
-			# BACKEND in the archive is the HestiaCP-compat PHP-<ver>; the native fields carry the
-			# exact HestiaRE state. Prefer them; else derive the version from the compat value and
-			# default the profile. BACKEND (live) is the pool profile again.
+			# BACKEND in the archive is the HestiaCP-compat PHP-<ver>; prefer the native fields, else derive the version
+			# from it.
 			if [ -n "$WEB_BACKEND" ]; then
 				if [ -z "$PHP_VERSION" ]; then
 					if [[ "$BACKEND" =~ PHP-([0-9]+)_([0-9]+) ]]; then
@@ -633,10 +555,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				CUSTOM_PHPROOT=${CUSTOM_PHPROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 
-			# Converting FTP users. Per entry and anchored at the front, like the database name
-			# below: the field is a colon list, and one `sed s/<old>_//` over the whole string
-			# replaced the FIRST occurrence only - a second account kept the SOURCE customer's
-			# prefix, and a name carrying the prefix in the middle lost it from there instead.
+			# Per entry and anchored at the front: one `sed s/<old>_//` over the colon list replaced only the first
+			# occurrence.
 			if [ -n "$FTP_USER" ]; then
 				IFS=':' read -r -a _ftp_list <<< "$FTP_USER"
 				FTP_USER=''
@@ -646,12 +566,10 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				done
 			fi
 
-			# Copying SSL certificates
 			if [ "$SSL" = 'yes' ]; then
 
-				# Globs rather than parsing ls: the names are archive-controlled, and the old
-				# form also spliced $domain unquoted into a grep -E pattern, where its dots are
-				# wildcards - a.b.com's certificate would be copied for aXb.com.
+				# Globs, not parsing ls (archive-controlled names), and no $domain in a grep -E pattern: its dots are
+				# wildcards.
 				if [ -f "$tmpdir/web/$domain/$BACKUP_CONTAINER/$domain.crt" ]; then
 					for crt in "$tmpdir/web/$domain/$BACKUP_CONTAINER/$domain."{crt,key,ca,pem}; do
 						[ -f "$crt" ] || continue
@@ -665,31 +583,22 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				fi
 			fi
 
-			# A mapped -http3 template (accept_web_template effect) becomes the http3 switch on
-			# the record; whether it renders a quic listen is reconciled at rebuild by capability
+			# A mapped -http3 template becomes the http3 switch; whether a quic listen renders is reconciled at rebuild.
 			if [ "$restore_web_effect" = 'http3' ] || [ "$restore_proxy_effect" = 'http3' ]; then
 				HTTP3='yes'
 			fi
 
-			# Merging web.conf keys. The archived record is the base: everything the box wrote is
-			# kept, and only the fields below are rewritten, each for a named reason. That way a
-			# field this code has never heard of - today CROWDSEC and BOTLIMIT, tomorrow the next
-			# one - survives a restore without anyone having to remember it.
+			# The archived record is the base and only the fields below are rewritten, so keys this code never heard of
+			# survive.
 			str="$archived_record"
-			# The container name, IDN-normalised; get_user_ip when the archived address is not ours;
-			# colliding aliases dropped; templates through accept_web_template, whose -http3 mapping
-			# becomes the switch; BACKEND/PHP_VERSION resolve into profile and exact
-			# version); FTP_USER carries the old user prefix; U_BANDWIDTH restarts because the
-			# traffic queue counts it again.
 			record_set_field str DOMAIN "$domain"
 			record_set_field str IP "$IP"
 			record_set_field str IP6 "$IP6"
 			record_set_field str ALIAS "$ALIAS"
 			record_set_field str TPL "$TPL"
 			record_set_field str PROXY "$PROXY"
-			# An empty PROXY_EXT from a proxy-less source empties the static-offload location on a
-			# target that has one. Only with the marker present: without it (HestiaCP, pre-#120) an
-			# empty value is unknown, not proxy-less, and could be the customer's own setting.
+			# An empty PROXY_EXT from a proxy-less source empties the static-offload location here. Only with the marker
+			# present: without it (HestiaCP) empty is unknown, not proxy-less, and could be the customer's own setting.
 			if [ -n "$PROXY_SYSTEM" ] && [ -z "$PROXY_EXT" ] \
 				&& [ -n "$PROBE_WEB_SYSTEM" ] && [ -z "$PROBE_PROXY_SYSTEM" ]; then
 				PROXY_EXT=$(default_proxy_ext)
@@ -702,16 +611,15 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			record_set_field str CUSTOM_DOCROOT "$CUSTOM_DOCROOT"
 			record_set_field str CUSTOM_PHPROOT "$CUSTOM_PHPROOT"
 			record_set_field str U_BANDWIDTH '0'
-			# SUSPENDED is NOT rewritten: every vhost writer goes through prepare_web_domain_values,
-			# so a restored 'yes' is served as locked rather than only looking locked in the panel.
-			# SUSPENDED_WEB is recounted from the records at the end of the run.
+			# SUSPENDED is not rewritten: vhost writers use prepare_web_domain_values, so 'yes' is served locked.
+			# SUSPENDED_WEB is recounted at the end of the run.
 			record_set_field str TIME "$(date +%T)"
 			record_set_field str DATE "$(date +%F)"
 			# PHP_PROFILE exists only inside the archive; live records carry it as BACKEND.
 			record_del_field str PHP_PROFILE
 
-			# What did we lose? Derived from the archived record, so the reference cannot shrink to
-			# nothing. Anything dropped that is not listed above is said out loud, not repaired empty.
+			# Derived from the archived record, so the reference set cannot shrink to nothing; a dropped key is said,
+			# not repaired empty.
 			restored_keys=" $(record_keys "$str" | tr '\n' ' ')"
 			for _k in $(record_keys "$archived_record"); do
 				case "$_k" in PHP_PROFILE) continue ;; esac
@@ -723,20 +631,16 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			record_zero_counters str U_DISK U_BANDWIDTH
 			echo "$str" >> $USER_DATA/web.conf
 
-			# The old caching template is a switch now: carry the intent over, or the
-			# domain comes back on plain default and the customer loses their cache
+			# A cache template is a switch now: carry the intent over, or the customer loses their cache.
 			if [ "$restore_proxy_effect" = 'cache' ] && [ "$PROXY_SYSTEM" = 'nginx' ]; then
 				$BIN/h-add-web-domain-cache "$user" "$domain" > /dev/null 2>&1
 			fi
 
-			# Rebuilding backend
 			if [ -n "$WEB_BACKEND" ]; then
 				$BIN/h-add-web-domain-backend $user $domain $BACKEND
 			fi
 		fi
 
-		# Restoring custom user config
-		# Except certificates, .conf files
 		if [ ! -d "$HOMEDIR/$user/conf/web/$domain/" ]; then
 			mkdir -p $HOMEDIR/$user/conf/web/$domain/
 		fi
@@ -753,13 +657,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			cp -f "$file" "$HOMEDIR/$user/conf/web/$domain/$filename"
 		done
 
-		# Rebuilding vhost to prevent user overwrite default config changes not ideal
-		# (rebuild reconciles the http3 quic fragment from the HTTP3 field through the gate)
+		# The rebuild reconciles the http3 quic fragment from the HTTP3 field through the gate.
 		rebuild_web_domain_conf
 
-		# Restoring web domain data
 		# As the customer: the domain directory is theirs, root would follow whatever they put there.
-		# From /, since find returns to its start directory and the customer cannot enter root's.
+		# From /: find returns to its start directory and the customer cannot enter root's.
 		if [ -d "$HOMEDIR/$user/web/$domain/public_html" ]; then
 			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
 				-exec rm -rf {} +)
@@ -767,16 +669,13 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		chmod u+w "$HOMEDIR/$user/web/$domain"
 		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"
 
-		# Two passes when the member is a difference: the base first, filtered to what both maps
-		# still agree on, then the diff over it. A path deleted since the base is in neither list
-		# and is simply never written.
-		#
-		# No --unlink-first (fails on non-empty dirs); tar already unlinks and recreates, only
-		# --overwrite would write THROUGH a shared inode. Measured on all four targets.
+		# Two passes for a difference: the base filtered to what both maps agree on, then the diff over it. No
+		# --unlink-first (fails on non-empty dirs): tar already unlinks and recreates, only --overwrite writes through a
+		# shared inode.
 		web_whole="domain_data.tar.zst"
 		[ "$backup_mode" = "zstd" ] || web_whole="domain_data.tar.gz"
-		# The domain got here BECAUSE the listing showed a payload, so neither spelling being on disk
-		# means the archive is not what it said - named here rather than as a tar error further down.
+		# The domain got here because the listing showed a payload: neither spelling on disk means the archive is
+		# incomplete.
 		if ! web_member=$(backup_payload_path "$tmpdir/web/$domain" "$web_whole"); then
 			rm -rf $tmpdir
 			error="$domain carries no $web_whole in $backup - the archive is incomplete"
@@ -785,7 +684,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			check_result "$E_NOTEXIST" "$error"
 		fi
 		if [ -n "$DIFF_BASE" ] && backup_member_needs_base "$tmpdir/.diff/backup.members" "web/$domain"; then
-			# The base's member is a WHOLE one whatever this archive calls its diff.
+			# The base's member is a whole one whatever this archive calls its diff.
 			web_base=$(backup_diff_stage_base "$base_path" "web/$domain" "$web_whole" "$tmpdir/.diff")
 			if [ -z "$web_base" ]; then
 				rm -rf $tmpdir
@@ -798,8 +697,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				"$web_member" "$tmpdir/.diff/keep.web.nul"
 			chmod 644 "$tmpdir/.diff/keep.web.nul" 2> /dev/null
 			if [ -s "$tmpdir/.diff/keep.web.nul" ]; then
-				# --no-recursion BEFORE -T (positional): without it every listed directory
-				# unpacks RECURSIVELY and walks the deleted files right back in.
+				# --no-recursion BEFORE -T (positional): otherwise every listed directory unpacks recursively and brings
+				# deleted files back.
 				tar_codec=()
 				[ "$backup_mode" = "zstd" ] && tar_codec=(-I pzstd)
 				user_exec tar "${tar_codec[@]}" -xpf "$web_base" \
@@ -829,22 +728,19 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			check_result "$E_PARSING" "$error"
 		fi
 
-		# Re-chowning files if uid differs
 		if [ "$old_uid" -ne "$new_uid" ]; then
 			find $HOMEDIR/$user/web/$domain/ -user $old_uid \
 				-exec chown -h $user:$user {} \;
 		fi
 
-		# Rebuilding web config for the second time to make sure ftp users keep working
+		# Second rebuild so ftp users keep working.
 		rebuild_web_domain_conf
 	done 3< <(printf '%s\n' "$domains")
 
-	# Adding user to traffic queue. Deleting by name is right HERE: this drops any older entry for
-	# the customer before adding one, it is not a job cleaning up after itself.
+	# Deleting by name is right here: it drops any older entry for the customer before adding one.
 	remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 	echo "$BIN/h-update-web-domains-traff $user" >> $CONF_DIR/queue/traffic.pipe
 
-	# Restarting web server
 	$BIN/h-restart-web
 	check_result $? "Web restart failed"
 	if [ -n "$PROXY_SYSTEM" ]; then
@@ -853,15 +749,12 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 	fi
 fi
 
-# DNS restore intentionally absent: the DNS subsystem was removed (#58).
-# The [DNS] argument is still accepted for HestiaCP backup compatibility;
+# No DNS restore: the subsystem is gone. The [DNS] argument is still accepted for backup compatibility;
 # dns/ containers inside the archive are ignored.
 
-# Restoring mail domains
 if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 	echo -e "\n-- MAIL --" | tee -a $tmpdir/restore.log
 
-	# Creating mail domain restore list
 	backup_domains=$(tar -tf "$backup_path" | grep "^./mail")
 	backup_domains=$(echo "$backup_domains" | grep "mail.conf$")
 	backup_domains=$(echo "$backup_domains" | cut -f 3 -d /)
@@ -872,19 +765,17 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 		domains=$(echo "$backup_domains" | grep -E -x -f $tmpdir/selected.txt)
 	fi
 
-	# Checking exim username for later chowning
 	exim_user="exim"
 	check_exim_username=$(grep -c '^Debian-exim:' /etc/passwd)
 	if [ "$check_exim_username" -eq 1 ]; then
 		exim_user="Debian-exim"
 	fi
 
-	# Restoring mail domain - same reasoning as the web loop above.
+	# Same reasoning as the web loop above: the list is read on fd 3.
 	while IFS= read -r -u 3 domain; do
 		[ -n "$domain" ] || continue
 		echo -e "$(date "+%F %T") $domain" | tee -a $tmpdir/restore.log
 
-		# Checking domain existence
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/mail.conf)
 		if [ -z "$check_config" ]; then
 			check_new=$(is_domain_new 'mail' $domain)
@@ -897,7 +788,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			fi
 		fi
 
-		# Unpacking domain container
 		tar xf "$backup_path" -C $tmpdir ./mail/$domain
 
 		if [ "$?" -ne 0 ]; then
@@ -908,10 +798,8 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			check_result "$E_PARSING" "$error"
 		fi
 
-		# Restoring mail.conf. Appending the archived line verbatim is the right model - it is what
-		# keeps every field - but until now it went in unchecked. The gate is the only thing added:
-		# no remaps, because rebuild_mail_domain_conf honours SUSPENDED and the mail timestamps are
-		# the archived ones by long-standing behaviour.
+		# The archived line is appended verbatim, which keeps every field; the gate is the only addition. No remaps:
+		# rebuild_mail_domain_conf honours SUSPENDED and the mail timestamps stay the archived ones.
 		if [ -z "$check_config" ]; then
 			archived_record=$(head -n1 "$tmpdir/mail/$domain/$BACKUP_CONTAINER/mail.conf")
 			if ! record_line_valid "$archived_record"; then
@@ -931,13 +819,11 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			echo "$archived_record" >> $USER_DATA/mail.conf
 		fi
 
-		# Restoring DKIM
 		if [ -e "$tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.pem" ]; then
 			cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.pem $USER_DATA/mail/
 			cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.pub $USER_DATA/mail/
 		fi
 
-		# Restore SSL
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/mail.conf | grep -o "SSL='yes'")
 		if [ -n "$check_config" ]; then
 			if [ ! -e "$CONF_DIR/users/$user/ssl/" ]; then
@@ -948,7 +834,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 				mkdir -p $HOMEDIR/$user/conf/mail/$domain/ssl/
 			fi
 
-			# Add certificate to Hestia user configuration data directory
 			if [ -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/ssl/$domain.crt ]; then
 				cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/ssl/$domain.crt $USER_DATA/ssl/mail.$domain.crt
 				cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/ssl/$domain.key $USER_DATA/ssl/mail.$domain.key
@@ -972,7 +857,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 
 			chmod 660 $USER_DATA/ssl/mail.$domain.*
 
-			# Add certificate to user home directory
 			cp -f $USER_DATA/ssl/mail.$domain.crt $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.crt
 			cp -f $USER_DATA/ssl/mail.$domain.key $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.key
 			cp -f $USER_DATA/ssl/mail.$domain.pem $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem
@@ -984,7 +868,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 				mkdir /etc/dovecot/conf.d/domains
 			fi
 
-			# Add domain SSL configuration to dovecot
 			if [ -f /etc/dovecot/conf.d/domains/$domain.conf ]; then
 				rm -f /etc/dovecot/conf.d/domains/$domain.conf
 			fi
@@ -1008,8 +891,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 				mkdir $MAIL_SNI_DIR
 			fi
 
-			# Add domain SSL configuration to exim4
-			# Cleanup broken symlinks
 			find $MAIL_SNI_DIR -xtype l -delete
 
 			ln -s -f $HOMEDIR/$user/conf/mail/$domain/ssl/$domain.pem $MAIL_SNI_DIR/mail.$domain.crt
@@ -1018,13 +899,10 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			mail_ssl_modes "$user" "$domain"
 		fi
 
-		# Restoring email accounts
 		cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf $USER_DATA/mail/
 
-		# The autoreply text is CONTENT, not a rendered file: rebuild_mail_domain_conf recreates
-		# accounts, aliases, antispam, passwd, fwd_only and limits from the records, but nothing can
-		# recreate a message nobody stored. Both copies come back - the record-side one and the one
-		# exim reads - or the account restores with AUTOREPLY='yes' and no text behind it (#826).
+		# The autoreply text is content nothing can recreate: restore both the record-side copy and the one exim reads,
+		# or the account comes back with AUTOREPLY='yes' and no text.
 		if compgen -G "$tmpdir/mail/$domain/$BACKUP_CONTAINER/*@$domain.msg" > /dev/null; then
 			cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/*@$domain.msg $USER_DATA/mail/
 			chmod 660 $USER_DATA/mail/*@$domain.msg
@@ -1043,21 +921,19 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			mkdir $HOMEDIR/$user/mail/$domain_idn
 		fi
 
-		# Current Hestia store email in the $HOMEDIR/$user/mail/$domain_idn
 		chmod u+w "$HOMEDIR/$user/mail/$domain_idn"
 		chown $user:$user "$HOMEDIR/$user/mail/$domain_idn"
 
-		# Same two passes as web, through the extractor that drops privileges. Mail has no
-		# equivalent of the public_html wipe above, so a deletion does NOT take effect here - the
-		# restore adds to the mailbox, exactly as it does from a full archive (#744).
+		# Same two passes as web, through the extractor that drops privileges. Mail has no equivalent of the public_html
+		# wipe, so a deletion does not take effect: the restore adds to the mailbox, as from a full archive.
 		mail_whole="accounts.tar.zst"
 		[ "$backup_mode" = 'zstd' ] || mail_whole="accounts.tar.gz"
-		# No refusal here, unlike web: a mail domain without accounts legitimately has no payload,
-		# and every use below is already guarded by [ -e ].
+		# No refusal, unlike web: a mail domain without accounts legitimately has no payload, and every use is guarded
+		# by [ -e ].
 		mail_member=$(backup_payload_path "$tmpdir/mail/$domain" "$mail_whole") || mail_member="$tmpdir/mail/$domain/$mail_whole"
 		if [ -n "$DIFF_BASE" ] && [ -e "$mail_member" ] \
 			&& backup_member_needs_base "$tmpdir/.diff/backup.members" "mail/$domain"; then
-			# The base's member is a WHOLE one whatever this archive calls its diff.
+			# The base's member is a whole one whatever this archive calls its diff.
 			mail_base=$(backup_diff_stage_base "$base_path" "mail/$domain" "$mail_whole" "$tmpdir/.diff")
 			if [ -z "$mail_base" ]; then
 				rm -rf $tmpdir
@@ -1075,7 +951,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			fi
 		fi
 
-		# Restoring emails
 		if [ -e "$mail_member" ]; then
 			$BIN/h-extract-fs-archive "$user" "$mail_member" "$HOMEDIR/$user/mail/$domain_idn/"
 			if [ "$?" -ne 0 ]; then
@@ -1086,22 +961,16 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 				check_result "$E_PARSING" "$error"
 			fi
 
-			# Chowning as owner needs to be user:mail instead of user:user
+			# The owner has to be user:mail, not user:user.
 			find $HOMEDIR/$user/mail/$domain_idn -user $user \
 				-exec chown -h $user:mail {} \;
 		fi
-		# Chowning mail conf files to exim user
 		if [ -d "$HOMEDIR/$user/conf/mail/$domain" ]; then
 			find $HOMEDIR/$user/conf/mail/$domain -user root \
 				-exec chown $exim_user {} \;
 		fi
 
-		# The rebuild's exit code used to be discarded, so a mail domain that failed to come back -
-		# a DKIM record with no private key being the case this stage is about - printed its reason
-		# and the restore still ended with success. Collected here and reported at the end, rather
-		# than aborting: the remaining domains are still worth restoring, but the run is not a
-		# success. Only the mail rebuild is wired in so far; the other rebuild calls in this script
-		# still swallow their status.
+		# Collected, not aborted: the other domains are still worth restoring, but the run is not a success.
 		$BIN/h-rebuild-mail-domain "$user" "$domain" 2>&1 | tee -a "$tmpdir/restore.log"
 		if [ "${PIPESTATUS[0]}" -ne 0 ]; then
 			restore_failures="$restore_failures$(printf '\n  mail domain %s was not rebuilt' "$domain")"
@@ -1109,7 +978,6 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 
 	done 3< <(printf '%s\n' "$domains")
 
-	# Restarting web server
 	$BIN/h-restart-web
 	check_result $? "Web restart failed"
 	if [ -n "$PROXY_SYSTEM" ]; then
@@ -1118,11 +986,9 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 	fi
 fi
 
-# Restoring databases
 if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 	echo -e "\n-- DB --" | tee -a $tmpdir/restore.log
 
-	# Creating database restore list
 	backup_databases=$(tar -tf "$backup_path" | grep "^./db")
 	backup_databases=$(echo "$backup_databases" | grep db.conf)
 	backup_databases=$(echo "$backup_databases" | cut -f 3 -d / | sort -u)
@@ -1133,8 +999,8 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		databases=$(echo "$backup_databases" | grep -E -x -f $tmpdir/selected.txt)
 	fi
 
-	# Shared users (#725): a slot whose user is not here yet waits for the database holding the password, and
-	# the databases of this run do not count as keeping a user's live password.
+	# Shared users: a slot whose user is not here yet waits for the database holding the password, and this run's
+	# databases do not count as keeping a user's live password.
 	REBUILD_DB_DEFER='yes'
 	REBUILD_DB_DEFERRED=''
 	REBUILD_DB_RUN_SET=''
@@ -1142,17 +1008,14 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		[ -n "$database" ] && REBUILD_DB_RUN_SET="$REBUILD_DB_RUN_SET ${user}_${database#"${old_user}_"}"
 	done <<< "$databases"
 
-	# Restoring database - same reasoning as the web loop.
+	# Same reasoning as the web loop.
 	while IFS= read -r -u 3 database; do
 		[ -n "$database" ] || continue
 		echo -e "$(date "+%F %T") $database" | tee -a $tmpdir/restore.log
 
-		# The engine, decided before anything is unpacked. The import below is a case over TYPE with
-		# no default branch, so a pgsql dump on a host without postgres fell into the pgsql arm and
-		# died there - and it dies mid-run: measured against a real HestiaCP archive, three web
-		# domains and two mail domains were already written, and the second database, every cron job
-		# and the whole home directory never arrived. Named as a failure and skipped, so the rest of
-		# the archive still comes back and the run still ends non-zero.
+		# Decide the engine before anything is unpacked: the import below has no default branch, and dying mid-run
+		# leaves the rest of the archive unrestored. Named as a failure and skipped, so the run goes on and still ends
+		# non-zero.
 		db_type=$(backup_db_type "$database")
 		if ! backup_db_type_supported "$db_type"; then
 			if [ -n "$db_type" ]; then
@@ -1165,22 +1028,16 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			continue
 		fi
 
-		# Cleanup derived from the record that set the keys. A hand list never learns a new key, and
-		# missed the branch that parses a LIVE record - a stale MD5 then suppressed the "no password
-		# in the backup" warning for the next database.
+		# Derived from the record that set the keys: a hand list misses new keys, and a stale MD5 hid the 'no password'
+		# warning.
 		restore_forget_record prev_db_keys
 
-		# Existence is checked against the name the RECORD will carry, not the archived one: under a
-		# different customer name the two differ, the exists-branch becomes unreachable, and a second
-		# restore appends everything again.
-		#
-		# Computed ONCE and reused below. A second derivation is how that comes back: `sed s/<old>_//`
-		# strips the first occurrence ANYWHERE, so foo_<old>_shop - which only a foreign archive can
-		# carry - is written as foo_shop while the check still looks for foo_<old>_shop.
+		# Existence is checked against the name the record will carry, not the archived one: under another customer name
+		# the exists-branch would be unreachable and a second restore would append everything again. Computed once: a
+		# second derivation (`sed s/<old>_//` strips the first occurrence anywhere) disagrees on foo_<old>_shop.
 		target_db="${user}_${database#"${old_user}_"}"
 		check_config=$(grep -F "DB='$target_db'" $USER_DATA/db.conf)
 
-		# Unpacking database container
 		tar xf "$backup_path" -C $tmpdir ./db/$database
 		if [ "$?" -ne 0 ]; then
 			rm -rf $tmpdir
@@ -1190,7 +1047,6 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			check_result "$E_PARSING" "$error"
 		fi
 
-		# Restore database config
 		if [ -z "$check_config" ]; then
 			# Same shape as web: the archived line is the record, only the named fields move.
 			archived_record=$(head -n1 "$tmpdir/db/$database/$BACKUP_CONTAINER/db.conf")
@@ -1203,7 +1059,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			fi
 			restore_parse_record prev_db_keys "$archived_record"
 
-			# mysql judges this in the rebuild: a slot on a shared user has no hash of its own by design (#725).
+			# mysql judges this in the rebuild: a slot on a shared user has no hash of its own by design.
 			if [ -z "$MD5" ] && [ "$TYPE" != 'mysql' ]; then
 				echo "Warning!: Database ${DB} backup does not contain a password for user ${DBUSER}."
 				echo "- Please use the web interface to set a password after the restore process finishes."
@@ -1212,8 +1068,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			# The same name the existence check used, not a second derivation of it.
 			DB="$target_db"
 			DBUSER="${user}_${DBUSER#"${old_user}_"}"
-			# Another customer's database, or a pgsql name in another customer's name space: clearing it below would
-			# drop that customer's live database.
+			# Another customer's database, or a pgsql name in their name space: clearing it below would drop it live.
 			if ! db_names_free "$DB" "$DBUSER" "$TYPE" "$user"; then
 				echo "Warning!: $target_db skipped - the name belongs to another customer" | tee -a $tmpdir/restore.log
 				restore_failures="$restore_failures$(printf '\n  database %s (the name belongs to another customer)' "$target_db")"
@@ -1238,7 +1093,6 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 				record_set_field str MD5_SECOND "$MD5_SECOND"
 				record_set_field str DBUSER_SECOND_RO "$DBUSER_SECOND_RO"
 			fi
-			# DB and DBUSER carry the old user prefix into the new one.
 			record_set_field str DB "$DB"
 			record_set_field str DBUSER "$DBUSER"
 			record_set_field str SUSPENDED 'no'
@@ -1257,7 +1111,6 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			restore_parse_record prev_db_keys "$(grep -F "DB='$target_db'" $USER_DATA/db.conf)"
 		fi
 
-		# Unzipping database dump
 		if [ $backup_mode = 'zstd' ]; then
 			# -q: pzstd reports every file's size on stderr, which reads like an error here.
 			pzstd -q -d $tmpdir/db/$database/$database.*.sql.zst
@@ -1265,13 +1118,11 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 			gzip -d $tmpdir/db/$database/$database.*.sql.gz
 		fi
 
-		# Importing database dump
 		database_dump="$tmpdir/db/$database/$database.$TYPE.sql"
 		# Reset per database, or the report names every database after the first one that lacked one.
 		REBUILD_DB_UNUSABLE=''
-		# The name to clear is the one this customer will own, never the one the archive carries.
-		# Where the two differ - a restore under a different customer name - the archived name is
-		# somebody else's live database on this box.
+		# Clear the name this customer will own, never the archived one: under a different customer name that one is
+		# somebody else's live database.
 		db_cleared='yes'
 		case $TYPE in
 			mysql)
@@ -1281,11 +1132,9 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 				delete_pgsql_database "$target_db" || db_cleared='no'
 				;;
 		esac
-		# Refused means the target was not emptied, so importing on top would merge the archive into
-		# whatever is there. Named as a part that did not come back, or the run reports a success it
-		# did not have.
-		# Branched rather than `continue`d: the loop body keeps one way out, so anything appended
-		# at its end still runs for every database.
+		# Refused means the target was not emptied and importing would merge into it: named as a part that did not come
+		# back. Branched rather than `continue`d: the loop body keeps one way out, so anything appended at its end runs
+		# for every database.
 		if [ "$db_cleared" != 'yes' ]; then
 			echo "Warning!: $target_db was not restored - it is not a database of $user" | tee -a $tmpdir/restore.log
 			restore_failures="$restore_failures$(printf '\n  database %s (refused: not a database of %s)' "$target_db" "$user")"
@@ -1301,15 +1150,14 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 					import_pgsql_database $database_dump || import_rc=$?
 					;;
 			esac
-			# The client writes its own output to /dev/null, so the exit code is the only signal
-			# there is - unchecked, a rejected dump left an empty schema that counted as restored.
+			# The client writes its output to /dev/null, so the exit code is the only signal; unchecked, a rejected dump
+			# counted as restored.
 			if [ "$import_rc" -ne 0 ]; then
 				echo "Warning!: $target_db - the dump was not imported" | tee -a $tmpdir/restore.log
 				restore_failures="$restore_failures$(printf '\n  database %s (the dump was rejected - the database is empty or incomplete)' "$target_db")"
 			fi
-			# Rows back, nothing able to connect: a degraded result, not a line to find in the log
-			# later. Only the fresh-host case reaches here - where a password was kept it stays a
-			# warning.
+			# Rows back but nothing able to connect is a degraded result, not a log line. Only the fresh-host case
+			# reaches here; where a password was kept it stays a warning.
 			if [ -n "$REBUILD_DB_UNUSABLE" ]; then
 				restore_failures="$restore_failures$(printf '\n  database %s (restored without a password - set one before the application can connect)' "$target_db")"
 			fi
@@ -1333,11 +1181,9 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 	REBUILD_DB_RUN_SET=''
 fi
 
-# Restoring cron jobs
 if [ "$cron" != 'no' ] && [ -n "$CRON_SYSTEM" ]; then
 	echo -e "\n-- CRON --" | tee -a $tmpdir/restore.log
 
-	# Unpacking cron container
 	tar xf "$backup_path" -C $tmpdir ./cron
 	if [ "$?" -ne 0 ]; then
 		rm -rf $tmpdir
@@ -1359,28 +1205,22 @@ if [ "$cron" != 'no' ] && [ -n "$CRON_SYSTEM" ]; then
 		echo "$(date "+%F %T") cron job $job calls a HestiaCP command that does not exist here" | tee -a $tmpdir/restore.log
 	done
 
-	# Restoring cron jobs
 	cp $tmpdir/cron/cron.conf $USER_DATA/cron.conf
 
-	# Rebuilding cron jobs
 	sync_cron_jobs
 
-	# Restarting cron
 	$BIN/h-restart-cron
 	check_result $? "CRON restart failed"
 fi
 
-# Restoring user files and directories
 if [ "$udir" != 'no' ]; then
 	echo -e "\n-- USER FILES --" | tee -a $tmpdir/restore.log
 
-	# Unpacking user dir container
 	if [ -n "$(tar -tf "$backup_path" | grep './user_dir')" ]; then
 
-		# The names come from the directory the container unpacked into, NOT from `tar -t`. That
-		# prints a name carrying a backslash or a tab ESCAPED, and the per-entry extraction then
-		# asked for a file that is not there - which took the whole section down, including the
-		# entries that were fine. One pass over a compressed archive instead of one per entry, too.
+		# Names come from the directory the container unpacked into, not from `tar -t`: that ESCAPES a backslash or tab,
+		# and the per-entry extraction then asked for a missing file and took the whole section down. One pass instead
+		# of one per entry.
 		tar xf "$backup_path" -C "$tmpdir" --no-wildcards "./user_dir" 2> /dev/null
 		backup_dirs=$(cd "$tmpdir/user_dir" 2> /dev/null \
 			&& find . -maxdepth 1 -type f \( -name '*.tar.zst' -o -name '*.tar.gz' \) -printf '%f\n' \
@@ -1392,8 +1232,7 @@ if [ "$udir" != 'no' ]; then
 			user_dirs=$(echo "$backup_dirs" | grep -E -x -f $tmpdir/selected.txt)
 		fi
 
-		# A top-level directory in a customer home can be named anything at all, spaces included -
-		# this is the one of these loops where the value is not even archive-shaped.
+		# A top-level home directory can be named anything, spaces included: the value is not even archive-shaped.
 		while IFS= read -r -u 3 user_dir; do
 			[ -n "$user_dir" ] || continue
 			echo -e "$(date "+%F %T") $user_dir" | tee -a $tmpdir/restore.log
@@ -1402,21 +1241,19 @@ if [ "$udir" != 'no' ]; then
 			else
 				udir_container="$tmpdir/user_dir/$user_dir.tar.gz"
 			fi
-			# One entry that cannot be read is named and the loop goes on; it used to abandon the
-			# section, so everything after it stayed behind as well. Nothing was written for this
-			# one, so "skipped" is the whole truth here - the two exits below are not.
+			# One unreadable entry is named and the loop goes on. Nothing was written for it, so 'skipped' is the whole
+			# truth; the two exits below are not.
 			if [ ! -f "$udir_container" ]; then
 				echo "Warning!: no container for home entry $user_dir - skipped" | tee -a $tmpdir/restore.log
 				restore_failures="$restore_failures$(printf '\n  home entry %s (no container in the archive)' "$user_dir")"
 				continue
 			fi
 
-			# The companion home belongs to the companion, not the customer: the customer has
-			# no write bit inside it, and a non-root tar could not restore those owners anyway.
-			# Root unpacks it, after the daemon is stopped - restoring under a live rootless
-			# daemon is what left the tree half-written on an in-place restore.
+			# The companion home belongs to the companion: the customer has no write bit in it and a non-root tar cannot
+			# restore those owners. Root unpacks it with the daemon stopped, as restoring under a live rootless daemon
+			# leaves it half-written.
 			if [ "$user_dir" = '.companion' ]; then
-				# a half-stopped daemon is exactly the state this branch exists to avoid
+				# A half-stopped daemon is exactly the state this branch exists to avoid.
 				if ! companion_stop "$user"; then
 					rm -rf $tmpdir
 					error="Can't stop the docker companion of $user - restore would unpack over a live daemon"
@@ -1429,10 +1266,9 @@ if [ "$udir" != 'no' ]; then
 				else
 					tar -xpzf "$udir_container" -C "$HOMEDIR/$user"
 				fi
-				# Failing here can mean tar stopped part way, so the entry is not reliably restored
-				# and not reliably untouched either. Nothing is removed: over an existing home that
-				# would delete data the archive was only meant to add to. Said as it is, because
-				# "skipped" would claim more than is known.
+				# Failing can mean tar stopped part way, so the entry is neither reliably restored nor untouched.
+				# Nothing is removed (over an existing home that deletes data the archive only meant to add to), and
+				# 'skipped' would claim more than is known.
 				if [ "$?" -ne 0 ]; then
 					echo "Warning!: unpacking home entry $user_dir failed - whatever it wrote is left as it is" | tee -a $tmpdir/restore.log
 					restore_failures="$restore_failures$(printf '\n  home entry %s (unpacking failed, anything written is left as it is)' "$user_dir")"
@@ -1445,7 +1281,7 @@ if [ "$udir" != 'no' ]; then
 			[ -e "$HOMEDIR/$user/$user_dir" ] && chown -h "$user" "$HOMEDIR/$user/$user_dir"
 			$BIN/h-extract-fs-archive "$user" "$udir_container" "$HOMEDIR/$user"
 			cmdstatus="$?"
-			# home stays user-owned: the pam_namespace jail needs no root flip
+			# Home stays user-owned: the pam_namespace jail needs no root flip.
 			chown "$user:$user" "$HOMEDIR/$user"
 			if [ "$cmdstatus" -ne 0 ]; then
 				echo "Warning!: unpacking home entry $user_dir failed - whatever it wrote is left as it is" | tee -a $tmpdir/restore.log
@@ -1453,8 +1289,7 @@ if [ "$udir" != 'no' ]; then
 				continue
 			fi
 
-			# Quoted: $user_dir comes out of the archive, and unquoted a name with a space split
-			# into two paths, so the repair silently skipped that entry.
+			# Quoted: $user_dir comes out of the archive, and unquoted a name with a space split into two paths.
 			if [ "$old_uid" -ne "$new_uid" ]; then
 				find "$HOMEDIR/$user/$user_dir" -user "$old_uid" \
 					-exec chown -h "$user:$user" {} \;
@@ -1463,23 +1298,19 @@ if [ "$udir" != 'no' ]; then
 	fi
 fi
 
-# Create tmp/
 home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 \
 	|| echo "Warning: $HOMEDIR/$user/tmp is not a directory, left as it is" | tee -a $tmpdir/restore.log
 
-# Delete Hestia File manager key
 rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key
 
-# Re-enable Docker if the archive carried a companion home. The companion account is not in the
-# archive and its uid follows from the customer's, which was just reallocated - so it is recreated
-# with fresh subordinate ranges. Images are not restored, they are pulled.
-# The grant is DOCKER_IP in the record; a directory in the home is the customer's to create.
+# Re-enable Docker if the archive carried a companion home. The companion account is not in the archive and its uid
+# follows the customer's, which was just reallocated, so it is recreated with fresh subordinate ranges; images are
+# pulled. The grant is DOCKER_IP in the record; a directory in the home is the customer's to create.
 if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ] && [ -x "$BIN/h-add-user-docker" ]; then
 	echo -e "$(date "+%F %T") docker companion" | tee -a $tmpdir/restore.log
 
-	# Re-own BEFORE enabling: the unpacked tree still belongs to the archived companion uid (tar
-	# could not map it by name, the account did not exist yet), and the rootless setup fails against
-	# a home it cannot write. Both uids follow from the customer uid, so no metadata is needed.
+	# Re-own BEFORE enabling: the unpacked tree still belongs to the archived companion uid and the rootless setup fails
+	# against a home it cannot write. Both uids follow from the customer uid, so no metadata is needed.
 	old_companion=$((old_uid - 1000))
 	new_companion=$((new_uid - 1000))
 	if [ "$old_companion" -ne "$new_companion" ]; then
@@ -1487,17 +1318,14 @@ if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ]
 			-exec chown -h "$new_companion" {} \;
 	fi
 
-	# The archived /24 is kept when it is still free, and h-add-user-docker allocates a new one when
-	# another customer holds it. That has to be SAID: an application with hardcoded addresses finds
-	# out by breaking otherwise. Its output went to a log inside the tmpdir, which is removed at the
-	# end of the run - so nobody ever saw the line naming the holder (#800).
+	# The archived /24 is kept when free, else h-add-user-docker allocates a new one: that has to be said, or an
+	# application with hardcoded addresses finds out by breaking.
 	docker_ip_archived=$(get_user_value '$DOCKER_IP')
 	# tee, and the status from PIPESTATUS: through a pipe `if !` would read tee's.
 	"$BIN/h-add-user-docker" "$user" 2>&1 | tee -a $tmpdir/restore.log
 	if [ "${PIPESTATUS[0]}" -ne 0 ]; then
 		echo "Warning!: could not re-enable Docker for $user - see the log above." | tee -a $tmpdir/restore.log
-		# The customer had docker and does not have it here, which is the same kind of loss as a
-		# section this box cannot take.
+		# The customer had docker and does not have it here: the same kind of loss as a section this box cannot take.
 		restore_failures="$restore_failures$(printf '\n  docker for %s (could not be re-enabled on this host)' "$user")"
 	else
 		docker_ip_now=$(get_user_value '$DOCKER_IP')
@@ -1508,7 +1336,6 @@ if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ]
 	fi
 fi
 
-# Sending mail notification
 if [ -n "$restore_failures" ]; then
 	subj="$user → restore finished with failures"
 	echo "The following parts did not come back:$restore_failures" | tee -a $tmpdir/restore.log
@@ -1517,38 +1344,23 @@ else
 fi
 cat $tmpdir/restore.log | $SENDMAIL -s "$subj" $email $notify
 
-# Send notification to panel
 $BIN/h-add-user-notification "$user" "Backup restored successfully" "<p><span class='u-text-bold'>Archive:</span> <code>$backup</code></p>"
 
-# Deleting temporary data
 rm -rf $tmpdir
 
-# Cleaning restore queue
 sed -i "/h-restore-user $user /d" $CONF_DIR/queue/backup.pipe
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# An archive nobody adopted is invisible in every listing and, inside the customer folder, a
-# rotation candidate: without a record it counts as its own set, so BACKUPS='1' takes it on the next
-# run (measured). Having restored from it is the clearest statement that it is wanted. Through
-# h-add-user-backup and not a second record builder, so an auto-adopted record is byte for byte the
-# one a hand adoption writes. At the END because the restore may create the account itself, and the
-# adoption checks that it exists.
-#
-# -qF: the archive name carries dots, which as a regex match any character (the #583 class).
+# Adopt the archive restored from, or it stays unlisted and rotatable. Last, because the restore may create the account.
+# -qF: the archive name carries dots, which as a regex match any character.
 if ! grep -qF "BACKUP='$backup'" "$USER_DATA/backup.conf" 2> /dev/null; then
 	if ! $BIN/h-add-user-backup "$user" "$backup"; then
-		# Never fatal - the restore is done and correct either way. Said out loud because the
-		# archive stays unlisted, and inside the customer folder rotatable, until someone adopts it.
+		# Never fatal, the restore is done either way. Said out loud because the archive stays unlisted and, in the
+		# customer folder, rotatable until someone adopts it.
 		echo "Warning: $backup could not be adopted - it stays unlisted and, in $BACKUP/$user, rotatable"
 	fi
 fi
 
-# Logging
-# A restore is the one path that creates domains without the add commands (rebuild-based),
-# so it must close the jail lifecycle itself: on a fresh box it creates the FIRST logs
+# A restore creates domains without the add commands (rebuild-based), so it must close the jail lifecycle itself.
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh
 declare -F fail2ban_regate_web_apply > /dev/null 2>&1 || source "$HESTIA/include/fail2ban.sh"
 fail2ban_regate_web_apply

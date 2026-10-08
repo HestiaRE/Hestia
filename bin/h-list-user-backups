@@ -4,17 +4,11 @@
 #
 # example: h-list-user-backups admin
 #
-# This function for obtaining the list of available user backups.
+# List the backup records of USER, with whether a copy is on this box.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -22,22 +16,17 @@ source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
 
-# parse_object_kv_list overwrites BACKUP: the record FIELD shares its name with the directory
-# GLOBAL the resolver reads (measured: every row said LOCAL=no because the resolver searched
-# inside the archive name). Juggled here so the resolver always sees the directory.
-# The snapshot is taken AFTER source_conf below, not before: main.sh seeds a constant, and taking it
-# here listed /backup on every box whose operator configured something else (#992).
+# parse_object_kv_list overwrites BACKUP, which the resolver reads as the directory: swapped back around the call.
 local_of() {
 	local _n="$1" _keep="$BACKUP"
 	BACKUP="$backup_root"
 	if backup_archive_path "$user" "$_n"; then LOCAL='yes'; else LOCAL='no'; fi
 	BACKUP="$_keep"
 }
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
+# Taken after source_conf: main.sh only seeds a constant, which is wrong where the operator configured another.
 backup_root="$BACKUP"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -45,8 +34,7 @@ json_list() {
 	echo "{"
 	while read -r str; do
 		parse_object_kv_list "$str"
-		# LOCAL says what this box KNOWS: a copy is here (either allowed place) or it is not.
-		# Whether a remote still holds it is not asked here - the panel must not claim more.
+		# LOCAL says what this box knows: a copy is here or not. Whether a remote holds it is not asked.
 		local_of "$BACKUP"
 		json_escape BACKUP TYPE SIZE WEB MAIL DB CRON UDIR MAP MODE BASE LOCAL RUNTIME TIME DATE
 		printf '    "%s": {\n' "$BACKUP"
@@ -75,7 +63,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "BACKUP   TYPE   SIZE  LOCAL  TIME  DATE"
@@ -87,7 +74,6 @@ shell_list() {
 	done < <(cat $USER_DATA/backup.conf)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read -r str; do
@@ -98,34 +84,20 @@ plain_list() {
 	done < <(cat $USER_DATA/backup.conf)
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking config
 conf=$USER_DATA/backup.conf
 if [ ! -e "$conf" ]; then
 	touch $conf
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -6,16 +6,9 @@
 #
 # Restores a customer from a restic snapshot and its metadata package.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
-# An OMITTED selector means everything, an explicitly empty one means nothing - hence `-` and not
-# `:-`, so a caller can still skip a section by passing ''. Without the defaults, `h-restore-user-restic
-# user snapshot` matched no object at all and reported success (upstream #5709).
+# `-` not `:-`: omitted means everything, explicitly empty means nothing, so a caller can still skip a section.
 # The `*` is literal: the right-hand side of an assignment is not glob-expanded.
 web=${3-*}
 dns=$4 # no DNS subsystem here; the slot stays for signature parity
@@ -25,7 +18,6 @@ cron=${7-yes}
 udir=${8-yes}
 notify=${9-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -40,12 +32,7 @@ source $HESTIA/include/rebuild.sh
 source $HESTIA/include/syshealth.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER SNAPSHOT [WEB] [DNS] [MAIL] [DB] [CRON] [UDIR] [NOTIFY]'
 check_args '2' "$#" "$args_usage"
@@ -54,14 +41,10 @@ is_object_valid 'user' 'USER' "$user"
 
 is_restic_repo_configured
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
-# The metadata travels as the package beside the repository since stage 2a, not inside the snapshot.
+# The metadata is the package beside the repository, not part of the snapshot.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
 if [ -z "$meta_pkg" ]; then
 	check_result "$E_NOTEXIST" "no metadata package for snapshot $snapshot of $user - look for $BACKUP/$user/*.meta.tgz"
@@ -71,7 +54,6 @@ if [ ! -s "$tmpdir/backup.conf" ]; then
 	check_result "$E_PARSING" "$meta_pkg carries no backup.conf - the snapshot cannot be described"
 fi
 
-# Restore web domains
 # A failed part does not stop the rest, but the run must not end as a success.
 failed=''
 # A section this host does not run is skipped, as in h-restore-user: not a failed part.
@@ -102,14 +84,8 @@ if [ "$udir" = "yes" ]; then
 	fi
 fi
 
-# Rebuilding user
 rebuild_user_conf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update user counters
 $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"
 $BIN/h-update-sys-ip-counters
@@ -121,7 +97,6 @@ if [ -n "$failed" ]; then
 	check_result "$E_BACKUP" "restore of $user from $snapshot incomplete, failed:$failed"
 fi
 
-# Logging
 $BIN/h-log-action "system" "Info" "Backup" "User successfully restored (User: $user, Snapshot: $snapshot)."
 $BIN/h-log-action "$user" "Info" "Backup" "User successfully restored (User: $user, Snapshot: $snapshot)."
 log_event "$OK" "$ARGUMENTS"

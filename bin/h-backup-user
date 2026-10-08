@@ -4,20 +4,13 @@
 #
 # example: h-backup-user admin yes
 #
-# This function is used for backing up user with all its domains and databases.
+# Archive a user with its web, mail, databases, cron jobs and data directory into $BACKUP.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 notify=${2-no}
-# An ARGUMENT, not an environment prefix: the consent word in C.5 was made an argument for the same
-# reason (GHSA-2xw3), and a second control channel through the environment reopens what that closed.
+# An ARGUMENT, not an environment prefix: like the consent word, a second control channel would reopen what that closed.
 export_run=${3-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -30,38 +23,27 @@ source $HESTIA/include/db.sh
 source $HESTIA/include/backup.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # This run's own queue line, for the abort paths (see queue_drop_job).
 QUEUE_JOB="h-backup-user $user "
 
 DOCKER_ROOT_REL='.companion/.local/share/docker'
-# Children a Docker data root is known to have. Only used to tell "expected" from "new" in the
-# report below; an unlisted one is still excluded.
+# Children a Docker data root is known to have; only separates "expected" from "new" in the report.
 DOCKER_ROOT_KNOWN=' buildkit containerd containers engine-id image network overlay2 plugins rootfs runtimes swarm tmp trust volumes '
 
-# Docker data-root exclusions, relative to the user home so the du pre-flight and the tar cannot
-# drift apart (#389). Only two sound boundaries: volumes/ alone (Docker refills the rest) or the
-# whole root - layer store and its index are separate, driver-dependent dirs, and keeping one
-# without the other references absent layers. Absent or empty key = 'volumes' (the normal state).
+# Docker data-root exclusions, relative to the home so the du pre-flight and the tar cannot drift. Sound boundaries are
+# volumes/ alone or the whole root (a layer store without its index references absent layers). Empty key = 'volumes'.
 docker_backup_excludes() {
 	local e name
 	[ "$(get_user_value '$DOCKER_BACKUP')" = 'full' ] && return 0
 	if [ ! -d "$HOMEDIR/$user/$DOCKER_ROOT_REL" ]; then
-		# Docker not started yet for this customer. Excluded anyway: the data root can appear
-		# between this pre-flight and the tar below, and an unexcluded one would then be archived
-		# whole - the exact bug this scope exists to prevent.
+		# Excluded anyway: the data root can appear between this pre-flight and the tar and would be archived whole.
 		echo "$DOCKER_ROOT_REL"
 		return 0
 	fi
-	# Enumerate what is dropped rather than what is kept, so the archive cannot quietly grow when
-	# Docker adds a directory. The flip side is that customer data at a new location would vanish
-	# from backups unnoticed - see docker_backup_unknown, which makes the omission visible.
-	#
-	# dotglob, because the plain glob skips dotted entries: a hidden data-root child would be
-	# neither excluded nor reported, and the archive would grow silently - which is precisely what
-	# the enumeration is here to rule out.
+	# Enumerate what is dropped, not what is kept, so the archive cannot quietly grow.
+	# dotglob: the plain glob skips dotted entries, so a hidden child would be neither excluded nor reported.
 	(
 		shopt -s dotglob
 		for e in "$HOMEDIR/$user/$DOCKER_ROOT_REL"/*; do
@@ -72,13 +54,12 @@ docker_backup_excludes() {
 	)
 }
 
-# Data-root children we do not know about, so a Docker layout change shows up in the backup log
-# instead of only shrinking the archive.
+# Data-root children we do not know about, so a Docker layout change shows in the log instead of shrinking the archive.
 docker_backup_unknown() {
 	local e name
 	[ "$(get_user_value '$DOCKER_BACKUP')" = 'full' ] && return 0
 	[ -d "$HOMEDIR/$user/$DOCKER_ROOT_REL" ] || return 0
-	# Same dotglob reasoning as above, and the same glob, so the two functions stay in step.
+	# Same dotglob glob as above, so the two functions stay in step.
 	(
 		shopt -s dotglob
 		for e in "$HOMEDIR/$user/$DOCKER_ROOT_REL"/*; do
@@ -89,14 +70,13 @@ docker_backup_unknown() {
 	)
 }
 
-# An empty value is 0 in an arithmetic expansion, so a du that produced nothing would silently
-# shrink the budget by a whole directory.
+# An empty value is 0 in arithmetic, so a du that produced nothing would silently shrink the budget.
 add_usage() {
 	case "$1" in '' | *[!0-9]*) return 1 ;; esac
 	u_usage=$((u_usage + $1))
 }
 
-# Return Disk Usage
+# get_user_disk_usage: echo the MB the backup needs, rc 1 when a part cannot be read.
 get_user_disk_usage() {
 	u_usage=0
 	web_exclusions=''
@@ -104,7 +84,6 @@ get_user_disk_usage() {
 	db_exclusions=''
 	user_exclusions=''
 
-	# Parsing excludes
 	if [ -e "$USER_DATA/backup-excludes.conf" ]; then
 		web_exclusions=$(grep 'WEB=' $USER_DATA/backup-excludes.conf \
 			| awk -F "WEB='" '{print $2}' | cut -f 1 -d \')
@@ -124,7 +103,6 @@ get_user_disk_usage() {
 		for domain in $domains; do
 			exclusion=$(echo -e "$web_exclusions" | tr ',' '\n' | awk -v d="$domain" 'index($0, d) == 1 || /\*$/')
 			if [ -z "$exclusion" ]; then
-				# Defining home directory
 				home_dir="$HOMEDIR/$user/web/$domain/"
 				exclusion=$(echo -e "$web_exclusions" | tr ',' '\n' | awk -v d="$domain" 'index($0, d) == 1 || /\*:/')
 				fargs=()
@@ -136,7 +114,6 @@ get_user_disk_usage() {
 					done
 				fi
 
-				# Checking home directory exist
 				if [ -e "$home_dir" ]; then
 					disk_usage=$(nice -n 19 du -shm "$home_dir" "${fargs[@]}" | cut -f 1)
 					add_usage "$disk_usage" || return 1
@@ -177,10 +154,8 @@ get_user_disk_usage() {
 		for database in $databases; do
 			exclusion=$(echo "$db_exclusions" | tr ',' '\n' | grep -Fx -- "$database")
 			if [ -z "$exclusion" ]; then
-				# Get database values
 				get_database_values
 
-				# Switching on db type
 				# An unreadable part makes the sum unreadable, it does not drop out of it.
 				# TYPE is this database's engine; DB_SYSTEM is a token list and matches no arm.
 				case $TYPE in
@@ -197,9 +172,7 @@ get_user_disk_usage() {
 		for xpath in $(echo "$user_exclusions" | tr ',' '\n'); do
 			fargs+=(--exclude="$xpath")
 		done
-		# Same exclusions as the archive below, from the same helper: counting what is not archived
-		# would inflate this check and could refuse a backup that fits, and two hand-kept lists
-		# would drift. Absolute paths here, relative there, hence the prefix.
+		# Same helper as the archive below, so two hand-kept lists cannot drift. Absolute paths here, relative there.
 		while IFS= read -r xdocker; do
 			[ -n "$xdocker" ] && fargs+=(--exclude="$HOMEDIR/$user/$xdocker")
 		done < <(docker_backup_excludes)
@@ -209,10 +182,6 @@ get_user_disk_usage() {
 
 	echo ${u_usage}
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [NOTIFY] [EXPORT]'
 is_format_valid 'user'
@@ -226,10 +195,8 @@ if [ "$POLICY_BACKUP_SUSPENDED_USERS" != "yes" ]; then
 	is_object_unsuspended 'user' 'USER' "$user"
 fi
 is_backup_enabled
-# The limit belongs where the exempt record is written, not in the wrapper: this command is what
-# anyone calls directly, and the record it writes carries ADOPTED='yes' - which no rotation ever
-# touches. An export is a deliberate artefact, so the limit refuses and names what is already there
-# instead of clearing the oldest away (D5). Unset means two.
+# The limit sits here, not in the wrapper: this command is called directly and writes ADOPTED='yes', which no
+# rotation touches. An export is deliberate, so the limit refuses instead of clearing the oldest. Unset means two.
 if [ "$export_run" = 'yes' ]; then
 	_limit="${BACKUP_EXPORT_LIMIT:-2}"
 	case "$_limit" in '' | *[!0-9]*) _limit=2 ;; esac
@@ -243,45 +210,33 @@ if [ "$export_run" = 'yes' ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 check_backup_conditions
 
-# Set backup directory if undefined
 if [ -z "$BACKUP" ]; then
 	BACKUP=/backup
 fi
 
-# Check if backup folder exists and have the correct permission
 if [[ ! -d "$BACKUP" ]]; then
 	mkdir -p $BACKUP
 fi
-# 711: the names in $BACKUP are customer names and run dates - nobody but root enumerates them.
-# The customer's read access moves into their own folder (#789).
+# 711: the names in $BACKUP are customer names and run dates, nobody but root enumerates them.
 if [ "$(stat -c %a "$BACKUP")" != 711 ]; then
 	chmod 711 $BACKUP
 fi
 backup_user_dir "$user"
 
-# Get current time
 start_time=$(date '+%s')
 
-# Set notification email and subject
 subj="$user → backup failed"
 email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f 2 -d \')
 
-# Before the check below, which needs it: the tree is built in BACKUP_TEMP, the archive lands in
-# $BACKUP.
+# Before the check below, which needs it: the tree is built in BACKUP_TEMP, the archive lands in $BACKUP.
 if [ -z "$BACKUP_TEMP" ]; then
 	BACKUP_TEMP=$BACKUP
 fi
 
-# Booked per DEVICE (#805): staging tree and finished archive each want about the usage, which on
-# one filesystem adds up and on two does not. Measured once - du over the whole home is not cheap.
-# Its own case: the barrier answers both halves of its question with rc 2, and blaming the free
-# space sent the operator to df on a box with 27 GB free.
+# Booked per DEVICE: tree and archive each want about the usage; on one filesystem it adds up. Measured once.
+# Its own case: the barrier answers both questions with rc 2, so a failed du must not read as a free-space problem.
 _usage=$(get_user_disk_usage)
 case "$_usage" in
 	'' | *[!0-9]*)
@@ -308,9 +263,7 @@ refusal=$(space_budget_refused "$BACKUP_TEMP:$_need" "$BACKUP:$_need") || {
 	esac
 }
 
-# Creating temporary directory
-# Checked at the source - a check via $? behind any later line is dead (measured: two inserted
-# assignments silenced it).
+# Checked at the source: a check via $? behind any later line is dead.
 if ! tmpdir=$(mktemp -p $BACKUP_TEMP -d); then
 	echo "Can't create tmp dir" | $SENDMAIL -s "$subj" "$email" "yes"
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
@@ -324,21 +277,18 @@ fi
 # Both, on EVERY exit: an abort leaves its half-built members in the staging tree otherwise.
 trap 'rm -rf "$maptbl" "$tmpdir"' EXIT
 
-# Backup sys configs
 echo "-- SYSTEM --" | tee $BACKUP/$user/$user.log
 mkdir $tmpdir/hestia
 
 echo -e "$(date "+%F %T") $user.conf" | tee -a $BACKUP/$user/$user.log
 cp -r $USER_DATA/user.conf $tmpdir/hestia/
-# Record the web model in the archive so a cross-model restore can warn (#120)
+# Record the web model in the archive so a cross-model restore can warn.
 echo "WEB_SYSTEM='$WEB_SYSTEM' PROXY_SYSTEM='$PROXY_SYSTEM'" > $tmpdir/hestia/web-system
-# Who wrote this file - forensics only, nothing detects by it; where it disagrees with the
-# members, the members win.
+# Who wrote this file: forensics only, nothing detects by it; where it disagrees with the members, the members win.
 backup_write_origin "$tmpdir/hestia/origin"
 cp -r $USER_DATA/ssl $tmpdir/hestia/
 
-# The package travels so a foreign box can recreate it (#663); the restore only ADDS it, never
-# overwrites an existing one.
+# The package travels so a foreign box can recreate it; the restore only ADDS it, never overwrites.
 pkg_name=$(grep -m1 "^PACKAGE=" $USER_DATA/user.conf | cut -f2 -d "'")
 if [ -n "$pkg_name" ] && [ -e "$CONF_DIR/packages/$pkg_name.pkg" ]; then
 	mkdir -p $tmpdir/hestia/packages
@@ -347,9 +297,8 @@ if [ -n "$pkg_name" ] && [ -e "$CONF_DIR/packages/$pkg_name.pkg" ]; then
 	echo -e "$(date "+%F %T") package $pkg_name" | tee -a $BACKUP/$user/$user.log
 fi
 
-# Data directory from what is IN it, never a name list; BACKUP_USER_DATA_CORE says what never
-# travels. Dotfiles are not enumerated (the restore rejects a leading dot) - one that turns up is
-# named rather than skipped in silence.
+# Data directory from what is IN it, never a name list; BACKUP_USER_DATA_CORE says what never travels.
+# Dotfiles are not enumerated (the restore rejects a leading dot): one that turns up is named, not skipped silently.
 _hidden=$(find "$USER_DATA" -maxdepth 1 -name '.*' ! -name '.' 2> /dev/null | wc -l)
 [ "$_hidden" -gt 0 ] \
 	&& echo "Warning!: $_hidden hidden file(s) in the data directory are not backed up" | tee -a $BACKUP/$user/$user.log
@@ -364,7 +313,6 @@ for _entry in "$USER_DATA"/*; do
 	fi
 done
 
-# Backup PAM
 mkdir $tmpdir/pam
 echo -e "$(date "+%F %T") pam" | tee -a $BACKUP/$user/$user.log
 grep "^$user:" /etc/passwd > $tmpdir/pam/passwd
@@ -372,17 +320,14 @@ grep "^$user:" /etc/shadow > $tmpdir/pam/shadow
 grep "^$user:" /etc/group > $tmpdir/pam/group
 echo
 
-# Parsing excludes
 if [ -e "$USER_DATA/backup-excludes.conf" ]; then
 	source_conf "$USER_DATA/backup-excludes.conf"
 fi
 
-# WEB domains
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 	echo -e "\n-- WEB --" | tee -a $BACKUP/$user/$user.log
 	mkdir $tmpdir/web/
 
-	# Parsing domain exclusions
 	conf="$USER_DATA/web.conf"
 	web_excluded=0
 	for domain in $(search_objects 'web' 'SUSPENDED' "*" 'DOMAIN'); do
@@ -396,9 +341,7 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 	done
 	web_list=$(echo "$web_list" | sed -e "s/  */\ /g" -e "s/^ //")
 
-	# Numbers against numbers, checked after the loop that packs them: a selection that matches
-	# the wrong domain leaves one out of the archive, and nothing says so until someone restores.
-	# The exclusion parser did exactly that for a while - a rule for aXb.com also dropped a.b.com.
+	# Numbers against numbers after the packing loop: a selection that matches the wrong domain leaves one out silently.
 	web_records=$(grep -c "DOMAIN='" "$USER_DATA/web.conf" 2> /dev/null) || true
 	web_expected=$((${web_records:-0} - web_excluded))
 
@@ -411,17 +354,15 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 		mkdir -p $tmpdir/web/$domain/conf
 		mkdir -p $tmpdir/web/$domain/hestia
 
-		# Get domain variables
 		domain_idn=$domain
 		format_domain_idn
 		get_domain_values 'web'
 
-		# Backup web.conf. The archive carries three fields for two facts, on purpose (#591):
-		# BACKEND is rewritten to the HestiaCP-readable PHP-<ver> so a foreign restore keeps the
-		# version, while the native PHP_VERSION / PHP_PROFILE preserve the exact HestiaRE state.
+		# Three fields for two facts, on purpose: BACKEND becomes the HestiaCP-readable PHP-<ver> for a foreign restore,
+		# PHP_VERSION / PHP_PROFILE keep the exact HestiaRE state.
 		cd $tmpdir/web/$domain/
 		conf="$USER_DATA/web.conf"
-		# -F: the domain's dots are literal, not regex - else a.b.com's record could match aXb.com
+		# -F: the dots are literal, else a.b.com's record could match aXb.com.
 		grep -F "DOMAIN='$domain'" $conf > hestia/web.conf
 		if [ -n "$WEB_BACKEND" ]; then
 			bkp_ver="$PHP_VERSION"
@@ -429,11 +370,9 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 				bkp_ver=$(web_domain_pool_version "$domain" "$user")
 				[ -z "$bkp_ver" ] && bkp_ver=$(multiphp_default_version)
 			fi
-			# Valid profiles are the shipped pool templates, custom ones included; anything else
-			# defaults (the profile is a HestiaRE concept, absent on a foreign box)
+			# Profiles are the shipped pool templates (custom included); anything else defaults.
 			if [[ "$BACKEND" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -f "$PHPTPL/$BACKEND.tpl" ]; then bkp_profile="$BACKEND"; else bkp_profile='default'; fi
 			if [ "$bkp_ver" = 'none' ]; then bkp_backend='no-php'; else bkp_backend="PHP-${bkp_ver//./_}"; fi
-			# Ensure the two native keys exist on the line, then set all three
 			grep -q " PHP_VERSION='" hestia/web.conf || sed -i "s| BACKEND='| PHP_VERSION='' BACKEND='|" hestia/web.conf
 			grep -q " PHP_PROFILE='" hestia/web.conf || sed -i "s| BACKEND='| PHP_PROFILE='' BACKEND='|" hestia/web.conf
 			sed -i \
@@ -443,8 +382,7 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 				hestia/web.conf
 		fi
 
-		# Backup vhost config. A docker domain has no backend vhost where the front is the proxy,
-		# so the legacy lookup would abort the whole backup on a config that cannot exist.
+		# A docker domain has no backend vhost where the front is the proxy: the legacy lookup would abort the backup.
 		if [ -e "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf" ]; then
 			cp $HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf* conf/
 		elif [ -e "$HOMEDIR/$user/conf/web/$domain.$WEB_SYSTEM.conf" ]; then
@@ -457,9 +395,8 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 			sed -n "$top_line,$bottom_line p" $conf > conf/$WEB_SYSTEM.conf
 		fi
 
-		# Backup ssl vhost. A merged template (#593) keeps the SSL server block in the .conf
-		# archived above, so there is no separate .ssl.conf - only its SSL include fragments are
-		# copied here. A legacy pair still ships a standalone .ssl.conf.
+		# A merged template keeps the SSL server block in the .conf above, so only SSL include fragments exist here;
+		# a legacy pair still ships a standalone .ssl.conf.
 		if [ "$SSL" = 'yes' ]; then
 			if [ -e "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf* conf/
@@ -470,7 +407,6 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 			fi
 		fi
 
-		# Backup proxy config
 		if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
 			if [ -e "$HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.conf* conf/
@@ -485,7 +421,7 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 			fi
 		fi
 
-		# Backup ssl proxy config - merged template keeps the SSL block in the .conf (#593)
+		# Same as the web vhost: a merged template keeps the SSL block in the .conf.
 		if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ] && [ "$SSL" = 'yes' ]; then
 			if [ -e "$HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.ssl.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.ssl.conf* conf/
@@ -496,26 +432,17 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 			fi
 		fi
 
-		# No re-parse of the record here. There used to be one, but it passed the VARIABLE NAME
-		# instead of its value, so it parsed the word "domain_conf" - which holds no KEY='VALUE'
-		# pair - and assigned nothing at all (#719). Everything below reads what
-		# get_domain_values already set at the top of this iteration, which is where $SSL comes
-		# from - and $SSL decides whether this domain's certificate goes into the archive.
+		# No re-parse of the record here: $SSL comes from get_domain_values at the top of this iteration.
 
-		# No template/ copy in the archive: neither HestiaRE nor HestiaCP reads it back on
-		# restore, and it was the only place the template tree layout was baked into the
-		# backup format
+		# No template/ copy in the archive: neither HestiaRE nor HestiaCP reads it back on restore.
 
-		# Backup ssl certificates
 		if [ "$SSL" = 'yes' ]; then
 			cp $HOMEDIR/$user/conf/web/$domain/ssl/$domain.* conf/
 			cp $USER_DATA/ssl/$domain.* hestia/
 		fi
 
-		# Changin dir to documentroot
 		cd $HOMEDIR/$user/web/$domain
 
-		# Define exclude arguments
 		exclusion=$(echo -e "$WEB" | tr ',' '\n' | awk -v d="$domain" 'index($0, d) == 1 || /\*:/')
 		set -f
 		fargs=()
@@ -541,13 +468,13 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 		fi
 		set +f
 
-		# Hashes BEFORE the tar (#712): the map is never newer than the archive, a racing file is
-		# re-shipped instead of silently left behind. Excluded paths hash too, the join drops them.
+		# Hashes BEFORE the tar: the map is never newer than the archive, a racing file is re-shipped.
+		# Excluded paths hash too, the join drops them.
 		backup_map_hash_tree "$maptbl/web.$domain.tbl" \
 			|| echo "$(date "+%F %T") Warning: hash pass failed for web/$domain - its hashes are withdrawn, the member stays effectively whole" \
 			| tee -a $BACKUP/$user/$user.log
 
-		# --sort=name and gzip -n (#712): an unchanged tree produces identical bytes twice.
+		# --sort=name and gzip -n: an unchanged tree produces identical bytes twice.
 		if [ "$BACKUP_MODE" = 'zstd' ]; then
 			_member="$tmpdir/web/$domain/domain_data.tar.zst"
 		else
@@ -559,16 +486,13 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 		backup_map_hash_verify "$maptbl/web.$domain.tbl"
 	done
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i domain ***" | tee -a $BACKUP/$user/$user.log
 	else
 		echo -e "$(date "+%F %T") *** $i domains ***" | tee -a $BACKUP/$user/$user.log
 	fi
 
-	# The counter-check: what the archive carries against what the records say, minus what the
-	# customer excluded on purpose. A domain missing from a backup is invisible until a restore -
-	# the exclusion parser dropped a.b.com for a rule that named aXb.com, and nothing said so.
+	# Counter-check: archive against records minus deliberate exclusions; a missing domain is invisible until a restore.
 	web_packed=$(find "$tmpdir/web" -mindepth 1 -maxdepth 1 -type d 2> /dev/null | wc -l)
 	if [ "$web_packed" -ne "$web_expected" ]; then
 		echo -e "$(date "+%F %T") *** WARNING: archive carries $web_packed web domain(s), records say $web_expected ($web_records total, $web_excluded excluded) ***" \
@@ -577,12 +501,10 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 	fi
 fi
 
-# Mail domains
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 	echo -e "\n-- MAIL --" | tee -a $BACKUP/$user/$user.log
 	mkdir $tmpdir/mail/
 
-	# Parsing domain exclusions
 	conf="$USER_DATA/mail.conf"
 	for domain in $(search_objects 'mail' 'SUSPENDED' "*" 'DOMAIN'); do
 		check_exl=$(echo "$MAIL" | tr ',' '\n' | grep -Fx -- "$domain")
@@ -604,7 +526,6 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		domain_idn=$domain
 		format_domain_idn
 
-		# Backup exim config
 		if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 			cd $tmpdir/mail/$domain/
 			cp -r $HOMEDIR/$user/conf/mail/$domain/* conf/
@@ -614,7 +535,6 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			fi
 		fi
 
-		# Backup mail.conf
 		conf="$USER_DATA/mail.conf"
 		grep -F "DOMAIN='$domain'" $conf > hestia/mail.conf
 		# Only we call the SnappyMail fork tachyon, and a foreign panel refuses the unknown value. An
@@ -624,25 +544,19 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			printf 'mail\t%s\tWEBMAIL\ttachyon\n' "$domain" >> "$tmpdir/hestia/export-map"
 		fi
 		cp $USER_DATA/mail/$domain.* hestia/
-		# compgen, not `ls | grep *@$domain`: that glob was expanded against the WORKING DIRECTORY
-		# before grep saw it, so the per-account files - the autoreply texts among them - never got
-		# archived (#826).
+		# compgen, not `ls | grep *@$domain`: that glob expands against the working directory.
 		if compgen -G "$USER_DATA/mail/*@$domain.*" > /dev/null; then
 			cp $USER_DATA/mail/*@$domain.* hestia/
 		fi
 
-		# Backup emails
 		cd $HOMEDIR/$user/mail/$domain_idn
 		accounts=()
 		for account in *; do
-			# A mail domain without a single account leaves the glob unexpanded, and the star then
-			# travelled as an account name into the member tar, which failed on a file that does not
-			# exist (#1033). Same shape as #826 two blocks up.
+			# A mail domain without an account leaves the glob unexpanded: the star would become a name.
 			[ -d "$account" ] || continue
 			exclusion=$(echo "$MAIL" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) > 0')
 			exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
 
-			# Checking exclusions
 			if [ -z "$exclusion" ] && [[ "$MAIL_SYSTEM" =~ exim ]]; then
 				accounts+=($account)
 			else
@@ -650,7 +564,6 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 					| tee -a $BACKUP/$user/$user.log
 			fi
 		done
-		# Compress archive
 		if [ ${#accounts[@]} -gt 0 ]; then
 			backup_map_hash_tree "$maptbl/mail.$domain.tbl" "${accounts[@]}" \
 				|| echo "$(date "+%F %T") Warning: hash pass failed for mail/$domain - its hashes are withdrawn, the member stays effectively whole" \
@@ -667,7 +580,6 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		fi
 	done
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i domain ***" | tee -a $BACKUP/$user/$user.log
 	else
@@ -675,12 +587,10 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 	fi
 fi
 
-# Databases
 if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 	echo -e "\n-- DB --" | tee -a $BACKUP/$user/$user.log
 	mkdir $tmpdir/db/
 
-	# Parsing database exclusions
 	for database in $(search_objects 'db' 'SUSPENDED' "*" 'DB'); do
 		exclusion=$(echo "$DB" | tr ',' '\n' | grep -Fx -- "$database")
 		if [ -z "$exclusion" ]; then
@@ -735,9 +645,8 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 				pgsql) dump_pgsql_database ;;
 			esac
 
-			# The source goes only once the compressed file is there AND complete: a truncated .zst
-			# beside a deleted original is the one outcome with no way back. A dump is checked for
-			# its engine's end marker, not just for a status - #823 with the extra tooth.
+			# The source goes only once the compressed file is there AND complete: a truncated .zst beside a deleted
+			# original has no way back. A dump is checked for its engine's end marker, not just a status.
 			_member="$dump.$(backup_codec_suffix)"
 			if [ "$BACKUP_MODE" = 'zstd' ]; then
 				pzstd -$BACKUP_GZIP $dump && rm -f $dump
@@ -750,7 +659,6 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 		fi
 	done
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i database ***" \
 			| tee -a $BACKUP/$user/$user.log
@@ -760,12 +668,10 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 	fi
 fi
 
-# Cron jobs
 if [ -n "$CRON_SYSTEM" ] && [ "$CRON" != '*' ]; then
 	echo -e "\n-- CRON --" | tee -a $BACKUP/$user/$user.log
 	mkdir $tmpdir/cron/
 
-	# Backup cron.conf
 	cp $USER_DATA/cron.conf $tmpdir/cron/ 2> /dev/null
 	# From stdin and guarded: an absent file left the count empty and the test below died on it.
 	cron_record=0
@@ -776,7 +682,6 @@ if [ -n "$CRON_SYSTEM" ] && [ "$CRON" != '*' ]; then
 		cp /var/spool/cron/$user $tmpdir/cron/
 	fi
 
-	# Print total
 	if [ "$cron_record" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $cron_record job ***" \
 			| tee -a $BACKUP/$user/$user.log
@@ -786,20 +691,17 @@ if [ -n "$CRON_SYSTEM" ] && [ "$CRON" != '*' ]; then
 	fi
 fi
 
-# User Directories
 if [ "$USER" != '*' ]; then
 	echo -e "\n-- USER DIRECTORIES --" | tee -a $BACKUP/$user/$user.log
 	mkdir $tmpdir/user_dir
 	cd $HOMEDIR/$user
 
-	# Parsing directory exclusions
 	USER=''
 	if [ -e "$USER_DATA/backup-excludes.conf" ]; then
 		source_conf "$USER_DATA/backup-excludes.conf"
 	fi
-	# Built in, not via backup-excludes.conf: that file is the customer's, and dropping this entry
-	# would silently put the whole image store back into every archive. What is dropped depends on
-	# the customer's DOCKER_BACKUP scope - see docker_backup_excludes.
+	# Built in, not via backup-excludes.conf (the customer's file): dropping the entry would put the image store back
+	# into every archive. What is dropped follows DOCKER_BACKUP, see docker_backup_excludes.
 	fargs=()
 	while IFS= read -r xdocker; do
 		[ -n "$xdocker" ] && fargs+=(--exclude="$xdocker")
@@ -826,15 +728,13 @@ if [ "$USER" != '*' ]; then
 	set -f
 	i=0
 
-	# leftovers is what a previous restore handed over; archiving it would grow the archive over every
-	# roundtrip. A reserved name in the home from here on, like conf/web/mail/tmp - and in this fixed
-	# list rather than in backup-excludes.conf, which the customer can edit. .dumps is the restic
-	# stage - a mode switch would otherwise carry raw database dumps into the archive.
+	# leftovers (what a restore handed over) and .dumps (the restic stage) are reserved names: archiving them grows
+	# the archive or carries raw dumps. Fixed list here, not backup-excludes.conf, which the customer can edit.
 	for udir in $(ls -a | grep -E -v "^conf$|^web$|^dns$|^tmp$|^mail$|^leftovers$|^\.dumps$|^\.\.$|^\.$"); do
 		exclusion=$(echo "$USER" | tr ',' '\n' | grep "^$udir$")
 		if [ -z "$exclusion" ]; then
 			((i++))
-			# The archive keeps every entry; the record lists only names it can hold, a full restore reads the archive.
+			# The archive keeps every entry; the record lists only names it can hold.
 			if is_record_list_item "$udir"; then
 				udir_list="$udir_list $udir"
 			else
@@ -844,7 +744,6 @@ if [ "$USER" != '*' ]; then
 
 			check_backup_conditions
 
-			# Backup files and dirs
 			if [ "$BACKUP_MODE" = 'zstd' ]; then
 				_member="$tmpdir/user_dir/$udir.tar.zst"
 			else
@@ -860,7 +759,6 @@ if [ "$USER" != '*' ]; then
 	IFS=$_ifs_saved
 	udir_list=$(echo "$udir_list" | sed -e "s/  */\ /g" -e "s/^ //")
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i user directory ***" \
 			| tee -a $BACKUP/$user/$user.log
@@ -874,34 +772,28 @@ if [ "$BACKUP_MODE" = 'zstd' ]; then
 	touch $tmpdir/.zstd
 fi
 
-# The content map over web and mail (#712): paths/metadata from the finished members, hashes from
-# before the tars - the map lists what the archive holds and is never newer than it.
+# The content map over web and mail: paths/metadata from the finished members, hashes from before the tars.
 map_records=$(backup_map_write "$tmpdir" "$tmpdir/hestia/backup.map" "$maptbl")
 
-# Differential members (#712): BACKUPS_MODE comes from the package; anything but 'diff' stays
-# whole, and no base means full, never a diff against nothing.
+# BACKUPS_MODE comes from the package; anything but 'diff' stays whole, and no base means full.
 backup_mode_sel=$(sed -n "s/^BACKUPS_MODE='\([^']*\)'.*/\1/p" "$USER_DATA/user.conf" | head -1)
 diff_base=''
 if [ "${backup_mode_sel:-full}" = 'diff' ] && [ "$map_records" -gt 0 ]; then
 	diff_base=$(backup_diff_base "$USER_DATA/backup.conf" "$USER_DATA/backup-maps") || diff_base=''
-	# Named, not silent: after rotation (or against an emptied target) every run lands here and
-	# would look like "diff mode never engages" - stage-0 measured exactly that blindness. Since
-	# stage 3 a base may live on a remote only, so the word "local" would be wrong here.
+	# Named, not silent: after rotation every run lands here and would look like "diff never engages".
 	if [ -z "$diff_base" ]; then
 		echo "$(date "+%F %T") No reachable base archive - writing a full backup" \
 			| tee -a $BACKUP/$user/$user.log
 	fi
 	if [ -n "$diff_base" ]; then
 		base_map=$(mktemp)
-		# The count doubles as a form check: a desynced map counts 0 and forces a full run, the
-		# same as an unreadable one - "wrong shape" must never read as "nothing changed".
+		# The count doubles as a form check: a desynced map counts 0 and forces a full run, like an unreadable one.
 		if zstd -q -d -c "$USER_DATA/backup-maps/$diff_base.map.zst" > "$base_map" 2> /dev/null \
 			&& [ "$(backup_map_count "$base_map")" -gt 0 ]; then
 			backup_diff_build "$tmpdir" "$base_map" "$tmpdir/hestia/backup.map" "$diff_base"
 			echo "$(date "+%F %T") Differential against $diff_base" | tee -a $BACKUP/$user/$user.log
 		else
-			# An unreadable base map must force a full run, never an empty diff: "nothing changed"
-			# and "nothing could be read" produce the same empty file.
+			# An unreadable base map must force a full run, never an empty diff ("nothing changed" looks the same).
 			echo "$(date "+%F %T") Warning: base map for $diff_base is unreadable - writing a full backup" \
 				| tee -a $BACKUP/$user/$user.log
 			diff_base=''
@@ -910,16 +802,13 @@ if [ "${backup_mode_sel:-full}" = 'diff' ] && [ "$map_records" -gt 0 ]; then
 	fi
 fi
 if [ -n "$web_list$mail_list" ] && [ "$map_records" -eq 0 ]; then
-	# Zero entries for a customer who HAS web or mail means a member could not be read - which looks
-	# exactly like an empty one until somebody tries to restore it.
+	# Zero entries for a customer who HAS web or mail means an unreadable member, which looks empty until a restore.
 	echo "$(date "+%F %T") Warning: content map is empty although web/mail members exist" \
 		| tee -a $BACKUP/$user/$user.log
 fi
 
-# Get backup size
 size="$(du -shm $tmpdir | cut -f 1)"
 
-# Get current time
 end_time=$(date '+%s')
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
@@ -927,8 +816,7 @@ date=$(echo "$time_n_date" | cut -f 2 -d \ )
 backup_new_date=$(date +"%Y-%m-%d_%H-%M-%S")
 backup_stamp_settle
 
-# The local mirror: a later run reads the base map from here instead of fetching the archive back
-# from a remote target. The archive carries its own copy regardless, so it stays readable elsewhere.
+# The local mirror: a later run reads the base map from here instead of fetching the archive back from a remote target.
 if [ -s "$tmpdir/hestia/backup.map" ]; then
 	mkdir -p "$USER_DATA/backup-maps"
 	zstd -q -3 -f -o "$USER_DATA/backup-maps/$user.$backup_new_date.tar.map.zst" \
@@ -939,8 +827,7 @@ fi
 echo -e "\n-- SUMMARY --" | tee -a $BACKUP/$user/$user.log
 
 errorcode="0"
-# Switching on backup system types. Which targets failed is kept by NAME: the record and the
-# operator both get the reached set, not a rewritten wish (stage-0 protocol, E).
+# Failed targets are kept by NAME: the record and the operator get the reached set, not a rewritten wish.
 failed_targets=''
 for backup_type in $(echo -e "${BACKUP_SYSTEM//,/\\n}"); do
 	case $backup_type in
@@ -957,10 +844,8 @@ for backup_type in $(echo -e "${BACKUP_SYSTEM//,/\\n}"); do
 done
 reached="${reached#,}"
 
-# Leave the tmpdir before removing it: local_backup() ends inside it, and a child started from a
-# deleted cwd dies on getcwd - exim did, so the mail reporting a degraded run never went out.
+# Leave the tmpdir first: local_backup() ends inside it, and a child from a deleted cwd dies on getcwd (exim did).
 cd "$BACKUP" 2> /dev/null || cd /
-# Removing tmpdir
 rm -rf $tmpdir
 if [[ "$errorcode" != "0" ]]; then
 	if [[ "$reached" =~ "local" ]]; then
@@ -975,7 +860,6 @@ if [[ "$errorcode" != "0" ]]; then
 		exit "$errorcode"
 	fi
 fi
-# Calculation run time
 run_time=$((end_time - start_time))
 run_time=$((run_time / 60))
 current_time=$(date "+%T")
@@ -990,17 +874,11 @@ fi
 echo "$(date "+%F %T") Size: $size MB" | tee -a $BACKUP/$user/$user.log
 echo "$(date "+%F %T") Runtime: $run_time $min" | tee -a $BACKUP/$user/$user.log
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Removing duplicate. The name is a PATTERN here, and an unescaped dot matches any character - the
-# class #583 swept once already, missed at these record sites (#819).
+# The name is a PATTERN here: an unescaped dot matches any character.
 touch $USER_DATA/backup.conf
 _arc="$user.$backup_new_date.tar"
 sed -i "/${_arc//./\\.}/d" $USER_DATA/backup.conf
 
-# Registering new backup
 backup_str="BACKUP='$user.$backup_new_date.tar'"
 backup_str="$backup_str TYPE='$reached' SIZE='$size'"
 backup_str="$backup_str WEB='${web_list// /,}'"
@@ -1021,13 +899,9 @@ fi
 backup_str="$backup_str RUNTIME='$run_time' TIME='$time' DATE='$date'"
 echo "$backup_str" >> $USER_DATA/backup.conf
 
-# Record cleanup in FILE ORDER (the listers print the file as it stands). Adopted records always
-# stay - the file is not ours to rotate. The rest is kept per SET, derived exactly as the file
-# rotation derives it; the new record is already in the file, so no incoming adjustment.
-# The record outlives the file (#790 stage 2): record retention follows the LONGEST keep of
-# any configured place - the local file rotation keeps $BACKUPS, every remote place keeps its
-# own number, and the record stays as long as ANY of them still holds the archive. Ownership
-# stays bound to the record (#791), so a customer can schedule what only a remote still has.
+# Cleanup in FILE ORDER (the listers print the file as it stands). Adopted records always stay; the rest is kept per
+# SET, derived as the file rotation derives it (the new record is already in the file).
+# The record outlives the file: retention follows the LONGEST keep of any configured place, local or remote.
 keep_records="$BACKUPS"
 for backup_type in $(echo -e "${BACKUP_SYSTEM//,/\\n}"); do
 	case $backup_type in
@@ -1069,20 +943,17 @@ LC_ALL=C awk -v keep="$keep_records" -v q="'" '
 ' $USER_DATA/backup.conf $USER_DATA/backup.conf > $USER_DATA/backup.conf_
 mv -f $USER_DATA/backup.conf_ $USER_DATA/backup.conf
 
-# After the set-aware cleanup, so a mirror map is dropped in the same run that rotates its
-# archive's record - before it, the rotated set's mirrors survived one run as orphans.
+# After the set-aware cleanup, so a mirror map is dropped in the same run that rotates its record.
 backup_map_prune "$USER_DATA/backup-maps" "$USER_DATA/backup.conf"
 chmod 660 $USER_DATA/backup.conf
 chmod 660 $BACKUP/$user/$user.log
 
-# Deleting task from queue
 queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 U_BACKUPS=$(grep BACKUP $USER_DATA/backup.conf | wc -l)
 update_user_value "$user" '$U_BACKUPS' "$U_BACKUPS"
 cd $BACKUP
 
-# Send notification
 if [ -e "$BACKUP/$user/$user.log" ] && [ "$notify" = "yes" ]; then
 	subj="$user → backup has been completed"
 	email=$(get_user_value '$CONTACT')
@@ -1090,12 +961,11 @@ if [ -e "$BACKUP/$user/$user.log" ] && [ "$notify" = "yes" ]; then
 	$BIN/h-add-user-notification "$user" "Backup created successfully" "<p><span class='u-text-bold'>Archive:</span> <code>$user.$backup_new_date.tar</code></p>"
 fi
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Backup" "Backup created (Archive: $backup_new_date.tar)."
 $BIN/h-log-action "system" "Info" "Backup" "Backup created (User: $user, Archive: $backup_new_date.tar)."
 
-# Degradation goes into the exit code, not only into log and mail (the #746/#766 rule), and only
-# AFTER every piece of bookkeeping: the local archive is real, so its record and counters must be too.
+# Degradation goes into the exit code, not only log and mail, and only AFTER the bookkeeping:
+# the local archive is real, so its record and counters must be too.
 if [ -n "$failed_targets" ]; then
 	check_result "$errorcode" "backup of $user is local only - remote target(s) failed:${failed_targets}"
 fi

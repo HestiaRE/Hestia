@@ -347,6 +347,14 @@ if [ "$new_user" = "yes" ]; then
 fi
 rm -fr $tmpdir
 
+# Rebuilt vhosts are not served until the servers reload.
+$BIN/h-restart-web
+check_result $? "Web restart failed"
+if [ -n "$PROXY_SYSTEM" ]; then
+	$BIN/h-restart-proxy
+	check_result $? "Proxy restart failed"
+fi
+
 # Update user counters
 $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"

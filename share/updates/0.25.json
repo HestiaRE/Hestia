@@ -479,6 +479,27 @@
       "reversible": false
     },
     {
+      "id": "filemanager-listen-rename",
+      "description": "The apache Listen file of the file manager had the name a customer called listen gets for their listener, so enabling theirs overwrote the port",
+      "conditions": [
+        {
+          "type": "path_exists",
+          "path": "/etc/hestia/conf/.filemanager.key"
+        },
+        {
+          "type": "file_contains",
+          "path": "/etc/apache2/conf.d/fm-listen.conf",
+          "value": "Listen 127.0.0.1:"
+        }
+      ],
+      "action": {
+        "type": "function_call",
+        "function": "filemanager_refresh_apply"
+      },
+      "paths": [],
+      "reversible": false
+    },
+    {
       "id": "remove-h-add-user-sftp-key",
       "description": "h-add-user-sftp-key is gone: it made the SSH key of HestiaCP's file manager, which does not exist here",
       "conditions": [

@@ -1,7 +1,7 @@
 # File manager private listener - apache variant (#419). Rendered to
 # /etc/apache2/conf.d/fm-%user%.conf by h-add-user-filemanager only in the
-# apache-only case (no nginx front). Needs `Listen 127.0.0.1:%FILE_MANAGER_PORT%`
-# added once by h-add-sys-filemanager and mod_proxy_fcgi (already used by web pools).
+# apache-only case (no nginx front). Needs the port's Listen line, which fm_front_write keeps in
+# fm--listen.conf, and mod_proxy_fcgi (already used by web pools).
 # Loopback-only; only Panel-Caddy reaches it, proven by the shared secret header.
 <VirtualHost 127.0.0.1:%FILE_MANAGER_PORT%>
     ServerName fm-%user%.local

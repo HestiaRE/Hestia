@@ -414,7 +414,7 @@ web_model_run() {
 	web_model_uses_apache "$target" && ! web_model_uses_apache "$current" \
 		&& echo "  - apache2 will be installed/configured"
 	web_model_uses_apache "$current" && ! web_model_uses_apache "$target" \
-		&& { [ "$purge" = "yes" ] && echo "  - apache2 will be PURGED (/etc/apache2 incl. custom includes + fm-listen.conf)" || echo "  - apache2 will be stopped+disabled (package kept)"; }
+		&& { [ "$purge" = "yes" ] && echo "  - apache2 will be PURGED (/etc/apache2 incl. custom includes + fm--listen.conf)" || echo "  - apache2 will be stopped+disabled (package kept)"; }
 	web_model_uses_apache "$current" && web_model_uses_apache "$target" \
 		&& echo "  - apache2.conf + module config are rewritten from share/ (existing customizations are snapshotted, not merged)"
 	web_model_uses_nginx "$current" && ! web_model_uses_nginx "$target" \

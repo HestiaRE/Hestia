@@ -342,6 +342,10 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   and refresh the last-verified date in the `$comment`. This is the ONLY patch channel these
   components have — wp-cli has no OS package at all, and Tachyon's fork can go quiet without
   anyone noticing unless the date here forces the question (#237, #584).
+  **A bumped Tachyon pin reaches an installed box only through a `tachyon-pin` entry in that
+  release's own `share/updates/` manifest.** The entries of manifests at or below the update bound
+  are not read, so the one in `0.20.0.json` stopped carrying bumps at v0.21, and 4.2.5 and 4.3.1
+  reached fresh installs only. The same holds for every other `pin_differs` entry (ioncube).
 - **Check `php_supported` against Sury**: has a new PHP gone GA? The wizard offers only the
   intersection of Sury's packages and this list (#688) — a missing bump means the new version
   is silently never offered, an eager bump offers a beta to customers. Decide here, per release.

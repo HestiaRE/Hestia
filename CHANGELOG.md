@@ -21,6 +21,7 @@ before v0.20.0 are folded into one section by theme.
 - **The Sury and Docker repository keys are checked against a pinned fingerprint** (#1176).
 - **User commands are stricter** (#1176). A suspended account no longer gets in by SSH key, a password reset no
   longer logs the user in past 2FA and the address list, and a login names a suspension only after the right password.
+- **SSH key, 2FA, package and add-on commands are stricter** (#1176).
 
 ### Removed
 
@@ -29,6 +30,7 @@ before v0.20.0 are folded into one section by theme.
 - **`public_shtml` and a separate SSL docroot** (#1176): https serves `public_html` like http.
 - **`h-update-web-templates`** (#1176).
 - **`share/php-fpm/multiphp.tpl`** (#1176), unused.
+- **`h-add-user-sftp-key`** (#1176), left from HestiaCP's file manager. An update deletes it.
 
 ### Fixed
 
@@ -42,6 +44,8 @@ before v0.20.0 are folded into one section by theme.
   jail follow the addon, and removing Docker no longer strands customers who still use it.
 - **User suspend, delete and counters** (#1176): suspending a user no longer locks another customer whose name starts
   with it, deleting one ends its processes, and the suspended and IP counters stay right.
+- **Packages** (#1176): deleting one moves its users to default, saving one reaches only its own users, and renaming
+  one keeps its users on it. Suspending a user stops their Docker containers.
 
 ## v0.24 (2026-10-06)
 

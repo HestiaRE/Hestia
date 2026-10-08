@@ -408,6 +408,15 @@ if [ "$create_user" = 'yes' ]; then
 		# Anything that later runs through source_conf is filtered by its key set. A poisoned
 		# exclusion list cannot bind PATH any more, but it could still set MAIL_SYSTEM='' and skip
 		# the mail section of every future backup while the run stays green (#807).
+		# Notices describe this box's events and render as HTML in the bell: a foreign one never passed the sanitizer.
+		[ "$_name" = "notifications.conf" ] && continue
+		# Read back as records; a line outside the grammar would set whatever its keys name.
+		if [ "$_name" = "stats.log" ]; then
+			while IFS= read -r _line || [ -n "$_line" ]; do
+				record_line_valid "$_line" && printf '%s\n' "$_line"
+			done < "$_entry" > "$USER_DATA/$_name"
+			continue
+		fi
 		if [ "$_name" = "backup-excludes.conf" ]; then
 			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes \
 				|| echo "Warning!: the archived $_name carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
@@ -428,9 +437,7 @@ if [ "$create_user" = 'yes' ]; then
 			if [ -e "$_dest" ]; then
 				echo "$(date "+%F %T") package $(basename "$_pkg") exists on target, kept unchanged" >> $tmpdir/restore.log 2> /dev/null || true
 			else
-				# Package files are source_conf'd too, and their keys are a subset of the user set
-				# (measured: no package key is outside it).
-				copy_record_filtered "$_pkg" "$_dest" user \
+				copy_record_filtered "$_pkg" "$_dest" package \
 					|| echo "Warning!: the archived package $(basename "$_pkg") carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
 			fi
 		done
@@ -1464,7 +1471,8 @@ rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key
 # Re-enable Docker if the archive carried a companion home. The companion account is not in the
 # archive and its uid follows from the customer's, which was just reallocated - so it is recreated
 # with fresh subordinate ranges. Images are not restored, they are pulled.
-if [ -d "$HOMEDIR/$user/.companion" ] && [ -x "$BIN/h-add-user-docker" ]; then
+# The grant is DOCKER_IP in the record; a directory in the home is the customer's to create.
+if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ] && [ -x "$BIN/h-add-user-docker" ]; then
 	echo -e "$(date "+%F %T") docker companion" | tee -a $tmpdir/restore.log
 
 	# Re-own BEFORE enabling: the unpacked tree still belongs to the archived companion uid (tar

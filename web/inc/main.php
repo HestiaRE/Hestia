@@ -212,6 +212,21 @@ function check_error($return_var)
 	}
 }
 
+// An admin acting on another account: the root account stays with the real root user, and an unknown
+// ROOT_USER leaves only the admin's own account.
+function deny_root_target(): void
+{
+	global $is_real_root_user;
+	$target = $_GET["user"] ?? "";
+	if ($_SESSION["userContext"] !== "admin" || $target === "" || $target === $_SESSION["user"] || $is_real_root_user) {
+		return;
+	}
+	if (empty($_SESSION["ROOT_USER"]) || $target === $_SESSION["ROOT_USER"]) {
+		header("Location: /list/user/");
+		exit();
+	}
+}
+
 // Run a CLI command that prints JSON and always hand back an array.
 //
 // A failed call leaves $output empty, and json_decode("") is null - which behaves like an

@@ -70,7 +70,7 @@
 								<?php } ?>
 								title="<?= tohtml(_("Delete")) ?>"
 								data-confirm-title="<?= tohtml(_("Delete")) ?>"
-								data-confirm-message="<?= tohtml(sprintf(_("Are you sure you want to delete SSH key %s?"), $key)) ?>"
+								data-confirm-message="<?= tohtml(sprintf(_("Are you sure you want to delete SSH key %s?"), $data[$key]["ID"])) ?>"
 							>
 								<i class="fas fa-trash icon-red"></i>
 								<span class="u-hide-desktop"><?= tohtml(_("Delete")) ?></span>

@@ -435,9 +435,6 @@ rebuild_web_domain_conf() {
 	# Adding ftp users
 	if [ -z "$FTP_SHELL" ]; then
 		shell=$(which nologin)
-		if [ -e "/usr/bin/rssh" ]; then
-			shell='/usr/bin/rssh'
-		fi
 	else
 		shell=$FTP_SHELL
 	fi

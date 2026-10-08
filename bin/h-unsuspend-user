@@ -44,6 +44,11 @@ if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users
 	$BIN/h-add-user-filemanager "$user" no > /dev/null 2>&1 || true
 fi
 
+# The enable is the healing path: it turns linger back on and starts the daemon the suspend stopped.
+if [ -n "$(get_user_value '$DOCKER_IP')" ] && [ -x "$BIN/h-add-user-docker" ]; then
+	$BIN/h-add-user-docker "$user" > /dev/null 2>&1 || echo "Warning: docker for $user did not come back, re-run h-add-user-docker" >&2
+fi
+
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-web-domains "$user" "no"
 fi

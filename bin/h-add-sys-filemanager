@@ -46,7 +46,6 @@ if [ ! -s "$FM_SECRET_FILE" ]; then
 fi
 chown root:root "$FM_SECRET_FILE"
 chmod 600 "$FM_SECRET_FILE"
-secret="$(cat "$FM_SECRET_FILE")"
 
 $BIN/h-change-sys-config-value 'FILE_MANAGER_PORT' "$FILE_MANAGER_PORT"
 
@@ -59,8 +58,7 @@ fm_refresh yes || check_result "$E_RESTART" "$front restart failed"
 
 # The route goes last: until it exists the module counts as not installed, so a re-run repeats every step.
 mkdir -p /etc/caddy/apps
-sed -e "s|%FILE_MANAGER_PORT%|$FILE_MANAGER_PORT|g" -e "s|%FM_SECRET%|$secret|g" \
-	"$HESTIA/share/panel-caddy/apps/filemanager.tpl" > "$ROUTE"
+(umask 077 && fm_render "$HESTIA/share/panel-caddy/apps/filemanager.tpl" > "$ROUTE")
 chown root:caddy "$ROUTE"
 chmod 640 "$ROUTE"
 if ! $BIN/h-restart-service caddy > /dev/null 2>&1; then

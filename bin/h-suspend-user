@@ -13,6 +13,8 @@ restart=$2
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/docker.sh
+source $HESTIA/include/docker.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '1' "$#" 'USER [RESTART]'
@@ -37,6 +39,13 @@ if [ -z "$POLICY_USER_VIEW_SUSPENDED" ] || [ "$POLICY_USER_VIEW_SUSPENDED" != 'y
 	if [ -n "$FILE_MANAGER_PORT" ] && grep -q "^FILE_MANAGER='yes'" "$CONF_DIR/users/$user/user.conf" 2> /dev/null; then
 		$BIN/h-delete-user-filemanager "$user" no keep > /dev/null 2>&1 || true
 	fi
+fi
+
+# Containers are a service like the vhosts, so they stop whatever the policy; linger off keeps a reboot
+# from starting them again.
+if getent passwd "$(companion_name "$user")" > /dev/null 2>&1; then
+	companion_disable_linger "$user"
+	companion_stop "$user" || echo "Warning: the docker companion of $user did not stop completely" >&2
 fi
 
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then

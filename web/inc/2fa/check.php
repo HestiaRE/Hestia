@@ -1,18 +1,18 @@
 <?php
 
-require_once __DIR__ . '/../lib/totp.php';
+require_once __DIR__ . "/../lib/totp.php";
 
-if (isset($argv[1]) && isset($argv[2])) {
-	$secret = $argv[1];
-	$token  = $argv[2];
-} elseif (isset($_GET['secret']) && isset($_GET['token'])) {
-	$secret = htmlspecialchars($_GET['secret']);
-	$token  = htmlspecialchars($_GET['token']);
-} else {
-	echo 'ERROR: Secret or Token is not set as argument!';
+// CLI only, secret and token on stdin: as arguments the seed would stand in /proc for every local user to read.
+if (PHP_SAPI !== "cli") {
+	exit();
+}
+$secret = trim((string) fgets(STDIN));
+$token = trim((string) fgets(STDIN));
+if ($secret === "" || $token === "") {
+	echo "ERROR: Secret or Token is not set!";
 	exit();
 }
 
 if (hestia_totp_verify($secret, $token)) {
-	echo 'ok';
+	echo "ok";
 }

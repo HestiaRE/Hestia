@@ -181,6 +181,11 @@ U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL
 U_MAIL_DOMAINS U_DATABASES U_CRON_JOBS U_BACKUPS"
 USER_NUMERIC_KEYS=${USER_NUMERIC_KEYS//$'\n'/ }
 
+# What a package defines and hands to its users; nothing else of a package file reaches a user record.
+PACKAGE_KEYS="WEB_TEMPLATE BACKEND_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT
+DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS BACKUPS_MODE"
+PACKAGE_KEYS=${PACKAGE_KEYS//$'\n'/ }
+
 # An archived record is hostile input, so only registry-known keys reach the instance. Catches what
 # the floors above cannot: names legitimate in another file (ROOT_USER in hestia.conf, REPO in
 # restic.conf). A filter that keeps nothing fails rather than install an empty record.
@@ -209,7 +214,7 @@ copy_record_filtered() {
 		# Counters and limits reach bash arithmetic, which evaluates a subscript in a value.
 		case " $USER_NUMERIC_KEYS " in
 			*" $_lhs "*)
-				if [ "$_type" = user ] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
+				if [[ "$_type" =~ ^(user|package)$ ]] && ! [[ "$(record_field "$_line" "$_lhs")" =~ ^([0-9]*|unlimited)$ ]]; then
 					echo "Warning: dropping a non-numeric '$_lhs' from the archived $_type record" >&2
 					continue
 				fi
@@ -525,6 +530,7 @@ package_key_value() {
 	_pkg=$(sed -n "s/^PACKAGE='\(.*\)'$/\1/p" "$USER_DATA/user.conf" | head -n1)
 	[ -n "$_pkg" ] || return 1
 	[ -f "$CONF_DIR/packages/$_pkg.pkg" ] || return 1
+	case " $PACKAGE_KEYS " in *" $1 "*) ;; *) return 1 ;; esac
 	sed -n "s/^$1='\(.*\)'$/\1/p" "$CONF_DIR/packages/$_pkg.pkg" | head -n1
 }
 
@@ -666,26 +672,37 @@ generate_password() {
 	return 1
 }
 
-# Package existence check
+# Package existence; an empty name would address $CONF_DIR/packages/.pkg, a package no listing shows.
 is_package_valid() {
-	if [ -z $1 ]; then
-		if [ ! -e "$CONF_DIR/packages/$package.pkg" ]; then
-			check_result "$E_NOTEXIST" "package $package doesn't exist"
-		fi
-	else
-		if [ ! -e "$CONF_DIR/packages/$1.pkg" ]; then
-			check_result "$E_NOTEXIST" "package $1 doesn't exist"
-		fi
-	fi
-
+	local p=${1:-$package}
+	[ -n "$p" ] || check_result "$E_INVALID" "no package given"
+	[ -e "$CONF_DIR/packages/$p.pkg" ] || check_result "$E_NOTEXIST" "package $p doesn't exist"
 }
 
 is_package_new() {
+	[ -n "$1" ] || check_result "$E_INVALID" "no package given"
 	if [ -e "$CONF_DIR/packages/$1.pkg" ]; then
 		echo "Error: package $1 already exists."
 		log_event "$E_EXISTS" "$ARGUMENTS"
 		exit "$E_EXISTS"
 	fi
+}
+
+# The packages h-add-user and the installer rely on.
+is_package_builtin() {
+	case "$1" in
+		default | system) check_result "$E_FORBIDEN" "package $1 is built in and cannot be $2" ;;
+	esac
+}
+
+# package_users PACKAGE: the users on exactly this package, one per line.
+package_users() {
+	local uconf
+	for uconf in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$uconf" ] || continue
+		[ "$(grep -m1 "^PACKAGE=" "$uconf" | cut -d "'" -f 2)" = "$1" ] || continue
+		basename "$(dirname "$uconf")"
+	done
 }
 
 # Validate system type
@@ -2730,6 +2747,21 @@ user_exec() {
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
 }
 
+# A customer's docker address as h-add-user-docker hands it out. A restored record is the only other
+# writer, and its value lands in nft rules, vhosts and daemon.json.
+docker_ip_valid() {
+	[[ "$1" =~ ^127\.20\.(0|[1-9][0-9]{0,2})\.1$ ]] && [ "${BASH_REMATCH[1]}" -le 254 ]
+}
+
+# bash_alias_set NAME VALUE: exactly one "alias NAME=VALUE" in $user's .bash_aliases, written as $user,
+# since root writing there follows whatever link the customer put in its place.
+bash_alias_set() {
+	local file="$HOMEDIR/$user/.bash_aliases"
+	user_exec touch "$file" || return 1
+	user_exec sed -i "/^alias $1=/d" "$file" || return 1
+	echo "alias $1=$2" | user_exec tee -a "$file" > /dev/null
+}
+
 # home_dir_own PATH OWNER MODE: root sets up a directory inside a customer's home, which the customer can rename.
 # A link is refused and chown never follows one; a swap between the test and chmod is not covered.
 home_dir_own() {
@@ -2752,6 +2784,28 @@ path_within() {
 		case "$p" in "$b" | "$b"/*) return 0 ;; esac
 	done
 	return 1
+}
+
+# The customer's authorized_keys, read and replaced as the customer: root follows no link planted in ~/.ssh.
+authkeys_file() { echo "$HOMEDIR/$user/.ssh/authorized_keys"; }
+authkeys_read() { user_exec cat -- "$(authkeys_file)" 2> /dev/null; }
+authkeys_write() {
+	local file tmp
+	file=$(authkeys_file)
+	user_exec mkdir -p -m 700 -- "${file%/*}" || return 1
+	tmp=$(user_exec mktemp -- "$file.XXXXXX") || return 1
+	if ! user_exec tee -- "$tmp" > /dev/null || ! user_exec mv -f -- "$tmp" "$file"; then
+		user_exec rm -f -- "$tmp"
+		return 1
+	fi
+}
+
+# authkey_ids LINE: "FINGERPRINT ID" of a key line, ID being the last word of its comment as the key list shows it.
+authkey_ids() {
+	local out
+	[[ -n "$1" && "$1" != \#* ]] || return 1
+	out=$(ssh-keygen -l -f - <<< "$1" 2> /dev/null) || return 1
+	awk '{print $2, $(NF-1)}' <<< "$out"
 }
 
 # Simple chmod wrapper that skips symlink files after glob expand
@@ -2990,8 +3044,9 @@ jail_sshd_subsystem_apply() {
 	# Temp file NEXT TO the target so the rename is atomic, mode and owner from the target because
 	# sshd refuses a config with wrong permissions and a truncated sshd_config is a box nobody logs
 	# into. A killed run leaves its temp behind, which sshd ignores but nobody would notice piling up.
-	rm -f "$config".?????? 2> /dev/null || true
-	_tmp=$(mktemp "$config.XXXXXX") || return 1
+	# Our own prefix: a bare six-character suffix also matched an admin's sshd_config.backup.
+	rm -f "$config".hst-?????? 2> /dev/null || true
+	_tmp=$(mktemp "$config.hst-XXXXXX") || return 1
 	_prev_trap=$(trap -p EXIT)
 	# shellcheck disable=SC2064 # expand now on purpose: _tmp is local and gone when the trap fires
 	trap "rm -f '$_tmp'" EXIT

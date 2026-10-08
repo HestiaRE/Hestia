@@ -4,27 +4,16 @@
 #
 # example: h-acknowledge-user-notification
 #
-# This function updates user notification.
+# Marks one notification of a user, or all of them, as read.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 id=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER NOTIFICATION'
 if [ "$id" = "all" ]; then
@@ -34,19 +23,15 @@ else
 fi
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Updating notification
 if [ "$id" = 'all' ]; then
-	for id in $($BIN/h-list-user-notifications "$user" plain | cut -f1); do
+	# The ids from the records themselves: the plain list carries decoded text, which may span lines.
+	for id in $(grep -o "^NID='[0-9]*'" "$USER_DATA/notifications.conf" 2> /dev/null | cut -d "'" -f 2); do
 		update_object_value 'notifications' 'NID' "$id" '$ACK' 'yes' 2> /dev/null
 	done
+	notice='no'
 else
 	update_object_value 'notifications' 'NID' "$id" '$ACK' 'yes' 2> /dev/null
 
-	# Checking last notification
 	if [ -e "$USER_DATA/notifications.conf" ]; then
 		if [ -z "$(grep NID= $USER_DATA/notifications.conf)" ]; then
 			notice='no'
@@ -59,11 +44,6 @@ else
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating notification counter
 if [ "$notice" = 'no' ]; then
 	if [ -z "$(grep NOTIFICATIONS $USER_DATA/user.conf)" ]; then
 		sed -i "s/^TIME/NOTIFICATIONS='no'\nTIME/g" $USER_DATA/user.conf
@@ -72,7 +52,6 @@ if [ "$notice" = 'no' ]; then
 	fi
 fi
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

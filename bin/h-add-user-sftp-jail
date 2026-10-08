@@ -4,53 +4,30 @@
 #
 # example: h-add-user-sftp-jail admin
 #
-# Adds a user with a jailed shell (nologin/rssh) to the sftp-jailed group (#413). The
-# jail is built per session by pam_namespace; RESTART is a no-op (group applies at next
-# login). See h-add-sys-sftp-jail.
+# Puts a nologin account into the sftp-jailed group; pam_namespace builds the jail per session.
+# RESTART is accepted and ignored, the group applies at the next login.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user'
 
-# Only jailed shells (nologin/rssh) — a real login shell (bash/jailbash) is not chrooted
-user_str=$(grep "^$user:" /etc/passwd | egrep "rssh|nologin")
-if [ -z "$user_str" ]; then
-	exit
-fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+# Only nologin accounts; a real login shell (bash/jailbash) is not chrooted
+user_shell=$(getent passwd "$user" | cut -d : -f 7)
+[ "${user_shell##*/}" = 'nologin' ] || exit
 
 add_chroot_jail "$user"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# RESTART arg kept for call-site compatibility; group applies at next login (no-op here)
+# RESTART stays for the callers that pass it.
 : "${restart:=}"
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -28,6 +28,13 @@ if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
 
+# First, so a refusal leaves the account whole, and before the unsuspend, which would start it again. The companion
+# lives in this home and holds subordinate id ranges; a later account on its uid would inherit what it left.
+if getent passwd "${user}-docker" > /dev/null 2>&1; then
+	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
+	check_result $? "docker companion of $user could not be removed, the account is kept; re-run after h-delete-user-docker"
+fi
+
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-web-domains "$user" "$restart"
 	$BIN/h-delete-web-domains "$user" "$restart"
@@ -58,12 +65,6 @@ remove_user_queue_jobs "$CONF_DIR/queue/disk.pipe" "$user"
 remove_user_queue_jobs "$CONF_DIR/queue/traffic.pipe" "$user"
 
 $BIN/h-delete-user-sftp-jail "$user"
-
-# Before userdel: the Docker companion lives in this home and holds subordinate id ranges, and a later account
-# on its uid would inherit what it left.
-if getent passwd "${user}-docker" > /dev/null 2>&1; then
-	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
-fi
 
 # The file manager pool runs as this account; php-fpm refuses a pool whose user is gone.
 $BIN/h-delete-user-filemanager "$user" no > /dev/null 2>&1

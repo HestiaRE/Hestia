@@ -2,25 +2,18 @@
 # info: adding user package
 # options: PKG_DIR PACKAGE [REWRITE]
 #
-# This function adds new user package to the system.
+# Adds a package from a file of KEY='value' lines, or rewrites one with REWRITE.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 tmpfile=$1
 package=$2
 rewrite=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 is_package_consistent() {
@@ -49,8 +42,7 @@ is_package_consistent() {
 	if [ "$DISK_QUOTA" != 'unlimited' ]; then
 		is_int_format_valid "$DISK_QUOTA" 'DISK_QUOTA'
 	fi
-	# The docker cap is a preset, not a size: the mapping to systemd properties lives in
-	# docker_slice_properties, so a package can only carry a name it knows.
+	# The docker cap is a preset name that docker_slice_properties maps, so only a name it knows is accepted.
 	case "${DOCKER_LIMIT:-unlimited}" in
 		unlimited | low | medium | high) ;;
 		*) check_result "$E_INVALID" "DOCKER_LIMIT must be unlimited, low, medium or high" ;;
@@ -89,10 +81,6 @@ is_package_consistent() {
 	is_format_valid_shell "$SHELL"
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'PKG_DIR PACKAGE [REWRITE]' 'rewrite'
 is_format_valid 'package'
 if [ "$rewrite" != 'yes' ]; then
@@ -108,16 +96,15 @@ fi
 
 is_package_consistent
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 SHELL=$(basename $SHELL)
+# A template check passes anything while its web system is absent, so every value meets the record grammar here.
+for key in $PACKAGE_KEYS; do
+	record_line_valid "$key='${!key}'" || check_result "$E_INVALID" "invalid package value :: $key"
+done
 echo "WEB_TEMPLATE='$WEB_TEMPLATE'
 PROXY_TEMPLATE='$PROXY_TEMPLATE'
 BACKEND_TEMPLATE='$BACKEND_TEMPLATE'
@@ -140,11 +127,6 @@ DATE='$date'
 
 chmod 644 "$CONF_DIR/packages/$package.pkg"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 if [ "$rewrite" != 'yes' ]; then
 	$BIN/h-log-action "system" "Info" "Packages" "Package added (Name: $package)."
 else

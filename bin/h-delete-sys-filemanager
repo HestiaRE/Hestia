@@ -34,7 +34,7 @@ for pool in /etc/php/*/fpm/pool.d/fm-*.conf; do
 	rm -f "$pool"
 	systemctl reload "php$ver-fpm" 2> /dev/null || true
 done
-rm -f /etc/nginx/conf.d/fm-*.conf /etc/apache2/conf.d/fm-*.conf /etc/apache2/conf.d/fm-listen.conf
+rm -f /etc/nginx/conf.d/fm-*.conf /etc/apache2/conf.d/fm-*.conf
 rm -rf /run/hestia/fm
 [ -n "$PROXY_SYSTEM" ] && $BIN/h-restart-service "$PROXY_SYSTEM" > /dev/null 2>&1 || true
 $BIN/h-restart-service "$WEB_SYSTEM" > /dev/null 2>&1 || true

@@ -30,6 +30,14 @@ if [ "$(basename -- "$shell_path")" != "$cur_shell" ]; then
 	is_format_valid_shell "$shell_path"
 fi
 
+# The docker enable requires an unjailed shell; changing it afterwards would leave a daemon nobody can reach.
+case "$(basename -- "$shell_path")" in
+	nologin | false | jailbash)
+		[ -z "$(get_user_value '$DOCKER_IP')" ] \
+			|| check_result "$E_INVALID" "$user has docker, which needs an unjailed shell; disable docker first"
+		;;
+esac
+
 /usr/bin/chsh -s "$shell_path" "$user" > /dev/null 2>&1
 check_result $? "the shell of $user could not be changed"
 shell=$(basename "$shell_path")

@@ -101,6 +101,45 @@ restore_line_fields_ok() {
 	esac
 }
 
+# restore_php_installed VERSION: rc 0 when VERSION is a version string and installed here. The format comes first:
+# matched against the joined list, an archived value with a blank could span two installed versions.
+restore_php_installed() {
+	[[ "$1" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+	case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
+		*" $1 "*) return 0 ;;
+	esac
+	return 1
+}
+
+# restore_web_fields_check RECVAR: switch off what an archived web record names outside the bounds the add commands
+# set, both in the record line RECVAR and in the parsed variables. Prints one line per switched-off part.
+restore_web_fields_check() {
+	local _wf_name="$1" _wf_line
+	_wf_line=${!_wf_name}
+	if [ -n "$STATS" ] && { ! [[ "$STATS" =~ ^[a-z0-9]+$ ]] || [[ ",$STATS_SYSTEM," != *",$STATS,"* ]]; }; then
+		echo "stats '$STATS' is not offered here, switched off"
+		STATS='' STATS_USER='' STATS_CRYPT=''
+		record_set_field _wf_line STATS ''
+		record_set_field _wf_line STATS_USER ''
+		record_set_field _wf_line STATS_CRYPT ''
+	fi
+	# Each field on its own: the port reaches the vhost template even where DOCKER is empty.
+	local _dk_ok=yes
+	[ -z "$DOCKER" ] || { [[ "$DOCKER" =~ ^[A-Za-z0-9._-]+$ ]] && [ -n "$DOCKER_PORT" ]; } || _dk_ok=no
+	[ -z "$DOCKER_PORT" ] || { [[ "$DOCKER_PORT" =~ ^[0-9]{4,5}$ ]] && [ "$DOCKER_PORT" -ge 1024 ] \
+		&& [ "$DOCKER_PORT" -le 65535 ]; } || _dk_ok=no
+	[ -z "$DOCKER_OCTET" ] || { [[ "$DOCKER_OCTET" =~ ^[0-9]{1,3}$ ]] && [ "$DOCKER_OCTET" -ge 1 ] \
+		&& [ "$DOCKER_OCTET" -le 254 ]; } || _dk_ok=no
+	if [ "$_dk_ok" = no ]; then
+		echo "the docker proxy fields are outside the bounds of h-add-web-domain-docker, switched off"
+		DOCKER='' DOCKER_PORT='' DOCKER_OCTET=''
+		record_set_field _wf_line DOCKER ''
+		record_set_field _wf_line DOCKER_PORT ''
+		record_set_field _wf_line DOCKER_OCTET ''
+	fi
+	printf -v "$_wf_name" '%s' "$_wf_line"
+}
+
 # restore_records_filter SRC DST TYPE: write the lines of SRC that pass, name each dropped one on stderr.
 # For the multi-key record files only; an empty result is valid, a user may have no jobs or accounts.
 restore_records_filter() {
@@ -700,7 +739,8 @@ backup_php_missing() {
 		_ver=$(sed -n "s/.*PHP_VERSION='\([^']*\)'.*/\1/p" <<< "$_rec")
 		[ -z "$_ver" ] && _ver=$(sed -n "s/.*BACKEND='PHP-\([0-9]*\)_\([0-9]*\)'.*/\1.\2/p" <<< "$_rec")
 		{ [ -z "$_ver" ] || [ "$_ver" = 'none' ]; } && continue
-		[[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
+		# Format first, as in restore_php_installed: a value with a blank could span two installed versions.
+		[[ "$_ver" =~ ^[0-9]+\.[0-9]+$ ]] && [[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
 	done <<< "$_list"
 	BACKUP_PHP_MISSING=$(tr ' ' '\n' <<< "$_missing" | sed '/^$/d' | sort -u | tr '\n' ' ' | sed 's/ $//')
 }

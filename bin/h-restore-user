@@ -499,6 +499,10 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			ALIAS=''
 			for dom_alias in "${_dom_alias_list[@]}"; do
 				[ -n "$dom_alias" ] || continue
+				if ! restore_quiet is_alias_format_valid "$dom_alias"; then
+					echo "Warning!: $domain alias $dom_alias is not an alias name, dropped" | tee -a "$tmpdir/restore.log"
+					continue
+				fi
 				check_new=$(is_domain_new 'web' "$dom_alias")
 				[ -n "$check_new" ] && continue
 				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
@@ -539,11 +543,9 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				# Valid profiles are the shipped pool templates (custom ones included); default otherwise
 				if [[ "$PHP_PROFILE" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -f "$PHPTPL/$PHP_PROFILE.tpl" ]; then BACKEND="$PHP_PROFILE"; else BACKEND='default'; fi
 				# Preflight approved a fallback for a version this host lacks
-				if [ "$RESTORE_PHP_FALLBACK" = 'yes' ] && [ "$PHP_VERSION" != 'none' ]; then
-					case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
-						*" $PHP_VERSION "*) : ;;
-						*) PHP_VERSION=$(multiphp_default_version) ;;
-					esac
+				if [ "$RESTORE_PHP_FALLBACK" = 'yes' ] && [ "$PHP_VERSION" != 'none' ] \
+					&& ! restore_php_installed "$PHP_VERSION"; then
+					PHP_VERSION=$(multiphp_default_version)
 				fi
 			else
 				read -r BACKEND _ <<< "$(accept_web_template 'backend' "$BACKEND")"
@@ -629,6 +631,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 					*) echo "Warning!: $domain web record lost key $_k during restore" | tee -a $tmpdir/restore.log ;;
 				esac
 			done
+			# Not in a pipe: the check edits str and the parsed fields in this shell.
+			restore_web_fields_check str > "$tmpdir/web-fields.msg"
+			while IFS= read -r _m; do
+				echo "Warning!: $domain $_m"
+			done < "$tmpdir/web-fields.msg" | tee -a "$tmpdir/restore.log"
 			record_zero_counters str U_DISK U_BANDWIDTH
 			echo "$str" >> $USER_DATA/web.conf
 

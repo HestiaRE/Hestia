@@ -7,6 +7,7 @@ $TAB = "USER";
 
 // Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
+deny_root_target();
 
 // Check POST request
 if (!empty($_POST["ok"])) {

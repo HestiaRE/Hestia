@@ -4,6 +4,7 @@ use function Hestiacp\quoteshellarg\quoteshellarg;
 
 ob_start();
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
+deny_root_target();
 
 // Check token
 verify_csrf($_GET);

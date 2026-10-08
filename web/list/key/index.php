@@ -6,6 +6,7 @@ $TAB = "USER";
 
 // Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
+deny_root_target();
 
 if ($_SESSION["userContext"] === "admin" && !empty($_GET["user"])) {
 	$user = quoteshellarg($_GET["user"]);

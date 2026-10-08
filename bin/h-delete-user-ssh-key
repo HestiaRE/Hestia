@@ -33,14 +33,18 @@ fi
 # Compared whole, never as a pattern.
 kept=()
 removed=0
+by_id=0
 while IFS= read -r line || [ -n "$line" ]; do
 	if ids=$(authkey_ids "$line") && { [ "${ids% *}" = "$keyid" ] || [ "${ids#* }" = "$keyid" ]; }; then
 		removed=$((removed + 1))
+		[ "${ids% *}" = "$keyid" ] || by_id=$((by_id + 1))
 		continue
 	fi
 	kept+=("$line")
 done < <(authkeys_read)
 [ "$removed" -gt 0 ] || check_result "$E_NOTEXIST" "ssh key $keyid doesn't exist"
+# An id is only the comment's last word; several keys can share it.
+[ "$by_id" -le 1 ] || check_result "$E_INVALID" "$by_id keys carry the id $keyid, name the one to delete by its fingerprint"
 if [ "${#kept[@]}" -gt 0 ]; then
 	printf '%s\n' "${kept[@]}" | authkeys_write
 else

@@ -69,6 +69,7 @@ if [ ! -s "$tmpdir/backup.conf" ]; then
 fi
 restic_meta_cat "$meta_pkg" pam/passwd > "$tmpdir/passwd"
 old_uid=$(cut -f 3 -d : "$tmpdir/passwd")
+old_user=$(cut -f 1 -d : "$tmpdir/passwd")
 # Same guard as the full restore: without it every chown below matches nothing and the restored
 # files keep the archived owner.
 if [ -z "$old_uid" ]; then
@@ -189,16 +190,21 @@ for domain in "${domains[@]}"; do
 			fi
 
 			if [ -n "$CUSTOM_DOCROOT" ]; then
-				CUSTOM_DOCROOT=$(echo "$CUSTOM_DOCROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/")
+				CUSTOM_DOCROOT=$(echo "$CUSTOM_DOCROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/|g")
 			fi
 			if [ -n "$CUSTOM_PHPROOT" ]; then
-				CUSTOM_PHPROOT=$(echo "$CUSTOM_PHPROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/")
+				CUSTOM_PHPROOT=$(echo "$CUSTOM_PHPROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/|g")
 			fi
 
 			# Converting FTP users
+			# Per entry and anchored, as in h-restore-user: the field is a colon list.
 			if [ -n "$FTP_USER" ]; then
-				FTP_USER=$(echo "$FTP_USER" | sed -e "s/${old_user}_//")
-				FTP_USER="${user}_${FTP_USER}"
+				IFS=':' read -r -a _ftp_list <<< "$FTP_USER"
+				FTP_USER=''
+				for _f in "${_ftp_list[@]}"; do
+					[ -n "$_f" ] || continue
+					FTP_USER="${FTP_USER:+$FTP_USER:}${user}_${_f#"${old_user}_"}"
+				done
 			fi
 			# Copying SSL certificates
 			if [ "$SSL" = 'yes' ]; then

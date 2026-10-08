@@ -64,7 +64,7 @@ if [ -n "$check_user" ]; then
 	fi
 fi
 
-tmpdir=$(mktemp -p "/home/$user/tmp/" -d)
+tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
 # The metadata travels as the package beside the repository since stage 2a, not inside the snapshot.

@@ -69,16 +69,7 @@ fi
 # Session and upload dir, the same the customer's web pool uses.
 home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
 
-# A pool php-fpm refuses would take every site of that version down at its next start, and one left in a
-# former default version would hold the same socket from a second master.
-for old in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
-	[ -e "$old" ] || continue
-	[ "$old" = "$pool" ] && continue
-	rm -f "$old"
-	old_ver=${old#/etc/php/}
-	old_ver=${old_ver%%/*}
-	systemctl reload "php$old_ver-fpm" 2> /dev/null || systemctl restart "php$old_ver-fpm" 2> /dev/null || true
-done
+# A pool php-fpm refuses would take every site of that version down at its next start.
 mkdir -p "$(dirname "$pool")"
 prev=''
 [ -f "$pool" ] && prev=$(< "$pool")
@@ -93,6 +84,15 @@ if ! "/usr/sbin/php-fpm$ver" -t > /dev/null 2>&1; then
 	fi
 	check_result "$E_INVALID" "php$ver-fpm config test fails with the file manager pool for $user"
 fi
+# Only once the new pool passed: one left in a former default version would hold the socket from a second master.
+for old in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
+	[ -e "$old" ] || continue
+	[ "$old" = "$pool" ] && continue
+	rm -f "$old"
+	old_ver=${old#/etc/php/}
+	old_ver=${old_ver%%/*}
+	systemctl reload "php$old_ver-fpm" 2> /dev/null || systemctl restart "php$old_ver-fpm" 2> /dev/null || true
+done
 systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
 
 # fm-auth gates on the socket, which appears a moment after the reload; a quick click would get a 403.

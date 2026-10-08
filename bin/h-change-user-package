@@ -80,6 +80,8 @@ change_user_package() {
 		MAIL_DOMAINS MAIL_ACCOUNTS RATE_LIMIT DATABASES CRON_JOBS DISK_QUOTA \
 		DOCKER_LIMIT BANDWIDTH \
 		SHELL BACKUPS BACKUPS_MODE; do
+		# A hand-made package may lack a key; the user's value stays rather than turning empty.
+		grep -q "^$key='" "$CONF_DIR/packages/$package.pkg" || continue
 		update_user_value "$user" "\$$key" "${!key}"
 	done
 }
@@ -104,12 +106,14 @@ fi
 change_user_package
 
 # Update user shell
-shell_conf=$(cat "$CONF_DIR/packages/$package.pkg" | grep -m1 'SHELL' | cut -f 2 -d \')
-$BIN/h-change-user-shell "$user" "$shell_conf"
+shell_conf=$(grep -m1 "^SHELL=" "$CONF_DIR/packages/$package.pkg" | cut -f 2 -d \')
+if [ -n "$shell_conf" ]; then
+	$BIN/h-change-user-shell "$user" "$shell_conf"
+fi
 
-# Run template trigger
+# Run template trigger; from the record, which the forced path never sourced
 if [ -x "$CONF_DIR/packages/$package.sh" ]; then
-	$CONF_DIR/packages/$package.sh "$user" "$CONTACT" "$NAME"
+	$CONF_DIR/packages/$package.sh "$user" "$(get_user_value '$CONTACT')" "$(get_user_value '$NAME')"
 fi
 
 # Project quota (self-gated on PROJECT_QUOTA, #211); re-read through the sanitized reader, never source

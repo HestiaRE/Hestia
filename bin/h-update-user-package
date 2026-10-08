@@ -32,18 +32,16 @@ is_package_valid
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
-for user in $("$BIN/h-list-users" list); do
-	# Fix Bug User Data contain path to the root user
-	USER_DATA="$CONF_DIR/users/$user"
-	check_package=$(grep "PACKAGE='$package'" $USER_DATA/user.conf)
-	if [ -n "$check_package" ]; then
-		"$BIN/h-change-user-package" "$user" "$package" 'yes'
-	fi
+failed=''
+for pkg_user in $(package_users "$package"); do
+	"$BIN/h-change-user-package" "$pkg_user" "$package" 'yes' || failed="$failed $pkg_user"
 done
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
+
+[ -z "$failed" ] || check_result "$E_UPDATE" "package $package not applied to:$failed"
 
 # Logging
 log_event "$OK" "$ARGUMENTS"

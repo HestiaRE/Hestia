@@ -408,6 +408,15 @@ if [ "$create_user" = 'yes' ]; then
 		# Anything that later runs through source_conf is filtered by its key set. A poisoned
 		# exclusion list cannot bind PATH any more, but it could still set MAIL_SYSTEM='' and skip
 		# the mail section of every future backup while the run stays green (#807).
+		# Notices describe this box's events and render as HTML in the bell: a foreign one never passed the sanitizer.
+		[ "$_name" = "notifications.conf" ] && continue
+		# Read back as records; a line outside the grammar would set whatever its keys name.
+		if [ "$_name" = "stats.log" ]; then
+			while IFS= read -r _line || [ -n "$_line" ]; do
+				record_line_valid "$_line" && printf '%s\n' "$_line"
+			done < "$_entry" > "$USER_DATA/$_name"
+			continue
+		fi
 		if [ "$_name" = "backup-excludes.conf" ]; then
 			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes \
 				|| echo "Warning!: the archived $_name carries no usable keys and was skipped" | tee -a $tmpdir/restore.log

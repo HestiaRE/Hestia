@@ -45,7 +45,7 @@ companion_home="$HOMEDIR/$user/.companion"
 if ! getent passwd "$companion" > /dev/null 2>&1; then
 	echo "Docker is not enabled for $user."
 	# Sweep anyway: a partial enable can leave ranges or a home behind.
-	sed -i "/^${companion}:/d" /etc/subuid /etc/subgid 2> /dev/null
+	sed -i "/^${companion//./\\.}:/d" /etc/subuid /etc/subgid 2> /dev/null
 	rm -rf "$companion_home"
 	exit
 fi
@@ -93,7 +93,7 @@ if ! /usr/sbin/userdel "$companion" > /dev/null 2>&1; then
 fi
 getent group "$companion" > /dev/null 2>&1 && /usr/sbin/groupdel "$companion" > /dev/null 2>&1
 
-sed -i "/^${companion}:/d" /etc/subuid /etc/subgid 2> /dev/null
+sed -i "/^${companion//./\\.}:/d" /etc/subuid /etc/subgid 2> /dev/null
 rm -rf "$companion_home"
 
 # Free the address: a lingering field would hold it forever against the first-free allocation.

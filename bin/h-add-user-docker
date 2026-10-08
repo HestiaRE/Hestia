@@ -230,7 +230,7 @@ home_dir_own "$companion_home" "$companion:$gid" 0710 || check_result "$E_FORBID
 # so a re-run cannot stack a second set.
 echo "Writing subordinate id ranges..."
 for f in /etc/subuid /etc/subgid; do
-	sed -i "/^${companion}:/d" "$f"
+	sed -i "/^${companion//./\\.}:/d" "$f"
 done
 {
 	printf '%s:%s:999\n' "$companion" "$sub_base"

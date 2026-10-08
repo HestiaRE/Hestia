@@ -36,26 +36,19 @@ if (!empty($_POST["ok"])) {
 		if ($_POST) {
 			//key if key already exists
 			$data = cli_json("h-list-user-ssh-key " . $user . " json");
-			$keylist = [];
 			$idlist = [];
 			foreach ($data as $key => $value) {
 				$idlist[] = trim($data[$key]["ID"]);
-				$keylist[] = trim($data[$key]["KEY"]);
 			}
 
 			$v_key_parts = explode(" ", $_POST["v_key"]);
-			$key_id = trim($v_key_parts[2]);
-			if ($v_key_parts[2] == "") {
+			if (trim($v_key_parts[2] ?? "") === "") {
 				$v_key_parts[2] = md5(time());
 				$_POST["v_key"] .= " " . $v_key_parts[2];
 			}
 
-			//for deleting / revoking key the last part user@domain is used therefore needs to be unique
-			//maybe consider adding random generated message or even an human read able string set by user?
+			// The same key twice is refused by h-add-user-ssh-key, by fingerprint; this keeps the shown ids apart.
 			if (in_array($v_key_parts[2], $idlist)) {
-				$_SESSION["error_msg"] = _("SSH Key already exists.");
-			}
-			if (in_array($v_key_parts[1], $keylist)) {
 				$_SESSION["error_msg"] = _("SSH Key already exists.");
 			}
 			$v_key = quoteshellarg(trim($_POST["v_key"]));

@@ -2,7 +2,7 @@
 # info: delete backup ftp server
 # options: [NONE]
 #
-# example: h-delete-backup-host sftp
+# example: h-delete-backup-host-restic
 #
 # This function deletes ftp backup host
 

@@ -24,16 +24,6 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Functions
-is_package_in_use() {
-	check_package=$(grep "PACKAGE='$package" $CONF_DIR/users/*/user.conf | cut -d'/' -f7)
-	if [ -n "$check_package" ]; then
-		for user in $check_package; do
-			$BIN/h-change-user-package "$user" 'default'
-		done
-	fi
-}
-
 #----------------------------------------------------------#
 #                    Verifications                         #
 #----------------------------------------------------------#
@@ -41,14 +31,20 @@ is_package_in_use() {
 check_args '1' "$#" 'PACKAGE'
 is_format_valid 'package'
 is_package_valid
-is_package_in_use
+is_package_builtin "$package" deleted
 
 #----------------------------------------------------------#
 #                       Action                             #
 #----------------------------------------------------------#
 
-# Deleting user package
-rm -f "$CONF_DIR/packages/$package.pkg"
+# Users move to default first; one that default does not cover keeps the package, and so does the box.
+failed=''
+for pkg_user in $(package_users "$package"); do
+	"$BIN/h-change-user-package" "$pkg_user" 'default' || failed="$failed $pkg_user"
+done
+[ -z "$failed" ] || check_result "$E_LIMIT" "package $package kept, still in use by:$failed"
+
+rm -f "$CONF_DIR/packages/$package.pkg" "$CONF_DIR/packages/$package.sh"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

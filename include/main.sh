@@ -682,6 +682,23 @@ is_package_new() {
 	fi
 }
 
+# The packages h-add-user and the installer rely on.
+is_package_builtin() {
+	case "$1" in
+		default | system) check_result "$E_FORBIDEN" "package $1 is built in and cannot be $2" ;;
+	esac
+}
+
+# package_users PACKAGE: the users on exactly this package, one per line.
+package_users() {
+	local uconf
+	for uconf in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$uconf" ] || continue
+		[ "$(grep -m1 "^PACKAGE=" "$uconf" | cut -d "'" -f 2)" = "$1" ] || continue
+		basename "$(dirname "$uconf")"
+	done
+}
+
 # Validate system type
 is_type_valid() {
 	if [ -z "$(echo $1 | grep -w $2)" ]; then

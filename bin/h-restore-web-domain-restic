@@ -99,7 +99,7 @@ for domain in "${domains[@]}"; do
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)
 		if [ -z "$check_config" ]; then
 			check_new=$(is_domain_new 'web' $domain)
-			if [ "$check_new" = 'yes' ]; then
+			if [ -n "$check_new" ]; then
 				rm -rf $tmpdir
 				error="$domain belongs to another user"
 				echo "$error" | $SENDMAIL -s "$subj" $email $notify

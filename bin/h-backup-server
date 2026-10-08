@@ -85,7 +85,8 @@ while IFS= read -r component; do
 				tar -cf - -C "$(dirname "$src")" "$(basename "$src")" 2> /dev/null \
 					| backup_compress > "$dest/$(basename "$src").tar.$(backup_codec_suffix)"
 				_rc=("${PIPESTATUS[@]}")
-				[ "${_rc[0]}" -eq 0 ] && [ "${_rc[1]}" -eq 0 ] \
+				# tar 1 is a file that changed while read: the archive is whole, only that file is a snapshot.
+				[ "${_rc[0]}" -le 1 ] && [ "${_rc[1]}" -eq 0 ] \
 					|| check_result "$E_PARSING" "$src could not be archived, no server backup written"
 				echo "$(date '+%F %T') $component: $src"
 				;;

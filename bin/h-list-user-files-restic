@@ -1,6 +1,6 @@
 #!/bin/bash
 # info: list the files of a folder inside a restic snapshot
-# options: USER SNAPSHOT FOLDER [FORMAT]
+# options: USER SNAPSHOT FOLDER
 #
 # example: h-backup-user admin yes
 #
@@ -32,8 +32,14 @@ source_conf "$HESTIA/conf/hestia.conf"
 #                    Verifications                         #
 #----------------------------------------------------------#
 
-check_args '1' "$#" 'USER SNAPSHOT FOLDER [FORMAT]'
+check_args '3' "$#" 'USER SNAPSHOT FOLDER'
 is_format_valid 'user'
+# Both come from the panel and are restic arguments, so neither may read as an option.
+is_object_format_valid "$snapshot" 'snapshot'
+case "$folder" in
+	"$HOMEDIR/$user" | "$HOMEDIR/$user"/*) ;;
+	*) check_result "$E_FORBIDEN" "$folder is outside $HOMEDIR/$user" ;;
+esac
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
@@ -44,7 +50,7 @@ is_object_unsuspended 'user' 'USER' "$user"
 
 is_restic_repo_configured
 
-restic --repo "$REPO$user" --password-file $USER_DATA/restic.conf --json ls $snapshot $folder
+restic --repo "$REPO$user" --password-file $USER_DATA/restic.conf --json ls "$snapshot" "$folder"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

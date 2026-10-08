@@ -713,6 +713,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 					*) echo "Warning!: $domain web record lost key $_k during restore" | tee -a $tmpdir/restore.log ;;
 				esac
 			done
+			record_zero_counters str U_DISK U_BANDWIDTH
 			echo "$str" >> $USER_DATA/web.conf
 
 			# The old caching template is a switch now: carry the intent over, or the
@@ -916,6 +917,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 					"$PROBE_EXPORT_MAP")
 				[ -n "$_orig" ] && record_set_field archived_record WEBMAIL "$_orig"
 			fi
+			record_zero_counters archived_record U_DISK
 			echo "$archived_record" >> $USER_DATA/mail.conf
 		fi
 
@@ -1238,6 +1240,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 					*) echo "Warning!: $database db record lost key $_k during restore" | tee -a $tmpdir/restore.log ;;
 				esac
 			done
+			record_zero_counters str U_DISK
 			echo "$str" >> $USER_DATA/db.conf
 			dbhost_count_record "$TYPE" "$HOST"
 		else

@@ -112,7 +112,11 @@ for domain in "${domains[@]}"; do
 
 		# Restoring mail.conf
 		if [ -z "$check_config" ]; then
-			cat $tmpdir/mail/$domain/hestia/mail.conf >> $USER_DATA/mail.conf
+			archived_record=$(head -n1 "$tmpdir/mail/$domain/hestia/mail.conf")
+			record_line_valid "$archived_record" \
+				|| check_result "$E_PARSING" "$domain mail record is not a KEY='VALUE' line - refusing to restore it"
+			record_zero_counters archived_record U_DISK
+			echo "$archived_record" >> $USER_DATA/mail.conf
 		fi
 		# $tmpdir/home/$user/backup
 

@@ -107,6 +107,7 @@ for db in "${databases[@]}"; do
 					*) echo "Warning!: $db db record lost key $_k during restore" ;;
 				esac
 			done
+			record_zero_counters str U_DISK
 			echo "$str" >> $USER_DATA/db.conf
 			dbhost_count_record "$TYPE" "$HOST"
 		else

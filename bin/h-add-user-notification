@@ -27,7 +27,8 @@ source_conf "$HESTIA/conf/hestia.conf"
 topic=$(record_value_encode "$topic")
 # NOTICE renders via x-html, so sanitize before storing (allow-list; drops script/on*/js:). Encoded
 # after the sanitizer, because the sanitizer is what re-serialises attributes with a double quote.
-notice=$(record_value_encode "$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$3")")
+clean=$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$3") || check_result "$E_INVALID" "the notice could not be sanitized"
+notice=$(record_value_encode "$clean")
 
 #----------------------------------------------------------#
 #                    Verifications                         #

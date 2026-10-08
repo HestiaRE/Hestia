@@ -102,6 +102,13 @@ sed -i "/^DOCKER_IP='/d" "$USER_DATA/user.conf" 2> /dev/null
 
 # profile.d stays: guarded on the socket, so inert here, and others may still use it.
 
+# Files containers wrote into bind mounts keep the companion's or a subordinate uid, which the customer cannot
+# change. Reported, not chowned: root walking a customer tree to chown races every rename in it.
+stray=$(find "$HOMEDIR/$user" -xdev -nouser 2> /dev/null | wc -l)
+if [ "$stray" -gt 0 ]; then
+	echo "Warning: $stray file(s) in $HOMEDIR/$user belong to no account now (written by containers); find $HOMEDIR/$user -xdev -nouser"
+fi
+
 echo "Docker is disabled for $user."
 
 # The /24 separation rule renders from the user records; follow enable/disable immediately

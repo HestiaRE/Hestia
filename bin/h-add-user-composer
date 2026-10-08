@@ -47,29 +47,20 @@ is_object_unsuspended 'user' 'USER' "$user"
 COMPOSER_DIR="$HOMEDIR/$user/.composer"
 COMPOSER_BIN="$COMPOSER_DIR/composer"
 
-if [ -f "$COMPOSER_BIN" ]; then
+if user_exec test -f "$COMPOSER_BIN"; then
 	if [ "$update" = 'yes' ]; then
 		# deliberately upstream-latest regardless of the system source: the copy is the
 		# user's own and composer verifies its signature; timeout keeps it bounded
-		user_exec timeout 300 php "$COMPOSER_BIN" selfupdate
+		COMPOSER_HOME="$HOMEDIR/$user/.config/composer" user_exec timeout 300 php "$COMPOSER_BIN" selfupdate
 		exit
 	fi
 	echo "Composer already available"
 	exit
 fi
 
-[ -z "$(readlink -m "$COMPOSER_DIR" | egrep "^$HOMEDIR/$user/")" ] && check_result "$E_FORBIDEN" "Path outside of user homedir (Composer dir)"
-[ -z "$(readlink -m "$COMPOSER_BIN" | egrep "^$HOMEDIR/$user/")" ] && check_result "$E_FORBIDEN" "Path outside of user homedir (Composer bin)"
-[ -z "$(readlink -m "$HOMEDIR/$user/.config/" | egrep "^$HOMEDIR/$user/")" ] && check_result "$E_FORBIDEN" "Path outside of user homedir (.conf)"
-
-mkdir -p "$COMPOSER_DIR"
-chown $user: "$COMPOSER_DIR"
-mkdir -p "$HOMEDIR/$user/.config"
-chown $user: "$HOMEDIR/$user/.config"
-if [[ -f "/home/$user/.bash_aliases" ]]; then
-	sed -i '/^alias composer=/d' "/home/$user/.bash_aliases"
-fi
-echo "alias composer='php /home/$user/.composer/composer'" >> "/home/$user/.bash_aliases"
+# As the customer: root following a planted link in the home would create or chown where it points.
+user_exec mkdir -p "$COMPOSER_DIR" "$HOMEDIR/$user/.config" || check_result "$E_FORBIDEN" "Cannot create $COMPOSER_DIR as $user"
+bash_alias_set composer "'php $COMPOSER_BIN'" || check_result "$E_FORBIDEN" "$HOMEDIR/$user/.bash_aliases is not writable by $user"
 
 COMPOSER_SETUP_FILE=$(mktemp)
 check_result $? "Create temp file"
@@ -87,9 +78,9 @@ if [[ "$signature" != $(sha384sum "$COMPOSER_SETUP_FILE" | cut -f 1 -d " ") ]]; 
 fi
 
 COMPOSER_HOME="$HOMEDIR/$user/.config/composer" user_exec /usr/bin/php "$COMPOSER_SETUP_FILE" --quiet "--$version" --install-dir="$COMPOSER_DIR" --filename=composer
-check_result $? "Composer install failed"
-
-[ -f "$COMPOSER_SETUP_FILE" ] && rm -f "$COMPOSER_SETUP_FILE"
+rc=$?
+rm -f "$COMPOSER_SETUP_FILE"
+check_result $rc "Composer install failed"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

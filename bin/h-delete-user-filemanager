@@ -22,6 +22,8 @@ keep_flag="$3"
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/filemanager.sh
+source "$HESTIA/include/filemanager.sh"
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -52,9 +54,8 @@ done
 # vhost (nginx or apache) + stray socket
 rm -f "/etc/nginx/conf.d/fm-$user.conf" "/etc/apache2/conf.d/fm-$user.conf"
 rm -f "/run/hestia/fm/$user.sock"
-if [ "$restart" != 'no' ]; then
-	[ -n "$PROXY_SYSTEM" ] && $BIN/h-restart-service "$PROXY_SYSTEM" > /dev/null 2>&1 || true
-	$BIN/h-restart-service "$WEB_SYSTEM" > /dev/null 2>&1 || true
+if [ "$restart" != 'no' ] && [ -n "$(fm_front)" ]; then
+	$BIN/h-restart-service "$(fm_front)" > /dev/null 2>&1 || true
 fi
 
 # Clear the flag if present — unless the caller asked to keep it (suspend path

@@ -4,40 +4,18 @@
 #
 # example: h-list-backup-contents admin admin.2026-08-18_03-31-30.tar
 #
-# This function reads the archive FILE, not the backup.conf record, and reports what it holds and
-# what this host would not be able to restore from it. An archive that was put into /backup by hand
-# - a HestiaCP one, say - has no record anywhere, so h-list-user-backup cannot see it at all; this
-# command can, which is what makes a migration inspectable before the first write.
-#
-# TRUST BOUNDARY. Unlike h-list-user-backup this does NOT scope by $USER_DATA - it reads a path under
-# $BACKUP and extracts record members as root - and it deliberately does not require the user to
-# exist, because on a migration it does not. What holds the line instead:
-#
-#   - the archive name is a basename: is_object_format_valid allows no '/', and backup_archive_path
-#     cannot leave the two allowed places, and its containment says so a second time in code
-#   - $BACKUP is root-owned 0711 and the customer folder is hestia-owned, so nobody else can
-#     plant a symlink in either
-#   - the only non-root caller is the panel process, and it reaches h-* only through a route it
-#     builds itself; no route calls this command yet
-#
-# The moment a panel dialog does call it (#709 / stage 3), it needs a per-user scope of its own -
-# listing somebody else's archive is a disclosure even when the file itself stays unreadable.
+# Reads the archive file, not the backup.conf record, and reports what it holds and what this host cannot restore.
+# Works for an archive with no record (a HestiaCP one put into /backup by hand), so a migration can be inspected first.
+# Not scoped by $USER_DATA and the user need not exist: a panel caller needs its own per-user scope.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 format=${3-shell}
 
-# Define backup dir
 if [ -z "$BACKUP" ]; then
 	BACKUP=/backup
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -48,11 +26,9 @@ source $HESTIA/include/backup.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# printf with %s, never a value spliced into an echo argument: unquoted there, the shell splits and
-# globs it after json_escape has run, and what a glob substitutes never passed the escaper (#728).
+# printf %s, never a value spliced into an echo: a glob would substitute after json_escape has run.
 json_list() {
 	local kind list first item json_item
 	json_escape backup PROBE_MODE PROBE_VESTA PROBE_CRON PROBE_WEB_SYSTEM PROBE_PROXY_SYSTEM PROBE_ORIGIN
@@ -64,7 +40,7 @@ json_list() {
 	printf '        "PROXY_SYSTEM": "%s",\n' "$PROBE_PROXY_SYSTEM"
 	printf '        "ORIGIN": "%s",\n' "$PROBE_ORIGIN"
 	printf '        "CRON": "%s",\n' "$PROBE_CRON"
-	# The lists are newline separated on purpose - a home entry may be called "my documents"
+	# Newline separated: a home entry may be called "my documents".
 	for kind in WEB MAIL DB UDIR DNS PACKAGES; do
 		list="PROBE_$kind"
 		printf '        "%s": [' "$kind"
@@ -90,9 +66,7 @@ shell_list() {
 
 plain_list() {
 	local kind list item
-	# Said in every format. The object lists of a Vesta archive are empty because they are derived
-	# from ./hestia, so without this line plain would answer a refused archive with silence - the one
-	# output that is indistinguishable from an archive holding nothing.
+	# Said in every format: an empty list for a refused Vesta archive would read like an archive holding nothing.
 	if [ "$PROBE_VESTA" = 'yes' ]; then
 		printf 'vesta\trefused\n'
 		return
@@ -106,17 +80,9 @@ plain_list() {
 	done
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER ARCHIVE [FORMAT]'
 is_format_valid 'user' 'backup'
-# The name is validated but NOT required to exist. The migration case - a HestiaCP archive dropped
-# into /backup, looked at before anything is written - is precisely the case where it does not, and
-# h-restore-user handles that too (it reads is_object_valid instead of letting it abort, and creates
-# the account). Requiring it here refused the one situation this command was written for. Nothing is
-# lost by dropping it: existence was all it checked, never that the archive belongs to that user.
+# Validated but not required to exist: a migration archive is looked at before its account is.
 
 # The resolver is the containment: two allowed places, symlinks refused.
 backup_archive_path "$user" "$backup"
@@ -126,12 +92,7 @@ case $? in
 esac
 archive_path="$BACKUP_ARCHIVE"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Read-only throughout: the workdir holds the extracted records and nothing else, and it goes away
-# on every exit path - including the ones check_result takes.
+# Read-only; the workdir goes away on every exit path, including the ones check_result takes.
 probedir=$(mktemp -d -p "${BACKUP_TEMP:-$BACKUP}" -t probe.XXXXXX) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$probedir"' EXIT
 
@@ -145,9 +106,5 @@ case $format in
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

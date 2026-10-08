@@ -4,47 +4,30 @@
 #
 # example: h-schedule-user-restore-restic admin latest web example.tld
 #
-# This function for scheduling user backup restoration.
+# Queues the restore of a restic snapshot (the whole user, or one web, mail, db or cron object).
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
 object=$3
 value=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER SNAPSHOT [OBJECT] [VALUE]'
 is_format_valid 'user'
-# snapshot/value go into the executed backup.pipe, so validate them or a quote breaks out
-# (GHSA-2xw3, root RCE). value is validated per object type below.
+# snapshot/value go into the executed backup.pipe: validate them or a quote breaks out (value per object below).
 is_object_format_valid "$snapshot" 'snapshot'
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
-# The name alone says nothing about who owns the snapshot, and the queue runs as root: check that it
-# is in this customer's repository before it goes into the pipe. This makes scheduling touch the
-# repository - on a remote target that is a network call, not a format check.
+# The queue runs as root and a name says nothing about ownership: check the snapshot is in this customer's repository.
 is_restic_repo_configured
-# The failure is bound to the command, not to the line order: a `$?` two lines down dies silently
-# the day someone inserts a statement between them, because an assignment of its own returns 0.
-# An unreadable repository is not a missing snapshot either - this is the path a customer clicks,
-# and telling them their snapshot is gone because the line was down is a false statement.
+# Failure bound to the command, not a later `$?`; an unreadable repository must not read as a missing snapshot.
 snap_json=$(restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" --json snapshots \
 	"$snapshot" 2> /dev/null) \
 	|| check_result "$E_CONNECT" "the restic repository of $user could not be read - snapshot $snapshot not checked"
@@ -52,23 +35,15 @@ if ! grep -q '"short_id"' <<< "$snap_json"; then
 	check_result "$E_NOTEXIST" "no snapshot $snapshot in the repository of $user"
 fi
 is_backup_scheduled 'restore'
-# The dispatch below implements exactly these four. Naming an unsupported value HERE keeps the
-# archive check from answering for an object it never looked up: without a default branch its case
-# left the field empty and the refusal then read "snapshot ... holds no udir called ..." - a claim
-# about the archive's contents produced by a branch that does not exist.
+# Refuse an unsupported object here, or the archive check below answers for one it never looked up.
 case "$object" in
 	'' | web | mail | db | cron) ;;
 	*) check_result "$E_INVALID" "restore of '$object' is not supported - use web, mail, db or cron" ;;
 esac
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 log=$HESTIA/log/restore.log
 
-# The value is checked against the ARCHIVED list, not against today's records: a restore exists to
-# bring back what is gone from this host, so the record on disk is the wrong reference (#813).
+# Check against the ARCHIVED list, not today's records: a restore brings back what is gone from this host.
 if [ -n "$object" ] && [ "$object" != "cron" ]; then
 	meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
 	if [ -z "$meta_pkg" ]; then
@@ -76,22 +51,20 @@ if [ -n "$object" ] && [ "$object" != "cron" ]; then
 	fi
 	archived=$(restic_meta_cat "$meta_pkg" backup.conf) \
 		|| check_result "$E_PARSING" "$meta_pkg has no readable backup.conf"
-	# Exhaustive: the guard in Verifications already rejected everything but these three and cron.
+	# Exhaustive: the object guard above already rejected everything but these three and cron.
 	case "$object" in
 		web) field=$(sed -n "s/.*WEB='\([^']*\)'.*/\1/p" <<< "$archived") ;;
 		mail) field=$(sed -n "s/.*MAIL='\([^']*\)'.*/\1/p" <<< "$archived") ;;
 		db) field=$(sed -n "s/.*DB='\([^']*\)'.*/\1/p" <<< "$archived") ;;
 	esac
-	# -F: a domain name carries dots, and as a regex . matches any character - archived aXb.com
-	# would let a.b.com through and the restore would run on a name that was never in the snapshot.
+	# -F: a domain's dots would match any character as a regex, letting a.b.com through for an archived aXb.com.
 	if ! grep -qxF "$value" <<< "$(tr ',' '\n' <<< "$field")"; then
 		check_result "$E_NOTEXIST" "snapshot $snapshot holds no $object called $value for $user"
 	fi
 fi
 
 if [ -z "$object" ]; then
-	# Every selector spelled out: an empty one means "skip this section", so the whole-user restore
-	# used to queue a run that touched nothing. dns stays empty - there is no DNS subsystem here.
+	# Every selector spelled out: an empty one means "skip this section". dns stays empty, there is no DNS subsystem.
 	echo "$BIN/h-restore-user-restic '$user' '$snapshot' '*' '' '*' '*' 'yes' 'yes' 'yes' >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
 else
 	if [ "$object" = "web" ]; then
@@ -109,11 +82,7 @@ else
 		check_result "$E_INVALID" "Not supported"
 	fi
 fi
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
-# Logging
 $BIN/h-log-action "system" "Info" "Backup" "Restore of backup snapshot requested (User: $user, Archive: $snapshot)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -6,20 +6,12 @@
 #
 # Add a new remote backup location. Currently SFTP, FTP and rclone are supported
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 host=$2
-# The login name on the REMOTE target, not a panel user. Named apart from $user because that one is
-# filled in from $ROOT_USER when a command is handed no name, and a local target legitimately has
-# none: an ftp host added without one stored USERNAME='admin'.
+# The REMOTE login, apart from $user: that one falls back to $ROOT_USER, and a local target has no login at all.
 remote_user=$3
 raw_password=$4
-# A /tmp secret file must be resolved BEFORE quotemeta, or is_password_valid later sees an
-# escaped path and never reads it. A key file keeps its path - the OPENSSH branch needs it.
+# A /tmp secret file is resolved BEFORE quotemeta, or is_password_valid sees an escaped path; a key file keeps its path.
 if [[ "$raw_password" =~ ^/tmp/ ]] && [[ "$raw_password" != *../* ]] && [ ! -L "$raw_password" ] \
 	&& [ -f "$raw_password" ] && ! grep -q "OPENSSH PRIVATE" "$raw_password" 2> /dev/null; then
 	raw_password="$(head -n1 "$raw_password")"
@@ -28,34 +20,25 @@ HIDE=4
 password=$(perl -e 'print quotemeta shift(@ARGV)' "${raw_password}")
 path=${5-/backup}
 port=$6
-# KEEP: how many sets THIS target retains (the divergence number, #790 stage 2). Empty = mirror
-# the customer package's BACKUPS.
+# How many sets THIS target retains; empty mirrors the BACKUPS of the customer package.
 keep=$7
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "$type" != 'local' ]; then
 	check_args '2' "$#" "TYPE HOST USERNAME PASSWORD [PATH] [PORT] [KEEP]"
-	# The dispatch picks the validator by VARIABLE name, so the alias carries the family-open
-	# check while everything below keeps reading $host: a remote may be named or a bare address.
+	# The dispatch picks the validator by VARIABLE name: the alias carries the family-open check for a remote address.
 	host46="$host"
 	is_format_valid 'host46' 'path' 'port'
 	if [ -n "$keep" ]; then
 		is_int_format_valid "$keep" 'keep'
-		# 0 is refused, not stored: handed to the rotation it means "delete everything on this
-		# target on the next run" - an admin typing 0 almost always means "leave empty".
+		# 0 is refused: handed to the rotation it deletes everything on this target, and an admin typing 0 means "empty".
 		if [ "$keep" -eq 0 ]; then
 			check_result "$E_INVALID" "keep 0 would retain nothing - leave it empty to mirror the package limit"
 		fi
@@ -87,11 +70,6 @@ if [ "$type" != 'local' ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking network connection
 if [ "$type" = 'ftp' ]; then
 	if [ -z $port ]; then
 		port=21
@@ -111,7 +89,6 @@ if [ "$type" = 'ftp' ]; then
 		exit "$E_CONNECT"
 	fi
 
-	# Checking write permissions
 	if [ -z $path ]; then
 		ftmpdir="vst.bK76A9SUkt"
 	else
@@ -161,13 +138,10 @@ if [ "$type" = 'sftp' ]; then
 fi
 
 if [ "$type" = 'rclone' ]; then
-	# No installer download here: rclone is an OS package, and an unbounded curl|bash in a
-	# config command is the external-download trap in its purest form.
+	# No installer download: rclone is an OS package, and an unbounded curl|bash is the external-download trap.
 	which rclone > /dev/null 2>&1 || check_result "$E_NOTEXIST" "rclone is not installed (apt install rclone)"
-	# Verify account exists
 	if [ ! -z "$(cat /root/.config/rclone/rclone.conf | grep "\[$host\]")" ]; then
 		echo "test" > /tmp/hestia-backup.txt
-		# Try to upload a single file
 		if [ -z "$path" ]; then
 			rclone copy /tmp/hestia-backup.txt $host:/hestia-backup.txt
 			rclone delete $host:/hestia-backup.txt
@@ -180,7 +154,6 @@ if [ "$type" = 'rclone' ]; then
 	fi
 fi
 
-# Adding backup host
 if [ $type == 'ftp' ] || [ $type = 'sftp' ]; then
 	new_timestamp
 	str="HOST='$host'\nUSERNAME='$remote_user'\nPASSWORD='$password'\nPRIVATEKEY='$privatekey'"
@@ -194,15 +167,9 @@ elif [ $type == "rclone" ]; then
 	echo -e "$str" > $HESTIA/conf/$type.backup.conf
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update hestia.conf through the token function: an unanchored sed on the key name is the class that
-# rewrote DB_MARIADB_SYSTEM through DB_SYSTEM (#978), so no key is edited by a bare pattern any more.
+# Through the token function: an unanchored sed on the key name rewrote DB_MARIADB_SYSTEM through DB_SYSTEM.
 sys_key_token_set BACKUP_SYSTEM add "$type" > /dev/null || check_result "$E_UPDATE" "BACKUP_SYSTEM: could not record $type"
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

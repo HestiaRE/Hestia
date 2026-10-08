@@ -7,29 +7,23 @@
 # Reads the archives in the backup folder rather than a record: a server backup belongs to the box,
 # so there is no per-customer conf to register it in, and the members are the finding anyway.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
 format=${1-shell}
 
 if [ -z "$BACKUP" ]; then
 	BACKUP=/backup
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 components_of() { tar -tf "$1" 2> /dev/null | sed -n 's|^\./server/\([^/]*\)/.*|\1|p' | sort -u | tr '\n' ',' | sed 's/,$//'; }
 origin_of() { tar -xOf "$1" ./hestia/origin 2> /dev/null | head -n1; }
-# MB like every other lister, but rounded up: a 110 KB archive is not "0 MB", which reads as empty.
+# MB like every other lister, rounded up: a 110 KB archive must not read as "0 MB", i.e. empty.
 size_mb() { echo $((($(stat -c %s "$1") + 1048575) / 1048576)); }
 
 json_list() {
@@ -70,10 +64,6 @@ shell_list() {
 		printf '   origin: %s\n' "$(origin_of "$a")"
 	done
 }
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 case $format in
 	json) json_list ;;

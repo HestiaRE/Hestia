@@ -6,14 +6,8 @@
 #
 # Readable metadata into the package directory, raw database dumps into $HOMEDIR/$user/.dumps.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -24,23 +18,13 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get current time
 start_time=$(date '+%s')
 
 # Derived, never arguments: both are removed as root below.
@@ -55,7 +39,6 @@ chmod 0700 "$dumpdir"
 
 backup_user_dir "$user"
 
-# Backup sys configs
 echo "-- SYSTEM --" | tee $BACKUP/$user/$user.log
 mkdir -p $tmpdir/hestia
 
@@ -78,7 +61,6 @@ if [ -e "$USER_DATA/backup-excludes.conf" ]; then
 	cp -r $USER_DATA/backup-excludes.conf $tmpdir/hestia/
 fi
 
-# Backup PAM
 mkdir -p $tmpdir/pam
 echo -e "$(date "+%F %T") pam" | tee -a $BACKUP/$user/$user.log
 grep "^$user:" /etc/passwd > $tmpdir/pam/passwd
@@ -86,17 +68,14 @@ grep "^$user:" /etc/shadow > $tmpdir/pam/shadow
 grep "^$user:" /etc/group > $tmpdir/pam/group
 echo
 
-# Parsing excludes
 if [ -e "$USER_DATA/backup-excludes.conf" ]; then
 	source_conf "$USER_DATA/backup-excludes.conf"
 fi
 
-# WEB domains
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 	echo -e "\n-- WEB --" | tee -a $BACKUP/$user/$user.log
 	mkdir -p $tmpdir/web/
 
-	# Parsing domain exclusions
 	conf="$USER_DATA/web.conf"
 	for domain in $(search_objects 'web' 'SUSPENDED' "*" 'DOMAIN'); do
 		exclusion=$(echo -e "$WEB" | tr ',' '\n' | awk -v d="$domain" '$0 == d || $0 == "*"')
@@ -117,17 +96,14 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 		mkdir -p -p $tmpdir/web/$domain/conf
 		mkdir -p -p $tmpdir/web/$domain/hestia
 
-		# Get domain variables
 		domain_idn=$domain
 		format_domain_idn
 		get_domain_values 'web'
 
-		# Backup web.conf
 		cd $tmpdir/web/$domain/
 		conf="$USER_DATA/web.conf"
 		grep -F "DOMAIN='$domain'" $conf > hestia/web.conf
 
-		# Backup vhost config
 		if [ -e "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf" ]; then
 			cp $HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.conf* conf/
 		elif [ -e "$HOMEDIR/$user/conf/web/$domain.$WEB_SYSTEM.conf" ]; then
@@ -140,22 +116,17 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 			sed -n "$top_line,$bottom_line p" $conf > conf/$WEB_SYSTEM.conf
 		fi
 
-		# Backup ssl vhost
 		if [ "$SSL" = 'yes' ]; then
 			if [ -e "$HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf* conf/
 			elif [ -e "$HOMEDIR/$user/conf/web/$domain.$WEB_SYSTEM.ssl.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain.$WEB_SYSTEM.ssl.conf* conf/
 			else
-				# Same as the archive path since #593: a merged template keeps the SSL block in the
-				# .conf, so there is no standalone .ssl.conf and only the include fragments are
-				# copied. The old form here parsed a .stpl that merged templates do not have, and
-				# killed the whole staging (#826).
+				# Merged templates keep the SSL block in the .conf; only the include fragments exist beside it.
 				cp $HOMEDIR/$user/conf/web/$domain/$WEB_SYSTEM.ssl.conf_* conf/ 2> /dev/null || true
 			fi
 		fi
 
-		# Backup proxy config
 		if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ]; then
 			if [ -e "$HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.conf* conf/
@@ -170,35 +141,25 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 			fi
 		fi
 
-		# Backup ssl proxy config
 		if [ -n "$PROXY_SYSTEM" ] && [ -n "$PROXY" ] && [ "$SSL" = 'yes' ]; then
 			if [ -e "$HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.ssl.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.ssl.conf* conf/
 			elif [ -e "$HOMEDIR/$user/conf/web/$domain.$PROXY_SYSTEM.ssl.conf" ]; then
 				cp $HOMEDIR/$user/conf/web/$domain.$PROXY_SYSTEM.ssl.conf* conf/
 			else
-				# Same as the archive path since #593: a merged template keeps the SSL block in the
-				# .conf, so there is no standalone .ssl.conf and only the include fragments are
-				# copied. The old form here parsed a .stpl that merged templates do not have, and
-				# killed the whole staging (#826).
+				# Merged templates keep the SSL block in the .conf; only the include fragments exist beside it.
 				cp $HOMEDIR/$user/conf/web/$domain/$PROXY_SYSTEM.ssl.conf_* conf/ 2> /dev/null || true
 			fi
 		fi
 
-		# No re-parse of the record here - see h-backup-user: the call that used to sit here
-		# passed the variable NAME and assigned nothing (#719). $SSL below comes from
-		# get_domain_values at the top of the iteration.
+		# No template/ copy in the archive, as in h-backup-user.
 
-		# No template/ copy in the archive (see h-backup-user)
-
-		# Backup ssl certificates
 		if [ "$SSL" = 'yes' ]; then
 			cp $HOMEDIR/$user/conf/web/$domain/ssl/$domain.* conf/
 			cp $USER_DATA/ssl/$domain.* hestia/
 		fi
 	done
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i domain ***" | tee -a $BACKUP/$user/$user.log
 	else
@@ -206,12 +167,10 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 	fi
 fi
 
-# Mail domains
 if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 	echo -e "\n-- MAIL --" | tee -a $BACKUP/$user/$user.log
 	mkdir -p $tmpdir/mail/
 
-	# Parsing domain exclusions
 	conf="$USER_DATA/mail.conf"
 	for domain in $(search_objects 'mail' 'SUSPENDED' "*" 'DOMAIN'); do
 		check_exl=$(echo "$MAIL" | tr ',' '\n' | grep -Fx -- "$domain")
@@ -233,24 +192,20 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		domain_idn=$domain
 		format_domain_idn
 
-		# Backup exim config
 		if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 			cd $tmpdir/mail/$domain/
 			cp -r $HOMEDIR/$user/conf/mail/$domain/* conf/
 		fi
 
-		# Backup mail.conf
 		conf="$USER_DATA/mail.conf"
 		grep -F "DOMAIN='$domain'" $conf > hestia/mail.conf
 		cp $USER_DATA/mail/$domain.* hestia/
-		# compgen, not `ls | grep *@$domain`: that glob was expanded against the WORKING DIRECTORY
-		# before grep saw it, so the per-account files never got packed (#826).
+		# compgen, not `ls | grep *@$domain`: the glob would expand against the working directory.
 		if compgen -G "$USER_DATA/mail/*@$domain.*" > /dev/null; then
 			cp $USER_DATA/mail/*@$domain.* hestia/
 		fi
 	done
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i domain ***" | tee -a $BACKUP/$user/$user.log
 	else
@@ -258,12 +213,10 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 	fi
 fi
 
-# Databases
 if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 	echo -e "\n-- DB --" | tee -a $BACKUP/$user/$user.log
 	mkdir -p $tmpdir/db/
 
-	# Parsing database exclusions
 	for database in $(search_objects 'db' 'SUSPENDED' "*" 'DB'); do
 		exclusion=$(echo "$DB" | tr ',' '\n' | grep -Fx -- "$database")
 		if [ -z "$exclusion" ]; then
@@ -317,7 +270,6 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 		fi
 	done
 
-	# Print total
 	if [ "$i" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $i database ***" \
 			| tee -a $BACKUP/$user/$user.log
@@ -327,12 +279,10 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 	fi
 fi
 
-# Cron jobs
 if [ -n "$CRON_SYSTEM" ] && [ "$CRON" != '*' ]; then
 	echo -e "\n-- CRON --" | tee -a $BACKUP/$user/$user.log
 	mkdir -p $tmpdir/cron/
 
-	# Backup cron.conf
 	cp $USER_DATA/cron.conf $tmpdir/cron/
 	cron_record=$(wc -l $USER_DATA/cron.conf | cut -f 1 -d ' ')
 
@@ -341,7 +291,6 @@ if [ -n "$CRON_SYSTEM" ] && [ "$CRON" != '*' ]; then
 		cp /var/spool/cron/$user $tmpdir/cron/
 	fi
 
-	# Print total
 	if [ "$cron_record" -eq 1 ]; then
 		echo -e "$(date "+%F %T") *** $cron_record job ***" \
 			| tee -a $BACKUP/$user/$user.log
@@ -350,9 +299,7 @@ if [ -n "$CRON_SYSTEM" ] && [ "$CRON" != '*' ]; then
 			| tee -a $BACKUP/$user/$user.log
 	fi
 fi
-# There is no need to create
 
-# Calculation run time
 run_time=$((end_time - start_time))
 run_time=$((run_time / 60))
 current_time=$(date "+%T")
@@ -369,11 +316,6 @@ time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 echo "$(date "+%F %T") Runtime: $run_time $min" | tee -a $BACKUP/$user/$user.log
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Registering new backup
 backup_str="BACKUP='snapshot'"
 backup_str="$backup_str TYPE='restic'"
 backup_str="$backup_str WEB='${web_list// /,}'"

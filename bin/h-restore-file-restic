@@ -6,17 +6,11 @@
 #
 # Restores one path out of a snapshot, bounded to the customer's home.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
 file=$3
 notify=${4-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -31,12 +25,7 @@ source $HESTIA/include/rebuild.sh
 source $HESTIA/include/syshealth.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER SNAPSHOT PATH [NOTIFY]'
 check_args '3' "$#" "$args_usage"
@@ -45,13 +34,7 @@ is_object_valid 'user' 'USER' "$user"
 
 is_restic_repo_configured
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# The command restores as root: a path outside the customer's home would write anywhere. A prefix
-# test is text, and /home/alfa/../bravo passes it - so the components are refused first, and the
-# boundary holds on its own instead of leaning on what restic happens to match.
+# Runs as root: a prefix test passes /home/alfa/../bravo, so .. components are refused before the home bound.
 case "$file" in
 	*/../* | */.. | ../* | ..) check_result "$E_FORBIDEN" "$file contains a .. component" ;;
 esac
@@ -74,18 +57,12 @@ if [ "$?" -ne 0 ]; then
 	check_result "$E_NOTEXIST" "$file is not in snapshot $snapshot"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update user counters
 $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"
 $BIN/h-update-sys-ip-counters
 
 sed -i "/h-restore-file-restic '$user' '$snapshot' '$file' /d" $CONF_DIR/queue/backup.pipe
 
-# Logging
 $BIN/h-log-action "system" "Info" "Backup" "File successfully restored (User: $user, Snapshot: $snapshot, File: $file)."
 $BIN/h-log-action "$user" "Info" "Backup" "File successfully restored (User: $user, Snapshot: $snapshot, File: $file)."
 log_event "$OK" "$ARGUMENTS"

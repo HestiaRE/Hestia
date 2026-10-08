@@ -2,19 +2,13 @@
 # info: list the files of a folder inside a restic snapshot
 # options: USER SNAPSHOT FOLDER
 #
-# example: h-backup-user admin yes
+# example: h-list-user-files-restic admin latest /home/admin/web
 #
-# This function is used for backing up user with all its domains and databases.
+# Lists the files of one folder inside a restic snapshot of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
 folder=$3
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,12 +19,7 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '3' "$#" 'USER SNAPSHOT FOLDER'
 is_format_valid 'user'
@@ -45,16 +34,8 @@ is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 is_restic_repo_configured
 
 restic --repo "$REPO$user" --password-file $USER_DATA/restic.conf --json ls "$snapshot" "$folder"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

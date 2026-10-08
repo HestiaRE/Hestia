@@ -22,6 +22,7 @@ is_object_unsuspended 'user' 'USER' "$user"
 
 # The allowlist gates a change only: re-asserting the current shell, possibly a legacy one a restore left, passes.
 # It compares the path /etc/shells resolves, not the request, whose last part could be any name.
+[ -n "$shell" ] || check_result "$E_INVALID" "no shell given"
 shell_path=$(grep -wF -- "$shell" /etc/shells | grep -m1 '^/')
 [ -n "$shell_path" ] || check_result "$E_INVALID" "shell $shell is not listed in /etc/shells"
 cur_shell=$(basename -- "$(getent passwd "$user" | cut -d : -f 7)")

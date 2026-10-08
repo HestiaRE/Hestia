@@ -118,6 +118,10 @@ time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 SHELL=$(basename $SHELL)
+# A template check passes anything while its web system is absent, so every value meets the record grammar here.
+for key in $PACKAGE_KEYS; do
+	record_line_valid "$key='${!key}'" || check_result "$E_INVALID" "invalid package value :: $key"
+done
 echo "WEB_TEMPLATE='$WEB_TEMPLATE'
 PROXY_TEMPLATE='$PROXY_TEMPLATE'
 BACKEND_TEMPLATE='$BACKEND_TEMPLATE'

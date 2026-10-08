@@ -264,15 +264,8 @@ function authenticate_user($user, $password, $twofa = "")
 								$_SESSION["login"]["username"] = $user;
 								$_SESSION["login"]["password"] = $password;
 								$v_session_id = quoteshellarg($_POST["token"]);
-								if (isset($_SESSION["failed_twofa"])) {
-									//allow a few failed attemps before start of logging.
-									if ($_SESSION["failed_twofa"] > 2) {
-										cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Invalid or missing 2FA token"');
-									}
-									$_SESSION["failed_twofa"]++;
-								} else {
-									$_SESSION["failed_twofa"] = 1;
-								}
+								// Every miss: a counter in the attacker's own session would let them reset it.
+								cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Invalid or missing 2FA token"');
 								unset($_POST["twofa"]);
 								return $error;
 							}
@@ -282,6 +275,7 @@ function authenticate_user($user, $password, $twofa = "")
 							$_SESSION["login"]["username"] = $user;
 							$_SESSION["login"]["password"] = $password;
 							$v_session_id = quoteshellarg($_POST["token"]);
+							cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent . ' yes "Invalid or missing 2FA token"');
 							return $error;
 						}
 					}

@@ -46,7 +46,8 @@ if ! getent passwd "$companion" > /dev/null 2>&1; then
 	echo "Docker is not enabled for $user."
 	# Sweep anyway: a partial enable can leave ranges or a home behind.
 	sed -i "/^${companion//./\\.}:/d" /etc/subuid /etc/subgid 2> /dev/null
-	rm -rf "$companion_home"
+	# A directory of that name the customer made is theirs; a partial enable leaves one the customer does not own.
+	[ "$(stat -c %u "$companion_home" 2> /dev/null)" = "$(id -u "$user" 2> /dev/null)" ] || rm -rf "$companion_home"
 	exit
 fi
 

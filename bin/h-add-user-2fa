@@ -50,12 +50,21 @@ IFS='-' read -r -a array <<< "$data"
 secret=${array[0]}
 qrcode=${array[1]}
 
-# Save the secret in user config (needs encryption?)
-update_user_value "$user" '$TWOFA' "$secret"
-update_user_value "$user" '$QRCODE' "$qrcode"
+[[ "$secret" =~ ^[A-Z2-7]{16,}$ && "$qrcode" == data:image/* ]] \
+	|| check_result "$E_CONNECT" "the 2FA secret could not be generated"
+
+update_user_value "$user" '$TWOFA' "$secret" && update_user_value "$user" '$QRCODE' "$qrcode"
+if [ $? -ne 0 ]; then
+	update_user_value "$user" '$TWOFA' ""
+	check_result "$E_DISK" "2FA could not be stored for $user"
+fi
 
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#
+
+$BIN/h-log-action "system" "Info" "System" "Two-factor authentication enabled (User: $user)."
+$BIN/h-log-action "$user" "Info" "System" "Two-factor authentication enabled."
+log_event "$OK" "$ARGUMENTS"
 
 exit

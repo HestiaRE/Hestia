@@ -28,7 +28,9 @@ user=$1
 #----------------------------------------------------------#
 
 check_args '0' "$#" '[USER]'
-if [ ! -z "$user" ]; then
+# An empty argument is a caller's mistake, not "every user".
+[ "$#" -eq 0 ] || [ -n "$user" ] || check_result "$E_ARGS" "empty USER"
+if [ -n "$user" ]; then
 	is_format_valid 'user'
 	is_object_valid 'user' 'USER' "$user"
 fi
@@ -44,6 +46,21 @@ if [ -z "$user" ]; then
 else
 	user_list="$user"
 fi
+
+# One line per month: a second line for the same month (two runs in one second) used to make the sed
+# address fail for good. The line goes in as data, never as a sed replacement.
+stats_put() { # FILE DATE LINE
+	local tmp
+	[ -e "$1" ] || : > "$1"
+	tmp=$(mktemp "$1.XXXXXX") || return 1
+	if ! STATS_D="DATE='$2'" STATS_S="$3" awk 'BEGIN { d = ENVIRON["STATS_D"]; s = ENVIRON["STATS_S"] }
+		index($0, d) == 1 { if (!done) print s; done = 1; next } { print } END { if (!done) print s }' "$1" > "$tmp"; then
+		rm -f "$tmp"
+		return 1
+	fi
+	chmod 660 "$tmp"
+	mv -f "$tmp" "$1"
+}
 
 # Reset overall statistics
 TOTAL_IP_OWNED=0
@@ -71,6 +88,9 @@ for user in $user_list; do
 		continue
 	fi
 	USER_DATA=$CONF_DIR/users/$user
+	# A key one record lacks must not carry the previous user's value into this line and the totals.
+	unset TIME PACKAGE IP_OWNED DISK_QUOTA BANDWIDTH U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB U_BANDWIDTH \
+		U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS
 	source_conf "$USER_DATA/user.conf"
 	next_month=$(date +'%m/01/%y' -d "$(date +%Y-%m-15) 1 month")
 	DATE=$(date -d "$next_month -1day" +%F)
@@ -87,19 +107,7 @@ for user in $user_list; do
 	s="$s U_DATABASES='$U_DATABASES' U_CRON_JOBS='$U_CRON_JOBS'"
 	s="$s U_BACKUPS='$U_BACKUPS'"
 
-	# Updating user stats log
-	stats="$USER_DATA/stats.log"
-
-	# Checking duplicates
-	check_month=$(grep --no-messages -n "DATE='$DATE'" $stats | cut -f 1 -d :)
-	if [ -z "$check_month" ]; then
-		# Updating as there no duplicates
-		echo "$s" >> $stats
-	else
-		# Replacing string with new data
-		sed -i "$check_month s/.*/$s/" $stats
-	fi
-	chmod 660 $stats
+	stats_put "$USER_DATA/stats.log" "$DATE" "$s"
 
 	# Increase overall counters
 	TOTAL_IP_OWNED=$((TOTAL_IP_OWNED + IP_OWNED))
@@ -139,16 +147,7 @@ if [ "$update_overall_stats" = 'yes' ]; then
 	s="$s U_CRON_JOBS='$TOTAL_U_CRON_JOBS' U_BACKUPS='$TOTAL_U_BACKUPS'"
 	s="$s U_USERS='$TOTAL_USERS'"
 
-	# Checking duplicates
-	check_month=$(grep --no-messages -n "DATE='$DATE'" $stats | cut -f 1 -d :)
-	if [ -z "$check_month" ]; then
-		# Updating as there no duplicates
-		echo "$s" >> $stats
-	else
-		# Replacing string with new data
-		sed -i "$check_month s/.*/$s/" $stats
-	fi
-	chmod 660 $stats
+	stats_put "$stats" "$DATE" "$s"
 fi
 
 #----------------------------------------------------------#

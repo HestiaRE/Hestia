@@ -298,8 +298,10 @@ for domain in "${domains[@]}"; do
 		# Rebuilding vhost to prevent user overwrite default config changes not ideal
 		rebuild_web_domain_conf
 
+		# As the customer, from /: same wipe as h-restore-user.
 		if [ -d "$HOMEDIR/$user/web/$domain/public_html" ]; then
-			rm -rf $HOMEDIR/$user/web/$domain/public_html/*
+			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
+				-exec rm -rf {} +)
 		fi
 
 		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"

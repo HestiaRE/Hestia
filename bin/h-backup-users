@@ -33,8 +33,6 @@ fi
 # mail said so. Collected here and summarised once, so the operator sees the night in one line.
 degraded=''
 for user in $("$BIN/h-list-users" list); do
-	check_suspend=$(grep "SUSPENDED='no'" $CONF_DIR/users/$user/user.conf)
-	log=$HESTIA/log/backup.log
 	if [ ! -f "$CONF_DIR/users/$user/user.conf" ]; then
 		continue
 	fi

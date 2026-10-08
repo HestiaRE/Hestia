@@ -19,9 +19,6 @@ weekly=$4
 monthly=$5
 yearly=$6
 
-# CPU Architecture
-arch=$(arch)
-
 # Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -42,7 +39,7 @@ is_negative_one_or_int() {
 
 check_args '6' "$#" "REPO SNAPSHOTS DAILY WEEKLY MONTHLY YEARLY"
 
-format_no_quotes $repo 'Repository host'
+format_no_quotes "$repo" 'Repository host'
 is_negative_one_or_int $snapshots 'Snapshots'
 is_negative_one_or_int $daily 'Daily snapshots'
 is_negative_one_or_int $weekly 'Weekly snapshots'

@@ -83,7 +83,7 @@ if ! backup_archive_path "$user" "$backup"; then
 	done
 	if [ -z "$downloaded" ]; then
 		subj="Download of $backup failed for $user"
-		$BIN/h-add-user-notification $user "$subj" "<p class'u-text-bold'>Unable to retrieve backup file from remote server.</p><p><span class='u-text-bold'>Error:</span> $backup file doesn't exist in <code>'${BACKUP}'</code> directory.</p>"
+		$BIN/h-add-user-notification $user "$subj" "<p class='u-text-bold'>Unable to retrieve backup file from remote server.</p><p><span class='u-text-bold'>Error:</span> $backup file doesn't exist in <code>'${BACKUP}'</code> directory.</p>"
 		sed -i "/h-download-backup $user /d" $CONF_DIR/queue/backup.pipe
 		check_result "$E_NOTEXIST" "backup file $backup doesn't exist in '${BACKUP}' folder"
 	else
@@ -106,8 +106,8 @@ fi
 if backup_archive_path "$user" "$backup"; then
 	subj="Download of $backup completed for $user"
 	email=$(get_user_value '$CONTACT')
-	echo "Backup file $backup was retrieved from the remote server and will be available to download for 12 hours." | $SENDMAIL -s "$subj" "$email" "$notify"
-	$BIN/h-add-user-notification "$user" "$subj" "<p>Backup file <code>$backup</code> was retrieved from the remote server and will be available to download for 12 hours.</p>"
+	echo "Backup file $backup was retrieved from the remote server and will be available to download for 24 hours." | $SENDMAIL -s "$subj" "$email" "$notify"
+	$BIN/h-add-user-notification "$user" "$subj" "<p>Backup file <code>$backup</code> was retrieved from the remote server and will be available to download for 24 hours.</p>"
 fi
 
 # Cleaning restore queue

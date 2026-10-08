@@ -28,6 +28,13 @@ if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
 
+# First, so a refusal leaves the account whole, and before the unsuspend, which would start it again. The companion
+# lives in this home and holds subordinate id ranges; a later account on its uid would inherit what it left.
+if getent passwd "${user}-docker" > /dev/null 2>&1; then
+	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
+	check_result $? "docker companion of $user could not be removed, the account is kept; re-run after h-delete-user-docker"
+fi
+
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-web-domains "$user" "$restart"
 	$BIN/h-delete-web-domains "$user" "$restart"
@@ -44,13 +51,6 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 	$BIN/h-unsuspend-databases "$user"
 	$BIN/h-delete-databases "$user"
 	check_result "$?" "database deletion failed"
-fi
-
-# Before the unsuspend, which would start it again, and before userdel: the companion lives in this home and
-# holds subordinate id ranges, and a later account on its uid would inherit what it left.
-if getent passwd "${user}-docker" > /dev/null 2>&1; then
-	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
-	check_result $? "docker companion of $user could not be removed, the account is kept; re-run after h-delete-user-docker"
 fi
 
 # Unsuspend first so the admin's SUSPENDED_USERS counter gives the account back.

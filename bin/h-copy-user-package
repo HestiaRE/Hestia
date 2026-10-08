@@ -41,9 +41,10 @@ if [ -n "$1" ]; then
 	if [ -n "$2" ]; then
 		# Copy package
 		cp -f "$CONF_DIR/packages/$package.pkg" "$CONF_DIR/packages/$new_package.pkg"
-		# Don't leave the .sh file behind
+		# The copy takes the source's trigger or none, never one left from an earlier package of that name.
+		rm -f "$CONF_DIR/packages/$new_package.sh"
 		if [ -f "$CONF_DIR/packages/$package.sh" ]; then
-			cp $CONF_DIR/packages/$package.sh $CONF_DIR/packages/$new_package.sh
+			cp -p "$CONF_DIR/packages/$package.sh" "$CONF_DIR/packages/$new_package.sh"
 		fi
 	else
 		echo "Error: new package name not specified."

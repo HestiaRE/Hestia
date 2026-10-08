@@ -39,7 +39,9 @@ if [ -z "$new_name" ]; then
 	exit "$E_ARGS"
 fi
 
+is_object_format_valid "$old_name" "Package"
 is_package_valid "$old_name"
+is_package_builtin "$old_name" renamed
 is_object_format_valid "$new_name" "New package"
 pkg_dir="$CONF_DIR/packages"
 if [ -e "$pkg_dir/$new_name.pkg" ]; then
@@ -50,31 +52,22 @@ fi
 #                       Action                             #
 #----------------------------------------------------------#
 
-if [ -e "$CONF_DIR/packages/$old_name.pkg" ]; then
-	mv "$CONF_DIR/packages/$old_name.pkg" "$CONF_DIR/packages/$new_name.pkg"
-	# Don't leave the .sh file behind
-	if [ -e "$CONF_DIR/packages/$old_name.sh" ]; then
-		mv "$CONF_DIR/packages/$old_name.sh" "$CONF_DIR/packages/$new_name.sh"
-	fi
+mv "$pkg_dir/$old_name.pkg" "$pkg_dir/$new_name.pkg"
+# A trigger the new name already had belongs to a package that is gone.
+rm -f "$pkg_dir/$new_name.sh"
+if [ -e "$pkg_dir/$old_name.sh" ]; then
+	mv "$pkg_dir/$old_name.sh" "$pkg_dir/$new_name.sh"
+fi
 
-	# 'list', not 'plain': plain is a tab-separated table, so word splitting walked every
-	# FIELD of every row - package names, counters, dates - and asked h-get-user-value about
-	# each. It only looked harmless because a lookup on a non-user answers with nothing.
-	for user in $($BIN/h-list-users list); do
-		OLD_PACKAGE=$($BIN/h-get-user-value "$user" 'PACKAGE')
-		if [ "$old_name" = "$OLD_PACKAGE" ]; then
-			if [ "$mode" == "yes" ]; then
-				echo "Successfully renamed package $old_name to $new_name."
-			fi
-			$BIN/h-change-user-package "$user" "$new_name"
-		fi
-	done
-	if [ "$mode" == "yes" ]; then
-		echo "Successfully renamed package $old_name to $new_name."
-	fi
-else
-	echo "ERROR: Specified package not found."
-	exit "$E_NOTEXIST"
+# Only the name changes, so only the name is rewritten: a limit check here could strand a user on
+# a package that no longer exists.
+failed=''
+for pkg_user in $(package_users "$old_name"); do
+	update_user_value "$pkg_user" '$PACKAGE' "$new_name" || failed="$failed $pkg_user"
+done
+[ -z "$failed" ] || check_result "$E_UPDATE" "package renamed, but these users still name $old_name:$failed"
+if [ "$mode" = "yes" ]; then
+	echo "Successfully renamed package $old_name to $new_name."
 fi
 
 #----------------------------------------------------------#

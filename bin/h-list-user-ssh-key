@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: add ssh key
+# info: list ssh keys
 # options: USER [FORMAT]
 #
 # Lists $user/.ssh/authorized_keys
@@ -28,10 +28,10 @@ json_list() {
 	objects=$(echo "$keys" | wc -l)
 	echo "{"
 	for str in $keys; do
-		KEY=$(echo $str | awk '{print $(NF-2)}')
+		KEY=$(echo $str | awk '{print $2}')
 		ID=$(echo $str | awk '{print $(NF-1)}')
 		json_escape ID KEY
-		printf '    "%s": {\n' "$ID"
+		printf '    "%s": {\n' "$KEY"
 		printf '        "ID": "%s",\n' "$ID"
 		printf '        "KEY": "%s"\n' "$KEY"
 		printf '        }'
@@ -48,7 +48,7 @@ shell_list() {
 	echo "ID~KEY"
 	echo "----~----~---"
 	for str in $keys; do
-		KEY=$(echo $str | awk '{print $(NF-2)}')
+		KEY=$(echo $str | awk '{print $2}')
 		ID=$(echo $str | awk '{print $(NF-1)}')
 		echo "$ID~$KEY"
 	done
@@ -58,7 +58,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	for str in $keys; do
-		KEY=$(echo $str | awk '{print $(NF-2)}')
+		KEY=$(echo $str | awk '{print $2}')
 		ID=$(echo $str | awk '{print $(NF-1)}')
 		echo -e "$ID\t$KEY"
 	done
@@ -77,8 +77,8 @@ is_object_unsuspended 'user' 'USER' "$user"
 #                       Action                             #
 #----------------------------------------------------------#
 
-AUTHKEY_FILE="$HOMEDIR/$user/.ssh/authorized_keys"
-[ -z "$(readlink -f "$AUTHKEY_FILE" | egrep "^$HOMEDIR/$user/.ssh/")" ] && check_result $E_FORBIDEN "Invalid authorized keys path"
+AUTHKEY_FILE=$(authkeys_file)
+path_within "$AUTHKEY_FILE" "$HOMEDIR/$user/.ssh" || check_result "$E_FORBIDEN" "Invalid authorized keys path"
 
 #check if file exsists
 if [ ! -f "$AUTHKEY_FILE" ]; then
@@ -86,13 +86,13 @@ if [ ! -f "$AUTHKEY_FILE" ]; then
 fi
 
 first_loop=1
-while read l; do
-	sshkey=$([[ -n $l && ${l###} = $l ]] && ssh-keygen -l -f <(echo $l))
+while IFS= read -r l || [ -n "$l" ]; do
+	sshkey=$([[ -n $l && ${l###} = $l ]] && ssh-keygen -l -f - <<< "$l" 2> /dev/null)
 	if [ -n "$sshkey" ]; then
 		(($first_loop)) && keys="$sshkey" || keys="$keys"$'\n'"$sshkey"
 		unset first_loop
 	fi
-done < "$AUTHKEY_FILE"
+done < <(authkeys_read)
 
 # Listing data
 case $format in

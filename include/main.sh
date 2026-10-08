@@ -2754,6 +2754,28 @@ path_within() {
 	return 1
 }
 
+# The customer's authorized_keys, read and replaced as the customer: root follows no link planted in ~/.ssh.
+authkeys_file() { echo "$HOMEDIR/$user/.ssh/authorized_keys"; }
+authkeys_read() { user_exec cat -- "$(authkeys_file)" 2> /dev/null; }
+authkeys_write() {
+	local file tmp
+	file=$(authkeys_file)
+	user_exec mkdir -p -m 700 -- "${file%/*}" || return 1
+	tmp=$(user_exec mktemp -- "$file.XXXXXX") || return 1
+	if ! user_exec tee -- "$tmp" > /dev/null || ! user_exec mv -f -- "$tmp" "$file"; then
+		user_exec rm -f -- "$tmp"
+		return 1
+	fi
+}
+
+# authkey_ids LINE: "FINGERPRINT ID" of a key line, ID being the last word of its comment as the key list shows it.
+authkey_ids() {
+	local out
+	[[ -n "$1" && "$1" != \#* ]] || return 1
+	out=$(ssh-keygen -l -f - <<< "$1" 2> /dev/null) || return 1
+	awk '{print $2, $(NF-1)}' <<< "$out"
+}
+
 # Simple chmod wrapper that skips symlink files after glob expand
 no_symlink_chmod() {
 	local filemode=$1

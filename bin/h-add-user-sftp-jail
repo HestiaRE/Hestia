@@ -31,11 +31,9 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user'
 
-# Only jailed shells (nologin/rssh) — a real login shell (bash/jailbash) is not chrooted
-user_str=$(grep "^$user:" /etc/passwd | egrep "rssh|nologin")
-if [ -z "$user_str" ]; then
-	exit
-fi
+# Only nologin accounts; a real login shell (bash/jailbash) is not chrooted
+user_shell=$(getent passwd "$user" | cut -d : -f 7)
+[ "${user_shell##*/}" = 'nologin' ] || exit
 
 #----------------------------------------------------------#
 #                       Action                             #

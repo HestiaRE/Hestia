@@ -22,6 +22,8 @@ check_args '3' "$#" "$args_usage"
 is_format_valid 'user' 'backup'
 
 $BIN/h-restore-user "$user" "$backup" "$domain" 'no' 'no' 'no' 'no' 'no' "$notify"
+# The inner run has already said why; passed on so the caller sees the failure.
+check_result $? "restore of $backup failed" > /dev/null
 
 log_event "$OK" "$ARGUMENTS"
 

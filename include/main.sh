@@ -2730,6 +2730,12 @@ user_exec() {
 	setpriv --groups "$user_groups" --reuid "$user" --regid "$user" -- "${@}"
 }
 
+# A customer's docker address as h-add-user-docker hands it out. A restored record is the only other
+# writer, and its value lands in nft rules, vhosts and daemon.json.
+docker_ip_valid() {
+	[[ "$1" =~ ^127\.20\.(0|[1-9][0-9]{0,2})\.1$ ]] && [ "${BASH_REMATCH[1]}" -le 254 ]
+}
+
 # bash_alias_set NAME VALUE: exactly one "alias NAME=VALUE" in $user's .bash_aliases, written as $user,
 # since root writing there follows whatever link the customer put in its place.
 bash_alias_set() {

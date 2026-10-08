@@ -551,8 +551,8 @@ add_web_config() {
 	if [ -n "$DOCKER" ] && [ -z "$WEBTPL_OVERRIDE" ]; then
 		# DOCKER without DOCKER_IP renders "http://:PORT", and nginx and apache refuse their WHOLE
 		# configuration over such an upstream - one record would take the box's web front down.
-		if [ -z "$(get_user_value '$DOCKER_IP')" ]; then
-			echo "Error: $domain is a docker domain but $user has no DOCKER_IP - $1 vhost not written" >&2
+		if ! docker_ip_valid "$(get_user_value '$DOCKER_IP')"; then
+			echo "Error: $domain is a docker domain but $user has no valid DOCKER_IP - $1 vhost not written" >&2
 			web_config_skipped=$((${web_config_skipped:-0} + 1))
 			rm -f "$HOMEDIR/$user/conf/web/$domain/$1.conf" "$HOMEDIR/$user/conf/web/$domain/$1.ssl.conf"
 			conf_link_drop "/etc/$1/conf.d/domains/$domain.conf" "$user"

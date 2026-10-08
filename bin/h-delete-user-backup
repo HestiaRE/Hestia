@@ -51,23 +51,13 @@ esac
 line=$(grep -F "BACKUP='$backup'" $USER_DATA/backup.conf)
 parse_object_kv_list "$line"
 
-# CAUTION: the =~ matches below are substring matches - ftp also hits TYPE='sftp'. The deleted
-# flag is what keeps that correct (first match wins), NOT the comparison itself. Whoever removes
-# or reorders the flag must switch these to comma-bounded matches first (the #792 chain lesson).
-deleted=0
-if [[ "$TYPE" =~ "sftp" ]]; then
-	sftp_delete "$backup"
-	deleted=1
-fi
-if [[ "$TYPE" =~ "ftp" ]] && [ "$deleted" == "0" ]; then
-	ftp_delete "$backup"
-fi
-if [[ "$TYPE" =~ "rclone" ]]; then
-	rclone_delete "$backup"
-fi
+# Comma-bounded: ftp is a substring of sftp, and each transport deletes its own copy.
+case ",$TYPE," in *,sftp,*) sftp_delete "$backup" ;; esac
+case ",$TYPE," in *,ftp,*) ftp_delete "$backup" ;; esac
+case ",$TYPE," in *,rclone,*) rclone_delete "$backup" ;; esac
 # An adopted archive is the operator's own file, put into the backup folder by hand. Forgetting the
 # record is this command's job; deleting a migration source is not.
-if [[ "$TYPE" =~ "local" ]] && [ "$ADOPTED" != 'yes' ]; then
+if [[ ",$TYPE," == *",local,"* ]] && [ "$ADOPTED" != 'yes' ]; then
 	rm -f "$backup_folder/$2"
 fi
 if [ "$ADOPTED" = 'yes' ]; then

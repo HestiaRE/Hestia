@@ -38,14 +38,10 @@ for user in $("$BIN/h-list-users" list); do
 	$BIN/h-rebuild-web-domains "$user" 'no' > /dev/null 2>&1 || failed="$failed $user"
 done
 
-# File manager pools live in the default version's pool.d and move with it; two masters would share one socket.
+# File manager pools move with the default version. h-add-user-filemanager drops the old pool itself, only after the
+# new one passed and once the old master let go of the shared socket.
 # shellcheck source=/usr/local/hestia/include/filemanager.sh
 source "$HESTIA/include/filemanager.sh"
-for pool in /etc/php/*/fpm/pool.d/fm-*.conf; do
-	[ -e "$pool" ] || continue
-	case "$pool" in /etc/php/"$version"/*) continue ;; esac
-	rm -f "$pool"
-done
 fm_refresh no || echo "Warning: file manager pools not moved to PHP $version" >&2
 
 $BIN/h-restart-web-backend '' $(multiphp_default_version)

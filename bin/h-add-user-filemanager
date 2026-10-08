@@ -84,7 +84,9 @@ if ! "/usr/sbin/php-fpm$ver" -t > /dev/null 2>&1; then
 	fi
 	check_result "$E_INVALID" "php$ver-fpm config test fails with the file manager pool for $user"
 fi
-# Only once the new pool passed: one left in a former default version would hold the socket from a second master.
+sock="/run/hestia/fm/$user.sock"
+# Only once the new pool passed: one left in a former default version holds the socket from a second master.
+moved=''
 for old in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
 	[ -e "$old" ] || continue
 	[ "$old" = "$pool" ] && continue
@@ -92,11 +94,22 @@ for old in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
 	old_ver=${old#/etc/php/}
 	old_ver=${old_ver%%/*}
 	systemctl reload "php$old_ver-fpm" 2> /dev/null || systemctl restart "php$old_ver-fpm" 2> /dev/null || true
+	moved='yes'
 done
+# Reloaded while the old master still listens, php$ver-fpm would fail as a whole, every site of that version with it.
+if [ -n "$moved" ]; then
+	for _ in $(seq 1 50); do
+		fm_sock_listened "$sock" || break
+		sleep 0.1
+	done
+	if fm_sock_listened "$sock"; then
+		[ -n "$prev" ] && printf '%s\n' "$prev" > "$pool" || rm -f "$pool"
+		check_result "$E_INVALID" "the former file manager pool of $user still listens on $sock, php$ver-fpm left untouched"
+	fi
+fi
 systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
 
 # fm-auth gates on the socket, which appears a moment after the reload; a quick click would get a 403.
-sock="/run/hestia/fm/$user.sock"
 for _ in $(seq 1 50); do
 	[ -S "$sock" ] && break
 	sleep 0.1

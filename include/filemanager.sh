@@ -27,6 +27,11 @@ fm_front() {
 	fi
 }
 
+# fm_sock_listened SOCKET: whether a php-fpm master listens on it. A second master refuses to start while one does.
+fm_sock_listened() {
+	ss -Hxl 2> /dev/null | awk -v p="$1" '$5 == p { f = 1 } END { exit !f }'
+}
+
 fm_code_install() {
 	mkdir -p "$FM_CODE_DIR" || return 1
 	cp -rf "$FM_CODE_SRC/." "$FM_CODE_DIR/" || return 1

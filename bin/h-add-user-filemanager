@@ -63,8 +63,9 @@ fm_flag_set() {
 #                       Action                             #
 #----------------------------------------------------------#
 
-# A suspended account keeps the choice; h-unsuspend-user builds the listener.
-if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
+# A suspended account keeps the choice and h-unsuspend-user builds the listener, unless the policy keeps
+# suspended accounts open, as h-suspend-user does.
+if [ "$(get_user_value '$SUSPENDED')" = 'yes' ] && [ "$POLICY_USER_VIEW_SUSPENDED" != 'yes' ]; then
 	fm_flag_set
 	log_event "$OK" "$ARGUMENTS"
 	exit

@@ -68,6 +68,8 @@ change_user_package() {
 	for key in $PACKAGE_KEYS; do
 		# A hand-made package may lack a key; the user's value stays rather than turning empty.
 		grep -q "^$key='" "$CONF_DIR/packages/$package.pkg" || continue
+		# h-change-user-shell records SHELL after chsh; written here it would outlive a refused change.
+		[ "$key" = SHELL ] && continue
 		update_user_value "$user" "\$$key" "${!key}"
 	done
 }

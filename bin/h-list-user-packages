@@ -19,6 +19,13 @@ source $HESTIA/include/main.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
+# An array, since json_list splits on newlines only. A key one package lacks must not show the previous one's value.
+IFS=' ' read -r -a pkg_keys <<< "$PACKAGE_KEYS"
+pkg_read() {
+	unset "${pkg_keys[@]}" TIME DATE
+	source_conf "$CONF_DIR/packages/$1"
+}
+
 # JSON list function
 json_list() {
 	IFS=$'\n'
@@ -26,16 +33,18 @@ json_list() {
 	objects=$(echo "$packages" | wc -l)
 	echo "{"
 	for package in $packages; do
-		PACKAGE=${package/.pkg/}
-		source_conf "$CONF_DIR/packages/$PACKAGE.pkg"
-		json_escape PACKAGE WEB_TEMPLATE PROXY_TEMPLATE WEB_DOMAINS WEB_ALIASES MAIL_DOMAINS MAIL_ACCOUNTS DATABASES CRON_JOBS DISK_QUOTA DOCKER_LIMIT BANDWIDTH SHELL BACKUPS TIME DATE
+		PACKAGE=${package%.pkg}
+		pkg_read "$package"
+		json_escape PACKAGE "${pkg_keys[@]}" TIME DATE
 		printf '    "%s": {\n' "$PACKAGE"
 		printf '        "WEB_TEMPLATE": "%s",\n' "$WEB_TEMPLATE"
 		printf '        "PROXY_TEMPLATE": "%s",\n' "$PROXY_TEMPLATE"
+		printf '        "BACKEND_TEMPLATE": "%s",\n' "$BACKEND_TEMPLATE"
 		printf '        "WEB_DOMAINS": "%s",\n' "$WEB_DOMAINS"
 		printf '        "WEB_ALIASES": "%s",\n' "$WEB_ALIASES"
 		printf '        "MAIL_DOMAINS": "%s",\n' "$MAIL_DOMAINS"
 		printf '        "MAIL_ACCOUNTS": "%s",\n' "$MAIL_ACCOUNTS"
+		printf '        "RATE_LIMIT": "%s",\n' "$RATE_LIMIT"
 		printf '        "DATABASES": "%s",\n' "$DATABASES"
 		printf '        "CRON_JOBS": "%s",\n' "$CRON_JOBS"
 		printf '        "DISK_QUOTA": "%s",\n' "$DISK_QUOTA"
@@ -43,6 +52,7 @@ json_list() {
 		printf '        "BANDWIDTH": "%s",\n' "$BANDWIDTH"
 		printf '        "SHELL": "%s",\n' "$SHELL"
 		printf '        "BACKUPS": "%s",\n' "$BACKUPS"
+		printf '        "BACKUPS_MODE": "%s",\n' "$BACKUPS_MODE"
 		printf '        "TIME": "%s",\n' "$TIME"
 		printf '        "DATE": "%s"\n' "$DATE"
 		printf '    }'
@@ -61,8 +71,8 @@ shell_list() {
 	echo "PKG   TPL   WEB   MAIL   DB   SHELL   DISK   DOCKER_LIMIT   BW"
 	echo "---   ---   ---   ----   --   -----   ----   ------------   --"
 	for package in $packages; do
-		source $CONF_DIR/packages/$package
-		PACKAGE=${package/.pkg/}
+		pkg_read "$package"
+		PACKAGE=${package%.pkg}
 		package_data=$(cat $CONF_DIR/packages/$package)
 		package_data=$(echo "$package_data" | sed -e 's/unlimited/unlim/g')
 		parse_object_kv_list "$package_data"
@@ -74,8 +84,8 @@ shell_list() {
 # PLAIN list function
 plain_list() {
 	for package in $packages; do
-		source $CONF_DIR/packages/$package
-		PACKAGE=${package/.pkg/}
+		pkg_read "$package"
+		PACKAGE=${package%.pkg}
 		echo -ne "$PACKAGE\t$WEB_TEMPLATE\t$PROXY_TEMPLATE\t"
 		echo -ne "$WEB_DOMAINS\t$WEB_ALIASES\t"
 		echo -ne "$MAIL_DOMAINS\t$MAIL_ACCOUNTS\t$DATABASES\t$CRON_JOBS\t"
@@ -89,7 +99,7 @@ plain_list() {
 #----------------------------------------------------------#
 
 # Parsing packages
-packages=$(ls --sort=time $CONF_DIR/packages | grep .pkg)
+packages=$(ls --sort=time "$CONF_DIR/packages" | grep '\.pkg$')
 
 # Listing data
 case $format in

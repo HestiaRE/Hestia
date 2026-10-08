@@ -273,6 +273,8 @@ if ! docker_alive; then
 	exit "$E_INVALID"
 fi
 rm -f "$setup_log"
+# The daemon answers; a later nonzero status must not take its address away.
+trap - EXIT
 
 # The slice exists only once the manager runs.
 docker_slice_apply "$user" "$(get_user_value '$DOCKER_LIMIT')"

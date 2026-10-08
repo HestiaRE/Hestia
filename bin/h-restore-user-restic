@@ -72,15 +72,17 @@ if [ ! -s "$tmpdir/backup.conf" ]; then
 fi
 
 # Restore web domains
+# A failed part does not stop the rest, but the run must not end as a success.
+failed=''
 echo "[ * ] Restore Web domains"
-$BIN/h-restore-web-domain-restic "$user" "$snapshot" "$web" 'no'
+$BIN/h-restore-web-domain-restic "$user" "$snapshot" "$web" 'no' || failed="$failed web"
 echo "[ * ] Restore Mail domains"
-$BIN/h-restore-mail-domain-restic "$user" "$snapshot" "$mail"
+$BIN/h-restore-mail-domain-restic "$user" "$snapshot" "$mail" || failed="$failed mail"
 echo "[ * ] Restore Databases"
-$BIN/h-restore-database-restic "$user" "$snapshot" "$db"
+$BIN/h-restore-database-restic "$user" "$snapshot" "$db" || failed="$failed db"
 if [ -n "$cron" ]; then
 	echo "[ * ] Restore Cronjobs"
-	$BIN/h-restore-cron-job-restic "$user" "$snapshot"
+	$BIN/h-restore-cron-job-restic "$user" "$snapshot" || failed="$failed cron"
 fi
 if [ "$udir" = "yes" ]; then
 	echo "[ * ] Restore user files"
@@ -106,6 +108,11 @@ $BIN/h-update-user-counters "$ROOT_USER"
 $BIN/h-update-sys-ip-counters
 
 sed -i "/h-restore-user-restic '$user' '$snapshot' /d" $CONF_DIR/queue/backup.pipe
+
+if [ -n "$failed" ]; then
+	$BIN/h-log-action "system" "Warning" "Backup" "Restore incomplete, failed:$failed (User: $user, Snapshot: $snapshot)."
+	check_result "$E_BACKUP" "restore of $user from $snapshot incomplete, failed:$failed"
+fi
 
 # Logging
 $BIN/h-log-action "system" "Info" "Backup" "User successfully restored (User: $user, Snapshot: $snapshot)."

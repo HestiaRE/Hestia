@@ -98,14 +98,16 @@ fi
 rebuild_user_conf
 
 # Restore web domains
+# A failed part does not stop the rest, but the run must not end as a success.
+failed=''
 echo "[ * ] Restore Web domains"
-$BIN/h-restore-web-domain-restic "$user" "$snapshot" '*' 'no' 'yes'
+$BIN/h-restore-web-domain-restic "$user" "$snapshot" '*' 'no' 'yes' || failed="$failed web"
 echo "[ * ] Restore Mail domains"
-$BIN/h-restore-mail-domain-restic "$user" "$snapshot" '*'
+$BIN/h-restore-mail-domain-restic "$user" "$snapshot" '*' || failed="$failed mail"
 echo "[ * ] Restore Databases"
-$BIN/h-restore-database-restic "$user" "$snapshot" '*'
+$BIN/h-restore-database-restic "$user" "$snapshot" '*' || failed="$failed db"
 echo "[ * ] Restore Cronjobs"
-$BIN/h-restore-cron-job-restic "$user" "$snapshot"
+$BIN/h-restore-cron-job-restic "$user" "$snapshot" || failed="$failed cron"
 echo "[ * ] Restore user files"
 # The stage is root-owned raw dumps: the database restore takes them from the snapshot itself.
 restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" \
@@ -134,6 +136,11 @@ $BIN/h-update-user-counters "$ROOT_USER"
 $BIN/h-update-sys-ip-counters
 
 sed -i "/h-restore-user-full-restic '$user' /d" $CONF_DIR/queue/backup.pipe
+
+if [ -n "$failed" ]; then
+	$BIN/h-log-action "system" "Warning" "Backup" "Restore incomplete, failed:$failed (User: $user, Snapshot: $snapshot)."
+	check_result "$E_BACKUP" "restore of $user from $snapshot incomplete, failed:$failed"
+fi
 
 # Logging
 $BIN/h-log-action "system" "Info" "Backup" "User successfully restored from scratch (User: $user, Snapshot: $snapshot)."

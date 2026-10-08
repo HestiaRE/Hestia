@@ -326,8 +326,9 @@ if [ "$create_user" = 'yes' ]; then
 	fi
 
 	mkdir $USER_DATA
-	# Filtered, not copied: the archive is hostile input.
+	# Filtered, not copied: the archive is hostile input. Dropped keys go to restore.log too, a queued run has no terminal.
 	copy_record_filtered "$tmpdir/$BACKUP_CONTAINER/user.conf" "$USER_DATA/user.conf" user \
+		2> >(tee -a "$tmpdir/restore.log" >&2) \
 		|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"
 	# A language this panel does not offer becomes en; rc 2 (an unusable list) leaves the value alone.
 	_lang=$(grep -m1 "^LANGUAGE=" "$USER_DATA/user.conf" | cut -d "'" -f 2)
@@ -360,7 +361,7 @@ if [ "$create_user" = 'yes' ]; then
 			continue
 		fi
 		if [ "$_name" = "backup-excludes.conf" ]; then
-			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes \
+			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes 2> >(tee -a "$tmpdir/restore.log" >&2) \
 				|| echo "Warning!: the archived $_name carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
 			continue
 		fi
@@ -377,7 +378,7 @@ if [ "$create_user" = 'yes' ]; then
 			if [ -e "$_dest" ]; then
 				echo "$(date "+%F %T") package $(basename "$_pkg") exists on target, kept unchanged" >> $tmpdir/restore.log 2> /dev/null || true
 			else
-				copy_record_filtered "$_pkg" "$_dest" package \
+				copy_record_filtered "$_pkg" "$_dest" package 2> >(tee -a "$tmpdir/restore.log" >&2) \
 					|| echo "Warning!: the archived package $(basename "$_pkg") carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
 			fi
 		done

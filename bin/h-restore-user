@@ -758,8 +758,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		rebuild_web_domain_conf
 
 		# Restoring web domain data
+		# As the customer: the domain directory is theirs, root would follow whatever they put there.
+		# From /, since find returns to its start directory and the customer cannot enter root's.
 		if [ -d "$HOMEDIR/$user/web/$domain/public_html" ]; then
-			rm -rf $HOMEDIR/$user/web/$domain/public_html/*
+			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
+				-exec rm -rf {} +)
 		fi
 		chmod u+w "$HOMEDIR/$user/web/$domain"
 		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"
@@ -1439,7 +1442,7 @@ if [ "$udir" != 'no' ]; then
 
 			chown "$user" "$tmpdir/user_dir"
 			chown "$user" "$HOMEDIR/$user"
-			[ -e "$HOMEDIR/$user/$user_dir" ] && chown "$user" "$HOMEDIR/$user/$user_dir"
+			[ -e "$HOMEDIR/$user/$user_dir" ] && chown -h "$user" "$HOMEDIR/$user/$user_dir"
 			$BIN/h-extract-fs-archive "$user" "$udir_container" "$HOMEDIR/$user"
 			cmdstatus="$?"
 			# home stays user-owned: the pam_namespace jail needs no root flip
@@ -1461,9 +1464,10 @@ if [ "$udir" != 'no' ]; then
 fi
 
 # Create tmp/
-mkdir -p $HOMEDIR/$user/tmp
-chmod 700 $HOMEDIR/$user/tmp
-chown -R $user:$user $HOMEDIR/$user/tmp
+mkdir -p "$HOMEDIR/$user/tmp"
+chown -R "$user:$user" "$HOMEDIR/$user/tmp"
+# The mode as the customer: root's chmod follows a link the home owner may have put there.
+user_exec chmod 700 "$HOMEDIR/$user/tmp"
 
 # Delete Hestia File manager key
 rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key

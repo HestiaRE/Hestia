@@ -900,7 +900,10 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			mail_ssl_modes "$user" "$domain"
 		fi
 
-		cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf $USER_DATA/mail/
+		if [ -f "$tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf" ]; then
+			restore_records_filter "$tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf" "$USER_DATA/mail/$domain.conf" \
+				mail_accounts 2> >(tee -a "$tmpdir/restore.log" >&2)
+		fi
 
 		# The autoreply text is content nothing can recreate: restore both the record-side copy and the one exim reads,
 		# or the account comes back with AUTOREPLY='yes' and no text.
@@ -1212,7 +1215,8 @@ if [ "$cron" != 'no' ] && [ -n "$CRON_SYSTEM" ]; then
 		echo "$(date "+%F %T") cron job $job calls a HestiaCP command that does not exist here" | tee -a $tmpdir/restore.log
 	done
 
-	cp $tmpdir/cron/cron.conf $USER_DATA/cron.conf
+	restore_records_filter "$tmpdir/cron/cron.conf" "$USER_DATA/cron.conf" cron 2> >(tee -a "$tmpdir/restore.log" >&2) \
+		|| echo "Warning!: the archived cron.conf could not be read, no jobs restored" | tee -a $tmpdir/restore.log
 
 	sync_cron_jobs
 

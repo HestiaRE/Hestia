@@ -45,7 +45,8 @@ if ! restic_meta_cat "$meta_pkg" cron/cron.conf > "$tmpdir/cron.conf"; then
 	check_result "$E_PARSING" "$meta_pkg has no readable cron/cron.conf"
 fi
 
-cp "$tmpdir/cron.conf" "$USER_DATA/cron.conf"
+restore_records_filter "$tmpdir/cron.conf" "$USER_DATA/cron.conf" cron \
+	|| check_result "$E_PARSING" "the archived cron.conf of $user could not be read"
 
 sync_cron_jobs
 

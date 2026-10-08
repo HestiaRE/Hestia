@@ -50,12 +50,84 @@ restore_passwd_read() {
 	old_user=$(cut -f 1 -d : "$1" 2> /dev/null)
 	old_uid=$(cut -f 3 -d : "$1" 2> /dev/null)
 	[[ "$old_uid" =~ ^[0-9]+$ ]] || return 1
-	# Quiet: the caller reports, so the validator's exit must neither print nor log.
+	restore_quiet is_user_format_valid "$old_user" 'user'
+}
+
+# restore_quiet VALIDATOR ARGS...: the rc of a check_result validator, without its message, log line or exit.
+restore_quiet() {
 	(
-		_rpr_quiet() { :; }
-		CHECK_RESULT_CALLBACK=_rpr_quiet
-		is_user_format_valid "$old_user" 'user'
-	)
+		_rq_quiet() { :; }
+		CHECK_RESULT_CALLBACK=_rq_quiet
+		"$@"
+	) > /dev/null 2>&1
+}
+
+# restore_line_fields_ok TYPE LINE: the field rules a restored record line meets before a root renderer reads it.
+# Only the fields that reach a rendered file are checked; TIME, DATE and the cron command are left as stored.
+restore_line_fields_ok() {
+	local _l="$2" _k _v
+	local -a _lfo_list
+	case "$1" in
+		cron)
+			cron_record_safe "$_l" || return 1
+			[[ "$(record_field "$_l" JOB)" =~ ^[0-9]+$ ]] || return 1
+			for _k in MIN HOUR DAY MONTH WDAY; do
+				cron_field_valid "$(record_field "$_l" "$_k")" "${_k,,}" || return 1
+			done
+			[[ "$(record_field "$_l" SUSPENDED)" =~ ^(yes|no)$ ]]
+			;;
+		mail_accounts)
+			record_line_valid "$_l" || return 1
+			restore_quiet is_localpart_format_valid "$(record_field "$_l" ACCOUNT)" account 64 || return 1
+			IFS=, read -ra _lfo_list <<< "$(record_field "$_l" ALIAS)"
+			for _v in "${_lfo_list[@]}"; do
+				[ -z "$_v" ] || restore_quiet is_localpart_format_valid "$_v" alias 64 || return 1
+			done
+			IFS=, read -ra _lfo_list <<< "$(record_field "$_l" FWD)"
+			for _v in "${_lfo_list[@]}"; do
+				[ -z "$_v" ] || [ "$_v" = ':blackhole:' ] || restore_quiet is_email_format_valid "$_v" || return 1
+			done
+			# The hash is one field of the dovecot passwd line: a colon or a blank would open the next one.
+			[[ "$(record_field "$_l" MD5)" =~ ^[^:[:space:]]*$ ]] || return 1
+			[[ "$(record_field "$_l" QUOTA)" =~ ^([0-9]*|unlimited)$ ]] || return 1
+			for _k in RATE_LIMIT U_DISK; do
+				[[ "$(record_field "$_l" "$_k")" =~ ^[0-9]*$ ]] || return 1
+			done
+			for _k in AUTOREPLY FWD_ONLY SUSPENDED; do
+				[[ "$(record_field "$_l" "$_k")" =~ ^(yes|no|)$ ]] || return 1
+			done
+			;;
+		*) return 1 ;;
+	esac
+}
+
+# restore_records_filter SRC DST TYPE: write the lines of SRC that pass, name each dropped one on stderr.
+# For the multi-key record files only; an empty result is valid, a user may have no jobs or accounts.
+restore_records_filter() {
+	local _src="$1" _dst="$2" _t="$3" _allow _line _k _n=0 _ok _tmp
+	[ -f "$_src" ] || return 1
+	_allow=" $(syshealth_known_keys "$_t") " || return 1
+	[ -n "${_allow// /}" ] || return 1
+	_tmp=$(mktemp "$_dst.XXXXXX") || return 1
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		_line=${_line%$'\r'}
+		_n=$((_n + 1))
+		[ -n "${_line// /}" ] || continue
+		_ok=no
+		# The shape check is per type: a cron command may hold quotes that no other record carries.
+		if restore_line_fields_ok "$_t" "$_line"; then
+			_ok=yes
+			for _k in $(record_keys "$_line"); do
+				case "$_allow" in *" $_k "*) ;; *) _ok=no ;; esac
+			done
+		fi
+		if [ "$_ok" = yes ]; then
+			printf '%s\n' "$_line" >> "$_tmp"
+		else
+			echo "Warning: dropping line $_n of the archived $_t record, it does not pass the $_t rules" >&2
+		fi
+	done < "$_src"
+	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
 }
 
 # record_del_field VAR KEY: remove KEY from the record held in VAR; rc 1 as in record_set_field.

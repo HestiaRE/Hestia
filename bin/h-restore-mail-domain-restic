@@ -181,7 +181,9 @@ for domain in "${domains[@]}"; do
 			mail_ssl_modes "$user" "$domain"
 		fi
 
-		cp -f $tmpdir/mail/$domain/hestia/$domain.conf $USER_DATA/mail/
+		if [ -f "$tmpdir/mail/$domain/hestia/$domain.conf" ]; then
+			restore_records_filter "$tmpdir/mail/$domain/hestia/$domain.conf" "$USER_DATA/mail/$domain.conf" mail_accounts
+		fi
 
 		# The autoreply text is content nothing regenerates: restore both the record-side copy and the one exim reads.
 		if compgen -G "$tmpdir/mail/$domain/hestia/*@$domain.msg" > /dev/null; then

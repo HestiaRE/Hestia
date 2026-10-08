@@ -77,7 +77,7 @@ plain_list() {
 		parse_object_kv_list "$str"
 		TOPIC=$(record_value_decode "$TOPIC")
 		NOTICE=$(record_value_decode "$NOTICE")
-		echo -e "$NID\t$TOPIC\t$NOTICE\t$TIME\t$DATE"
+		printf '%s\t%s\t%s\t%s\t%s\n' "$NID" "$TOPIC" "$NOTICE" "$TIME" "$DATE"
 	done < <(cat $USER_DATA/notifications.conf)
 }
 

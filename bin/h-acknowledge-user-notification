@@ -40,9 +40,11 @@ is_object_valid 'user' 'USER' "$user"
 
 # Updating notification
 if [ "$id" = 'all' ]; then
-	for id in $($BIN/h-list-user-notifications "$user" plain | cut -f1); do
+	# The ids from the records themselves: the plain list carries decoded text, which may span lines.
+	for id in $(grep -o "^NID='[0-9]*'" "$USER_DATA/notifications.conf" 2> /dev/null | cut -d "'" -f 2); do
 		update_object_value 'notifications' 'NID' "$id" '$ACK' 'yes' 2> /dev/null
 	done
+	notice='no'
 else
 	update_object_value 'notifications' 'NID' "$id" '$ACK' 'yes' 2> /dev/null
 

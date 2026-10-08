@@ -50,6 +50,7 @@ fi
 # holds subordinate id ranges, and a later account on its uid would inherit what it left.
 if getent passwd "${user}-docker" > /dev/null 2>&1; then
 	$BIN/h-delete-user-docker "$user" > /dev/null 2>&1
+	check_result $? "docker companion of $user could not be removed, the account is kept; re-run after h-delete-user-docker"
 fi
 
 # Unsuspend first so the admin's SUSPENDED_USERS counter gives the account back.

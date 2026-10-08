@@ -37,6 +37,7 @@ is_format_valid 'user'
 # Both come from the panel and are restic arguments, so neither may read as an option.
 is_object_format_valid "$snapshot" 'snapshot'
 case "$folder" in
+	*/../* | */..) check_result "$E_FORBIDEN" "$folder climbs out with .." ;;
 	"$HOMEDIR/$user" | "$HOMEDIR/$user"/*) ;;
 	*) check_result "$E_FORBIDEN" "$folder is outside $HOMEDIR/$user" ;;
 esac

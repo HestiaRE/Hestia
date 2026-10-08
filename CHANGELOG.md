@@ -12,6 +12,11 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
+### Changed
+
+- **The backup exclusion list is stricter** (#1176). Each entry must be a domain, path, mailbox or database name;
+  characters none of them use (such as `~`, `=` or non-ASCII) are refused where they used to be stored.
+
 ### Fixed
 
 - **Backup and restore tightened** (#1176). A restic restore no longer reports success when a part

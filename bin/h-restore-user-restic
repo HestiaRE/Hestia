@@ -80,7 +80,7 @@ echo "[ * ] Restore Mail domains"
 $BIN/h-restore-mail-domain-restic "$user" "$snapshot" "$mail" || failed="$failed mail"
 echo "[ * ] Restore Databases"
 $BIN/h-restore-database-restic "$user" "$snapshot" "$db" || failed="$failed db"
-if [ -n "$cron" ]; then
+if [ -n "$cron" ] && [ "$cron" != 'no' ]; then
 	echo "[ * ] Restore Cronjobs"
 	$BIN/h-restore-cron-job-restic "$user" "$snapshot" || failed="$failed cron"
 fi

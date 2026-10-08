@@ -73,5 +73,4 @@ if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 fi
 
-[[ -f "$tmpfile" ]] && rm -f $tmpfile
 exit

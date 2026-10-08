@@ -1123,21 +1123,27 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		REBUILD_DB_UNUSABLE=''
 		# Clear the name this customer will own, never the archived one: under a different customer name that one is
 		# somebody else's live database.
-		db_cleared='yes'
+		drop_rc=0
 		case $TYPE in
 			mysql)
-				delete_mysql_database "$target_db" || db_cleared='no'
+				delete_mysql_database "$target_db" || drop_rc=$?
 				;;
 			pgsql)
-				delete_pgsql_database "$target_db" || db_cleared='no'
+				delete_pgsql_database "$target_db" || drop_rc=$?
 				;;
 		esac
 		# Refused means the target was not emptied and importing would merge into it: named as a part that did not come
 		# back. Branched rather than `continue`d: the loop body keeps one way out, so anything appended at its end runs
 		# for every database.
-		if [ "$db_cleared" != 'yes' ]; then
-			echo "Warning!: $target_db was not restored - it is not a database of $user" | tee -a $tmpdir/restore.log
-			restore_failures="$restore_failures$(printf '\n  database %s (refused: not a database of %s)' "$target_db" "$user")"
+		if [ "$drop_rc" -ne 0 ]; then
+			# 1 is the ownership guard, 2 a DROP the server refused (an open session, say).
+			if [ "$drop_rc" -eq 2 ]; then
+				drop_why="the server refused to drop the existing database"
+			else
+				drop_why="it is not a database of $user"
+			fi
+			echo "Warning!: $target_db was not restored - $drop_why" | tee -a $tmpdir/restore.log
+			restore_failures="$restore_failures$(printf '\n  database %s (refused: %s)' "$target_db" "$drop_why")"
 		else
 			import_rc=0
 			case $TYPE in

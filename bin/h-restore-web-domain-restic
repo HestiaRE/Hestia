@@ -70,12 +70,10 @@ if [ ! -s "$tmpdir/backup.conf" ]; then
 	check_result "$E_PARSING" "$meta_pkg carries no backup.conf - the snapshot cannot be described"
 fi
 restic_meta_cat "$meta_pkg" pam/passwd > "$tmpdir/passwd"
-old_uid=$(cut -f 3 -d : "$tmpdir/passwd")
-old_user=$(cut -f 1 -d : "$tmpdir/passwd")
 # Same guard as the full restore: without it every chown below matches nothing and the restored
 # files keep the archived owner.
-if [ -z "$old_uid" ]; then
-	check_result "$E_PARSING" "$meta_pkg carries no pam/passwd - the old uid cannot be read"
+if ! restore_passwd_read "$tmpdir/passwd"; then
+	check_result "$E_PARSING" "$meta_pkg carries no valid pam/passwd entry, the old owner cannot be read"
 fi
 
 domains=""
@@ -127,17 +125,14 @@ for domain in "${domains[@]}"; do
 			restore_parse_record prev_web_keys "$archived_record"
 
 			# Deleting conflicting aliases
+			# The list is archive content: filtered in the shell, never spliced into a sed program.
 			IFS=, read -ra _dom_alias_list <<< "$ALIAS"
+			ALIAS=''
 			for dom_alias in "${_dom_alias_list[@]}"; do
 				[ -n "$dom_alias" ] || continue
-				check_new=$(is_domain_new 'web' $dom_alias)
-				if [ -n "$check_new" ]; then
-					ALIAS=$(echo "$ALIAS" \
-						| sed "s/,/\n/g" \
-						| sed "s/^$dom_alias$//g" \
-						| sed "/^$/d" \
-						| sed ':a;N;$!ba;s/\n/,/g')
-				fi
+				check_new=$(is_domain_new 'web' "$dom_alias")
+				[ -n "$check_new" ] && continue
+				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
 			done
 
 			# Checking IP address
@@ -192,10 +187,10 @@ for domain in "${domains[@]}"; do
 			fi
 
 			if [ -n "$CUSTOM_DOCROOT" ]; then
-				CUSTOM_DOCROOT=$(echo "$CUSTOM_DOCROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/|g")
+				CUSTOM_DOCROOT=${CUSTOM_DOCROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 			if [ -n "$CUSTOM_PHPROOT" ]; then
-				CUSTOM_PHPROOT=$(echo "$CUSTOM_PHPROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/|g")
+				CUSTOM_PHPROOT=${CUSTOM_PHPROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 
 			# Converting FTP users

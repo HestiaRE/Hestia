@@ -90,9 +90,8 @@ if [ -f "$tmpdir/hestia/backup-excludes.conf" ]; then
 fi
 
 # Without it every chown below matches nothing and the home stays owned by the old uid.
-old_uid=$(cut -f 3 -d : "$tmpdir/pam/passwd")
-if [ -z "$old_uid" ]; then
-	check_result "$E_PARSING" "$meta_pkg carries no pam/passwd - the old uid cannot be read"
+if ! restore_passwd_read "$tmpdir/pam/passwd"; then
+	check_result "$E_PARSING" "$meta_pkg carries no valid pam/passwd entry, the old owner cannot be read"
 fi
 # Rebuilding user
 rebuild_user_conf

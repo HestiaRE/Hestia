@@ -1,10 +1,10 @@
 #!/bin/bash
-# info: restore single cron job
+# info: restore the cron jobs of a backup archive
 # options: USER BACKUP CRON [NOTIFY]
 #
-# example: h-restore-cron-job USER BACKUP CRON [NOTIFY]
+# example: h-restore-cron-job admin admin.2026-10-08_05-10-01.tar yes
 #
-# Restores cron jobs from a backup archive through h-restore-user.
+# Through h-restore-user. CRON is a switch, not a job id: anything but no replaces the whole job list.
 
 user=$1
 backup=$2

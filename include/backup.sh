@@ -48,6 +48,20 @@ restore_forget_record() {
 	_keys_ref=''
 }
 
+# restore_passwd_read FILE: old_user and old_uid from the archived passwd line; rc 1 unless both are well formed.
+# They reach sed, find and arithmetic as root, so the archive's word is checked like an argument.
+restore_passwd_read() {
+	old_user=$(cut -f 1 -d : "$1" 2> /dev/null)
+	old_uid=$(cut -f 3 -d : "$1" 2> /dev/null)
+	[[ "$old_uid" =~ ^[0-9]+$ ]] || return 1
+	# Quiet: the caller reports, so the validator's exit must neither print nor log.
+	(
+		_rpr_quiet() { :; }
+		CHECK_RESULT_CALLBACK=_rpr_quiet
+		is_user_format_valid "$old_user" 'user'
+	)
+}
+
 # record_del_field VAR KEY: remove KEY from the record held in VAR; rc 1 as in record_set_field.
 record_del_field() {
 	local -n _rec_ref="$1"

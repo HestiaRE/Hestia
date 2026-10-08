@@ -40,6 +40,8 @@ source_conf "$HESTIA/conf/hestia.conf"
 args_usage='USER SNAPSHOT'
 check_args '2' "$#" "$args_usage"
 is_format_valid 'user'
+# From the panel, and handed to restic: it must not read as an option.
+is_object_format_valid "$snapshot" 'snapshot'
 is_object_valid 'user' 'USER' "$user"
 
 is_restic_repo_configured

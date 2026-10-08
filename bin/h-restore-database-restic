@@ -49,7 +49,7 @@ is_restic_repo_configured
 #                       Action                             #
 #----------------------------------------------------------#
 
-tmpdir=$(mktemp -p /home/$user/tmp/ -d)
+tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
 # The metadata travels as the package beside the repository since stage 2a, not inside the snapshot.
@@ -162,7 +162,7 @@ $BIN/h-update-sys-ip-counters
 sed -i "/h-restore-database-restic '$user' '$snapshot' '$database' /d" $CONF_DIR/queue/backup.pipe
 
 # Logging
-$BIN/h-log-action "system" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Databse: $database)."
-$BIN/h-log-action "$user" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Databse: $database)."
+$BIN/h-log-action "system" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Database: $database)."
+$BIN/h-log-action "$user" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Database: $database)."
 log_event "$OK" "$ARGUMENTS"
 exit

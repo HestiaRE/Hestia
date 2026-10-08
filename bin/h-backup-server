@@ -84,6 +84,10 @@ while IFS= read -r component; do
 				# --numeric-owner nowhere, as everywhere else here: the restore resolves by name.
 				tar -cf - -C "$(dirname "$src")" "$(basename "$src")" 2> /dev/null \
 					| backup_compress > "$dest/$(basename "$src").tar.$(backup_codec_suffix)"
+				_rc=("${PIPESTATUS[@]}")
+				# tar 1 is a file that changed while read: the archive is whole, only that file is a snapshot.
+				[ "${_rc[0]}" -le 1 ] && [ "${_rc[1]}" -eq 0 ] \
+					|| check_result "$E_PARSING" "$src could not be archived, no server backup written"
 				echo "$(date '+%F %T') $component: $src"
 				;;
 			sqlite:*)
@@ -132,7 +136,10 @@ done < <(printf '%s\n' "$wanted")
 
 archive="$BACKUP/server.$stamp.tar"
 rm -rf "$tmpdir/.stage"
-tar -cf "$archive" -C "$tmpdir" .
+tar -cf "$archive" -C "$tmpdir" . || {
+	rm -f "$archive"
+	check_result "$E_DISK" "$archive could not be written"
+}
 # The archive carries the webmail secrets, so it is root's alone - unlike a user archive, which the
 # customer may fetch.
 chown root:root "$archive"

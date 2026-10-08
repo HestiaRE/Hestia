@@ -33,7 +33,7 @@ is_object_valid 'user' 'USER' "$user"
 
 is_restic_repo_configured
 
-tmpdir=$(mktemp -p /home/$user/tmp/ -d)
+tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")

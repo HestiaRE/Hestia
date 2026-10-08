@@ -48,6 +48,8 @@ args_usage='USER SNAPSHOT DOMAIN [NOTIFY] [NEW_USER]'
 check_args '3' "$#" "$args_usage"
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
+subj="$user → restore failed"
+email=$(get_user_value '$CONTACT')
 
 is_restic_repo_configured
 
@@ -55,7 +57,7 @@ is_restic_repo_configured
 #                       Action                             #
 #----------------------------------------------------------#
 
-tmpdir=$(mktemp -p /home/$user/tmp/ -d)
+tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
 # The metadata travels as the package beside the repository since stage 2a, not inside the snapshot.
@@ -68,11 +70,10 @@ if [ ! -s "$tmpdir/backup.conf" ]; then
 	check_result "$E_PARSING" "$meta_pkg carries no backup.conf - the snapshot cannot be described"
 fi
 restic_meta_cat "$meta_pkg" pam/passwd > "$tmpdir/passwd"
-old_uid=$(cut -f 3 -d : "$tmpdir/passwd")
 # Same guard as the full restore: without it every chown below matches nothing and the restored
 # files keep the archived owner.
-if [ -z "$old_uid" ]; then
-	check_result "$E_PARSING" "$meta_pkg carries no pam/passwd - the old uid cannot be read"
+if ! restore_passwd_read "$tmpdir/passwd"; then
+	check_result "$E_PARSING" "$meta_pkg carries no valid pam/passwd entry, the old owner cannot be read"
 fi
 
 domains=""
@@ -99,7 +100,7 @@ for domain in "${domains[@]}"; do
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)
 		if [ -z "$check_config" ]; then
 			check_new=$(is_domain_new 'web' $domain)
-			if [ "$check_new" = 'yes' ]; then
+			if [ -n "$check_new" ]; then
 				rm -rf $tmpdir
 				error="$domain belongs to another user"
 				echo "$error" | $SENDMAIL -s "$subj" $email $notify
@@ -124,17 +125,14 @@ for domain in "${domains[@]}"; do
 			restore_parse_record prev_web_keys "$archived_record"
 
 			# Deleting conflicting aliases
+			# The list is archive content: filtered in the shell, never spliced into a sed program.
 			IFS=, read -ra _dom_alias_list <<< "$ALIAS"
+			ALIAS=''
 			for dom_alias in "${_dom_alias_list[@]}"; do
 				[ -n "$dom_alias" ] || continue
-				check_new=$(is_domain_new 'web' $dom_alias)
-				if [ -n "$check_new" ]; then
-					ALIAS=$(echo "$ALIAS" \
-						| sed "s/,/\n/g" \
-						| sed "s/^$dom_alias$//g" \
-						| sed "/^$/d" \
-						| sed ':a;N;$!ba;s/\n/,/g')
-				fi
+				check_new=$(is_domain_new 'web' "$dom_alias")
+				[ -n "$check_new" ] && continue
+				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
 			done
 
 			# Checking IP address
@@ -189,16 +187,21 @@ for domain in "${domains[@]}"; do
 			fi
 
 			if [ -n "$CUSTOM_DOCROOT" ]; then
-				CUSTOM_DOCROOT=$(echo "$CUSTOM_DOCROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/")
+				CUSTOM_DOCROOT=${CUSTOM_DOCROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 			if [ -n "$CUSTOM_PHPROOT" ]; then
-				CUSTOM_PHPROOT=$(echo "$CUSTOM_PHPROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/")
+				CUSTOM_PHPROOT=${CUSTOM_PHPROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 
 			# Converting FTP users
+			# Per entry and anchored, as in h-restore-user: the field is a colon list.
 			if [ -n "$FTP_USER" ]; then
-				FTP_USER=$(echo "$FTP_USER" | sed -e "s/${old_user}_//")
-				FTP_USER="${user}_${FTP_USER}"
+				IFS=':' read -r -a _ftp_list <<< "$FTP_USER"
+				FTP_USER=''
+				for _f in "${_ftp_list[@]}"; do
+					[ -n "$_f" ] || continue
+					FTP_USER="${FTP_USER:+$FTP_USER:}${user}_${_f#"${old_user}_"}"
+				done
 			fi
 			# Copying SSL certificates
 			if [ "$SSL" = 'yes' ]; then
@@ -292,8 +295,10 @@ for domain in "${domains[@]}"; do
 		# Rebuilding vhost to prevent user overwrite default config changes not ideal
 		rebuild_web_domain_conf
 
+		# As the customer, from /: same wipe as h-restore-user.
 		if [ -d "$HOMEDIR/$user/web/$domain/public_html" ]; then
-			rm -rf $HOMEDIR/$user/web/$domain/public_html/*
+			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
+				-exec rm -rf {} +)
 		fi
 
 		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"
@@ -342,6 +347,14 @@ if [ "$new_user" = "yes" ]; then
 fi
 rm -fr $tmpdir
 
+# Rebuilt vhosts are not served until the servers reload.
+$BIN/h-restart-web
+check_result $? "Web restart failed"
+if [ -n "$PROXY_SYSTEM" ]; then
+	$BIN/h-restart-proxy
+	check_result $? "Proxy restart failed"
+fi
+
 # Update user counters
 $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"
@@ -350,7 +363,7 @@ $BIN/h-update-sys-ip-counters
 sed -i "/h-restore-web-domain-restic '$user' '$snapshot' '$web' /d" $CONF_DIR/queue/backup.pipe
 
 # Logging
-$BIN/h-log-action "system" "Info" "Backup" "Web domain successfully restored (User: $user, Snapshot: $snapshot, Databse: $database)."
-$BIN/h-log-action "$user" "Info" "Backup" "Web domain successfully restored (User: $user, Snapshot: $snapshot, Databse: $database)."
+$BIN/h-log-action "system" "Info" "Backup" "Web domain successfully restored (User: $user, Snapshot: $snapshot, Domain: $web)."
+$BIN/h-log-action "$user" "Info" "Backup" "Web domain successfully restored (User: $user, Snapshot: $snapshot, Domain: $web)."
 log_event "$OK" "$ARGUMENTS"
 exit

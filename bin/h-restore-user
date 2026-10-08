@@ -503,8 +503,11 @@ if [ "$?" -ne 0 ]; then
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_PARSING" "Can't unpack PAM container"
 fi
-old_user=$(cut -f 1 -d : $tmpdir/pam/passwd)
-old_uid=$(cut -f 3 -d : $tmpdir/pam/passwd)
+if ! restore_passwd_read "$tmpdir/pam/passwd"; then
+	echo "The archived passwd entry is not a valid account" | $SENDMAIL -s "$subj" $email $notify
+	queue_drop_job "$CONF_DIR/queue/backup.pipe"
+	check_result "$E_PARSING" "the archived passwd entry is not a valid account"
+fi
 new_uid=$(grep "^$user:" /etc/passwd | cut -f 3 -d :)
 
 # Restoring web domains
@@ -565,17 +568,14 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			restore_parse_record prev_web_keys "$archived_record"
 
 			# Deleting conflicting aliases
+			# The list is archive content: filtered in the shell, never spliced into a sed program.
 			IFS=, read -ra _dom_alias_list <<< "$ALIAS"
+			ALIAS=''
 			for dom_alias in "${_dom_alias_list[@]}"; do
 				[ -n "$dom_alias" ] || continue
-				check_new=$(is_domain_new 'web' $dom_alias)
-				if [ -n "$check_new" ]; then
-					ALIAS=$(echo "$ALIAS" \
-						| sed "s/,/\n/g" \
-						| sed "s/^$dom_alias$//g" \
-						| sed "/^$/d" \
-						| sed ':a;N;$!ba;s/\n/,/g')
-				fi
+				check_new=$(is_domain_new 'web' "$dom_alias")
+				[ -n "$check_new" ] && continue
+				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
 			done
 
 			# Checking IP address
@@ -627,10 +627,10 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			fi
 
 			if [ -n "$CUSTOM_DOCROOT" ]; then
-				CUSTOM_DOCROOT=$(echo "$CUSTOM_DOCROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/|g")
+				CUSTOM_DOCROOT=${CUSTOM_DOCROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 			if [ -n "$CUSTOM_PHPROOT" ]; then
-				CUSTOM_PHPROOT=$(echo "$CUSTOM_PHPROOT" | sed -e "s|/home/${old_user}/web/|/home/${user}/web/|g")
+				CUSTOM_PHPROOT=${CUSTOM_PHPROOT//"/home/$old_user/web/"/"/home/$user/web/"}
 			fi
 
 			# Converting FTP users. Per entry and anchored at the front, like the database name
@@ -758,8 +758,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		rebuild_web_domain_conf
 
 		# Restoring web domain data
+		# As the customer: the domain directory is theirs, root would follow whatever they put there.
+		# From /, since find returns to its start directory and the customer cannot enter root's.
 		if [ -d "$HOMEDIR/$user/web/$domain/public_html" ]; then
-			rm -rf $HOMEDIR/$user/web/$domain/public_html/*
+			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
+				-exec rm -rf {} +)
 		fi
 		chmod u+w "$HOMEDIR/$user/web/$domain"
 		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"
@@ -1439,7 +1442,7 @@ if [ "$udir" != 'no' ]; then
 
 			chown "$user" "$tmpdir/user_dir"
 			chown "$user" "$HOMEDIR/$user"
-			[ -e "$HOMEDIR/$user/$user_dir" ] && chown "$user" "$HOMEDIR/$user/$user_dir"
+			[ -e "$HOMEDIR/$user/$user_dir" ] && chown -h "$user" "$HOMEDIR/$user/$user_dir"
 			$BIN/h-extract-fs-archive "$user" "$udir_container" "$HOMEDIR/$user"
 			cmdstatus="$?"
 			# home stays user-owned: the pam_namespace jail needs no root flip
@@ -1461,9 +1464,8 @@ if [ "$udir" != 'no' ]; then
 fi
 
 # Create tmp/
-mkdir -p $HOMEDIR/$user/tmp
-chmod 700 $HOMEDIR/$user/tmp
-chown -R $user:$user $HOMEDIR/$user/tmp
+home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 \
+	|| echo "Warning: $HOMEDIR/$user/tmp is not a directory, left as it is" | tee -a $tmpdir/restore.log
 
 # Delete Hestia File manager key
 rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key

@@ -4,28 +4,17 @@
 #
 # example: h-update-user-stats admin
 #
-# Function logs user parameters into statistics database.
+# Writes this month's usage line for one user or all, and with all the totals line.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Argument definition
 user=$1
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '0' "$#" '[USER]'
 # An empty argument is a caller's mistake, not "every user".
@@ -35,11 +24,6 @@ if [ -n "$user" ]; then
 	is_object_valid 'user' 'USER' "$user"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Creating user_list
 if [ -z "$user" ]; then
 	user_list=$("$BIN/h-list-users" list)
 	update_overall_stats='yes'
@@ -47,8 +31,7 @@ else
 	user_list="$user"
 fi
 
-# One line per month: a second line for the same month (two runs in one second) used to make the sed
-# address fail for good. The line goes in as data, never as a sed replacement.
+# One line per month, written as data, never as a sed replacement.
 stats_put() { # FILE DATE LINE
 	local tmp
 	[ -e "$1" ] || : > "$1"
@@ -62,7 +45,6 @@ stats_put() { # FILE DATE LINE
 	mv -f "$tmp" "$1"
 }
 
-# Reset overall statistics
 TOTAL_IP_OWNED=0
 TOTAL_U_DISK=0
 TOTAL_U_DISK_DIRS=0
@@ -81,7 +63,6 @@ TOTAL_U_CRON_JOBS=0
 TOTAL_U_BACKUPS=0
 TOTAL_USERS=0
 
-# Updating user stats
 for user in $user_list; do
 	USER_DATA=$CONF_DIR/users/$user
 	if [ ! -f "$CONF_DIR/users/$user/user.conf" ]; then
@@ -95,7 +76,6 @@ for user in $user_list; do
 	next_month=$(date +'%m/01/%y' -d "$(date +%Y-%m-15) 1 month")
 	DATE=$(date -d "$next_month -1day" +%F)
 
-	# Compiling report string
 	s="DATE='$DATE' TIME='$TIME' PACKAGE='$PACKAGE' IP_OWNED='$IP_OWNED'"
 	s="$s DISK_QUOTA='$DISK_QUOTA' U_DISK='$U_DISK'"
 	s="$s U_DISK_DIRS='$U_DISK_DIRS' U_DISK_WEB='$U_DISK_WEB'"
@@ -109,7 +89,6 @@ for user in $user_list; do
 
 	stats_put "$USER_DATA/stats.log" "$DATE" "$s"
 
-	# Increase overall counters
 	TOTAL_IP_OWNED=$((TOTAL_IP_OWNED + IP_OWNED))
 	TOTAL_U_DISK=$((TOTAL_U_DISK + U_DISK))
 	TOTAL_U_DISK_DIRS=$((TOTAL_U_DISK_DIRS + U_DISK_DIRS))
@@ -131,7 +110,6 @@ for user in $user_list; do
 done
 
 if [ "$update_overall_stats" = 'yes' ]; then
-	# Updating overall stats
 	stats="$CONF_DIR/users/$ROOT_USER/overall_stats.log"
 
 	s="DATE='$DATE' TIME='$TIME' PACKAGE='default' IP_OWNED='$TOTAL_IP_OWNED'"
@@ -150,11 +128,6 @@ if [ "$update_overall_stats" = 'yes' ]; then
 	stats_put "$stats" "$DATE" "$s"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

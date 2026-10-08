@@ -4,39 +4,22 @@
 #
 # example: h-add-user-ssh-key user 'valid ssh key'
 #
-# Function check if $user/.ssh/authorized_keys exists and create it.
-# After that it append the new key(s)
+# Adds an SSH key to a user's authorized_keys; a key already there is refused.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 key=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER SSH_PUBLIC_KEY'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Reading user values
 source_conf "$USER_DATA/user.conf"
 
 AUTHKEY_FILE=$(authkeys_file)
@@ -59,11 +42,6 @@ done <<< "$current"
 } | authkeys_write
 check_result $? "authorized_keys of $user could not be written"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "System" "Added a new SSH key."
 log_event "$OK" "$ARGUMENTS"
 

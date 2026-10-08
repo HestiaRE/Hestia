@@ -4,13 +4,8 @@
 #
 # example: h-add-user-wp-cli user
 #
-# This function adds support for wp-cli to the user account
+# Installs the pinned wp-cli for a user, or re-pins it with UPDATE.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 update=$2
 
@@ -22,21 +17,12 @@ fi
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [UPDATE]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 WPCLI_DIR="$HOMEDIR/$user/.wp-cli"
 WPCLI_BIN="$WPCLI_DIR/wp"
@@ -55,7 +41,7 @@ install_phar() {
 
 if user_exec test -f "$WPCLI_BIN"; then
 	if [ "$update" = 'yes' ]; then
-		# re-pin, not `wp cli update`: the user's copy converges to the manifest pin
+		# Re-pinned, not `wp cli update`: the copy follows the manifest pin.
 		install_phar || check_result "$E_CONNECT" "Download of the pinned wp-cli phar failed"
 		exit
 	fi
@@ -63,15 +49,9 @@ if user_exec test -f "$WPCLI_BIN"; then
 	exit
 fi
 
-# pinned + sha256-verified release phar - never a moving branch address
 install_phar || check_result "$E_CONNECT" "Download of the pinned wp-cli phar failed"
 bash_alias_set wp "$WPCLI_BIN" || check_result "$E_FORBIDEN" "$HOMEDIR/$user/.bash_aliases is not writable by $user"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Plugins" "WP-CLI support enabled."
 log_event "$OK" "$ARGUMENTS"
 

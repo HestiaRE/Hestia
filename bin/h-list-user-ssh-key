@@ -2,26 +2,18 @@
 # info: list ssh keys
 # options: USER [FORMAT]
 #
-# Lists $user/.ssh/authorized_keys
+# Lists the SSH keys in a user's authorized_keys, keyed by fingerprint.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -54,7 +46,6 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	for str in $keys; do
@@ -64,23 +55,14 @@ plain_list() {
 	done
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 AUTHKEY_FILE=$(authkeys_file)
 path_within "$AUTHKEY_FILE" "$HOMEDIR/$user/.ssh" || check_result "$E_FORBIDEN" "Invalid authorized keys path"
 
-#check if file exsists
 if [ ! -f "$AUTHKEY_FILE" ]; then
 	exit
 fi
@@ -94,18 +76,11 @@ while IFS= read -r l || [ -n "$l" ]; do
 	fi
 done < <(authkeys_read)
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 
 exit

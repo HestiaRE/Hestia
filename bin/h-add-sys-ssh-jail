@@ -4,23 +4,13 @@
 #
 # example: h-add-sys-ssh-jail
 #
-# This function enables ssh jailed environment.
+# Installs jailbash, the bubblewrap login shell for jailed SSH.
 
-#----------------------------------------------------------#
-# Variables & Functions #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-# Verifications #
-#----------------------------------------------------------#
 
 # Not installable without bubblewrap: say so, and leave no token behind. The installer puts bubblewrap in
 # its base package set and calls this with || true, so the non-zero exit changes nothing there.
@@ -29,16 +19,11 @@ if [ ! -x /bin/bwrap ]; then
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-# Action #
-#----------------------------------------------------------#
-
-# Move jailbash to /usr/sbin
 if [ ! -x /usr/sbin/jailbash ]; then
 	cp -f $HESTIA/share/bubblewrap/jailbash /usr/sbin/jailbash
 	chmod +x /usr/sbin/jailbash
 
-	# only install the apparmor profile is abi 4.0 is available
+	# The profile needs AppArmor abi 4.0.
 	if [ -f /etc/apparmor.d/abi/4.0 ]; then
 		cp -f $HESTIA/share/bubblewrap/bwrap-userns-restrict /etc/apparmor.d/bwrap-userns-restrict
 	fi
@@ -46,14 +31,12 @@ if [ ! -x /usr/sbin/jailbash ]; then
 	service apparmor reload > /dev/null 2>&1
 fi
 
-# Register /usr/sbin/jailbash
 if [ -z "$(grep ^/usr/sbin/jailbash /etc/shells)" ]; then
 	echo "/usr/sbin/jailbash" >> /etc/shells
 fi
 
-# The Subsystem line, from the one place that decides it: a jailbash user's sftp runs inside bwrap and
-# needs the binary. Validated before the restart, because the write is atomic: a failure here means
-# something else in the file is wrong, and then the running sshd keeps what it has.
+# The Subsystem line, from the one place that decides it: a jailbash user's sftp runs inside bwrap. A failed
+# validation means something else in the file is wrong, and the running sshd keeps what it has.
 if [ "$(jail_sshd_subsystem_apply)" = changed ]; then
 	if /usr/sbin/sshd -t > /dev/null 2>&1; then
 		service ssh restart > /dev/null 2>&1
@@ -65,11 +48,6 @@ if [ "$(jail_sshd_subsystem_apply)" = changed ]; then
 	fi
 fi
 
-#----------------------------------------------------------#
-# Hestia #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

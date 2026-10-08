@@ -2,48 +2,31 @@
 # info: add user notification
 # options: USER TOPIC NOTICE [TYPE] [PRIORITY]
 #
-# This function adds a new user notification to the panel.
+# Adds a notification to a user's panel bell.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 topic=$2
 type=$4
 priority=$5
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# After the includes, not in the argument block: the encoder is a shell function, and calling it
-# before main.sh is sourced silently yields an empty value (#1002).
+# After the includes: the encoder is a shell function, and before main.sh it yields an empty value.
 topic=$(record_value_encode "$topic")
-# NOTICE renders via x-html, so sanitize before storing (allow-list; drops script/on*/js:). Encoded
-# after the sanitizer, because the sanitizer is what re-serialises attributes with a double quote.
+# NOTICE renders as HTML, so it is sanitized before storing, and encoded after: the sanitizer re-serialises
+# attributes with a double quote.
 clean=$("$HESTIA_PHP" "$HESTIA/include/sanitize_html.php" "$3") || check_result "$E_INVALID" "the notice could not be sanitized"
 notice=$(record_value_encode "$clean")
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER TOPIC NOTICE [TYPE] [PRIORITY]'
 is_format_valid 'user' 'topic' 'notice' 'priority'
 is_object_valid 'user' 'USER' "$user"
 is_common_format_valid "$type"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defining notification id
 if [ -e "$USER_DATA/notifications.conf" ]; then
 	nid=$(grep "NID=" $USER_DATA/notifications.conf | cut -f 2 -d \')
 	nid=$(echo "$nid" | sort -n | tail -n1)
@@ -56,26 +39,17 @@ else
 	nid=1
 fi
 
-# Generating timestamp
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
-# Concatenating string
 str="NID='$nid' TOPIC='$topic' NOTICE='$notice' TYPE='$type' PRIORITY='$priority'"
 str="$str ACK='no' TIME='$time' DATE='$date'"
 
-# Adding to config
 echo "$str" >> $USER_DATA/notifications.conf
 
-# Changing permissions
 chmod 660 $USER_DATA/notifications.conf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating notification counter
 if [ -z "$(grep NOTIFICATIONS $USER_DATA/user.conf)" ]; then
 	sed -i "s/^TIME/NOTIFICATIONS='yes'\nTIME/g" $USER_DATA/user.conf
 else

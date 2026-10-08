@@ -4,28 +4,16 @@
 #
 # example: h-delete-user-ssh-key user unique_id
 #
-# Delete user ssh key from authorized_keys
+# Deletes an SSH key from a user's authorized_keys, by fingerprint or by the ID h-list-user-ssh-key shows.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 keyid=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# Additional argument formatting
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER KEY_ID'
 is_format_valid 'user'
@@ -42,11 +30,7 @@ if [ ! -f "$AUTHKEY_FILE" ]; then
 	exit
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# KEY_ID is the fingerprint or the ID h-list-user-ssh-key shows, compared whole: never a pattern.
+# Compared whole, never as a pattern.
 kept=()
 removed=0
 while IFS= read -r line || [ -n "$line" ]; do
@@ -64,11 +48,6 @@ else
 fi
 check_result $? "authorized_keys of $user could not be written"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "SSH" "SSH key deleted (Key ID: $keyid)."
 log_event "$OK" "$ARGUMENTS"
 

@@ -2,24 +2,16 @@
 # info: list overall user stats
 # options: [FORMAT]
 #
-# This function for listing overall user statistics
+# Lists the monthly usage totals of all users.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -61,7 +53,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "DATE   USER   WEB   MAIL   DB   BACKUPS   IP   DISK   BW"
@@ -77,7 +68,6 @@ shell_list() {
 	done < <(cat "$CONF_DIR/users/$ROOT_USER/overall_stats.log")
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
@@ -91,35 +81,20 @@ plain_list() {
 	done < <(cat "$CONF_DIR/users/$ROOT_USER/overall_stats.log")
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '0' "$#" '[FORMAT]'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Ensure statistics are up to date
 $BIN/h-update-user-stats
 
-# Defining config
 conf="$CONF_DIR/users/$ROOT_USER/overall_stats.log"
 if [ ! -e "$conf" ]; then
 	touch $conf
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

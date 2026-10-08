@@ -2,40 +2,22 @@
 # info: delete user package
 # options: PACKAGE
 #
-# example: h-delete-user-package admin palegreen
+# example: h-delete-user-package palegreen
 #
-# This function for deleting user package.
-#
-# If the package is in use, users will be updated to
-# use the default package.
+# Deletes a package. Its users move to default first; if one does not fit there, the package stays.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 package=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'PACKAGE'
 is_format_valid 'package'
 is_package_valid
 is_package_builtin "$package" deleted
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # Users move to default first; one that default does not cover keeps the package, and so does the box.
 failed=''
@@ -45,10 +27,6 @@ done
 [ -z "$failed" ] || check_result "$E_LIMIT" "package $package kept, still in use by:$failed"
 
 rm -f "$CONF_DIR/packages/$package.pkg" "$CONF_DIR/packages/$package.sh"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Deleted package (Name: $package)."
 log_event "$OK" "$ARGUMENTS"

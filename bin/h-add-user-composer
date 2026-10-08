@@ -4,14 +4,8 @@
 #
 # example: h-add-user-composer user [version]
 #
-# This function adds support for composer (php dependency manager)
-# Homepage: <https://getcomposer.org/>
+# Installs composer for a user, or self-updates it with UPDATE.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 version=${2-2}
 update=$3
@@ -20,17 +14,11 @@ if [ -z "$HESTIA" ]; then
 	HESTIA="/usr/local/hestia"
 fi
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [VERSION] [UPDATE]'
 is_format_valid 'user'
@@ -40,17 +28,12 @@ is_object_unsuspended 'user' 'USER' "$user"
 
 [ -z "$HOMEDIR" ] && check_result "$E_NOTEXIST" "Hestia environment vars not present"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 COMPOSER_DIR="$HOMEDIR/$user/.composer"
 COMPOSER_BIN="$COMPOSER_DIR/composer"
 
 if user_exec test -f "$COMPOSER_BIN"; then
 	if [ "$update" = 'yes' ]; then
-		# deliberately upstream-latest regardless of the system source: the copy is the
-		# user's own and composer verifies its signature; timeout keeps it bounded
+		# Upstream latest on purpose: the copy is the user's own and composer checks its signature.
 		COMPOSER_HOME="$HOMEDIR/$user/.config/composer" user_exec timeout 300 php "$COMPOSER_BIN" selfupdate
 		exit
 	fi
@@ -82,11 +65,6 @@ rc=$?
 rm -f "$COMPOSER_SETUP_FILE"
 check_result $rc "Composer install failed"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Plugins" "Composer support enabled."
 log_event "$OK" "$ARGUMENTS"
 

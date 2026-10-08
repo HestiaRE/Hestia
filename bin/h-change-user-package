@@ -4,23 +4,16 @@
 #
 # example: h-change-user-package admin yourpackage
 #
-# This function changes user's hosting package.
+# Moves a user to a package; FORCE skips the check that the package covers the current usage.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 package=$2
 force=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 is_package_available() {
@@ -35,7 +28,6 @@ is_package_available() {
 
 	source_conf "$CONF_DIR/packages/$package.pkg"
 
-	# Checking usage agains package limits
 	if [ "$WEB_DOMAINS" != 'unlimited' ]; then
 		if [ "$WEB_DOMAINS" -lt "$U_WEB_DOMAINS" ]; then
 			check_result "$E_LIMIT" "Package doesn't cover WEB_DOMAIN usage"
@@ -69,10 +61,7 @@ is_package_available() {
 }
 
 change_user_package() {
-	# In place, key by key: rewriting the whole record from a fixed list silently dropped every
-	# key the list did not know - DOCKER_IP, DOCKER_BACKUP and FILE_MANAGER were all lost on a
-	# package change, and a docker customer lost the address their isolation rule is rendered
-	# from. Only the fields a package actually defines are touched now.
+	# Key by key in place: rewriting the record from a fixed list drops every key the list does not know.
 	local key
 	source_conf "$CONF_DIR/packages/$package.pkg"
 	update_user_value "$user" '$PACKAGE' "$package"
@@ -83,10 +72,6 @@ change_user_package() {
 	done
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '2' "$#" 'USER PACKAGE [FORCE]'
 is_format_valid 'user' 'package'
 is_object_valid 'user' 'USER' "$user"
@@ -95,14 +80,8 @@ if [ "$force" != 'yes' ]; then
 	is_package_available
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Changing user package
 change_user_package
 
-# Update user shell
 shell_conf=$(grep -m1 "^SHELL=" "$CONF_DIR/packages/$package.pkg" | cut -f 2 -d \')
 if [ -n "$shell_conf" ]; then
 	$BIN/h-change-user-shell "$user" "$shell_conf"
@@ -113,18 +92,14 @@ if [ -x "$CONF_DIR/packages/$package.sh" ]; then
 	$CONF_DIR/packages/$package.sh "$user" "$(get_user_value '$CONTACT')" "$(get_user_value '$NAME')"
 fi
 
-# Project quota (self-gated on PROJECT_QUOTA, #211); re-read through the sanitized reader, never source
+# The quota command gates itself on PROJECT_QUOTA; the value is re-read through the sanitized reader.
 source_conf "$HESTIA/conf/hestia.conf"
 $BIN/h-update-user-quota "$user"
 
 # The docker cap is per docker customer: the companion slice is the only place it can land.
 source $HESTIA/include/docker.sh
 docker_slice_apply "$user" "$(get_user_value '$DOCKER_LIMIT')"
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
-# Logging
 $BIN/h-log-action "$user" "Info" "System" "You have been assigned a new package ($package)."
 $BIN/h-log-action "system" "Info" "System" "Package limits applied to user (Package: $package, User: $user)."
 log_event "$OK" "$ARGUMENTS"

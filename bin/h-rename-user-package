@@ -4,32 +4,20 @@
 #
 # example: h-rename-user-package package package2
 #
-# This function changes the name of an existing package.
+# Renames a package and repoints its users; default and system keep their names.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 old_name=$1
 new_name=$2
 mode=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-# Ensure that package names have been passed to the script.
 if [ -z "$old_name" ]; then
 	echo "ERROR: Current package name not specified."
 	exit "$E_ARGS"
@@ -47,10 +35,6 @@ pkg_dir="$CONF_DIR/packages"
 if [ -e "$pkg_dir/$new_name.pkg" ]; then
 	check_result "$E_NOTEXIST" "package $new_name exist"
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 mv "$pkg_dir/$old_name.pkg" "$pkg_dir/$new_name.pkg"
 # A trigger the new name already had belongs to a package that is gone.
@@ -70,11 +54,6 @@ if [ "$mode" = "yes" ]; then
 	echo "Successfully renamed package $old_name to $new_name."
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Package renamed (Value: $new_name, Previous: $old_name)."
 log_event "$OK" "$ARGUMENTS"
 

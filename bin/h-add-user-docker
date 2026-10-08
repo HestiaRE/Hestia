@@ -5,33 +5,13 @@
 # example: h-add-user-docker john
 # example: h-add-user-docker john full
 #
-# Creates the customer's companion and starts their own rootless daemon (#389).
-#
-# Two accounts, one trust domain. The companion is container uid 0 and runs the daemon;
-# the customer is container uid 1000, the id stock images expect, so upstream compose
-# files work unmodified. The customer never touches the companion account - they reach
-# the daemon through a group-owned socket in ~/.companion, and socket access is full
-# daemon control, which is why only their own group gets it.
-#
-# The companion home sits INSIDE the customer home so both travel as one backup unit,
-# and is created there directly: relocating later breaks the absolute enable symlinks
-# the rootless setup writes.
-#
-# Re-runnable in both directions: a partial enable heals, a healthy one is left alone
-# (see the guard before the restart block).
-#
-# BACKUP_SCOPE picks what h-backup-user keeps of the Docker data root: 'volumes' (default) or
-# 'full'. Only those two are sound - anything in between separates the layer store from the metadata
-# indexing it and restores a store referencing layers that are not there.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Creates the customer's companion account and starts their rootless Docker daemon. Re-running heals a
+# partial enable and leaves a healthy one alone. BACKUP_SCOPE: 'volumes' (default) or 'full', what
+# h-backup-user keeps of the data root; anything between would split the layer store from its index.
 
 user=$1
 backup_scope=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -42,28 +22,20 @@ source $HESTIA/include/identity.sh
 source $HESTIA/include/docker.sh
 # shellcheck source=/usr/local/hestia/include/helper.sh
 source $HESTIA/include/helper.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# NOT su: no login session means no user bus, so systemctl --user cannot reach the
-# manager. systemd-run builds one whatever the login shell is, and starts from a bare
-# environment - the rootless setuptool refuses without HOME.
+# Not su: without a login session there is no user bus. systemd-run builds one, from a bare environment.
 companion_run() {
 	systemd-run --machine="${companion}@" --user --pipe --wait --quiet \
 		--setenv=HOME="$companion_home" --setenv=PATH=/usr/bin:/bin:/usr/sbin:/sbin \
 		--setenv=XDG_RUNTIME_DIR="/run/user/$companion_uid" "$@"
 }
 
-# Not [ -S ] on the socket file: dockerd leaves that behind when it dies, so a dead
-# daemon looks identical to a live one.
+# Not [ -S ]: a dead dockerd leaves its socket file behind.
 docker_alive() {
 	DOCKER_HOST="unix://$companion_home/docker.sock" \
 		docker version --format '{{.Server.Version}}' > /dev/null 2>&1
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [BACKUP_SCOPE]'
 is_format_valid 'user'
@@ -85,9 +57,7 @@ command -v dockerd-rootless.sh > /dev/null 2>&1 \
 		exit "$E_NOTEXIST"
 	}
 
-# Docker needs a real shell (compose files, the docker CLI) and the jail is not measured for
-# it - so the decision is unjailed SSH or no docker, and the check is here rather than only in
-# the panel, because the panel is not the only caller.
+# Docker needs an unjailed shell; checked here because the panel is not the only caller.
 user_shell="$(getent passwd "$user" | cut -f 7 -d :)"
 case "$user_shell" in
 	*nologin | *false | *rssh | *jailbash | '')
@@ -107,17 +77,14 @@ gid="$(id -g "$user" 2> /dev/null)"
 	exit "$E_NOTEXIST"
 }
 
-# The companion sits one block below, and the subordinate base comes from the slot the
-# uid encodes. A uid outside the band predates the allocator and has no reserved
-# companion block, so there is nowhere safe to put one.
+# The companion sits one block below the customer; a uid outside the band has no block reserved for it.
 k="$(identity_k_from_uid "$uid")" \
 	|| {
 		echo "ERROR: $user has uid $uid, outside the panel band - no companion block is reserved for it."
 		exit "$E_INVALID"
 	}
 companion="${user}-docker"
-# Group names cap at 32 on every target and the companion needs its own group, so a customer name
-# over 25 characters would only fail deep inside groupadd, with the account already created.
+# Group names cap at 32, and groupadd would fail after the account exists.
 [ ${#companion} -le 32 ] || {
 	echo "ERROR: user name '$user' is too long for docker - the companion '$companion' exceeds 32 characters."
 	exit "$E_INVALID"
@@ -133,29 +100,19 @@ if [ -n "$existing" ] && [ "$existing" != "$companion" ]; then
 	echo "ERROR: companion uid $companion_uid is held by '$existing'."
 	exit "$E_EXISTS"
 fi
-# Symmetric to the uid check: a foreign group would otherwise only surface as "could not
-# create <companion>" from the useradd.
 existing="$(getent group "$companion_uid" | cut -d: -f1)"
 if [ -n "$existing" ] && [ "$existing" != "$companion" ]; then
 	echo "ERROR: companion gid $companion_uid is held by group '$existing'."
 	exit "$E_EXISTS"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Before the health guard below, which exits early on a healthy customer: putting this after it
-# would make the scope unchangeable for exactly the customers that are already running.
+# Before the health guard, which exits early: otherwise a running customer's scope could never change.
 #
-# update_user_value alone is not enough - it rewrites an existing line and does nothing at all when
-# the key is absent, which is the normal state until a rebuild seeds it (#559). Inserted before
-# TIME= rather than appended, so the key never lands on the last line.
+# update_user_value only rewrites a line that exists; an absent key goes in before TIME=, never last.
 if [ -n "$backup_scope" ] || ! grep -q "^DOCKER_BACKUP='" "$USER_DATA/user.conf" 2> /dev/null; then
 	scope="${backup_scope:-$(get_user_value '$DOCKER_BACKUP')}"
-	# Normalise, do not just default: the argument is validated above, but a value carried over from
-	# user.conf is not, and a hand-edited one would otherwise be written back unchecked. h-backup-user
-	# treats anything but 'full' as 'volumes', so this keeps the file saying what actually happens.
+	# Normalised: a value carried over from the record is unchecked, and h-backup-user reads anything but
+	# 'full' as 'volumes'.
 	[ "$scope" = 'full' ] || scope='volumes'
 	if grep -q "^DOCKER_BACKUP='" "$USER_DATA/user.conf" 2> /dev/null; then
 		update_user_value "$user" '$DOCKER_BACKUP' "$scope"
@@ -207,17 +164,14 @@ fi
 
 if ! getent passwd "$companion" > /dev/null 2>&1; then
 	echo "Creating companion $companion (uid $companion_uid)..."
-	# Its OWN group: the customer home is group::--- with other::--x, so an account in that
-	# group is caught by the empty entry and never reaches other:: - it could not even
-	# traverse into its own home.
+	# Its own group: in the customer's group the home's empty group entry would keep it out of its own home.
 	getent group "$companion" > /dev/null 2>&1 \
 		|| /usr/sbin/groupadd -g "$companion_uid" "$companion" \
 		|| {
 			echo "ERROR: could not create group $companion (gid $companion_uid)"
 			exit "$E_INVALID"
 		}
-	# SUB_UID_COUNT=0 suppresses the range useradd assigns on Ubuntu, which would sit
-	# FIRST in /etc/subuid and shift the whole mapping.
+	# SUB_UID_COUNT=0: the range Ubuntu's useradd assigns would sit first in /etc/subuid and shift the mapping.
 	/usr/sbin/useradd "$companion" -u "$companion_uid" -g "$companion_uid" \
 		-K UID_MAX="$IDENTITY_BAND_END" -K SUB_UID_COUNT=0 -K SUB_GID_COUNT=0 \
 		-d "$companion_home" -m -s /usr/sbin/nologin \
@@ -231,9 +185,7 @@ fi
 # The DIRECTORY carries the customer's group at 0710: traverse to the socket, no listing.
 home_dir_own "$companion_home" "$companion:$gid" 0710 || check_result "$E_FORBIDEN" "$companion_home is not a directory"
 
-# Order is semantic: newuidmap consumes the lines in file order, giving container
-# 1-999, container 1000 = the customer, container 1001-65536. Deleted before appending
-# so a re-run cannot stack a second set.
+# Order matters: newuidmap maps container 1-999, 1000 = the customer, 1001-65536 in file order.
 echo "Writing subordinate id ranges..."
 for f in /etc/subuid /etc/subgid; do
 	sed -i "/^${companion//./\\.}:/d" "$f"
@@ -249,13 +201,12 @@ done
 	printf '%s:%s:64536\n' "$companion" "$((sub_base + 999))"
 } >> /etc/subgid
 
-# hidepid hides the pids runc needs for its container scope; the companion runs it (#565).
+# hidepid hides the pids runc needs for its container scope.
 if command -v proc_visible_add > /dev/null 2>&1; then
 	proc_visible_add "$companion" > /dev/null 2>&1 || true
 fi
 
-# Containers have to survive logout and reboot, which is what linger buys - and it is
-# the one real capability change here.
+# Linger keeps containers over logout and reboot.
 loginctl enable-linger "$companion" > /dev/null 2>&1
 for _ in $(seq 1 20); do
 	[ "$(systemctl is-active "user@${companion_uid}.service" 2> /dev/null)" = 'active' ] && break
@@ -266,15 +217,13 @@ if [ "$(systemctl is-active "user@${companion_uid}.service" 2> /dev/null)" != 'a
 	exit "$E_INVALID"
 fi
 
-# Only intervene where something is missing. A re-run is the supported recovery path, so
-# it must not restart a daemon that is serving containers - that is a real outage.
+# A re-run must not restart a daemon that serves containers.
 override_dir="$companion_home/.config/systemd/user/docker.service.d"
 override_want="$(sed -e "s|__RUNSOCK__|/run/user/$companion_uid/docker.sock|g" \
 	-e "s|__SOCK__|$companion_home/docker.sock|g" -e "s|__GID__|1000|g" \
 	"$HESTIA/share/docker/systemd/docker-rootless-override.conf")"
 
-# BOTH keys: "ip" covers only the default bridge and compose creates a project net per stack;
-# default-network-opts extends the bind to every new bridge net (measured).
+# Both keys: "ip" covers only the default bridge, default-network-opts every bridge compose creates.
 daemon_json="$companion_home/.config/docker/daemon.json"
 daemon_json_want="$(printf '{\n  "ip": "%s",\n  "default-network-opts": {\n    "bridge": {\n      "com.docker.network.bridge.host_binding_ipv4": "%s"\n    }\n  }\n}' "$docker_ip" "$docker_ip")"
 
@@ -286,15 +235,12 @@ if docker_alive && [ "$(cat "$override_dir/hestia.conf" 2> /dev/null)" = "$overr
 	exit
 fi
 
-# Exit code is NOT the verdict: its last act is starting the daemon, which fails when
-# one already runs or a stale unit arrived with a restored home. It writes the unit; the
-# liveness probe below decides.
+# Its exit code is no verdict: starting the daemon fails when one runs already. The liveness probe decides.
 echo "Installing the rootless daemon..."
 setup_log="$(mktemp -t hestia-docker-setup.XXXXXX)"
 companion_run dockerd-rootless-setuptool.sh install > "$setup_log" 2>&1 || true
 
-# Both sockets and the numeric group: see the template header. Placeholders are __UPPER__
-# so substitution cannot rewrite the prose around them.
+# Placeholders are __UPPER__ so substitution cannot touch the template's prose.
 # Written as the companion: the customer can plant links below .companion before it is handed over.
 companion_write() {
 	setpriv --reuid "$companion_uid" --regid "$companion_uid" --clear-groups -- \
@@ -310,11 +256,8 @@ chown -R "$companion":"$gid" "$companion_home/.config"
 
 install -m 644 "$HESTIA/share/docker/profile.d-hestia-docker.sh" /etc/profile.d/hestia-docker.sh
 
-# restart, not enable --now: on a running unit --now is a no-op and the daemon keeps the
-# pre-override ExecStart. reset-failed is not cosmetic either - a restored home brings
-# the unit enabled plus the previous host's override, whose socket path carries the old
-# companion uid, so linger starts it, dockerd dies binding it, and the rate limiter
-# latches; the restart would then be refused outright.
+# restart, not enable --now, which keeps the old ExecStart on a running unit. reset-failed because a restored
+# home's stale unit can trip the start limit before this runs.
 companion_run systemctl --user daemon-reload > /dev/null 2>&1
 companion_run systemctl --user reset-failed docker > /dev/null 2>&1
 companion_run systemctl --user enable docker > /dev/null 2>&1
@@ -331,19 +274,15 @@ if ! docker_alive; then
 fi
 rm -f "$setup_log"
 
-# The slice exists only once the manager runs, so the cap goes on here rather than at package time
+# The slice exists only once the manager runs.
 docker_slice_apply "$user" "$(get_user_value '$DOCKER_LIMIT')"
 
 echo "Docker is enabled for $user."
 
-# The /24 separation rule renders from the user records; follow enable/disable immediately
+# The /24 separation rule renders from the user records.
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	$BIN/h-update-firewall > /dev/null 2>&1
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Enabled rootless Docker for $user."
 log_event "$OK" "$ARGUMENTS"

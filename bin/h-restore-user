@@ -1464,7 +1464,8 @@ rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key
 # Re-enable Docker if the archive carried a companion home. The companion account is not in the
 # archive and its uid follows from the customer's, which was just reallocated - so it is recreated
 # with fresh subordinate ranges. Images are not restored, they are pulled.
-if [ -d "$HOMEDIR/$user/.companion" ] && [ -x "$BIN/h-add-user-docker" ]; then
+# The grant is DOCKER_IP in the record; a directory in the home is the customer's to create.
+if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ] && [ -x "$BIN/h-add-user-docker" ]; then
 	echo -e "$(date "+%F %T") docker companion" | tee -a $tmpdir/restore.log
 
 	# Re-own BEFORE enabling: the unpacked tree still belongs to the archived companion uid (tar

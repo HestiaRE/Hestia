@@ -666,21 +666,15 @@ generate_password() {
 	return 1
 }
 
-# Package existence check
+# Package existence; an empty name would address $CONF_DIR/packages/.pkg, a package no listing shows.
 is_package_valid() {
-	if [ -z $1 ]; then
-		if [ ! -e "$CONF_DIR/packages/$package.pkg" ]; then
-			check_result "$E_NOTEXIST" "package $package doesn't exist"
-		fi
-	else
-		if [ ! -e "$CONF_DIR/packages/$1.pkg" ]; then
-			check_result "$E_NOTEXIST" "package $1 doesn't exist"
-		fi
-	fi
-
+	local p=${1:-$package}
+	[ -n "$p" ] || check_result "$E_INVALID" "no package given"
+	[ -e "$CONF_DIR/packages/$p.pkg" ] || check_result "$E_NOTEXIST" "package $p doesn't exist"
 }
 
 is_package_new() {
+	[ -n "$1" ] || check_result "$E_INVALID" "no package given"
 	if [ -e "$CONF_DIR/packages/$1.pkg" ]; then
 		echo "Error: package $1 already exists."
 		log_event "$E_EXISTS" "$ARGUMENTS"

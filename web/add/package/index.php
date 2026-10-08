@@ -51,7 +51,7 @@ if (!empty($_POST["ok"])) {
 	verify_csrf($_POST);
 	$errors = [];
 	// Check empty fields
-	if (!isset($_POST["v_package"])) {
+	if (trim($_POST["v_package"] ?? "") === "") {
 		$errors[] = _("Package");
 	}
 	if ($offer_web_template && !isset($_POST["v_web_template"])) {

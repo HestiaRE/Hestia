@@ -1350,6 +1350,8 @@ check_record_grammar() {
 	for f in "$CONF_DIR/users"/*/user.conf "$CONF_DIR/users"/*/*.conf "$CONF_DIR/users"/*/mail/*.conf \
 		"$CONF_DIR/ips"/* "$CONF_DIR/packages"/*.pkg "$HESTIA/conf/hestia.conf"; do
 		[ -f "$f" ] || continue
+		# The restic password file is a bare key, not a record, and must never be echoed.
+		[ "${f##*/}" = restic.conf ] && continue
 		while IFS= read -r line; do
 			[ -n "$line" ] || continue
 			n=$((n + 1))

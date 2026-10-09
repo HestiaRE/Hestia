@@ -343,7 +343,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	exim_lists_unexpanded_apply exim_relay_dkim_apply sieve_learn_ham_apply
 	sieve_managesieve_local_apply proftpd_chroot_symlinks_apply proftpd_systemlog_apply stats_auth_fragment_apply
 	pma_proxy_nginx_apply acme_host_location_apply apache_remoteip_link_apply
-	web_model_snap_dir_apply filemanager_refresh_apply)
+	web_model_snap_dir_apply filemanager_refresh_apply panel_caddy_rrd_internal_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

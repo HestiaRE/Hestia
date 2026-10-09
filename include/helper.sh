@@ -613,6 +613,29 @@ pma_proxy_nginx_apply() {
 	systemctl reload nginx
 }
 
+# The rrd store sits under the panel web root and belongs to the admin view alone. Edited in place, never
+# copied: the site carries the panel port. A file that no longer parses gets the old one back.
+panel_caddy_rrd_internal_apply() {
+	local f='/etc/caddy/hestia.conf' bak
+	[ -f "$f" ] || return 0
+	if ! grep -q '^[[:space:]]*@internal path ' "$f"; then
+		echo "update: $f has no @internal matcher - add /rrd/* to whatever keeps the panel internals unreachable" >&2
+		return 0
+	fi
+	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+	# Before a trailing comment, so the path does not land inside it.
+	sed -i 's|^\([[:space:]]*@internal path [^#]*[^#[:space:]]\)|\1 /rrd/*|' "$f"
+	if ! grep -q '^[[:space:]]*@internal path [^#]* /rrd/\*' "$f" \
+		|| ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > /dev/null 2>&1; then
+		cp -p "$bak" "$f"
+		rm -f "$bak"
+		return 1
+	fi
+	rm -f "$bak"
+	# Not reload: the panel Caddy runs with the admin API off.
+	systemctl try-restart caddy
+}
+
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
 # directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {

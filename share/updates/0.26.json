@@ -24,6 +24,16 @@
       "action": { "type": "function_call", "function": "apache_remoteip_link_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "panel-rrd-internal",
+      "description": "The server statistics under the panel web root are served only through the admin view",
+      "conditions": [
+        { "type": "file_lacks", "path": "/etc/caddy/hestia.conf", "value": "/rrd/*" }
+      ],
+      "action": { "type": "function_call", "function": "panel_caddy_rrd_internal_apply" },
+      "paths": ["/etc/caddy/hestia.conf"],
+      "reversible": false
     }
   ]
 }

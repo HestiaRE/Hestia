@@ -46,26 +46,18 @@ is_object_unsuspended 'user' 'USER' "$user"
 # the sub-commands resolve their own v6.
 [ -z "$ip" ] && get_user_ip
 
-# Working on web domain
+# All or nothing: a full package on one side must not leave the domain half added.
+[ -n "$WEB_SYSTEM" ] && is_package_full 'WEB_DOMAINS'
+[ -n "$MAIL_SYSTEM" ] && is_package_full 'MAIL_DOMAINS'
+
 if [ -n "$WEB_SYSTEM" ]; then
-	check1=$(is_package_full 'WEB_DOMAINS')
-	if [ $? -eq 0 ]; then
-		$BIN/h-add-web-domain "$user" "$domain" "$ip" 'no'
-		check_result $? "can't add web domain"
-	fi
+	$BIN/h-add-web-domain "$user" "$domain" "$ip" 'no'
+	check_result $? "can't add web domain"
 fi
 
-# Working on mail domain
 if [ -n "$MAIL_SYSTEM" ]; then
-	check3=$(is_package_full 'MAIL_DOMAINS')
-	if [ $? -eq 0 ]; then
-		$BIN/h-add-mail-domain "$user" "$domain"
-		check_result $? "can't add mail domain"
-	fi
-fi
-
-if [[ "$check1" != '' && "$check3" != '' ]]; then
-	check_result 8 "Package limit reached"
+	$BIN/h-add-mail-domain "$user" "$domain"
+	check_result $? "can't add mail domain"
 fi
 
 # Restarting services

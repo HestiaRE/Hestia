@@ -57,6 +57,18 @@ fi
 # Changing IP status
 update_ip_value '$STATUS' "$ip_status"
 
+# As h-add-sys-ip counts: a shared admin address is available to every account, a dedicated one to the admin only.
+if [ "$(get_ip_value '$OWNER')" = "$ROOT_USER" ]; then
+	for hestia_user in $("$BIN/h-list-users" list); do
+		[ "$hestia_user" = "$ROOT_USER" ] && continue
+		if [ "$ip_status" = 'shared' ]; then
+			increase_user_value "$hestia_user" '$IP_AVAIL'
+		else
+			decrease_user_value "$hestia_user" '$IP_AVAIL'
+		fi
+	done
+fi
+
 #----------------------------------------------------------#
 #                       Hestia                             #
 #----------------------------------------------------------#

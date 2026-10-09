@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: update mail rrd
 # options: [PERIOD]
+# labels: internal
+# caller: h-update-sys-rrd
 #
 # example: h-update-sys-rrd-mail
 #

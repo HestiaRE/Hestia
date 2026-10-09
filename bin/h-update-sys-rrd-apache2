@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: update apache2 rrd
 # options: [PERIOD]
+# labels: internal
+# caller: h-update-sys-rrd
 #
 # example: h-update-sys-rrd-apache2
 #

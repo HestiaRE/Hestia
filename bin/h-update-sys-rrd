@@ -1,6 +1,8 @@
 #!/bin/bash
 # info: update system rrd charts
 # options: NONE
+# labels: internal
+# caller: cron
 #
 # example: h-update-sys-rrd
 #

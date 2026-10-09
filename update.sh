@@ -185,7 +185,8 @@ say "[ * ] Stopping the panel and unpacking $TARGET over $HESTIA"
 # Webmail runs behind the panel Caddy too, so a run that stops after this point must not leave it down.
 trap 'systemctl start caddy hestia-php 2> /dev/null || true' EXIT
 systemctl stop caddy hestia-php 2> /dev/null || true
-cp -r "$NEWTREE/." "$HESTIA/" || die "update: the overlay failed - put the tree back with $RUNDIR/rollback.sh"
+cp -r "$NEWTREE/." "$HESTIA/" \
+	|| die "update: the overlay failed, the panel restarts on a mixed tree - put the tree back with $RUNDIR/rollback.sh"
 
 # A pin of 'release' would resolve to an older public tag, and the nightly --check would refuse.
 # Same pin the installer writes.

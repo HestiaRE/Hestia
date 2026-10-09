@@ -59,7 +59,7 @@ fi
 if [ -n "$MAIL_SYSTEM" ]; then
 	check3=$(is_package_full 'MAIL_DOMAINS')
 	if [ $? -eq 0 ]; then
-		$BIN/h-add-mail-domain $user $domain 'no'
+		$BIN/h-add-mail-domain "$user" "$domain"
 		check_result $? "can't add mail domain"
 	fi
 fi

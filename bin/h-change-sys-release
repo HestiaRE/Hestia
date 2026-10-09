@@ -5,26 +5,15 @@
 # example: h-change-sys-release release
 # example: h-change-sys-release v0.21
 #
-# TARGET is `release` for the newest tag, or a vX.Y.Z pin. There are no channels. A pin is checked
-# before it is written: a tag nobody carries would stop updates silently, and one below the installed
-# version could never apply.
+# TARGET is `release` for the newest tag, or a vX.Y pin. A pin is checked before it is written: a tag
+# nobody carries would stop updates silently, and one below the installed version could never apply.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 target=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/release.sh
 source $HESTIA/include/release.sh
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ -z "$target" ]; then
 	echo "Usage: h-change-sys-release TARGET"
@@ -43,8 +32,7 @@ case "$target" in
 		if ! release_tag_exists "$target"; then
 			check_result "$E_NOTEXIST" "the release source has no tag $target - nothing would be fetched"
 		fi
-		# An update never goes backwards, so a pin below the installed version could never apply.
-		# Refused here as well as in update.sh, so the mistake is answered where it is made.
+		# update.sh refuses it too; here the mistake is answered where it is made.
 		installed=$(cat "$HESTIA/VERSION" 2> /dev/null)
 		if ! version_ge "$target" "$installed"; then
 			check_result "$E_INVALID" "$target is older than the installed $installed - a pin below it would never apply"
@@ -53,11 +41,6 @@ case "$target" in
 	*) check_result "$E_INVALID" "expected 'release' or a tag like v0.21, got '$target'" ;;
 esac
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# The one writer (temp+rename, verified) instead of an unanchored delete-and-append (#978)
 change_sys_value "RELEASE_BRANCH" "$target"
 if [ "$target" = release ]; then
 	latest=$(release_latest_tag)
@@ -69,10 +52,6 @@ if [ "$target" = release ]; then
 else
 	echo "This box is pinned to $target."
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Release target changed (Value: $target)."
 exit

@@ -1,26 +1,15 @@
 #!/bin/bash
-# HestiaRE updater: find the release, secure what gets overwritten, unpack it, derive the plan from
-# the new tree, hand it to the executor. One root, $HESTIA.
-#
-# The self-update is finished before anything on the box changes. update.sh ships inside the release
-# tarball, so the tarball this run needs anyway carries the newer updater: it is fetched, verified,
-# and if it differs from the running file this process exec's into it, once, with the tarball handed
-# over so it is not fetched twice. No second fetch path, no swap in the middle of the work.
+# HestiaRE updater: find the release, secure what gets overwritten, unpack it, derive the plan from the
+# new tree, hand it to the executor. A newer updater in the tarball takes over once, before anything changes.
 #
 # Usage: update.sh [--check]
 
-# No `set -u` here: main.sh reads $user before it is set (main.sh:115), the way every h-* command
-# expects. A lone nounset in the one script that sources it aborts before anything runs.
+# No set -u: main.sh reads $user unset, as every h-* command expects.
 umask 0022
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
-# The library that shipped with THIS updater, not the installed one (#1080). After the handover the
-# running script comes from the tarball while $HESTIA is still the old tree, and a function the new
-# updater needs may be missing there: the checksum fetch then failed as "command not found", which an
-# if reads as "this release publishes none", and the tarball was unpacked unverified.
-# Not every start has a tree beside it: UPDATE.md's recovery path drops this file in /root and runs
-# it from there, so an absent library falls back to the installed one. After the handover it may not
-# be absent - the tarball carries it - and a missing one there is a broken unpack, not a fallback.
+# The library shipped with THIS updater, since after the handover $HESTIA is still the old tree. Absent only
+# on a recovery run from /root, then the installed one; absent after a handover is a broken unpack.
 UPD_SELF_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2> /dev/null && pwd)
 UPD_LIB="$UPD_SELF_DIR/include/release.sh"
 if [ ! -r "$UPD_LIB" ]; then
@@ -36,9 +25,7 @@ source "$UPD_LIB"
 CHECK_ONLY=no
 [ "${1:-}" = "--check" ] && CHECK_ONLY=yes
 
-# A box below this is reinstalled, not updated: no release under it carried an updater, so there is
-# no run this one could be finishing. After the handover the target's own literal decides, which is
-# the second look at the question and the reason no manifest field repeats it.
+# A box below this is reinstalled, not updated. After the handover the target's own literal decides.
 UPDATE_MIN_VERSION='v0.21'
 
 tree_version() { cat "$HESTIA/VERSION" 2> /dev/null; }
@@ -50,14 +37,8 @@ die() {
 	exit 1
 }
 
-#----------------------------------------------------------#
-#                   Find, and hand over                    #
-#----------------------------------------------------------#
-
-# HESTIA_RELEASE_URL hands this run a tarball instead of a tag. It is a test mechanism and stops at
-# the download: the resolver below, --check and the panel flag keep asking the real source, so a test
-# build can never leave a box claiming an update is waiting. What the tarball is gets read from its
-# own VERSION after unpacking, which is why the downgrade refusal sits further down in this mode.
+# HESTIA_RELEASE_URL is a test mechanism and stops at the download: --check and the panel flag keep asking
+# the real source. The tarball's own VERSION names the target, so the downgrade check sits further down.
 OVERRIDE=$(release_override_url)
 TREE=$(tree_version)
 if [ -n "$OVERRIDE" ]; then
@@ -69,23 +50,19 @@ else
 	say "Installed: ${TREE:-unknown}   Target: $TARGET"
 fi
 
-# version_ge comes from main.sh through release.sh and carries the `v`, so the tag, the tree and this
-# literal are compared in the form they are all written in. An unreadable version loses.
+# version_ge carries the v, the form tag, tree and this literal are all written in. Unreadable loses.
 version_ge "$TREE" "$UPDATE_MIN_VERSION" \
 	|| die "update: this box says ${TREE:-nothing}, and the lower bound is $UPDATE_MIN_VERSION - it is reinstalled, not updated. Nothing was touched."
 [ -z "$TARGET" ] \
 	|| version_ge "$TARGET" "$TREE" \
 	|| die "update: $TARGET is older than the installed $TREE - an update never goes backwards. Nothing was touched."
 
-# --check answers "is something newer published", and an override was handed a fixed file instead of
-# an answer. Refused rather than quietly reporting on the real source: the flag it writes is read by
-# the panel, and a test run has no business touching it.
+# The panel reads the flag --check writes, and a test tarball has no business touching it.
 [ -z "$OVERRIDE" ] || [ "$CHECK_ONLY" = no ] \
 	|| die "update: --check asks the release source, and this run was handed a fixed tarball. Nothing was touched."
 
-# --check is also the writer of the panel flag, and it sits BEFORE the early exit: behind it the
-# "nothing to do" branch leaves, and a key set once would keep the banner up forever. It is the one
-# place that already knows the answer. Empty, not "no": absent and empty are one state everywhere.
+# Before the early exit, or a flag set once would keep the banner up forever. Empty, not "no": absent and
+# empty are one state.
 if [ "$CHECK_ONLY" = yes ]; then
 	_flag=$(sed -n "s/^UPDATE_AVAILABLE='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1)
 	if [ "$TARGET" = "$TREE" ]; then
@@ -98,14 +75,9 @@ if [ "$CHECK_ONLY" = yes ]; then
 	exit 0
 fi
 
-#----------------------------------------------------------#
-#                      Is there work                       #
-#----------------------------------------------------------#
-
 STATUS=$(status_version)
 if [ -n "$TARGET" ] && [ "$TARGET" = "$TREE" ]; then
-	# Leaving is only right when the last run also finished: a status behind the tree means a plan
-	# was never worked off.
+	# Leaving is only right when the last run also finished.
 	if [ "$STATUS" = "$TREE" ] && [ "$("$HESTIA/bin/h-list-sys-updates" json "$TREE" 2> /dev/null | jq -r '.count // 0')" = 0 ]; then
 		say "Already on $TREE, nothing to do."
 		exit 0
@@ -116,10 +88,6 @@ if [ -n "$TARGET" ] && [ "$TARGET" = "$TREE" ]; then
 		say "[ ! ] tree is $TREE but the status says ${STATUS:-<empty>} - running $TARGET again to finish that run"
 	fi
 fi
-
-#----------------------------------------------------------#
-#                    Fetch and verify                      #
-#----------------------------------------------------------#
 
 RUNDIR="${HESTIA_UPDATE_RUNDIR:-/root/hestiare-update/$(date '+%Y-%m-%d_%H-%M-%S')_${TREE:-unknown}_${TARGET:-override}}"
 mkdir -p "$RUNDIR" || die "update: cannot create $RUNDIR"
@@ -132,10 +100,8 @@ if [ ! -s "$TARBALL" ]; then
 	[ -s "$TARBALL" ] || die "update: the downloaded tarball is empty"
 fi
 
-# A missing checksum is not an error, a wrong one is. Compared by value rather than with
-# `sha256sum -c`, which also insists on the file name the publisher wrote: the same bytes fetched
-# through an override arrive under a different name. More than one entry is refused instead of
-# passing on the strength of whichever line happened to match.
+# A missing checksum is not an error, a wrong one is. By value, not sha256sum -c: an override arrives under
+# another file name. More than one line is refused rather than matched.
 if release_fetch_asset .sha256 "$RUNDIR/sha256" "$TARGET" 2> /dev/null \
 	&& [ -s "$RUNDIR/sha256" ]; then
 	_lines=$(awk 'NF{n++} END{print n+0}' "$RUNDIR/sha256")
@@ -151,9 +117,7 @@ else
 	say "[ ! ] ${TARGET:-this tarball} publishes no checksum - the tree version is the only check"
 fi
 
-# The root directory comes from the tarball itself, never from its name: the release asset carries
-# hestiare-<tag>/, an archive built straight from the repository carries hestiare/. Exactly one entry,
-# or this is not a release tarball and nothing below it would be true.
+# The root comes from the tarball, never its name: a release carries hestiare-<tag>/, a repo archive hestiare/.
 NEWROOT=$(tar tzf "$TARBALL" | cut -d/ -f1 | sort -u)
 if [ -z "$NEWROOT" ] || [ "$(printf '%s\n' "$NEWROOT" | wc -l)" != 1 ]; then
 	die "update: the tarball has no single root directory, it holds: ${NEWROOT:-nothing}"
@@ -165,9 +129,7 @@ GOT=$(cat "$NEWTREE/VERSION" 2> /dev/null)
 if [ -n "$TARGET" ]; then
 	[ "$GOT" = "$TARGET" ] || die "update: asked for $TARGET, the tarball says '${GOT:-nothing}' - refusing"
 else
-	# The override asked for no tag, so the tarball's own VERSION is what this run goes to. The
-	# downgrade refusal happens here for that reason, and it is still before the first change to the
-	# box: only this run directory has been written so far.
+	# The override names no tag, so the tarball's VERSION is the target. Still before the first change.
 	[ -n "$GOT" ] || die "update: the tarball carries no VERSION, so there is nothing to call this run - refusing"
 	version_ge "$GOT" "$TREE" \
 		|| die "update: the tarball is $GOT, older than the installed $TREE - an update never goes backwards. Nothing was touched."
@@ -175,8 +137,7 @@ else
 	say "[ * ] The tarball says it is $TARGET"
 fi
 
-# The handover. Nothing on the box has changed yet: only this run directory was written. The mark
-# says this process already IS the newer updater, so it cannot hand over to itself again.
+# Nothing on the box has changed yet. The mark keeps this process from handing over to itself again.
 if [ -z "${HESTIA_UPDATE_HANDOVER:-}" ] && [ -f "$NEWTREE/update.sh" ] \
 	&& ! cmp -s "$NEWTREE/update.sh" "$0"; then
 	say "[ * ] $TARGET carries a different updater - handing over to it before anything is changed"
@@ -184,17 +145,12 @@ if [ -z "${HESTIA_UPDATE_HANDOVER:-}" ] && [ -f "$NEWTREE/update.sh" ] \
 	exec bash "$NEWTREE/update.sh" "$@"
 fi
 
-#----------------------------------------------------------#
-#                        Secure                            #
-#----------------------------------------------------------#
-
 say "[ * ] Securing the current tree"
 tar czf "$RUNDIR/install-root.tar.gz" -C "$(dirname "$HESTIA")" "$(basename "$HESTIA")" \
 	|| die "update: could not write the backup of $HESTIA - nothing has been changed yet"
 cp -a "$HESTIA/conf/hestia.conf" "$RUNDIR/hestia.conf" || die "update: could not secure hestia.conf"
 
-# Written before the overlay, so it exists even if that step is the one that fails. The executor
-# names exactly this path.
+# Before the overlay, so it exists if that step is the one that fails. The executor names this path.
 cat > "$RUNDIR/rollback.sh" << ROLLBACK
 #!/bin/bash
 # Put back what this run replaced. Refuses once the run passed its point of no return, because from
@@ -225,18 +181,14 @@ echo "A file an entry created did not exist before and is still there; only save
 ROLLBACK
 chmod 700 "$RUNDIR/rollback.sh"
 
-#----------------------------------------------------------#
-#                    Unpack and derive                     #
-#----------------------------------------------------------#
-
 say "[ * ] Stopping the panel and unpacking $TARGET over $HESTIA"
 # Webmail runs behind the panel Caddy too, so a run that stops after this point must not leave it down.
 trap 'systemctl start caddy hestia-php 2> /dev/null || true' EXIT
 systemctl stop caddy hestia-php 2> /dev/null || true
 cp -r "$NEWTREE/." "$HESTIA/" || die "update: the overlay failed - put the tree back with $RUNDIR/rollback.sh"
 
-# From here the tree IS the tarball, and a pin of 'release' would resolve to an older public tag, so
-# the nightly --check would die on the downgrade refusal. Same pin the installer writes.
+# A pin of 'release' would resolve to an older public tag, and the nightly --check would refuse.
+# Same pin the installer writes.
 if [ -n "$OVERRIDE" ]; then
 	if "$HESTIA/bin/h-change-sys-config-value" RELEASE_BRANCH "$TARGET" > /dev/null 2>&1; then
 		say "[ * ] Pinned RELEASE_BRANCH to $TARGET"
@@ -258,9 +210,5 @@ while read -r _p; do
 	mkdir -p "$RUNDIR/paths$(dirname "$_p")"
 	cp -a "$_p" "$RUNDIR/paths$_p" 2> /dev/null || true
 done < <(jq -r '.entries[].paths[]?' "$RUNDIR/update.conf" 2> /dev/null | sort -u)
-
-#----------------------------------------------------------#
-#                        Play it                           #
-#----------------------------------------------------------#
 
 "$HESTIA/sbin/h-update-hestia" "$RUNDIR/update.conf"

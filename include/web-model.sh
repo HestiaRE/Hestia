@@ -108,6 +108,58 @@ configure_apache2() {
 	systemctl restart apache2
 }
 
+# Shared with the installer. No start here: in a switch apache still holds :80 until the rebuild, so the caller starts it.
+configure_nginx() {
+	echo "[ * ] Installing nginx..."
+	_web_apt_install nginx || return 1
+
+	echo "[ * ] Configuring nginx..."
+	rm -f /etc/nginx/conf.d/*.conf
+	cp -f "$HESTIA/share/nginx/nginx.conf" /etc/nginx/ || return 1
+	cp -f "$HESTIA/share/nginx/status.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/0rtt-anti-replay.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/websocket-upgrade.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/agents.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/cloudflare.inc" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/logrotate" /etc/logrotate.d/nginx
+	mkdir -p /etc/nginx/conf.d/domains /etc/nginx/conf.d/main /etc/nginx/modules-enabled /var/log/nginx/domains
+
+	# A v6 nameserver counts only bracketed, a link-local one not at all; anchored on the directive so the default
+	# list stays nginx.conf's.
+	local resolver="" ns
+	for ns in $(grep -is '^nameserver' /etc/resolv.conf | awk '{print $2}'); do
+		case "$ns" in
+			fe80:* | *%*) continue ;;
+			*:*) resolver="${resolver:+$resolver }[$ns]" ;;
+			*) echo "$ns" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' \
+				&& resolver="${resolver:+$resolver }$ns" ;;
+		esac
+	done
+	[ -n "$resolver" ] && sed -i "s|^\(\s*resolver\s\+\).*|\1$resolver valid=300s;|" /etc/nginx/nginx.conf
+	# An AAAA answer is a dead upstream where the kernel has no v6.
+	if [ ! -e /proc/net/if_inet6 ]; then
+		sed -i "s|^\(\s*resolver\s\+.*\);|\1 ipv6=off;|" /etc/nginx/nginx.conf
+	fi
+
+	echo "[ * ] Updating Cloudflare IP ranges..."
+	local cf_ips
+	cf_ips=$(curl -fsLm5 --retry 2 https://api.cloudflare.com/client/v4/ips 2> /dev/null || echo "")
+	if [ -n "$cf_ips" ] && [ "$(echo "$cf_ips" | jq -r '.success//""')" = "true" ]; then
+		{
+			echo "# Cloudflare IP Ranges"
+			echo ""
+			echo "# IPv4"
+			echo "$cf_ips" | jq -r '.result.ipv4_cidrs[]//""' | sort | sed 's/^/set_real_ip_from /;s/$/;/'
+			echo ""
+			echo "# IPv6"
+			echo "$cf_ips" | jq -r '.result.ipv6_cidrs[]//""' | sort | sed 's/^/set_real_ip_from /;s/$/;/'
+			echo ""
+			echo "real_ip_header CF-Connecting-IP;"
+		} > /etc/nginx/conf.d/cloudflare.inc
+		echo "  Cloudflare ranges updated"
+	fi
+}
+
 # apache_remoteip_enable [IP...]
 # Only in "both": apache trusts X-Real-IP from nginx. The caller restarts.
 apache_remoteip_enable() {
@@ -481,6 +533,8 @@ web_model_run() {
 		&& { [ "$purge" = "yes" ] && echo "  - apache2 will be PURGED (/etc/apache2 incl. custom includes + fm--listen.conf)" || echo "  - apache2 will be stopped+disabled (package kept)"; }
 	web_model_uses_apache "$current" && web_model_uses_apache "$target" \
 		&& echo "  - apache2.conf + module config are rewritten from share/ (existing customizations are snapshotted, not merged)"
+	web_model_uses_nginx "$target" && ! web_model_uses_nginx "$current" \
+		&& { command -v nginx > /dev/null 2>&1 && echo "  - nginx is enabled again with the configuration it kept" || echo "  - nginx will be installed/configured"; }
 	web_model_uses_nginx "$current" && ! web_model_uses_nginx "$target" \
 		&& { [ "$purge" = "yes" ] && echo "  - nginx will be PURGED (/etc/nginx incl. custom includes)" || echo "  - nginx will be stopped+disabled (package kept)"; }
 	[ "$target" = "both" ] && echo "  - mod_remoteip enabled (apache trusts nginx X-Real-IP)"
@@ -534,6 +588,14 @@ web_model_run() {
 		echo "[ * ] Setting up apache2..."
 		if ! configure_apache2 || ! command -v apache2ctl > /dev/null 2>&1; then
 			_wm_fail "apache2 setup failed"
+			return 1
+		fi
+	fi
+	# Only where it is missing: a kept nginx still carries its conf.d, which the setup would wipe.
+	if web_model_uses_nginx "$target" && ! command -v nginx > /dev/null 2>&1; then
+		echo "[ * ] Setting up nginx..."
+		if ! configure_nginx || ! command -v nginx > /dev/null 2>&1; then
+			_wm_fail "nginx setup failed"
 			return 1
 		fi
 	fi

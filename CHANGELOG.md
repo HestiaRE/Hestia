@@ -19,6 +19,9 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **The hostname gets a Let's Encrypt certificate on mail-only** (#1210). It stayed self-signed, so
+  exim, dovecot and the panel presented an untrusted certificate for the server name. It is now
+  issued and renewed without a web domain.
 - **Backup and restore tightened** (#1176). A restic restore no longer reports success when a part
   failed, refuses a domain another user holds, keeps custom docroots and FTP accounts, and stages in
   the backup temp. Deleting an archive reaches every configured transport, and a server backup that

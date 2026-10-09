@@ -33,7 +33,7 @@ name="${user}_${domain}_${timestamp}.zip"
 archive="$BACKUP/$name"
 
 # The panel reads it back as hestia; other customers must not, for the hour it stays.
-(umask 077 && : > "$archive") && chown root:hestia "$archive" && chmod 640 "$archive" \
+(umask 077 && : > "$archive") && chown "hestia:$user" "$archive" && chmod 640 "$archive" \
 	|| check_result "$E_BACKUP" "cannot create $archive"
 
 # zip reads as the customer, so the archive holds what the customer can read; root only writes the file.

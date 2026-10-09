@@ -1,8 +1,8 @@
 #!/bin/bash
 # info: restart proxy server
-# options: NONE
+# options: [RESTART]
 #
-# example: h-restart-proxy [RESTART]
+# example: h-restart-proxy
 #
 # This function reloads proxy server configuration.
 
@@ -78,66 +78,34 @@ if [ "$1" = "updatessl" ]; then
 	exit
 fi
 
-if [ -f "$HESTIA/web/inc/nginx_proxy" ]; then
-	# if hestia is behind default nginx, restart in background with 15 sec delay
-	# background restart
-	if [ "$1" = 'background' ]; then
-		# Restart system
-		sleep 15
+# Default behaviour
 
-		# Preform a check if Nginx is valid as reload doesn't throw an error / exit
-		if [ "$DEBUG_MODE" = "true" ]; then
-			echo "[ $date | $PROXY_SYSTEM ]" >> /var/log/hestia/debug.log 2>&1
-			service $PROXY_SYSTEM configtest >> /var/log/hestia/debug.log 2>&1
-		else
-			service $PROXY_SYSTEM configtest > /dev/null 2>&1
-		fi
-		if [ $? -ne 0 ]; then
-			send_email_report
-			check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
-		fi
-
-		$BIN/h-restart-service $PROXY_SYSTEM > /dev/null 2>&1
-
-		# Update restart queue
-		if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
-			sed -i "/$SCRIPT/d" $CONF_DIR/queue/restart.pipe
-		fi
-
-		exit
-	fi
-	# Send to background process
-	nohup $BIN/h-restart-proxy 'background' &> /dev/null &
+# Preform a check if Nginx is valid as reload doesn't throw an error / exit
+if [ "$DEBUG_MODE" = "true" ]; then
+	echo "[ $date | $PROXY_SYSTEM ]" >> /var/log/hestia/debug.log 2>&1
+	service $PROXY_SYSTEM configtest >> /var/log/hestia/debug.log 2>&1
 else
-	# Default behaviour
+	service $PROXY_SYSTEM configtest > /dev/null 2>&1
+fi
+if [ $? -ne 0 ]; then
+	send_email_report
+	check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
+fi
 
-	# Preform a check if Nginx is valid as reload doesn't throw an error / exit
-	if [ "$DEBUG_MODE" = "true" ]; then
-		echo "[ $date | $PROXY_SYSTEM ]" >> /var/log/hestia/debug.log 2>&1
-		service $PROXY_SYSTEM configtest >> /var/log/hestia/debug.log 2>&1
-	else
-		service $PROXY_SYSTEM configtest > /dev/null 2>&1
-	fi
-	if [ $? -ne 0 ]; then
-		send_email_report
-		check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
-	fi
+# Restart system
+if [ "$1" = "ssl" ]; then
+	restart="ssl"
+fi
+$BIN/h-restart-service "$PROXY_SYSTEM" "$restart" > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+	send_email_report "DO_RESTART"
+	check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
+fi
 
-	# Restart system
-	if [ "$1" = "ssl" ]; then
-		restart="ssl"
-	fi
-	$BIN/h-restart-service "$PROXY_SYSTEM" "$restart" > /dev/null 2>&1
-	if [ $? -ne 0 ]; then
-		send_email_report "DO_RESTART"
-		check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
-	fi
-
-	# Update restart queue
-	if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
-		sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
-		sed -i "/\/$SCRIPT ssl/d" $CONF_DIR/queue/restart.pipe
-	fi
+# Update restart queue
+if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
+	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
+	sed -i "/\/$SCRIPT ssl/d" $CONF_DIR/queue/restart.pipe
 fi
 
 #----------------------------------------------------------#

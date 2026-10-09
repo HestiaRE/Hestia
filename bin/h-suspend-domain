@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: suspend web/dns/mail domain
+# info: suspend web/mail domain
 # options: USER DOMAIN [RESTART]
 #
 # example: h-suspend-domain admin example.com

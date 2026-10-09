@@ -38,9 +38,7 @@ check_args '1' "$#" 'QUEUE'
 
 b_task=$(ps auxf | grep -v "grep" | grep "$BIN/h-update-sys-queue backup")
 b_task=$(echo "$b_task" | grep -v sudo | wc -l)
-d_task=$(ps auxf | grep -v "grep" | grep "$BIN/h-update-sys-queue dns")
-d_task=$(echo "$d_task" | grep -v sudo | wc -l)
-if [ "$b_task" -gt 2 ] || [ "$d_task" -gt 2 ]; then
+if [ "$b_task" -gt 2 ]; then
 	exit
 fi
 
@@ -52,7 +50,6 @@ case $queue in
 	disk) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
 	daily) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
 	traffic) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
-	dns-cluster) bash $CONF_DIR/queue/$queue.pipe > /dev/null 2>&1 ;;
 	*) check_args '1' '0' 'QUEUE' ;;
 esac
 

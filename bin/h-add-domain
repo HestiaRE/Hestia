@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: add web/dns/mail domain
+# info: add web/mail domain
 # options: USER DOMAIN [IP] [RESTART]
 #
 # example: h-add-domain admin example.com

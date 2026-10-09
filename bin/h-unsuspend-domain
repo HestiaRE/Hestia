@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: unsuspend web/dns/mail domain
+# info: unsuspend web/mail domain
 # options: USER DOMAIN [RESTART]
 #
 # example: h-unsuspend-domain admin acme.com
@@ -41,7 +41,7 @@ if [ -n "$WEB_SYSTEM" ]; then
 	if [ -n "$str" ]; then
 		domain_found='yes'
 		$BIN/h-unsuspend-web-domain "$user" "$domain" 'no'
-		check_result $? "can't suspend web" > /dev/null
+		check_result $? "can't unsuspend web" > /dev/null
 	fi
 fi
 
@@ -51,7 +51,7 @@ if [ -n "$MAIL_SYSTEM" ]; then
 	if [ -n "$str" ]; then
 		domain_found='yes'
 		$BIN/h-unsuspend-mail-domain "$user" "$domain" "no"
-		check_result $? "can't suspend mail" > /dev/null
+		check_result $? "can't unsuspend mail" > /dev/null
 	fi
 fi
 

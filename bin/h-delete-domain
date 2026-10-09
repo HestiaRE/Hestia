@@ -1,5 +1,5 @@
 #!/bin/bash
-# info: delete web/dns/mail domain
+# info: delete web/mail domain
 # options: USER DOMAIN [RESTART]
 #
 # example: h-delete-domain admin domain.tld
@@ -41,7 +41,7 @@ if [ -n "$WEB_SYSTEM" ]; then
 	if [ -n "$str" ]; then
 		domain_found='yes'
 		$BIN/h-delete-web-domain "$user" "$domain" 'no'
-		check_result $? "can't suspend web" > /dev/null
+		check_result $? "can't delete web" > /dev/null
 	fi
 fi
 
@@ -51,7 +51,7 @@ if [ -n "$MAIL_SYSTEM" ]; then
 	if [ -n "$str" ]; then
 		domain_found='yes'
 		$BIN/h-delete-mail-domain "$user" "$domain"
-		check_result $? "can't suspend mail" > /dev/null
+		check_result $? "can't delete mail" > /dev/null
 	fi
 fi
 

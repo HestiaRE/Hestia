@@ -5,15 +5,9 @@
 # example: h-update-sys-ip
 #          # Intended for internal usage
 #
-# This function scans configured IP in the system and register them with Hestia
-# internal database. This call is intended for use on vps servers, where IP is
-# set by hypervisor.
+# Registers the addresses configured on the box and follows a renamed single v4 (a VPS whose hypervisor
+# changed it). Run by the installer, at boot on NAT boxes, and by the panel's re-read.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -24,18 +18,8 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source $HESTIA/include/web-model.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing system IP addresses
 nics="$(ip -d -j link show | jq -r '.[] | if .link_type == "loopback" then empty else .ifname end')"
 
 for nic in $nics; do
@@ -46,18 +30,16 @@ for nic in $nics; do
 	fi
 	nic_ipv4s="$(ip -4 -d -j addr show "$nic" | jq -r '.[] | select(length > 0) | .addr_info[] | if .scope == "global" then .local else empty end')"
 	[ -n "$nic_ipv4s" ] && ips="${ips:+$ips }$nic_ipv4s"
-	# v6: global scope, no temporary/deprecated - those rotate and would register endlessly
+	# v6: global scope, no temporary or deprecated address: those rotate and would register endlessly.
 	nic_ipv6s="$(ip -6 -d -j addr show "$nic" | jq -r '.[] | select(length > 0) | .addr_info[] | if .scope == "global" and .temporary != true and .deprecated != true then .local else empty end')"
 	[ -n "$nic_ipv6s" ] && ip6s="${ip6s:+$ip6s }$nic_ipv6s"
 done
 
-# Rename detection pairs THE single v4 with THE single v4 record - v6 records must not
-# inflate the count
+# Rename detection pairs the single v4 with the single v4 record; v6 records must not count.
 v_ips="$(find "$CONF_DIR/ips/" -maxdepth 1 -type f ! -name '*:*' -printf '%f\n')"
 ip_num="$(echo "$ips" | wc -w)"
 v_ip_num="$(echo "$v_ips" | wc -w)"
 
-# Checking primary IP change
 if [ "$ip_num" -eq "1" ] && [ "$v_ip_num" -eq "1" ]; then
 	if [ -n "$v_ips" ] && [ "$ips" != "$v_ips" ]; then
 		new_ip="$ips"
@@ -65,14 +47,11 @@ if [ "$ip_num" -eq "1" ] && [ "$v_ip_num" -eq "1" ]; then
 	fi
 fi
 
-# Updating configs
 if [ -n "$old_ip" ]; then
 	mv $CONF_DIR/ips/$old_ip $CONF_DIR/ips/$new_ip
 
-	# Generating timestamp
 	new_timestamp
 
-	# Updating IP's values
 	ip="$new_ip"
 	interface="$(ip -d -j addr show | jq --arg IP "$ip" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"
 	prefixlen="$(ip -d -j addr show | jq --arg IP "$ip" -r '.[].addr_info[] | if .local == $IP then .prefixlen else empty end')"
@@ -82,7 +61,6 @@ if [ -n "$old_ip" ]; then
 	update_ip_value '$TIME' "$time"
 	update_ip_value '$DATE' "$date"
 
-	# Updating PROXY
 	if [ -n "$PROXY_SYSTEM" ]; then
 		cd /etc/$PROXY_SYSTEM/conf.d
 		if [ -e "$old_ip.conf" ]; then
@@ -91,7 +69,7 @@ if [ -n "$old_ip" ]; then
 		fi
 	fi
 
-	# Updating WEB (front fallback #193: the mailfront ip.conf carries the listeners)
+	# mailfront: the ip.conf of the webmail front carries the listeners.
 	ws="$WEB_SYSTEM"
 	[ -z "$ws" ] && ws=$(webmail_front)
 	if [ -n "$ws" ]; then
@@ -107,8 +85,7 @@ if [ -n "$old_ip" ]; then
 				ip_field_replace "$CONF_DIR/users/$user/web.conf" "$old_ip" "$new_ip"
 				$BIN/h-rebuild-web-domains "$user" no
 			fi
-			# webmail vhosts render %ip% too - without this they kept the old
-			# listen address on every model, and mailfront has no other rebuild path
+			# webmail vhosts render %ip% too, and mailfront has no other rebuild path.
 			[ -n "$MAIL_SYSTEM" ] && $BIN/h-rebuild-mail-domains "$user" no
 		done
 
@@ -118,7 +95,6 @@ if [ -n "$old_ip" ]; then
 		$BIN/h-restart-web
 	fi
 
-	# Updating MAIL
 	if [ -n "$IMAP_SYSTEM" ]; then
 		for user in $("$BIN/h-list-users" list); do
 			$BIN/h-rebuild-mail-domains "$user" no
@@ -126,7 +102,6 @@ if [ -n "$old_ip" ]; then
 		$BIN/h-restart-mail
 	fi
 
-	# Updating firewall
 	if [ -n "$FIREWALL_SYSTEM" ]; then
 		for fw_conf in "$CONF_DIR"/firewall/*.conf; do
 			[ -e "$fw_conf" ] || continue
@@ -136,7 +111,6 @@ if [ -n "$old_ip" ]; then
 	fi
 fi
 
-# Adding system IP
 for ip in $ips; do
 	check_ip="$(ip addr list | grep -w "$ip")"
 	if [ ! -e "$CONF_DIR/ips/$ip" ] && [ -n "$check_ip" ]; then
@@ -149,7 +123,7 @@ for ip in $ips; do
 	fi
 done
 
-# Adding system v6 (real prefix length from ip -j, never a guessed default)
+# v6 with the real prefix length from ip -j, never a guessed default.
 for ip6 in $ip6s; do
 	if [ ! -e "$CONF_DIR/ips/$ip6" ]; then
 		interface="$(ip -6 -d -j addr show | jq --arg IP "$ip6" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"
@@ -158,8 +132,7 @@ for ip6 in $ip6s; do
 	fi
 done
 
-# NAT: v4 only (a global v6 IS public), and only on a non-empty probe answer - an empty
-# one slid past [ ! -e ] on the bare directory and misfiled the NAT.
+# NAT: v4 only (a global v6 is public), and only on a non-empty answer: an empty one names the directory.
 pub_ipv4="$(curl -fsLm5 --retry 2 --ipv4 https://ip.hestiacp.com/)"
 if [ -n "$pub_ipv4" ] && [ ! -e "$CONF_DIR/ips/$pub_ipv4" ]; then
 	if [ -z "$(grep -R "$pub_ipv4" $CONF_DIR/ips/)" ]; then
@@ -168,11 +141,6 @@ if [ -n "$pub_ipv4" ] && [ ! -e "$CONF_DIR/ips/$pub_ipv4" ]; then
 	fi
 fi
 
-# Updating IP usage counters
 $BIN/h-update-sys-ip-counters
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

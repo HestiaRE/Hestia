@@ -4,19 +4,12 @@
 #
 # example: h-delete-sys-ip 203.0.113.1
 #
-# This function for deleting a system IP. It does not allow to delete first IP
-# on interface and do not allow to delete IP which is used by a web domain.
+# Deletes an IP from the box and the panel. Refuses the primary address and an IP still in use.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 # ip46 for the format dispatch; global $ip aliased for the sourced ip.sh helpers.
 ip46="$1"
 ip="$ip46"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -27,12 +20,7 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source $HESTIA/include/web-model.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'IP'
 is_format_valid 'ip46'
@@ -45,11 +33,6 @@ is_ip_valid "$ip"
 is_ip_key_empty '$U_WEB_DOMAINS'
 is_ip_key_empty '$U_SYS_USERS'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Import IP variables
 source "$CONF_DIR/ips/$ip"
 if [ "$family" = 6 ]; then
 	cidr="$NETMASK" # prefix length by convention for v6 records
@@ -60,13 +43,11 @@ fi
 default_nic="$(ip -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end')"
 [ -z "$default_nic" ] && default_nic="$(ip -6 -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end')"
 
-# v6 has no positional "primary" (kernel lists newest first): the lockout case is the
-# LAST global v6 while no v4 ROUTE exists. v4 keeps the classic first-address guard.
+# v6 has no positional primary: the lockout case is the last global v6 while no v4 route exists.
 interface="$(ip -d -j addr show | jq --arg IP "$ip" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"
 if [ "$family" = 6 ]; then
 	other_v6="$(ip -6 -d -j addr show "$default_nic" | jq --arg IP "$ip" -r '.[].addr_info[] | if .scope == "global" and .local != $IP then .local else empty end' | head -n1)"
-	# v4 ROUTE, not address: a v6-only box may carry a routeless CGN v4 that would
-	# silence the guard exactly where it must fire
+	# A v4 route, not an address: a v6-only box may carry a routeless CGN v4.
 	any_v4_route="$(ip -4 -d -j route show default 2> /dev/null | jq -r '.[0].dev // empty')"
 	if [ -n "$interface" ] && [ -z "$other_v6" ] && [ -z "$any_v4_route" ]; then
 		echo "Error: can't delete the last global v6 - the box has no v4 and would be cut off"
@@ -82,7 +63,6 @@ else
 	fi
 fi
 
-# Deleting system IP
 if [ -n "$interface" ]; then
 	ip addr del "$ip/$cidr" dev "$interface" 2> /dev/null
 	if [ "$?" -ne "0" ]; then
@@ -92,7 +72,7 @@ if [ -n "$interface" ]; then
 	fi
 fi
 
-# Escaped before it becomes a pattern: dots were wildcards here.
+# Escaped: the address becomes a sed pattern.
 ip_esc=$(printf '%s' "$ip" | sed 's/[].[\*^$]/\\&/g')
 if [ -f "/etc/netplan/60-hestia.yaml" ]; then
 	sed -i "/- $ip_esc\//d" /etc/netplan/60-hestia.yaml
@@ -115,11 +95,9 @@ elif [ -e "/etc/network/interfaces" ]; then
 	fi
 fi
 
-# Deleting Hestia IP
 rm -f $CONF_DIR/ips/$ip
 
-# Mail source pins naming this address (both families) go with it: no counter guards
-# them, and exim reads the file live - left behind, the transport binds a dead address.
+# Mail source pins on this address go with it: exim reads them live, and no counter guards them.
 for _pin in "$HOMEDIR"/*/conf/mail/*/ip "$HOMEDIR"/*/conf/mail/*/ipv6; do
 	[ -f "$_pin" ] || continue
 	if [ "$(cat "$_pin" 2> /dev/null)" = "$ip" ]; then
@@ -127,25 +105,19 @@ for _pin in "$HOMEDIR"/*/conf/mail/*/ip "$HOMEDIR"/*/conf/mail/*/ipv6; do
 	fi
 done
 
-# Deleting web config (front fallback #193: the mailfront ip.conf lives there too)
+# mailfront: the ip.conf lives with the webmail front.
 ws="$WEB_SYSTEM"
 [ -z "$ws" ] && ws=$(webmail_front)
 if [ -n "$ws" ]; then
 	rm -f /etc/$ws/conf.d/$ip.conf
 fi
 
-# Deleting proxy config
 if [ -n "$PROXY_SYSTEM" ]; then
 	rm -f /etc/$PROXY_SYSTEM/conf.d/$ip.conf
 fi
 
 apache_remoteip_refresh
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating user conf
 if [ -n "$OWNER" ]; then
 	decrease_user_value "$OWNER" '$IP_OWNED'
 fi
@@ -160,28 +132,22 @@ if [ "$OWNER" = "$ROOT_USER" ]; then
 	fi
 else
 	decrease_user_value "$OWNER" '$IP_AVAIL'
-	# The mirror of h-add-sys-ip: for the root user IP_AVAIL is the number of ip files on the
-	# box, whoever owns them, so a customer-owned ip must count down here too. Without this the
-	# admin counter grew by one with every deleted customer ip, for the life of the box (#866).
+	# Mirror of h-add-sys-ip: the admin's IP_AVAIL counts every IP on the box, whoever owns it.
 	decrease_user_value "$ROOT_USER" '$IP_AVAIL'
 fi
 
-# Restarting web server
 $BIN/h-restart-web
 check_result $? "Web restart failed" > /dev/null
 
-# Restarting proxy server
 if [ -n "$PROXY_SYSTEM" ]; then
 	$BIN/h-restart-proxy
 	check_result $? "Proxy restart failed" > /dev/null
 fi
 
-# Restarting firewall
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	$BIN/h-update-firewall
 fi
 
-# Logging
 $BIN/h-log-action "system" "Info" "System" "IP address deleted (IP: $ip)."
 log_event "$OK" "$ARGUMENTS"
 

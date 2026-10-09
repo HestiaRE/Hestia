@@ -4,31 +4,20 @@
 #
 # example: h-list-sys-memory-status
 #
-# This function lists virtual memory information
+# Shows memory, swap and RAM modules.
 
 # The rest of the tree gets --help through main.sh, which this command does not load.
 # shellcheck source=/usr/local/hestia/include/help.sh
 case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Displaying memory and swap usage
 free -t -m
 echo -en "\n---------------------------------------------"
 echo -en "---------------------------------------------\n\n"
 
-# Displaying memory stats
 vmstat -S m -s
 echo -en "\n---------------------------------------------"
 echo -en "---------------------------------------------\n\n"
 
-# Displaying ram information
 dmidecode -t 17 2> /dev/null
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

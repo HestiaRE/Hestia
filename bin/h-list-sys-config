@@ -5,34 +5,25 @@
 # example: h-list-sys-config json
 # example: h-list-sys-config secret SERVER_SMTP_PASSWD
 #
-# This function for obtaining the list of system parameters.
+# Lists hestia.conf. Secrets are masked; the secret format hands out one of them.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-# Stored encoded by h-add-sys-smtp and h-add-sys-smtp-relay (#1143); every format hands out the real value.
+# Stored encoded by h-add-sys-smtp and h-add-sys-smtp-relay; every format hands out the real value.
 SERVER_SMTP_USER=$(record_value_decode "$SERVER_SMTP_USER")
 SERVER_SMTP_PASSWD=$(record_value_decode "$SERVER_SMTP_PASSWD")
 SMTP_RELAY_USER=$(record_value_decode "$SMTP_RELAY_USER")
 
-# Exposed so the panel offers the per-domain http3 switch only where it works: the deb12/ub24 OS nginx
-# has no http_v3 and a quic listen fails nginx -t (#613).
+# The panel offers the per-domain http3 switch only where nginx has http_v3; a quic listen fails nginx -t.
 WEB_HTTP3=''
 command -v nginx > /dev/null 2>&1 && nginx -V 2>&1 | grep -q -- '--with-http_v3_module' && WEB_HTTP3='yes'
 
-# Every registry key, in registry order: a second list here went stale once and five POLICY_SPAM_* never
-# reached a policy gate. An unreadable registry ends this non-zero, so the login refuses (#945).
+# Every registry key, in registry order, never a second list. An unreadable registry ends non-zero: the login refuses.
 json_list() {
 	local _k _keys _secrets _n=0 _last
 	_keys=$(sysreg_keys) || exit "$E_UPDATE"
@@ -46,7 +37,7 @@ json_list() {
 	json_escape WEB_HTTP3
 	printf '			"WEB_HTTP3": "%s",\n' "$WEB_HTTP3"
 	for _k in $_keys; do
-		# Masked: the panel puts every key in $_SESSION, which PHP writes to a file. Emptiness survives (#976).
+		# Masked: the panel puts every key in $_SESSION, which PHP writes to a file. Emptiness survives.
 		case "$_secrets" in *" $_k "*) [ -z "${!_k}" ] || printf -v "$_k" '%s' '********' ;; esac
 		json_escape "$_k"
 		_n=$((_n + 1))
@@ -60,7 +51,7 @@ json_list() {
 	echo '	}'
 }
 
-# Only a key the registry marks secret, so this cannot become a general key dumper (#976).
+# Only a key the registry marks secret, so this cannot become a general key dumper.
 secret_value() {
 	local _k="$1"
 	[ -n "$_k" ] || check_result "$E_INVALID" "secret: needs a key, e.g. h-list-sys-config secret SERVER_SMTP_PASSWD"
@@ -72,7 +63,6 @@ secret_value() {
 	esac
 }
 
-# Shell list
 shell_list() {
 	if [ -n "$WEB_SYSTEM" ]; then
 		echo "Web Server:                       $WEB_SYSTEM:$WEB_PORT ($WEB_RGROUPS)"
@@ -164,25 +154,12 @@ shell_list() {
 	echo "Updates: Email install log:       $UPGRADE_SEND_EMAIL_LOG"
 }
 
-# CSV list
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
-# No plain: the branch dispatched shell_list, so plain promised a machine format and delivered prose
-# (#861). This is the one command narrower than is_type_valid 'plain json shell', which lets plain
-# through, so the message keeps the common stem and names what this one accepts.
+# No plain: it delivered the prose of shell. Narrower than is_type_valid, so the message names what is accepted.
 case $format in
 	json) json_list ;;
 	shell) shell_list ;;
 	secret) secret_value "${2-}" ;;
 	*) check_result "$E_INVALID" "invalid format: $format - this command has json, shell and secret" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

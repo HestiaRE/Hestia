@@ -4,29 +4,21 @@
 #
 # example: h-list-sys-ip 203.0.113.1
 #
-# This function for getting the list of system IP parameters.
+# Lists one IP record.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 # ip46 for the format dispatch; global $ip aliased for the sourced ip.sh helpers
 ip46="$1"
 ip="$ip46"
 format="${2-shell}"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	echo '{'
 	json_escape ip OWNER STATUS NAME U_SYS_USERS U_WEB_DOMAINS INTERFACE NETMASK NAT TIME DATE
@@ -45,7 +37,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "IP:             $ip"
 	echo "NETMASK:        $NETMASK"
@@ -60,15 +51,10 @@ shell_list() {
 	echo "DATE:           $DATE"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -ne "$ip\t$OWNER\t$STATUS\t$NAME\t$U_SYS_USERS\t$U_WEB_DOMAINS\t"
 	echo -e "$INTERFACE\t$NETMASK\t$NAT\t$TIME\t$DATE"
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'IP [FORMAT]'
 is_format_valid 'ip46'
@@ -80,23 +66,13 @@ if [ ! -e "$CONF_DIR/ips/$ip" ]; then
 	check_result $E_NOTEXIST "IP $ip doesn't exist"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Parsing IP
 source_conf "$CONF_DIR/ips/$ip"
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

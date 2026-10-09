@@ -2,17 +2,14 @@
 # info: list HestiaRE installation status
 # options: (none)
 #
-# Read-only status report: version, OS/profile, completed
-# install phases ($CONF_DIR/.done.*), and the two answers side by side: what the
-# wizard was asked for, and what the box actually carries.
+# Read-only status report: version, OS and profile, completed install phases, and per component what the
+# wizard was asked for next to what the box carries now.
 
 # The rest of the tree gets --help through main.sh, which this command does not load.
 # shellcheck source=/usr/local/hestia/include/help.sh
 case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
 HESTIA="${HESTIA:-/usr/local/hestia}"
-# CONF_DIR before the read that uses it: the two lines were the other way round, so the env was looked
-# for at /hestia.env and never sourced. Harmless only because HESTIA has the same default here.
 CONF_DIR="${CONF_DIR:-/etc/hestia}"
 # shellcheck source=/etc/hestia/hestia.env
 [ -f "$CONF_DIR/hestia.env" ] && . "$CONF_DIR/hestia.env" 2> /dev/null || true
@@ -31,12 +28,8 @@ for s in "$CONF_DIR"/.done.*; do
 	[ -f "$s" ] && echo "  + ${s##*/.done.}" || true
 done
 echo ""
-# Two columns, because they are two different statements and were read as one for too long: the recipe is
-# the answer given at install time and no update ever rewrites it, while hestia.conf says what is on the
-# box now. A component removed afterwards still stands "true" on the left (#945).
-# The status key per component comes from the manifest (#944), so this list cannot drift from the
-# registry the way a second hand-kept table would. Keys are read with an anchored grep, never sourced:
-# a key name is a prefix of another one often enough to matter (DB_SYSTEM in DB_MARIADB_SYSTEM, #983).
+# Two columns: install.conf is the answer at install time and no update rewrites it, hestia.conf is the box now.
+# The status key comes from the manifest. Anchored grep, never sourced: DB_SYSTEM is a prefix of DB_MARIADB_SYSTEM.
 echo "Components (chosen at install time -> what the box has now):"
 if [ ! -f "$INSTALL_CONF" ]; then
 	echo "  (install.conf not found)"
@@ -49,8 +42,7 @@ else
 		_sk=$(jq -r --arg c "$_id" '.components[$c].status_key // empty' \
 			"$HESTIA/share/manifest.json" 2> /dev/null)
 		if [ -z "$_sk" ]; then
-			# No status key by design: always_installed, or a component that is not state (see the
-			# manifest note). Nothing to compare, so only the answer is shown.
+			# No status key by design (always installed, or not state): only the answer is shown.
 			printf '  %-34s %-16s %s\n' "$_id" "${_val:-(empty)}" "-"
 			continue
 		fi

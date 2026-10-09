@@ -118,6 +118,12 @@ fi
 
 apache_remoteip_refresh
 
+# The proftpd drop-in derives from the records (first NAT), so a record carrying one changes it.
+if [ -n "$NAT" ] && [ -n "$FTP_SYSTEM" ]; then
+	proftpd_nat_apply
+	$BIN/h-restart-ftp
+fi
+
 if [ -n "$OWNER" ]; then
 	decrease_user_value "$OWNER" '$IP_OWNED'
 fi

@@ -161,6 +161,12 @@ rebuild_ip_web_config "$ip"
 
 apache_remoteip_refresh
 
+# The proftpd drop-in derives from the records (first NAT), so a record carrying one changes it.
+if [ -n "$nat_ip" ] && [ -n "$FTP_SYSTEM" ]; then
+	proftpd_nat_apply
+	$BIN/h-restart-ftp
+fi
+
 increase_user_value "$user" '$IP_OWNED'
 if [ "$user" = $ROOT_USER ]; then
 	if [ "$ip_status" = 'shared' ]; then

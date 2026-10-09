@@ -133,6 +133,15 @@ for user in $("$BIN/h-list-users" list); do
 
 done
 
+# Mail-only has no web domain for the hostname; the host command replaces the certificate only when it is due.
+if [ -z "$WEB_SYSTEM" ] && [ "$(webmail_front)" = 'nginx' ] && [ "$UPDATE_HOSTNAME_SSL" = 'yes' ]; then
+	if ! msg=$($BIN/h-add-letsencrypt-host 2>&1); then
+		echo "$msg"
+		log_event "$E_INVALID" "hostname $msg"
+		$BIN/h-log-action "system" "Error" "System" "Let's Encrypt host certificate renewal failed."
+	fi
+fi
+
 $BIN/h-restart-web
 $BIN/h-restart-mail
 

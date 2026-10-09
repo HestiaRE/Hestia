@@ -5,7 +5,7 @@
 # example: h-add-letsencrypt-host
 #
 # Gives the hostname a Let's Encrypt certificate, through a web domain of that name, unless the current
-# one still verifies, and hands it to the panel.
+# one still verifies, and hands it to the panel. On mail-only without a web domain; renewed from there.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -28,6 +28,22 @@ USER_DATA=$CONF_DIR/users/$user
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
+
+# Mail-only: no web domain, the nightly renewal calls this, so a certificate is only replaced when it is due.
+if [ -z "$WEB_SYSTEM" ] && [ "$(webmail_front)" = 'nginx' ]; then
+	days=31
+	[ "$LE_STAGING" = 'yes' ] && days=181
+	crt="$USER_DATA/ssl/$domain"
+	if ! [ -s "$crt.ca" ] || ! openssl verify -CAfile "$crt.ca" "$crt.crt" 2> /dev/null | grep -q ": OK$" \
+		|| ! openssl x509 -checkend $((days * 86400)) -noout -in "$crt.crt" > /dev/null 2>&1; then
+		$BIN/h-add-letsencrypt-domain "$user" "$domain" '' host
+		check_result $? "Let's Encrypt SSL creation failed" "$E_UPDATE"
+	fi
+	# Handed over only when it changed: the hand-over restarts mail, ftp and the panel.
+	cmp -s "$crt.pem" "$HESTIA_SSL/certificate.crt" || $BIN/h-update-host-certificate "$user" "$domain"
+	exit
+fi
+
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 
 if [ "$($BIN/h-list-web-domain $user $domain plain | cut -f 1)" != "$domain" ]; then

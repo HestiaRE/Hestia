@@ -36,6 +36,16 @@
       "reversible": false
     },
     {
+      "id": "panel-accel-placeholder",
+      "description": "The server statistics page shows its graphs again: the panel took the file path from the wrong header",
+      "conditions": [
+        { "type": "file_contains", "path": "/etc/caddy/hestia.conf", "value": "{http.response.header.X-Accel-Redirect}" }
+      ],
+      "action": { "type": "function_call", "function": "panel_caddy_accel_apply" },
+      "paths": ["/etc/caddy/hestia.conf"],
+      "reversible": false
+    },
+    {
       "id": "remove-h-update-sys-rrd-httpd",
       "description": "h-update-sys-rrd-httpd is gone: it graphed the RHEL web server, which nothing here installs",
       "conditions": [

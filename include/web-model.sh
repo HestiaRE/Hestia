@@ -63,6 +63,17 @@ _web_apt_purge() {
 	fi
 }
 
+# Only what dpkg knows: apt refuses the whole list over one name the distro does not carry.
+_web_purge_stack() {
+	local p st have=()
+	for p in "$@"; do
+		st=$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)
+		[ -n "$st" ] && [ "$st" != not-installed ] && have+=("$p")
+	done
+	[ "${#have[@]}" -gt 0 ] || return 0
+	_web_apt_purge "${have[@]}" > /dev/null 2>&1
+}
+
 # ports.conf stays empty: Listen comes per IP, and the hestia-status listener keeps apache startable until then.
 configure_apache2() {
 	echo "[ * ] Installing apache2..."
@@ -111,7 +122,13 @@ configure_apache2() {
 # Shared with the installer. No start here: in a switch apache still holds :80 until the rebuild, so the caller starts it.
 configure_nginx() {
 	echo "[ * ] Installing nginx..."
-	_web_apt_install nginx || return 1
+	# The package would start its distro site on :80, which apache holds during a switch: a failed bind in the log.
+	# Runtime only, so an abort in between does not outlive a reboot.
+	local rc=0
+	systemctl mask --runtime nginx > /dev/null 2>&1
+	_web_apt_install nginx || rc=1
+	systemctl unmask --runtime nginx > /dev/null 2>&1
+	[ "$rc" -eq 0 ] || return 1
 
 	echo "[ * ] Configuring nginx..."
 	rm -f /etc/nginx/conf.d/*.conf
@@ -530,13 +547,13 @@ web_model_run() {
 	web_model_uses_apache "$target" && ! web_model_uses_apache "$current" \
 		&& echo "  - apache2 will be installed/configured"
 	web_model_uses_apache "$current" && ! web_model_uses_apache "$target" \
-		&& { [ "$purge" = "yes" ] && echo "  - apache2 will be PURGED (/etc/apache2 incl. custom includes + fm--listen.conf)" || echo "  - apache2 will be stopped+disabled (package kept)"; }
+		&& { [ "$purge" = "yes" ] && echo "  - apache2 packages will be PURGED with their config files; what HestiaRE or other packages wrote under /etc/apache2 stays" || echo "  - apache2 will be stopped+disabled (package kept)"; }
 	web_model_uses_apache "$current" && web_model_uses_apache "$target" \
 		&& echo "  - apache2.conf + module config are rewritten from share/ (existing customizations are snapshotted, not merged)"
 	web_model_uses_nginx "$target" && ! web_model_uses_nginx "$current" \
 		&& { command -v nginx > /dev/null 2>&1 && echo "  - nginx is enabled again with the configuration it kept" || echo "  - nginx will be installed/configured"; }
 	web_model_uses_nginx "$current" && ! web_model_uses_nginx "$target" \
-		&& { [ "$purge" = "yes" ] && echo "  - nginx will be PURGED (/etc/nginx incl. custom includes)" || echo "  - nginx will be stopped+disabled (package kept)"; }
+		&& { [ "$purge" = "yes" ] && echo "  - nginx packages will be PURGED with their config files" || echo "  - nginx will be stopped+disabled (package kept)"; }
 	[ "$target" = "both" ] && echo "  - mod_remoteip enabled (apache trusts nginx X-Real-IP)"
 	web_model_uses_apache "$current" && [ "$target" != "both" ] \
 		&& echo "  - mod_remoteip disabled"
@@ -705,11 +722,13 @@ web_model_run() {
 	fi
 
 	if [ "$purge" = "yes" ] && ! web_model_uses_apache "$target"; then
-		_web_apt_purge apache2 apache2-suexec-custom libapache2-mod-fcgid > /dev/null 2>&1 || true
+		_web_purge_stack apache2 apache2-bin apache2-data apache2-utils apache2-suexec-custom libapache2-mod-fcgid \
+			libapache2-mod-qos || echo "Warning: the apache2 packages could not be purged; the switch itself is done" >&2
 		rm -f /etc/logrotate.d/apache2
 	fi
 	if [ "$purge" = "yes" ] && ! web_model_uses_nginx "$target"; then
-		_web_apt_purge nginx > /dev/null 2>&1 || true
+		_web_purge_stack nginx nginx-common \
+			|| echo "Warning: the nginx packages could not be purged; the switch itself is done" >&2
 		rm -f /etc/logrotate.d/nginx
 	fi
 

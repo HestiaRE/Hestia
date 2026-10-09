@@ -47,6 +47,7 @@ for service in $service_list; do
 	# nftables unit, which tore our table down and loaded /etc/nftables.conf instead.
 	if [ -n "$FIREWALL_SYSTEM" ] && [ "$service" = "$FIREWALL_SYSTEM" ]; then
 		$BIN/h-update-firewall
+		result=$?
 	else
 		systemctl start "$service"
 		result=$?
@@ -56,7 +57,7 @@ for service in $service_list; do
 			$BIN/h-log-action "system" "Info" "System" "Service started (Name: $service)."
 		fi
 	fi
-	check_result $? "ERROR: $service start failed" "$E_RESTART"
+	check_result "$result" "ERROR: $service start failed" "$E_RESTART"
 done
 
 #----------------------------------------------------------#

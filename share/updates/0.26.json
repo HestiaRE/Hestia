@@ -12,6 +12,18 @@
       "action": { "type": "function_call", "function": "acme_host_location_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "apache-remoteip-link",
+      "description": "An IP add or delete had turned the mod_remoteip link into a copy, and a2enmod refuses the module while it is there",
+      "conditions": [
+        { "type": "key_is", "name": "WEB_SYSTEM", "value": "apache2" },
+        { "type": "key_is", "name": "PROXY_SYSTEM", "value": "nginx" },
+        { "type": "path_exists", "path": "/etc/apache2/mods-enabled/remoteip.conf" }
+      ],
+      "action": { "type": "function_call", "function": "apache_remoteip_link_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

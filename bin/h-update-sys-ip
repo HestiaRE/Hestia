@@ -22,6 +22,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/ip.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/web-model.sh
+source $HESTIA/include/web-model.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -110,13 +112,7 @@ if [ -n "$old_ip" ]; then
 			[ -n "$MAIL_SYSTEM" ] && $BIN/h-rebuild-mail-domains "$user" no
 		done
 
-		if [ -e "/etc/apache2/mods-available/remoteip.conf" ]; then
-			sed -i "s/$old_ip/$new_ip/g" /etc/apache2/mods-available/remoteip.conf
-		fi
-
-		if [ -e "/etc/apache2/mods-enabled/rpaf.conf" ]; then
-			sed -i "s/$old_ip/$new_ip/g" /etc/apache2/mods-enabled/rpaf.conf
-		fi
+		apache_remoteip_refresh
 
 		$BIN/h-restart-proxy
 		$BIN/h-restart-web

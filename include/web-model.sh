@@ -125,12 +125,36 @@ apache_remoteip_enable() {
 		echo "</IfModule>"
 	} > /etc/apache2/mods-available/remoteip.conf
 	sed -i 's/LogFormat "%h/LogFormat "%a/g' /etc/apache2/apache2.conf
+	# A copy in place of the link makes a2enmod refuse the module; older IP commands left one.
+	[ -L /etc/apache2/mods-enabled/remoteip.conf ] || rm -f /etc/apache2/mods-enabled/remoteip.conf
 	a2enmod -q remoteip > /dev/null 2>&1 || true
+}
+
+# The trusted proxies follow the IP records. Rendered, never edited in place: sed -i turns the link into a copy.
+apache_remoteip_refresh() {
+	[ "$(web_current_model)" = both ] || return 0
+	# shellcheck disable=SC2046 # one address per word
+	apache_remoteip_enable $(web_sys_proxy_ips)
+}
+
+# Update path for boxes that carry such a copy. Reload, since the copy may have cost the module already.
+apache_remoteip_link_apply() {
+	(
+		source_conf "$HESTIA/conf/hestia.conf"
+		local conf=/etc/apache2/mods-enabled/remoteip.conf
+		[ "$(web_current_model)" = both ] || exit 0
+		[ -f "$conf" ] && [ ! -L "$conf" ] || exit 0
+		apache_remoteip_refresh
+		[ -L "$conf" ] && apache2ctl -t > /dev/null 2>&1 || exit 1
+		systemctl -q is-active apache2 2> /dev/null || exit 0
+		systemctl reload apache2
+	)
 }
 
 # Without nginx in front a trusted X-Real-IP lets any client spoof its address. The caller restarts.
 apache_remoteip_disable() {
 	a2dismod -q remoteip > /dev/null 2>&1 || true
+	[ -L /etc/apache2/mods-enabled/remoteip.conf ] || rm -f /etc/apache2/mods-enabled/remoteip.conf
 	rm -f /etc/apache2/mods-available/remoteip.conf
 	sed -i 's/LogFormat "%a/LogFormat "%h/g' /etc/apache2/apache2.conf
 }

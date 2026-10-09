@@ -189,43 +189,7 @@ chmod 660 $CONF_DIR/ips/$ip
 # WEB support (both families - the renderer brackets v6 itself)
 rebuild_ip_web_config "$ip"
 
-# Proxy real-IP module registration (dormant unless the conf exists). The per-IP
-# web/proxy config generation moved into rebuild_ip_web_config (include/web-model.sh, #120).
-# Real-IP module registration needs a backend web system; on mailfront (#193) WEB_SYSTEM
-# is empty by design and there is nothing to register.
-if [ -n "$PROXY_SYSTEM" ] && [ -n "$WEB_SYSTEM" ]; then
-	# mod_extract_forwarded
-	fw_conf="/etc/$WEB_SYSTEM/conf.d/mod_extract_forwarded.conf"
-	if [ -e "$fw_conf" ]; then
-		# awk append - sed with the whole line as unescaped pattern was a blind IP-sed
-		awk -v ip="$ip" '!done && /MEFaccept / && !/^#/ {
-			$0 = $0 " " ip
-			done = 1
-		} { print }' "$fw_conf" > "$fw_conf.tmp" \
-			&& chmod --reference="$fw_conf" "$fw_conf.tmp" \
-			&& chown --reference="$fw_conf" "$fw_conf.tmp" \
-			&& mv -f "$fw_conf.tmp" "$fw_conf"
-	fi
-
-	# mod_rpaf
-	rpaf_conf="/etc/$WEB_SYSTEM/mods-enabled/rpaf.conf"
-	if [ -e "$rpaf_conf" ]; then
-		rpaf_str="$(grep RPAFproxy_ips "$rpaf_conf")"
-		[ -z "$rpaf_str" ] && sed -i 's|</IfModule>|RPAFproxy_ips\n</IfModule>|' "$rpaf_conf" && rpaf_str='RPAFproxy_ips'
-		rpaf_str="$rpaf_str $ip"
-		sed -i "s/.*RPAFproxy_ips.*/$rpaf_str/" "$rpaf_conf"
-	fi
-
-	# mod_remoteip
-	remoteip_conf="/etc/$WEB_SYSTEM/mods-enabled/remoteip.conf"
-	if [ -e "$remoteip_conf" ]; then
-		# exact line, not substring: ::1 counted as present while only ::10 was
-		ip_re=$(printf '%s' "$ip" | sed 's/[].[\*^$]/\\&/g')
-		if ! grep -qE "^[[:space:]]*RemoteIPInternalProxy[[:space:]]+${ip_re}[[:space:]]*\$" "$remoteip_conf"; then
-			sed -i "s/<\/IfModule>/RemoteIPInternalProxy $ip\n<\/IfModule>/g" "$remoteip_conf"
-		fi
-	fi
-fi
+apache_remoteip_refresh
 
 #----------------------------------------------------------#
 #                       Hestia                             #

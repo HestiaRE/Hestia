@@ -25,6 +25,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/ip.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/web-model.sh
+source $HESTIA/include/web-model.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
@@ -135,32 +137,9 @@ fi
 # Deleting proxy config
 if [ -n "$PROXY_SYSTEM" ]; then
 	rm -f /etc/$PROXY_SYSTEM/conf.d/$ip.conf
-
-	# mod_extract_forwarded
-	fw_conf="/etc/$WEB_SYSTEM/conf.d/mod_extract_forwarded.conf"
-	if [ -e "$fw_conf" ]; then
-		ips="$(grep 'MEFaccept 127.0.0.1' "$fw_conf")"
-		new_ips="$(echo "$ips" | sed "s/$ip//")"
-		sed -i "s/$ips/$new_ips/g" "$fw_conf"
-	fi
-
-	# mod_rpaf
-	rpaf_conf="/etc/$WEB_SYSTEM/mods-enabled/rpaf.conf"
-	if [ -e "$rpaf_conf" ]; then
-		ips="$(grep RPAFproxy_ips "$rpaf_conf")"
-		new_ips="$(echo "$ips" | sed "s/ $ip//")"
-		sed -i "s/$ips/$new_ips/g" "$rpaf_conf"
-
-		# Remove RPAFproxy_ips line when ip list is empty
-		[ "$(grep RPAFproxy_ips "$rpaf_conf" | sed 's/^[[:space:]]*//g')" = "RPAFproxy_ips" ] && sed -i "/RPAFproxy_ips/d" "$rpaf_conf"
-	fi
-
-	# mod_remoteip
-	remoteip_conf="/etc/$WEB_SYSTEM/mods-enabled/remoteip.conf"
-	if [ -e "$remoteip_conf" ]; then
-		sed -i "/RemoteIPInternalProxy $ip\$/d" "$remoteip_conf"
-	fi
 fi
+
+apache_remoteip_refresh
 
 #----------------------------------------------------------#
 #                       Hestia                             #

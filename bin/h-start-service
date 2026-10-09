@@ -4,33 +4,18 @@
 #
 # example: h-start-service mysql
 #
-# This function starts system service.
+# Starts a unit, every customer PHP-FPM for php-fpm, or reapplies the firewall.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 service=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'SERVICE'
 is_format_valid 'service'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if [ "$service" = "php-fpm" ]; then
 	for php_ver in $(multiphp_versions); do
@@ -41,10 +26,7 @@ else
 fi
 
 for service in $service_list; do
-	# The firewall is not a systemd unit for us - it is our own ruleset, and the service NAME follows
-	# FIREWALL_SYSTEM. Matching a hardcoded "iptables" here broke the moment that value became
-	# "nftables": the panel's firewall row fell through to systemctl and restarted the DISTRO
-	# nftables unit, which tore our table down and loaded /etc/nftables.conf instead.
+	# Compared to FIREWALL_SYSTEM, never a literal: systemctl on the distro nftables unit tears our ruleset down.
 	if [ -n "$FIREWALL_SYSTEM" ] && [ "$service" = "$FIREWALL_SYSTEM" ]; then
 		$BIN/h-update-firewall
 		result=$?
@@ -60,11 +42,6 @@ for service in $service_list; do
 	check_result "$result" "ERROR: $service start failed" "$E_RESTART"
 done
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

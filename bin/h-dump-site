@@ -5,23 +5,16 @@
 # example: h-dump-site user domain
 # example: h-dump-site user domain full
 #
-# Dumps site files in /backup/user.domain.timestamp.zip
+# Zips the docroot, or with TYPE full the whole domain directory, into $BACKUP for one hour.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 type=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '2' "$#" 'USER DOMAIN [TYPE]'
@@ -30,11 +23,6 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Create timestamp in Y-M-D_h-m-s format
 timestamp=$(date +'%Y-%m-%d_%H-%M-%S')
 
 dir="/home/$user/web/$domain"
@@ -58,11 +46,6 @@ echo "$name"
 echo "$archive"
 echo "rm $archive" | at now + 1 hour > /dev/null 2>&1
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

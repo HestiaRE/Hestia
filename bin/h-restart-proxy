@@ -4,22 +4,15 @@
 #
 # example: h-restart-proxy
 #
-# This function reloads proxy server configuration.
+# Reloads the nginx in front of apache2; RESTART no skips, updatessl queues it, scheduled too under SCHEDULED_RESTART.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition. Assigned here rather than left to $1 further down: the verification block validates
-# `restart`, and a variable that is never assigned validates nothing at all.
+# Assigned before the format check, which would otherwise validate an unset variable.
 restart=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 date=$(date +"%Y-%m-%d %H:%M:%S")
@@ -42,21 +35,11 @@ send_email_report() {
 	rm -f $tmpfile
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 is_format_valid 'restart'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defer while a web-model switch holds the freeze (#120): it does its own controlled
-# restart as the lock owner; an outside reload here would load a half-flipped config.
+# A web-model switch restarts on its own; a reload under its lock would load a half-flipped config.
 if web_freeze_held; then exit 0; fi
 
-# Exit
 if [ -z "$PROXY_SYSTEM" ]; then
 	exit
 fi
@@ -65,7 +48,6 @@ if [ "$1" = "no" ]; then
 	exit
 fi
 
-# Schedule restart
 if [ "$1" = 'scheduled' ] || [ -z "$1" ] && [ "$SCHEDULED_RESTART" = 'yes' ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	echo "$BIN/$SCRIPT now" >> $CONF_DIR/queue/restart.pipe
@@ -78,9 +60,7 @@ if [ "$1" = "updatessl" ]; then
 	exit
 fi
 
-# Default behaviour
-
-# Preform a check if Nginx is valid as reload doesn't throw an error / exit
+# A reload of a broken config succeeds and keeps the old one, so test first.
 if [ "$DEBUG_MODE" = "true" ]; then
 	echo "[ $date | $PROXY_SYSTEM ]" >> /var/log/hestia/debug.log 2>&1
 	service $PROXY_SYSTEM configtest >> /var/log/hestia/debug.log 2>&1
@@ -92,7 +72,6 @@ if [ $? -ne 0 ]; then
 	check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
 fi
 
-# Restart system
 if [ "$1" = "ssl" ]; then
 	restart="ssl"
 fi
@@ -102,14 +81,9 @@ if [ $? -ne 0 ]; then
 	check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
 fi
 
-# Update restart queue
 if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	sed -i "/\/$SCRIPT ssl/d" $CONF_DIR/queue/restart.pipe
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

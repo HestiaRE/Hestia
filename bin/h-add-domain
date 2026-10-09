@@ -4,31 +4,21 @@
 #
 # example: h-add-domain admin example.com
 #
-# This function adds web/dns/mail domain to a server.
+# Adds the domain on every enabled side, web and mail, or on none.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 ip=$3
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 check_args '2' "$#" 'USER DOMAIN [IP] [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 if [ -n "$ip" ]; then
@@ -37,13 +27,7 @@ fi
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get ip if it wasn't defined
-# get_user_ip owns the no-address-at-all refusal; an empty v4 slot is the v6-only box, and
-# the sub-commands resolve their own v6.
+# get_user_ip refuses a box without any address; an empty v4 slot is the v6-only box, the sub-commands resolve v6.
 [ -z "$ip" ] && get_user_ip
 
 # All or nothing: a full package on one side must not leave the domain half added.
@@ -60,15 +44,10 @@ if [ -n "$MAIL_SYSTEM" ]; then
 	check_result $? "can't add mail domain"
 fi
 
-# Restarting services
 $BIN/h-restart-web "$restart"
 check_result $? "can't restart web" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "can't restart proxy" > /dev/null
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

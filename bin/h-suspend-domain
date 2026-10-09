@@ -4,39 +4,23 @@
 #
 # example: h-suspend-domain admin example.com
 #
-# This function suspends web/dns/mail domain.
+# Suspends the web and the mail domain of that name, whichever are active.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart="${3-yes}"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Working on Web domain
 if [ -n "$WEB_SYSTEM" ]; then
 	str=$(grep -F "DOMAIN='$domain'" "$USER_DATA/web.conf" | grep "SUSPENDED='no")
 	if [ -n "$str" ]; then
@@ -46,7 +30,6 @@ if [ -n "$WEB_SYSTEM" ]; then
 	fi
 fi
 
-# Working on Mail domain
 if [ -n "$MAIL_SYSTEM" ]; then
 	str=$(grep -F "DOMAIN='$domain'" "$USER_DATA/mail.conf" | grep "SUSPENDED='no")
 	if [ -n "$str" ]; then
@@ -56,22 +39,16 @@ if [ -n "$MAIL_SYSTEM" ]; then
 	fi
 fi
 
-# Checking domain search result
 if [ -z "$domain_found" ]; then
 	echo "Error: domain $domain doesn't exist"
 	log_event "$E_NOTEXIST" "$ARGUMENTS"
 	exit "$E_NOTEXIST"
 fi
 
-# Restarting services
 $BIN/h-restart-web "$restart"
 check_result $? "can't restart web" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "can't restart proxy" > /dev/null
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

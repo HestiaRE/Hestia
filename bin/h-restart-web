@@ -4,22 +4,15 @@
 #
 # example: h-restart-web
 #
-# This function reloads web server configuration.
+# Reloads the web server; RESTART no skips, updatessl queues it, scheduled too under SCHEDULED_RESTART.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Assigned here, not further down: the verification block below validates it, and validating a variable
-# that is not set yet checks nothing at all.
+# Assigned before the format check, which would otherwise validate an unset variable.
 restart=$1
 
 date=$(date +"%Y-%m-%d %H:%M:%S")
@@ -45,27 +38,14 @@ send_email_report() {
 	rm -f $tmpfile
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 is_format_valid 'restart'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Defer while a web-model switch holds the freeze (#120): it does its own controlled
-# restart as the lock owner; an outside reload here would load a half-flipped config.
+# A web-model switch restarts on its own; a reload under its lock would load a half-flipped config.
 if web_freeze_held; then exit 0; fi
 
-# mailfront: no customer web, but the webmail front still needs its reload
-# cycle - reuse the whole body with the front as the effective system (#193).
-# Safe ONLY because WEB_SYSTEM is not exported here and every child command
-# re-reads hestia.conf itself; an export would forward the lie to all of them.
+# Mail-only reloads its webmail front through the same body. Safe only unexported: every child re-reads hestia.conf.
 [ -z "$WEB_SYSTEM" ] && WEB_SYSTEM=$(webmail_front)
 
-# Exit
 if [ -z "$WEB_SYSTEM" ]; then
 	exit
 fi
@@ -74,7 +54,6 @@ if [ "$1" = "no" ]; then
 	exit
 fi
 
-# Schedule restart
 if [ "$1" = 'scheduled' ] || [ -z "$1" ] && [ "$SCHEDULED_RESTART" = 'yes' ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	echo "$BIN/$SCRIPT now" >> $CONF_DIR/queue/restart.pipe
@@ -121,14 +100,9 @@ if [ $? -ne 0 ]; then
 	check_result "$E_RESTART" "$WEB_SYSTEM restart failed"
 fi
 
-# Update restart queue
 if [ -e "$CONF_DIR/queue/restart.pipe" ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	sed -i "/\/$SCRIPT ssl/d" $CONF_DIR/queue/restart.pipe
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

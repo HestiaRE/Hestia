@@ -88,6 +88,15 @@ upd_cond_path_exists() {
 	[ -e "$1" ] || [ -L "$1" ]
 }
 
+# A regular file or directory where a symlink belongs: a tool that writes through the link's place leaves a copy.
+upd_cond_path_not_link() {
+	[ -n "$1" ] || {
+		echo "update: path_not_link needs a path" >&2
+		return 2
+	}
+	[ -e "$1" ] && [ ! -L "$1" ]
+}
+
 # True while an account or the box default names a language the panel no longer ships (#1160). Read
 # from languages.json, which the overlay has replaced, so it holds before the dropped catalogs are deleted.
 upd_cond_language_unlisted() {
@@ -454,7 +463,7 @@ upd_condition() {
 		file_contains | file_lacks | pin_differs | php_ext_missing | dir_has_secret_value | file_patch_pending | file_mode_wider)
 			"upd_cond_$t" "$@"
 			;;
-		language_unlisted | locale_missing | file_group_differs)
+		language_unlisted | locale_missing | file_group_differs | path_not_link)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -648,7 +657,7 @@ def argv(t):
      or t=="php_ext_missing" or t=="locale_missing" then [.name // ""]
   elif t=="key_is" or t=="key_has_token" or t=="key_set" or t=="token_add" or t=="token_remove"
     then [.name // "", .value // ""]
-  elif t=="path_exists" or t=="path_absent" or t=="path_delete" or t=="dir_clear"
+  elif t=="path_exists" or t=="path_absent" or t=="path_not_link" or t=="path_delete" or t=="dir_clear"
     or t=="dir_has_secret_value" then [.path // ""]
   elif t=="file_contains" or t=="file_lacks" or t=="file_mode_wider" or t=="file_group_differs" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]

@@ -322,6 +322,15 @@ is_ip_valid() {
 	fi
 }
 
+# ip_field_replace FILE OLD NEW: the IP field matched whole (or as /32), never a substring of another address.
+ip_field_replace() {
+	local f="$1" old new
+	[ -f "$f" ] || return 0
+	old=$(printf '%s' "$2" | sed 's/[].[\*^$/]/\\&/g')
+	new=$(printf '%s' "$3" | sed 's/[&/\]/\\&/g')
+	sed -i "s/\(^\| \)IP='$old\(\/32\)\?'/\1IP='$new\2'/g" "$f"
+}
+
 # proftpd has one MasqueradeAddress for the daemon: the first IP record carrying a NAT address, or no drop-in at all,
 # since an empty directive fails the config test. Read from the records, so its writers cannot disagree.
 proftpd_nat_apply() {

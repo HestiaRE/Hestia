@@ -65,7 +65,7 @@ fi
 # Updating WEB configs
 if [ -n "$old" ] && [ -n "$WEB_SYSTEM" ]; then
 	for user in $("$BIN/h-list-users" list); do
-		sed -i "s/$old/$new/" $CONF_DIR/users/$user/web.conf
+		ip_field_replace "$CONF_DIR/users/$user/web.conf" "$old" "$new"
 		$BIN/h-rebuild-web-domains "$user" no
 	done
 	$BIN/h-restart-web "$restart"
@@ -73,18 +73,16 @@ fi
 
 # Updating FTP
 if [ -n "$FTP_SYSTEM" ]; then
-	ftp_conf="$(find /etc -maxdepth 2 -name "$FTP_SYSTEM.conf")"
-	if [ -n "$old" ] && [ -e "$ftp_conf" ]; then
-		sed -i "s/$old/$new/g" "$ftp_conf"
-	fi
-	# Also on the first NAT, which has no old address to replace.
 	proftpd_nat_apply
 	$BIN/h-restart-ftp "$restart"
 fi
 
 # Updating firewall
 if [ -n "$old" ] && [ -n "$FIREWALL_SYSTEM" ]; then
-	sed -i "s/$old/$new/g" $CONF_DIR/firewall/*.conf
+	for fw_conf in "$CONF_DIR"/firewall/*.conf; do
+		[ -e "$fw_conf" ] || continue
+		ip_field_replace "$fw_conf" "$old" "$new"
+	done
 	$BIN/h-update-firewall
 fi
 

@@ -104,7 +104,7 @@ if [ -n "$old_ip" ]; then
 
 		for user in $("$BIN/h-list-users" list); do
 			if [ -n "$WEB_SYSTEM" ]; then
-				sed -i "s/$old_ip/$new_ip/g" $CONF_DIR/users/$user/web.conf
+				ip_field_replace "$CONF_DIR/users/$user/web.conf" "$old_ip" "$new_ip"
 				$BIN/h-rebuild-web-domains "$user" no
 			fi
 			# webmail vhosts render %ip% too - without this they kept the old
@@ -128,7 +128,10 @@ if [ -n "$old_ip" ]; then
 
 	# Updating firewall
 	if [ -n "$FIREWALL_SYSTEM" ]; then
-		sed -i "s/$old_ip/$new_ip/g" $CONF_DIR/firewall/*.conf
+		for fw_conf in "$CONF_DIR"/firewall/*.conf; do
+			[ -e "$fw_conf" ] || continue
+			ip_field_replace "$fw_conf" "$old_ip" "$new_ip"
+		done
 		$BIN/h-update-firewall
 	fi
 fi

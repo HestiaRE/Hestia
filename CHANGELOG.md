@@ -45,7 +45,7 @@ before v0.20.0 are folded into one section by theme.
 - **Updates finish cleanly** (#1176). A fresh install no longer leaves an update entry pending, and a
   failed update run no longer leaves the panel and webmail stopped.
 - **Adding nginx to an apache-only server works** (#1201). The switch installs nginx where the box has none
-  instead of rolling back.
+  instead of rolling back, and `--purge` removes the whole web server package set.
 
 ### Removed
 

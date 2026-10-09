@@ -45,7 +45,7 @@ plain_list() {
 	done
 }
 
-zones=$(cd /usr/share/zoneinfo/ && find -L * -type f -or -type l | sort)
+zones=$(timedatectl list-timezones)
 
 # Listing data
 case $format in

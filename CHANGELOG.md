@@ -22,7 +22,8 @@ before v0.20.0 are folded into one section by theme.
 - **Backup and restore tightened** (#1176). A restic restore no longer reports success when a part
   failed, refuses a domain another user holds, keeps custom docroots and FTP accounts, and stages in
   the backup temp. Deleting an archive reaches every configured transport, and a server backup that
-  could not be written fails instead of claiming success.
+  could not be written fails instead of claiming success. Restored settings are held to the bounds
+  the panel sets; what falls outside is switched off and named in the restore log.
 
 ## v0.25 (2026-10-08)
 

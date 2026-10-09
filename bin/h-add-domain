@@ -30,16 +30,20 @@ is_object_unsuspended 'user' 'USER' "$user"
 # get_user_ip refuses a box without any address; an empty v4 slot is the v6-only box, the sub-commands resolve v6.
 [ -z "$ip" ] && get_user_ip
 
-# All or nothing: a full package on one side must not leave the domain half added.
-[ -n "$WEB_SYSTEM" ] && is_package_full 'WEB_DOMAINS'
-[ -n "$MAIL_SYSTEM" ] && is_package_full 'MAIL_DOMAINS'
+# A side the package does not offer (limit 0) is left out; a full offered side refuses before anything is added.
+web='' mail=''
+[ -n "$WEB_SYSTEM" ] && [ "$(get_user_value '$WEB_DOMAINS')" != 0 ] && web=yes
+[ -n "$MAIL_SYSTEM" ] && [ "$(get_user_value '$MAIL_DOMAINS')" != 0 ] && mail=yes
+[ -n "$web$mail" ] || check_result "$E_LIMIT" "the package offers neither web nor mail domains"
+[ -n "$web" ] && is_package_full 'WEB_DOMAINS'
+[ -n "$mail" ] && is_package_full 'MAIL_DOMAINS'
 
-if [ -n "$WEB_SYSTEM" ]; then
+if [ -n "$web" ]; then
 	$BIN/h-add-web-domain "$user" "$domain" "$ip" 'no'
 	check_result $? "can't add web domain"
 fi
 
-if [ -n "$MAIL_SYSTEM" ]; then
+if [ -n "$mail" ]; then
 	$BIN/h-add-mail-domain "$user" "$domain"
 	check_result $? "can't add mail domain"
 fi

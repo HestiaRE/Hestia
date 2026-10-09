@@ -369,7 +369,7 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 # Stage: web — nginx (+ optional apache2), PHP multi-version, web pool
 # ════════════════════════════════════════════════════════════════════════════
 
-# configure_apache2 now lives in include/web-model.sh (shared with the model switch, #120)
+# configure_nginx and configure_apache2 live in include/web-model.sh; the model switch runs the same code.
 
 install_web() {
 	stage_done web && {

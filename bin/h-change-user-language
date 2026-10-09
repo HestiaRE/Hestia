@@ -33,7 +33,7 @@ is_language_valid() {
 check_args '2' "$#" 'USER LANGUAGE'
 is_format_valid 'user' 'language'
 is_object_valid 'user' 'USER' "$user"
-is_object_unsuspended 'user' 'USER' "$user"
+# No suspension check: a display preference, which h-change-sys-language and the update fallback set for every account.
 is_language_valid "$language"
 
 if [ -z "$(grep LANGUAGE $USER_DATA/user.conf)" ]; then

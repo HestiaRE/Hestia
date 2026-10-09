@@ -4,31 +4,20 @@
 #
 # example: h-change-sys-ip-name 203.0.113.1 acme.com
 #
-# This function for changing dns domain associated with IP.
+# Sets the IP's name, the root domain of temporary aliases on it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 # ip46 for the format dispatch; global $ip aliased for the sourced ip.sh helpers
 ip46="$1"
 ip="$ip46"
 ip_name="$2"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'IP NAME'
 is_format_valid 'ip46'
@@ -39,18 +28,8 @@ if [ "$(ip_family "$ip46")" = 6 ]; then
 fi
 is_ip_valid "$ip"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Changing IP name
 update_ip_value '$NAME' "$ip_name"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "Changed associated DNS on $ip to $ip_name."
 log_event "$OK" "$ARGUMENTS"
 

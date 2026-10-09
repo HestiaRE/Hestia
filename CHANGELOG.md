@@ -27,6 +27,9 @@ before v0.20.0 are folded into one section by theme.
   the backup temp. Deleting an archive reaches every configured transport, and a server backup that
   could not be written fails instead of claiming success. Restored settings are held to the bounds
   the panel sets; what falls outside is switched off and named in the restore log.
+- **Server settings keep what the admin set** (#1176). Moving the panel port keeps the panel rule's
+  source restriction, a NAT change moves only that address, an invalid time zone is refused, and an
+  added IP no longer leaves apache without the real client address after a web model switch.
 
 ## v0.25 (2026-10-08)
 

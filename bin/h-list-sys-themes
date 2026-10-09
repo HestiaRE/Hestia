@@ -4,30 +4,19 @@
 #
 # example: h-list-sys-themes
 #
-# This function for obtaining the list of themes in the theme
-# library and displaying them in the backend or user interface.
+# Lists the panel themes, shipped and custom.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Define array for available themes
 available_themes=()
 
-# Function to process CSS theme files
 get_themes() {
-	# Retrieve list of system themes
 	if [ -d "$HESTIA_THEMES" ]; then
 		for file in "$HESTIA_THEMES"/*.css; do
 			[ -f "$file" ] || continue
@@ -36,7 +25,6 @@ get_themes() {
 		done
 	fi
 
-	# Check for existence of custom themes folder and iterate through items
 	if [ -d "$HESTIA_THEMES_CUSTOM" ] && [ "$(ls -A "$HESTIA_THEMES_CUSTOM")" ]; then
 		for file in "$HESTIA_THEMES_CUSTOM"/*.css; do
 			[ -f "$file" ] || continue
@@ -45,15 +33,12 @@ get_themes() {
 		done
 	fi
 
-	# Sort theme list alphabetically
 	IFS=$'\n' available_themes=($(sort <<< "${available_themes[*]}"))
 	unset IFS
 
-	# Get count of themes (for proper JSON formatting)
 	theme_count="${#available_themes[@]}"
 }
 
-# JSON list function
 json_list() {
 	i=1
 	echo '['
@@ -69,7 +54,6 @@ json_list() {
 	echo ']'
 }
 
-# SHELL list function
 shell_list() {
 	echo "THEME"
 	echo "-----"
@@ -78,29 +62,19 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	for theme in "${available_themes[@]}"; do
 		echo "$theme"
 	done
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 get_themes
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

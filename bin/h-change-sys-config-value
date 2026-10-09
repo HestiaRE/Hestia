@@ -4,39 +4,23 @@
 #
 # example: h-change-sys-config-value VERSION 1.0
 #
-# This function is for changing main config settings such as COMPANY_NAME or
-# COMPANY_EMAIL and so on.
+# Sets a hestia.conf key.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 key=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 value=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'KEY VALUE'
 is_common_format_valid "$key" 'key'
 format_no_quotes "$value" 'value'
 
-# A key with a closed set is normalised to the registry's spelling, case being the only leniency, and
-# anything outside the set is refused here rather than left for a reader to misjudge (#1055). Matched
-# against the list, not lowercased, so a token that is not lowercase stays correct. A key without a
-# list is untouched - most values are free text.
-# The sentinel keeps the trailing newline: the empty string is a legal member of most system sets and
-# is their last line, so a command substitution would drop it and h-delete-sys-* could not clear a key.
+# A key with a closed set takes the registry's spelling, case being the only leniency; other values are refused.
+# The sentinel keeps the trailing newline: the empty string is a legal last member, and h-delete-sys-* clears with it.
 if _set=$(sysreg_values "$key" 2> /dev/null && printf 'S'); then
 	_set="${_set%S}"
 	# The marker carries the hit, so a match on the empty member is not read as no match.
@@ -47,9 +31,8 @@ if _set=$(sysreg_values "$key" 2> /dev/null && printf 'S'); then
 	value="${_hit#=}"
 fi
 
-# One key, two scales: gzip takes 1-9, zstd 1-19. Checked where the value is set, not in the
-# nightly run that would die at 3 a.m. An unset mode passes - during an install it may not exist
-# yet, and the mode's own check catches the pair once it does.
+# One key, two scales: gzip takes 1-9, zstd 1-19. Checked here, not in the nightly run. An unset mode passes:
+# during an install it may not exist yet, and the mode's own check catches the pair.
 case "$key" in
 	BACKUP_GZIP)
 		is_int_format_valid "$value" 'BACKUP_GZIP'
@@ -70,32 +53,21 @@ case "$key" in
 		fi
 		;;
 esac
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 change_sys_value "$key" "$value"
 
-# Sort configuration file in alphabetical order on change - through a temp file next to it (the old
-# /tmp/updconf was a fixed name, and the mv recreated hestia.conf with the umask's mode instead of its own).
-# The trap owns the temp file until the rename; mode and owner come from the file, chown only when they differ.
+# Sorted through a temp file next to it, which keeps the file's own mode and owner; the trap owns it until the rename.
 updconf=$(mktemp "$HESTIA/conf/hestia.conf.XXXXXX") || check_result "$E_UPDATE" "hestia.conf: cannot create a temp file next to it"
 trap 'rm -f "$updconf"' EXIT
 sort "$HESTIA/conf/hestia.conf" -o "$updconf" \
 	&& chmod --reference="$HESTIA/conf/hestia.conf" "$updconf" \
 	&& { [ "$(stat -c %u:%g "$HESTIA/conf/hestia.conf")" = "$(stat -c %u:%g "$updconf")" ] || chown --reference="$HESTIA/conf/hestia.conf" "$updconf"; } \
 	&& mv -f "$updconf" "$HESTIA/conf/hestia.conf" || check_result "$E_UPDATE" "hestia.conf was not sorted: $key"
-# The write is verified, not assumed: sed and mv fail silently on an unwritable file, and every
-# caller (the repair above all) treated this command's rc 0 as "written" (#929).
+# Verified, not assumed: sed and mv fail silently on an unwritable file, and the callers trust rc 0.
 if ! grep -qxF "$key='$value'" "$HESTIA/conf/hestia.conf"; then
 	check_result "$E_UPDATE" "hestia.conf was not written: $key"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "System configuration value changed (Key: $key, Value: $value)."
 log_event "$OK" "$ARGUMENTS"
 

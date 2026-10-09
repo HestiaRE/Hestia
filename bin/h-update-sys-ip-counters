@@ -4,38 +4,27 @@
 #
 # example: h-update-sys-ip-counters
 #
-# Function updates usage U_WEB_ADOMAINS and U_SYS_USERS counters.
+# Recounts U_WEB_DOMAINS and U_SYS_USERS of one IP or all; check prints them without writing.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 # ip46 for the format dispatch; global $ip aliased for the sourced ip.sh helpers
 ip46="$1"
 ip="$ip46"
 mode="${2-apply}"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '0' "$#" '[IP] [MODE]'
 case "$mode" in
 	apply | check) ;;
 	*) check_result "$E_INVALID" "invalid mode '$mode' (apply|check)" ;;
 esac
-# check prints what apply WOULD write - one derivation, two consumers (#867 shape)
+# check prints what apply would write, from the same derivation.
 if [ "$mode" = 'check' ] && [ -z "$ip" ]; then
 	check_result "$E_INVALID" "check mode wants one IP - the caller owns the object list"
 fi
@@ -48,22 +37,15 @@ if [ -n "$ip" ]; then
 	is_ip_valid
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Creating user_list
 if [ -z "$ip" ]; then
 	ip_list="$(ls $CONF_DIR/ips/)"
 else
 	ip_list="$ip"
 fi
 
-# Updating user stats
 for ip in $ip_list; do
 
-	# Both spellings: behind NAT the record holds the PUBLIC address - local-only matching
-	# recounts to 0 and "corrects" a healthy counter to nothing.
+	# Both spellings: behind NAT the record holds the public address, and local-only matching counts 0.
 	if [ "$(ip_family "$ip")" = 6 ]; then
 		# v6 lives in the IP6 field; NAT does not exist for it
 		ip_usage="$(grep -H -e "IP6='$ip'" $CONF_DIR/users/*/web.conf)"
@@ -80,16 +62,10 @@ for ip in $ip_list; do
 		continue
 	fi
 
-	# Update counters
 	update_ip_value '$U_WEB_DOMAINS' "$web_domains"
 	update_ip_value '$U_SYS_USERS' "$sys_users"
 done
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

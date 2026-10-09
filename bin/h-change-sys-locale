@@ -4,26 +4,15 @@
 #
 # example: h-change-sys-locale en_US.UTF-8
 #
-# Sets LANG in /etc/default/locale after generating the locale; the installer asks for it (#1164). Takes
-# effect at the next reboot, running processes keep their environment. The panel language is separate
-# (h-change-sys-language), and an update never calls this: the system locale belongs to the admin.
+# Generates LOCALE and sets it as LANG in /etc/default/locale, effective at the next reboot. The panel language
+# is h-change-sys-language; an update never calls this, the system locale belongs to the admin.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 locale=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 if [ "x$(id -u)" != 'x0' ]; then
 	echo "Error: Script can be run executed only by root"
@@ -48,10 +37,6 @@ if [ "$locale" != C.UTF-8 ] && ! grep -qxF "$locale UTF-8" /usr/share/i18n/SUPPO
 	exit "$E_NOTEXIST"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 locale_generate "$locale"
 check_result $? "locale $locale could not be generated"
 
@@ -64,11 +49,6 @@ fi
 
 echo "System locale set to $locale, effective after a reboot."
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "System locale changed (Locale: $locale)."
 log_event "$OK" "$ARGUMENTS"
 

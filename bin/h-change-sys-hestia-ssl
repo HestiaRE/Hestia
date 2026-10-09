@@ -4,39 +4,23 @@
 #
 # example: h-change-sys-hestia-ssl /home/new/dir/path yes
 #
-# This function changes hestia SSL certificate and the key.
+# Installs certificate.crt and certificate.key from SSL_DIR as the panel certificate.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 domain='certificate'
 ssl_dir=$1
 restart=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'SSL_DIR [RESTART]'
 is_format_valid 'ssl_dir' 'restart'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking new certificate
 certificate=$(cat $ssl_dir/$domain.crt | grep -n END)
 certificate_count=$(echo "$certificate" | wc -l)
 if [ "$certificate_count" -gt 1 ]; then
@@ -53,23 +37,17 @@ else
 	is_web_domain_cert_valid
 fi
 
-# Adding new certificate
 cp -f $ssl_dir/certificate.crt $HESTIA_SSL/certificate.crt
 cp -f $ssl_dir/certificate.key $HESTIA_SSL/certificate.key
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Caddy runs with admin off, so a reload fails and the certificate used to wait for the next restart. Deferred: the
-# panel request asking for it runs through this Caddy and would be cut before its answer.
+# Caddy runs with admin off, so a restart, not a reload. Deferred: the panel request asking for it runs
+# through this Caddy and would be cut before its answer.
 if [ "$restart" != 'no' ]; then
 	systemd-run --quiet --on-active=3 --unit="hestia-caddy-restart-$$" /usr/bin/systemctl restart caddy > /dev/null 2>&1 \
 		|| systemctl restart caddy
 	$BIN/h-restart-mail "$restart"
 fi
 
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

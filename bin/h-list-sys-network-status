@@ -4,31 +4,20 @@
 #
 # example: h-list-sys-network-status
 #
-# This function lists network status
+# Shows socket summary, listeners and interfaces.
 
 # The rest of the tree gets --help through main.sh, which this command does not load.
 # shellcheck source=/usr/local/hestia/include/help.sh
 case "$*" in -h | --help) . "${HESTIA:-/usr/local/hestia}/include/help.sh" ;; esac
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Displaying network stats
 ss -s
 echo -en "\n---------------------------------------------"
 echo -en "---------------------------------------------\n\n"
 
-# Displaying network usage
 lsof -iudp -itcp -n -P
 echo -en "\n---------------------------------------------"
 echo -en "---------------------------------------------\n\n"
 
-# Displaying network interfaces
 ip addr list
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

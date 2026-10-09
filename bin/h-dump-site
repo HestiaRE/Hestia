@@ -35,26 +35,28 @@ is_object_valid 'web' 'DOMAIN' "$domain"
 #----------------------------------------------------------#
 
 # Create timestamp in Y-M-D_h-m-s format
-timestamp=$(date +'%G-%m-%d_%H-%M-%S')
+timestamp=$(date +'%Y-%m-%d_%H-%M-%S')
 
-if [ "$type" = "full" ]; then
-	cd /home/$user/web/$domain/
-else
-	cd /home/$user/web/$domain/public_html/
+dir="/home/$user/web/$domain"
+[ "$type" = "full" ] || dir="$dir/public_html"
+cd "$dir" 2> /dev/null || check_result "$E_NOTEXIST" "$dir does not exist"
+
+name="${user}_${domain}_${timestamp}.zip"
+archive="$BACKUP/$name"
+
+# zip reads as the customer, so the archive holds what the customer can read; root only writes the file.
+# 18 is a file the customer cannot read, left out on purpose.
+runuser -u "$user" -- zip -rq - . > "$archive" 2> /dev/null
+rc=$?
+if [ "$rc" -ne 0 ] && [ "$rc" -ne 18 ]; then
+	rm -f "$archive"
+	check_result "$E_BACKUP" "zip of $dir failed (rc $rc)"
 fi
 
-zip -rq $BACKUP/${user}_${domain}_${timestamp}.zip .
-
-if [[ -f "$BACKUP/${user}_${domain}_${timestamp}.zip" ]]; then
-	# echo filename for use in the php
-	echo "${user}_${domain}_${timestamp}.zip"
-
-	# echo file location for use in the php
-	echo "$BACKUP/${user}_${domain}_${timestamp}.zip"
-
-	# cleanup
-	echo "rm $BACKUP/${user}_${domain}_${timestamp}.zip" | at now + 1 hour
-fi
+# Name for display, then the path the panel serves.
+echo "$name"
+echo "$archive"
+echo "rm $archive" | at now + 1 hour > /dev/null 2>&1
 
 #----------------------------------------------------------#
 #                       Hestia                             #

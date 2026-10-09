@@ -113,6 +113,7 @@ restore_php_installed() {
 
 # restore_web_fields_check RECVAR: switch off what an archived web record names outside the bounds the add commands
 # set, both in the record line RECVAR and in the parsed variables. Prints one line per switched-off part.
+# Needs $user and default_proxy_ext (include/domain.sh).
 restore_web_fields_check() {
 	local _wf_name="$1" _wf_line
 	_wf_line=${!_wf_name}
@@ -136,6 +137,25 @@ restore_web_fields_check() {
 		record_set_field _wf_line DOCKER ''
 		record_set_field _wf_line DOCKER_PORT ''
 		record_set_field _wf_line DOCKER_OCTET ''
+	fi
+	if [ -n "$PROXY_EXT" ] && ! restore_quiet is_extention_format_valid "$PROXY_EXT"; then
+		echo "the proxy extension list is not a list of extensions, the default applies"
+		PROXY_EXT=$(default_proxy_ext)
+		record_set_field _wf_line PROXY_EXT "$PROXY_EXT"
+	fi
+	# By path, not by existence: the target domain may come later in the run. Rule of h-change-web-domain-docroot.
+	local _root _rt _root_ok=yes
+	for _root in "$CUSTOM_DOCROOT" "$CUSTOM_PHPROOT"; do
+		[ -n "$_root" ] || continue
+		_rt=${_root#"$HOMEDIR/$user/web/"}
+		[ "$_rt" != "$_root" ] && [[ "$_rt" =~ ^[^/]+/public_html(/|$) ]] && [[ "/$_rt/" != *"/../"* ]] \
+			&& record_path_ok "$_root" "$HOMEDIR/$user/web" || _root_ok=no
+	done
+	if [ "$_root_ok" = no ]; then
+		echo "the custom document root lies outside the web folder of $user, the default applies"
+		CUSTOM_DOCROOT='' CUSTOM_PHPROOT=''
+		record_set_field _wf_line CUSTOM_DOCROOT ''
+		record_set_field _wf_line CUSTOM_PHPROOT ''
 	fi
 	printf -v "$_wf_name" '%s' "$_wf_line"
 }

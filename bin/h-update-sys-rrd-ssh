@@ -72,8 +72,8 @@ fi
 
 # Parsing data
 if [ "$period" = 'daily' ]; then
-	a=0
-	a=$(ps auxf | grep sshd | grep -v grep | grep -v '/usr/sbin/' | wc -l)
+	# One user@ title per session; the [priv] monitor beside it is the same session.
+	a=$(ps -eo args= | grep -cE '^sshd(-session)?: [^ ]+@')
 
 	# Updating rrd database
 	rrdtool update "$RRD/ssh/ssh.rrd" "N:$a"

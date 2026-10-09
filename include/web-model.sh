@@ -197,6 +197,26 @@ rebuild_ip_web_config() {
 	fi
 }
 
+# Mail-only: the default server takes the hostname's ACME location. The directory is the done-marker, since the
+# per-IP files cannot be named in a condition; h-add-letsencrypt-domain removes only the tokens inside it.
+acme_host_location_apply() {
+	# A subshell: the sourced files and hestia.conf stay out of the update run.
+	(
+		# shellcheck source=/usr/local/hestia/include/domain.sh
+		source "$HESTIA/include/domain.sh" || exit 1
+		source_conf "$HESTIA/conf/hestia.conf"
+		[ -z "$WEB_SYSTEM" ] && [ "${WEBMAIL_FRONT:-}" = 'nginx' ] || exit 0
+		while IFS= read -r ip; do
+			[ -n "$ip" ] || continue
+			rebuild_ip_web_config "$ip" || exit 1
+		done < <(web_sys_ips)
+		nginx -t > /dev/null 2>&1 || exit 1
+		mkdir -p "$ACME_APACHE_DIR/host" && chmod 755 "$ACME_APACHE_DIR" "$ACME_APACHE_DIR/host" || exit 1
+		systemctl -q is-active nginx 2> /dev/null || exit 0
+		systemctl reload nginx
+	)
+}
+
 WEB_MODEL_SNAP_DIR="/var/lib/hestia/web-model-switch"
 
 # From the keyset, not dpkg: a stopped but installed server must not mask the model.

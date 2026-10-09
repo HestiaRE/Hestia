@@ -1,0 +1,17 @@
+{
+  "version": "0.26",
+  "entries": [
+    {
+      "id": "acme-host-location",
+      "description": "On mail-only the default server answers ACME for the hostname, so the host certificate comes from Let's Encrypt instead of staying self-signed",
+      "conditions": [
+        { "type": "key_empty", "name": "WEB_SYSTEM" },
+        { "type": "key_is", "name": "WEBMAIL_FRONT", "value": "nginx" },
+        { "type": "path_absent", "path": "/var/lib/hestia-acme/host" }
+      ],
+      "action": { "type": "function_call", "function": "acme_host_location_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

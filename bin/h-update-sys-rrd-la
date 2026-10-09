@@ -1,31 +1,21 @@
 #!/bin/bash
 # info: update load average rrd
 # options: [PERIOD]
+# labels: internal
+# caller: h-update-sys-rrd
 #
 # example: h-update-sys-rrd-la
 #
-# This function is for updating load average rrd database and graphic.
+# Samples the load average into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -50,14 +40,11 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/la" ]; then
 	mkdir $RRD/la
 fi
 
-# Checking database
 if [ ! -e "$RRD/la/la.rrd" ]; then
-	# Adding database
 	rrdtool create $RRD/la/la.rrd --step $RRD_STEP \
 		DS:LA:GAUGE:600:U:U \
 		DS:PR:GAUGE:600:U:U \
@@ -71,17 +58,14 @@ if [ ! -e "$RRD/la/la.rrd" ]; then
 		RRA:MAX:0.5:288:797
 fi
 
-# Parsing data
 if [ "$period" = 'daily' ]; then
 	loadavg=$(cat /proc/loadavg)
 	la=$(echo "$loadavg" | cut -f 2 -d ' ')
 	pr=$(ps auxh | wc -l)
 
-	# Updating rrd database
 	rrdtool update $RRD/la/la.rrd N:${la//./}:$pr
 fi
 
-# Updating graph
 rrdtool graph $RRD/la/$period-la.png \
 	--imgformat PNG \
 	--height="150" \
@@ -111,10 +95,6 @@ rrdtool graph $RRD/la/$period-la.png \
 	GPRINT:pr:'MIN:Min\:''%8.0lf' \
 	GPRINT:pr:'MAX:Max\:''%8.0lf\j' &> /dev/null
 result=$?
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$result" -ne 0 ]; then
 	exit "$E_RRD"

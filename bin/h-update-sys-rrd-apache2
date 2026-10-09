@@ -1,31 +1,21 @@
 #!/bin/bash
 # info: update apache2 rrd
 # options: [PERIOD]
+# labels: internal
+# caller: h-update-sys-rrd
 #
 # example: h-update-sys-rrd-apache2
 #
-# This function is for updating apache rrd database and graphic.
+# Samples apache2 into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -50,14 +40,11 @@ case $period in
 	*) exit $E_RRD ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/web" ]; then
 	mkdir $RRD/web
 fi
 
-# Checking database
 if [ ! -e "$RRD/web/apache2.rrd" ]; then
-	# Adding database
 	rrdtool create $RRD/web/apache2.rrd --step $RRD_STEP \
 		DS:A:GAUGE:600:U:U \
 		RRA:AVERAGE:0.5:1:600 \
@@ -70,22 +57,13 @@ if [ ! -e "$RRD/web/apache2.rrd" ]; then
 		RRA:MAX:0.5:288:797
 fi
 
-# Parsing data
 if [ "$period" = 'daily' ]; then
-	server_status=$(wget -qO- http://localhost:8081/server-status \
-		| grep 'currently being processed' \
-		| cut -f 2 -d '>' \
-		| sed 's/requests currently being processed, //' \
-		| cut -f 1,2 -d ' ')
-	active=$(echo "$server_status" | cut -f 1 -d ' ')
-	idle=$(echo "$server_status" | cut -f 1 -d ' ')
-	a=$((active + idle))
+	active=$(wget -qO- -T 5 -t 1 http://localhost:8081/server-status \
+		| sed -n 's/.*>\([0-9]\+\) requests currently being processed.*/\1/p' | head -n1)
 
-	# Updating rrd database
-	rrdtool update $RRD/web/apache2.rrd N:$a
+	rrdtool update $RRD/web/apache2.rrd "N:${active:-U}"
 fi
 
-# Updating rrd graph
 rrdtool graph $RRD/web/$period-apache2.png \
 	--imgformat PNG \
 	--height="150" \
@@ -110,10 +88,6 @@ rrdtool graph $RRD/web/$period-apache2.png \
 	GPRINT:a:'MIN:Min\:''%8.0lf' \
 	GPRINT:a:'MAX:Max\:''%8.0lf\j' &> /dev/null
 result=$?
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$result" -ne 0 ]; then
 	exit $E_RRD

@@ -83,13 +83,13 @@ and that is what `key_empty` is for.
 Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exists`,
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
-`file_mode_wider`, `file_group_differs`, `language_unlisted`, `locale_missing`. Actions:
+`file_mode_wider`, `file_group_differs`, `language_unlisted`, `locale_missing`, `path_not_link`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
 Fields per type: `name` and `value` for the key types, `name` for a command, package, service or a
 PHP extension, `source` (tree-relative) and `target` for `file_patch_pending`, `path` for
-`path_exists`, `path_absent`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`,
+`path_exists`, `path_absent`, `path_not_link`, `path_delete` and `dir_clear`, `path` and `value` for `file_contains`,
 `file_lacks`, `file_mode_wider` and `file_group_differs`, `name` (a key under `software_versions` in `share/manifest.json`) and `path` (the
 marker file the component wrote) for `pin_differs`, `source` (tree-relative) and `target` for
 `file_differs` and `file_copy` (`mode` optional), `function` for `function_call` (only names in

@@ -19,10 +19,40 @@
       "conditions": [
         { "type": "key_is", "name": "WEB_SYSTEM", "value": "apache2" },
         { "type": "key_is", "name": "PROXY_SYSTEM", "value": "nginx" },
-        { "type": "path_exists", "path": "/etc/apache2/mods-enabled/remoteip.conf" }
+        { "type": "path_not_link", "path": "/etc/apache2/mods-enabled/remoteip.conf" }
       ],
       "action": { "type": "function_call", "function": "apache_remoteip_link_apply" },
       "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "panel-rrd-internal",
+      "description": "The server statistics under the panel web root are served only through the admin view",
+      "conditions": [
+        { "type": "file_lacks", "path": "/etc/caddy/hestia.conf", "value": "/rrd/*" }
+      ],
+      "action": { "type": "function_call", "function": "panel_caddy_rrd_internal_apply" },
+      "paths": ["/etc/caddy/hestia.conf"],
+      "reversible": false
+    },
+    {
+      "id": "panel-accel-placeholder",
+      "description": "The server statistics page shows its graphs again: the panel took the file path from the wrong header",
+      "conditions": [
+        { "type": "file_contains", "path": "/etc/caddy/hestia.conf", "value": "{http.response.header.X-Accel-Redirect}" }
+      ],
+      "action": { "type": "function_call", "function": "panel_caddy_accel_apply" },
+      "paths": ["/etc/caddy/hestia.conf"],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-update-sys-rrd-httpd",
+      "description": "h-update-sys-rrd-httpd is gone: it graphed the RHEL web server, which nothing here installs",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-update-sys-rrd-httpd" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-update-sys-rrd-httpd" },
+      "paths": ["/usr/local/hestia/bin/h-update-sys-rrd-httpd"],
       "reversible": false
     }
   ]

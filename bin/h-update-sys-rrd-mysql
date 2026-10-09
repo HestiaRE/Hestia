@@ -1,33 +1,25 @@
 #!/bin/bash
 # info: update MySQL rrd
 # options: [PERIOD]
+# labels: internal
+# caller: h-update-sys-rrd
 #
 # example: h-update-sys-rrd-mysql
 #
-# This function is for updating mysql rrd database and graphic.
+# Samples each MariaDB host into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
+# Every five minutes: a host that is down would mail the admin on each run.
+notify='no'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -52,12 +44,10 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/db" ]; then
 	mkdir $RRD/db
 fi
 
-# Parsing db hosts
 conf="$HESTIA/conf/mysql.conf"
 hosts=$(grep HOST "$conf" | awk '{print $1}' | cut -f 2 -d \')
 check_row=$(echo "$hosts" | wc -l)
@@ -65,15 +55,12 @@ if [ 0 -eq "$check_row" ]; then
 	exit
 fi
 
-# Parsing excludes
 for exclude in $(echo ${RRD_MYSQL_EXCLUDE//,/ }); do
 	hosts=$(echo "$hosts" | grep -vw "$exclude")
 done
 
 for host in $hosts; do
-	# Checking database
 	if [ ! -e "$RRD/db/mysql_$host.rrd" ]; then
-		# Adding database
 		rrdtool create $RRD/db/mysql_$host.rrd --step $RRD_STEP \
 			DS:A:COUNTER:600:U:U \
 			DS:S:COUNTER:600:U:U \
@@ -88,22 +75,17 @@ for host in $hosts; do
 	fi
 
 	if [ "$period" = 'daily' ]; then
-		mysql_connect "$host"
-		query='SHOW GLOBAL STATUS'
-		status=$(mysql_query "$query" 2> /dev/null)
-		if [ $? -ne 0 ]; then
-			active=0
-			slow=0
-		else
-			active=$(echo "$status" | grep 'Queries' | cut -f 2)
-			slow=$(echo "$status" | grep 'Slow_queries' | cut -f 2)
+		# In a subshell, so a host that does not answer loses only its own sample. Unknown, not 0: a
+		# COUNTER reads 0 as a wrap and draws a spike.
+		active='' slow=''
+		if status=$(mysql_connect "$host" > /dev/null && mysql_query 'SHOW GLOBAL STATUS'); then
+			active=$(echo "$status" | awk -F '\t' '$1 == "Queries" {print $2}')
+			slow=$(echo "$status" | awk -F '\t' '$1 == "Slow_queries" {print $2}')
 		fi
 
-		# Updating rrd
-		rrdtool update $RRD/db/mysql_$host.rrd N:$active:$slow
+		rrdtool update $RRD/db/mysql_$host.rrd "N:${active:-U}:${slow:-U}"
 	fi
 
-	# Updating daily graph
 	rrdtool graph $RRD/db/$period-mysql_$host.png \
 		--imgformat PNG \
 		--height="150" \
@@ -139,9 +121,5 @@ for host in $hosts; do
 	fi
 
 done
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -1,39 +1,28 @@
 #!/bin/bash
 # info: update system rrd charts
 # options: NONE
+# labels: internal
+# caller: cron
 #
 # example: h-update-sys-rrd
 #
-# This function is wrapper for all rrd functions. It updates all
-# h-update-sys-rrd_* at once.
+# Runs every collector whose period is due; cron calls it every five minutes.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Checking rrddir
 if [ ! -d "$RRD" ]; then
 	mkdir -p $RRD
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking daily period
+# A period is due once its marker is older than its interval, less ten seconds of cron jitter.
 if [ -e "$RRD/daily.rrd" ]; then
 	mtime=$(stat -c "%Y" $RRD/daily.rrd)
 	ctime=$(date +%s)
 	dtime=$((ctime - mtime))
-	# Update every 5 minute
 	if [ "$dtime" -gt '290' ]; then
 		touch $RRD/daily.rrd
 		periods="$periods daily"
@@ -43,12 +32,10 @@ else
 	periods="$periods daily"
 fi
 
-# Checking weekly period
 if [ -e "$RRD/weekly.rrd" ]; then
 	mtime=$(stat -c "%Y" $RRD/weekly.rrd)
 	ctime=$(date +%s)
 	dtime=$((ctime - mtime))
-	# Update every hour
 	if [ "$dtime" -gt '3590' ]; then
 		touch $RRD/weekly.rrd
 		periods="$periods weekly"
@@ -58,12 +45,10 @@ else
 	periods="$periods weekly"
 fi
 
-# Checking monthly period
 if [ -e "$RRD/monthly.rrd" ]; then
 	mtime=$(stat -c "%Y" $RRD/monthly.rrd)
 	ctime=$(date +%s)
 	dtime=$((ctime - mtime))
-	# Update every 6 hours
 	if [ "$dtime" -gt '21590' ]; then
 		touch $RRD/monthly.rrd
 		periods="$periods monthly"
@@ -73,12 +58,10 @@ else
 	periods="$periods monthly"
 fi
 
-# Checking yearly period
 if [ -e "$RRD/yearly.rrd" ]; then
 	mtime=$(stat -c "%Y" $RRD/yearly.rrd)
 	ctime=$(date +%s)
 	dtime=$((ctime - mtime))
-	# Update every 12 hours
 	if [ "$dtime" -gt '43190' ]; then
 		touch $RRD/yearly.rrd
 		periods="$periods yearly"
@@ -88,7 +71,6 @@ else
 	periods="$periods yearly"
 fi
 
-# Updateing system stats
 for period in $periods; do
 
 	$BIN/h-update-sys-rrd-la "$period" > /dev/null 2>&1
@@ -96,7 +78,6 @@ for period in $periods; do
 	$BIN/h-update-sys-rrd-mem "$period" > /dev/null 2>&1
 	$BIN/h-update-sys-rrd-ssh "$period" > /dev/null 2>&1
 
-	# Updating web stats
 	if [ -n "$WEB_SYSTEM" ]; then
 		$BIN/h-update-sys-rrd-$WEB_SYSTEM "$period" > /dev/null 2>&1
 	fi
@@ -105,22 +86,18 @@ for period in $periods; do
 		$BIN/h-update-sys-rrd-$PROXY_SYSTEM "$period" > /dev/null 2>&1
 	fi
 
-	# Updating mail stats
 	if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
 		$BIN/h-update-sys-rrd-mail "$period" > /dev/null 2>&1
 	fi
 
-	# Updating ftp stats
 	if [ -n "$FTP_SYSTEM" ] && [ "$FTP_SYSTEM" != 'no' ]; then
 		$BIN/h-update-sys-rrd-ftp "$period" > /dev/null 2>&1
 	fi
 
-	# Updating db stats
 	if [ -n "$DB_SYSTEM" ] && [ "$DB_SYSTEM" != 'no' ]; then
 		IFS=, read -ra _type_list <<< "$DB_SYSTEM"
 		for type in "${_type_list[@]}"; do
 			[ -n "$type" ] || continue
-			# Switching on db type
 			case $type in
 				mysql) $BIN/h-update-sys-rrd-mysql "$period" > /dev/null 2>&1 ;;
 				pgsql) $BIN/h-update-sys-rrd-pgsql "$period" > /dev/null 2>&1 ;;
@@ -128,9 +105,5 @@ for period in $periods; do
 		done
 	fi
 done
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -1,31 +1,21 @@
 #!/bin/bash
 # info: update network rrd
 # options: [PERIOD]
+# labels: internal
+# caller: h-update-sys-rrd
 #
 # example: h-update-sys-rrd-net
 #
-# This function is for updating network usage rrd database and graphic.
+# Samples each network interface into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -50,16 +40,13 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/net" ]; then
 	mkdir $RRD/net
 fi
 
-# Parsing network interfaces
 ndev=$(cat /proc/net/dev)
 ifaces=$(echo "$ndev" | grep : | cut -f 1 -d : | sed "s/ //g")
 
-# Parsing excludes
 if [ -z "$RRD_IFACE_EXCLUDE" ]; then
 	RRD_IFACE_EXCLUDE='lo,docker0,br-.*,veth.*'
 fi
@@ -68,9 +55,7 @@ for exclude in $(echo ${RRD_IFACE_EXCLUDE//,/ }); do
 done
 
 for iface in $ifaces; do
-	# Checking database
 	if [ ! -e "$RRD/net/$iface.rrd" ]; then
-		# Adding database
 		rrdtool create $RRD/net/$iface.rrd --step $RRD_STEP \
 			DS:RX:COUNTER:600:U:U \
 			DS:TX:COUNTER:600:U:U \
@@ -84,17 +69,14 @@ for iface in $ifaces; do
 			RRA:MAX:0.5:288:797
 	fi
 
-	# Parsing device stats
 	if [ "$period" = 'daily' ]; then
 		x=$(echo "$ndev" | sed "s/^ *//" | grep "^$iface:" | sed "s/:/ /")
 		rx=$(echo "$x" | awk '{print $2}')
 		tx=$(echo "$x" | awk '{print $10}')
 
-		# Updating rrd database
 		rrdtool update $RRD/net/$iface.rrd N:$rx:$tx
 	fi
 
-	# Updating rrd graph
 	rrdtool graph $RRD/net/$period-$iface.png \
 		--imgformat PNG \
 		--height="150" \
@@ -132,9 +114,5 @@ for iface in $ifaces; do
 	fi
 
 done
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

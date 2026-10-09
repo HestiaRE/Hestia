@@ -129,6 +129,8 @@ configure_nginx() {
 	_web_apt_install nginx || rc=1
 	systemctl unmask --runtime nginx > /dev/null 2>&1
 	[ "$rc" -eq 0 ] || return 1
+	# The mask also kept the package from enabling it.
+	systemctl enable nginx > /dev/null 2>&1 || return 1
 
 	echo "[ * ] Configuring nginx..."
 	rm -f /etc/nginx/conf.d/*.conf

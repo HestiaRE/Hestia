@@ -110,7 +110,11 @@ if [ -n "$TARGET" ] && [ "$TARGET" = "$TREE" ]; then
 		say "Already on $TREE, nothing to do."
 		exit 0
 	fi
-	say "[ ! ] tree is $TREE but the status says ${STATUS:-<empty>} - finishing that run instead of fetching"
+	if [ "$STATUS" = "$TREE" ]; then
+		say "[ ! ] $TREE still has update entries pending - running $TARGET again to work them off"
+	else
+		say "[ ! ] tree is $TREE but the status says ${STATUS:-<empty>} - running $TARGET again to finish that run"
+	fi
 fi
 
 #----------------------------------------------------------#

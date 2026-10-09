@@ -30,7 +30,7 @@ if [ -z "$target" ]; then
 	echo "Usage: h-change-sys-release TARGET"
 	echo ""
 	echo "  release    follow the newest release of the configured source"
-	echo "  vX.Y.Z     stay on exactly this tag"
+	echo "  vX.Y       stay on exactly this tag"
 	echo ""
 	echo "Current: $(sed -n "s/^RELEASE_BRANCH='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1)"
 	exit
@@ -60,7 +60,12 @@ esac
 # The one writer (temp+rename, verified) instead of an unanchored delete-and-append (#978)
 change_sys_value "RELEASE_BRANCH" "$target"
 if [ "$target" = release ]; then
-	echo "This box now follows the newest release ($(release_latest_tag))."
+	latest=$(release_latest_tag)
+	installed=$(cat "$HESTIA/VERSION" 2> /dev/null)
+	echo "This box now follows the newest release (${latest:-the source did not answer})."
+	if [ -n "$latest" ] && ! version_ge "$latest" "$installed"; then
+		echo "Note: $latest is below the installed $installed, so the daily check refuses until a release above it is out."
+	fi
 else
 	echo "This box is pinned to $target."
 fi

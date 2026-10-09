@@ -1521,7 +1521,7 @@ check_update_version() {
 		ok "update: nothing pending against $tree ($total manifest entries read)"
 	else
 		no "update: $count entry(s) pending against $tree: $(jq -r '.entries | map(.identity) | join(", ")' <<< "$plan")" \
-			"hestia update works them off"
+			"hestia update works them off; one still listed after a run cannot negate itself here, its update.log says why"
 	fi
 }
 

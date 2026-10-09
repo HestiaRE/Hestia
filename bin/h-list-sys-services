@@ -229,42 +229,14 @@ if [ -n "$DB_SYSTEM" ]; then
 		[ -n "$db" ] || continue
 		service="$db"
 		proc_name=''
-		mysql="/usr/bin/mysql"
-		if [ -f '/usr/bin/mariadb' ]; then
-			mysql="/usr/bin/mariadb"
-		fi
+		# MariaDB only: the DB_SYSTEM token keeps its upstream name.
 		if [ "$service" = 'mysql' ]; then
-			mysql_version=$($mysql -V 2> /dev/null)
-			mariadb_string="MariaDB"
-			if [[ ! $mysql_version =~ $mariadb_string ]]; then
-				# MySQL
-				service='mysql'
-				proc_name='mysqld'
-			else
-				service='mariadb'
-				proc_name='mariadbd'
-				# MariaDB 10.4 and lower
-				if [ -f $mysql ]; then
-					mariadb_v=$($mysql -V | awk 'NR==1{print $5}')
-					if [[ $mariadb_v =~ $mariadb_string ]]; then
-						mariadb_v=$(echo $mariadb_v | awk -F "." '{ print $1 $2 }')
-						if [ $mariadb_v -le "104" ]; then
-							service='mariadb'
-							proc_name='mysqld'
-						fi
-					fi
-				fi
-			fi
+			service='mariadb'
+			proc_name='mariadbd'
 		fi
-		if [ "$service" == 'pgsql' ]; then
+		if [ "$service" = 'pgsql' ]; then
 			service='postgresql'
-			proc_name='postmaster'
-			if [ ! -d "/etc/sysconfig" ]; then
-				proc_name='postgres'
-			fi
-			if [ ! -e '/etc/init.d/postgresql' ]; then
-				proc_name='postgres'
-			fi
+			proc_name='postgres'
 		fi
 		# A DB_SYSTEM token does not imply a local server: h-add-database-host writes the type for a
 		# REMOTE host too, and the row then reads "stopped" forever while the panel offers start and
@@ -315,15 +287,7 @@ fi
 
 # Checking FIREWALL Fail2ban extention
 if [ -n "$FIREWALL_EXTENSION" ]; then
-	if [ -e '/usr/bin/lsb_release' ]; then
-		if [ "$(lsb_release -s -r)" = "20.04" ]; then
-			get_srv_state "$FIREWALL_EXTENSION" f2b/server script
-		else
-			get_srv_state "$FIREWALL_EXTENSION" fail2ban-server script
-		fi
-	else
-		get_srv_state "$FIREWALL_EXTENSION" fail2ban-server script
-	fi
+	get_srv_state "$FIREWALL_EXTENSION" fail2ban-server script
 	data="$data\nNAME='$FIREWALL_EXTENSION' SYSTEM='brute-force protection'"
 	data="$data STATE='$state' CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi

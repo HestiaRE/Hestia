@@ -14,6 +14,8 @@
 format=${1-shell}
 
 # Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 
@@ -53,13 +55,7 @@ plain_list() {
 #                       Action                             #
 #----------------------------------------------------------#
 
-version=$(lsb_release -s -r)
-
-if [[ "$version" = 9 || "$version" = 10 ]]; then
-	ports=$(sshd -T -C "user=root" | grep '^port' | cut -d ' ' -f2)
-else
-	ports=$(sshd -T | grep '^port' | cut -d ' ' -f2)
-fi
+ports=$(sshd -T | grep '^port' | cut -d ' ' -f2)
 
 # Listing data
 case $format in

@@ -206,11 +206,30 @@ acme_host_location_apply() {
 		source "$HESTIA/include/domain.sh" || exit 1
 		source_conf "$HESTIA/conf/hestia.conf"
 		[ -z "$WEB_SYSTEM" ] && [ "${WEBMAIL_FRONT:-}" = 'nginx' ] || exit 0
-		while IFS= read -r ip; do
+		bak=$(mktemp -d) || exit 1
+		trap 'rm -rf "$bak"' EXIT
+		mapfile -t ips < <(web_sys_ips)
+		for ip in "${ips[@]}"; do
+			[ -f "/etc/nginx/conf.d/$ip.conf" ] && cp -p "/etc/nginx/conf.d/$ip.conf" "$bak/"
+		done
+		ok=yes
+		for ip in "${ips[@]}"; do
 			[ -n "$ip" ] || continue
-			rebuild_ip_web_config "$ip" || exit 1
-		done < <(web_sys_ips)
-		nginx -t > /dev/null 2>&1 || exit 1
+			rebuild_ip_web_config "$ip" || ok=no
+		done
+		[ "$ok" = yes ] && nginx -t > /dev/null 2>&1 || ok=no
+		# Put back, as the model switch does: the running nginx still has the old files, the next reload would not.
+		if [ "$ok" = no ]; then
+			for ip in "${ips[@]}"; do
+				[ -n "$ip" ] || continue
+				if [ -f "$bak/$ip.conf" ]; then
+					cp -p "$bak/$ip.conf" /etc/nginx/conf.d/
+				else
+					rm -f "/etc/nginx/conf.d/$ip.conf"
+				fi
+			done
+			exit 1
+		fi
 		mkdir -p "$ACME_APACHE_DIR/host" && chmod 755 "$ACME_APACHE_DIR" "$ACME_APACHE_DIR/host" || exit 1
 		systemctl -q is-active nginx 2> /dev/null || exit 0
 		systemctl reload nginx

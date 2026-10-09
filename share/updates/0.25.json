@@ -23,6 +23,11 @@
       "description": "proftpd refuses an ftp home that passes through a link, so a customer cannot swap a sub-account's directory for another one",
       "conditions": [
         {
+          "type": "key_is",
+          "name": "FTP_SYSTEM",
+          "value": "proftpd"
+        },
+        {
           "type": "path_exists",
           "path": "/etc/proftpd/proftpd.conf"
         },
@@ -45,6 +50,11 @@
       "id": "proftpd-systemlog",
       "description": "proftpd logs to the file the fail2ban FTP jail reads, so repeated failed FTP logins get banned",
       "conditions": [
+        {
+          "type": "key_is",
+          "name": "FTP_SYSTEM",
+          "value": "proftpd"
+        },
         {
           "type": "path_exists",
           "path": "/etc/proftpd/proftpd.conf"

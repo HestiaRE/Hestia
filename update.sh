@@ -230,6 +230,8 @@ chmod 700 "$RUNDIR/rollback.sh"
 #----------------------------------------------------------#
 
 say "[ * ] Stopping the panel and unpacking $TARGET over $HESTIA"
+# Webmail runs behind the panel Caddy too, so a run that stops after this point must not leave it down.
+trap 'systemctl start caddy hestia-php 2> /dev/null || true' EXIT
 systemctl stop caddy hestia-php 2> /dev/null || true
 cp -r "$NEWTREE/." "$HESTIA/" || die "update: the overlay failed - put the tree back with $RUNDIR/rollback.sh"
 

@@ -6,11 +6,17 @@
 # example: h-add-letsencrypt-domain admin wonderland.com '' yes
 #
 # Issues a Let's Encrypt certificate over HTTP-01 for a web domain, or with MAIL for its mail names.
+# MAIL=host is h-add-letsencrypt-host on mail-only: the hostname, answered by the default server.
 
 user=$1
 domain=$2
 aliases=$3
 mail=${4// /}
+host=''
+if [ "$mail" = 'host' ]; then
+	host='yes'
+	mail=''
+fi
 
 deleted_redirect=0
 deleted_force_ssl=0
@@ -86,7 +92,13 @@ if [ -n "$mail" ]; then
 	is_boolean_format_valid "$mail" 'mail'
 fi
 
-if [ -z "$mail" ] || [ "$mail" = 'no' ]; then
+if [ -n "$host" ]; then
+	if [ -n "$WEB_SYSTEM" ] || [ "$(webmail_front)" != 'nginx' ]; then
+		check_result "$E_INVALID" "the host mode is for the mail-only model, elsewhere the hostname is a web domain"
+	fi
+	[ "$domain" = "$(hostname -f)" ] || check_result "$E_INVALID" "$domain is not the hostname of this server"
+	[ -z "$aliases" ] || check_result "$E_INVALID" "the host mode takes no aliases"
+elif [ -z "$mail" ] || [ "$mail" = 'no' ]; then
 	mail=''
 	is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 	is_object_valid 'web' 'DOMAIN' "$domain"
@@ -119,7 +131,7 @@ if [ -n "$mail" ]; then
 	if [ -n "$webmail" ]; then
 		aliases="$WEBMAIL_ALIAS.$root_domain"
 	fi
-else
+elif [ -z "$host" ]; then
 	parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
 	domain_redirect="$REDIRECT"
@@ -270,7 +282,11 @@ for auth in $authz; do
 	if [[ ! "$token" =~ ^[A-Za-z0-9_-]+$ ]]; then
 		check_result "$E_INVALID" "Let's Encrypt sent an unusable challenge token ($domain)"
 	fi
-	if [ -z "$mail" ]; then
+	if [ -n "$host" ]; then
+		# Per token, so the cleanup below leaves the directory the default server points at.
+		acme_name="host/$token"
+		acme_token_write host "$token" "$token.$THUMB"
+	elif [ -z "$mail" ]; then
 		if [ "$WEB_SYSTEM" = 'nginx' ] || [ "$PROXY_SYSTEM" = 'nginx' ]; then
 			conf="$HOMEDIR/$user/conf/web/$domain/nginx.conf_letsencrypt"
 			sconf="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_letsencrypt"
@@ -471,7 +487,10 @@ if [ -n "$mail" ]; then
 	mv $ssl_dir/$domain.pem $ssl_dir/$root_domain.pem
 fi
 
-if [ -z "$mail" ]; then
+if [ -n "$host" ]; then
+	# No record: h-update-host-certificate hands these to the services.
+	install -m 660 "$ssl_dir/$domain".{crt,key,ca,pem} "$USER_DATA/ssl/"
+elif [ -z "$mail" ]; then
 	ssl_enabled="$(get_object_value 'web' 'DOMAIN' "$domain" '$SSL')"
 	if [ "$ssl_enabled" = "yes" ]; then
 		$BIN/h-update-web-domain-ssl "$user" "$domain" "$ssl_dir" "updatessl"
@@ -503,7 +522,7 @@ if [ -f "$_ct" ] && ! grep -qF "$BIN/h-update-letsencrypt-ssl" "$_ct"; then
 	echo "$min $hour * * * sudo $BIN/h-update-letsencrypt-ssl" >> "$_ct"
 fi
 
-if [ -z "$mail" ]; then
+if [ -z "$mail" ] && [ -z "$host" ]; then
 	if [ -z "$LETSENCRYPT" ]; then
 		add_object_key "web" 'DOMAIN' "$domain" 'LETSENCRYPT' 'FTP_USER'
 		add_object_key "web" 'DOMAIN' "$domain" 'LETSENCRYPT_FAIL_COUNT' 'LETSENCRYPT'
@@ -520,7 +539,7 @@ if [ -z "$mail" ]; then
 		deleted_redirect=0
 	fi
 
-else
+elif [ -n "$mail" ]; then
 	if [ -z "$LETSENCRYPT" ]; then
 		add_object_key "mail" 'DOMAIN' "$root_domain" 'LETSENCRYPT'
 		add_object_key "mail" 'DOMAIN' "$root_domain" 'LETSENCRYPT_FAIL_COUNT' 'LETSENCRYPT'

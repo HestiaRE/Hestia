@@ -37,14 +37,20 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '1' "$#" 'USER HOSTNAME'
 is_format_valid 'user'
 is_domain_format_valid "$hostname" "hostname"
-is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
-is_system_enabled "$WEB_SSL" 'SSL_SUPPORT'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
-is_object_valid 'web' 'DOMAIN' "$hostname"
-is_object_unsuspended 'web' 'DOMAIN' "$hostname"
+# Mail-only has no web domain for the hostname: h-add-letsencrypt-host leaves the certificate in the user's store.
+if [ -z "$WEB_SYSTEM" ] && [ "$(webmail_front)" = 'nginx' ]; then
+	src="$CONF_DIR/users/$user/ssl/$hostname"
+else
+	is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
+	is_system_enabled "$WEB_SSL" 'SSL_SUPPORT'
+	is_object_valid 'web' 'DOMAIN' "$hostname"
+	is_object_unsuspended 'web' 'DOMAIN' "$hostname"
+	src="/home/$user/conf/web/$hostname/ssl/$hostname"
+fi
 
-if [ ! -f "/home/$user/conf/web/$hostname/ssl/$hostname.pem" ]; then
+if [ ! -f "$src.pem" ] || [ ! -f "$src.key" ]; then
 	echo "Error: domain $hostname does not have an SSL certificate."
 	exit 1
 fi
@@ -54,8 +60,8 @@ fi
 #----------------------------------------------------------#
 
 # Copy hostnames certificates from user dir
-cp /home/$user/conf/web/$hostname/ssl/$hostname.pem $HESTIA_SSL/certificate.crt
-cp /home/$user/conf/web/$hostname/ssl/$hostname.key $HESTIA_SSL/certificate.key
+cp "$src.pem" $HESTIA_SSL/certificate.crt
+cp "$src.key" $HESTIA_SSL/certificate.key
 
 # Enable fallback support for mail domains that do not support SSL
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then

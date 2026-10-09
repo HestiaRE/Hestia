@@ -4,6 +4,12 @@ server {
 	access_log  off;
 	error_log   /dev/null;
 
+	# The hostname's ACME answer on mail-only, where no web domain carries it. Keeps step with ACME_APACHE_DIR.
+	location ^~ /.well-known/acme-challenge/ {
+		alias /var/lib/hestia-acme/host/;
+		default_type text/plain;
+	}
+
 	location / {
 		root /var/www/html;
 

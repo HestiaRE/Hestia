@@ -907,12 +907,16 @@ is_web_domain_cert_valid() {
 # http-01 on an apache front: the token sits in a root-owned directory per name, published by an Alias in the vhost's
 # conf_letsencrypt fragment. Never a docroot, which the customer controls, nor a directory customers share.
 ACME_APACHE_DIR=/var/lib/hestia-acme
-acme_apache_publish() { # CONF_DIR NAME TOKEN KEY_AUTHORIZATION
-	local _dir="$ACME_APACHE_DIR/$2"
+acme_token_write() { # NAME TOKEN KEY_AUTHORIZATION
+	local _dir="$ACME_APACHE_DIR/$1"
 	mkdir -p "$_dir"
 	chmod 755 "$ACME_APACHE_DIR" "$(dirname "$_dir")" "$_dir"
-	echo "$4" > "$_dir/$3"
-	chmod 644 "$_dir/$3"
+	echo "$3" > "$_dir/$2"
+	chmod 644 "$_dir/$2"
+}
+acme_apache_publish() { # CONF_DIR NAME TOKEN KEY_AUTHORIZATION
+	local _dir="$ACME_APACHE_DIR/$2"
+	acme_token_write "$2" "$3" "$4"
 	cat > "$1/apache2.conf_letsencrypt" <<- EOF
 		Alias /.well-known/acme-challenge/ $_dir/
 		<Directory $_dir/>

@@ -4,7 +4,7 @@
 #
 # example: h-add-domain admin example.com
 #
-# Adds the domain on every enabled side, web and mail, or on none.
+# Adds the web and the mail domain on the sides the package offers; a side that fails later leaves the other in place.
 
 user=$1
 domain=$2

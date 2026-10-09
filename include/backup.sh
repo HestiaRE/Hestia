@@ -160,32 +160,63 @@ restore_web_fields_check() {
 	printf -v "$_wf_name" '%s' "$_wf_line"
 }
 
-# restore_records_filter SRC DST TYPE: write the lines of SRC that pass, name each dropped one on stderr.
-# For the multi-key record files only; an empty result is valid, a user may have no jobs or accounts.
+# restore_record_name TYPE LINE N: what a dropped line stood for. The name comes from the archive, so it is only
+# printed where it passes its own field rule.
+restore_record_name() {
+	local _v
+	case "$1" in
+		cron)
+			_v=$(record_field "$2" JOB)
+			if [[ "$_v" =~ ^[0-9]+$ ]]; then
+				echo "job $_v"
+				return
+			fi
+			;;
+		mail_accounts)
+			_v=$(record_field "$2" ACCOUNT)
+			if restore_quiet is_localpart_format_valid "$_v" account 64; then
+				echo "account $_v"
+				return
+			fi
+			;;
+	esac
+	echo "line $3 (no usable name)"
+}
+
+# restore_records_filter SRC DST TYPE: write the lines of SRC that pass. A key this host does not use is removed and
+# the line kept; a line with a field outside its rule is dropped. Both are named on stderr, and the dropped entries
+# are left in RESTORE_DROPPED for the caller's failure report. An empty result is valid: no jobs, no accounts.
 restore_records_filter() {
-	local _src="$1" _dst="$2" _t="$3" _allow _line _k _n=0 _ok _tmp
+	local _src="$1" _dst="$2" _t="$3" _allow _line _orig _k _n=0 _tmp _unknown=''
+	RESTORE_DROPPED=''
 	[ -f "$_src" ] || return 1
 	_allow=" $(syshealth_known_keys "$_t") " || return 1
 	[ -n "${_allow// /}" ] || return 1
 	_tmp=$(mktemp "$_dst.XXXXXX") || return 1
 	while IFS= read -r _line || [ -n "$_line" ]; do
 		_line=${_line%$'\r'}
+		_orig=$_line
 		_n=$((_n + 1))
 		[ -n "${_line// /}" ] || continue
-		_ok=no
+		# Removed, not kept: the readers bind every key of these records as a variable.
+		for _k in $(record_keys "$_line"); do
+			case "$_allow" in *" $_k "*) continue ;; esac
+			record_del_field _line "$_k" || {
+				_line=''
+				break
+			}
+			[[ " $_unknown " == *" $_k "* ]] || _unknown="${_unknown:+$_unknown }$_k"
+		done
 		# The shape check is per type: a cron command may hold quotes that no other record carries.
-		if restore_line_fields_ok "$_t" "$_line"; then
-			_ok=yes
-			for _k in $(record_keys "$_line"); do
-				case "$_allow" in *" $_k "*) ;; *) _ok=no ;; esac
-			done
-		fi
-		if [ "$_ok" = yes ]; then
+		if [ -n "$_line" ] && restore_line_fields_ok "$_t" "$_line"; then
 			printf '%s\n' "$_line" >> "$_tmp"
-		else
-			echo "Warning: dropping line $_n of the archived $_t record, it does not pass the $_t rules" >&2
+			continue
 		fi
+		_k=$(restore_record_name "$_t" "$_orig" "$_n")
+		RESTORE_DROPPED="${RESTORE_DROPPED:+$RESTORE_DROPPED, }$_k"
+		echo "Warning: the archived $_t entry $_k does not pass the $_t rules, not restored" >&2
 	done < "$_src"
+	[ -z "$_unknown" ] || echo "Warning: the archived $_t record carries key(s) unused here, removed: $_unknown" >&2
 	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
 }
 

@@ -47,6 +47,7 @@ fi
 
 restore_records_filter "$tmpdir/cron.conf" "$USER_DATA/cron.conf" cron \
 	|| check_result "$E_PARSING" "the archived cron.conf of $user could not be read"
+cron_dropped=$RESTORE_DROPPED
 
 sync_cron_jobs
 
@@ -61,6 +62,9 @@ $BIN/h-update-sys-ip-counters
 
 sed -i "/h-restore-cron-job-restic '$user' '$snapshot'/d" $CONF_DIR/queue/backup.pipe
 
+if [ -n "$cron_dropped" ]; then
+	check_result "$E_PARSING" "cron jobs of $user restored from $snapshot, except: $cron_dropped"
+fi
 $BIN/h-log-action "system" "Info" "Backup" "Cron jobs successfully restored (User: $user, Snapshot: $snapshot)."
 $BIN/h-log-action "$user" "Info" "Backup" "Cron jobs  successfully restored (User: $user, Snapshot: $snapshot)."
 log_event "$OK" "$ARGUMENTS"

@@ -46,7 +46,7 @@ if [ "$target" = release ]; then
 	latest=$(release_latest_tag)
 	installed=$(cat "$HESTIA/VERSION" 2> /dev/null)
 	echo "This box now follows the newest release (${latest:-the source did not answer})."
-	if [ -n "$latest" ] && ! version_ge "$latest" "$installed"; then
+	if [ -n "$latest" ] && [ -n "$installed" ] && ! version_ge "$latest" "$installed"; then
 		echo "Note: $latest is below the installed $installed, so the daily check refuses until a release above it is out."
 	fi
 else

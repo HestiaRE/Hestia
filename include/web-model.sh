@@ -46,12 +46,13 @@ web_model_keyset() {
 	esac
 }
 
-# hestia_apt at install time, plain apt-get from the live switch, which has no $LOG.
+# hestia_apt at install time, plain apt-get from the live switch, which has no $LOG; both non-interactive and
+# waiting for a held apt lock, so a switch during apt-daily does not fail fast.
 _web_apt_install() {
 	if declare -F hestia_apt > /dev/null 2>&1 && [ -n "${LOG:-}" ]; then
 		hestia_apt -y install "$@"
 	else
-		DEBIAN_FRONTEND=noninteractive apt-get -y \
+		DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" \
 			-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install "$@"
 	fi
 }
@@ -59,19 +60,21 @@ _web_apt_purge() {
 	if declare -F hestia_apt > /dev/null 2>&1 && [ -n "${LOG:-}" ]; then
 		hestia_apt -y purge "$@"
 	else
-		DEBIAN_FRONTEND=noninteractive apt-get -y purge "$@"
+		DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" purge "$@"
 	fi
 }
 
 # Only what dpkg knows: apt refuses the whole list over one name the distro does not carry.
 _web_purge_stack() {
-	local p st have=()
+	local p st out have=()
 	for p in "$@"; do
 		st=$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)
 		[ -n "$st" ] && [ "$st" != not-installed ] && have+=("$p")
 	done
 	[ "${#have[@]}" -gt 0 ] || return 0
-	_web_apt_purge "${have[@]}" > /dev/null 2>&1
+	out=$(_web_apt_purge "${have[@]}" 2>&1) && return 0
+	printf '%s\n' "$out" | tail -n 3 >&2
+	return 1
 }
 
 # ports.conf stays empty: Listen comes per IP, and the hestia-status listener keeps apache startable until then.
@@ -432,6 +435,8 @@ web_model_snapshot() {
 web_model_rollback() {
 	local snap="$1" restored pfx u dir ip
 	[ -d "$snap" ] || return 1
+	# An apt run cut off by a signal leaves the install mask until reboot, and the restart below would fail on it.
+	systemctl unmask --runtime nginx > /dev/null 2>&1
 	cp -a "$snap/hestia.conf" "$HESTIA/conf/hestia.conf"
 	tar xzf "$snap/state.tar.gz" -C / 2> /dev/null || true
 	source_conf "$HESTIA/conf/hestia.conf"
@@ -555,7 +560,7 @@ web_model_run() {
 	web_model_uses_nginx "$target" && ! web_model_uses_nginx "$current" \
 		&& { command -v nginx > /dev/null 2>&1 && echo "  - nginx is enabled again with the configuration it kept" || echo "  - nginx will be installed/configured"; }
 	web_model_uses_nginx "$current" && ! web_model_uses_nginx "$target" \
-		&& { [ "$purge" = "yes" ] && echo "  - nginx packages will be PURGED with their config files" || echo "  - nginx will be stopped+disabled (package kept)"; }
+		&& { [ "$purge" = "yes" ] && echo "  - nginx packages will be PURGED, /etc/nginx goes with them incl. custom includes (conf.d is in the snapshot)" || echo "  - nginx will be stopped+disabled (package kept)"; }
 	[ "$target" = "both" ] && echo "  - mod_remoteip enabled (apache trusts nginx X-Real-IP)"
 	web_model_uses_apache "$current" && [ "$target" != "both" ] \
 		&& echo "  - mod_remoteip disabled"

@@ -625,7 +625,7 @@ panel_caddy_site_edit() {
 		return 1
 	fi
 	rm -f "$bak"
-	# Not reload: the panel Caddy runs with the admin API off.
+	# Not reload: the panel Caddy runs with the admin API off. Updates start from a shell only, so no answer is cut.
 	systemctl try-restart caddy
 }
 

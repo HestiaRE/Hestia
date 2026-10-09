@@ -22,6 +22,8 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/db.sh
 # load config file
 source_conf "$HESTIA/conf/hestia.conf"
+# Every five minutes: a host that is down would mail the admin on each run.
+notify='no'
 
 #----------------------------------------------------------#
 #                       Action                             #
@@ -88,19 +90,16 @@ for host in $hosts; do
 	fi
 
 	if [ "$period" = 'daily' ]; then
-		mysql_connect "$host"
-		query='SHOW GLOBAL STATUS'
-		status=$(mysql_query "$query" 2> /dev/null)
-		if [ $? -ne 0 ]; then
-			active=0
-			slow=0
-		else
-			active=$(echo "$status" | grep 'Queries' | cut -f 2)
-			slow=$(echo "$status" | grep 'Slow_queries' | cut -f 2)
+		# In a subshell, so a host that does not answer loses only its own sample. Unknown, not 0: a
+		# COUNTER reads 0 as a wrap and draws a spike.
+		active='' slow=''
+		if status=$(mysql_connect "$host" > /dev/null && mysql_query 'SHOW GLOBAL STATUS'); then
+			active=$(echo "$status" | awk -F '\t' '$1 == "Queries" {print $2}')
+			slow=$(echo "$status" | awk -F '\t' '$1 == "Slow_queries" {print $2}')
 		fi
 
 		# Updating rrd
-		rrdtool update $RRD/db/mysql_$host.rrd N:$active:$slow
+		rrdtool update $RRD/db/mysql_$host.rrd "N:${active:-U}:${slow:-U}"
 	fi
 
 	# Updating daily graph

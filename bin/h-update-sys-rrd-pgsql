@@ -110,19 +110,14 @@ for host in $hosts; do
 		# Parsing data
 		q='SELECT SUM(xact_commit + xact_rollback), SUM(numbackends)
                 FROM pg_stat_database;'
-		status=$($sql -d postgres -c "$q" 2> /dev/null)
-		code="$?"
-		if [ '0' -ne "$code" ]; then
-			active=0
-			slow=0
-		else
-			active=$(echo "$status" | head -n 3 | tail -n 1 | awk '{print $3}')
-			trans=$(echo "$status" | head -n 3 | tail -n 1 | awk '{print $1}')
+		# Unknown, not 0: a COUNTER reads 0 as a wrap and draws a spike.
+		active='' trans=''
+		if status=$($sql -d postgres -tA -F ' ' -c "$q" 2> /dev/null); then
+			read -r trans active <<< "$status"
 		fi
 
 		# Updating rrd
-		export PGPASSWORD='pgsql'
-		rrdtool update $RRD/db/pgsql_$host.rrd N:$active:$trans
+		rrdtool update $RRD/db/pgsql_$host.rrd "N:${active:-U}:${trans:-U}"
 	fi
 
 	# Updating rrd graph

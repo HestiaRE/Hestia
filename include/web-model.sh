@@ -131,6 +131,7 @@ apache_remoteip_enable() {
 }
 
 # The trusted proxies follow the IP records. Rendered, never edited in place: sed -i turns the link into a copy.
+# The file is rendered whole on every IP add and delete; own RemoteIPInternalProxy lines belong in a conf of their own.
 apache_remoteip_refresh() {
 	[ "$(web_current_model)" = both ] || return 0
 	# shellcheck disable=SC2046 # one address per word

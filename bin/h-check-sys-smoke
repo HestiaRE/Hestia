@@ -98,11 +98,17 @@ check_sudo_secret_leak() {
 
 # check_service <systemd-unit> <label>
 check_service() {
-	if systemctl is-active --quiet "$1"; then
-		ok "service $2 ($1) active"
-	else
+	local en
+	if ! systemctl is-active --quiet "$1"; then
 		no "service $2 ($1) not active" "$(systemctl is-active "$1" 2> /dev/null)"
+		return
 	fi
+	# Active now is not active after a reboot.
+	en=$(systemctl is-enabled "$1" 2> /dev/null)
+	case "$en" in
+		disabled | masked | masked-runtime) no "service $2 ($1) active but $en, a reboot leaves it down" "systemctl enable $1" ;;
+		*) ok "service $2 ($1) active" ;;
+	esac
 }
 
 # check_config_loaded <unit> <label> <shipped config file>...

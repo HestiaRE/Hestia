@@ -50,12 +50,174 @@ restore_passwd_read() {
 	old_user=$(cut -f 1 -d : "$1" 2> /dev/null)
 	old_uid=$(cut -f 3 -d : "$1" 2> /dev/null)
 	[[ "$old_uid" =~ ^[0-9]+$ ]] || return 1
-	# Quiet: the caller reports, so the validator's exit must neither print nor log.
+	restore_quiet is_user_format_valid "$old_user" 'user'
+}
+
+# restore_quiet VALIDATOR ARGS...: the rc of a check_result validator, without its message, log line or exit.
+restore_quiet() {
 	(
-		_rpr_quiet() { :; }
-		CHECK_RESULT_CALLBACK=_rpr_quiet
-		is_user_format_valid "$old_user" 'user'
-	)
+		_rq_quiet() { :; }
+		CHECK_RESULT_CALLBACK=_rq_quiet
+		"$@"
+	) > /dev/null 2>&1
+}
+
+# restore_line_fields_ok TYPE LINE: the field rules a restored record line meets before a root renderer reads it.
+# Only the fields that reach a rendered file are checked; TIME, DATE and the cron command are left as stored.
+restore_line_fields_ok() {
+	local _l="$2" _k _v
+	local -a _lfo_list
+	case "$1" in
+		cron)
+			cron_record_safe "$_l" || return 1
+			[[ "$(record_field "$_l" JOB)" =~ ^[0-9]+$ ]] || return 1
+			for _k in MIN HOUR DAY MONTH WDAY; do
+				cron_field_valid "$(record_field "$_l" "$_k")" "${_k,,}" || return 1
+			done
+			[[ "$(record_field "$_l" SUSPENDED)" =~ ^(yes|no)$ ]]
+			;;
+		mail_accounts)
+			record_line_valid "$_l" || return 1
+			restore_quiet is_localpart_format_valid "$(record_field "$_l" ACCOUNT)" account 64 || return 1
+			IFS=, read -ra _lfo_list <<< "$(record_field "$_l" ALIAS)"
+			for _v in "${_lfo_list[@]}"; do
+				[ -z "$_v" ] || restore_quiet is_localpart_format_valid "$_v" alias 64 || return 1
+			done
+			IFS=, read -ra _lfo_list <<< "$(record_field "$_l" FWD)"
+			for _v in "${_lfo_list[@]}"; do
+				[ -z "$_v" ] || [ "$_v" = ':blackhole:' ] || restore_quiet is_email_format_valid "$_v" || return 1
+			done
+			# The hash is one field of the dovecot passwd line: a colon or a blank would open the next one.
+			[[ "$(record_field "$_l" MD5)" =~ ^[^:[:space:]]*$ ]] || return 1
+			[[ "$(record_field "$_l" QUOTA)" =~ ^([0-9]*|unlimited)$ ]] || return 1
+			for _k in RATE_LIMIT U_DISK; do
+				[[ "$(record_field "$_l" "$_k")" =~ ^[0-9]*$ ]] || return 1
+			done
+			for _k in AUTOREPLY FWD_ONLY SUSPENDED; do
+				[[ "$(record_field "$_l" "$_k")" =~ ^(yes|no|)$ ]] || return 1
+			done
+			;;
+		*) return 1 ;;
+	esac
+}
+
+# restore_php_installed VERSION: rc 0 when VERSION is a version string and installed here. The format comes first:
+# matched against the joined list, an archived value with a blank could span two installed versions.
+restore_php_installed() {
+	[[ "$1" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+	case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
+		*" $1 "*) return 0 ;;
+	esac
+	return 1
+}
+
+# restore_web_fields_check RECVAR: switch off what an archived web record names outside the bounds the add commands
+# set, both in the record line RECVAR and in the parsed variables. Prints one line per switched-off part.
+# Needs $user and default_proxy_ext (include/domain.sh).
+restore_web_fields_check() {
+	local _wf_name="$1" _wf_line
+	_wf_line=${!_wf_name}
+	if [ -n "$STATS" ] && { ! [[ "$STATS" =~ ^[a-z0-9]+$ ]] || [[ ",$STATS_SYSTEM," != *",$STATS,"* ]]; }; then
+		echo "stats '$STATS' is not offered here, switched off"
+		STATS='' STATS_USER='' STATS_CRYPT=''
+		record_set_field _wf_line STATS ''
+		record_set_field _wf_line STATS_USER ''
+		record_set_field _wf_line STATS_CRYPT ''
+	fi
+	# Each field on its own: the port reaches the vhost template even where DOCKER is empty.
+	local _dk_ok=yes
+	[ -z "$DOCKER" ] || { [[ "$DOCKER" =~ ^[A-Za-z0-9._-]+$ ]] && [ -n "$DOCKER_PORT" ]; } || _dk_ok=no
+	[ -z "$DOCKER_PORT" ] || { [[ "$DOCKER_PORT" =~ ^[0-9]{4,5}$ ]] && [ "$DOCKER_PORT" -ge 1024 ] \
+		&& [ "$DOCKER_PORT" -le 65535 ]; } || _dk_ok=no
+	[ -z "$DOCKER_OCTET" ] || { [[ "$DOCKER_OCTET" =~ ^[0-9]{1,3}$ ]] && [ "$DOCKER_OCTET" -ge 1 ] \
+		&& [ "$DOCKER_OCTET" -le 254 ]; } || _dk_ok=no
+	if [ "$_dk_ok" = no ]; then
+		echo "the docker proxy fields are outside the bounds of h-add-web-domain-docker, switched off"
+		DOCKER='' DOCKER_PORT='' DOCKER_OCTET=''
+		record_set_field _wf_line DOCKER ''
+		record_set_field _wf_line DOCKER_PORT ''
+		record_set_field _wf_line DOCKER_OCTET ''
+	fi
+	if [ -n "$PROXY_EXT" ] && ! restore_quiet is_extention_format_valid "$PROXY_EXT"; then
+		echo "the proxy extension list is not a list of extensions, the default applies"
+		PROXY_EXT=$(default_proxy_ext)
+		record_set_field _wf_line PROXY_EXT "$PROXY_EXT"
+	fi
+	# By path, not by existence: the target domain may come later in the run. Rule of h-change-web-domain-docroot.
+	local _root _rt _root_ok=yes
+	for _root in "$CUSTOM_DOCROOT" "$CUSTOM_PHPROOT"; do
+		[ -n "$_root" ] || continue
+		_rt=${_root#"$HOMEDIR/$user/web/"}
+		[ "$_rt" != "$_root" ] && [[ "$_rt" =~ ^[^/]+/public_html(/|$) ]] && [[ "/$_rt/" != *"/../"* ]] \
+			&& record_path_ok "$_root" "$HOMEDIR/$user/web" || _root_ok=no
+	done
+	if [ "$_root_ok" = no ]; then
+		echo "the custom document root lies outside the web folder of $user, the default applies"
+		CUSTOM_DOCROOT='' CUSTOM_PHPROOT=''
+		record_set_field _wf_line CUSTOM_DOCROOT ''
+		record_set_field _wf_line CUSTOM_PHPROOT ''
+	fi
+	printf -v "$_wf_name" '%s' "$_wf_line"
+}
+
+# restore_record_name TYPE LINE N: what a dropped line stood for. The name comes from the archive, so it is only
+# printed where it passes its own field rule.
+restore_record_name() {
+	local _v
+	case "$1" in
+		cron)
+			_v=$(record_field "$2" JOB)
+			if [[ "$_v" =~ ^[0-9]+$ ]]; then
+				echo "job $_v"
+				return
+			fi
+			;;
+		mail_accounts)
+			_v=$(record_field "$2" ACCOUNT)
+			if restore_quiet is_localpart_format_valid "$_v" account 64; then
+				echo "account $_v"
+				return
+			fi
+			;;
+	esac
+	echo "line $3 (no usable name)"
+}
+
+# restore_records_filter SRC DST TYPE: write the lines of SRC that pass. A key this host does not use is removed and
+# the line kept; a line with a field outside its rule is dropped. Both are named on stderr, and the dropped entries
+# are left in RESTORE_DROPPED for the caller's failure report. An empty result is valid: no jobs, no accounts.
+restore_records_filter() {
+	local _src="$1" _dst="$2" _t="$3" _allow _line _orig _k _n=0 _tmp _unknown=''
+	RESTORE_DROPPED=''
+	[ -f "$_src" ] || return 1
+	_allow=" $(syshealth_known_keys "$_t") " || return 1
+	[ -n "${_allow// /}" ] || return 1
+	_tmp=$(mktemp "$_dst.XXXXXX") || return 1
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		_line=${_line%$'\r'}
+		_orig=$_line
+		_n=$((_n + 1))
+		[ -n "${_line// /}" ] || continue
+		# Removed, not kept: the readers bind every key of these records as a variable.
+		for _k in $(record_keys "$_line"); do
+			case "$_allow" in *" $_k "*) continue ;; esac
+			record_del_field _line "$_k" || {
+				_line=''
+				break
+			}
+			[[ " $_unknown " == *" $_k "* ]] || _unknown="${_unknown:+$_unknown }$_k"
+		done
+		# The shape check is per type: a cron command may hold quotes that no other record carries.
+		if [ -n "$_line" ] && restore_line_fields_ok "$_t" "$_line"; then
+			printf '%s\n' "$_line" >> "$_tmp"
+			continue
+		fi
+		_k=$(restore_record_name "$_t" "$_orig" "$_n")
+		RESTORE_DROPPED="${RESTORE_DROPPED:+$RESTORE_DROPPED, }$_k"
+		echo "Warning: the archived $_t entry $_k does not pass the $_t rules, not restored" >&2
+	done < "$_src"
+	[ -z "$_unknown" ] || echo "Warning: the archived $_t record carries key(s) unused here, removed: $_unknown" >&2
+	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
 }
 
 # record_del_field VAR KEY: remove KEY from the record held in VAR; rc 1 as in record_set_field.
@@ -628,7 +790,8 @@ backup_php_missing() {
 		_ver=$(sed -n "s/.*PHP_VERSION='\([^']*\)'.*/\1/p" <<< "$_rec")
 		[ -z "$_ver" ] && _ver=$(sed -n "s/.*BACKEND='PHP-\([0-9]*\)_\([0-9]*\)'.*/\1.\2/p" <<< "$_rec")
 		{ [ -z "$_ver" ] || [ "$_ver" = 'none' ]; } && continue
-		[[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
+		# Format first, as in restore_php_installed: a value with a blank could span two installed versions.
+		[[ "$_ver" =~ ^[0-9]+\.[0-9]+$ ]] && [[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
 	done <<< "$_list"
 	BACKUP_PHP_MISSING=$(tr ' ' '\n' <<< "$_missing" | sed '/^$/d' | sort -u | tr '\n' ' ' | sed 's/ $//')
 }

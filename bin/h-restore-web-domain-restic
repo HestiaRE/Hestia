@@ -105,6 +105,10 @@ for domain in "${domains[@]}"; do
 			ALIAS=''
 			for dom_alias in "${_dom_alias_list[@]}"; do
 				[ -n "$dom_alias" ] || continue
+				if ! restore_quiet is_alias_format_valid "$dom_alias"; then
+					echo "Warning: $domain alias $dom_alias is not an alias name, dropped"
+					continue
+				fi
 				check_new=$(is_domain_new 'web' "$dom_alias")
 				[ -n "$check_new" ] && continue
 				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
@@ -142,18 +146,13 @@ for domain in "${domains[@]}"; do
 				# Valid profiles are the shipped pool templates (custom ones included); default otherwise
 				if [[ "$PHP_PROFILE" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -f "$PHPTPL/$PHP_PROFILE.tpl" ]; then BACKEND="$PHP_PROFILE"; else BACKEND='default'; fi
 				# Abort when this host lacks the archived version, unless the fallback to the default was requested.
-				if [ "$PHP_VERSION" != 'none' ]; then
-					case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
-						*" $PHP_VERSION "*) : ;;
-						*)
-							if [ "$RESTORE_PHP_FALLBACK" = 'yes' ]; then
-								echo "Warning: archived PHP version $PHP_VERSION not installed, using the system default ($(multiphp_default_version))."
-								PHP_VERSION=$(multiphp_default_version)
-							else
-								check_result "$E_NOTEXIST" "archived PHP version $PHP_VERSION not installed (install it, or re-run with RESTORE_PHP_FALLBACK=yes)"
-							fi
-							;;
-					esac
+				if [ "$PHP_VERSION" != 'none' ] && ! restore_php_installed "$PHP_VERSION"; then
+					if [ "$RESTORE_PHP_FALLBACK" = 'yes' ]; then
+						echo "Warning: archived PHP version $PHP_VERSION not installed, using the system default ($(multiphp_default_version))."
+						PHP_VERSION=$(multiphp_default_version)
+					else
+						check_result "$E_NOTEXIST" "archived PHP version $PHP_VERSION not installed (install it, or re-run with RESTORE_PHP_FALLBACK=yes)"
+					fi
 				fi
 			else
 				read -r BACKEND _ <<< "$(accept_web_template 'backend' "$BACKEND")"
@@ -226,6 +225,11 @@ for domain in "${domains[@]}"; do
 					*) echo "Warning!: $domain web record lost key $_k during restore" ;;
 				esac
 			done
+			# Not in a pipe: the check edits str and the parsed fields in this shell.
+			restore_web_fields_check str > "$tmpdir/web-fields.msg"
+			while IFS= read -r _m; do
+				echo "Warning: $domain $_m"
+			done < "$tmpdir/web-fields.msg"
 			record_zero_counters str U_DISK U_BANDWIDTH
 			echo "$str" >> $USER_DATA/web.conf
 

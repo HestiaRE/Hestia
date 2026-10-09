@@ -326,8 +326,9 @@ if [ "$create_user" = 'yes' ]; then
 	fi
 
 	mkdir $USER_DATA
-	# Filtered, not copied: the archive is hostile input.
+	# Filtered, not copied: the archive is hostile input. Dropped keys go to restore.log too, a queued run has no terminal.
 	copy_record_filtered "$tmpdir/$BACKUP_CONTAINER/user.conf" "$USER_DATA/user.conf" user \
+		2> >(tee -a "$tmpdir/restore.log" >&2) \
 		|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"
 	# A language this panel does not offer becomes en; rc 2 (an unusable list) leaves the value alone.
 	_lang=$(grep -m1 "^LANGUAGE=" "$USER_DATA/user.conf" | cut -d "'" -f 2)
@@ -360,7 +361,7 @@ if [ "$create_user" = 'yes' ]; then
 			continue
 		fi
 		if [ "$_name" = "backup-excludes.conf" ]; then
-			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes \
+			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes 2> >(tee -a "$tmpdir/restore.log" >&2) \
 				|| echo "Warning!: the archived $_name carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
 			continue
 		fi
@@ -377,7 +378,7 @@ if [ "$create_user" = 'yes' ]; then
 			if [ -e "$_dest" ]; then
 				echo "$(date "+%F %T") package $(basename "$_pkg") exists on target, kept unchanged" >> $tmpdir/restore.log 2> /dev/null || true
 			else
-				copy_record_filtered "$_pkg" "$_dest" package \
+				copy_record_filtered "$_pkg" "$_dest" package 2> >(tee -a "$tmpdir/restore.log" >&2) \
 					|| echo "Warning!: the archived package $(basename "$_pkg") carries no usable keys and was skipped" | tee -a $tmpdir/restore.log
 			fi
 		done
@@ -442,7 +443,7 @@ if ! restore_passwd_read "$tmpdir/pam/passwd"; then
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_PARSING" "the archived passwd entry is not a valid account"
 fi
-new_uid=$(grep "^$user:" /etc/passwd | cut -f 3 -d :)
+new_uid=$(awk -F : -v u="$user" '$1 == u {print $3; exit}' /etc/passwd)
 
 if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 	echo -e "\n-- WEB --" | tee -a $tmpdir/restore.log
@@ -498,6 +499,10 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			ALIAS=''
 			for dom_alias in "${_dom_alias_list[@]}"; do
 				[ -n "$dom_alias" ] || continue
+				if ! restore_quiet is_alias_format_valid "$dom_alias"; then
+					echo "Warning!: $domain alias $dom_alias is not an alias name, dropped" | tee -a "$tmpdir/restore.log"
+					continue
+				fi
 				check_new=$(is_domain_new 'web' "$dom_alias")
 				[ -n "$check_new" ] && continue
 				ALIAS="${ALIAS:+$ALIAS,}$dom_alias"
@@ -538,11 +543,9 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				# Valid profiles are the shipped pool templates (custom ones included); default otherwise
 				if [[ "$PHP_PROFILE" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -f "$PHPTPL/$PHP_PROFILE.tpl" ]; then BACKEND="$PHP_PROFILE"; else BACKEND='default'; fi
 				# Preflight approved a fallback for a version this host lacks
-				if [ "$RESTORE_PHP_FALLBACK" = 'yes' ] && [ "$PHP_VERSION" != 'none' ]; then
-					case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
-						*" $PHP_VERSION "*) : ;;
-						*) PHP_VERSION=$(multiphp_default_version) ;;
-					esac
+				if [ "$RESTORE_PHP_FALLBACK" = 'yes' ] && [ "$PHP_VERSION" != 'none' ] \
+					&& ! restore_php_installed "$PHP_VERSION"; then
+					PHP_VERSION=$(multiphp_default_version)
 				fi
 			else
 				read -r BACKEND _ <<< "$(accept_web_template 'backend' "$BACKEND")"
@@ -628,6 +631,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 					*) echo "Warning!: $domain web record lost key $_k during restore" | tee -a $tmpdir/restore.log ;;
 				esac
 			done
+			# Not in a pipe: the check edits str and the parsed fields in this shell.
+			restore_web_fields_check str > "$tmpdir/web-fields.msg"
+			while IFS= read -r _m; do
+				echo "Warning!: $domain $_m"
+			done < "$tmpdir/web-fields.msg" | tee -a "$tmpdir/restore.log"
 			record_zero_counters str U_DISK U_BANDWIDTH
 			echo "$str" >> $USER_DATA/web.conf
 
@@ -899,7 +907,14 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			mail_ssl_modes "$user" "$domain"
 		fi
 
-		cp -f $tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf $USER_DATA/mail/
+		if [ -f "$tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf" ]; then
+			if ! restore_records_filter "$tmpdir/mail/$domain/$BACKUP_CONTAINER/$domain.conf" "$USER_DATA/mail/$domain.conf" \
+				mail_accounts 2> >(tee -a "$tmpdir/restore.log" >&2); then
+				restore_failures="$restore_failures$(printf '\n  mail domain %s (the account list could not be read)' "$domain")"
+			elif [ -n "$RESTORE_DROPPED" ]; then
+				restore_failures="$restore_failures$(printf '\n  mail domain %s: %s not restored' "$domain" "$RESTORE_DROPPED")"
+			fi
+		fi
 
 		# The autoreply text is content nothing can recreate: restore both the record-side copy and the one exim reads,
 		# or the account comes back with AUTOREPLY='yes' and no text.
@@ -1123,21 +1138,27 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		REBUILD_DB_UNUSABLE=''
 		# Clear the name this customer will own, never the archived one: under a different customer name that one is
 		# somebody else's live database.
-		db_cleared='yes'
+		drop_rc=0
 		case $TYPE in
 			mysql)
-				delete_mysql_database "$target_db" || db_cleared='no'
+				delete_mysql_database "$target_db" || drop_rc=$?
 				;;
 			pgsql)
-				delete_pgsql_database "$target_db" || db_cleared='no'
+				delete_pgsql_database "$target_db" || drop_rc=$?
 				;;
 		esac
 		# Refused means the target was not emptied and importing would merge into it: named as a part that did not come
 		# back. Branched rather than `continue`d: the loop body keeps one way out, so anything appended at its end runs
 		# for every database.
-		if [ "$db_cleared" != 'yes' ]; then
-			echo "Warning!: $target_db was not restored - it is not a database of $user" | tee -a $tmpdir/restore.log
-			restore_failures="$restore_failures$(printf '\n  database %s (refused: not a database of %s)' "$target_db" "$user")"
+		if [ "$drop_rc" -ne 0 ]; then
+			# 1 is the ownership guard, 2 a DROP the server refused (an open session, say).
+			if [ "$drop_rc" -eq 2 ]; then
+				drop_why="the server refused to drop the existing database"
+			else
+				drop_why="it is not a database of $user"
+			fi
+			echo "Warning!: $target_db was not restored - $drop_why" | tee -a $tmpdir/restore.log
+			restore_failures="$restore_failures$(printf '\n  database %s (refused: %s)' "$target_db" "$drop_why")"
 		else
 			import_rc=0
 			case $TYPE in
@@ -1205,7 +1226,12 @@ if [ "$cron" != 'no' ] && [ -n "$CRON_SYSTEM" ]; then
 		echo "$(date "+%F %T") cron job $job calls a HestiaCP command that does not exist here" | tee -a $tmpdir/restore.log
 	done
 
-	cp $tmpdir/cron/cron.conf $USER_DATA/cron.conf
+	if ! restore_records_filter "$tmpdir/cron/cron.conf" "$USER_DATA/cron.conf" cron \
+		2> >(tee -a "$tmpdir/restore.log" >&2); then
+		restore_failures="$restore_failures$(printf '\n  cron jobs (the archived cron.conf could not be read)')"
+	elif [ -n "$RESTORE_DROPPED" ]; then
+		restore_failures="$restore_failures$(printf '\n  cron: %s not restored' "$RESTORE_DROPPED")"
+	fi
 
 	sync_cron_jobs
 

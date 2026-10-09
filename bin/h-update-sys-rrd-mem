@@ -6,28 +6,16 @@
 #
 # example: h-update-sys-rrd-mem
 #
-# This function is for updating memory rrd database and graphic.
+# Samples memory into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -52,12 +40,10 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/mem" ]; then
 	mkdir $RRD/mem
 fi
 
-# Checking database
 if [ -e "$RRD/mem/mem.rrd" ]; then
 	rrd_check=$(rrdtool info $RRD/mem/mem.rrd | grep "FREE")
 	if [ -z "$rrd_check" ]; then
@@ -65,7 +51,6 @@ if [ -e "$RRD/mem/mem.rrd" ]; then
 	fi
 fi
 if [ ! -e "$RRD/mem/mem.rrd" ]; then
-	# Adding database
 	rrdtool create $RRD/mem/mem.rrd --step $RRD_STEP \
 		DS:RAM:GAUGE:600:U:U \
 		DS:SWAP:GAUGE:600:U:U \
@@ -80,7 +65,6 @@ if [ ! -e "$RRD/mem/mem.rrd" ]; then
 		RRA:MAX:0.5:288:797
 fi
 
-# Parsing data
 if [ "$period" = 'daily' ]; then
 	mem=$(LC_ALL=C free -m)
 	used=$(echo "$mem" | grep Mem | awk '{print $3}')
@@ -91,11 +75,9 @@ if [ "$period" = 'daily' ]; then
 	fi
 	swap=$(echo "$mem" | grep Swap | awk '{print $3}')
 
-	# Updating rrd
 	rrdtool update $RRD/mem/mem.rrd N:$used:$swap:$free
 fi
 
-# Updating rrd graph
 rrdtool graph $RRD/mem/$period-mem.png \
 	--imgformat PNG \
 	--height="150" \
@@ -130,10 +112,6 @@ rrdtool graph $RRD/mem/$period-mem.png \
 	GPRINT:swap:'MIN:Min\:''%8.0lf' \
 	GPRINT:swap:'MAX:Max\:''%8.0lf\j' &> /dev/null
 result=$?
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$result" -ne 0 ]; then
 	exit "$E_RRD"

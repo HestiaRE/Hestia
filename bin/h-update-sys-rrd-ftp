@@ -6,28 +6,16 @@
 #
 # example: h-update-sys-rrd-ftp
 #
-# This function is for updating ftpd rrd database and graphic.
+# Samples the FTP connections into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -52,14 +40,11 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/ftp" ]; then
 	mkdir $RRD/ftp
 fi
 
-# Checking database
 if [ ! -e "$RRD/ftp/ftp.rrd" ]; then
-	# Adding database
 	rrdtool create $RRD/ftp/ftp.rrd --step $RRD_STEP \
 		DS:A:GAUGE:600:U:U \
 		RRA:AVERAGE:0.5:1:600 \
@@ -72,20 +57,17 @@ if [ ! -e "$RRD/ftp/ftp.rrd" ]; then
 		RRA:MAX:0.5:288:797
 fi
 
-# Parsing data
 if [ "$period" = 'daily' ]; then
 	a=0
 	a=$(ps aux | grep "$FTP_SYSTEM" | grep -v grep | grep -v nobody \
 		| grep -v root | wc -l)
 	if [ "$FTP_SYSTEM" = 'proftpd' ]; then
-		# Decrease numeber of connnections by 1 for proftpd ps aux always returns 1
+		# The proftpd master is in the list as well.
 		a=$((a - 1))
 	fi
-	# Updating rrd database
 	rrdtool update $RRD/ftp/ftp.rrd N:$a
 fi
 
-# Updating rrd graph
 rrdtool graph $RRD/ftp/$period-ftp.png \
 	--imgformat PNG \
 	--height="150" \
@@ -110,10 +92,6 @@ rrdtool graph $RRD/ftp/$period-ftp.png \
 	GPRINT:a:'MIN:Min\:''%8.0lf' \
 	GPRINT:a:'MAX:Max\:''%8.0lf\j' &> /dev/null
 result=$?
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$result" -ne 0 ]; then
 	exit "$E_RRD"

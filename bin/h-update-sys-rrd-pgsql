@@ -6,30 +6,18 @@
 #
 # example: h-update-sys-rrd-pgsql
 #
-# This function is for updating postgresql rrd database and graphic.
+# Samples each PostgreSQL host into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -54,12 +42,10 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/db" ]; then
 	mkdir $RRD/db
 fi
 
-# Parsing db hosts
 conf="$HESTIA/conf/pgsql.conf"
 hosts=$(grep HOST $conf | awk '{print $1}' | cut -f 2 -d \')
 check_row=$(echo "$hosts" | wc -l)
@@ -67,15 +53,12 @@ if [ 0 -eq "$check_row" ]; then
 	exit
 fi
 
-# Parsing excludes
 for exclude in $(echo ${RRD_PGSQL_EXCLUDE//,/ }); do
 	hosts=$(echo "$hosts" | grep -vw "$exclude")
 done
 
 for host in $hosts; do
-	# Checking database
 	if [ ! -e "$RRD/db/pgsql_$host.rrd" ]; then
-		# Adding database
 		rrdtool create $RRD/db/pgsql_$host.rrd --step $RRD_STEP \
 			DS:A:GAUGE:600:U:U \
 			DS:T:COUNTER:600:U:U \
@@ -90,9 +73,7 @@ for host in $hosts; do
 	fi
 
 	if [ "$period" = 'daily' ]; then
-		# Defining host credentials. parse_object_kv_list, not eval: the loop turned record text
-		# into variables with neither the name nor the value checked - the last place in the tree
-		# with that shape (#807 hardened the parser for exactly this).
+		# parse_object_kv_list, not eval: record text becomes variables only once name and value are checked.
 		unset TLS PORT
 		host_str=$(grep -F "HOST='$host'" $conf)
 		parse_object_kv_list "$host_str"
@@ -101,15 +82,13 @@ for host in $hosts; do
 		psql_env "$HOST" "$TLS"
 		sql="psql -h $HOST -U $USER -p ${PORT:-5432}"
 
-		# Quoted: an unquoted $PASSWORD is split into words, and the emptiness check then dies with
-		# "binary operator expected" instead of answering the question it was asked.
+		# Quoted: an unquoted $PASSWORD splits into words and the test dies instead of answering.
 		if [ -z "$HOST" ] || [ -z "$USER" ] || [ -z "$PASSWORD" ]; then
 			echo "Error: config is broken"
 			log_event "$E_PARSING" "$ARGUMENTS"
 			exit "$E_PARSING"
 		fi
 
-		# Parsing data
 		q='SELECT SUM(xact_commit + xact_rollback), SUM(numbackends)
                 FROM pg_stat_database;'
 		# Unknown, not 0: a COUNTER reads 0 as a wrap and draws a spike.
@@ -118,11 +97,9 @@ for host in $hosts; do
 			read -r trans active <<< "$status"
 		fi
 
-		# Updating rrd
 		rrdtool update $RRD/db/pgsql_$host.rrd "N:${active:-U}:${trans:-U}"
 	fi
 
-	# Updating rrd graph
 	rrdtool graph $RRD/db/$period-pgsql_$host.png \
 		--imgformat PNG \
 		--height="150" \
@@ -158,9 +135,5 @@ for host in $hosts; do
 	fi
 
 done
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

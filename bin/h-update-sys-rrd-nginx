@@ -6,34 +6,21 @@
 #
 # example: h-update-sys-rrd-nginx
 #
-# This function is for updating nginx rrd database and graphic.
+# Samples nginx into its rrd on the daily run and draws the graph for PERIOD.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 period=${1-daily}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# No nginx in the apache-only model - the graph would draw a flat line from a status endpoint
-# that does not exist (#639).
+# Apache-only has no nginx; the graph would draw a flat line from a status page that is not there.
 if [ "$WEB_SYSTEM" != 'nginx' ] && [ "$PROXY_SYSTEM" != 'nginx' ]; then
 	exit
 fi
 
-# Switching on time period
 case $period in
 	daily)
 		start='-1d'
@@ -58,14 +45,11 @@ case $period in
 	*) exit "$E_RRD" ;;
 esac
 
-# Checking directory
 if [ ! -d "$RRD/web" ]; then
 	mkdir "$RRD/web"
 fi
 
-# Checking database
 if [ ! -e "$RRD/web/nginx.rrd" ]; then
-	# Adding database
 	rrdtool create $RRD/web/nginx.rrd --step $RRD_STEP \
 		DS:A:GAUGE:600:U:U \
 		RRA:AVERAGE:0.5:1:600 \
@@ -78,15 +62,12 @@ if [ ! -e "$RRD/web/nginx.rrd" ]; then
 		RRA:MAX:0.5:288:797
 fi
 
-# Parsing data
 if [ "$period" = 'daily' ]; then
 	a=$(wget -qO- http://localhost:8084/ | head -n1 | cut -f 3 -d ' ')
 
-	# Updating rrd database
 	rrdtool update $RRD/web/nginx.rrd N:$a
 fi
 
-# Updating rrd graph
 rrdtool graph $RRD/web/$period-nginx.png \
 	--imgformat PNG \
 	--height="150" \
@@ -111,10 +92,6 @@ rrdtool graph $RRD/web/$period-nginx.png \
 	GPRINT:a:'MIN:Min\:''%8.0lf' \
 	GPRINT:a:'MAX:Max\:''%8.0lf\j' &> /dev/null
 result=$?
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 if [ "$result" -ne 0 ]; then
 	exit "$E_RRD"

@@ -36,7 +36,7 @@ if [ "$1" = "no" ]; then
 	exit
 fi
 
-if [ "$1" = 'scheduled' ] || [ -z "$1" ] && [ "$SCHEDULED_RESTART" = 'yes' ]; then
+if { [ "$1" = 'scheduled' ] || [ -z "$1" ]; } && [ "$SCHEDULED_RESTART" = 'yes' ]; then
 	sed -i "/\/$SCRIPT now/d" $CONF_DIR/queue/restart.pipe
 	echo "$BIN/$SCRIPT now" >> $CONF_DIR/queue/restart.pipe
 	exit

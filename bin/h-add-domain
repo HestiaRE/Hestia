@@ -1,34 +1,24 @@
 #!/bin/bash
-# info: add web/dns/mail domain
+# info: add web/mail domain
 # options: USER DOMAIN [IP] [RESTART]
 #
 # example: h-add-domain admin example.com
 #
-# This function adds web/dns/mail domain to a server.
+# Adds the web and the mail domain on the sides the package offers; a side that fails later leaves the other in place.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 ip=$3
 restart=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 check_args '2' "$#" 'USER DOMAIN [IP] [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 if [ -n "$ip" ]; then
@@ -37,46 +27,31 @@ fi
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Get ip if it wasn't defined
-# get_user_ip owns the no-address-at-all refusal; an empty v4 slot is the v6-only box, and
-# the sub-commands resolve their own v6.
+# get_user_ip refuses a box without any address; an empty v4 slot is the v6-only box, the sub-commands resolve v6.
 [ -z "$ip" ] && get_user_ip
 
-# Working on web domain
-if [ -n "$WEB_SYSTEM" ]; then
-	check1=$(is_package_full 'WEB_DOMAINS')
-	if [ $? -eq 0 ]; then
-		$BIN/h-add-web-domain "$user" "$domain" "$ip" 'no'
-		check_result $? "can't add web domain"
-	fi
+# A side the package does not offer (limit 0) is left out; a full offered side refuses before anything is added.
+web='' mail=''
+[ -n "$WEB_SYSTEM" ] && [ "$(get_user_value '$WEB_DOMAINS')" != 0 ] && web=yes
+[ -n "$MAIL_SYSTEM" ] && [ "$(get_user_value '$MAIL_DOMAINS')" != 0 ] && mail=yes
+[ -n "$web$mail" ] || check_result "$E_LIMIT" "the package offers neither web nor mail domains"
+[ -n "$web" ] && is_package_full 'WEB_DOMAINS'
+[ -n "$mail" ] && is_package_full 'MAIL_DOMAINS'
+
+if [ -n "$web" ]; then
+	$BIN/h-add-web-domain "$user" "$domain" "$ip" 'no'
+	check_result $? "can't add web domain"
 fi
 
-# Working on mail domain
-if [ -n "$MAIL_SYSTEM" ]; then
-	check3=$(is_package_full 'MAIL_DOMAINS')
-	if [ $? -eq 0 ]; then
-		$BIN/h-add-mail-domain $user $domain 'no'
-		check_result $? "can't add mail domain"
-	fi
+if [ -n "$mail" ]; then
+	$BIN/h-add-mail-domain "$user" "$domain"
+	check_result $? "can't add mail domain"
 fi
 
-if [[ "$check1" != '' && "$check3" != '' ]]; then
-	check_result 8 "Package limit reached"
-fi
-
-# Restarting services
 $BIN/h-restart-web "$restart"
 check_result $? "can't restart web" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "can't restart proxy" > /dev/null
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

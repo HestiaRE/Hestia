@@ -4,35 +4,21 @@
 #
 # example: h-search-command web
 #
-# This function searches for available Hestia Control Panel commands
-# and returns results based on the specified criteria.
+# Lists the commands whose names contain every ARG.
 # Originally developed for VestaCP by Federico Krum
 # <https://github.com/FastDigitalOceanDroplets/VestaCP/blob/master/files/h-search-command>
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 if [ $# -eq 0 ]; then
 	echo "ERROR: No search arguments specified."
 	echo "Usage: h-search-command ARG1 [ARG2] [ARG...]"
 	exit 1
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # Internal ones are machinery, not operator tools.
 commands=$(

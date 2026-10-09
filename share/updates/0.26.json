@@ -46,6 +46,16 @@
       "reversible": false
     },
     {
+      "id": "remove-h-run-cli-cmd",
+      "description": "h-run-cli-cmd is gone: it served the REST API, which does not exist here",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-run-cli-cmd" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-run-cli-cmd" },
+      "paths": ["/usr/local/hestia/bin/h-run-cli-cmd"],
+      "reversible": false
+    },
+    {
       "id": "remove-h-update-sys-rrd-httpd",
       "description": "h-update-sys-rrd-httpd is gone: it graphed the RHEL web server, which nothing here installs",
       "conditions": [

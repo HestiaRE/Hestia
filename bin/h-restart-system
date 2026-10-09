@@ -4,36 +4,21 @@
 #
 # example: h-restart-system yes
 #
-# This function restarts operating system.
+# Reboots the server, after DELAY seconds when given.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 restart=$1
 delay=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'RESTART [DELAY]'
 is_format_valid 'restart'
 # No -n guard: is_format_valid skips an empty value itself.
 is_format_valid 'delay'
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if [ "$restart" = 'yes' ]; then
 	$BIN/h-log-action "system" "Warning" "System" "System restart initiated."
@@ -43,9 +28,5 @@ if [ "$restart" = 'yes' ]; then
 	fi
 	/sbin/reboot
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

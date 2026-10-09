@@ -4,58 +4,33 @@
 #
 # example: h-search-domain-owner acme.com
 #
-# This function that allows to find user objects.
+# Prints the user who holds DOMAIN as a web or mail domain; TYPE narrows it to one.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 domain=$1
 type=${2-any}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'DOMAIN [TYPE]'
 
 is_format_valid 'domain'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Define conf
 case $type in
 	web) conf="$CONF_DIR/users/*/web.conf" ;;
 	mail) conf="$CONF_DIR/users/*/mail.conf" ;;
 	*) conf="$CONF_DIR/users/*/*.conf" ;;
 esac
 
-# Extract the user from the matching path ($CONF_DIR/users/<user>/<type>.conf)
-# instead of a fixed cut field — the field position broke when the user data
-# moved from $HESTIA/data/users to /etc/hestia/users (#148).
+# The user from the path, not a fixed cut field: the field position moves with CONF_DIR.
 owner=$(grep -HF "DOMAIN='$domain'" $conf | head -n 1 | sed -e "s|^$CONF_DIR/users/||" -e "s|/.*||")
 if [ -z "$owner" ]; then
 	exit "$E_NOTEXIST"
 fi
 
 echo "$owner"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
-#log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -15,6 +15,7 @@ before v0.20.0 are folded into one section by theme.
 ### Security
 
 - **The server statistics are stricter** (#1176).
+- **The site download is stricter** (#1176).
 
 ### Changed
 
@@ -37,6 +38,14 @@ before v0.20.0 are folded into one section by theme.
 - **The server statistics page shows its graphs** (#1176). The apache2 and SSH counts are no longer
   doubled, and a database host that is down leaves a gap instead of a spike and no longer mails the
   admin every five minutes.
+- **Domain and service commands do what they say** (#1176). `h-add-domain` gives the mail domain its
+  spam filter and refuses a full package before adding anything, unsuspending a web domain in the panel
+  leaves its mail domain alone, a service that fails to start or stop is reported as failed, and the
+  admin search takes the term as text.
+
+### Removed
+
+- **`h-run-cli-cmd`** (#1176). It served the REST API, which HestiaRE does not have; an update removes it.
 
 ## v0.25 (2026-10-08)
 

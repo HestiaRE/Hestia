@@ -29,6 +29,7 @@
       "id": "panel-rrd-internal",
       "description": "The server statistics under the panel web root are served only through the admin view",
       "conditions": [
+        { "type": "file_contains", "path": "/etc/caddy/hestia.conf", "value": "@internal path " },
         { "type": "file_lacks", "path": "/etc/caddy/hestia.conf", "value": "/rrd/*" }
       ],
       "action": { "type": "function_call", "function": "panel_caddy_rrd_internal_apply" },

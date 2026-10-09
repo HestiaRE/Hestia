@@ -42,6 +42,8 @@ before v0.20.0 are folded into one section by theme.
   spam filter and refuses a full package before adding anything, unsuspending a web domain in the panel
   leaves its mail domain alone, a service that fails to start or stop is reported as failed, and the
   admin search takes the term as text.
+- **Updates finish cleanly** (#1176). A fresh install no longer leaves an update entry pending, and a
+  failed update run no longer leaves the panel and webmail stopped.
 
 ### Removed
 

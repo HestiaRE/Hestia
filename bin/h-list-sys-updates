@@ -4,17 +4,12 @@
 #
 # example: h-list-sys-updates plain
 #
-# Derives the list from the update manifests in the tree and the status of this box. It reads both and
-# writes neither: the same derivation feeds the smoke's manifest guard and, in a run, update.conf.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Derived from the manifests in the tree and the status of this box, read-only. The same derivation is
+# the smoke's pending check and, in a run, update.conf.
 
 format=${1-shell}
 target=${2-}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/update.sh
@@ -26,26 +21,19 @@ if [ -z "$target" ]; then
 	[ -n "$target" ] || check_result "$E_NOTEXIST" "no VERSION in $HESTIA"
 fi
 
-# PLAIN list function
 plain_list() {
 	jq -r '.entries[] | [.identity, .action.type, (if .reversible then "reversible" else "final" end),
 		.description] | @tsv' <<< "$plan"
 }
 
-# SHELL list function
 shell_list() {
 	printf 'ENTRY\tACTION\tROLLBACK\tDESCRIPTION\n'
 	printf -- '-----\t------\t--------\t-----------\n'
 	plain_list
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 plan=$(upd_plan "$target") || check_result "$E_INVALID" "the update manifests in this tree are not sound"
 
-# Listing data
 case $format in
 	json) echo "$plan" ;;
 	plain) plain_list ;;
@@ -58,9 +46,5 @@ case $format in
 		;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

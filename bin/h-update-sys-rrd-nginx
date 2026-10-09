@@ -63,7 +63,7 @@ if [ ! -e "$RRD/web/nginx.rrd" ]; then
 fi
 
 if [ "$period" = 'daily' ]; then
-	a=$(wget -qO- http://localhost:8084/ | head -n1 | cut -f 3 -d ' ')
+	a=$(wget -qO- -T 5 -t 1 http://localhost:8084/ | head -n1 | cut -f 3 -d ' ')
 
 	rrdtool update $RRD/web/nginx.rrd N:$a
 fi

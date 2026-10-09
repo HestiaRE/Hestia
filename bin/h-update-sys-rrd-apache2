@@ -58,7 +58,7 @@ if [ ! -e "$RRD/web/apache2.rrd" ]; then
 fi
 
 if [ "$period" = 'daily' ]; then
-	active=$(wget -qO- http://localhost:8081/server-status \
+	active=$(wget -qO- -T 5 -t 1 http://localhost:8081/server-status \
 		| sed -n 's/.*>\([0-9]\+\) requests currently being processed.*/\1/p' | head -n1)
 
 	rrdtool update $RRD/web/apache2.rrd "N:${active:-U}"

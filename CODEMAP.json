@@ -578,8 +578,9 @@
       "notes": [
         "Caddyfile: global options + import /etc/caddy/*.conf",
         "hestia.conf: site block only (https://:8083)",
-        "X-Accel-Redirect handled via handle_response in reverse_proxy block",
-        "web/list/rrd/image.php updated to send absolute path for X-Accel-Redirect",
+        "X-Accel-Redirect: handle_response reads the upstream header as {http.reverse_proxy.header.X-Accel-Redirect} ({http.response.header.*} is what goes to the client, never the upstream's). Only web/list/rrd/image.php uses it (admin session, absolute path under web/rrd).",
+        "Server statistics: bin/h-update-sys-rrd (cron, every 5 min) runs the h-update-sys-rrd-* collectors into $RRD = web/rrd; h-list-sys-rrd lists them for the panel. web/rrd sits in the @internal matcher, so it is reachable only through image.php.",
+        "An installed hestia.conf is edited in place, never re-copied, because it carries the panel port (h-change-sys-port): update entries go through panel_caddy_site_edit in include/helper.sh (sed, CHECK, caddy adapt, put back on failure, try-restart).",
         "File manager /fm/* served via handle block with uri strip_prefix",
         "Web terminal removed in Issue #59 — /_shell/ location absent by design",
         "Panel apps under /etc/caddy/apps/*.conf: phpMyAdmin/phpPgAdmin (h-change-sys-db-alias) and rspamd controller UI (installer mail stage, Issue #301). rspamd: /rspamd/* is forward_auth-gated against the admin panel session (web/rspamd-auth.php) then proxied to the controller's unix socket /run/rspamd/controller.sock (X-Forwarded-* stripped). The controller binds that socket (mode 0660, group _rspamd) instead of TCP localhost so no local shell user can read it; installer adds caddy to the _rspamd group. Shown in-panel via the iframe page web/list/rspamd/. Installer also sets password+enable_password overriding the stock q1 default (defense in depth)"

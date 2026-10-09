@@ -12,6 +12,10 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
+### Security
+
+- **The server statistics are stricter** (#1176).
+
 ### Changed
 
 - **The backup exclusion list is stricter** (#1176). Each entry must be a domain, path, mailbox or database name;
@@ -30,6 +34,9 @@ before v0.20.0 are folded into one section by theme.
 - **Server settings keep what the admin set** (#1176). Moving the panel port keeps the panel rule's
   source restriction, a NAT change moves only that address, an invalid time zone is refused, and an
   added IP no longer leaves apache without the real client address after a web model switch.
+- **The server statistics page shows its graphs** (#1176). The apache2 and SSH counts are no longer
+  doubled, and a database host that is down leaves a gap instead of a spike and no longer mails the
+  admin every five minutes.
 
 ## v0.25 (2026-10-08)
 

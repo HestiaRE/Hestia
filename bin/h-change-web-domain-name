@@ -193,6 +193,20 @@ fi
 mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain"
 # The rebuild copies the certificate in under the new name.
 rm -f "$HOMEDIR/$user/conf/web/$new_domain/ssl/$domain".*
+# The ssl variant of a fragment is an absolute link to the plain one; it follows the folder.
+for l in "$HOMEDIR/$user/conf/web/$new_domain"/*; do
+	[ -L "$l" ] || continue
+	t=$(readlink "$l")
+	case "$t" in
+		"$HOMEDIR/$user/conf/web/$domain"/*) ln -sfn "$HOMEDIR/$user/conf/web/$new_domain/${t#"$HOMEDIR/$user/conf/web/$domain/"}" "$l" ;;
+	esac
+done
+# A redirect to the domain itself (the panel's two choices) points at the new name, written anew.
+if [ "$REDIRECT" = "$domain" ] || [ "$REDIRECT" = "www.$domain" ]; then
+	$BIN/h-delete-web-domain-redirect "$user" "$new_domain" 'no' > /dev/null 2>&1
+	$BIN/h-add-web-domain-redirect "$user" "$new_domain" "$(rename_name "$REDIRECT")" "${REDIRECT_CODE:-301}" 'no' > /dev/null 2>&1 \
+		|| rename_warn+=", the redirect to $REDIRECT is gone"
+fi
 
 # The accounts share the customer's uid, so usermod -d refuses while any of its processes runs. Removed instead,
 # the rebuild creates them again below the new folder from the record, which first gets the live hashes.

@@ -46,12 +46,13 @@ web_model_keyset() {
 	esac
 }
 
-# hestia_apt at install time, plain apt-get from the live switch, which has no $LOG.
+# hestia_apt at install time, plain apt-get from the live switch, which has no $LOG; both non-interactive and
+# waiting for a held apt lock, so a switch during apt-daily does not fail fast.
 _web_apt_install() {
 	if declare -F hestia_apt > /dev/null 2>&1 && [ -n "${LOG:-}" ]; then
 		hestia_apt -y install "$@"
 	else
-		DEBIAN_FRONTEND=noninteractive apt-get -y \
+		DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" \
 			-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold install "$@"
 	fi
 }
@@ -59,8 +60,21 @@ _web_apt_purge() {
 	if declare -F hestia_apt > /dev/null 2>&1 && [ -n "${LOG:-}" ]; then
 		hestia_apt -y purge "$@"
 	else
-		DEBIAN_FRONTEND=noninteractive apt-get -y purge "$@"
+		DEBIAN_FRONTEND=noninteractive apt-get -y -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" purge "$@"
 	fi
+}
+
+# Only what dpkg knows: apt refuses the whole list over one name the distro does not carry.
+_web_purge_stack() {
+	local p st out have=()
+	for p in "$@"; do
+		st=$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)
+		[ -n "$st" ] && [ "$st" != not-installed ] && have+=("$p")
+	done
+	[ "${#have[@]}" -gt 0 ] || return 0
+	out=$(_web_apt_purge "${have[@]}" 2>&1) && return 0
+	printf '%s\n' "$out" | tail -n 3 >&2
+	return 1
 }
 
 # ports.conf stays empty: Listen comes per IP, and the hestia-status listener keeps apache startable until then.
@@ -108,6 +122,66 @@ configure_apache2() {
 	systemctl restart apache2
 }
 
+# Shared with the installer. No start here: in a switch apache still holds :80 until the rebuild, so the caller starts it.
+configure_nginx() {
+	echo "[ * ] Installing nginx..."
+	# The package would start its distro site on :80, which apache holds during a switch: a failed bind in the log.
+	# Runtime only, so an abort in between does not outlive a reboot.
+	local rc=0
+	systemctl mask --runtime nginx > /dev/null 2>&1
+	_web_apt_install nginx || rc=1
+	systemctl unmask --runtime nginx > /dev/null 2>&1
+	[ "$rc" -eq 0 ] || return 1
+	# The mask also kept the package from enabling it.
+	systemctl enable nginx > /dev/null 2>&1 || return 1
+
+	echo "[ * ] Configuring nginx..."
+	rm -f /etc/nginx/conf.d/*.conf
+	cp -f "$HESTIA/share/nginx/nginx.conf" /etc/nginx/ || return 1
+	cp -f "$HESTIA/share/nginx/status.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/0rtt-anti-replay.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/websocket-upgrade.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/agents.conf" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/cloudflare.inc" /etc/nginx/conf.d/
+	cp -f "$HESTIA/share/nginx/logrotate" /etc/logrotate.d/nginx
+	mkdir -p /etc/nginx/conf.d/domains /etc/nginx/conf.d/main /etc/nginx/modules-enabled /var/log/nginx/domains
+
+	# A v6 nameserver counts only bracketed, a link-local one not at all; anchored on the directive so the default
+	# list stays nginx.conf's.
+	local resolver="" ns
+	for ns in $(grep -is '^nameserver' /etc/resolv.conf | awk '{print $2}'); do
+		case "$ns" in
+			fe80:* | *%*) continue ;;
+			*:*) resolver="${resolver:+$resolver }[$ns]" ;;
+			*) echo "$ns" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' \
+				&& resolver="${resolver:+$resolver }$ns" ;;
+		esac
+	done
+	[ -n "$resolver" ] && sed -i "s|^\(\s*resolver\s\+\).*|\1$resolver valid=300s;|" /etc/nginx/nginx.conf
+	# An AAAA answer is a dead upstream where the kernel has no v6.
+	if [ ! -e /proc/net/if_inet6 ]; then
+		sed -i "s|^\(\s*resolver\s\+.*\);|\1 ipv6=off;|" /etc/nginx/nginx.conf
+	fi
+
+	echo "[ * ] Updating Cloudflare IP ranges..."
+	local cf_ips
+	cf_ips=$(curl -fsLm5 --retry 2 https://api.cloudflare.com/client/v4/ips 2> /dev/null || echo "")
+	if [ -n "$cf_ips" ] && [ "$(echo "$cf_ips" | jq -r '.success//""')" = "true" ]; then
+		{
+			echo "# Cloudflare IP Ranges"
+			echo ""
+			echo "# IPv4"
+			echo "$cf_ips" | jq -r '.result.ipv4_cidrs[]//""' | sort | sed 's/^/set_real_ip_from /;s/$/;/'
+			echo ""
+			echo "# IPv6"
+			echo "$cf_ips" | jq -r '.result.ipv6_cidrs[]//""' | sort | sed 's/^/set_real_ip_from /;s/$/;/'
+			echo ""
+			echo "real_ip_header CF-Connecting-IP;"
+		} > /etc/nginx/conf.d/cloudflare.inc
+		echo "  Cloudflare ranges updated"
+	fi
+}
+
 # apache_remoteip_enable [IP...]
 # Only in "both": apache trusts X-Real-IP from nginx. The caller restarts.
 apache_remoteip_enable() {
@@ -125,12 +199,37 @@ apache_remoteip_enable() {
 		echo "</IfModule>"
 	} > /etc/apache2/mods-available/remoteip.conf
 	sed -i 's/LogFormat "%h/LogFormat "%a/g' /etc/apache2/apache2.conf
+	# A copy in place of the link makes a2enmod refuse the module; older IP commands left one.
+	[ -L /etc/apache2/mods-enabled/remoteip.conf ] || rm -f /etc/apache2/mods-enabled/remoteip.conf
 	a2enmod -q remoteip > /dev/null 2>&1 || true
+}
+
+# The trusted proxies follow the IP records. Rendered, never edited in place: sed -i turns the link into a copy.
+# The file is rendered whole on every IP add and delete; own RemoteIPInternalProxy lines belong in a conf of their own.
+apache_remoteip_refresh() {
+	[ "$(web_current_model)" = both ] || return 0
+	# shellcheck disable=SC2046 # one address per word
+	apache_remoteip_enable $(web_sys_proxy_ips)
+}
+
+# Update path for boxes that carry such a copy. Reload, since the copy may have cost the module already.
+apache_remoteip_link_apply() {
+	(
+		source_conf "$HESTIA/conf/hestia.conf"
+		local conf=/etc/apache2/mods-enabled/remoteip.conf
+		[ "$(web_current_model)" = both ] || exit 0
+		[ -f "$conf" ] && [ ! -L "$conf" ] || exit 0
+		apache_remoteip_refresh
+		[ -L "$conf" ] && apache2ctl -t > /dev/null 2>&1 || exit 1
+		systemctl -q is-active apache2 2> /dev/null || exit 0
+		systemctl reload apache2
+	)
 }
 
 # Without nginx in front a trusted X-Real-IP lets any client spoof its address. The caller restarts.
 apache_remoteip_disable() {
 	a2dismod -q remoteip > /dev/null 2>&1 || true
+	[ -L /etc/apache2/mods-enabled/remoteip.conf ] || rm -f /etc/apache2/mods-enabled/remoteip.conf
 	rm -f /etc/apache2/mods-available/remoteip.conf
 	sed -i 's/LogFormat "%a/LogFormat "%h/g' /etc/apache2/apache2.conf
 }
@@ -195,6 +294,45 @@ rebuild_ip_web_config() {
 
 		process_http2_directive "/etc/$PROXY_SYSTEM/conf.d/$ip.conf"
 	fi
+}
+
+# Mail-only: the default server takes the hostname's ACME location. The directory is the done-marker, since the
+# per-IP files cannot be named in a condition; h-add-letsencrypt-domain removes only the tokens inside it.
+acme_host_location_apply() {
+	# A subshell: the sourced files and hestia.conf stay out of the update run.
+	(
+		# shellcheck source=/usr/local/hestia/include/domain.sh
+		source "$HESTIA/include/domain.sh" || exit 1
+		source_conf "$HESTIA/conf/hestia.conf"
+		[ -z "$WEB_SYSTEM" ] && [ "${WEBMAIL_FRONT:-}" = 'nginx' ] || exit 0
+		bak=$(mktemp -d) || exit 1
+		trap 'rm -rf "$bak"' EXIT
+		mapfile -t ips < <(web_sys_ips)
+		for ip in "${ips[@]}"; do
+			[ -f "/etc/nginx/conf.d/$ip.conf" ] && cp -p "/etc/nginx/conf.d/$ip.conf" "$bak/"
+		done
+		ok=yes
+		for ip in "${ips[@]}"; do
+			[ -n "$ip" ] || continue
+			rebuild_ip_web_config "$ip" || ok=no
+		done
+		[ "$ok" = yes ] && nginx -t > /dev/null 2>&1 || ok=no
+		# Put back, as the model switch does: the running nginx still has the old files, the next reload would not.
+		if [ "$ok" = no ]; then
+			for ip in "${ips[@]}"; do
+				[ -n "$ip" ] || continue
+				if [ -f "$bak/$ip.conf" ]; then
+					cp -p "$bak/$ip.conf" /etc/nginx/conf.d/
+				else
+					rm -f "/etc/nginx/conf.d/$ip.conf"
+				fi
+			done
+			exit 1
+		fi
+		mkdir -p "$ACME_APACHE_DIR/host" && chmod 755 "$ACME_APACHE_DIR" "$ACME_APACHE_DIR/host" || exit 1
+		systemctl -q is-active nginx 2> /dev/null || exit 0
+		systemctl reload nginx
+	)
 }
 
 WEB_MODEL_SNAP_DIR="/var/lib/hestia/web-model-switch"
@@ -297,6 +435,8 @@ web_model_snapshot() {
 web_model_rollback() {
 	local snap="$1" restored pfx u dir ip
 	[ -d "$snap" ] || return 1
+	# An apt run cut off by a signal leaves the install mask until reboot, and the restart below would fail on it.
+	systemctl unmask --runtime nginx > /dev/null 2>&1
 	cp -a "$snap/hestia.conf" "$HESTIA/conf/hestia.conf"
 	tar xzf "$snap/state.tar.gz" -C / 2> /dev/null || true
 	source_conf "$HESTIA/conf/hestia.conf"
@@ -414,11 +554,13 @@ web_model_run() {
 	web_model_uses_apache "$target" && ! web_model_uses_apache "$current" \
 		&& echo "  - apache2 will be installed/configured"
 	web_model_uses_apache "$current" && ! web_model_uses_apache "$target" \
-		&& { [ "$purge" = "yes" ] && echo "  - apache2 will be PURGED (/etc/apache2 incl. custom includes + fm--listen.conf)" || echo "  - apache2 will be stopped+disabled (package kept)"; }
+		&& { [ "$purge" = "yes" ] && echo "  - apache2 packages will be PURGED with their config files; what HestiaRE or other packages wrote under /etc/apache2 stays" || echo "  - apache2 will be stopped+disabled (package kept)"; }
 	web_model_uses_apache "$current" && web_model_uses_apache "$target" \
 		&& echo "  - apache2.conf + module config are rewritten from share/ (existing customizations are snapshotted, not merged)"
+	web_model_uses_nginx "$target" && ! web_model_uses_nginx "$current" \
+		&& { command -v nginx > /dev/null 2>&1 && echo "  - nginx is enabled again with the configuration it kept" || echo "  - nginx will be installed/configured"; }
 	web_model_uses_nginx "$current" && ! web_model_uses_nginx "$target" \
-		&& { [ "$purge" = "yes" ] && echo "  - nginx will be PURGED (/etc/nginx incl. custom includes)" || echo "  - nginx will be stopped+disabled (package kept)"; }
+		&& { [ "$purge" = "yes" ] && echo "  - nginx packages will be PURGED, /etc/nginx goes with them incl. custom includes (conf.d is in the snapshot)" || echo "  - nginx will be stopped+disabled (package kept)"; }
 	[ "$target" = "both" ] && echo "  - mod_remoteip enabled (apache trusts nginx X-Real-IP)"
 	web_model_uses_apache "$current" && [ "$target" != "both" ] \
 		&& echo "  - mod_remoteip disabled"
@@ -470,6 +612,14 @@ web_model_run() {
 		echo "[ * ] Setting up apache2..."
 		if ! configure_apache2 || ! command -v apache2ctl > /dev/null 2>&1; then
 			_wm_fail "apache2 setup failed"
+			return 1
+		fi
+	fi
+	# Only where it is missing: a kept nginx still carries its conf.d, which the setup would wipe.
+	if web_model_uses_nginx "$target" && ! command -v nginx > /dev/null 2>&1; then
+		echo "[ * ] Setting up nginx..."
+		if ! configure_nginx || ! command -v nginx > /dev/null 2>&1; then
+			_wm_fail "nginx setup failed"
 			return 1
 		fi
 	fi
@@ -579,11 +729,13 @@ web_model_run() {
 	fi
 
 	if [ "$purge" = "yes" ] && ! web_model_uses_apache "$target"; then
-		_web_apt_purge apache2 apache2-suexec-custom libapache2-mod-fcgid > /dev/null 2>&1 || true
+		_web_purge_stack apache2 apache2-bin apache2-data apache2-utils apache2-suexec-custom libapache2-mod-fcgid \
+			libapache2-mod-qos || echo "Warning: the apache2 packages could not be purged; the switch itself is done" >&2
 		rm -f /etc/logrotate.d/apache2
 	fi
 	if [ "$purge" = "yes" ] && ! web_model_uses_nginx "$target"; then
-		_web_apt_purge nginx > /dev/null 2>&1 || true
+		_web_purge_stack nginx nginx-common \
+			|| echo "Warning: the nginx packages could not be purged; the switch itself is done" >&2
 		rm -f /etc/logrotate.d/nginx
 	fi
 

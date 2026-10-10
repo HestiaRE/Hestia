@@ -4,29 +4,18 @@
 #
 # example: h-delete-user-backup admin admin.2012-12-21_00-10-00.tar
 #
-# This function deletes user backup.
+# Delete a backup archive of USER from every transport that holds it, and drop its record.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER BACKUP'
 is_format_valid 'user' 'backup'
@@ -34,13 +23,7 @@ is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'backup' 'BACKUP' "$2"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Where the file actually is - customer folder or the flat hand-off spot. A found-but-unresolvable
-# name is refused here too: the deleting command is the last place allowed to fall back silently.
-# Not found at all (rc 1) keeps going - removing the record of a vanished file is this command's job.
+# Unresolvable is refused here too; not found (rc 1) goes on, as dropping the record of a vanished file is this job.
 backup_folder="$BACKUP"
 backup_archive_path "$user" "$2"
 case $? in
@@ -51,42 +34,24 @@ esac
 line=$(grep -F "BACKUP='$backup'" $USER_DATA/backup.conf)
 parse_object_kv_list "$line"
 
-# CAUTION: the =~ matches below are substring matches - ftp also hits TYPE='sftp'. The deleted
-# flag is what keeps that correct (first match wins), NOT the comparison itself. Whoever removes
-# or reorders the flag must switch these to comma-bounded matches first (the #792 chain lesson).
-deleted=0
-if [[ "$TYPE" =~ "sftp" ]]; then
-	sftp_delete "$backup"
-	deleted=1
-fi
-if [[ "$TYPE" =~ "ftp" ]] && [ "$deleted" == "0" ]; then
-	ftp_delete "$backup"
-fi
-if [[ "$TYPE" =~ "rclone" ]]; then
-	rclone_delete "$backup"
-fi
-# An adopted archive is the operator's own file, put into the backup folder by hand. Forgetting the
-# record is this command's job; deleting a migration source is not.
-if [[ "$TYPE" =~ "local" ]] && [ "$ADOPTED" != 'yes' ]; then
+# Comma-bounded: ftp is a substring of sftp, and each transport deletes its own copy.
+case ",$TYPE," in *,sftp,*) sftp_delete "$backup" ;; esac
+case ",$TYPE," in *,ftp,*) ftp_delete "$backup" ;; esac
+case ",$TYPE," in *,rclone,*) rclone_delete "$backup" ;; esac
+# An adopted archive is the operator's own file: forgetting the record is this job, deleting a migration source is not.
+if [[ ",$TYPE," == *",local,"* ]] && [ "$ADOPTED" != 'yes' ]; then
 	rm -f "$backup_folder/$2"
 fi
 if [ "$ADOPTED" = 'yes' ]; then
 	echo "$2 was adopted - the record is gone, the file is still in $backup_folder"
 fi
 
-# Deleting backup
-# Escaped: the archive name is a pattern here, and a bare dot matches any character (#583 class).
+# Escaped: the archive name is a pattern here, and a bare dot matches any character.
 sed -i "/BACKUP='${2//./\\.}' /d" "$USER_DATA/backup.conf"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update counter
 U_BACKUPS=$(grep BACKUP $USER_DATA/backup.conf | wc -l)
 update_user_value "$user" '$U_BACKUPS' "$U_BACKUPS"
 
-# Logging
 $BIN/h-log-action "$user" "Info" "Backup" "Deleted backup (Archive: $backup)."
 log_event "$OK" "$ARGUMENTS"
 

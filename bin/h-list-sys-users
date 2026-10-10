@@ -4,25 +4,16 @@
 #
 # example: h-list-sys-users
 #
-# This function for obtaining the list of system users without
-# detailed information.
+# Lists the account names.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	objects=$("$BIN/h-list-users" 'list' | wc -w)
 	i=1
@@ -39,7 +30,6 @@ json_list() {
 	echo "]"
 }
 
-# SHELL list function
 shell_list() {
 	echo "USER"
 	echo "----"
@@ -48,27 +38,17 @@ shell_list() {
 	done < <("$BIN/h-list-users" 'list')
 }
 
-# PLAIN list function
 plain_list() {
 	while read user; do
 		echo "$user"
 	done < <("$BIN/h-list-users" 'list')
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

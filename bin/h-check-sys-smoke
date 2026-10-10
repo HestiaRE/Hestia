@@ -98,11 +98,17 @@ check_sudo_secret_leak() {
 
 # check_service <systemd-unit> <label>
 check_service() {
-	if systemctl is-active --quiet "$1"; then
-		ok "service $2 ($1) active"
-	else
+	local en
+	if ! systemctl is-active --quiet "$1"; then
 		no "service $2 ($1) not active" "$(systemctl is-active "$1" 2> /dev/null)"
+		return
 	fi
+	# Active now is not active after a reboot.
+	en=$(systemctl is-enabled "$1" 2> /dev/null)
+	case "$en" in
+		disabled | masked | masked-runtime) no "service $2 ($1) active but $en, a reboot leaves it down" "systemctl enable $1" ;;
+		*) ok "service $2 ($1) active" ;;
+	esac
 }
 
 # check_config_loaded <unit> <label> <shipped config file>...
@@ -1350,6 +1356,8 @@ check_record_grammar() {
 	for f in "$CONF_DIR/users"/*/user.conf "$CONF_DIR/users"/*/*.conf "$CONF_DIR/users"/*/mail/*.conf \
 		"$CONF_DIR/ips"/* "$CONF_DIR/packages"/*.pkg "$HESTIA/conf/hestia.conf"; do
 		[ -f "$f" ] || continue
+		# The restic password file is a bare key, not a record, and must never be echoed.
+		[ "${f##*/}" = restic.conf ] && continue
 		while IFS= read -r line; do
 			[ -n "$line" ] || continue
 			n=$((n + 1))
@@ -1500,6 +1508,26 @@ check_update_version() {
 		ok "update: lower bound $bound, at or below this tree"
 	else
 		no "update: the tree $tree is below its own lower bound $bound" "this release could not update itself onward"
+	fi
+	# Finished also means nothing pending, the test update.sh's early exit makes. No manifest entry read
+	# at all would pass that by looking at nothing, so it is red.
+	if [ "$tree" != "$VERSION" ]; then
+		skip "update: pending entries not checked while the run above is unfinished"
+		return
+	fi
+	local total plan count
+	total=$( (source "$HESTIA/include/update.sh" && upd_manifest_check) 2> /dev/null)
+	plan=$("$BIN/h-list-sys-updates" json "$tree" 2> /dev/null)
+	count=$(jq -r '.count // empty' <<< "$plan" 2> /dev/null)
+	if ! [[ "$total" =~ ^[0-9]+$ ]] || [ "$total" -eq 0 ]; then
+		no "update: the manifests in this tree yield no entry" "the pending check would look at nothing"
+	elif ! [[ "$count" =~ ^[0-9]+$ ]]; then
+		no "update: no plan could be derived against $tree" "h-list-sys-updates shell $tree says why"
+	elif [ "$count" -eq 0 ]; then
+		ok "update: nothing pending against $tree ($total manifest entries read)"
+	else
+		no "update: $count entry(s) pending against $tree: $(jq -r '.entries | map(.identity) | join(", ")' <<< "$plan")" \
+			"hestia update works them off; one still listed after a run cannot negate itself here, its update.log says why"
 	fi
 }
 

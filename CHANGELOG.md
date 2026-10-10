@@ -14,6 +14,50 @@ before v0.20.0 are folded into one section by theme.
 
 _Nothing yet._
 
+## v0.26 (2026-10-10)
+
+The command audit covers backup and restore, the host, statistics, the remaining commands and the updater; mail-only gets a
+trusted hostname certificate, and nginx can be added to an apache-only server.
+
+### Security
+
+- **The server statistics are stricter** (#1176).
+- **The site download is stricter** (#1176).
+
+### Changed
+
+- **The backup exclusion list is stricter** (#1176). Each entry must be a domain, path, mailbox or database name;
+  characters none of them use (such as `~`, `=` or non-ASCII) are refused where they used to be stored.
+
+### Fixed
+
+- **The hostname gets a Let's Encrypt certificate on mail-only** (#1210). It stayed self-signed, so
+  exim, dovecot and the panel presented an untrusted certificate for the server name. It is now
+  issued and renewed without a web domain.
+- **Backup and restore tightened** (#1176). A restic restore no longer reports success when a part
+  failed, refuses a domain another user holds, keeps custom docroots and FTP accounts, and stages in
+  the backup temp. Deleting an archive reaches every configured transport, and a server backup that
+  could not be written fails instead of claiming success. Restored settings are held to the bounds
+  the panel sets; what falls outside is switched off and named in the restore log.
+- **Server settings keep what the admin set** (#1176). Moving the panel port keeps the panel rule's
+  source restriction, a NAT change moves only that address, an invalid time zone is refused, and an
+  added IP no longer leaves apache without the real client address after a web model switch.
+- **The server statistics page shows its graphs** (#1176). The apache2 and SSH counts are no longer
+  doubled, and a database host that is down leaves a gap instead of a spike and no longer mails the
+  admin every five minutes.
+- **Domain and service commands do what they say** (#1176). `h-add-domain` gives the mail domain its
+  spam filter and refuses a full package before adding anything, unsuspending a web domain in the panel
+  leaves its mail domain alone, a service that fails to start or stop is reported as failed, and the
+  admin search takes the term as text.
+- **Updates finish cleanly** (#1176). A fresh install no longer leaves an update entry pending, and a
+  failed update run no longer leaves the panel and webmail stopped.
+- **Adding nginx to an apache-only server works** (#1201). The switch installs nginx where the box has none
+  instead of rolling back, and `--purge` removes the whole web server package set.
+
+### Removed
+
+- **`h-run-cli-cmd`** (#1176). It served the REST API, which HestiaRE does not have; an update removes it.
+
 ## v0.25 (2026-10-08)
 
 The command audit covers web domains, the web stack and users, and Tachyon moves to 4.4.1 for nine security fixes.

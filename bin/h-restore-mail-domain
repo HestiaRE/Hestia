@@ -4,44 +4,26 @@
 #
 # example: h-restore-mail-domain USER BACKUP DOMAIN [NOTIFY]
 #
-# This function allows the user to restore a single mail domain
-# from a backup archive.
+# Restores one mail domain from a backup archive through h-restore-user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 domain=$3
 notify=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER BACKUP DOMAIN [NOTIFY]'
 check_args '3' "$#" "$args_usage"
 is_format_valid 'user' 'backup'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 $BIN/h-restore-user "$user" "$backup" 'no' 'no' "$domain" 'no' 'no' 'no' "$notify"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+# The inner run has already said why; passed on so the caller sees the failure.
+check_result $? "restore of $backup failed" > /dev/null
 
 log_event "$OK" "$ARGUMENTS"
 

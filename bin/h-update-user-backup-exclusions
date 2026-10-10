@@ -4,22 +4,15 @@
 #
 # example: h-update-user-backup-exclusions admin /tmp/backup_exclusions
 #
-# This function for updating backup exclusion list
+# Replaces the backup exclusion list of a user from a file of KEY='a,b' lines.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 vfile=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 is_file_available() {
@@ -28,44 +21,73 @@ is_file_available() {
 	fi
 }
 
-is_file_valid() {
-	exclude="[!|#|$|^|&|(|)|{|}|<|>|?|\|\"|;|%|\`]"
-	if [[ "$(cat $vfile)" =~ $exclude ]]; then
-		check_result "$E_INVALID" "invalid characters in the exlusion list"
-	fi
+# Shapes h-backup-user reads: WEB domain[:path...], MAIL domain[:account...], DB name, USER directory, CRON '*'.
+# No spaces: the backup splits the lists on them.
+exclusion_entry_valid() {
+	local key=$1 entry=$2 seg i
+	local -a parts
+	[ "$entry" = '*' ] && return 0
+	case "$entry" in *..* | -* | *:-* | */-*) return 1 ;; esac
+	case "$key" in
+		# the message for anything but '*' comes further down
+		CRON) return 0 ;;
+		DB) [[ "$entry" =~ ^[A-Za-z0-9_.-]+$ ]] ;;
+		USER) [[ "$entry" =~ ^[A-Za-z0-9_.*@+][A-Za-z0-9_.*@+/-]*$ ]] ;;
+		WEB | MAIL)
+			IFS=':' read -ra parts <<< "$entry"
+			[ "${parts[0]}" = '*' ] || is_domain_format_valid "${parts[0]}" 'exclusion domain'
+			for ((i = 1; i < ${#parts[@]}; i++)); do
+				seg=${parts[$i]}
+				if [ "$key" = MAIL ]; then
+					[[ "$seg" =~ ^[A-Za-z0-9_.*+-]+$ ]] || return 1
+				else
+					[[ "$seg" =~ ^[A-Za-z0-9_.*@+][A-Za-z0-9_.*@+/-]*$ ]] || return 1
+				fi
+			done
+			;;
+		*) return 1 ;;
+	esac
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
+# Read by key, never sourced: the file comes from the panel, and only these five keys may come out of it.
+exclusions_read() {
+	local line key value entry
+	local -a entries
+	while IFS= read -r line || [ -n "$line" ]; do
+		[ -n "$line" ] || continue
+		[[ "$line" =~ ^(WEB|MAIL|DB|CRON|USER)=\'([^\']*)\'$ ]] \
+			|| check_result "$E_INVALID" "invalid line in the exclusion list :: $line"
+		key=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+		IFS=',' read -ra entries <<< "$value"
+		for entry in "${entries[@]}"; do
+			[ -n "$entry" ] || continue
+			exclusion_entry_valid "$key" "$entry" \
+				|| check_result "$E_INVALID" "invalid $key exclusion :: $entry"
+		done
+		printf -v "$key" '%s' "$value"
+	done < "$vfile"
+}
 
 check_args '2' "$#" 'USER FILE'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 is_file_available
-is_file_valid
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Flush variables
 WEB=''
 MAIL=''
 DB=''
 CRON=''
 USER=''
 
-# Source exclusion list
-source_conf "$vfile"
+exclusions_read
 
-# The backup tests CRON only against '*', so a job name would be stored and then ignored.
+# The backup tests CRON only against '*', so a job name would be stored and ignored.
 if [ -n "$CRON" ] && [ "$CRON" != '*' ]; then
 	check_result "$E_INVALID" "cron accepts only '*' (all jobs) or empty - single jobs cannot be excluded"
 fi
 
-# No DNS key: source_conf turns an absent key into an unset variable. The empty DNS= in the
-# backup.conf record stays, because a record's field set is a HestiaCP-facing interface.
+# No DNS key: source_conf makes an absent one an unset variable. The empty DNS= in backup.conf stays (HestiaCP-facing).
 echo "WEB='$WEB'" > $USER_DATA/backup-excludes.conf
 echo "MAIL='$MAIL'" >> $USER_DATA/backup-excludes.conf
 echo "DB='$DB'" >> $USER_DATA/backup-excludes.conf
@@ -73,11 +95,6 @@ echo "CRON='$CRON'" >> $USER_DATA/backup-excludes.conf
 echo "USER='$USER'" >> $USER_DATA/backup-excludes.conf
 chmod 660 $USER_DATA/backup-excludes.conf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "$user" "Info" "Backups" "Updated backup exclusion list."
 log_event "$OK" "$ARGUMENTS"
 

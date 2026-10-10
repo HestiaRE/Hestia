@@ -4,52 +4,36 @@
 #
 # example: h-repair-sys-config repair
 #
-# Adds missing keys to hestia.conf with their defaults. The former `restore` mode copied a
-# conf/defaults/hestia.conf that nothing ever wrote, so it aborted on every box (#930).
+# Adds missing keys to hestia.conf with their defaults and repairs the system cron entries.
 
 mode=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# Both functions below live here and main.sh does not pull it in. Without this the command answered
-# "syshealth_repair_system_config: command not found" and then logged the repair as executed - the
-# only caller of these functions that was missing the line every other one has.
+# Both repair functions live here; main.sh does not pull it in.
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-
-#----------------------------------------------------------#
-#                        Action                            #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'MODE'
 
 case "$mode" in
 	repair)
-		# load config file
 		source_conf "$HESTIA/conf/hestia.conf"
-		# The count is the verdict: a failed sub-command must not end in "Executed repair" (#929).
-		# Both repairs run, then the verdict: a failed crontab must not hide behind a green config.
+		# Both repairs run, then the count decides: a failed crontab must not hide behind a green config.
 		repair_failed=0
 		syshealth_repair_system_config || repair_failed=$((repair_failed + syshealth_repair_failed))
-		# Its own repair because these two files have their own failure mode: a gone crontab stops
-		# every queue and a gone cron.d entry stops this repair, and nothing else notices (#972, #1006).
+		# Its own repair: a gone crontab stops every queue, a gone cron.d entry stops this repair, and nothing else notices.
 		syshealth_repair_system_cron || repair_failed=$((repair_failed + 1))
 		if [ "$repair_failed" -ne 0 ]; then
 			check_result "$E_UPDATE" "$repair_failed config repair(s) failed - see the lines above"
 		fi
 		;;
 	*)
-		# Anything else did nothing and still logged "Executed  operation on system configuration".
 		check_result "$E_INVALID" "unknown mode '$mode', expected: repair"
 		;;
 esac
-
-#----------------------------------------------------------#
-#                        Hestia                            #
-#----------------------------------------------------------#
 
 $BIN/h-log-action "system" "Info" "System" "Executed $mode operation on system configuration."
 log_event "$OK" "$ARGUMENTS"

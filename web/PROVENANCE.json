@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "6ad7f4b1",
     "upstream_ref_date": "2026-10-05",
-    "last_updated": "2026-10-06",
+    "last_updated": "2026-10-09",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -16,7 +16,7 @@
     "aggregate": {
       "upstream_mapped_files": 296,
       "eigenbau_files": 50,
-      "weighted_pct": 31,
+      "weighted_pct": 32,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
       "files_total": 346,
       "files_mapped": 296
@@ -29,14 +29,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/add/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 120,
         "our_lines": 121,
         "added": 5,
         "removed": 4,
         "pct": 3,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -45,14 +45,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/cron/reports/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 13,
         "our_lines": 14,
         "added": 5,
         "removed": 4,
         "pct": 33,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -61,14 +61,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 248,
         "our_lines": 274,
         "added": 67,
         "removed": 41,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -77,14 +77,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/add/firewall/banlist/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 69,
         "our_lines": 70,
         "added": 3,
         "removed": 2,
         "pct": 3,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -102,14 +102,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 125,
         "our_lines": 124,
         "added": 6,
         "removed": 7,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -127,14 +127,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/add/firewall/ipset/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 90,
         "our_lines": 91,
         "added": 3,
         "removed": 2,
         "pct": 2,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -152,14 +152,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/ip/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 142,
         "our_lines": 139,
         "added": 5,
         "removed": 8,
         "pct": 4,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -168,14 +168,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/key/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 83,
-        "our_lines": 82,
-        "added": 4,
-        "removed": 5,
-        "pct": 5,
-        "measured_at": "2026-10-06"
+        "our_lines": 76,
+        "added": 7,
+        "removed": 14,
+        "pct": 13,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -184,14 +184,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 597,
         "our_lines": 562,
         "added": 64,
         "removed": 99,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -200,14 +200,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/package/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 376,
         "our_lines": 253,
-        "added": 70,
-        "removed": 193,
-        "pct": 41,
-        "measured_at": "2026-10-06"
+        "added": 71,
+        "removed": 194,
+        "pct": 42,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -216,14 +216,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 285,
         "our_lines": 286,
         "added": 17,
         "removed": 16,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -232,14 +232,14 @@
       "source_type": "derived",
       "upstream_path": "web/add/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 190,
         "our_lines": 175,
         "added": 33,
         "removed": 48,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -248,14 +248,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/backup/incremental/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 43,
         "added": 2,
         "removed": 6,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -264,14 +264,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/backup/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 41,
         "our_lines": 41,
         "added": 8,
         "removed": 8,
         "pct": 19,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -280,14 +280,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 95,
         "our_lines": 118,
         "added": 43,
         "removed": 20,
         "pct": 29,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -296,14 +296,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 68,
         "our_lines": 68,
         "added": 14,
         "removed": 14,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -312,14 +312,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/firewall/banlist/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 46,
         "our_lines": 73,
         "added": 43,
         "removed": 16,
         "pct": 49,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -337,14 +337,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 51,
         "our_lines": 56,
         "added": 14,
         "removed": 9,
         "pct": 21,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -353,14 +353,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/firewall/ipset/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 43,
         "our_lines": 49,
         "added": 11,
         "removed": 5,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -369,14 +369,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/ip/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 53,
         "added": 12,
         "removed": 6,
         "pct": 18,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -385,14 +385,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 130,
         "our_lines": 134,
         "added": 28,
         "removed": 24,
         "pct": 19,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -401,14 +401,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/package/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 43,
         "our_lines": 48,
         "added": 10,
         "removed": 5,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -417,14 +417,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/restore/incremental/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 171,
         "our_lines": 67,
         "added": 26,
         "removed": 130,
         "pct": 65,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -433,14 +433,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/restore/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 93,
         "our_lines": 89,
         "added": 7,
         "removed": 11,
         "pct": 9,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -449,14 +449,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/service/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 53,
         "our_lines": 59,
         "added": 12,
         "removed": 6,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -465,14 +465,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 83,
-        "our_lines": 85,
-        "added": 20,
-        "removed": 18,
-        "pct": 22,
-        "measured_at": "2026-10-06"
+        "our_lines": 88,
+        "added": 24,
+        "removed": 19,
+        "pct": 25,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -481,14 +481,14 @@
       "source_type": "derived",
       "upstream_path": "web/bulk/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 82,
         "our_lines": 88,
         "added": 27,
         "removed": 21,
         "pct": 28,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -497,14 +497,14 @@
       "source_type": "derived",
       "upstream_path": "web/copy/package/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 42,
         "our_lines": 43,
         "added": 6,
         "removed": 5,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -513,14 +513,14 @@
       "source_type": "derived",
       "upstream_path": "web/css/src/base.css",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 127,
         "our_lines": 146,
         "added": 19,
         "removed": 0,
         "pct": 6,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -529,14 +529,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/css/src/fonts.css",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 148,
         "our_lines": 148,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -563,14 +563,14 @@
       "source_type": "derived",
       "upstream_path": "web/css/src/themes/dark.css",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 854,
         "our_lines": 854,
         "added": 48,
         "removed": 48,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -606,14 +606,14 @@
       "source_type": "derived",
       "upstream_path": "web/css/src/utilities.css",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 202,
         "our_lines": 275,
         "added": 77,
         "removed": 4,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -622,14 +622,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/backup/exclusion/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 32,
         "our_lines": 33,
         "added": 3,
         "removed": 2,
         "pct": 7,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -638,14 +638,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/backup/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 29,
         "added": 3,
         "removed": 7,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -654,14 +654,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 34,
         "our_lines": 30,
         "added": 3,
         "removed": 7,
         "pct": 15,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -670,14 +670,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/cron/reports/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 13,
         "our_lines": 14,
         "added": 2,
         "removed": 1,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -686,14 +686,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 29,
         "added": 3,
         "removed": 7,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -702,14 +702,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/firewall/banlist/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 32,
         "our_lines": 40,
         "added": 12,
         "removed": 4,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -727,14 +727,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 32,
         "added": 4,
         "removed": 3,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -743,14 +743,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/firewall/ipset/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 35,
         "our_lines": 36,
         "added": 4,
         "removed": 3,
         "pct": 9,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -768,14 +768,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/ip/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 27,
         "added": 3,
         "removed": 7,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -784,14 +784,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/key/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 34,
-        "our_lines": 30,
-        "added": 2,
+        "our_lines": 31,
+        "added": 3,
         "removed": 6,
-        "pct": 12,
-        "measured_at": "2026-10-06"
+        "pct": 13,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -800,14 +800,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/log/auth/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 55,
-        "our_lines": 44,
-        "added": 3,
-        "removed": 14,
-        "pct": 17,
-        "measured_at": "2026-10-06"
+        "our_lines": 49,
+        "added": 9,
+        "removed": 15,
+        "pct": 23,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -816,14 +816,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/log/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 44,
-        "our_lines": 40,
-        "added": 2,
-        "removed": 6,
-        "pct": 9,
-        "measured_at": "2026-10-06"
+        "our_lines": 45,
+        "added": 3,
+        "removed": 2,
+        "pct": 5,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -832,14 +832,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 70,
         "our_lines": 62,
         "added": 4,
         "removed": 12,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -848,14 +848,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/notification/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 45,
         "our_lines": 42,
         "added": 8,
         "removed": 11,
         "pct": 21,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -864,14 +864,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/package/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 37,
         "our_lines": 33,
         "added": 4,
         "removed": 8,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -880,14 +880,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 32,
         "our_lines": 28,
         "added": 3,
         "removed": 7,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -896,14 +896,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/web/cache/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 22,
         "our_lines": 25,
         "added": 6,
         "removed": 3,
         "pct": 19,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -912,14 +912,14 @@
       "source_type": "derived",
       "upstream_path": "web/delete/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 38,
         "our_lines": 35,
         "added": 4,
         "removed": 7,
         "pct": 15,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -928,14 +928,14 @@
       "source_type": "derived",
       "upstream_path": "web/download/backup/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 44,
         "our_lines": 57,
         "added": 26,
         "removed": 13,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -944,14 +944,14 @@
       "source_type": "derived",
       "upstream_path": "web/download/database/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 22,
         "our_lines": 23,
         "added": 5,
         "removed": 4,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -960,14 +960,14 @@
       "source_type": "derived",
       "upstream_path": "web/download/site/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 18,
         "our_lines": 20,
         "added": 6,
         "removed": 4,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -976,14 +976,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/download/web-log/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 42,
         "our_lines": 43,
         "added": 2,
         "removed": 1,
         "pct": 3,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -992,14 +992,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/backup/exclusions/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 138,
         "our_lines": 140,
         "added": 46,
         "removed": 44,
         "pct": 32,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1008,14 +1008,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 103,
         "our_lines": 104,
         "added": 6,
         "removed": 5,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1024,14 +1024,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 114,
         "our_lines": 205,
         "added": 123,
         "removed": 32,
         "pct": 48,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1040,14 +1040,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 153,
         "our_lines": 152,
         "added": 8,
         "removed": 9,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1056,14 +1056,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/ip/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 106,
         "our_lines": 105,
         "added": 11,
         "removed": 12,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1072,14 +1072,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 1286,
         "our_lines": 1433,
         "added": 591,
         "removed": 444,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1088,14 +1088,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/package/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 375,
         "our_lines": 254,
         "added": 122,
         "removed": 243,
         "pct": 58,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1104,14 +1104,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/apache2/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 16,
         "removed": 16,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1120,14 +1120,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/clamav-daemon/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 16,
         "removed": 16,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1136,14 +1136,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 30,
         "added": 2,
         "removed": 3,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1152,14 +1152,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/dovecot/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 232,
         "our_lines": 211,
         "added": 136,
         "removed": 157,
         "pct": 66,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1168,14 +1168,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/exim4/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 16,
         "removed": 16,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1184,14 +1184,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/fail2ban/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 16,
         "removed": 16,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1209,14 +1209,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 1987,
         "our_lines": 1600,
         "added": 440,
         "removed": 827,
         "pct": 35,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1225,14 +1225,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/iptables/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 9,
         "our_lines": 10,
         "added": 2,
         "removed": 1,
         "pct": 15,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1241,14 +1241,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/mariadb/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 68,
         "our_lines": 66,
         "added": 17,
         "removed": 19,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1257,14 +1257,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/mysql/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 68,
         "our_lines": 66,
         "added": 17,
         "removed": 19,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1273,14 +1273,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/nginx/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 73,
         "our_lines": 71,
         "added": 17,
         "removed": 19,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1289,14 +1289,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/php-fpm/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 69,
         "our_lines": 4,
         "added": 2,
         "removed": 67,
         "pct": 94,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1305,14 +1305,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/php/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 69,
         "our_lines": 84,
         "added": 34,
         "removed": 19,
         "pct": 34,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1321,14 +1321,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/php5-fpm/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 69,
         "our_lines": 4,
         "added": 2,
         "removed": 67,
         "pct": 94,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1337,14 +1337,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/postgresql/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 87,
         "our_lines": 82,
         "added": 35,
         "removed": 40,
         "pct": 44,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1353,14 +1353,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/proftpd/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 16,
         "removed": 16,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1369,14 +1369,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/ssh/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 16,
         "removed": 16,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1385,14 +1385,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/server/whitelabel/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 111,
         "our_lines": 128,
         "added": 30,
         "removed": 13,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1401,14 +1401,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 579,
-        "our_lines": 508,
-        "added": 178,
-        "removed": 249,
-        "pct": 39,
-        "measured_at": "2026-10-06"
+        "our_lines": 515,
+        "added": 189,
+        "removed": 253,
+        "pct": 40,
+        "measured_at": "2026-10-09"
       },
       "note": "1.9.8 (#5547): ROOT_USER POST-guard + fail-closed, keyed on session ROOT_USER."
     },
@@ -1417,14 +1417,14 @@
       "source_type": "derived",
       "upstream_path": "web/edit/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 1738,
-        "our_lines": 1986,
-        "added": 920,
-        "removed": 672,
-        "pct": 42,
-        "measured_at": "2026-10-06"
+        "our_lines": 1987,
+        "added": 926,
+        "removed": 677,
+        "pct": 43,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1433,14 +1433,14 @@
       "source_type": "derived",
       "upstream_path": "web/error/403.html",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 118,
         "our_lines": 111,
         "added": 6,
         "removed": 13,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1449,14 +1449,14 @@
       "source_type": "derived",
       "upstream_path": "web/error/404.html",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 118,
         "our_lines": 111,
         "added": 6,
         "removed": 13,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1465,14 +1465,14 @@
       "source_type": "derived",
       "upstream_path": "web/error/410.html",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 118,
         "our_lines": 111,
         "added": 6,
         "removed": 13,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1481,14 +1481,14 @@
       "source_type": "derived",
       "upstream_path": "web/error/50x.html",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 121,
         "our_lines": 114,
         "added": 6,
         "removed": 13,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1497,14 +1497,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/favicon.ico",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 6,
         "our_lines": 6,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -1532,14 +1532,14 @@
       "source_type": "derived",
       "upstream_path": "web/generate/ssl/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 160,
         "our_lines": 150,
         "added": 5,
         "removed": 15,
         "pct": 6,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1548,14 +1548,14 @@
       "source_type": "derived",
       "upstream_path": "web/images/arrow.svg",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 1,
         "our_lines": 1,
         "added": 1,
         "removed": 1,
         "pct": 100,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1609,14 +1609,14 @@
       "source_type": "derived",
       "upstream_path": "web/images/favicon.png",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 7,
         "our_lines": 10,
         "added": 7,
         "removed": 7,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -1626,14 +1626,14 @@
       "source_type": "derived",
       "upstream_path": "web/images/logo-header.svg",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 18,
         "our_lines": 77,
         "added": 77,
         "removed": 17,
         "pct": 98,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1642,14 +1642,14 @@
       "source_type": "derived",
       "upstream_path": "web/images/logo.png",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 40,
         "our_lines": 27,
         "added": 40,
         "removed": 40,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -1659,14 +1659,14 @@
       "source_type": "derived",
       "upstream_path": "web/images/logo.svg",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 116,
         "our_lines": 70,
         "added": 70,
         "removed": 116,
         "pct": 100,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1675,14 +1675,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/2fa/check.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 24,
         "our_lines": 18,
-        "added": 9,
-        "removed": 15,
-        "pct": 57,
-        "measured_at": "2026-10-06"
+        "added": 11,
+        "removed": 17,
+        "pct": 66,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1691,14 +1691,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/2fa/secret.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 12,
         "our_lines": 10,
         "added": 6,
         "removed": 8,
         "pct": 63,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1732,14 +1732,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/helpers.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 180,
         "our_lines": 449,
         "added": 298,
         "removed": 29,
         "pct": 51,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1748,14 +1748,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/i18n.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 84,
         "our_lines": 99,
         "added": 32,
         "removed": 17,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1796,14 +1796,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/mail-wrapper.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 43,
         "our_lines": 42,
         "added": 3,
         "removed": 4,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1812,14 +1812,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/main.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 620,
-        "our_lines": 762,
-        "added": 273,
+        "our_lines": 792,
+        "added": 303,
         "removed": 131,
-        "pct": 29,
-        "measured_at": "2026-10-06"
+        "pct": 30,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1828,14 +1828,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/policies.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 20,
         "our_lines": 20,
         "added": 5,
         "removed": 5,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1844,14 +1844,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/prevent_csrf.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 151,
         "our_lines": 150,
         "added": 10,
         "removed": 11,
         "pct": 6,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1860,14 +1860,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/inc/secure_login.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 31,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1876,14 +1876,14 @@
       "source_type": "derived",
       "upstream_path": "web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 3,
         "our_lines": 4,
         "added": 1,
         "removed": 0,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1892,14 +1892,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/custom_scripts/README.txt",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 9,
         "our_lines": 9,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1908,14 +1908,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/addIpLists.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 25,
         "our_lines": 25,
         "added": 1,
         "removed": 1,
         "pct": 4,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1924,14 +1924,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/alpineInit.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 75,
         "our_lines": 81,
         "added": 6,
         "removed": 0,
         "pct": 3,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1940,14 +1940,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/autoTrimInputs.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 8,
         "our_lines": 8,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1956,14 +1956,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/clipboardCopy.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 47,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1972,14 +1972,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/confirmAction.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 16,
         "our_lines": 16,
         "added": 1,
         "removed": 1,
         "pct": 6,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -1988,14 +1988,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/copyCreds.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 31,
         "added": 1,
         "removed": 1,
         "pct": 3,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2004,14 +2004,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/cronGenerator.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 25,
         "our_lines": 25,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2020,14 +2020,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/databaseHints.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 44,
         "our_lines": 46,
         "added": 6,
         "removed": 4,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2036,14 +2036,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/discardAllMail.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 30,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2052,14 +2052,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/docRootHint.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 29,
         "our_lines": 29,
         "added": 1,
         "removed": 1,
         "pct": 3,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2077,14 +2077,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/editWebListeners.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 66,
         "our_lines": 49,
         "added": 10,
         "removed": 27,
         "pct": 32,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2093,14 +2093,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/errorHandler.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 10,
         "our_lines": 10,
         "added": 1,
         "removed": 1,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2118,14 +2118,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/focusFirstInput.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 13,
         "our_lines": 13,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2134,14 +2134,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/formSubmit.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 43,
         "our_lines": 43,
         "added": 3,
         "removed": 3,
         "pct": 6,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2150,14 +2150,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/ftpAccountHints.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 54,
         "our_lines": 54,
         "added": 1,
         "removed": 1,
         "pct": 1,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2166,14 +2166,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/ftpAccounts.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 156,
         "our_lines": 156,
         "added": 2,
         "removed": 2,
         "pct": 1,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2182,14 +2182,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/helpers.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 151,
         "our_lines": 181,
         "added": 64,
         "removed": 34,
         "pct": 29,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2198,14 +2198,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/index.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 68,
         "our_lines": 67,
         "added": 33,
         "removed": 34,
         "pct": 49,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2214,14 +2214,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/ipListDataSource.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 38,
         "our_lines": 42,
         "added": 6,
         "removed": 2,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2262,14 +2262,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/listSorting.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 77,
         "our_lines": 77,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2278,14 +2278,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/listUnitSelect.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 49,
         "our_lines": 49,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2294,14 +2294,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/navigation.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 122,
         "our_lines": 122,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2310,14 +2310,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/passwordInput.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 39,
         "our_lines": 39,
         "added": 2,
         "removed": 2,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2326,14 +2326,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/shortcuts.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 459,
         "our_lines": 459,
         "added": 2,
         "removed": 2,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2342,14 +2342,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/stickyToolbar.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 22,
         "our_lines": 22,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2358,14 +2358,14 @@
       "source_type": "derived",
       "upstream_path": "web/js/src/syncEmailValues.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 23,
         "our_lines": 23,
         "added": 1,
         "removed": 1,
         "pct": 4,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2374,14 +2374,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/tabPanels.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 33,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2390,14 +2390,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/toggleAdvanced.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 36,
         "our_lines": 36,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2406,14 +2406,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/js/src/unlimitedInput.js",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 60,
         "our_lines": 60,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2431,14 +2431,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/backup/exclusions/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 16,
         "our_lines": 15,
         "added": 2,
         "removed": 3,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2447,14 +2447,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/backup/incremental/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 56,
         "our_lines": 53,
         "added": 8,
         "removed": 11,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2463,14 +2463,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/backup/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 38,
         "added": 16,
         "removed": 11,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2479,14 +2479,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 21,
         "our_lines": 20,
         "added": 2,
         "removed": 3,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2495,14 +2495,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 21,
         "our_lines": 20,
         "added": 2,
         "removed": 3,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2511,14 +2511,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/firewall/banlist/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 23,
         "our_lines": 42,
         "added": 24,
         "removed": 5,
         "pct": 44,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2536,14 +2536,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 27,
         "our_lines": 27,
         "added": 9,
         "removed": 9,
         "pct": 33,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2552,14 +2552,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/firewall/ipset/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 22,
         "our_lines": 22,
         "added": 3,
         "removed": 3,
         "pct": 13,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2586,14 +2586,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 8,
         "our_lines": 8,
         "added": 1,
         "removed": 1,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2602,14 +2602,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/ip/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 28,
         "our_lines": 26,
         "added": 2,
         "removed": 4,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2618,14 +2618,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/key/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 23,
-        "our_lines": 26,
-        "added": 6,
+        "our_lines": 27,
+        "added": 7,
         "removed": 3,
-        "pct": 18,
-        "measured_at": "2026-10-06"
+        "pct": 20,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2634,14 +2634,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/log/auth/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 38,
         "our_lines": 30,
         "added": 5,
         "removed": 13,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2650,14 +2650,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/list/log/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 50,
         "our_lines": 51,
         "added": 2,
         "removed": 1,
         "pct": 2,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2666,14 +2666,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 71,
         "our_lines": 46,
         "added": 17,
         "removed": 42,
         "pct": 50,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2682,14 +2682,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/notifications/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 50,
         "added": 13,
         "removed": 10,
         "pct": 23,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2698,14 +2698,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/package/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 28,
         "our_lines": 26,
         "added": 2,
         "removed": 4,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2714,14 +2714,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/rrd/image.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 18,
         "our_lines": 17,
         "added": 2,
         "removed": 3,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2730,14 +2730,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/rrd/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 49,
         "our_lines": 47,
         "added": 2,
         "removed": 4,
         "pct": 6,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2755,14 +2755,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/server/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 148,
         "our_lines": 155,
         "added": 40,
         "removed": 33,
         "pct": 24,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2771,14 +2771,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/server/preview/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 11,
         "our_lines": 12,
         "added": 1,
         "removed": 0,
         "pct": 4,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2787,14 +2787,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/stats/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 37,
         "our_lines": 28,
         "added": 6,
         "removed": 15,
         "pct": 32,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2803,14 +2803,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 36,
         "our_lines": 32,
         "added": 2,
         "removed": 6,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2819,14 +2819,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/web-log/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 38,
         "added": 10,
         "removed": 3,
         "pct": 18,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2835,14 +2835,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 21,
         "our_lines": 21,
         "added": 3,
         "removed": 3,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2851,14 +2851,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/da/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 235,
         "our_lines": 218,
         "added": 235,
         "removed": 235,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -2877,14 +2877,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/de/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 253,
-        "our_lines": 233,
+        "our_lines": 232,
         "added": 253,
         "removed": 253,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -2903,14 +2903,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/es/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 222,
         "our_lines": 211,
         "added": 222,
         "removed": 222,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -2929,14 +2929,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/fr/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 220,
         "our_lines": 213,
         "added": 220,
         "removed": 220,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -2955,14 +2955,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/hestiacp.pot",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 5103,
-        "our_lines": 4057,
-        "added": 2463,
-        "removed": 3509,
+        "our_lines": 4062,
+        "added": 2467,
+        "removed": 3508,
         "pct": 65,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": "Generated by .gitea/tools/i18n.sh from the panel code (#1160). Not in the tarball."
     },
@@ -2971,14 +2971,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/languages.json",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 90,
         "our_lines": 18,
         "added": 15,
         "removed": 87,
         "pct": 94,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -2987,14 +2987,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/nl/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 238,
         "our_lines": 230,
         "added": 238,
         "removed": 238,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -3013,14 +3013,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/pt/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 232,
         "our_lines": 221,
         "added": 232,
         "removed": 232,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -3039,14 +3039,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/ru/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 227,
         "our_lines": 222,
         "added": 227,
         "removed": 227,
         "pct": 100,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -3065,14 +3065,14 @@
       "source_type": "derived",
       "upstream_path": "web/login/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 465,
-        "our_lines": 420,
-        "added": 94,
-        "removed": 139,
-        "pct": 26,
-        "measured_at": "2026-10-06"
+        "our_lines": 423,
+        "added": 110,
+        "removed": 152,
+        "pct": 29,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3081,14 +3081,14 @@
       "source_type": "derived",
       "upstream_path": "web/logout/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 39,
         "our_lines": 40,
         "added": 15,
         "removed": 14,
         "pct": 36,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3115,14 +3115,14 @@
       "source_type": "derived",
       "upstream_path": "web/move/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 33,
         "added": 7,
         "removed": 7,
         "pct": 21,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3131,14 +3131,14 @@
       "source_type": "derived",
       "upstream_path": "web/reset/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 250,
-        "our_lines": 237,
-        "added": 48,
-        "removed": 61,
-        "pct": 22,
-        "measured_at": "2026-10-06"
+        "our_lines": 246,
+        "added": 62,
+        "removed": 66,
+        "pct": 25,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3147,14 +3147,14 @@
       "source_type": "derived",
       "upstream_path": "web/reset/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 117,
         "our_lines": 127,
         "added": 33,
         "removed": 23,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3163,14 +3163,14 @@
       "source_type": "derived",
       "upstream_path": "web/reset2fa/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 67,
-        "our_lines": 49,
-        "added": 15,
-        "removed": 33,
-        "pct": 41,
-        "measured_at": "2026-10-06"
+        "our_lines": 55,
+        "added": 22,
+        "removed": 34,
+        "pct": 45,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3179,14 +3179,14 @@
       "source_type": "derived",
       "upstream_path": "web/restart/service/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 33,
         "added": 5,
         "removed": 3,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3195,14 +3195,14 @@
       "source_type": "derived",
       "upstream_path": "web/restart/system/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 34,
         "our_lines": 35,
         "added": 2,
         "removed": 1,
         "pct": 4,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3211,14 +3211,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/robots.txt",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 2,
         "our_lines": 2,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3236,14 +3236,14 @@
       "source_type": "derived",
       "upstream_path": "web/schedule/backup/incremental/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 26,
         "our_lines": 22,
         "added": 3,
         "removed": 7,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3252,14 +3252,14 @@
       "source_type": "derived",
       "upstream_path": "web/schedule/backup/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 28,
         "added": 1,
         "removed": 6,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3268,14 +3268,14 @@
       "source_type": "derived",
       "upstream_path": "web/schedule/restore/incremental/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 58,
         "our_lines": 56,
         "added": 5,
         "removed": 7,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3284,14 +3284,14 @@
       "source_type": "derived",
       "upstream_path": "web/schedule/restore/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 84,
         "our_lines": 93,
         "added": 29,
         "removed": 20,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3300,14 +3300,14 @@
       "source_type": "derived",
       "upstream_path": "web/search/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 46,
         "our_lines": 58,
         "added": 27,
         "removed": 15,
         "pct": 40,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3325,14 +3325,14 @@
       "source_type": "derived",
       "upstream_path": "web/start/service/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 33,
         "added": 5,
         "removed": 3,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3341,14 +3341,14 @@
       "source_type": "derived",
       "upstream_path": "web/stop/service/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 35,
         "added": 5,
         "removed": 3,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3357,14 +3357,14 @@
       "source_type": "derived",
       "upstream_path": "web/suspend/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 28,
         "our_lines": 25,
         "added": 3,
         "removed": 6,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3373,14 +3373,14 @@
       "source_type": "derived",
       "upstream_path": "web/suspend/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 29,
         "our_lines": 25,
         "added": 2,
         "removed": 6,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3389,14 +3389,14 @@
       "source_type": "derived",
       "upstream_path": "web/suspend/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 32,
         "our_lines": 32,
         "added": 7,
         "removed": 7,
         "pct": 21,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3405,14 +3405,14 @@
       "source_type": "derived",
       "upstream_path": "web/suspend/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 58,
         "our_lines": 51,
         "added": 3,
         "removed": 10,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3421,14 +3421,14 @@
       "source_type": "derived",
       "upstream_path": "web/suspend/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 36,
         "our_lines": 32,
         "added": 6,
         "removed": 10,
         "pct": 23,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3437,14 +3437,14 @@
       "source_type": "derived",
       "upstream_path": "web/suspend/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 26,
         "added": 3,
         "removed": 7,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3453,14 +3453,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/footer.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 75,
         "our_lines": 75,
         "added": 7,
         "removed": 7,
         "pct": 9,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3469,14 +3469,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/header.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 13,
         "our_lines": 16,
         "added": 3,
         "removed": 0,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3485,14 +3485,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/includes/app-footer.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 10,
         "our_lines": 10,
         "added": 3,
         "removed": 3,
         "pct": 30,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3501,14 +3501,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/includes/css.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 25,
         "our_lines": 23,
         "added": 9,
         "removed": 11,
         "pct": 41,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3517,14 +3517,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/templates/includes/email-settings-panel.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 101,
         "our_lines": 101,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3533,14 +3533,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/includes/js.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 37,
         "added": 16,
         "removed": 10,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3549,14 +3549,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/templates/includes/jump-to-top-link.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 8,
         "our_lines": 8,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3565,14 +3565,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/includes/login-footer.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 4,
         "our_lines": 4,
         "added": 1,
         "removed": 1,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3581,14 +3581,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/includes/panel.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 473,
         "our_lines": 435,
         "added": 59,
         "removed": 97,
         "pct": 17,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3597,14 +3597,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/templates/includes/password-requirements.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 6,
         "our_lines": 6,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3613,14 +3613,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/templates/includes/title.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 3,
         "our_lines": 3,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3629,14 +3629,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_cron.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 385,
         "our_lines": 385,
         "added": 63,
         "removed": 63,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3645,14 +3645,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_db.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 168,
         "our_lines": 248,
         "added": 160,
         "removed": 80,
         "pct": 57,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3661,14 +3661,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_firewall.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 74,
         "our_lines": 84,
         "added": 25,
         "removed": 15,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3677,14 +3677,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_firewall_banlist.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 49,
         "our_lines": 66,
         "added": 29,
         "removed": 12,
         "pct": 35,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3702,14 +3702,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_firewall_ipset.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 109,
         "our_lines": 129,
         "added": 53,
         "removed": 33,
         "pct": 36,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3736,14 +3736,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_ip.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 90,
         "our_lines": 94,
         "added": 21,
         "removed": 17,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3752,14 +3752,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_key.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 41,
         "our_lines": 41,
         "added": 6,
         "removed": 6,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3768,14 +3768,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_mail.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 142,
         "our_lines": 142,
         "added": 46,
         "removed": 46,
         "pct": 32,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3784,14 +3784,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_mail_acc.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 126,
         "our_lines": 130,
         "added": 35,
         "removed": 31,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3800,14 +3800,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_package.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 349,
         "our_lines": 281,
         "added": 99,
         "removed": 167,
         "pct": 42,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3816,14 +3816,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_user.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 130,
         "our_lines": 129,
         "added": 29,
         "removed": 30,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3832,14 +3832,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/add_web.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 83,
         "our_lines": 86,
         "added": 28,
         "removed": 25,
         "pct": 31,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3848,14 +3848,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/debug_panel.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 63,
         "our_lines": 63,
         "added": 44,
         "removed": 44,
         "pct": 69,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": "1.9.8 (#5550): tohtml()-escape echoed request/session vars."
     },
@@ -3864,14 +3864,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_backup_exclusions.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 51,
         "added": 15,
         "removed": 11,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3880,14 +3880,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_cron.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 385,
         "our_lines": 385,
         "added": 63,
         "removed": 63,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3896,14 +3896,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_db.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 71,
         "our_lines": 116,
         "added": 56,
         "removed": 11,
         "pct": 35,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3912,14 +3912,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_firewall.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 74,
         "our_lines": 84,
         "added": 25,
         "removed": 15,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3928,14 +3928,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_ip.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 83,
         "our_lines": 87,
         "added": 16,
         "removed": 12,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3944,14 +3944,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_mail.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 213,
         "our_lines": 300,
         "added": 145,
         "removed": 58,
         "pct": 39,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3960,14 +3960,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_mail_acc.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 131,
         "our_lines": 151,
         "added": 48,
         "removed": 28,
         "pct": 26,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3976,14 +3976,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_package.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 357,
         "our_lines": 291,
         "added": 93,
         "removed": 159,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -3992,14 +3992,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 1567,
         "our_lines": 1432,
         "added": 289,
         "removed": 424,
         "pct": 23,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4008,14 +4008,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_dovecot.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 75,
         "our_lines": 75,
         "added": 4,
         "removed": 4,
         "pct": 5,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4024,14 +4024,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_httpd.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 44,
         "our_lines": 44,
         "added": 5,
         "removed": 5,
         "pct": 11,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4040,14 +4040,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_mysql.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 75,
         "our_lines": 77,
         "added": 9,
         "removed": 7,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4056,14 +4056,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_nginx.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 98,
         "our_lines": 100,
         "added": 10,
         "removed": 8,
         "pct": 9,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4072,14 +4072,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_pgsql.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 45,
         "our_lines": 45,
         "added": 4,
         "removed": 4,
         "pct": 8,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4088,14 +4088,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_php.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 83,
         "our_lines": 96,
         "added": 20,
         "removed": 7,
         "pct": 15,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4104,14 +4104,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_server_service.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 50,
         "our_lines": 50,
         "added": 7,
         "removed": 7,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4120,14 +4120,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_user.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 262,
         "our_lines": 319,
         "added": 181,
         "removed": 124,
         "pct": 52,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4136,14 +4136,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_web.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 504,
         "our_lines": 765,
         "added": 493,
         "removed": 232,
         "pct": 57,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": "Dropped dead vsftpd branch (FTP_SYSTEM only proftpd)."
     },
@@ -4152,14 +4152,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/edit_whitelabel.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 153,
         "our_lines": 153,
         "added": 19,
         "removed": 19,
         "pct": 12,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4168,14 +4168,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/generate_ssl.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 67,
         "our_lines": 59,
         "added": 10,
         "removed": 18,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4184,14 +4184,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_backup.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 165,
         "our_lines": 172,
         "added": 57,
         "removed": 50,
         "pct": 31,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4200,14 +4200,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_backup_detail.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 321,
         "our_lines": 288,
         "added": 102,
         "removed": 135,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4216,14 +4216,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_backup_detail_incremental.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 228,
         "our_lines": 198,
         "added": 66,
         "removed": 96,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4232,14 +4232,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_backup_exclusions.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 13,
         "removed": 13,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4248,14 +4248,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_backup_incremental.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 118,
         "our_lines": 125,
         "added": 37,
         "removed": 30,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4264,14 +4264,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_cron.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 197,
         "our_lines": 211,
         "added": 58,
         "removed": 44,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4280,14 +4280,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_db.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 281,
         "our_lines": 293,
         "added": 107,
         "removed": 95,
         "pct": 35,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4296,14 +4296,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_files_incremental.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 138,
         "our_lines": 138,
         "added": 34,
         "removed": 34,
         "pct": 24,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4312,14 +4312,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_firewall.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 238,
         "our_lines": 261,
         "added": 74,
         "removed": 51,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4328,14 +4328,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_firewall_banlist.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 105,
         "our_lines": 118,
         "added": 49,
         "removed": 36,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4353,14 +4353,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_firewall_ipset.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 114,
         "our_lines": 117,
         "added": 36,
         "removed": 33,
         "pct": 29,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4387,14 +4387,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_ip.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 155,
         "our_lines": 159,
         "added": 46,
         "removed": 42,
         "pct": 28,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4403,14 +4403,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_key.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 74,
         "our_lines": 97,
         "added": 41,
         "removed": 18,
         "pct": 34,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4419,14 +4419,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_log.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 112,
-        "our_lines": 142,
-        "added": 54,
-        "removed": 24,
-        "pct": 30,
-        "measured_at": "2026-10-06"
+        "our_lines": 138,
+        "added": 57,
+        "removed": 31,
+        "pct": 35,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4435,14 +4435,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_log_auth.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 97,
-        "our_lines": 107,
-        "added": 31,
-        "removed": 21,
-        "pct": 25,
-        "measured_at": "2026-10-06"
+        "our_lines": 103,
+        "added": 34,
+        "removed": 28,
+        "pct": 31,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4451,14 +4451,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_mail.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 350,
         "our_lines": 370,
         "added": 166,
         "removed": 146,
         "pct": 43,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4467,14 +4467,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_mail_acc.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 289,
         "our_lines": 299,
         "added": 60,
         "removed": 50,
         "pct": 18,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4483,14 +4483,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_mail_dns.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 165,
         "our_lines": 238,
         "added": 115,
         "removed": 42,
         "pct": 38,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4499,14 +4499,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_packages.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 314,
         "our_lines": 294,
         "added": 73,
         "removed": 93,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4515,14 +4515,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_rrd.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 38,
         "our_lines": 53,
         "added": 28,
         "removed": 13,
         "pct": 45,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4540,14 +4540,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_search.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 197,
         "our_lines": 205,
         "added": 88,
         "removed": 80,
         "pct": 41,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4556,14 +4556,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_server_info.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 123,
         "our_lines": 130,
         "added": 38,
         "removed": 31,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4572,14 +4572,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_server_preview.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 44,
         "our_lines": 44,
         "added": 11,
         "removed": 11,
         "pct": 25,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4588,14 +4588,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_services.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 211,
         "our_lines": 226,
         "added": 67,
         "removed": 52,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4604,14 +4604,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_ssl.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 93,
         "our_lines": 93,
         "added": 10,
         "removed": 10,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4620,14 +4620,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_stats.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 238,
         "our_lines": 222,
         "added": 30,
         "removed": 46,
         "pct": 16,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4636,14 +4636,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_user.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 326,
         "our_lines": 318,
         "added": 86,
         "removed": 94,
         "pct": 27,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4652,14 +4652,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_web.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 355,
-        "our_lines": 369,
+        "our_lines": 360,
         "added": 82,
-        "removed": 68,
-        "pct": 20,
-        "measured_at": "2026-10-06"
+        "removed": 77,
+        "pct": 22,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4668,14 +4668,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_weblog.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 100,
         "our_lines": 108,
         "added": 24,
         "removed": 16,
         "pct": 19,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4684,14 +4684,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/login.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 21,
         "our_lines": 21,
         "added": 3,
         "removed": 3,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4700,14 +4700,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/login_1.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 30,
-        "our_lines": 30,
-        "added": 6,
+        "our_lines": 33,
+        "added": 9,
         "removed": 6,
-        "pct": 20,
-        "measured_at": "2026-10-06"
+        "pct": 23,
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4716,14 +4716,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/login_2.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 31,
         "added": 6,
         "removed": 6,
         "pct": 19,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4732,14 +4732,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/login_a.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 32,
         "our_lines": 32,
         "added": 5,
         "removed": 5,
         "pct": 15,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4748,14 +4748,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/reset2fa.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 44,
         "our_lines": 44,
         "added": 9,
         "removed": 9,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4764,14 +4764,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/reset_1.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 30,
         "added": 6,
         "removed": 6,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4780,14 +4780,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/reset_2.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 31,
         "added": 6,
         "removed": 6,
         "pct": 19,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4796,14 +4796,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/login/reset_3.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 33,
         "our_lines": 33,
         "added": 6,
         "removed": 6,
         "pct": 18,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4812,14 +4812,14 @@
       "source_type": "derived",
       "upstream_path": "web/unsuspend/cron/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 27,
         "added": 2,
         "removed": 6,
         "pct": 13,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4828,14 +4828,14 @@
       "source_type": "derived",
       "upstream_path": "web/unsuspend/db/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 26,
         "added": 2,
         "removed": 6,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4844,14 +4844,14 @@
       "source_type": "derived",
       "upstream_path": "web/unsuspend/firewall/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 31,
         "our_lines": 32,
         "added": 7,
         "removed": 6,
         "pct": 20,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4860,14 +4860,14 @@
       "source_type": "derived",
       "upstream_path": "web/unsuspend/mail/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 71,
         "our_lines": 63,
         "added": 3,
         "removed": 11,
         "pct": 10,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4876,14 +4876,14 @@
       "source_type": "derived",
       "upstream_path": "web/unsuspend/user/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 37,
         "our_lines": 33,
         "added": 6,
         "removed": 10,
         "pct": 22,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4892,14 +4892,14 @@
       "source_type": "derived",
       "upstream_path": "web/unsuspend/web/index.php",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 30,
         "our_lines": 26,
         "added": 2,
         "removed": 6,
         "pct": 14,
-        "measured_at": "2026-10-06"
+        "measured_at": "2026-10-09"
       },
       "note": ""
     },
@@ -4908,14 +4908,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-300.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 50,
         "our_lines": 50,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -4925,14 +4925,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-300.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 39,
         "our_lines": 39,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -4942,14 +4942,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-300italic.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 50,
         "our_lines": 50,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -4959,14 +4959,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-300italic.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 51,
         "our_lines": 51,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -4976,14 +4976,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-500.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 68,
         "our_lines": 68,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -4993,14 +4993,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-500.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 53,
         "our_lines": 53,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5010,14 +5010,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-500italic.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 58,
         "our_lines": 58,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5027,14 +5027,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-500italic.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 58,
         "our_lines": 58,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5044,14 +5044,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-600.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 54,
         "our_lines": 54,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5061,14 +5061,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-600.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 41,
         "our_lines": 41,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5078,14 +5078,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-600italic.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 56,
         "our_lines": 56,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5095,14 +5095,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-600italic.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 47,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5112,14 +5112,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-700.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 53,
         "our_lines": 53,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5129,14 +5129,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-700.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 37,
         "our_lines": 37,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5146,14 +5146,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-700italic.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 60,
         "our_lines": 60,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5163,14 +5163,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-700italic.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 45,
         "our_lines": 45,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5180,14 +5180,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-italic.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 59,
         "our_lines": 59,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5197,14 +5197,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-italic.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 47,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5214,14 +5214,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-regular.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 47,
         "our_lines": 47,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5231,14 +5231,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/exo-v20-latin-regular.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 52,
         "our_lines": 52,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5248,14 +5248,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/inconsolata-regular.woff",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 78,
         "our_lines": 78,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""
@@ -5265,14 +5265,14 @@
       "source_type": "verbatim",
       "upstream_path": "web/webfonts/inconsolata-regular.woff2",
       "upstream_ref": "6ad7f4b1",
-      "last_reconciled": "2026-10-06",
+      "last_reconciled": "2026-10-09",
       "divergence": {
         "upstream_lines": 52,
         "our_lines": 52,
         "added": 0,
         "removed": 0,
         "pct": 0,
-        "measured_at": "2026-10-06",
+        "measured_at": "2026-10-09",
         "method": "binary: byte compare"
       },
       "note": ""

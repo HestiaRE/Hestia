@@ -2,30 +2,14 @@
 # info: adds action event to user or system log
 # options: USER LEVEL CATEGORY DETAILS
 
-# Event Levels:
-# info, warning, error
+# Writes one event to the history of USER, or to the system log for USER system. LEVEL is Info, Warning or Error.
 
-# Event Categories:
-# user:     web, dns, mail, db, letsencrypt, pwchange, pwreset
-# system:   ip, firewall, service, updates,
-#           users, pwchange, pwreset, impersonation
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-# Argument definition
 user=$1
 event_level=$2
 export event_category=$3
@@ -33,15 +17,10 @@ event_details=$4
 
 is_common_format_valid "$event_level" "event level"
 
-# Validate event type input
 if [ "$event_level" != "Info" ] && [ "$event_level" != "Warning" ] && [ "$event_level" != "Error" ]; then
 	echo "Error: Invalid event type specified."
 	exit 1
 fi
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 if [ "$user" = "system" ] || [ "$user" = "System" ]; then
 	user="system"
@@ -54,9 +33,5 @@ if [ "$user" != "system" ]; then
 fi
 
 log_history "$event_details" '' "$user"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

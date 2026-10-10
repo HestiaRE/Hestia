@@ -1,76 +1,53 @@
 #!/bin/bash
-# info: unsuspend web/dns/mail domain
+# info: unsuspend web/mail domain
 # options: USER DOMAIN [RESTART]
 #
 # example: h-unsuspend-domain admin acme.com
 #
-# This function unsuspends web/dns/mail domain.
+# Unsuspends the web and the mail domain of that name, whichever are suspended.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 restart="${3-yes}"
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER DOMAIN [RESTART]'
 is_format_valid 'user' 'domain' 'restart'
 is_object_valid 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Working on Web domain
 if [ -n "$WEB_SYSTEM" ]; then
 	str=$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf | grep "SUSPENDED='yes")
 	if [ -n "$str" ]; then
 		domain_found='yes'
 		$BIN/h-unsuspend-web-domain "$user" "$domain" 'no'
-		check_result $? "can't suspend web" > /dev/null
+		check_result $? "can't unsuspend web" > /dev/null
 	fi
 fi
 
-# Working on Mail domain
 if [ -n "$MAIL_SYSTEM" ]; then
 	str=$(grep -F "DOMAIN='$domain'" $USER_DATA/mail.conf | grep "SUSPENDED='yes")
 	if [ -n "$str" ]; then
 		domain_found='yes'
 		$BIN/h-unsuspend-mail-domain "$user" "$domain" "no"
-		check_result $? "can't suspend mail" > /dev/null
+		check_result $? "can't unsuspend mail" > /dev/null
 	fi
 fi
 
-# Checking domain search result
 if [ -z "$domain_found" ]; then
 	echo "Error: domain $domain doesn't exist"
 	log_event "$E_NOTEXIST" "$ARGUMENTS"
 	exit $E_NOTEXIST
 fi
 
-# Restarting services
 $BIN/h-restart-web "$restart"
 check_result $? "can't restart web" > /dev/null
 
 $BIN/h-restart-proxy "$restart"
 check_result $? "can't restart proxy" > /dev/null
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -5,23 +5,16 @@
 # example: h-dump-site user domain
 # example: h-dump-site user domain full
 #
-# Dumps site files in /backup/user.domain.timestamp.zip
+# Zips the docroot, or with TYPE full the whole domain directory, into $BACKUP for one hour.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 domain=$2
 type=$3
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '2' "$#" 'USER DOMAIN [TYPE]'
@@ -30,37 +23,42 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+timestamp=$(date +'%Y-%m-%d_%H-%M-%S')
 
-# Create timestamp in Y-M-D_h-m-s format
-timestamp=$(date +'%G-%m-%d_%H-%M-%S')
+dir="/home/$user/web/$domain"
+[ "$type" = "full" ] || dir="$dir/public_html"
+cd "$dir" 2> /dev/null || check_result "$E_NOTEXIST" "$dir does not exist"
 
-if [ "$type" = "full" ]; then
-	cd /home/$user/web/$domain/
-else
-	cd /home/$user/web/$domain/public_html/
+name="${user}_${domain}_${timestamp}.zip"
+archive="$BACKUP/$name"
+
+# The panel reads it back as hestia; other customers must not, for the hour it stays.
+(umask 077 && : > "$archive") && chown "hestia:$user" "$archive" && chmod 640 "$archive" \
+	|| check_result "$E_BACKUP" "cannot create $archive"
+
+# zip reads as the customer, so the archive holds what the customer can read; root only writes the file.
+# 18 is a file the customer cannot read, left out on purpose.
+runuser -u "$user" -- zip -rq - . > "$archive" 2> /dev/null
+rc=$?
+case "$rc" in
+	0 | 18) ;;
+	12)
+		rm -f "$archive"
+		check_result "$E_NOTEXIST" "nothing to pack in $dir"
+		;;
+	*)
+		rm -f "$archive"
+		check_result "$E_BACKUP" "zip of $dir failed (rc $rc)"
+		;;
+esac
+
+# Name for display, then the path the panel serves.
+echo "$name"
+echo "$archive"
+if ! echo "rm $archive" | at now + 1 hour > /dev/null 2>&1; then
+	echo "Warning: at did not take the cleanup job, $archive stays until removed" >&2
 fi
 
-zip -rq $BACKUP/${user}_${domain}_${timestamp}.zip .
-
-if [[ -f "$BACKUP/${user}_${domain}_${timestamp}.zip" ]]; then
-	# echo filename for use in the php
-	echo "${user}_${domain}_${timestamp}.zip"
-
-	# echo file location for use in the php
-	echo "$BACKUP/${user}_${domain}_${timestamp}.zip"
-
-	# cleanup
-	echo "rm $BACKUP/${user}_${domain}_${timestamp}.zip" | at now + 1 hour
-fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

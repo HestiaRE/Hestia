@@ -4,13 +4,8 @@
 #
 # example: h-schedule-user-restore 2019-04-22_01-00-00.tar
 #
-# This function for scheduling user backup restoration.
+# Queues the restore of a user backup archive, with the consent carried as an argument.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 web=$3
@@ -21,24 +16,17 @@ cron=$7
 udir=$8
 consent=$9
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER BACKUP [WEB] [DNS] [MAIL] [DB] [CRON] [UDIR] [CONSENT]'
 is_format_valid 'user'
-# backup + selectors go into the executed backup.pipe (GHSA-2xw3 class), so every one of them
-# passes a closed character set before the line is written.
+# backup + selectors go into the executed backup.pipe: each passes a closed character set before the line is written.
 is_format_valid 'backup'
 is_selector_format_valid "$web" 'web'
 is_selector_format_valid "$dns" 'dns'
@@ -46,39 +34,24 @@ is_selector_format_valid "$mail" 'mail'
 is_selector_format_valid "$db" 'db'
 is_selector_format_valid "$cron" 'cron'
 is_selector_format_valid "$udir" 'udir'
-# The queue has no terminal, so a restore scheduled from here carries its consent as an argument
-# (#707). Checked against the CLOSED SET, through the same parser h-restore-user uses - a second
-# copy of the token list is a second thing to keep in step, and a character class is what let a
-# pipe through in #661.
+# The queue has no terminal, so consent is an argument; checked against the closed set via the same parser as
+# h-restore-user (a second token list drifts, and a character class let a pipe through).
 if ! restore_consent_parse "$consent"; then
 	check_result "$E_INVALID" "unknown consent token in '$consent' - allowed: ${RESTORE_CONSENT_TOKENS// /, }"
 fi
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
-# The record is the ownership, same bind as the download scheduler: this is the customer-facing
-# entrance, and an unbound name would fetch ANOTHER customer's archive off the shared remote
-# target and restore it into this account. The operator's DR flow (empty records, hand-off
-# archive) goes through h-restore-user directly, which stays unbound on purpose. The refusal
-# saying "doesn't exist" where the truth may be "exists, belongs to someone else" is deliberate:
-# distinguishing the two would make this an existence oracle for other customers' archive names.
+# The record is the ownership, as in h-schedule-user-backup-download: an unbound name would restore ANOTHER
+# customer's archive here. The operator's DR flow uses h-restore-user, unbound on purpose.
+# "Doesn't exist" also covers "belongs to someone else": telling them apart would be an existence probe.
 is_object_valid 'backup' 'BACKUP' "$backup"
 is_backup_enabled
 is_backup_scheduled 'restore'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Adding restore task to  the queue
 log=$HESTIA/log/restore.log
 options="'$web' '$dns' '$mail' '$db' '$cron' '$udir'"
 echo "$BIN/h-restore-user '$user' '$backup' $options 'yes' '$consent' >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "Backup" "Restore of backup archive requested (User: $user, Archive: $backup)."
 log_event "$OK" "$ARGUMENTS"
 

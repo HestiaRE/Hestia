@@ -613,6 +613,42 @@ pma_proxy_nginx_apply() {
 	systemctl reload nginx
 }
 
+# panel_caddy_site_edit SED CHECK: in place, never a copy, since the site carries the panel port. An edit that
+# misses CHECK, or a file that no longer parses, gets the old one back.
+panel_caddy_site_edit() {
+	local f='/etc/caddy/hestia.conf' bak
+	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
+	sed -i "$1" "$f"
+	if ! grep -q -- "$2" "$f" || ! caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile > /dev/null 2>&1; then
+		cp -p "$bak" "$f"
+		rm -f "$bak"
+		return 1
+	fi
+	rm -f "$bak"
+	# Not reload: the panel Caddy runs with the admin API off. Updates start from a shell only, so no answer is cut.
+	systemctl try-restart caddy
+}
+
+# The rrd store sits under the panel web root and belongs to the admin view alone.
+panel_caddy_rrd_internal_apply() {
+	local f='/etc/caddy/hestia.conf'
+	[ -f "$f" ] || return 0
+	if ! grep -q '^[[:space:]]*@internal path ' "$f"; then
+		echo "update: $f has no @internal matcher - add /rrd/* to whatever keeps the panel internals unreachable" >&2
+		return 0
+	fi
+	# Before a trailing comment, so the path does not land inside it.
+	panel_caddy_site_edit 's|^\([[:space:]]*@internal path [^#]*[^#[:space:]]\)|\1 /rrd/*|' \
+		'^[[:space:]]*@internal path [^#]* /rrd/\*'
+}
+
+# The response placeholder holds what goes to the client, not the upstream header, so the rewrite had no target.
+panel_caddy_accel_apply() {
+	[ -f /etc/caddy/hestia.conf ] || return 0
+	panel_caddy_site_edit 's/{http\.response\.header\.X-Accel-Redirect}/{http.reverse_proxy.header.X-Accel-Redirect}/' \
+		'{http\.reverse_proxy\.header\.X-Accel-Redirect}'
+}
+
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
 # directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {

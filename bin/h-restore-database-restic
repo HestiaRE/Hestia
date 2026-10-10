@@ -6,19 +6,13 @@
 # example: h-restore-database-restic user snapshot 'user_database,user_database2'
 # example: h-restore-database-restic user snapshot '*'
 #
-# This function for restoring database from restic snapshot.
+# Restores databases from the raw dumps of a restic snapshot.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
 database=$3
 notify=${4-no}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -31,12 +25,7 @@ source $HESTIA/include/rebuild.sh
 source $HESTIA/include/syshealth.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER SNAPSHOT DATABASE [NOTIFY]'
 check_args '3' "$#" "$args_usage"
@@ -45,14 +34,10 @@ is_object_valid 'user' 'USER' "$user"
 
 is_restic_repo_configured
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-tmpdir=$(mktemp -p /home/$user/tmp/ -d)
+tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
-# The metadata travels as the package beside the repository since stage 2a, not inside the snapshot.
+# The metadata is the package beside the repository, not part of the snapshot.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
 if [ -z "$meta_pkg" ]; then
 	check_result "$E_NOTEXIST" "no metadata package for snapshot $snapshot of $user - look for $BACKUP/$user/*.meta.tgz"
@@ -64,8 +49,7 @@ fi
 
 parse_object_kv_list "$(cat "$tmpdir/backup.conf")"
 
-# IFS was left at ',' for the rest of the script; restore it right after the split. The loop
-# relied on that leak to split $DB, so iterate the array instead.
+# IFS is restored right after the splits, so the loop iterates the arrays instead of a word-split $DB.
 OLD_IFS="$IFS"
 IFS=','
 read -r -a databases_array <<< "$database"
@@ -84,9 +68,7 @@ for db in "${databases[@]}"; do
 			if [ ! -s "$tmpdir/db.conf" ]; then
 				check_result "$E_PARSING" "$meta_pkg carries no record for database $db"
 			fi
-			# Same shape as the archive path since #705: the archived line is the record, only the
-			# named fields move. Rebuilt from a hand list it dropped whatever it had not heard of
-			# (#828).
+			# The archived line is the record and only the named fields move: a hand-built list drops unknown keys.
 			archived_record=$(head -n1 "$tmpdir/db.conf")
 			if ! record_line_valid "$archived_record"; then
 				check_result "$E_PARSING" "$db db record is not a KEY='VALUE' line - refusing to restore it"
@@ -114,19 +96,15 @@ for db in "${databases[@]}"; do
 			parse_object_kv_list "$(grep -F "DB='$db'" $USER_DATA/db.conf)"
 		fi
 
-		# The dump lies raw in the snapshot since stage 2a - no decompression step any more.
 		restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" dump "$snapshot" \
 			"$(restic_dump_dir "$user")/$db.$TYPE.sql" > "$tmpdir/$db.$TYPE.sql"
 		if [ "$?" -ne 0 ] || [ ! -s "$tmpdir/$db.$TYPE.sql" ]; then
 			check_result "$E_NOTEXIST" "snapshot $snapshot carries no dump for $db"
 		fi
 
-		# Restore and rebuild
 		echo "- Restore database: $db (Type: $TYPE)"
 		database_dump="$tmpdir/$db.$TYPE.sql"
-		# The name this loop is on, not the argument the command was called with: $database holds
-		# the whole DATABASE argument, which may be a comma list, while $db is the one being
-		# restored. They coincide for a single database, which is why it never showed.
+		# $db, not $database: the argument may be a comma list.
 		import_rc=0
 		case $TYPE in
 			mysql)
@@ -140,29 +118,21 @@ for db in "${databases[@]}"; do
 				import_pgsql_database $database_dump || import_rc=$?
 				;;
 		esac
-		# The client writes its own output to /dev/null, so the exit code is the only signal there is.
-		# Ends the run instead of collecting failures the way h-restore-user does, deliberately: a
-		# missing dump for one name of a comma list already aborts here, and one command cannot hold
-		# two policies. The message says what the rest of the list did not get.
+		# The client's output goes to /dev/null, so its exit code is the only signal. Aborts instead of collecting
+		# failures like h-restore-user: a missing dump already aborts, one policy per command.
 		[ "$import_rc" -eq 0 ] || check_result "$E_DB" \
 			"the dump for $db was rejected (client exit $import_rc) - $db is empty, anything after it in the list was not restored"
 	fi
 done
 
 rm -fr $tmpdir
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Update user counters
 $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"
 $BIN/h-update-sys-ip-counters
 
 sed -i "/h-restore-database-restic '$user' '$snapshot' '$database' /d" $CONF_DIR/queue/backup.pipe
 
-# Logging
-$BIN/h-log-action "system" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Databse: $database)."
-$BIN/h-log-action "$user" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Databse: $database)."
+$BIN/h-log-action "system" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Database: $database)."
+$BIN/h-log-action "$user" "Info" "Backup" "Database successfully restored (User: $user, Snapshot: $snapshot, Database: $database)."
 log_event "$OK" "$ARGUMENTS"
 exit

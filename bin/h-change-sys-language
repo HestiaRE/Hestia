@@ -4,26 +4,18 @@
 #
 # example: h-change-sys-language ru
 #
-# This function for changing system language.
+# Sets the panel's default language, with UPDATE_USERS=yes for every account too.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 language=$1
 update_users=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 is_language_valid() {
-	# English is always allowed
 	if [ "$1" != "en" ]; then
 		if ! [[ "$1" =~ ^[[:alnum:]_-]+$ ]]; then
 			echo "Error: language $1 is not valid"
@@ -38,43 +30,27 @@ is_language_valid() {
 	fi
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'LANGUAGE [UPDATE_USERS]'
 is_format_valid 'language'
 is_language_valid "$language"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Change language
-# anchored: the bare pattern also matched any key that merely ends in LANGUAGE (#929)
+# Anchored: the bare pattern also matched any key that ends in LANGUAGE.
 if ! grep -q "^LANGUAGE=" $HESTIA/conf/hestia.conf; then
 	echo "LANGUAGE='$language'" >> $HESTIA/conf/hestia.conf
 else
 	sed -i "s/^LANGUAGE=.*/LANGUAGE='$language'/" $HESTIA/conf/hestia.conf
 fi
-# Verified like h-change-sys-config-value: the repair counts this command's rc, and sed fails
-# silently on a file it cannot write (#929).
+# Verified: the repair counts this rc, and sed fails silently on a file it cannot write.
 if ! grep -qxF "LANGUAGE='$language'" $HESTIA/conf/hestia.conf; then
 	check_result "$E_UPDATE" "hestia.conf was not written: LANGUAGE"
 fi
 
-# Update language for all existing users if specified
 if [ "$update_users" = "yes" ]; then
 	for user in $("$BIN/h-list-users" list); do
 		$BIN/h-change-user-language "$user" "$language"
 	done
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "System language changed (Language: $language)."
 log_event "$OK" "$ARGUMENTS"
 

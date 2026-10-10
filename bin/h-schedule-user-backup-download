@@ -4,17 +4,11 @@
 #
 # example: h-schedule-user-backup-download admin 2019-04-22_01-00-00.tar
 #
-# This function for scheduling user backup creation.
+# Queues the download of an existing backup archive into the customer's backup folder.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -23,35 +17,18 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/db.sh
 source $HESTIA/include/db.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'USER BACKUP'
 is_format_valid 'user' 'backup'
 is_object_valid 'user' 'USER' "$user"
-# The record is the ownership. The panel only ever schedules archives it listed for THIS
-# customer; a name some other customer's archive answers to must not become a queue job that
-# fetches it into this customer's folder (which is customer-readable since #789).
+# The record is the ownership: another customer's archive must not be fetched into this customer-readable folder.
 if ! grep -qF "BACKUP='$backup'" "$USER_DATA/backup.conf" 2> /dev/null; then
 	check_result "$E_NOTEXIST" "no record of $backup for $user"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Adding backup task to  the queue
 echo "$BIN/h-download-backup $user $backup 2>&1" >> $CONF_DIR/queue/backup.pipe
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

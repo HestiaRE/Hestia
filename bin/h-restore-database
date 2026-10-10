@@ -4,44 +4,26 @@
 #
 # example: h-restore-database USER BACKUP DATABASE [NOTIFY]
 #
-# This function allows the user to restore a single database
-# from a backup archive.
+# Restores one database from a backup archive through h-restore-user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 backup=$2
 database=$3
 notify=$4
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
-# source=/usr/local/hestia/include/main.sh
+# shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER BACKUP DATABASE [NOTIFY]'
 check_args '3' "$#" "$args_usage"
 is_format_valid 'user' 'backup'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 $BIN/h-restore-user "$user" "$backup" 'no' 'no' 'no' "$database" 'no' 'no' "$notify"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
+# The inner run has already said why; passed on so the caller sees the failure.
+check_result $? "restore of $backup failed" > /dev/null
 
 log_event "$OK" "$ARGUMENTS"
 

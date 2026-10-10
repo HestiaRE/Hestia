@@ -4,13 +4,8 @@
 #
 # example: h-change-sys-ip-owner 203.0.113.1 admin
 #
-# This function of changing IP address ownership.
+# Gives an IP to another account; a customer's IP is always dedicated.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 # ip46 for the format dispatch; global $ip aliased for the sourced ip.sh helpers
 ip46="$1"
 ip="$ip46"
@@ -22,12 +17,7 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '2' "$#" 'IP USER'
 is_format_valid 'ip46' 'user'
@@ -43,11 +33,6 @@ is_ip_key_empty '$U_SYS_USERS'
 
 ip_status="$(get_ip_value '$STATUS')"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Changing IP owner
 ip_owner=$(get_ip_value '$OWNER')
 if [ "$ip_owner" != "$user" ]; then
 	update_ip_value '$OWNER' "$user"
@@ -80,17 +65,11 @@ if [ "$ip_owner" != "$user" ]; then
 	fi
 fi
 
-# Set status to dedicated if owner is not admin
 ip_status="$(get_ip_value '$STATUS')"
 if [ "$user" != "$ROOT_USER" ] && [ "$ip_status" = 'shared' ]; then
 	$BIN/h-change-sys-ip-status "$ip" 'dedicated'
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "IP address owner changed (IP: $ip, Owner: $user)"
 log_event "$OK" "$ARGUMENTS"
 

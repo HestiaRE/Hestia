@@ -4,57 +4,35 @@
 #
 # example: h-change-sys-timezone Europe/Berlin
 #
-# This function for changing system timezone.
+# Sets the system time zone and date.timezone in every php.ini.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 timezone=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
+# The list h-get-sys-timezones offers: zoneinfo also holds tables and directories that are no zone.
 is_timezone_valid() {
-	if [ ! -e "/usr/share/zoneinfo/$timezone" ]; then
-		echo "Error: tz file $timezone doesn't exist"
+	if ! timedatectl list-timezones 2> /dev/null | grep -qxF -- "$timezone"; then
+		echo "Error: $timezone is not a time zone of this system"
 		log_event "$E_NOTEXIST" "$ARGUMENTS"
 		exit "$E_NOTEXIST"
 	fi
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'TIMEZONE'
 is_timezone_valid
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# The files by hand only where timedatectl cannot run (no systemd); an upstream typo used to force that way.
-if ! timedatectl set-timezone "$timezone" > /dev/null 2>&1; then
-	if [ -e "/etc/sysconfig/clock" ]; then
-		sed -i "s/ZONE.*//" /etc/sysconfig/clock
-		echo "ZONE=\"$timezone\"" >> /etc/sysconfig/clock
-	fi
-	rm -f /etc/localtime
-	ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
-fi
-# timedated leaves /etc/timezone alone, and Debian 12/13 and Ubuntu 24.04 still carry one for what reads it.
+timedatectl set-timezone "$timezone" > /dev/null
+check_result $? "timedatectl did not set $timezone" "$E_UPDATE"
+# timedated leaves /etc/timezone alone, and the targets still carry one for what reads it.
 if [ -e "/etc/timezone" ]; then
 	echo "$timezone" > /etc/timezone
 fi
 
-# Chaning php timezone
 if [ -n "$WEB_SYSTEM" ]; then
 	for conf in $(find /etc/php* -name php.ini); do
 		sed -i "s|;date.timezone =|date.timezone =|" $conf
@@ -62,11 +40,6 @@ if [ -n "$WEB_SYSTEM" ]; then
 	done
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 $BIN/h-log-action "system" "Info" "System" "System time zone changed (Value: $timezone)."
 log_event "$OK" "$ARGUMENTS"
 

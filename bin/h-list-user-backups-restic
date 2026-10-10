@@ -2,18 +2,12 @@
 # info: list the restic snapshots of a user
 # options: USER [FORMAT]
 #
-# example: h-backup-user admin yes
+# example: h-list-user-backups-restic admin json
 #
-# This function is used for backing up user with all its domains and databases.
+# Lists the restic snapshots of a user.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 format=${2-plain}
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -24,22 +18,13 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 is_restic_repo_configured
 
@@ -51,15 +36,10 @@ function plain_list() {
 	restic --repo "$REPO$user" --password-file $USER_DATA/restic.conf snapshots
 }
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

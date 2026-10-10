@@ -5,34 +5,20 @@
 # example: h-update-sys-defaults
 # example: h-update-sys-defaults user
 #
-# This function updates the known key/value pair database
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# Refreshes the key registries of the records.
 
 system=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/syshealth.sh
 source $HESTIA/include/syshealth.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                        Action                            #
-#----------------------------------------------------------#
-
-# Through the dispatcher, so this list cannot drift from the one the repairs use. The old
-# enumeration called syshealth_update_dns_config_format, which stopped existing when DNS was
-# removed, and left mail_accounts, ip and system with no registry at all until some repair
-# happened to create one lazily.
-# system is not in the list: its registry is share/hestia/sys-keys.json in the tree, never a file
-# on the box (#932). Asked for explicitly it is a no-op with a word, not an error.
+# Through the dispatcher, the same the repairs use. system is not here: its registry is share/hestia/sys-keys.json
+# in the tree, never a file on the box; asked for, it says so.
 if [ "$system" = "system" ]; then
 	echo "system keys come from share/hestia/sys-keys.json - nothing to write"
 elif [ -n "$system" ]; then
@@ -42,9 +28,5 @@ else
 		syshealth_refresh_registry "$_sys"
 	done
 fi
-
-#----------------------------------------------------------#
-#                        Hestia                            #
-#----------------------------------------------------------#
 
 log_event "$OK" "$ARGUMENTS"

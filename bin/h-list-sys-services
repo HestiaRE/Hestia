@@ -4,26 +4,18 @@
 #
 # example: h-list-sys-services json
 #
-# This function for obtaining the list of configured system services.
+# Lists the services of the configured systems with state, CPU, memory and uptime.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/firewall.sh
 source $HESTIA/include/firewall.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -49,7 +41,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	IFS=$'\n'
 	echo "NAME   STATE   CPU   MEM   UPTIME"
@@ -60,7 +51,6 @@ shell_list() {
 	done < <(echo -e "$data" | grep NAME)
 }
 
-# PLAIN list function
 plain_list() {
 	IFS=$'\n'
 	while read str; do
@@ -69,7 +59,6 @@ plain_list() {
 	done < <(echo -e "$data" | grep NAME)
 }
 
-# Get service state function
 get_srv_state() {
 	srv=$1
 	name=${2-$1}
@@ -78,7 +67,6 @@ get_srv_state() {
 	cpu=0
 	rtime="0"
 
-	# Searching related pids
 	if [ -z $3 ]; then
 		pids=$(pidof $name | tr ' ' '|')
 	else
@@ -94,7 +82,6 @@ get_srv_state() {
 		used_pgrep=1
 	fi
 
-	# Checking pid
 	if [ -n "$pids" ]; then
 		if [[ "$used_pgrep" -eq 1 ]]; then
 			pid=$(echo "$pids" | awk -F '|' '{print $1}')
@@ -104,14 +91,11 @@ get_srv_state() {
 		pids=${pids%|}
 		pids=$(egrep "$pids" $tmp_file)
 
-		# Calculating CPU usage
 		cpu=$(echo "$pids" | awk '{ sum += $2} END {print sum}')
 
-		# Calculating memory usage
 		mem=$(echo "$pids" | awk '{sum += $3} END {print sum/1024 }')
 		mem=$(echo "${mem%%.*}")
 
-		# Searching pid file
 		pid_file=''
 		if [ -e "/run/$srv.pid" ]; then
 			pid_file="/run/$srv.pid"
@@ -126,7 +110,6 @@ get_srv_state() {
 			pid_file="/proc/$pid"
 		fi
 
-		# Calculating uptime
 		if [ -n "$pid_file" ]; then
 			mtime=$(stat -c "%Y" $pid_file)
 			rtime=$((ctime - mtime))
@@ -142,25 +125,17 @@ get_srv_state() {
 	fi
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Saving current proccess list
 tmp_file=$(mktemp)
 ps -eo pid,pcpu,size > $tmp_file
 
-# Checking current time
 ctime=$(date +%s)
 
-# Checking WEB system
 if [ -n "$WEB_SYSTEM" ]; then
 	get_srv_state $WEB_SYSTEM
 	data="NAME='$WEB_SYSTEM' SYSTEM='web server' STATE='$state' CPU='$cpu'"
 	data="$data MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking PHP intepreter
 if [ -n "$WEB_BACKEND" ]; then
 	php_versions=$(ls /usr/sbin/php*fpm* | cut -d'/' -f4 | sed 's|php-fpm||')
 	for version in $php_versions; do
@@ -172,18 +147,14 @@ if [ -n "$WEB_BACKEND" ]; then
 	done
 fi
 
-# Checking WEB Proxy
 if [ -n "$PROXY_SYSTEM" ]; then
 	get_srv_state "$PROXY_SYSTEM"
 	data="$data\nNAME='$PROXY_SYSTEM' SYSTEM='reverse proxy' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking WEBMAIL front
-# In the mailfront model there is no customer web, so WEB_SYSTEM and PROXY_SYSTEM are empty and this
-# nginx would be listed nowhere (#1003) although it serves webmail and terminates ACME. The two
-# guards above it keep it from appearing twice where the same daemon is already a row. Label reused
-# on purpose: a new SYSTEM string reaches the template (.gitea/tools/i18n.sh) but has no translation yet.
+# The mailfront nginx, once: it is no row where it is also the web or proxy system.
+# Label reused on purpose: a new SYSTEM string reaches the template (.gitea/tools/i18n.sh) untranslated.
 if [ -n "$WEBMAIL_FRONT" ] \
 	&& [ "$WEBMAIL_FRONT" != "$WEB_SYSTEM" ] && [ "$WEBMAIL_FRONT" != "$PROXY_SYSTEM" ]; then
 	get_srv_state "$WEBMAIL_FRONT"
@@ -191,21 +162,18 @@ if [ -n "$WEBMAIL_FRONT" ] \
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking MAIL system
 if [ -n "$MAIL_SYSTEM" ]; then
 	get_srv_state "$MAIL_SYSTEM"
 	data="$data\nNAME='$MAIL_SYSTEM' SYSTEM='mail server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking MAIL IMAP
 if [ -n "$IMAP_SYSTEM" ]; then
 	get_srv_state "$IMAP_SYSTEM"
 	data="$data\nNAME='$IMAP_SYSTEM' SYSTEM='imap/pop3 server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking MAIL ANTIVIRUS
 if [ -n "$ANTIVIRUS_SYSTEM" ]; then
 	# The record says clamav (HestiaCP: clamav-daemon); the row names the unit, the panel acts on it.
 	get_srv_state clamav-daemon clamd
@@ -213,63 +181,30 @@ if [ -n "$ANTIVIRUS_SYSTEM" ]; then
 	data="$data STATE='$state' CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking MAIL ANTISPAM
 if [ -n "$ANTISPAM_SYSTEM" ]; then
-	# Proc name = service name (rspamd). The old hardcoded "spamd" only worked
-	# because pgrep matches it as an unanchored regex inside "rspamd".
+	# The process is named like the service (rspamd).
 	get_srv_state "$ANTISPAM_SYSTEM"
 	data="$data\nNAME='$ANTISPAM_SYSTEM' SYSTEM='email spam filter'"
 	data="$data STATE='$state' CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking DB system
 if [ -n "$DB_SYSTEM" ]; then
 	IFS=, read -ra _db_list <<< "$DB_SYSTEM"
 	for db in "${_db_list[@]}"; do
 		[ -n "$db" ] || continue
 		service="$db"
 		proc_name=''
-		mysql="/usr/bin/mysql"
-		if [ -f '/usr/bin/mariadb' ]; then
-			mysql="/usr/bin/mariadb"
-		fi
+		# MariaDB only: the DB_SYSTEM token keeps its upstream name.
 		if [ "$service" = 'mysql' ]; then
-			mysql_version=$($mysql -V 2> /dev/null)
-			mariadb_string="MariaDB"
-			if [[ ! $mysql_version =~ $mariadb_string ]]; then
-				# MySQL
-				service='mysql'
-				proc_name='mysqld'
-			else
-				service='mariadb'
-				proc_name='mariadbd'
-				# MariaDB 10.4 and lower
-				if [ -f $mysql ]; then
-					mariadb_v=$($mysql -V | awk 'NR==1{print $5}')
-					if [[ $mariadb_v =~ $mariadb_string ]]; then
-						mariadb_v=$(echo $mariadb_v | awk -F "." '{ print $1 $2 }')
-						if [ $mariadb_v -le "104" ]; then
-							service='mariadb'
-							proc_name='mysqld'
-						fi
-					fi
-				fi
-			fi
+			service='mariadb'
+			proc_name='mariadbd'
 		fi
-		if [ "$service" == 'pgsql' ]; then
+		if [ "$service" = 'pgsql' ]; then
 			service='postgresql'
-			proc_name='postmaster'
-			if [ ! -d "/etc/sysconfig" ]; then
-				proc_name='postgres'
-			fi
-			if [ ! -e '/etc/init.d/postgresql' ]; then
-				proc_name='postgres'
-			fi
+			proc_name='postgres'
 		fi
-		# A DB_SYSTEM token does not imply a local server: h-add-database-host writes the type for a
-		# REMOTE host too, and the row then reads "stopped" forever while the panel offers start and
-		# restart for a unit that does not exist. Fail open - skip only on a definite "no such unit",
-		# so an unexpected systemctl answer can never hide a running service.
+		# A DB_SYSTEM token may name a remote host only. Skipped on a definite "no such unit" alone, so an
+		# unexpected systemctl answer never hides a running service.
 		if command -v systemctl > /dev/null 2>&1 \
 			&& ! systemctl list-unit-files "$service.service" 2> /dev/null | grep -q "^$service\.service"; then
 			proc_name=''
@@ -282,28 +217,24 @@ if [ -n "$DB_SYSTEM" ]; then
 	done
 fi
 
-# Checking FTP system
 if [ -n "$FTP_SYSTEM" ]; then
 	get_srv_state "$FTP_SYSTEM"
 	data="$data\nNAME='$FTP_SYSTEM' SYSTEM='ftp server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking CRON system
 if [ -n "$CRON_SYSTEM" ]; then
 	get_srv_state "$CRON_SYSTEM"
 	data="$data\nNAME='$CRON_SYSTEM' SYSTEM='job scheduler' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking SSH daemon
 if [ -e "/etc/ssh/sshd_config" ]; then
 	get_srv_state ssh
 	data="$data\nNAME='ssh' SYSTEM='ssh server' STATE='$state'"
 	data="$data CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Checking FIREWALL system
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	state="stopped"
 	if [ "$(fw_policy_get INPUT)" = 'DROP' ]; then
@@ -313,22 +244,12 @@ if [ -n "$FIREWALL_SYSTEM" ]; then
 	data="$data STATE='$state' CPU='0' MEM='0' RTIME='0'"
 fi
 
-# Checking FIREWALL Fail2ban extention
 if [ -n "$FIREWALL_EXTENSION" ]; then
-	if [ -e '/usr/bin/lsb_release' ]; then
-		if [ "$(lsb_release -s -r)" = "20.04" ]; then
-			get_srv_state "$FIREWALL_EXTENSION" f2b/server script
-		else
-			get_srv_state "$FIREWALL_EXTENSION" fail2ban-server script
-		fi
-	else
-		get_srv_state "$FIREWALL_EXTENSION" fail2ban-server script
-	fi
+	get_srv_state "$FIREWALL_EXTENSION" fail2ban-server script
 	data="$data\nNAME='$FIREWALL_EXTENSION' SYSTEM='brute-force protection'"
 	data="$data STATE='$state' CPU='$cpu' MEM='$mem' RTIME='$rtime'"
 fi
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
@@ -339,9 +260,5 @@ esac
 if [ -f "$tmp_file" ]; then
 	rm -f "$tmp_file"
 fi
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

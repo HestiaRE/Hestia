@@ -4,28 +4,20 @@
 #
 # example: h-list-sys-rrd
 #
-# List available rrd graphics, its titles and paths.
-
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
+# The graphs the panel shows, with title and path.
 
 format=${1-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	i=1
 	echo "{"
 
-	# Generating timestamp
 	new_timestamp
 
 	for type in $rrd_types; do
@@ -52,8 +44,7 @@ json_list() {
 			if [ "$type" = 'db' ]; then
 				db_type=$(echo $rrd | cut -f 1 -d _ | sed -e 's/mysql/MySQL/g' \
 					-e 's/pgsql/PostgreSQL/g')
-				# f2- not f2: the host is everything after the first underscore, and a hostname may
-				# contain more of them - "mysql_db_server_01" was reported as host "db".
+				# f2-: a hostname may contain underscores itself.
 				db_host=$(echo $rrd | cut -f 2- -d _)
 				title="$db_type Usage on $db_host"
 			fi
@@ -73,7 +64,6 @@ json_list() {
 	echo "}"
 }
 
-# SHELL list function
 shell_list() {
 	echo "TYPE   VAL_1   VAL_2   VAL_3   TIME   DATE"
 	echo "----   -----   -----   -----   ----   ----"
@@ -102,7 +92,6 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	for type in $rrd_types; do
 		for rrd in $(ls $RRD/$type | grep rrd$ | sed "s/\.rrd$//g"); do
@@ -111,46 +100,31 @@ plain_list() {
 	done
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Definng rrd charts
 rrd_types="la mem net"
 
-# Checking web system
 if [ -n "$WEB_SYSTEM" ]; then
 	rrd_types="$rrd_types web"
 fi
 
-# Checking mail system
 if [ -n "$MAIL_SYSTEM" ]; then
 	rrd_types="$rrd_types mail"
 fi
 
-# Checking db system
 if [ -n "$DB_SYSTEM" ]; then
 	rrd_types="$rrd_types db"
 fi
 
-# Checking ftp system
 if [ -n "$FTP_SYSTEM" ]; then
 	rrd_types="$rrd_types ftp"
 fi
 
-# Adding ssh
 rrd_types="$rrd_types ssh"
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

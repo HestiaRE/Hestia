@@ -4,18 +4,12 @@
 #
 # example: h-delete-user-backup-restic admin snapshot
 #
-# Delete a specific user snapshot from restic backup repository. It doesn't take in account any pruning done by the retention policy.
-# This function is used for deleting a specific user snapshot from restic backup repository.
+# Delete one snapshot of USER from the restic repository, together with its metadata package.
+# Pruning done by the retention policy is not taken into account.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -30,23 +24,16 @@ source $HESTIA/include/rebuild.sh
 source $HESTIA/include/syshealth.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 args_usage='USER SNAPSHOT'
 check_args '2' "$#" "$args_usage"
 is_format_valid 'user'
+# From the panel, and handed to restic: it must not read as an option.
+is_object_format_valid "$snapshot" 'snapshot'
 is_object_valid 'user' 'USER' "$user"
 
 is_restic_repo_configured
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 # Both halves go together: a package whose snapshot is gone describes nothing.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
@@ -60,13 +47,8 @@ if [ "$?" -ne 0 ]; then
 fi
 rm -f "$meta_pkg"
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
 sed -i "/h-delete-user-backup-restic '$user' '$snapshot' /d" $CONF_DIR/queue/backup.pipe
 
-# Logging
 $BIN/h-log-action "system" "Info" "Backup" "Restic snapshot successfully deleted (User: $user, Snapshot: $snapshot)."
 $BIN/h-log-action "$user" "Info" "Backup" "Restic snapshot successfully deleted (Snapshot: $snapshot)."
 log_event "$OK" "$ARGUMENTS"

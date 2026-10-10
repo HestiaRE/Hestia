@@ -4,16 +4,12 @@
 #
 # example: h-list-sys-sshd-port
 #
-# This function for obtainings the port of sshd listens to
+# Lists the ports sshd listens on.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 format=${1-shell}
 
-# Includes
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 
@@ -33,7 +29,6 @@ json_list() {
 	echo "]"
 }
 
-# SHELL list function
 shell_list() {
 	echo "PORT"
 	echo "-----"
@@ -42,35 +37,19 @@ shell_list() {
 	done
 }
 
-# PLAIN list function
 plain_list() {
 	for port in $ports; do
 		echo "$port"
 	done
 }
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
+ports=$(sshd -T | grep '^port' | cut -d ' ' -f2)
 
-version=$(lsb_release -s -r)
-
-if [[ "$version" = 9 || "$version" = 10 ]]; then
-	ports=$(sshd -T -C "user=root" | grep '^port' | cut -d ' ' -f2)
-else
-	ports=$(sshd -T | grep '^port' | cut -d ' ' -f2)
-fi
-
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

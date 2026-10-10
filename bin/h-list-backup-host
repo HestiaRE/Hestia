@@ -4,25 +4,17 @@
 #
 # example: h-list-backup-host local
 #
-# This function for obtaining the list of backup host parameters.
+# Lists the parameters of the backup host of a type.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 format=${2-shell}
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-# JSON list function
 json_list() {
 	case $type in
 		'sftp' | 'ftp' | 'rclone')
@@ -43,7 +35,6 @@ json_list() {
 	esac
 }
 
-# SHELL list function
 shell_list() {
 	case $type in
 		'sftp' | 'ftp' | 'rclone')
@@ -59,7 +50,6 @@ shell_list() {
 	esac
 }
 
-# PLAIN list function
 plain_list() {
 	case $type in
 		'sftp' | 'ftp' | 'rclone')
@@ -68,43 +58,20 @@ plain_list() {
 	esac
 }
 
-# Type format validator
-is_type_format_valid() {
-	exclude="[!|#|$|^|&|(|)|+|=|{|}|:|@|<|>|?|/|\|\"|'|;|%|\`| ]|\."
-	if [[ "$1" =~ $exclude ]]; then
-		check_result "$E_INVALID" "invalid type extention format :: $1"
-	fi
-}
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '1' "$#" 'TYPE [FORMAT]'
 is_common_format_valid "$type" "type"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Checking backup config
 if [ ! -e "$HESTIA/conf/$type.backup.conf" ]; then
 	exit
 fi
 
-# Parsing backup config
 source_conf "$HESTIA/conf/$type.backup.conf"
 
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list | column -t ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

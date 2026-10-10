@@ -4,26 +4,19 @@
 #
 # example: h-change-sys-port 5678
 #
-# The port lives in the Panel-Caddy site, not in BACKEND_PORT: writing the value alone moved
-# the firewall and left Caddy on the old port.
+# Moves the panel to PORT. The port lives in the Panel-Caddy site; BACKEND_PORT, the webmail plugins,
+# the firewall and the proxies into the panel follow it.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 PORT=$1
 CADDY_SITE='/etc/caddy/hestia.conf'
 CADDY_MAIN='/etc/caddy/Caddyfile'
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"
 # shellcheck source=/usr/local/hestia/include/ports.sh
 source "$HESTIA/include/ports.sh"
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 # The live listener is the truth: if the two disagree, the unreachable one has to move.
@@ -48,10 +41,6 @@ write_panel_port() {
 	[ -f "$CADDY_MAIN" ] && sed -i "s|^\([[:space:]]*servers[[:space:]]*\):$from\b|\1:$to|" "$CADDY_MAIN"
 	return 0
 }
-
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
 
 check_args '1' "$#" 'PORT'
 
@@ -82,17 +71,13 @@ if [ "$PORT" != "$ORIGINAL_PORT" ] && holder=$(panel_port_live_holder "$PORT"); 
 	exit "$E_INUSE"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
 # Nothing to move: the listener and the value everything follows already say this port.
 if [ "$ORIGINAL_PORT" = "$PORT" ] && [ "${BACKEND_PORT:-}" = "$PORT" ]; then
 	exit 0
 fi
 
-# Spans the whole sequence, and flips at the firewall: rolling the listener back after that
-# would create the split. Must END the command - a returning handler lets bash resume.
+# Spans the whole sequence and flips at the firewall, where rolling the listener back would create the split.
+# Must end the command: a returning handler lets bash resume.
 _phase=none
 _on_interrupt() {
 	local was="$_phase"
@@ -138,22 +123,22 @@ if [ -d /etc/roundcube/ ]; then
 	sed -i "/password_hestia_port/c\$rcmail_config['password_hestia_port'] = '$PORT';" /etc/roundcube/plugins/password/config.inc.php
 fi
 if [ -d /etc/tachyon/ ]; then
-	# Same key, no trailing comma: hestia_port is the last member of the plugin object (#234).
+	# Same key, no trailing comma: hestia_port is the last member of the plugin object.
 	sed -i "/\"hestia_port\":/c\\\"hestia_port\": $PORT" /etc/tachyon/data/_data_/_default_/configs/plugin-change-password.json
 fi
 
+# Only the port: the rule's source restriction and state are the admin's.
 if [ -f "$CONF_DIR/firewall/rules.conf" ]; then
-	sed -i "/COMMENT='HESTIA'/c\RULE='2' ACTION='ACCEPT' PROTOCOL='TCP' PORT='$PORT' IP='0.0.0.0/0' COMMENT='HESTIA' SUSPENDED='no' TIME='07:40:16' DATE='2014-05-25'" "$CONF_DIR/firewall/rules.conf"
+	sed -i "/COMMENT='HESTIA'/s/ PORT='[^']*'/ PORT='$PORT'/" "$CONF_DIR/firewall/rules.conf"
 fi
 
 if [ -f "$CONF_DIR/firewall/chains.conf" ]; then
-	sed -i "/CHAIN='HESTIA'/c\CHAIN='HESTIA' PORT='$PORT' PROTOCOL='TCP'" "$CONF_DIR/firewall/chains.conf"
+	sed -i "/CHAIN='HESTIA'/s/ PORT='[^']*'/ PORT='$PORT'/" "$CONF_DIR/firewall/chains.conf"
 fi
 # They agree now; from here a rollback would be the damage.
 _phase=followers
 
-# phpMyAdmin proxies into the panel, so it carries the port. Its own deployer re-renders it;
-# the output is kept because a silent refusal leaves every customer domain on the old port.
+# phpMyAdmin proxies into the panel and carries the port; a silent refusal leaves every domain on the old one.
 if [ -n "$DB_PMA_ALIAS" ]; then
 	if ! _pma_out=$("$BIN/h-change-sys-db-alias" 'pma' "$DB_PMA_ALIAS" 2>&1); then
 		echo "Warning: phpMyAdmin proxy not re-rendered (${_pma_out:-no output})"
@@ -161,7 +146,7 @@ if [ -n "$DB_PMA_ALIAS" ]; then
 	fi
 fi
 
-# Panel-proxy domains carry the port in their vhost (#878).
+# Panel-proxy domains carry the port in their vhost.
 _panel_proxied=0
 for _conf in "$CONF_DIR"/users/*/web.conf; do
 	[ -e "$_conf" ] || continue
@@ -177,17 +162,11 @@ if [ "$_panel_proxied" = 1 ]; then
 	[ -n "$PROXY_SYSTEM" ] && "$BIN/h-restart-proxy" > /dev/null 2>&1
 fi
 
-# The name has to BE $FIREWALL_SYSTEM: h-restart-service compares against that key, and a literal
-# that stops matching leaves the new port in rules.conf but never applied.
+# The name has to be $FIREWALL_SYSTEM: h-restart-service compares against that key, a literal goes unapplied.
 if [ -n "$FIREWALL_SYSTEM" ] && [ "$FIREWALL_SYSTEM" != no ]; then
 	"$BIN/h-restart-service" "$FIREWALL_SYSTEM"
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 "$BIN/h-log-action" "system" "Warning" "System" "Hestia Control Panel backend port changed (New Value: $PORT, Old Value: $ORIGINAL_PORT)."
 log_event "$OK" "$ARGUMENTS"
 

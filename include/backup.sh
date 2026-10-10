@@ -1,10 +1,6 @@
 #!/bin/bash
 
-#===========================================================================#
-#                                                                           #
-# Hestia Control Panel - Backup Function Library                            #
-#                                                                           #
-#===========================================================================#
+# Backup and restore function library.
 
 # record_line_valid, record_keys and record_rewrite live in include/main.sh, which is sourced before this file.
 
@@ -32,7 +28,7 @@ record_zero_counters() {
 	done
 }
 
-# restore_parse_record KEYVAR LINE - parse a record and remember, in KEYVAR, which keys it set.
+# restore_parse_record KEYVAR LINE: parse a record and remember, in KEYVAR, which keys it set.
 # Derived per parse site, so the cleanup between two objects cannot cover less than was parsed.
 restore_parse_record() {
 	local -n _keys_ref="$1"
@@ -40,12 +36,188 @@ restore_parse_record() {
 	parse_object_kv_list "$2"
 }
 
-# restore_forget_record KEYVAR - unset every key the last record set, then clear the register.
+# restore_forget_record KEYVAR: unset every key the last record set, then clear the register.
 restore_forget_record() {
 	local -n _keys_ref="$1"
 	local _k
 	for _k in $_keys_ref; do unset -v "$_k"; done
 	_keys_ref=''
+}
+
+# restore_passwd_read FILE: old_user and old_uid from the archived passwd line; rc 1 unless both are well formed.
+# They reach sed, find and arithmetic as root, so the archive's word is checked like an argument.
+restore_passwd_read() {
+	old_user=$(cut -f 1 -d : "$1" 2> /dev/null)
+	old_uid=$(cut -f 3 -d : "$1" 2> /dev/null)
+	[[ "$old_uid" =~ ^[0-9]+$ ]] || return 1
+	restore_quiet is_user_format_valid "$old_user" 'user'
+}
+
+# restore_quiet VALIDATOR ARGS...: the rc of a check_result validator, without its message, log line or exit.
+restore_quiet() {
+	(
+		_rq_quiet() { :; }
+		CHECK_RESULT_CALLBACK=_rq_quiet
+		"$@"
+	) > /dev/null 2>&1
+}
+
+# restore_line_fields_ok TYPE LINE: the field rules a restored record line meets before a root renderer reads it.
+# Only the fields that reach a rendered file are checked; TIME, DATE and the cron command are left as stored.
+restore_line_fields_ok() {
+	local _l="$2" _k _v
+	local -a _lfo_list
+	case "$1" in
+		cron)
+			cron_record_safe "$_l" || return 1
+			[[ "$(record_field "$_l" JOB)" =~ ^[0-9]+$ ]] || return 1
+			for _k in MIN HOUR DAY MONTH WDAY; do
+				cron_field_valid "$(record_field "$_l" "$_k")" "${_k,,}" || return 1
+			done
+			[[ "$(record_field "$_l" SUSPENDED)" =~ ^(yes|no)$ ]]
+			;;
+		mail_accounts)
+			record_line_valid "$_l" || return 1
+			restore_quiet is_localpart_format_valid "$(record_field "$_l" ACCOUNT)" account 64 || return 1
+			IFS=, read -ra _lfo_list <<< "$(record_field "$_l" ALIAS)"
+			for _v in "${_lfo_list[@]}"; do
+				[ -z "$_v" ] || restore_quiet is_localpart_format_valid "$_v" alias 64 || return 1
+			done
+			IFS=, read -ra _lfo_list <<< "$(record_field "$_l" FWD)"
+			for _v in "${_lfo_list[@]}"; do
+				[ -z "$_v" ] || [ "$_v" = ':blackhole:' ] || restore_quiet is_email_format_valid "$_v" || return 1
+			done
+			# The hash is one field of the dovecot passwd line: a colon or a blank would open the next one.
+			[[ "$(record_field "$_l" MD5)" =~ ^[^:[:space:]]*$ ]] || return 1
+			[[ "$(record_field "$_l" QUOTA)" =~ ^([0-9]*|unlimited)$ ]] || return 1
+			for _k in RATE_LIMIT U_DISK; do
+				[[ "$(record_field "$_l" "$_k")" =~ ^[0-9]*$ ]] || return 1
+			done
+			for _k in AUTOREPLY FWD_ONLY SUSPENDED; do
+				[[ "$(record_field "$_l" "$_k")" =~ ^(yes|no|)$ ]] || return 1
+			done
+			;;
+		*) return 1 ;;
+	esac
+}
+
+# restore_php_installed VERSION: rc 0 when VERSION is a version string and installed here. The format comes first:
+# matched against the joined list, an archived value with a blank could span two installed versions.
+restore_php_installed() {
+	[[ "$1" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+	case " $($BIN/h-list-sys-php plain | tr '\n' ' ') " in
+		*" $1 "*) return 0 ;;
+	esac
+	return 1
+}
+
+# restore_web_fields_check RECVAR: switch off what an archived web record names outside the bounds the add commands
+# set, both in the record line RECVAR and in the parsed variables. Prints one line per switched-off part.
+# Needs $user and default_proxy_ext (include/domain.sh).
+restore_web_fields_check() {
+	local _wf_name="$1" _wf_line
+	_wf_line=${!_wf_name}
+	if [ -n "$STATS" ] && { ! [[ "$STATS" =~ ^[a-z0-9]+$ ]] || [[ ",$STATS_SYSTEM," != *",$STATS,"* ]]; }; then
+		echo "stats '$STATS' is not offered here, switched off"
+		STATS='' STATS_USER='' STATS_CRYPT=''
+		record_set_field _wf_line STATS ''
+		record_set_field _wf_line STATS_USER ''
+		record_set_field _wf_line STATS_CRYPT ''
+	fi
+	# Each field on its own: the port reaches the vhost template even where DOCKER is empty.
+	local _dk_ok=yes
+	[ -z "$DOCKER" ] || { [[ "$DOCKER" =~ ^[A-Za-z0-9._-]+$ ]] && [ -n "$DOCKER_PORT" ]; } || _dk_ok=no
+	[ -z "$DOCKER_PORT" ] || { [[ "$DOCKER_PORT" =~ ^[0-9]{4,5}$ ]] && [ "$DOCKER_PORT" -ge 1024 ] \
+		&& [ "$DOCKER_PORT" -le 65535 ]; } || _dk_ok=no
+	[ -z "$DOCKER_OCTET" ] || { [[ "$DOCKER_OCTET" =~ ^[0-9]{1,3}$ ]] && [ "$DOCKER_OCTET" -ge 1 ] \
+		&& [ "$DOCKER_OCTET" -le 254 ]; } || _dk_ok=no
+	if [ "$_dk_ok" = no ]; then
+		echo "the docker proxy fields are outside the bounds of h-add-web-domain-docker, switched off"
+		DOCKER='' DOCKER_PORT='' DOCKER_OCTET=''
+		record_set_field _wf_line DOCKER ''
+		record_set_field _wf_line DOCKER_PORT ''
+		record_set_field _wf_line DOCKER_OCTET ''
+	fi
+	if [ -n "$PROXY_EXT" ] && ! restore_quiet is_extention_format_valid "$PROXY_EXT"; then
+		echo "the proxy extension list is not a list of extensions, the default applies"
+		PROXY_EXT=$(default_proxy_ext)
+		record_set_field _wf_line PROXY_EXT "$PROXY_EXT"
+	fi
+	# By path, not by existence: the target domain may come later in the run. Rule of h-change-web-domain-docroot.
+	local _root _rt _root_ok=yes
+	for _root in "$CUSTOM_DOCROOT" "$CUSTOM_PHPROOT"; do
+		[ -n "$_root" ] || continue
+		_rt=${_root#"$HOMEDIR/$user/web/"}
+		[ "$_rt" != "$_root" ] && [[ "$_rt" =~ ^[^/]+/public_html(/|$) ]] && [[ "/$_rt/" != *"/../"* ]] \
+			&& record_path_ok "$_root" "$HOMEDIR/$user/web" || _root_ok=no
+	done
+	if [ "$_root_ok" = no ]; then
+		echo "the custom document root lies outside the web folder of $user, the default applies"
+		CUSTOM_DOCROOT='' CUSTOM_PHPROOT=''
+		record_set_field _wf_line CUSTOM_DOCROOT ''
+		record_set_field _wf_line CUSTOM_PHPROOT ''
+	fi
+	printf -v "$_wf_name" '%s' "$_wf_line"
+}
+
+# restore_record_name TYPE LINE N: what a dropped line stood for. The name comes from the archive, so it is only
+# printed where it passes its own field rule.
+restore_record_name() {
+	local _v
+	case "$1" in
+		cron)
+			_v=$(record_field "$2" JOB)
+			if [[ "$_v" =~ ^[0-9]+$ ]]; then
+				echo "job $_v"
+				return
+			fi
+			;;
+		mail_accounts)
+			_v=$(record_field "$2" ACCOUNT)
+			if restore_quiet is_localpart_format_valid "$_v" account 64; then
+				echo "account $_v"
+				return
+			fi
+			;;
+	esac
+	echo "line $3 (no usable name)"
+}
+
+# restore_records_filter SRC DST TYPE: write the lines of SRC that pass. A key this host does not use is removed and
+# the line kept; a line with a field outside its rule is dropped. Both are named on stderr, and the dropped entries
+# are left in RESTORE_DROPPED for the caller's failure report. An empty result is valid: no jobs, no accounts.
+restore_records_filter() {
+	local _src="$1" _dst="$2" _t="$3" _allow _line _orig _k _n=0 _tmp _unknown=''
+	RESTORE_DROPPED=''
+	[ -f "$_src" ] || return 1
+	_allow=" $(syshealth_known_keys "$_t") " || return 1
+	[ -n "${_allow// /}" ] || return 1
+	_tmp=$(mktemp "$_dst.XXXXXX") || return 1
+	while IFS= read -r _line || [ -n "$_line" ]; do
+		_line=${_line%$'\r'}
+		_orig=$_line
+		_n=$((_n + 1))
+		[ -n "${_line// /}" ] || continue
+		# Removed, not kept: the readers bind every key of these records as a variable.
+		for _k in $(record_keys "$_line"); do
+			case "$_allow" in *" $_k "*) continue ;; esac
+			record_del_field _line "$_k" || {
+				_line=''
+				break
+			}
+			[[ " $_unknown " == *" $_k "* ]] || _unknown="${_unknown:+$_unknown }$_k"
+		done
+		# The shape check is per type: a cron command may hold quotes that no other record carries.
+		if [ -n "$_line" ] && restore_line_fields_ok "$_t" "$_line"; then
+			printf '%s\n' "$_line" >> "$_tmp"
+			continue
+		fi
+		_k=$(restore_record_name "$_t" "$_orig" "$_n")
+		RESTORE_DROPPED="${RESTORE_DROPPED:+$RESTORE_DROPPED, }$_k"
+		echo "Warning: the archived $_t entry $_k does not pass the $_t rules, not restored" >&2
+	done < "$_src"
+	[ -z "$_unknown" ] || echo "Warning: the archived $_t record carries key(s) unused here, removed: $_unknown" >&2
+	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
 }
 
 # record_del_field VAR KEY: remove KEY from the record held in VAR; rc 1 as in record_set_field.
@@ -56,14 +228,10 @@ record_del_field() {
 	_rec_ref="$_rdf_new"
 }
 
-# Read the archive ONCE, before anything is written: backup_probe says what is IN it, backup_report
-# what THIS host would lose. Both derived, nothing kept in step by hand.
-
-# The one container directory an archive may carry its records in. Vesta's './vesta' is refused
-# outright rather than threaded through every path join, so this is a constant.
+# The one container directory an archive carries its records in. Vesta's './vesta' is refused, not threaded through.
 BACKUP_CONTAINER='hestia'
 
-# BACKUP_USER_DATA_CORE - data-dir entries that travel in NEITHER direction: rebuilt per object
+# BACKUP_USER_DATA_CORE: data-dir entries that travel in NEITHER direction, rebuilt per object
 # (web|mail|db|cron.conf, mail), box-local (backup.conf), gone (dns), or secret (restic.conf, auth.log).
 BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns.conf dns restic.conf auth.log'
 # What the container says about the ARCHIVE rather than about the customer: written into hestia/ by
@@ -71,13 +239,13 @@ BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns
 # holds this against what the writers actually emit, because a hand-kept list is how the last two leaked.
 BACKUP_CONTAINER_META='web-system origin export-map backup.map backup.base backup.members'
 
-# The text identifying a queued job - command plus the arguments that tell it apart. One per
+# The text identifying a queued job: command plus the arguments that tell it apart. One per
 # queueable command.
 QUEUE_JOB=''
 # One drop per run, tracked here and not by each caller (there are forty of them).
 QUEUE_JOB_DROPPED=''
 
-# queue_drop_job PIPE - drop the line QUEUE_JOB prefixes, at most ONCE per run: it is a prefix, so a
+# queue_drop_job PIPE: drop the line QUEUE_JOB prefixes, at most ONCE per run: it is a prefix, so a
 # second drop would take the next queued line of the same customer. Padded to a word boundary.
 queue_drop_job() {
 	local _pipe="$1" _job="$QUEUE_JOB" _n
@@ -94,7 +262,7 @@ queue_drop_job() {
 # The origin line's format number. One definition for the writer and the reader.
 BACKUP_ORIGIN_FORMAT='1'
 
-# backup_write_origin PATH - state who produced this archive. Forensics only: web-system stays the
+# backup_write_origin PATH: state who produced this archive. Forensics only: web-system stays the
 # source for the web model, and nothing detects by this.
 backup_write_origin() {
 	printf "PRODUCER='hestiare' VERSION='%s' FORMAT='%s' BACKUP_MODE='%s' CREATED='%s'\n" \
@@ -117,7 +285,7 @@ backup_decompress() {
 	esac
 }
 
-# backup_dump_complete FILE - does the dump carry its engine's completion marker? The pipeline's status
+# backup_dump_complete FILE: does the dump carry its engine's completion marker? The pipeline's status
 # is the compressor's, so a dump that died halfway looks fine. pg_dump puts a \unrestrict line behind
 # its marker, hence a window wider than two.
 backup_dump_complete() {
@@ -126,13 +294,13 @@ backup_dump_complete() {
 		| grep -qE '^-- Dump completed|^-- PostgreSQL database dump complete'
 }
 
-# backup_origin_field KEY - one field of the probed origin line. Not parse_object_kv_list: that assigns
+# backup_origin_field KEY: one field of the probed origin line. Not parse_object_kv_list: that assigns
 # into the caller's scope, where VERSION and BACKUP_MODE are live config.
 backup_origin_field() {
 	sed -n "s/.*[[:space:]]$1='\([^']*\)'.*/\1/p" <<< " $PROBE_ORIGIN"
 }
 
-# backup_member_abort USER WHAT PATH - the one way out for a member that was not written. Lifts the
+# backup_member_abort USER WHAT PATH: the one way out for a member that was not written. Lifts the
 # loop's IFS and noglob first: an abort must not run under settings the loop needed.
 backup_member_abort() {
 	set +f
@@ -143,8 +311,8 @@ backup_member_abort() {
 	check_result "$E_DISK" "$1: $2 could not be written to $3 - refusing to finish a partial archive"
 }
 
-# backup_member_write DEST TAR-ARG... - both ends of the pipe must succeed, or a truncated member
-# passes as a whole one (#823). The compressor follows from the DEST extension.
+# backup_member_write DEST TAR-ARG...: both ends of the pipe must succeed, or a truncated member
+# passes as a whole one. The compressor follows from the DEST extension.
 backup_member_write() {
 	local _dest="$1"
 	shift
@@ -159,7 +327,7 @@ backup_member_write() {
 	[ "${_st[0]}" -eq 0 ] && [ "${_st[1]}" -eq 0 ]
 }
 
-# backup_probe ARCHIVE WORKDIR - describe an archive. Sets PROBE_* and extracts the record members
+# backup_probe ARCHIVE WORKDIR: describe an archive. Sets PROBE_* and extracts the record members
 # into WORKDIR, so the caller can read them without unpacking the archive again.
 backup_probe() {
 	local _arc="$1" _wd="$2" _members _dir
@@ -183,7 +351,7 @@ backup_probe() {
 	grep -qx './.zstd' <<< "$_members" && PROBE_MODE='zstd'
 
 	# Names from the member paths, one pass per subsystem: the archive is compressed, so per-object
-	# extraction would walk it N times. One name per LINE - a home entry can be called "my documents".
+	# extraction would walk it N times. One name per LINE: a home entry can be called "my documents".
 	PROBE_WEB=$(sed -n 's|^\./web/\([^/]*\)/'"$BACKUP_CONTAINER"'/web\.conf$|\1|p' <<< "$_members" | sort -u)
 	PROBE_MAIL=$(sed -n 's|^\./mail/\([^/]*\)/'"$BACKUP_CONTAINER"'/mail\.conf$|\1|p' <<< "$_members" | sort -u)
 	PROBE_DB=$(sed -n 's|^\./db/\([^/]*\)/'"$BACKUP_CONTAINER"'/db\.conf$|\1|p' <<< "$_members" | sort -u)
@@ -231,7 +399,7 @@ backup_probe() {
 	return 0
 }
 
-# backup_report_count LIST - how many entries a probe list holds (it is newline separated, and an
+# backup_report_count LIST: how many entries a probe list holds (it is newline separated, and an
 # empty string is zero entries, not one).
 backup_report_count() {
 	[ -n "$1" ] || {
@@ -245,7 +413,7 @@ backup_report_count() {
 # live records show only what is in use, the command sweep is the population-independent one.
 backup_local_keys() {
 	local _kind="$1" _f _line
-	# A missing user directory is the wrong place, not "no keys" - the other two sources cannot stand in.
+	# A missing user directory is the wrong place, not "no keys", the other two sources cannot stand in.
 	if [ ! -d "$CONF_DIR/users" ]; then
 		echo "Warning!: $CONF_DIR/users is not there - the live-record key source read nothing" >&2
 	fi
@@ -264,7 +432,7 @@ backup_local_keys() {
 	} 2> /dev/null | sed '/^$/d' | sort -u
 }
 
-# backup_report - what this host cannot restore from the probed archive, all derived. An empty report
+# backup_report: what this host cannot restore from the probed archive, all derived. An empty report
 # is PRINTED: "nothing falls away" must not look like "the probe read nothing".
 backup_report() {
 	local _found=0 _n _obj _rec _keys _unknown _tpl _eff _ver _missing _pkg _local _hostkeys _installed
@@ -436,9 +604,8 @@ backup_report() {
 	echo "-- WHAT WILL BE REWRITTEN --"
 	_found=0
 
-	# The archived docker /24 is kept when it is free and reallocated when another customer holds it.
-	# The customer's applications may carry that address, so the answer belongs HERE - before the run
-	# - and not only in a line the restore prints on its way past (#800).
+	# The archived docker /24 is kept when it is free and reallocated when another customer holds it. Applications may
+	# carry that address, so the answer belongs HERE, before the run, not only in a line the restore prints.
 	_dip=$(sed -n "s/.*DOCKER_IP='\([^']*\)'.*/\1/p" "$PROBE_RECORDS/$BACKUP_CONTAINER/user.conf" 2> /dev/null | head -1)
 	if [ -n "$_dip" ]; then
 		# -F on the net: it carries dots, and as a regex they match any character.
@@ -491,7 +658,7 @@ backup_report() {
 			"$_missing" "$(multiphp_default_version 2> /dev/null)"
 	fi
 
-	# Record keys this host neither knows nor writes - three-way, so our own newer fields do not read
+	# Record keys this host neither knows nor writes, three-way so our own newer fields do not read
 	# as foreign.
 	for _n in web mail db; do
 		_hostkeys=" $(backup_local_keys "$_n" | tr '\n' ' ') "
@@ -530,14 +697,14 @@ backup_report() {
 	return 0
 }
 
-# backup_db_type OBJECT - the engine a database record asks for (mysql, pgsql), or nothing.
+# backup_db_type OBJECT: the engine a database record asks for (mysql, pgsql), or nothing.
 backup_db_type() {
 	local _rec
 	_rec=$(head -n1 "$(backup_record_file db "$1")" 2> /dev/null) || return 0
 	sed -n "s/.*[[:space:]]TYPE='\([^']*\)'.*/\1/p" <<< " $_rec"
 }
 
-# backup_db_type_supported TYPE - DB_SYSTEM is a COMMA LIST, so "is it set" would say yes to a
+# backup_db_type_supported TYPE: DB_SYSTEM is a COMMA LIST, so "is it set" would say yes to a
 # postgres dump on a box without postgres.
 backup_db_type_supported() {
 	[ -n "$1" ] || return 1
@@ -545,10 +712,10 @@ backup_db_type_supported() {
 }
 
 # Consent before the first write: selector, CONSENT argument or TTY prompt. An argument, never an env
-# prefix (GHSA-2xw3), and a closed set, never a character class.
+# prefix, and a closed set, never a character class.
 RESTORE_CONSENT_TOKENS='all web mail db cron udir leftovers php-fallback'
 
-# restore_consent_parse LIST [TOKENSET] - validate against a closed set; an unknown token is refused,
+# restore_consent_parse LIST [TOKENSET]: validate against a closed set; an unknown token is refused,
 # not dropped. TOKENSET is a parameter because the server restore consents to COMPONENTS.
 restore_consent_parse() {
 	local _item _set="${2:-$RESTORE_CONSENT_TOKENS}"
@@ -564,7 +731,7 @@ restore_consent_parse() {
 	return 0
 }
 
-# restore_consent_has TOKEN - named, or covered by 'all'. 'all' covers the sections and not
+# restore_consent_has TOKEN: named, or covered by 'all'. 'all' covers the sections and not
 # php-fallback: moving domains onto another PHP version is not part of "restore everything".
 restore_consent_has() {
 	[ "$1" = 'php-fallback' ] || case "${RESTORE_CONSENT:- }" in
@@ -576,7 +743,7 @@ restore_consent_has() {
 	return 1
 }
 
-# restore_consent_selector SELECTOR - does it name specific objects? Empty and '*' mean the whole
+# restore_consent_selector SELECTOR: does it name specific objects? Empty and '*' mean the whole
 # section, which is the case that needs asking; 'no' means the section is off.
 restore_consent_selector() {
 	case "$1" in
@@ -585,7 +752,7 @@ restore_consent_selector() {
 	esac
 }
 
-# restore_consent_ask TOKEN QUESTION - 0 if this run may write TOKEN, 1 if not.
+# restore_consent_ask TOKEN QUESTION: 0 if this run may write TOKEN, 1 if not.
 restore_consent_ask() {
 	local _ans
 	restore_consent_has "$1" && return 0
@@ -602,7 +769,7 @@ restore_consent_ask() {
 	return 1
 }
 
-# backup_php_missing DOMAIN-LIST - one derivation, two readers, so the list is a parameter. Globals,
+# backup_php_missing DOMAIN-LIST: one derivation, two readers, so the list is a parameter. Globals,
 # not stdout: in a $() subshell the unreadable register would not reach the caller.
 backup_php_missing() {
 	local _list="$1" _dom _rec _ver _missing='' _installed _file
@@ -623,7 +790,8 @@ backup_php_missing() {
 		_ver=$(sed -n "s/.*PHP_VERSION='\([^']*\)'.*/\1/p" <<< "$_rec")
 		[ -z "$_ver" ] && _ver=$(sed -n "s/.*BACKEND='PHP-\([0-9]*\)_\([0-9]*\)'.*/\1.\2/p" <<< "$_rec")
 		{ [ -z "$_ver" ] || [ "$_ver" = 'none' ]; } && continue
-		[[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
+		# Format first, as in restore_php_installed: a value with a blank could span two installed versions.
+		[[ "$_ver" =~ ^[0-9]+\.[0-9]+$ ]] && [[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
 	done <<< "$_list"
 	BACKUP_PHP_MISSING=$(tr ' ' '\n' <<< "$_missing" | sed '/^$/d' | sort -u | tr '\n' ' ' | sed 's/ $//')
 }
@@ -635,7 +803,7 @@ backup_leftovers_plan() {
 	LEFTOVERS_PATTERNS=''
 	LEFTOVERS_SUMMARY=''
 	LEFTOVERS_DEGRADED=''
-	# <mode>TAB<pattern>: 'w' lets tar read it as a wildcard, 'x' literally - only OUR patterns are
+	# <mode>TAB<pattern>: 'w' lets tar read it as a wildcard, 'x' literally; only OUR patterns are
 	# wildcards, or a database named x* extracts xyz too. A fourth argument marks a whole missing section.
 	_lo() {
 		LEFTOVERS_PATTERNS="$LEFTOVERS_PATTERNS$1"$'\t'"$2"$'\n'
@@ -665,7 +833,7 @@ backup_leftovers_plan() {
 	unset -f _lo
 }
 
-# backup_leftovers_export ARCHIVE DEST - hand over what the plan named. The destination is the
+# backup_leftovers_export ARCHIVE DEST: hand over what the plan named. The destination is the
 # customer's, 0700, never under web/: these are database dumps and mail spools.
 backup_leftovers_export() {
 	local _arc="$1" _dest="$2" _owner="$3" _mode _pat _why _before _after _i=0
@@ -701,18 +869,10 @@ backup_leftovers_export() {
 	[ -z "$LEFTOVERS_FAILED" ]
 }
 
-#===========================================================================#
-#                     Server backup (#710)                                  #
-#===========================================================================#
-#
-# State that belongs to the box rather than to one customer, so no per-user archive can own it: the
-# webmail databases hold every mailbox's identities and settings in ONE table set, and copying that
-# into a customer's tar would hand them the other customers' rows.
-#
-# Components are derived from what this box actually has, so a server archive describes the box it
-# came from rather than a fixed list somebody has to keep in step.
+# Server backup: state that belongs to the box, not to one customer (the webmail databases hold every mailbox's
+# identities and settings in ONE table set). Components are derived from what the box has, not from a fixed list.
 
-# sqlite_snapshot FILE DEST - .backup, not cp: WAL mode lets a copy tear. Without the client the copy
+# sqlite_snapshot FILE DEST: .backup, not cp: WAL mode lets a copy tear. Without the client the copy
 # is still taken, but the caller is told the guarantee is gone.
 sqlite_snapshot() {
 	command -v sqlite3 > /dev/null 2>&1 || return 2
@@ -720,7 +880,7 @@ sqlite_snapshot() {
 	sqlite_ok "$2"
 }
 
-# sqlite_is_db FILE - sqlite's file header, so a foreign .db in the store directory can be named and
+# sqlite_is_db FILE: sqlite's file header, so a foreign .db in the store directory can be named and
 # passed over instead of read as a store that failed.
 sqlite_is_db() {
 	# 15 bytes, not the header's full 16: the 16th is the NUL terminator, and a command substitution
@@ -728,14 +888,14 @@ sqlite_is_db() {
 	[ "$(head -c 15 -- "$1" 2> /dev/null)" = 'SQLite format 3' ]
 }
 
-# sqlite_ok FILE - is this a sqlite database that reads back whole? The analogue of the dump
+# sqlite_ok FILE: is this a sqlite database that reads back whole? The analogue of the dump
 # completeness gate, and the reason the restore can verify BEFORE it overwrites anything.
 sqlite_ok() {
 	command -v sqlite3 > /dev/null 2>&1 || return 2
 	[ "$(sqlite3 "$1" 'PRAGMA integrity_check' 2> /dev/null | head -1)" = 'ok' ]
 }
 
-# server_components - one line per component: NAME<TAB>WHAT, WHAT being
+# server_components: one line per component: NAME<TAB>WHAT, WHAT being
 # dir:<path> | db:<engine>:<name> | sqlite:<file>.
 server_components() {
 	local _wm _items _f
@@ -750,8 +910,8 @@ server_components() {
 			roundcube)
 				[ -d /etc/roundcube ] && _items="$_items dir:/etc/roundcube"
 				backup_db_exists mysql roundcube && _items="$_items db:mysql:roundcube"
-				# The sqlite store (#584) holds what the mysql one does. Found by looking, so a box using both is
-				# covered twice rather than by whichever DSN a config parse picked.
+				# The sqlite store holds what the mysql one does. Found by looking, so a box using both is covered twice
+				# rather than by whichever DSN a config parse picked.
 				for _f in /var/lib/roundcube/db/*.db; do
 					[ -f "$_f" ] && _items="$_items sqlite:$_f"
 				done
@@ -774,7 +934,7 @@ server_components() {
 	return 0
 }
 
-# backup_db_exists ENGINE NAME - is that database here? Asked, not assumed from a config key.
+# backup_db_exists ENGINE NAME: is that database here? Asked, not assumed from a config key.
 backup_db_exists() {
 	case "$1" in
 		mysql) mysql -N -e 'SHOW DATABASES' 2> /dev/null | grep -qxF "$2" ;;
@@ -782,14 +942,14 @@ backup_db_exists() {
 	esac
 }
 
-# server_component_items NAME - the items of one component, or nothing if this box has no such one.
+# server_component_items NAME: the items of one component, or nothing if this box has no such one.
 server_component_items() {
 	server_components | while IFS=$'\t' read -r _n _i; do
 		[ "$_n" = "$1" ] && printf '%s\n' "$_i"
 	done
 }
 
-# backup_record_file KIND OBJECT - the extracted record of one object, or nothing.
+# backup_record_file KIND OBJECT: the extracted record of one object, or nothing.
 backup_record_file() {
 	case "$1" in
 		web) echo "$PROBE_RECORDS/web/$2/$BACKUP_CONTAINER/web.conf" ;;
@@ -799,14 +959,10 @@ backup_record_file() {
 	esac
 }
 
-# ── Per-customer archive folder (#789) ──────────────────────────────────────────────────────────
-#
-# Two allowed places per archive: $BACKUP/$user (the normal one, every run writes here) and
-# $BACKUP itself (the hand-off spot - a migration archive an operator drops in by hand stays
-# flat). Resolution lives here and ONLY here, so the two-place rule cannot fork into
-# per-command variants.
+# Two allowed places per archive: $BACKUP/$user (every run writes here) and $BACKUP itself (hand-off spot: a migration
+# archive an operator drops in by hand stays flat). Resolution lives only here, so it cannot fork per command.
 
-# backup_user_dir USER - hestia owns it, the customer's group may enter; $BACKUP is 711 so names are
+# backup_user_dir USER: hestia owns it, the customer's group may enter; $BACKUP is 711 so names are
 # not enumerable. The group may not exist yet; the next run repairs it.
 backup_user_dir() {
 	[ -d "$BACKUP/$1" ] || mkdir -p "$BACKUP/$1"
@@ -815,7 +971,7 @@ backup_user_dir() {
 	chmod 750 "$BACKUP/$1"
 }
 
-# backup_archive_path USER NAME - the two allowed places, customer folder first. -e follows symlinks,
+# backup_archive_path USER NAME: the two allowed places, customer folder first. -e follows symlinks,
 # so the find must resolve back into its own directory. rc 1 = neither place, 2 = does not resolve.
 backup_archive_path() {
 	local _user="$1" _name="$2" _dir _real _dreal
@@ -834,8 +990,6 @@ backup_archive_path() {
 	return 1
 }
 
-# Local storage
-# Defining local storage function
 local_backup() {
 
 	rm -f $BACKUP/$user/$user.$backup_new_date.tar
@@ -852,7 +1006,6 @@ local_backup() {
 	backups_count=$(grep -c . <<< "$backup_list")
 	if [ "$BACKUPS" -le "$backups_count" ]; then
 
-		# Removing old backup
 		for backup in $(echo "$backup_list" \
 			| backup_set_removals "$USER_DATA/backup.conf" "$BACKUPS" "$diff_base"); do
 			backup_date=$(echo $backup | sed -e "s/$user.//" -e "s/.tar$//")
@@ -862,7 +1015,6 @@ local_backup() {
 		done
 	fi
 
-	# Checking disk space
 	disk_usage=$(df $BACKUP | tail -n1 | tr ' ' '\n' | grep % | cut -f 1 -d %)
 	if [ "$disk_usage" -ge "$BACKUP_DISK_LIMIT" ]; then
 		rm -rf $tmpdir
@@ -872,7 +1024,6 @@ local_backup() {
 		check_result "$E_DISK" "Not enough dsk space"
 	fi
 
-	# Creating final tarball
 	cd $tmpdir
 	tar -cf $BACKUP/$user/$user.$backup_new_date.tar .
 	chmod 640 $BACKUP/$user/$user.$backup_new_date.tar
@@ -882,7 +1033,7 @@ local_backup() {
 		| tee -a $BACKUP/$user/$user.log
 }
 
-# backup_target_keep TYPE - the target's BACKUPS_KEEP, else the customer's $BACKUPS. The pattern starts
+# backup_target_keep TYPE: the target's BACKUPS_KEEP, else the customer's $BACKUPS. The pattern starts
 # at 1: a keep of 0 handed to the rotation would be a mass deletion.
 backup_target_keep() {
 	local _k
@@ -890,7 +1041,7 @@ backup_target_keep() {
 	echo "${_k:-$BACKUPS}"
 }
 
-# remote_file_present TYPE NAME - asked from a FRESH listing, content over exit codes: the put pipelines
+# remote_file_present TYPE NAME: asked from a FRESH listing, content over exit codes: the put pipelines
 # discard theirs. Same pipelines as the rotation listings, CR stripped.
 remote_file_present() {
 	local _t="$1" _n="$2" _l=''
@@ -911,7 +1062,7 @@ remote_file_present() {
 			;;
 		rclone)
 			if [ -z "$BPATH" ]; then
-				# $HOST is an rclone REMOTE name from rclone.conf, never an address - nothing to bracket
+				# $HOST is an rclone REMOTE name from rclone.conf, never an address: nothing to bracket
 				_l=$(rclone lsf "$HOST:" 2> /dev/null | cut -d' ' -f1)
 			else
 				_l=$(rclone lsf "$HOST:$BPATH" 2> /dev/null | cut -d' ' -f1)
@@ -921,7 +1072,7 @@ remote_file_present() {
 	grep -qxF -- "$_n" <<< "$_l"
 }
 
-# backup_download_norm NAME - a fetched copy carries the same rights picture as a locally
+# backup_download_norm NAME: a fetched copy carries the same rights picture as a locally
 # written archive. The group may not exist yet (DR box, account created later in the restore).
 backup_download_norm() {
 	[ -f "$BACKUP/$user/$1" ] || return 0
@@ -931,10 +1082,9 @@ backup_download_norm() {
 	return 0
 }
 
-# FTP Functions
 # /usr/bin/ftp exits 0 even when it cannot connect, so failure is read from the output.
-# Host and port are separate arguments, so a v6 goes in BARE - with brackets the client looks up
-# "[:" (measured). restic composes nothing from $HOST: its repository string is configured whole.
+# Host and port are separate arguments, so a v6 goes in BARE: with brackets the client looks up "[:".
+# restic composes nothing from $HOST: its repository string is configured whole.
 ftpc() {
 	/usr/bin/ftp -np $HOST $PORT << EOF
     quote USER $USERNAME
@@ -947,9 +1097,7 @@ ftpc() {
 EOF
 }
 
-# Defining ftp storage function
 ftp_backup() {
-	# Checking config
 	if [ ! -e "$HESTIA/conf/ftp.backup.conf" ]; then
 		error="ftp.backup.conf doesn't exist"
 		echo "$error" | $SENDMAIL -s "$subj" $email "yes"
@@ -959,15 +1107,12 @@ ftp_backup() {
 		return "$E_NOTEXIST"
 	fi
 
-	# Parse config
 	source_conf "$HESTIA/conf/ftp.backup.conf"
 
-	# Set default port
 	if [ -z "$(grep 'PORT=' $HESTIA/conf/ftp.backup.conf)" ]; then
 		PORT='21'
 	fi
 
-	# Checking variables
 	if [ -z "$HOST" ] || [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
 		error="Can't parse ftp backup configuration"
 		echo "$error" | $SENDMAIL -s "$subj" $email "yes"
@@ -977,10 +1122,8 @@ ftp_backup() {
 		return "$E_PARSING"
 	fi
 
-	# Debug info
 	echo -e "$(date "+%F %T") Remote: ftp://$HOST$BPATH/$user.$backup_new_date.tar"
 
-	# Checking ftp connection
 	fconn=$(ftpc)
 	ferror=$(echo $fconn | grep -i -e failed -e error -e "Can't" -e "not conn")
 	if [ -n "$ferror" ]; then
@@ -992,7 +1135,6 @@ ftp_backup() {
 		return "$E_CONNECT"
 	fi
 
-	# Check ftp permissions
 	if [ -z $BPATH ]; then
 		ftmpdir="vst.bK76A9SUkt"
 	else
@@ -1010,7 +1152,7 @@ ftp_backup() {
 		return "$E_FTP"
 	fi
 
-	# Checking retention. tr -d CR: expect runs in a pty, every line ends CRLF and tar$ never matches.
+	# tr -d CR: expect runs in a pty, every line ends CRLF and tar$ never matches.
 	if [ -z $BPATH ]; then
 		backup_list=$(ftpc "ls" | tr -d "\r" | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
 	else
@@ -1032,12 +1174,12 @@ ftp_backup() {
 		done
 	fi
 
-	# A diff without its base on THIS target is unrestorable there - a target enabled after the
+	# A diff without its base on THIS target is unrestorable there: a target enabled after the
 	# base run never received it. The listing is already fetched; ship the base first.
 	if [ -n "$diff_base" ] && ! grep -qxF -- "$diff_base" <<< "$backup_list" \
 		&& ! backup_archive_path "$user" "$diff_base"; then
 		# Not fatal: the restore chain fetches the base from whichever place still has it. But
-		# said out loud - this target alone cannot restore the diff it is about to receive.
+		# said out loud: this target alone cannot restore the diff it is about to receive.
 		echo "$(date "+%F %T") Warning: base $diff_base is not local and not on the ftp target - a restore needs another source for it" \
 			| tee -a $BACKUP/$user/$user.log
 	fi
@@ -1058,7 +1200,6 @@ ftp_backup() {
 		fi
 	fi
 
-	# Uploading backup archive
 	if [ "$localbackup" = 'yes' ]; then
 		cd $BACKUP/$user
 		if [ -z $BPATH ]; then
@@ -1086,7 +1227,6 @@ ftp_backup() {
 	fi
 }
 
-# FTP backup download function
 ftp_download() {
 	source_conf "$HESTIA/conf/ftp.backup.conf"
 	if [ -z "$PORT" ]; then
@@ -1102,7 +1242,6 @@ ftp_download() {
 	backup_download_norm "$1"
 }
 
-#FTP Delete function
 ftp_delete() {
 	source_conf "$HESTIA/conf/ftp.backup.conf"
 	if [ -z "$PORT" ]; then
@@ -1124,7 +1263,7 @@ restic_excludes() {
 	local WEB='' MAIL='' DB='' CRON='' USER=''
 	# shellcheck disable=SC1090
 	source "$_f" 2> /dev/null
-	# read -a, never an unquoted expansion: a '*' inside the list would glob against the cwd (#761).
+	# read -a, never an unquoted expansion: a '*' inside the list would glob against the cwd.
 	case "$WEB" in
 		'*') echo "$HOMEDIR/$_u/web" ;;
 		?*)
@@ -1162,7 +1301,7 @@ restic_excludes() {
 	return 0
 }
 
-# What the dumps really weigh, measured with the command that writes them - a probe with its own
+# What the dumps really weigh, measured with the command that writes them: a probe with its own
 # command line drifts. Bytes; a failed dump returns 1 and no number.
 restic_dump_size_measured() {
 	local _u="$1" _line _db _type _sum=0 _bytes _rc _scratch
@@ -1224,7 +1363,7 @@ restic_home_size_measured() {
 }
 
 # Booked per FILESYSTEM, by device number rather than path text: two paths on one device add up.
-# Does NOT cover what a repeat snapshot adds to an existing repository - only a backup knows that.
+# Does NOT cover what a repeat snapshot adds to an existing repository, only a backup knows that.
 space_budget_refused() {
 	local _spec _path _need _dev _free _total _reserve _first _df
 	declare -A _by_dev=()
@@ -1259,7 +1398,7 @@ space_budget_refused() {
 }
 
 # The package that belongs to a snapshot: over the tag the snapshot carries, and if that is gone,
-# over the snapshot id the packages name - the same two directions as the pairing guard.
+# over the snapshot id the packages name: the same two directions as the pairing guard.
 restic_pkg_for_snapshot() {
 	local _u="$1" _s="$2" _key="$CONF_DIR/users/$1/restic.conf" _repo _json _sid _stamp _pkg
 	_repo=$(restic_repo_base) || return 1
@@ -1294,10 +1433,9 @@ restic_meta_unpack() {
 restic_meta_dir() { echo "${BACKUP_TEMP:-$BACKUP}/restic-meta.$1"; }
 restic_dump_dir() { echo "$HOMEDIR/$1/.dumps"; }
 
-# SFTP Functions
 # The rc fallback belongs at the END: eof also arrives after the regular exit.
 sftpc() {
-	# sftp reads host:path, so a v6 needs brackets - ESCAPED, because the script below is Tcl and a
+	# sftp reads host:path, so a v6 needs brackets, ESCAPED: the script below is Tcl and a
 	# bare [ starts a command substitution. Not url_host: this quoting is expect's, not a URL's.
 	local sftp_host="$HOST"
 	case "$HOST" in
@@ -1431,7 +1569,6 @@ EOF
 	fi
 }
 
-# SFTP backup download function
 sftp_download() {
 	source_conf "$HESTIA/conf/sftp.backup.conf"
 	if [ -z "$PORT" ]; then
@@ -1461,7 +1598,6 @@ sftp_delete() {
 }
 
 sftp_backup() {
-	# Checking config
 	if [ ! -e "$HESTIA/conf/sftp.backup.conf" ]; then
 		error="Can't open sftp.backup.conf"
 		echo "$error" | $SENDMAIL -s "$subj" $email "yes"
@@ -1471,15 +1607,12 @@ sftp_backup() {
 		return "$E_NOTEXIST"
 	fi
 
-	# Parse config
 	source_conf "$HESTIA/conf/sftp.backup.conf"
 
-	# Set default port
 	if [ -z "$(grep 'PORT=' $HESTIA/conf/sftp.backup.conf)" ]; then
 		PORT='22'
 	fi
 
-	# Checking variables
 	if [ -z "$HOST" ] || [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
 		error="Can't parse sftp backup configuration"
 		echo "$error" | $SENDMAIL -s "$subj" $email "yes"
@@ -1489,11 +1622,9 @@ sftp_backup() {
 		return "$E_PARSING"
 	fi
 
-	# Debug info
 	echo -e "$(date "+%F %T") Remote: sftp://$HOST/$BPATH/$user.$backup_new_date.tar" \
 		| tee -a $BACKUP/$user/$user.log
 
-	# Checking network connection and write permissions
 	if [ -z $BPATH ]; then
 		sftmpdir="vst.bK76A9SUkt"
 	else
@@ -1515,7 +1646,6 @@ sftp_backup() {
 		return "$rc"
 	fi
 
-	# Checking retention (Only include .tar files)
 	if [ -z $BPATH ]; then
 		backup_list=$(sftpc "ls -l" | tr -d "\r" | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
 	else
@@ -1560,7 +1690,6 @@ sftp_backup() {
 		fi
 	fi
 
-	# Uploading backup archive
 	echo "$(date "+%F %T") Uploading $user.$backup_new_date.tar" | tee -a $BACKUP/$user/$user.log
 	if [ "$localbackup" = 'yes' ]; then
 		cd $BACKUP/$user
@@ -1590,7 +1719,6 @@ sftp_backup() {
 }
 
 rclone_backup() {
-	# Define rclone config
 	source_conf "$HESTIA/conf/rclone.backup.conf"
 	echo -e "$(date "+%F %T") Upload With Rclone to $HOST: $user.$backup_new_date.tar"
 	if [ "$localbackup" != 'yes' ]; then
@@ -1618,7 +1746,7 @@ rclone_backup() {
 				fi
 			fi
 		fi
-		# $HOST plain - $backup here is an earlier rotation's loop variable. Return, not check_result: that
+		# $HOST plain: $backup here is an earlier rotation's loop variable. Return, not check_result: that
 		# would exit before the record is written.
 		if ! rclone copy -v $user.$backup_new_date.tar $HOST:; then
 			error="$user.$backup_new_date.tar did not arrive on the rclone target"
@@ -1684,7 +1812,6 @@ rclone_backup() {
 }
 
 rclone_delete() {
-	# Defining rclone settings
 	source_conf "$HESTIA/conf/rclone.backup.conf"
 	if [ -z "$BPATH" ]; then
 		rclone deletefile $HOST:/$1
@@ -1695,7 +1822,6 @@ rclone_delete() {
 
 rclone_download() {
 
-	# Defining rclone settings
 	source_conf "$HESTIA/conf/rclone.backup.conf"
 	backup_user_dir "$user"
 	cd $BACKUP/$user
@@ -1707,18 +1833,13 @@ rclone_download() {
 	backup_download_norm "$1"
 }
 
-# ── Content map (#712) ───────────────────────────────────────────────────────────────────────────
-#
-# One record per entry, five NUL-terminated fields, no record separator, unordered by design:
+# Content map: one record per entry, five NUL-terminated fields, unordered by design:
 #   <path>\0<hash>\0<mode>\0<uid>:<gid>\0<symlink target>\0
-# Hash field: "" = type carries none (dir/symlink/device); "-" = withdrawn or never taken, compares
-# as changed even against itself. Paths and metadata come from the member listing, hashes from the
-# tree BEFORE the member is tarred - the map is never newer than the archive, so every race lands
-# on re-ship, never on silent omission. Per-file hashing via --to-command cost 836s of an 838s run
-# on 153k files (measured); batched off the tree it is ~2s.
+# Hash "" = type carries none (dir/symlink/device); "-" = withdrawn or never taken, changed even against itself.
+# Paths and metadata come from the member listing, hashes from the tree BEFORE the tar: a race re-ships, never omits.
 BACKUP_MAP_ALGO='b3sum'
 
-# tar autodetects zstd but exits non-zero while doing it (measured), so the decompressor is named.
+# tar autodetects zstd but exits non-zero while doing it, so the decompressor is named.
 backup_map_taropt() {
 	case "$1" in
 		*.zst) echo '--zstd' ;;
@@ -1727,7 +1848,7 @@ backup_map_taropt() {
 	esac
 }
 
-# backup_map_hash_tree OUTTABLE [PATH...] - <path>\0<hash>\0 off the live tree, batched. Pairing is
+# backup_map_hash_tree OUTTABLE [PATH...]: <path>\0<hash>\0 off the live tree, batched. Pairing is
 # positional, so a vanished file shifts columns; the count check catches it, one retry absorbs it.
 backup_map_hash_tree() {
 	local _out="$1" _try _paths _hashes
@@ -1760,7 +1881,7 @@ backup_map_hash_tree() {
 	return 1
 }
 
-# backup_map_hash_verify OUTTABLE [PATH...] - AFTER the tar: anything whose size or mtime moved gets
+# backup_map_hash_verify OUTTABLE [PATH...]: AFTER the tar: anything whose size or mtime moved gets
 # "-". Without it a later revert would read as covered by a base holding the other version.
 backup_map_hash_verify() {
 	local _out="$1" _now
@@ -1786,7 +1907,7 @@ backup_map_hash_verify() {
 	rm -f "$_now" "$_out.stat"
 }
 
-# backup_map_member ARCHIVE PREFIX HASHTABLE - one LC_ALL=C listing for paths/types/modes/owners,
+# backup_map_member ARCHIVE PREFIX HASHTABLE: one LC_ALL=C listing for paths/types/modes/owners,
 # hashes joined by path. Hardlink members join like regular files.
 backup_map_member() {
 	local _arc="$1" _pre="$2" _tbl="$3" _opt
@@ -1794,7 +1915,7 @@ backup_map_member() {
 	_opt=$(backup_map_taropt "$_arc")
 	[ -s "$_tbl" ] || _tbl=/dev/null
 
-	# KNOWN LIMIT: the listing is line-based, so a newline in a name leaves a truncated record - only the
+	# KNOWN LIMIT: the listing is line-based, so a newline in a name leaves a truncated record; only the
 	# spill line is detectable. LC_ALL=C pins the hardlink phrase the parser relies on.
 	# shellcheck disable=SC2086
 	LC_ALL=C tar $_opt -tvf "$_arc" --quoting-style=literal --numeric-owner 2> /dev/null \
@@ -1851,7 +1972,7 @@ backup_map_member() {
 			}'
 }
 
-# backup_map_write TMPDIR MAPFILE TBLDIR - the map for everything this archive diffs against: web and mail.
+# backup_map_write TMPDIR MAPFILE TBLDIR: the map for everything this archive diffs against: web and mail.
 # The other members are always written whole, so they have nothing to compare. Whole names only, on
 # purpose: this runs BEFORE backup_diff_build, so no member has been renamed to a diff yet.
 backup_map_write() {
@@ -1873,7 +1994,7 @@ backup_map_write() {
 	backup_map_count "$_out"
 }
 
-# backup_map_count MAPFILE - records from the field count (five each). A remainder means every field
+# backup_map_count MAPFILE: records from the field count (five each). A remainder means every field
 # after it is shifted, so such a map counts as unusable (0), not as a smaller number.
 backup_map_count() {
 	local _f=$((0))
@@ -1890,7 +2011,7 @@ backup_map_count() {
 	echo $((_f / 5))
 }
 
-# backup_map_prune MAPDIR BACKUPCONF - a local map whose archive is gone is dead weight. Derived
+# backup_map_prune MAPDIR BACKUPCONF: a local map whose archive is gone is dead weight. Derived
 # from the records, so a map survives exactly as long as the backup it describes.
 backup_map_prune() {
 	local _dir="$1" _conf="$2" _f _name
@@ -1898,19 +2019,17 @@ backup_map_prune() {
 	for _f in "$_dir"/*.map.zst; do
 		[ -f "$_f" ] || continue
 		_name=$(basename "$_f" .map.zst)
-		# Literal and anchored - the name holds dots, and grep would read them as a pattern.
+		# Literal and anchored: the name holds dots, and grep would read them as a pattern.
 		sed -n "s/^BACKUP='\([^']*\)'.*/\1/p" "$_conf" 2> /dev/null | grep -qxF -- "$_name" || rm -f "$_f"
 	done
 }
 
-# ── Differential members (#712) ──────────────────────────────────────────────────────────────────
-#
-# The map is always the FULL one: a diff without a complete map cannot express a deletion. Members
-# are built whole, measured, then rebuilt as diffs - decide after building, never by guessing.
-# RS="\0" record walking is verified on mawk (deb12) as well as gawk.
+# The map is always the FULL one: a diff without a complete map cannot express a deletion. Members are built
+# whole, measured, then rebuilt as diffs: decide after building, never by guessing.
+# RS="\0" walking is verified on mawk as well as gawk.
 BACKUP_MAP_FIELDS=5
 
-# backup_map_changed BASEMAP CURMAP PREFIX - new or differing in-member paths, NUL-list. Compared
+# backup_map_changed BASEMAP CURMAP PREFIX: new or differing in-member paths, NUL-list. Compared
 # over the WHOLE record: hash-only would restore the old mode over a chmod.
 backup_map_changed() {
 	awk -v base="$1" -v pre="$3|" '
@@ -1932,8 +2051,8 @@ backup_map_changed() {
 		}' "$1" "$2"
 }
 
-# backup_map_keep BASEMAP CURMAP PREFIX SKIPLIST - paths in both maps minus what the diff carries.
-# A deleted path is in neither and never written - that IS the deletion.
+# backup_map_keep BASEMAP CURMAP PREFIX SKIPLIST: paths in both maps minus what the diff carries.
+# A deleted path is in neither and never written: that IS the deletion.
 backup_map_keep() {
 	awk -v base="$1" -v pre="$3|" -v skip="$4" '
 		BEGIN {
@@ -1956,7 +2075,7 @@ backup_map_keep() {
 		}' "$1" "$2"
 }
 
-# backup_base_reachable NAME - a local copy answers it; otherwise a configured target's FRESH listing
+# backup_base_reachable NAME: a local copy answers it; otherwise a configured target's FRESH listing
 # must. Each conf is sourced in a SUBSHELL with the connection keys blanked, so none inherits another's.
 backup_base_reachable() {
 	local _n="$1" _t
@@ -1981,7 +2100,7 @@ backup_base_reachable() {
 	return 1
 }
 
-# backup_diff_base BACKUPCONF MAPDIR - the newest usable base: listed, not adopted, present, local
+# backup_diff_base BACKUPCONF MAPDIR: the newest usable base: listed, not adopted, present, local
 # map readable. A run that finds none writes a full archive, never a diff against nothing.
 backup_diff_base() {
 	local _conf="$1" _dir="$2" _name
@@ -1989,12 +2108,12 @@ backup_diff_base() {
 	local _line
 	while read -r _name; do
 		[ -n "$_name" ] || continue
-		# -F: the name holds dots, grep must not read it as a pattern (same lesson as #765).
+		# -F: the name holds dots, grep must not read it as a pattern.
 		_line=$(grep -F "BACKUP='$_name'" "$_conf" 2> /dev/null | head -1)
 		case "$_line" in *"ADOPTED='yes'"*) continue ;; esac
-		# Only a FULL archive is a base - no chains.
+		# Only a FULL archive is a base, no chains.
 		case "$_line" in *"MODE='diff'"*) continue ;; esac
-		# Map first - a local file test - so the remote listing runs only for a real candidate.
+		# Map first (a local file test), so the remote listing runs only for a real candidate.
 		[ -s "$_dir/$_name.map.zst" ] || continue
 		backup_base_reachable "$_name" || continue
 		echo "$_name"
@@ -2006,7 +2125,7 @@ backup_diff_base() {
 # Per-member threshold: a diff that saves less than this is not worth the dependency on a base.
 BACKUP_DIFF_MEMBER_PCT=50
 
-# backup_diff_build TMPDIR BASEMAP CURMAP BASE - rebuild what is worth rebuilding, record what each
+# backup_diff_build TMPDIR BASEMAP CURMAP BASE: rebuild what is worth rebuilding, record what each
 # member ended up as. Rebuilt FROM the full member, never from the live tree.
 backup_diff_build() {
 	local _tmp="$1" _bm="$2" _cur="$3" _base="$4"
@@ -2039,7 +2158,7 @@ backup_diff_build() {
 			esac
 			# shellcheck disable=SC2086
 			tar $_opt -xpf "$_arc" -C "$_work" --null -T "$_list" > /dev/null 2>&1
-			# --no-recursion BEFORE -T (positional!) - after -T a changed directory drags its
+			# --no-recursion BEFORE -T (positional!): after -T a changed directory drags its
 			# whole unchanged content along.
 			tar --sort=name -cpf- -C "$_work" --no-recursion --null -T "$_list" 2> /dev/null \
 				| "${_codec[@]}" > "$_arc.diff" 2> /dev/null
@@ -2063,14 +2182,13 @@ backup_diff_build() {
 		> "$_tmp/$BACKUP_CONTAINER/backup.base"
 }
 
-# Called right after a run stamps its name. Archive and package names have one-second resolution, so
-# two runs for the same customer inside one second land on the same name and the second silently
-# replaces the first (#841) - holding the second here means the next stamp cannot be this one.
+# Called right after a run stamps its name. Names have one-second resolution, so two runs for one customer inside a
+# second would share one and the second would replace the first; holding here keeps the next stamp different.
 backup_stamp_settle() {
 	sleep 1
 }
 
-# backup_diff_member_name PATH - domain_data.tar.zst -> domain_data.diff.tar.zst. A diff payload
+# backup_diff_member_name PATH: domain_data.tar.zst -> domain_data.diff.tar.zst. A diff payload
 # holds only the changed paths, so it must not answer to the name of a whole one.
 backup_diff_member_name() {
 	local _b="${1##*/}" _d="${1%/*}"
@@ -2078,9 +2196,8 @@ backup_diff_member_name() {
 	echo "$_d/${_b%%.*}.diff.${_b#*.}"
 }
 
-# backup_payload_path DIR BASENAME - the payload as it actually lies. Diff-named first, then the
-# whole name: archives written before #840 spelled their diffs like whole members, and those must
-# keep restoring. Prints nothing and returns 1 when neither is there.
+# backup_payload_path DIR BASENAME: the payload as it actually lies. Diff-named first, then the whole name: older
+# archives spelled their diffs like whole members and must keep restoring. Prints nothing, rc 1, when neither is there.
 backup_payload_path() {
 	local _w="$1/$2" _d
 	_d=$(backup_diff_member_name "$_w")
@@ -2095,17 +2212,15 @@ backup_payload_path() {
 	return 1
 }
 
-# backup_map_prefix_count MAPFILE PREFIX - how many entries a member has in a map.
+# backup_map_prefix_count MAPFILE PREFIX: how many entries a member has in a map.
 backup_map_prefix_count() {
 	awk -v pre="$2|" 'BEGIN { RS = "\0" } (FNR - 1) % 5 == 0 && index($0, pre) == 1 { n++ } END { print n + 0 }' "$1"
 }
 
-# ── Reading a differential archive back ──────────────────────────────────────────────────────────
-#
-# A diff archive carries its full outer structure; only diffable member CONTENT is short. Listing,
-# probe, report and preflight never need the base - it is fetched for the extraction alone.
+# A diff archive carries its full outer structure; only diffable member CONTENT is short. Listing, probe, report and
+# preflight never need the base: it is fetched for the extraction alone.
 
-# backup_diff_probe ARCHIVE WORKDIR - sets DIFF_BASE when the archive is one. Everything else is
+# backup_diff_probe ARCHIVE WORKDIR: sets DIFF_BASE when the archive is one. Everything else is
 # decided from the files it drops in WORKDIR, so a caller never has to be told what it is holding.
 backup_diff_probe() {
 	local _arc="$1" _wd="$2"
@@ -2120,14 +2235,14 @@ backup_diff_probe() {
 	DIFF_BASE=$(sed -n "s/.*BASE='\([^']*\)'.*/\1/p" "$_wd/backup.base")
 }
 
-# backup_member_needs_base MEMBERSFILE PREFIX - anything not explicitly "full" needs the base:
+# backup_member_needs_base MEMBERSFILE PREFIX: anything not explicitly "full" needs the base:
 # a diff treated as whole looks complete and is not; the reverse costs one pointless base read.
 backup_member_needs_base() {
 	grep -qxF "$2=full" "$1" 2> /dev/null && return 1
 	return 0
 }
 
-# backup_diff_stage_base BASEARCHIVE PREFIX MEMBERNAME WORKDIR - put the base's copy of one member
+# backup_diff_stage_base BASEARCHIVE PREFIX MEMBERNAME WORKDIR: put the base's copy of one member
 # next to the diff and print its path.
 backup_diff_stage_base() {
 	local _base="$1" _pre="$2" _member="$3" _wd="$4"
@@ -2137,7 +2252,7 @@ backup_diff_stage_base() {
 	echo "$_wd/base/$_pre/$_member"
 }
 
-# backup_diff_keep_list BASEARCHIVE CURMAP PREFIX DIFFMEMBER OUT - what the first pass writes; the
+# backup_diff_keep_list BASEARCHIVE CURMAP PREFIX DIFFMEMBER OUT: what the first pass writes; the
 # diff's own paths are subtracted, deleted paths are in neither map and never written.
 backup_diff_keep_list() {
 	local _base="$1" _cur="$2" _pre="$3" _member="$4" _out="$5" _bm _skip _opt
@@ -2149,21 +2264,18 @@ backup_diff_keep_list() {
 		return 1
 	fi
 	_opt=$(backup_map_taropt "$_member")
-	# literal quoting: an escaped backslash would never match the NUL-clean maps - double work only.
+	# literal quoting: an escaped backslash would never match the NUL-clean maps, double work only.
 	# shellcheck disable=SC2086
 	tar $_opt -tf "$_member" --quoting-style=literal > "$_skip" 2> /dev/null
 	backup_map_keep "$_bm" "$_cur" "$_pre" "$_skip" > "$_out"
 	rm -f "$_bm" "$_skip"
 }
 
-# ── Set rotation (#712) ──────────────────────────────────────────────────────────────────────────
-#
-# The unit is the SET: one full plus the diffs naming it. "Taking a full takes its diffs" is the
-# wrong way round - measured, it collapsed four archives into one in a single run.
+# The unit is the SET: one full plus the diffs naming it. "Taking a full takes its diffs" is the wrong way round.
 backup_set_removals() {
 	local _conf="$1" _target="$2" _base="${3:-}"
 	# TARGET counts SETS. The incoming archive is not in the records yet, so the existing list keeps one set
-	# less - or BACKUPS='1' deletes the base its own diff needs. LC_ALL=C: byte order on every awk.
+	# less, or BACKUPS='1' deletes the base its own diff needs. LC_ALL=C: byte order on every awk.
 	LC_ALL=C awk -v conf="$_conf" -v target="$_target" -v inbase="$_base" -v q="'" '
 		function field(l, k,   i, r) {
 			i = index(l, k q)

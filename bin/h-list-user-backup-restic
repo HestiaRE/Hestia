@@ -2,19 +2,14 @@
 # info: list one restic snapshot of a user
 # options: USER SNAPSHOT [FORMAT]
 #
-# example: h-backup-user admin yes
+# example: h-list-user-backup-restic admin latest json
 #
-# This function is used for backing up user with all its domains and databases.
+# Describe one restic snapshot of USER from the backup.conf held in its metadata package.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 user=$1
 snapshot=$2
 format=${3-plain}
-# Includes
+
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -25,24 +20,16 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-check_args '1' "$#" 'USER SNAPSHOT [FORMAT]'
+check_args '2' "$#" 'USER SNAPSHOT [FORMAT]'
 is_format_valid 'user'
+# From the panel, and handed to restic: it must not read as an option.
+is_object_format_valid "$snapshot" 'snapshot'
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# JSON list function
 json_list() {
 	echo '{'
 	json_escape BACKUP TYPE WEB MAIL DB CRON UDIR RUNTIME TIME DATE
@@ -60,7 +47,6 @@ json_list() {
 	echo '}'
 }
 
-# SHELL list function
 shell_list() {
 	echo "BACKUP:         $BACKUP"
 	echo "TYPE:           $TYPE"
@@ -74,7 +60,6 @@ shell_list() {
 	echo "DATE:           $DATE"
 }
 
-# PLAIN list function
 plain_list() {
 	echo -ne "$BACKUP\t$TYPE\t$WEB\t$MAIL\t$DB\t$CRON\t"
 	echo -e "$UDIR\t$RUNTIME\t$TIME\t$DATE"
@@ -82,7 +67,7 @@ plain_list() {
 
 is_restic_repo_configured
 
-# The metadata travels as the package beside the repository since stage 2a, not inside the snapshot.
+# The metadata travels as the package beside the repository, not inside the snapshot.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
 if [ -z "$meta_pkg" ]; then
 	check_result "$E_NOTEXIST" "no metadata package for snapshot $snapshot of $user - look for $BACKUP/$user/*.meta.tgz"
@@ -92,16 +77,11 @@ if [ -z "$backup_conf" ]; then
 	check_result "$E_PARSING" "$meta_pkg carries no backup.conf - the snapshot cannot be described"
 fi
 parse_object_kv_list "$backup_conf"
-# Listing data
 case $format in
 	json) json_list ;;
 	plain) plain_list ;;
 	shell) shell_list ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

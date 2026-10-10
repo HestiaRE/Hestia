@@ -1,31 +1,20 @@
 #!/bin/bash
-# info: delete backup ftp server
-# options: TYPE [HOST]
+# info: delete a backup host
+# options: TYPE
 #
 # example: h-delete-backup-host sftp
 #
-# This function deletes ftp backup host
+# Deletes the configuration of the backup host of a type (ftp, sftp, local, ...).
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 type=$1
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
-check_args '1' "$#" 'TYPE [HOST]'
+check_args '1' "$#" 'TYPE'
 types=$(echo "$BACKUP_SYSTEM" | sed "s/,/\n/g" | grep "^$type$")
 if [ -z "$types" ]; then
 	echo "Error: invalid backup type"
@@ -33,22 +22,12 @@ if [ -z "$types" ]; then
 	exit "$E_INVALID"
 fi
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# Deleting host config
 rm -f $HESTIA/conf/$type.backup.conf
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Updating hestia.conf through the token function (anchored; the bare-sed class, #978)
+# Through the token function: an anchored edit, a bare sed would hit other keys.
 sys_key_token_set BACKUP_SYSTEM remove "$type" > /dev/null || check_result "$E_UPDATE" "BACKUP_SYSTEM: could not drop $type"
 
-# Logging
-$BIN/h-log-action "system" "Info" "Backup" "Removed remote backup host (Host: $host, Type: $type)."
+$BIN/h-log-action "system" "Info" "Backup" "Removed remote backup host (Type: $type)."
 log_event "$OK" "$ARGUMENTS"
 
 exit

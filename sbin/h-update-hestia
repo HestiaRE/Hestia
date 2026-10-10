@@ -6,16 +6,10 @@
 #
 # example: h-update-hestia /root/hestiare-update/2026-09-22_15-48-17_v0.20.0_v0.21/update.conf
 #
-# The executor and nothing else: finding, downloading, unpacking and securing a release is update.sh.
-# The log is evidence, never control. What is to be done is decided by the entry's condition on every
-# run, so a repetition after an abort converges instead of replaying what is already done.
+# The executor only; finding, fetching and securing a release is update.sh. The log is evidence, never
+# control: each entry's condition decides on every run, so a repeat after an abort converges.
 
-# The admin's base install decides the ambient umask, and it is not the same everywhere: deb13 and
-# ub26 ship no UMASK line in login.defs, so every file created by a redirect or mkdir here came out
-# group-writable there and 0644/0755 on deb12/ub24. That is not a cosmetic split - cron REFUSES a
-# group-writable file in /etc/cron.d, which is how the LE fallback silently never ran. Pin it, so
-# what we create does not depend on a setting we do not control. Anything needing other than this
-# is chmod'ed explicitly at its own site.
+# The ambient umask differs by OS, and cron refuses a group-writable file in /etc/cron.d.
 umask 0022
 
 # shellcheck source=/etc/hestia/hestia.env
@@ -23,18 +17,12 @@ source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/update.sh
 source "$HESTIA/include/update.sh"
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
 PLAN="${1:-}"
 if [ -z "$PLAN" ]; then
 	cmd_usage
 	check_result "$E_ARGS" "no plan given: 'hestia update' writes the plan and hands it here"
 fi
-# Absolute, because the log and the marker land next to the plan: a bare name would scatter them
-# across whatever directory the caller happened to stand in. Nothing here creates a run directory;
-# one that does not exist means there is no backup to go back to, and that is update.sh's job.
+# Absolute, because the log and the marker land next to the plan. The run directory is update.sh's.
 case "$PLAN" in
 	/*) ;;
 	*) check_result "$E_INVALID" "PLAN must be an absolute path - the log and the marker belong next to the backup" ;;
@@ -47,16 +35,11 @@ jq -e '.entries | type == "array"' "$PLAN" > /dev/null 2>&1 \
 LOG="$RUNDIR/update.log"
 # State, not log: the executor and the rollback script both decide by this file's existence.
 MARKER="$RUNDIR/point-of-no-return"
-# Named here, written in phase 5 next to the backup: this path is the contract between the two, and
-# the error path prints it as a way out. Phase 5 has to put a script of exactly this name there.
+# update.sh writes exactly this path next to the backup; keep the two in step.
 ROLLBACK="$RUNDIR/rollback.sh"
 RUNID=$(date '+%Y-%m-%d %H:%M:%S')
 
 log() { printf '%s %s\n' "$RUNID" "$1" >> "$LOG"; }
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 count=$(jq -r '.entries | length' "$PLAN")
 irreversible=$(jq -r '[.entries[] | select(.reversible != true) | .identity] | join(", ")' "$PLAN")
@@ -75,8 +58,7 @@ while read -r entry; do
 	type=$(jq -r '.action.type' <<< "$entry")
 	mapfile -t argv < <(upd_argv "$entry" .action)
 
-	# The line is drawn when it is reached, not when the plan is read: a run that stops before the
-	# first irreversible entry must stay rollback-able, and the marker is what says so.
+	# Drawn when reached, not when read: a run that stops before it must stay rollback-able.
 	if [ "$(jq -r '.reversible' <<< "$entry")" != true ] && [ ! -f "$MARKER" ]; then
 		printf '%s\n' "$RUNID" > "$MARKER"
 		echo "--- point of no return: from here nothing is undone by putting files back ---"
@@ -92,8 +74,7 @@ while read -r entry; do
 		failed="$ident"
 		break
 	fi
-	# Evidence, not control: an entry whose condition survives its own action would run again on
-	# every later plan, and the early exit would never be reachable for it.
+	# Evidence, not control: an entry whose condition survives its action would come back in every plan.
 	if upd_entry_applies "$entry"; then
 		echo "[ ! ] $ident ran, but its condition is still true - it does not negate itself"
 		log "warn  $ident condition still true after a successful action"
@@ -115,20 +96,14 @@ if [ -n "$failed" ]; then
 	exit "$E_UPDATE"
 fi
 
-#----------------------------------------------------------#
-#                       Epilogue                           #
-#----------------------------------------------------------#
-
-# Only when the list is done. Housekeeping, and none of it may keep the box in the unfinished state:
-# a failed repair is loud and repeatable by hand, it is not a reason to withhold the version.
+# Housekeeping after a finished list: a failed repair is loud and repeatable, not a reason to withhold the version.
 if ! "$BIN/h-repair-sys-config" repair > /dev/null 2>&1; then
 	echo "[ ! ] h-repair-sys-config repair ended non-zero - run it by hand and read what it says"
 	log "warn  repair ended non-zero"
 fi
 "$BIN/h-update-sys-defaults" > /dev/null 2>&1 || true
 
-# Already right means do not write, the same rule the actions follow: a needless rewrite moves an
-# mtime that guards read, and it would show up in the path measurement as a write nobody declared.
+# Already right means no write: a needless rewrite moves an mtime that guards read.
 tree_version=$(cat "$HESTIA/VERSION" 2> /dev/null)
 if [ -z "$tree_version" ]; then
 	echo "[ ! ] no VERSION in $HESTIA - the status version stays on the old value"
@@ -140,16 +115,11 @@ else
 	log "status version set to $tree_version"
 fi
 [ -z "$(upd_key_value UPDATE_AVAILABLE)" ] || clear_sys_value UPDATE_AVAILABLE
-# Unconditional on purpose, and there is no stop to match it: update.sh stops the panel around the
-# unpacking. Whatever the run found, it leaves the panel running.
+# No stop to match it here: update.sh stopped the panel around the unpacking.
 systemctl start caddy hestia-php 2> /dev/null || true
 
 log "run done"
 echo
 echo "Done: $count entry(s), status version $(cat "$HESTIA/VERSION" 2> /dev/null). Log: $LOG"
-
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
 
 exit

@@ -4,14 +4,8 @@
 #
 # example: h-add-backup-host-restic /backup/restic 3 -1 -1 -1 -1
 #
-# REPO is a local path or an rclone remote (rclone:remote:path); -1 means "no limit" for a
-# retention slot. The header described a different command until #217 - --help lied.
+# REPO is a local path or an rclone remote (rclone:remote:path); -1 means "no limit" for a retention slot.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Argument definition
 repo=$1
 snapshots=$2
 daily=$3
@@ -19,15 +13,10 @@ weekly=$4
 monthly=$5
 yearly=$6
 
-# CPU Architecture
-arch=$(arch)
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 
 is_negative_one_or_int() {
@@ -36,41 +25,27 @@ is_negative_one_or_int() {
 	fi
 }
 
-#----------------------------------------------------------#
-#                    Verifications                         #
-#----------------------------------------------------------#
-
 check_args '6' "$#" "REPO SNAPSHOTS DAILY WEEKLY MONTHLY YEARLY"
 
-format_no_quotes $repo 'Repository host'
+format_no_quotes "$repo" 'Repository host'
 is_negative_one_or_int $snapshots 'Snapshots'
 is_negative_one_or_int $daily 'Daily snapshots'
 is_negative_one_or_int $weekly 'Weekly snapshots'
 is_negative_one_or_int $monthly 'Monthly snapshots'
 is_negative_one_or_int $yearly 'Yearly snapshots'
 
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
-
-# No install and no self-update here: self-update replaced the package-owned binary in place
-# (measured: 0.14.0 -> 0.19.1, dpkg --verify complaining) - and it ran even when this command
-# then refused its work. Installing is the addon's job.
+# No install or self-update here: self-update replaced the package-owned binary in place. Installing is the addon's job.
 restic version > /dev/null 2>&1 \
 	|| check_result "$E_NOTEXIST" "restic is not installed - run h-add-sys-restic first"
 
-# A local repository path is created here: refusing without saying what to do left the box with
-# no configuration at all, and the backup then wrote into a relative directory (#217, Stufe 0).
+# A local repository path is created here, or the backup would write into a relative directory.
 if [[ $repo == "/"* ]]; then
 	[ -d "$repo" ] || mkdir -p "$repo" || check_result "$E_NOTEXIST" "cannot create '$repo'"
 	chmod 0700 "$repo"
 fi
 
-# Check if $repo starts with rclone
 if [[ $repo == "rclone:"* ]]; then
-	# remove rclone: from $repo
 	repo2=$(echo "$repo" | sed 's/rclone://')
-	# check if rclone is working
 	if ! rclone lsd "$repo2" > /dev/null 2>&1; then
 		check_result $E_NOTEXIST "Rclone repository '$repo2' does not exist"
 	fi
@@ -85,11 +60,6 @@ echo "KEEP_YEARLY='$yearly'" >> /usr/local/hestia/conf/restic.conf
 
 $BIN/h-change-sys-config-value 'BACKUP_INCREMENTAL' 'yes'
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 log_event "$OK" "$ARGUMENTS"
 
 exit

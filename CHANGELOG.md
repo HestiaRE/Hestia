@@ -19,6 +19,7 @@ before v0.20.0 are folded into one section by theme.
 
 ### Changed
 
+- **Updates start from v0.25** (#1176). A box below it is reinstalled.
 - **`hestia update` asks before it updates** (#1176). It shows the target first; `--yes` skips the question, and
   without a terminal it refuses.
 

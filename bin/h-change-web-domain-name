@@ -94,10 +94,9 @@ if [ "$ALIAS" != "$new_alias" ]; then
 fi
 
 mv "$HOMEDIR/$user/web/$domain" "$HOMEDIR/$user/web/$new_domain"
-cd /var/log/$WEB_SYSTEM/domains
-mv "$domain.log" "$new_domain.log"
-mv "$domain.error.log" "$new_domain.error.log"
-mv "$domain.bytes" "$new_domain.bytes"
+for f in log error.log bytes; do
+	mv "/var/log/$WEB_SYSTEM/domains/$domain.$f" "/var/log/$WEB_SYSTEM/domains/$new_domain.$f"
+done
 rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new_domain/logs/$domain.error.log"
 
 # awstats names its data files by the config, the IDN name; renamed, the history stays. The rebuild writes the

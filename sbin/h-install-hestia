@@ -569,7 +569,8 @@ install_mail() {
 	echo "$SRS" > /etc/exim4/srs.conf
 	chmod 640 /etc/exim4/srs.conf /etc/exim4/exim4.conf.template
 	chown root:"$EXIM_USR" /etc/exim4/srs.conf
-	rm -rf /etc/exim4/domains && mkdir -p /etc/exim4/domains
+	# Never emptied: on a re-run it holds every customer mail domain, and dovecot reads the passwords there.
+	mkdir -p /etc/exim4/domains
 	# SNI lookup dir: filenames are the SNI names, contents are links into the customer's own
 	# mail conf. Group mail so exim traverses it, not world-readable so the domain list is not.
 	mkdir -p "$MAIL_SNI_DIR" && chown root:mail "$MAIL_SNI_DIR" && chmod 0750 "$MAIL_SNI_DIR"

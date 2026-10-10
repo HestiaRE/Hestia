@@ -1007,29 +1007,6 @@ check_panel_session_store() {
 	fi
 }
 
-# check_protected_names_effective: the protected-name list (#807) judged by its effect. A record that
-# tries to bind PATH must not change it, and a harmless one must still bind, in the same run.
-check_protected_names_effective() {
-	local tmp before after
-	local name_before="$NAME"
-	before="$PATH"
-	tmp=$(mktemp)
-	printf "NAME='probe'\nPATH=/tmp/hestia-smoke-should-not-happen\n" > "$tmp"
-	NAME=''
-	source_conf "$tmp" 2> /dev/null
-	after="$PATH"
-	local bound="$NAME"
-	NAME="$name_before"
-	rm -f "$tmp"
-	if [ "$before" != "$after" ]; then
-		PATH="$before"
-		no "a config file rebound PATH (#807)" "source_conf accepted a protected name"
-	elif [ "$bound" != "probe" ]; then
-		no "the protected-name probe never bound anything" "source_conf read nothing - the check proves nothing"
-	else
-		ok "a config file cannot rebind PATH, an ordinary key still binds"
-	fi
-}
 # check_restic_mode_supported: restic mode without the addon or without a repository means no
 # backup at all, and the nightly run says so only in the log.
 check_restic_mode_supported() {
@@ -1792,7 +1769,6 @@ check_mail_domain_links
 check_logrotate_parses
 check_restic_mode_supported
 check_ioncube_versions
-check_protected_names_effective
 check_install_root_owner
 check_secret_file_modes
 check_panel_session_store

@@ -55,6 +55,34 @@ check_source_conf_guard() {
 	fi
 }
 
+# The protected-name list judged by its effect: a record that tries to bind PATH must not change it, and an
+# ordinary key must still bind in the same run. The three definitions come from main.sh, which a checkout
+# cannot source whole.
+check_protected_names_effective() {
+	local out
+	out=$(
+		shopt -s extglob
+		eval "$(sed -n '/^SOURCE_CONF_PROTECTED="/,/"$/p; /^is_protected_key() {/,/^}/p; /^source_conf() {/,/^}/p' \
+			"$HESTIA/include/main.sh")"
+		declare -F source_conf is_protected_key > /dev/null || exit 1
+		tmp=$(mktemp) || exit 1
+		printf "NAME='probe'\nPATH=/tmp/hestia-tree-should-not-happen\n" > "$tmp"
+		before="$PATH"
+		source_conf "$tmp" 2> /dev/null
+		after="$PATH"
+		PATH="$before"
+		rm -f "$tmp"
+		[ "$after" = "$before" ] && printf 'kept:%s' "$NAME"
+	)
+	if [ "$out" = 'kept:probe' ]; then
+		ok "invariant: a config file cannot rebind PATH, an ordinary key still binds"
+	elif [ "$out" = 'kept:' ]; then
+		no "invariant: protected names" "the probe bound nothing, so the check proves nothing"
+	else
+		no "invariant: protected names" "source_conf rebound PATH or did not load from include/main.sh"
+	fi
+}
+
 # check_sys_key_registry: the system key registry (share/hestia/sys-keys.json), three guards:
 # (1) the schema, through sysreg_check; (2) every key the tree writes into
 # hestia.conf is registered; the write sites are extracted from the shipped code (the seven mechanisms:
@@ -519,6 +547,7 @@ check_manifest_status_link
 check_update_manifests
 check_update_dispatcher
 check_source_conf_guard
+check_protected_names_effective
 # GHSA-cr7q and the GHSA-xffx class were once guarded file by file; this covers both and every other file.
 check_eval_sites
 check_record_name_patterns

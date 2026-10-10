@@ -101,14 +101,14 @@ get_user_disk_usage() {
 			| awk -F "DOMAIN='" '{print $2}' | cut -f 1 -d \')
 
 		for domain in $domains; do
-			exclusion=$(echo -e "$web_exclusions" | tr ',' '\n' | awk -v d="$domain" 'index($0, d) == 1 || /\*$/')
+			exclusion=$(echo -e "$web_exclusions" | tr ',' '\n' | awk -v d="$domain" '$0 == d || $0 == "*"')
 			if [ -z "$exclusion" ]; then
 				home_dir="$HOMEDIR/$user/web/$domain/"
-				exclusion=$(echo -e "$web_exclusions" | tr ',' '\n' | awk -v d="$domain" 'index($0, d) == 1 || /\*:/')
+				exclusion=$(echo -e "$web_exclusions" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) == 1 || /\*:/')
 				fargs=()
 
 				if [ -n "$exclusion" ]; then
-					xdirs=$(echo -e "$exclusion" | tr ':' '\n' | awk -v d="$domain" 'index($0, d) == 0 && index($0, "*") == 0')
+					xdirs=$(echo -e "$exclusion" | tr ':' '\n' | awk -v d="$domain" '$0 != d && index($0, "*") == 0')
 					for xpath in $xdirs; do
 						fargs+=(--exclude="$xpath")
 					done
@@ -443,7 +443,7 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 
 		cd $HOMEDIR/$user/web/$domain
 
-		exclusion=$(echo -e "$WEB" | tr ',' '\n' | awk -v d="$domain" 'index($0, d) == 1 || /\*:/')
+		exclusion=$(echo -e "$WEB" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) == 1 || /\*:/')
 		set -f
 		fargs=()
 		fargs+=(--exclude='./logs/*')
@@ -453,7 +453,7 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 				exclusion="${exclusion/\*/$domain}"
 			fi
 
-			xdirs="$(echo -e "$exclusion" | tr ':' '\n' | grep -v $domain)"
+			xdirs="$(echo -e "$exclusion" | tr ':' '\n' | grep -vxF -- "$domain")"
 			for xpath in $xdirs; do
 				if [ -d "$xpath" ]; then
 					fargs+=(--exclude=$xpath/*)

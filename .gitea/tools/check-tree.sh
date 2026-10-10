@@ -107,6 +107,27 @@ check_protected_names_effective() {
 	fi
 }
 
+check_secret_mode_seeds() {
+	local seed_dir seed_file smoke_dir smoke_file smoke="$HESTIA/bin/h-check-sys-smoke"
+	seed_dir=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$(dirname "\$INSTALL_CONF")".*/\1/p' \
+		"$HESTIA/include/wizard.sh" | head -n1)
+	seed_file=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$conf_dir\/hestia\.conf".*/\1/p' \
+		"$HESTIA/include/helper.sh" | head -n1)
+	smoke_dir=$(sed -n 's/^[[:space:]]*\[ "\$m" = "\([0-7]\{3,4\}\) root:root" \] || bad="\$bad \$CONF_DIR(.*/\1/p' \
+		"$smoke" | head -n1)
+	smoke_file=$(sed -n 's/^[[:space:]]*\[ "\$m" = "\([0-7]\{3,4\}\) root:root" \] || bad="\$bad hestia\.conf(.*/\1/p' \
+		"$smoke" | head -n1)
+	if [ -z "$seed_dir" ] || [ -z "$seed_file" ] || [ -z "$smoke_dir" ] || [ -z "$smoke_file" ]; then
+		no "secret modes: a seed or smoke line was not found" \
+			"wizard '$seed_dir' helper '$seed_file' smoke '$smoke_dir' '$smoke_file'"
+	elif [ "$seed_dir" != "$smoke_dir" ] || [ "$seed_file" != "$smoke_file" ]; then
+		no "secret modes: the smoke expects /etc/hestia $smoke_dir and hestia.conf $smoke_file" \
+			"the seed gives $seed_dir and $seed_file"
+	else
+		ok "secret modes: the smoke expects what the seed gives (/etc/hestia $seed_dir, hestia.conf $seed_file)"
+	fi
+}
+
 # check_sys_key_registry: the system key registry (share/hestia/sys-keys.json), three guards:
 # (1) the schema, through sysreg_check; (2) every key the tree writes into
 # hestia.conf is registered; the write sites are extracted from the shipped code (the seven mechanisms:
@@ -573,6 +594,7 @@ check_update_dispatcher
 check_source_conf_guard
 check_protected_names_effective
 check_panel_catalogs
+check_secret_mode_seeds
 # GHSA-cr7q and the GHSA-xffx class were once guarded file by file; this covers both and every other file.
 check_eval_sites
 check_record_name_patterns

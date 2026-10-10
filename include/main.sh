@@ -773,11 +773,13 @@ _object_conf() {
 # Numbered record lines holding the field KEY='value' in $2, compared literally, so a dot matches only a dot. By
 # field, not by text: a key ending in the one asked for (X_DOMAIN for DOMAIN) never answers. A comment line is never
 # a record, and a shipped slot like #FAMILY='custom1' would otherwise answer for one. ENVIRON, not -v: awk -v would
-# unescape a backslash.
-_object_rows() {
-	F="$2" awk '!/^[[:space:]]*#/ && index(" " $0, " " ENVIRON["F"]) { print NR ":" $0 }' "$(_object_conf "$1")"
+# unescape a backslash. LC_ALL=C: the match is bytewise anyway, and GNU awk is much slower in a UTF-8 locale.
+_object_match() { # NUMBERED OBJECT FIELD
+	F="$3" N="$1" LC_ALL=C awk '!/^[[:space:]]*#/ && index(" " $0, " " ENVIRON["F"]) {
+		print (ENVIRON["N"] ? NR ":" : "") $0 }' "$(_object_conf "$2")"
 }
-_object_lines() { _object_rows "$@" | cut -d: -f2-; }
+_object_rows() { _object_match 1 "$@"; }
+_object_lines() { _object_match '' "$@"; }
 
 # Check if object is new
 is_object_new() {

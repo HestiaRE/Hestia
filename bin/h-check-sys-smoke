@@ -1067,7 +1067,7 @@ check_mail_domain_links() {
 	local u line d idn l n=0 miss=0 first="" stray=0 sfirst="" dir="/etc/$MAIL_SYSTEM/domains"
 	local -A want=()
 	if [[ ! "$MAIL_SYSTEM" =~ exim ]]; then
-		skip "no exim - mail domain links not checked"
+		skip "no mail system - mail domain links not checked"
 		return
 	fi
 	for u in $("$BIN/h-list-users" list 2> /dev/null); do

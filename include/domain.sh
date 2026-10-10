@@ -1557,18 +1557,19 @@ is_valid_2_part_extension() {
 	exten=$(grep -Fx "$extension" "$CONF_DIR/public_suffix_list.dat")
 }
 
+# awk, not rev: rev never returns on a UTF-8 name under a C locale.
 get_base_domain() {
 	test_domain=$1
 	is_valid_extension "$test_domain"
 	if [ $? -ne 0 ]; then
-		basedomain=$(/bin/echo "${test_domain}" | /usr/bin/rev | /usr/bin/cut -d "." --output-delimiter="." -f 1-2 | /usr/bin/rev)
+		basedomain=$(awk -F. '{print (NF > 1 ? $(NF-1) "." : "") $NF}' <<< "$test_domain")
 	else
 		is_valid_2_part_extension "$test_domain"
 		if [ $? -ne 0 ]; then
-			basedomain=$(/bin/echo "${test_domain}" | /usr/bin/rev | /usr/bin/cut -d "." --output-delimiter="." -f 1-2 | /usr/bin/rev)
+			basedomain=$(awk -F. '{print (NF > 1 ? $(NF-1) "." : "") $NF}' <<< "$test_domain")
 		else
-			extension=$(/bin/echo "${test_domain}" | /usr/bin/rev | /usr/bin/cut -d "." --output-delimiter="." -f 1-2 | /usr/bin/rev)
-			partdomain=$(/bin/echo "${test_domain}" | /usr/bin/rev | /usr/bin/cut -d "." --output-delimiter="." -f 3 | /usr/bin/rev)
+			extension=$(awk -F. '{print (NF > 1 ? $(NF-1) "." : "") $NF}' <<< "$test_domain")
+			partdomain=$(awk -F. 'NF > 2 {print $(NF-2)}' <<< "$test_domain")
 			basedomain="$partdomain.$extension"
 		fi
 	fi

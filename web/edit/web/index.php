@@ -338,10 +338,12 @@ $offer_http3 =
 	($_SESSION["WEB_SYSTEM"] == "nginx" ||
 		(!empty($_SESSION["PROXY_SYSTEM"]) && $_SESSION["PROXY_SYSTEM"] == "nginx"));
 $offer_botlimit = !empty($botfamilies);
-// A protective policy, so the admin's to switch; CrowdSec enforces only where nginx is the public front.
+// A protective policy, so the admin's to switch; CrowdSec enforces only where nginx is the public front and the
+// L7 bouncer is wired, which the nginx.org package of preset latest cannot load.
 $offer_crowdsec =
 	($_SESSION["adminContext"] ?? "") === "admin" &&
 	!empty($_SESSION["CROWDSEC_SYSTEM"]) &&
+	($_SESSION["CROWDSEC_L7"] ?? "") === "yes" &&
 	((!empty($_SESSION["PROXY_SYSTEM"]) ? $_SESSION["PROXY_SYSTEM"] : $_SESSION["WEB_SYSTEM"] ?? "") == "nginx");
 $offer_ftp = $_SESSION["FTP_SYSTEM"] == "proftpd";
 

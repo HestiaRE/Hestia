@@ -4,12 +4,8 @@
 # labels: internal
 # caller: hestia uninstall
 #
-# Conservative uninstaller. By default it stops the panel services and removes
-# the panel's system config (cron, sudoers, profile.d, .done.* sentinels) but
-# leaves packages, /usr/local/hestia, $CONF_DIR, /home user data and the
-# databases intact. With --purge it additionally apt-removes the panel packages
-# and deletes /usr/local/hestia + $CONF_DIR. /home and databases are ALWAYS
-# kept (HestiaCP-compatibility rule).
+# Stops the panel and removes its system config; packages and the tree stay. --purge also removes caddy, the tree,
+# $CONF_DIR and the units that run from it. /home and the databases always stay.
 
 # The rest of the tree gets --help through main.sh, which this command does not load.
 # shellcheck source=/usr/local/hestia/include/help.sh
@@ -31,7 +27,9 @@ echo "========================================================================"
 echo ""
 echo "This stops HestiaRE services and removes the panel system config."
 if [ "$PURGE" = true ]; then
-	echo "PURGE: also apt-removes panel packages and deletes $HESTIA + $CONF_DIR."
+	echo "PURGE: also purges caddy and deletes $HESTIA + $CONF_DIR."
+	echo "       Web, mail and FTP services that use the panel certificates fail at their next restart,"
+	echo "       and the HestiaRE firewall is gone after the next reboot."
 fi
 echo "/home user data and databases are ALWAYS kept."
 echo ""
@@ -45,7 +43,7 @@ case "$confirm" in
 esac
 
 echo "[ * ] Stopping services..."
-for s in hestia hestia-php caddy; do
+for s in hestia-php caddy; do
 	systemctl stop "$s" 2> /dev/null || true
 	systemctl disable "$s" 2> /dev/null || true
 done
@@ -71,12 +69,35 @@ rm -f /etc/cron.d/hestia-* 2> /dev/null || true
 rm -f /etc/profile.d/hestia.sh 2> /dev/null || true
 rm -f /etc/sudoers.d/hestia 2> /dev/null || true
 rm -f "$CONF_DIR"/.done.* 2> /dev/null || true
+# The installer's block in root's .bashrc sources the profile file removed above, so every root shell would
+# complain. Exactly its three lines; keep in step with configure in h-install-hestia.
+if [ -f /root/.bashrc ]; then
+	tmp=$(mktemp)
+	awk -v a='if [ "${PATH#*/usr/local/hestia/bin*}" = "$PATH" ]; then' -v b='    . /etc/profile.d/hestia.sh' '
+		{ l[NR] = $0 }
+		END {
+			for (i = 1; i <= NR; i++) {
+				if (l[i] == a && l[i + 1] == b && l[i + 2] == "fi") { i += 2; continue }
+				print l[i]
+			}
+		}' /root/.bashrc > "$tmp" && ! cmp -s "$tmp" /root/.bashrc && cat "$tmp" > /root/.bashrc
+	rm -f "$tmp"
+fi
 
 if [ "$PURGE" = true ]; then
 	echo "[ * ] Purging panel packages and directories..."
 	DEBIAN_FRONTEND=noninteractive apt-get -y purge caddy 2> /dev/null || true
+	# Every hestia-* unit runs something from the tree removed below; the firewall's own sits in /lib.
+	# None has an ExecStop, so stopping leaves the loaded ruleset in place until the reboot.
+	for u in /etc/systemd/system/hestia-* /lib/systemd/system/hestia-*; do
+		[ -e "$u" ] || continue
+		systemctl disable --now "$(basename "$u")" 2> /dev/null || true
+		rm -rf "$u"
+	done
+	rm -f /etc/apt/apt.conf.d/95hestia-php-refresh /etc/logrotate.d/hestia
+	systemctl daemon-reload
 	rm -rf "$HESTIA" "$CONF_DIR"
-	# Both live outside the install root, so the line above does not reach them (#564). The SNI dir
+	# Both live outside the install root, so the line above does not reach them. The SNI dir
 	# holds only symlinks into the customers' own mail conf, which stays.
 	rm -rf /etc/ssl/hestia /etc/exim4/ssl
 	echo "[ * ] Purged. /home user data and databases left intact."

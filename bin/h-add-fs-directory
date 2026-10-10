@@ -18,7 +18,7 @@ check_args '2' "$#" 'USER DIRECTORY'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-homedir=$(grep "^$user:" /etc/passwd | cut -f 6 -d :)
+homedir=$(awk -F : -v u="$user" '$1 == u {print $6; exit}' /etc/passwd)
 if [ -z "$homedir" ]; then
 	echo "Error: user home directory doesn't exist"
 	exit 12

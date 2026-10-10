@@ -94,22 +94,6 @@
       "reversible": true
     },
     {
-      "id": "v-aliases-remove",
-      "description": "The v-* aliases of the HestiaCP command names are gone; an update removes them, only symlinks are touched",
-      "conditions": [
-        {
-          "type": "path_exists",
-          "path": "/usr/local/hestia/bin/v-add-user"
-        }
-      ],
-      "action": {
-        "type": "function_call",
-        "function": "v_aliases_remove_apply"
-      },
-      "paths": [],
-      "reversible": false
-    },
-    {
       "id": "remove-h-add-fs-archive",
       "description": "h-add-fs-archive is gone: it served HestiaCP's app installer and the old VestaCP file manager, neither exists here",
       "conditions": [

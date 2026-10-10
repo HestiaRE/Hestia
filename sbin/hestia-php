@@ -1,19 +1,10 @@
 #!/bin/sh
-# HestiaRE panel PHP CLI — the single indirection point for the panel's PHP
-# version. The version lives in /etc/php/hestia/php-version (written at install,
-# rewritten on a PHP-version switch, e.g. Sury -> OS repo). Static path, dynamic
-# target: $HESTIA_PHP points here and never hardcodes a version. Uses the panel's
-# own CLI php.ini.
-#
-# Named hestia-php (not php) so it stays callable: /usr/local/hestia/bin is
-# appended to PATH, so a bare `php` resolves to the system /usr/bin/php.
+# Panel PHP CLI: one static path for $HESTIA_PHP, the version in /etc/php/hestia/php-version, the panel's php.ini.
+# Not named php: $HESTIA/bin comes last in PATH, so a bare php is the system one.
 v=$(cat /etc/php/hestia/php-version 2> /dev/null)
 [ -n "$v" ] || v=$(ls -1 /usr/bin/php[0-9].[0-9] 2> /dev/null | sort -V | tail -n1 | sed 's#.*/php##')
 ini="/etc/php/hestia/cli/php.ini"
-# Load only the curated CLI extension set from the panel's own conf.d (built by
-# hestia-php-confd), isolated from the customer version's conf.d. Fall back to
-# the compiled default scan dir if it is not built yet (e.g. mid-upgrade) so
-# CLI helpers never run with no extensions. Same pattern as ssbin/hestia-php-fpm.
+# The panel's own extension set; until hestia-php-confd built it, the compiled scan dir rather than none.
 confd="/etc/php/hestia/cli/conf.d"
 if [ -d "$confd" ] && [ -n "$(ls -A "$confd" 2> /dev/null)" ]; then
 	export PHP_INI_SCAN_DIR="$confd"

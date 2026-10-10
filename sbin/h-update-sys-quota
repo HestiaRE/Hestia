@@ -4,27 +4,16 @@
 #
 # example: h-update-sys-quota
 #
-# Re-runs the installer's arming and writes PROJECT_QUOTA from the probe - the
-# way back out of none:* once its reason is fixed (the boot unit only re-checks
-# pending). Separate-/home arming umounts and refuses a busy mount loudly.
+# Re-runs the installer's arming and writes PROJECT_QUOTA from the probe: the way out of none:* once its reason is
+# fixed, since the boot unit only re-checks pending. Separate-/home arming umounts and refuses a busy mount loudly.
 
-#----------------------------------------------------------#
-#                Variables & Functions                     #
-#----------------------------------------------------------#
-
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/quota.sh
 source $HESTIA/include/quota.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
-
-#----------------------------------------------------------#
-#                       Action                             #
-#----------------------------------------------------------#
 
 quota_arm
 
@@ -36,11 +25,6 @@ if [ "${PROJECT_QUOTA%%:*}" = 'active' ]; then
 	done
 fi
 
-#----------------------------------------------------------#
-#                       Hestia                             #
-#----------------------------------------------------------#
-
-# Logging
 "$BIN/h-log-action" "system" "Info" "System" "Project quota re-armed (state: $(grep -o "^PROJECT_QUOTA='[^']*'" "$HESTIA/conf/hestia.conf"))."
 log_event "$OK" "$ARGUMENTS"
 

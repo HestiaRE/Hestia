@@ -23,7 +23,7 @@ if [ "$user" = "$ROOT_USER" ]; then
 	exit
 fi
 
-ip_list=$(grep -l "OWNER='$user'" $CONF_DIR/ips/*)
+ip_list=$(grep -lF "OWNER='$user'" $CONF_DIR/ips/*)
 
 for ip in $ip_list; do
 	ip=$(basename "$ip")

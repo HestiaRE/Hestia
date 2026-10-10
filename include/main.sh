@@ -752,10 +752,10 @@ is_backup_mode_restic() {
 	fi
 }
 
-# Check for a queued backup job
+# A queued job of the user, as text and in both forms the schedulers write: a restore line carries the user quoted.
 is_backup_scheduled() {
 	if [ -e "$CONF_DIR/queue/backup.pipe" ]; then
-		check_q=$(grep " $user " $CONF_DIR/queue/backup.pipe | grep $1)
+		check_q=$(grep -F -e " $user " -e " '$user' " "$CONF_DIR/queue/backup.pipe" | grep -F -- "$1")
 		if [ -n "$check_q" ]; then
 			check_result "$E_EXISTS" "$1 is already scheduled"
 		fi
@@ -770,11 +770,16 @@ _object_conf() {
 	esac
 }
 
-# Numbered matching lines of an object file. A comment line is never a record, and a shipped slot
-# like #FAMILY='custom1' would otherwise answer for one.
-_object_rows() {
-	grep -nF "$2" "$(_object_conf "$1")" | grep -v '^[0-9]*:[[:space:]]*#'
+# Numbered record lines holding the field KEY='value' in $2, compared literally, so a dot matches only a dot. By
+# field, not by text: a key ending in the one asked for (X_DOMAIN for DOMAIN) never answers. A comment line is never
+# a record, and a shipped slot like #FAMILY='custom1' would otherwise answer for one. ENVIRON, not -v: awk -v would
+# unescape a backslash. LC_ALL=C: the match is bytewise anyway, and GNU awk is much slower in a UTF-8 locale.
+_object_match() { # NUMBERED OBJECT FIELD
+	F="$3" N="$1" LC_ALL=C awk '!/^[[:space:]]*#/ && index(" " $0, " " ENVIRON["F"]) {
+		print (ENVIRON["N"] ? NR ":" : "") $0 }' "$(_object_conf "$2")"
 }
+_object_rows() { _object_match 1 "$@"; }
+_object_lines() { _object_match '' "$@"; }
 
 # Check if object is new
 is_object_new() {
@@ -783,7 +788,7 @@ is_object_new() {
 			object="OK"
 		fi
 	else
-		object=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+		object=$(_object_lines "$1" "$2='$3'")
 	fi
 	if [ -n "$object" ]; then
 		check_result "$E_EXISTS" "$2=$3 already exists"
@@ -798,8 +803,7 @@ is_object_valid() {
 			check_result "$E_NOTEXIST" "$1 $3 doesn't exist"
 		fi
 	else
-		# -F: a dot in a domain or account matches any character, so a.b.com finds aXb.com's record
-		object=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+		object=$(_object_lines "$1" "$2='$3'")
 		if [ -z "$object" ]; then
 			arg1=$(basename $1)
 			arg2=$(echo $2 | tr '[:upper:]' '[:lower:]')
@@ -1015,9 +1019,9 @@ parse_object_kv_list() {
 # Check if object is suspended
 is_object_suspended() {
 	if [ "$2" = 'USER' ]; then
-		spnd=$(grep "SUSPENDED='yes'" "$(_object_conf "$1")")
+		spnd=$(grep "^SUSPENDED='yes'" "$(_object_conf "$1")")
 	else
-		spnd=$(grep -F "$2='$3'" "$(_object_conf "$1")" | grep "SUSPENDED='yes'")
+		spnd=$(_object_lines "$1" "$2='$3'" | grep -E "(^| )SUSPENDED='yes'")
 	fi
 	if [ -z "$spnd" ]; then
 		check_result "$E_UNSUSPENDED" "$(basename $1) $3 is not suspended"
@@ -1027,9 +1031,9 @@ is_object_suspended() {
 # Check if object is unsuspended
 is_object_unsuspended() {
 	if [ $2 = 'USER' ]; then
-		spnd=$(grep "SUSPENDED='yes'" "$(_object_conf "$1")")
+		spnd=$(grep "^SUSPENDED='yes'" "$(_object_conf "$1")")
 	else
-		spnd=$(grep -F "$2='$3'" "$(_object_conf "$1")" | grep "SUSPENDED='yes'")
+		spnd=$(_object_lines "$1" "$2='$3'" | grep -E "(^| )SUSPENDED='yes'")
 	fi
 	if [ -n "$spnd" ]; then
 		check_result "$E_SUSPENDED" "$(basename $1) $3 is suspended"
@@ -1038,7 +1042,7 @@ is_object_unsuspended() {
 
 # Check if object value is empty
 is_object_value_empty() {
-	str=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1049,7 +1053,7 @@ is_object_value_empty() {
 
 # Check if object value is empty
 is_object_value_exist() {
-	str=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1132,7 +1136,7 @@ json_escape() {
 
 # Get object value
 get_object_value() {
-	object=$(_object_rows "$1" "$2='$3'" | cut -d: -f2-)
+	object=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$object"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1140,7 +1144,7 @@ get_object_value() {
 }
 
 get_object_values() {
-	parse_object_kv_list "$(grep -F "$2='$3'" "$(_object_conf "$1")")"
+	parse_object_kv_list "$(_object_lines "$1" "$2='$3'")"
 }
 
 # Update object value
@@ -1226,20 +1230,18 @@ remove_user_queue_jobs() {
 	mv -f "$file.tmp" "$file"
 }
 
-# The only accessor that stays a regex: its search value is a flag, and h-backup-user-config passes
-# "*" to mean "any". The guard below keeps that from decaying into matching a domain by accident;
-# a comment cannot stop the next caller, a refusal can.
+# Search values are flags, and "*" means "any": the field is there, whatever it holds. Literal like every other
+# accessor; a name is refused all the same, since one record is get_object_value's job.
 search_objects() {
-	# A dot appears only in a domain or account and as a pattern matches anything. The wildcard is
-	# the one legitimate pattern here.
+	local pat="$2='$3'"
 	case "$3" in
-		'*') ;;
+		'*') pat="$2='" ;;
 		*.*) check_result "$E_INVALID" "search_objects takes flag values, not names (got '$3')" ;;
 	esac
 	OLD_IFS="$IFS"
 	IFS=$'\n'
 	if [ -f "$(_object_conf "$1")" ]; then
-		for line in $(grep "$2='$3'" "$(_object_conf "$1")"); do
+		for line in $(_object_lines "$1" "$pat"); do
 			parse_object_kv_list "$line"
 			echo "${!4}"
 		done
@@ -2515,8 +2517,13 @@ format_domain_idn() {
 	domain_idn=$domain
 	if [[ "$domain_idn" = *[![:ascii:]]* ]]; then
 		domain_idn=$(idn2 --quiet $domain_idn)
+		# Empty, every path built from it names the parent directory instead.
+		[ -n "$domain_idn" ] || check_result "$E_INVALID" "$domain cannot be converted to punycode"
 	fi
 }
+
+# Records are UTF-8 whatever locale the caller brings; under C idn2 cannot read them and prints nothing.
+idn2() { LC_ALL=C.UTF-8 command idn2 "$@"; }
 
 format_aliases() {
 	if [ -n "$aliases" ] && [ "$aliases" != 'none' ]; then

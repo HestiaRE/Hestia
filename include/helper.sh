@@ -286,6 +286,23 @@ add_sury_repo() {
 		"$arch" "$keyring" "$codename" > "$list"
 }
 
+# nginx.org mainline for preset latest: the key by pinned fingerprint, and a pin so a distribution update never
+# replaces that nginx.
+# Usage: add_nginx_org_repo <os_id> <codename>
+add_nginx_org_repo() {
+	local os_id="$1" codename="$2" keyring="/usr/share/keyrings/nginx-org-keyring.gpg"
+	[ -n "$os_id" ] && [ -n "$codename" ] || {
+		echo "ERROR: add_nginx_org_repo: os id or codename missing" >&2
+		return 1
+	}
+	if [ ! -s "$keyring" ]; then
+		apt_key_fetch nginx https://nginx.org/keys/nginx_signing.key "$keyring" || return 1
+	fi
+	printf 'deb [signed-by=%s] https://nginx.org/packages/mainline/%s %s nginx\n' "$keyring" "$os_id" "$codename" \
+		> /etc/apt/sources.list.d/nginx-org.list
+	printf 'Package: *\nPin: origin nginx.org\nPin-Priority: 900\n' > /etc/apt/preferences.d/99nginx-org
+}
+
 # ── per-OS data ─────────────────────────────────────────────────────────────
 # INSTALL_OS token -> OS_ID, CODENAME, RELEASE, EXIM_USR, BASE_PKGS_EXTRA
 load_os_profile() {
@@ -915,16 +932,6 @@ cron_record_review_apply() {
 	# The marker is the path_absent gate of cron-record-review in share/updates/0.24.json; keep the paths in step.
 	: > "$marker" 2> /dev/null || true
 	return 0
-}
-
-# Only symlinks: a regular file named v-* would be somebody's own and stays.
-v_aliases_remove_apply() {
-	local f
-	for f in "$HESTIA/bin"/v-*; do
-		[ -e "$f" ] || [ -L "$f" ] || continue
-		[ -L "$f" ] && rm -f -- "$f"
-	done
-	[ -z "$(find "$HESTIA/bin" -maxdepth 1 -name 'v-*' -type l -print -quit 2> /dev/null)" ]
 }
 
 # The panel translates only under a locale that is not C: glibc 2.39+ ignores LANGUAGE under C.UTF-8 (#1157),

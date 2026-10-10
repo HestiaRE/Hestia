@@ -123,6 +123,12 @@ crowdsec_gate_bruteforce() {
 	return 0
 }
 
+# libnginx-mod-http-lua requires the distribution's nginx ABI, which only the distribution's nginx provides; the
+# nginx.org package (preset latest) has none, so the bouncer cannot load there.
+crowdsec_l7_capable() {
+	dpkg-query -W -f='${Provides}' nginx 2> /dev/null | grep -q 'nginx-abi-'
+}
+
 # Install and wire CrowdSec detection and the nginx Layer-A bouncer. Safe to re-run.
 # Usage: crowdsec_apply [MODE]   MODE = capi (default) | local | mesh
 # The caller passes the mode: only it knows whether the recipe (installer) or the box (a command) is the truth.
@@ -135,8 +141,20 @@ crowdsec_apply() {
 		return 0
 	fi
 
+	local l7='yes' pkgs='crowdsec libnginx-mod-http-lua'
+	if ! crowdsec_l7_capable; then
+		l7='no'
+		pkgs='crowdsec'
+		# Without the bouncer only the box's own detections reach L3, so central and peer bans would go unenforced.
+		if [ "$mode" != 'local' ]; then
+			echo "CrowdSec: this nginx has no lua module, so only local detection with the L3 feeder applies - mode local."
+			mode='local'
+		fi
+	fi
+
 	# The lua module auto-loads and pulls lua-resty-core itself.
-	DEBIAN_FRONTEND=noninteractive apt-get -y -qq install crowdsec libnginx-mod-http-lua > /dev/null 2>&1 \
+	# shellcheck disable=SC2086 # deliberate package list
+	DEBIAN_FRONTEND=noninteractive apt-get -y -qq install $pkgs > /dev/null 2>&1 \
 		|| {
 			echo "CrowdSec: package install failed" >&2
 			return 1
@@ -156,6 +174,51 @@ crowdsec_apply() {
 	sed "s|%WEB_SYSTEM%|$WEB_SYSTEM|g" "$share/acquis.d/hestia-nginx.yaml" \
 		> /etc/crowdsec/acquis.d/hestia-nginx.yaml
 
+	if [ "$l7" = 'yes' ]; then
+		crowdsec_l7_wire || return 1
+	else
+		# A box that had the bouncer keeps no fragment that requires the missing module.
+		crowdsec_remove_nginx
+	fi
+	# Layer B (bot rate limiting) is include/botpolicy.sh; CrowdSec owns Layer A only.
+
+	# Only 'capi' keeps the central blocklist. mesh is local plus peer exchange, so it must not enrol either.
+	[ "$mode" = "capi" ] || crowdsec_disable_capi
+
+	crowdsec_secure_credentials
+
+	systemctl restart crowdsec > /dev/null 2>&1 || true
+	if nginx -t > /dev/null 2>&1; then
+		systemctl reload nginx > /dev/null 2>&1 || systemctl restart nginx > /dev/null 2>&1
+	else
+		echo "CrowdSec: nginx config test failed after wiring - not reloading" >&2
+		return 1
+	fi
+
+	# L3 bans the same decisions at SYN level; non-fatal, so L7 stays up if its wiring fails.
+	crowdsec_l3_setup || echo "CrowdSec: L3 feeder setup reported an issue" >&2
+
+	# fail2ban owns brute force when present and CrowdSec owns Layer 7, so each side drops the other's jobs.
+	crowdsec_gate_bruteforce
+	if [ "$(sed -n "s/^FIREWALL_EXTENSION='\([^']*\)'.*/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null)" = 'fail2ban' ] \
+		&& [ -f /etc/fail2ban/jail.d/hestia.local ]; then
+		# shellcheck source=/usr/local/hestia/include/fail2ban.sh
+		declare -F fail2ban_gate_web_jail > /dev/null 2>&1 || source "$HESTIA/include/fail2ban.sh"
+		fail2ban_gate_web_jail
+		systemctl reload-or-restart fail2ban > /dev/null 2>&1
+	fi
+
+	crowdsec_status_record
+	if [ "$l7" = 'yes' ]; then
+		echo "CrowdSec: applied (nginx front, L7 bouncer hestia-nginx + L3 set feeder)."
+	else
+		echo "CrowdSec: applied (nginx front, L3 set feeder; no L7 bouncer on this nginx)."
+	fi
+}
+
+# The L7 bouncer: key, lua code and the nginx init. Only where crowdsec_l7_capable.
+crowdsec_l7_wire() {
+	local share="$HESTIA/share/crowdsec"
 	# cscli shows the key only at creation, so it lives in the lua config and is recreated only when missing.
 	mkdir -p /etc/crowdsec/bouncers
 	local keyfile="/etc/crowdsec/bouncers/hestia-nginx.lua"
@@ -188,36 +251,6 @@ crowdsec_apply() {
 	# runs this setup, so the code is refreshed only when the CrowdSec setup itself runs again.
 	cp -f "$share/lua/hestia_bouncer.lua" /etc/crowdsec/bouncers/hestia_bouncer.lua
 	cp -f "$share/nginx/crowdsec_init.conf" /etc/nginx/conf.d/crowdsec_init.conf
-	# Layer B (bot rate limiting) is include/botpolicy.sh; CrowdSec owns Layer A only.
-
-	# Only 'capi' keeps the central blocklist. mesh is local plus peer exchange, so it must not enrol either.
-	[ "$mode" = "capi" ] || crowdsec_disable_capi
-
-	crowdsec_secure_credentials
-
-	systemctl restart crowdsec > /dev/null 2>&1 || true
-	if nginx -t > /dev/null 2>&1; then
-		systemctl reload nginx > /dev/null 2>&1 || systemctl restart nginx > /dev/null 2>&1
-	else
-		echo "CrowdSec: nginx config test failed after wiring - not reloading" >&2
-		return 1
-	fi
-
-	# L3 bans the same decisions at SYN level; non-fatal, so L7 stays up if its wiring fails.
-	crowdsec_l3_setup || echo "CrowdSec: L3 feeder setup reported an issue" >&2
-
-	# fail2ban owns brute force when present and CrowdSec owns Layer 7, so each side drops the other's jobs.
-	crowdsec_gate_bruteforce
-	if [ "$(sed -n "s/^FIREWALL_EXTENSION='\([^']*\)'.*/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null)" = 'fail2ban' ] \
-		&& [ -f /etc/fail2ban/jail.d/hestia.local ]; then
-		# shellcheck source=/usr/local/hestia/include/fail2ban.sh
-		declare -F fail2ban_gate_web_jail > /dev/null 2>&1 || source "$HESTIA/include/fail2ban.sh"
-		fail2ban_gate_web_jail
-		systemctl reload-or-restart fail2ban > /dev/null 2>&1
-	fi
-
-	crowdsec_status_record
-	echo "CrowdSec: applied (nginx front, L7 bouncer hestia-nginx + L3 set feeder)."
 }
 
 # Own feeder fills the set, h-update-firewall owns the DROP. Not the OS firewall bouncer: it panics.

@@ -847,17 +847,35 @@ check_policy_fragment_coverage() {
 	fi
 }
 
-# check_sudoers <file> <label>, file parses under the running sudo. One rejected
-# setting (e.g. requiretty under sudo-rs, ub26) makes sudo drop the WHOLE file.
+# The grant every privileged panel action and cron job goes through. One setting the running sudo rejects
+# (requiretty under sudo-rs) drops the whole file, and an update no longer re-applies it, so drift stays.
 check_sudoers() {
-	if [ ! -f "$1" ]; then
-		no "sudoers $2 ($1) missing"
+	local live=/etc/sudoers.d/hestia tree="$HESTIA/share/hestia/sudoers" bad='' m tmp
+	local rtree="$HESTIA/share/hestia/rsyslog-sudo-nolog.conf" rlive=/etc/rsyslog.d/10-hestia-sudo-nolog.conf
+	local fix="source $HESTIA/include/helper.sh && deploy_hestia_sudoers"
+	if [ ! -f "$live" ]; then
+		no "sudoers grant $live missing" "$fix"
 		return
 	fi
-	if visudo -cf "$1" > /dev/null 2>&1; then
-		ok "sudoers $2 ($1) valid"
+	m=$(stat -c '%a %U:%G' "$live")
+	[ "$m" = "440 root:root" ] || bad="$bad; mode $m"
+	visudo -cf "$live" > /dev/null 2>&1 || bad="$bad; invalid: $(visudo -cf "$live" 2>&1 | tail -1)"
+	# visudo may prepend this one line on deploy, so the rest is compared.
+	tmp=$(mktemp) || return
+	if [ "$(head -1 "$live")" = 'Defaults:hestia !log_allowed' ]; then
+		tail -n +2 "$live" > "$tmp"
 	else
-		no "sudoers $2 ($1) invalid" "$(visudo -cf "$1" 2>&1 | tail -1)"
+		cat "$live" > "$tmp"
+	fi
+	cmp -s "$tree" "$tmp" || bad="$bad; differs from the tree"
+	rm -f "$tmp"
+	if [ -f "$rtree" ] && [ -d /etc/rsyslog.d ] && ! cmp -s "$rtree" "$rlive"; then
+		bad="$bad; sudo log drop rule differs from the tree"
+	fi
+	if [ -n "$bad" ]; then
+		no "sudoers grant" "${bad#; } - $fix"
+	else
+		ok "sudoers grant 440 root:root, valid, matches the tree, log drop rule in place"
 	fi
 }
 
@@ -925,13 +943,7 @@ check_install_root_owner() {
 # Rule: no world bit at all; group access is by design (root:mail 660, exim reads them). The set is found,
 # not listed; a box without a single key says so as a skip with the count, never as a pass.
 check_secret_file_modes() {
-	local bad='' sudoers=/etc/sudoers.d/hestia keys k m n
-	if [ -f "$sudoers" ]; then
-		m=$(stat -c '%a %U:%G' "$sudoers")
-		[ "$m" = "440 root:root" ] || bad="$bad sudoers($m)"
-	else
-		bad="$bad sudoers(missing)"
-	fi
+	local bad='' keys k m n
 	keys=$({
 		find /etc/ssl/hestia /etc/exim4/ssl /etc/hestia/users/*/ssl /home/*/conf/web/*/ssl /home/*/conf/mail/*/ssl \
 			-maxdepth 1 \( -name '*.key' -o -name '*.pem' \) 2> /dev/null
@@ -949,9 +961,9 @@ check_secret_file_modes() {
 	if [ -n "$bad" ]; then
 		no "secret file modes" "$bad"
 	elif [ "$n" -eq 0 ]; then
-		skip "secret file modes: sudoers 440 root:root, and no private key, pem or relay file on this box to check (0 found)"
+		skip "secret file modes: no private key, pem or relay file on this box to check (0 found)"
 	else
-		ok "secret file modes: sudoers 440 root:root, $n key/pem/relay file(s) without a world bit"
+		ok "secret file modes: $n key/pem/relay file(s) without a world bit"
 	fi
 }
 
@@ -1476,38 +1488,6 @@ check_update_version() {
 	fi
 }
 
-# Since #948 an update no longer re-applies this by itself, so the drift is reported with the command
-# that ends it. The deployed file is the tree file with one line possibly prepended (visudo decides),
-# so the tail is compared, not the whole file.
-check_sudoers_drift() {
-	local tree="$HESTIA/share/hestia/sudoers" live=/etc/sudoers.d/hestia tmp
-	local fix="source $HESTIA/include/helper.sh && deploy_hestia_sudoers"
-	local rtree="$HESTIA/share/hestia/rsyslog-sudo-nolog.conf" rlive=/etc/rsyslog.d/10-hestia-sudo-nolog.conf
-	if [ ! -f "$tree" ] || [ ! -f "$live" ]; then
-		skip "sudoers drift not checkable (tree file or /etc/sudoers.d/hestia absent)"
-		return
-	fi
-	tmp=$(mktemp) || return
-	if [ "$(head -1 "$live")" = 'Defaults:hestia !log_allowed' ]; then
-		tail -n +2 "$live" > "$tmp"
-	else
-		cat "$live" > "$tmp"
-	fi
-	if cmp -s "$tree" "$tmp"; then
-		ok "sudoers grant matches the tree"
-	else
-		no "sudoers grant differs from the tree" "an update does not re-apply it: $fix"
-	fi
-	rm -f "$tmp"
-	if [ -f "$rtree" ] && [ -d /etc/rsyslog.d ]; then
-		if cmp -s "$rtree" "$rlive"; then
-			ok "sudo log drop rule matches the tree"
-		else
-			no "sudo log drop rule differs from the tree" "an update does not re-apply it: $fix"
-		fi
-	fi
-}
-
 # The crontab calls its jobs through sudo, and /etc/sudoers.d/hestia says which paths that grant
 # reaches. Two hand-kept lists over one surface, with nothing holding them together: a line pointing
 # one level above bin/ was refused every night for a week and the panel banner never appeared
@@ -1737,8 +1717,7 @@ if [ -e /proc/net/if_inet6 ]; then
 else
 	skip "panel login page over v6 (this kernel has no IPv6)"
 fi
-# invalid sudoers → no privileged panel action works
-check_sudoers /etc/sudoers.d/hestia "hestia grant"
+check_sudoers
 check_project_quota
 check_customer_php_slice
 
@@ -1889,7 +1868,6 @@ check_key_registries
 check_operator_keys_present
 check_jail_sshd
 check_update_version
-check_sudoers_drift
 check_crontab_sudo_reach
 check_system_keys_agree
 check_manifest_artefacts

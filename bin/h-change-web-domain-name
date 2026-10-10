@@ -255,6 +255,10 @@ if [ "$SSL" = 'yes' ] && [ "$LETSENCRYPT" = 'yes' ]; then
 		$BIN/h-delete-web-domain-ssl "$user" "$new_domain" "$restart" > /dev/null 2>&1
 		le_msg=${le_msg//$'\n'/ }
 		rename_warn+=", Let's Encrypt failed and SSL is off ($le_msg), h-add-letsencrypt-domain issues it later"
+	elif [ "$restart" != 'no' ]; then
+		# A new certificate only queues the reload; until then the new name would show the old one.
+		$BIN/h-restart-web
+		$BIN/h-restart-proxy
 	fi
 fi
 

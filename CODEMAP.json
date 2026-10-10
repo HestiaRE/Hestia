@@ -44,7 +44,7 @@
   },
   "components": {
     "cli_commands": {
-      "description": "All CLI commands. h-* prefix is HestiaRE-native (renamed from v-* in Issue #22). The v-* aliases of #23 were removed in #1176: upstream changes are reimplemented, never cherry-picked, so nothing needs the old names. v_aliases_remove_apply (include/helper.sh) clears leftovers from configure_hestia and the 0.24 update; h-check-sys-smoke check_no_v_aliases fails on one. No hl-* commands.",
+      "description": "All CLI commands. h-* prefix is HestiaRE-native (renamed from v-* in Issue #22). The v-* aliases of #23 were removed in #1176: upstream changes are reimplemented, never cherry-picked, so nothing needs the old names. No hl-* commands.",
       "entry_points": [
         "bin/h-*"
       ],
@@ -882,7 +882,7 @@
         "install_mail": "exim4, dovecot (version-aware), rspamd (optional), webmailers from the COMPONENT_MAIL_WEBMAILER token set (wizard checklist; roundcube fatal, tachyon degrades loudly, empty = none) — only if COMPONENT_MAIL_BLOCK_PRESENT",
         "install_security": "nftables only (iptables and ipset are gone with the old renderer, #548); fail2ban (optional); crowdsec (optional, minimal - #123)",
         "install_addons": "proftpd (→ h-add-sys-proftpd) / docker / filemanager per components (#123)",
-        "configure_hestia": "sudoers, v-* alias removal, SSL cert, admin user, firewall, default domain, crontab; writes .done.configure",
+        "configure_hestia": "sudoers, SSL cert, admin user, firewall, default domain, crontab; writes .done.configure",
         "install_tools": "always-installed utilities + selected TOOLS_SELECTION + composer (source per COMPONENT_ADDON_COMPOSER_SOURCE: os_package default, upstream_installer on latest; h-update-sys-composer switches live, #208/#237) + wp-cli (manifest-pinned phar via fetch_wp_cli_phar)",
         "finalize_install": "start hestia.service, schedule LE host cert, final apt upgrade, print credentials"
       },

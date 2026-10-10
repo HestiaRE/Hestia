@@ -770,8 +770,6 @@ configure_hestia() {
 	deploy_hestia_sudoers
 	cp -f "$HESTIA/share/hestia/logrotate" /etc/logrotate.d/hestia 2> /dev/null || true
 
-	# A reinstall over an older tree still carries the v-* aliases.
-	v_aliases_remove_apply || echo "[ ! ] a v-* alias in $HESTIA/bin could not be removed, h-check-sys-smoke names it" >&2
 	# Sets the marker of the update entry with the same name, which otherwise stays pending on every fresh box.
 	cron_record_review_apply
 

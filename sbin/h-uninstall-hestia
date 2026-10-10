@@ -71,6 +71,20 @@ rm -f /etc/cron.d/hestia-* 2> /dev/null || true
 rm -f /etc/profile.d/hestia.sh 2> /dev/null || true
 rm -f /etc/sudoers.d/hestia 2> /dev/null || true
 rm -f "$CONF_DIR"/.done.* 2> /dev/null || true
+# The installer's block in root's .bashrc sources the profile file removed above, so every root shell would
+# complain. Exactly its three lines; keep in step with configure in h-install-hestia.
+if [ -f /root/.bashrc ]; then
+	tmp=$(mktemp)
+	awk -v a='if [ "${PATH#*/usr/local/hestia/bin*}" = "$PATH" ]; then' -v b='    . /etc/profile.d/hestia.sh' '
+		{ l[NR] = $0 }
+		END {
+			for (i = 1; i <= NR; i++) {
+				if (l[i] == a && l[i + 1] == b && l[i + 2] == "fi") { i += 2; continue }
+				print l[i]
+			}
+		}' /root/.bashrc > "$tmp" && ! cmp -s "$tmp" /root/.bashrc && cat "$tmp" > /root/.bashrc
+	rm -f "$tmp"
+fi
 
 if [ "$PURGE" = true ]; then
 	echo "[ * ] Purging panel packages and directories..."

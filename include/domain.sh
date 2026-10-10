@@ -392,6 +392,30 @@ wp_cron_sync() { # DOMAIN
 		"$(wp_domain_php "$1") /usr/local/bin/wp cron event run --due-now --path=$docroot --quiet" > /dev/null 2>&1
 }
 
+# The fallback resolvers are IP literals (naming them needs the resolver that failed): two operators,
+# both families each, so one operator outage does not take the whole second opinion.
+le_dns_has_record() { # NAME [RESOLVER]: A or AAAA counts, the challenge rides either family
+	if [ -n "$2" ]; then
+		nslookup -timeout=3 -retry=1 -query=A "$1" "$2" > /dev/null 2>&1 \
+			|| nslookup -timeout=3 -retry=1 -query=AAAA "$1" "$2" > /dev/null 2>&1
+	else
+		nslookup -timeout=3 -retry=1 -query=A "$1" > /dev/null 2>&1 \
+			|| nslookup -timeout=3 -retry=1 -query=AAAA "$1" > /dev/null 2>&1
+	fi
+}
+le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable; LE_API is the caller's
+	local r
+	le_dns_has_record "$1" && return 0
+	for r in 1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe; do
+		le_dns_has_record "$1" "$r" && return 0
+	done
+	# nslookup cannot tell NXDOMAIN from an unreachable resolver by exit code; a name that must exist can.
+	for r in 1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe; do
+		le_dns_has_record "${LE_API#https://}" "$r" && return 1
+	done
+	return 2
+}
+
 # A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
 # "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
 is_web_domain_name_valid() { # DOMAIN

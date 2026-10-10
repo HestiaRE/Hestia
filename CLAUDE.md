@@ -127,7 +127,7 @@ PHP: Sury 8.3, isolated FPM pool — replaces hestia-php.
 
 ### Always installed components
 php multi (Sury 5.6–8.4), mariadb (ext repo), phpmyadmin (OS), caddy (OS),
-iptables, fail2ban (OS), ipset, composer (system-wide), wp-cli (system-wide)
+nftables, fail2ban (OS), composer (system-wide), wp-cli (system-wide)
 
 **The web model decides the web-server packages, not just who serves.** apache-only means no
 nginx on the box; nginx-only and both install nginx. Mail-only gets nginx through the mailfront

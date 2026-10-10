@@ -13,7 +13,18 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**
+  (#1197) instead of refusing them. A Let's Encrypt certificate is requested for the new name; if that fails,
+  the domain stays renamed without SSL.
+
+### Fixed
+
+- **A renamed web domain could take a name another domain of the same customer answered to** (#1197), and a
+  redirect to the domain itself or a web backup exclusion kept the old name.
+- **The statistics of a restored domain could stay unbuilt** (#1197) when a longer name of the same customer
+  started with it.
 
 ## v0.24 to v0.27 (2026-10-06 to 2026-10-10)
 

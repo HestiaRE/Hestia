@@ -23,8 +23,8 @@ hestia — HestiaRE control
 
 Usage: hestia <command> [args]
 
-  install      run the installer (reads $CONF_DIR/install.conf)
-  configure    (re)generate $CONF_DIR/install.conf via the wizard
+  install      run the installer (reads /etc/hestia/install.conf)
+  configure    (re)generate /etc/hestia/install.conf via the wizard
   update       update this box to the release it follows        [--check]
   uninstall    remove HestiaRE panel config (keeps /home + DBs) [--purge]
   status       show installed version, OS, profile and components

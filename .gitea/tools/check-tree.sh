@@ -55,6 +55,30 @@ check_source_conf_guard() {
 	fi
 }
 
+# Two lists describe the panel's languages: the catalog directories (what h-list-sys-languages offers) and
+# languages.json (their names, and what an update and a restore ask). Each catalog carries hestia.mo, the domain
+# web/inc/i18n.php binds; without it the language shows English. An empty list fails.
+check_panel_catalogs() {
+	local list="$HESTIA/web/locale/languages.json" d dirs=() named odd=''
+	named=$(jq -r 'keys[] | select(endswith("_locale") | not) | select(. != "en")' "$list" 2> /dev/null | sort)
+	for d in "$HESTIA/web/locale"/*/; do
+		[ -e "$d" ] || continue
+		dirs+=("$(basename "$d")")
+		[ -f "$d/LC_MESSAGES/hestia.mo" ] || odd="$odd $(basename "$d")(no hestia.mo)"
+	done
+	if [ -z "$named" ] || [ "${#dirs[@]}" -eq 0 ]; then
+		no "panel catalogs" "languages.json names no language or no catalog directory exists, nothing was compared"
+		return
+	fi
+	odd="$odd $(comm -3 <(printf '%s\n' "${dirs[@]}" | sort) <(echo "$named") | tr -d '\t' | tr '\n' ' ')"
+	odd=$(echo $odd)
+	if [ -n "$odd" ]; then
+		no "panel catalogs and languages.json disagree" "$odd"
+	else
+		ok "panel catalogs: ${#dirs[@]} agree with languages.json, each carries hestia.mo"
+	fi
+}
+
 # The protected-name list judged by its effect: a record that tries to bind PATH must not change it, and an
 # ordinary key must still bind in the same run. The three definitions come from main.sh, which a checkout
 # cannot source whole.
@@ -548,6 +572,7 @@ check_update_manifests
 check_update_dispatcher
 check_source_conf_guard
 check_protected_names_effective
+check_panel_catalogs
 # GHSA-cr7q and the GHSA-xffx class were once guarded file by file; this covers both and every other file.
 check_eval_sites
 check_record_name_patterns

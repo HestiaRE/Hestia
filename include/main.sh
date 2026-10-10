@@ -770,11 +770,14 @@ _object_conf() {
 	esac
 }
 
-# Numbered matching lines of an object file. A comment line is never a record, and a shipped slot
-# like #FAMILY='custom1' would otherwise answer for one.
+# Numbered record lines holding the field KEY='value' in $2, compared literally, so a dot matches only a dot. By
+# field, not by text: a key ending in the one asked for (X_DOMAIN for DOMAIN) never answers. A comment line is never
+# a record, and a shipped slot like #FAMILY='custom1' would otherwise answer for one. ENVIRON, not -v: awk -v would
+# unescape a backslash.
 _object_rows() {
-	grep -nF "$2" "$(_object_conf "$1")" | grep -v '^[0-9]*:[[:space:]]*#'
+	F="$2" awk '!/^[[:space:]]*#/ && index(" " $0, " " ENVIRON["F"]) { print NR ":" $0 }' "$(_object_conf "$1")"
 }
+_object_lines() { _object_rows "$@" | cut -d: -f2-; }
 
 # Check if object is new
 is_object_new() {
@@ -783,7 +786,7 @@ is_object_new() {
 			object="OK"
 		fi
 	else
-		object=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+		object=$(_object_lines "$1" "$2='$3'")
 	fi
 	if [ -n "$object" ]; then
 		check_result "$E_EXISTS" "$2=$3 already exists"
@@ -798,8 +801,7 @@ is_object_valid() {
 			check_result "$E_NOTEXIST" "$1 $3 doesn't exist"
 		fi
 	else
-		# -F: a dot in a domain or account matches any character, so a.b.com finds aXb.com's record
-		object=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+		object=$(_object_lines "$1" "$2='$3'")
 		if [ -z "$object" ]; then
 			arg1=$(basename $1)
 			arg2=$(echo $2 | tr '[:upper:]' '[:lower:]')
@@ -1015,9 +1017,9 @@ parse_object_kv_list() {
 # Check if object is suspended
 is_object_suspended() {
 	if [ "$2" = 'USER' ]; then
-		spnd=$(grep "SUSPENDED='yes'" "$(_object_conf "$1")")
+		spnd=$(grep "^SUSPENDED='yes'" "$(_object_conf "$1")")
 	else
-		spnd=$(grep -F "$2='$3'" "$(_object_conf "$1")" | grep "SUSPENDED='yes'")
+		spnd=$(_object_lines "$1" "$2='$3'" | grep -E "(^| )SUSPENDED='yes'")
 	fi
 	if [ -z "$spnd" ]; then
 		check_result "$E_UNSUSPENDED" "$(basename $1) $3 is not suspended"
@@ -1027,9 +1029,9 @@ is_object_suspended() {
 # Check if object is unsuspended
 is_object_unsuspended() {
 	if [ $2 = 'USER' ]; then
-		spnd=$(grep "SUSPENDED='yes'" "$(_object_conf "$1")")
+		spnd=$(grep "^SUSPENDED='yes'" "$(_object_conf "$1")")
 	else
-		spnd=$(grep -F "$2='$3'" "$(_object_conf "$1")" | grep "SUSPENDED='yes'")
+		spnd=$(_object_lines "$1" "$2='$3'" | grep -E "(^| )SUSPENDED='yes'")
 	fi
 	if [ -n "$spnd" ]; then
 		check_result "$E_SUSPENDED" "$(basename $1) $3 is suspended"
@@ -1038,7 +1040,7 @@ is_object_unsuspended() {
 
 # Check if object value is empty
 is_object_value_empty() {
-	str=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1049,7 +1051,7 @@ is_object_value_empty() {
 
 # Check if object value is empty
 is_object_value_exist() {
-	str=$(grep -F "$2='$3'" "$(_object_conf "$1")")
+	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1132,7 +1134,7 @@ json_escape() {
 
 # Get object value
 get_object_value() {
-	object=$(_object_rows "$1" "$2='$3'" | cut -d: -f2-)
+	object=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$object"
 	local varname="${4#\$}"
 	value="${!varname}"
@@ -1140,7 +1142,7 @@ get_object_value() {
 }
 
 get_object_values() {
-	parse_object_kv_list "$(grep -F "$2='$3'" "$(_object_conf "$1")")"
+	parse_object_kv_list "$(_object_lines "$1" "$2='$3'")"
 }
 
 # Update object value
@@ -1239,7 +1241,8 @@ search_objects() {
 	OLD_IFS="$IFS"
 	IFS=$'\n'
 	if [ -f "$(_object_conf "$1")" ]; then
-		for line in $(grep "$2='$3'" "$(_object_conf "$1")"); do
+		for line in $(grep -E "(^| )$2='$3'" "$(_object_conf "$1")"); do
+			[[ "$line" =~ ^[[:space:]]*# ]] && continue
 			parse_object_kv_list "$line"
 			echo "${!4}"
 		done

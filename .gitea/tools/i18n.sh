@@ -13,7 +13,7 @@ cd "$(dirname "$0")/../.." || exit 2
 
 # de is curated with the author, the rest is best effort and only reported.
 MAINTAINED="de"
-# The gettext domain, also named in web/inc/i18n.php and the smoke's check_panel_languages.
+# The gettext domain, also named in web/inc/i18n.php and check_panel_catalogs in check-tree.sh.
 DOMAIN="hestia"
 LOCALE="web/locale"
 

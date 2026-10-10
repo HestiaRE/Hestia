@@ -19,6 +19,7 @@ before v0.20.0 are folded into one section by theme.
 
 ### Changed
 
+- **Updates start from v0.25** (#1176). A box below it is reinstalled.
 - **`hestia update` asks before it updates** (#1176). It shows the target first; `--yes` skips the question, and
   without a terminal it refuses.
 
@@ -28,6 +29,10 @@ before v0.20.0 are folded into one section by theme.
   goes with it now.
 - **`hestia uninstall --purge` left units behind that run from the deleted tree** (#1176). The firewall unit failed
   at every boot and every apt run printed a missing hook; the prompt now says what stops.
+- **The smoke never noticed a fail2ban jail whose log file is missing** (#1176). fail2ban drops such a path from
+  its dump and only warns.
+- **An IDN domain added from a shell without a UTF-8 locale was set up under the wrong name** (#1176). The
+  punycode conversion now runs in UTF-8 whatever the caller's locale, and a name it cannot convert is refused.
 - **Re-running the installer on a live box broke every customer mail domain** (#1176). Re-answering the wizard
   re-ran the mail stage, which emptied `/etc/exim4/domains`: mail to the domains bounced and IMAP logins failed.
   The same re-run keeps a valid host certificate for the hostname and the SRS secret, and no longer adds a second

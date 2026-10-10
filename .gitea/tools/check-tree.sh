@@ -55,6 +55,79 @@ check_source_conf_guard() {
 	fi
 }
 
+# Two lists describe the panel's languages: the catalog directories (what h-list-sys-languages offers) and
+# languages.json (their names, and what an update and a restore ask). Each catalog carries hestia.mo, the domain
+# web/inc/i18n.php binds; without it the language shows English. An empty list fails.
+check_panel_catalogs() {
+	local list="$HESTIA/web/locale/languages.json" d dirs=() named odd=''
+	named=$(jq -r 'keys[] | select(endswith("_locale") | not) | select(. != "en")' "$list" 2> /dev/null | sort)
+	for d in "$HESTIA/web/locale"/*/; do
+		[ -e "$d" ] || continue
+		dirs+=("$(basename "$d")")
+		[ -f "$d/LC_MESSAGES/hestia.mo" ] || odd="$odd $(basename "$d")(no hestia.mo)"
+	done
+	if [ -z "$named" ] || [ "${#dirs[@]}" -eq 0 ]; then
+		no "panel catalogs" "languages.json names no language or no catalog directory exists, nothing was compared"
+		return
+	fi
+	odd="$odd $(comm -3 <(printf '%s\n' "${dirs[@]}" | sort) <(echo "$named") | tr -d '\t' | tr '\n' ' ')"
+	odd=$(echo $odd)
+	if [ -n "$odd" ]; then
+		no "panel catalogs and languages.json disagree" "$odd"
+	else
+		ok "panel catalogs: ${#dirs[@]} agree with languages.json, each carries hestia.mo"
+	fi
+}
+
+# The protected-name list judged by its effect: a record that tries to bind PATH must not change it, and an
+# ordinary key must still bind in the same run. The three definitions come from main.sh, which a checkout
+# cannot source whole.
+check_protected_names_effective() {
+	local out
+	out=$(
+		shopt -s extglob
+		eval "$(sed -n '/^SOURCE_CONF_PROTECTED="/,/"$/p; /^is_protected_key() {/,/^}/p; /^source_conf() {/,/^}/p' \
+			"$HESTIA/include/main.sh")"
+		declare -F source_conf is_protected_key > /dev/null || exit 1
+		tmp=$(mktemp) || exit 1
+		printf "NAME='probe'\nPATH=/tmp/hestia-tree-should-not-happen\n" > "$tmp"
+		before="$PATH"
+		source_conf "$tmp" 2> /dev/null
+		after="$PATH"
+		PATH="$before"
+		rm -f "$tmp"
+		[ "$after" = "$before" ] && printf 'kept:%s' "$NAME"
+	)
+	if [ "$out" = 'kept:probe' ]; then
+		ok "invariant: a config file cannot rebind PATH, an ordinary key still binds"
+	elif [ "$out" = 'kept:' ]; then
+		no "invariant: protected names" "the probe bound nothing, so the check proves nothing"
+	else
+		no "invariant: protected names" "source_conf rebound PATH or did not load from include/main.sh"
+	fi
+}
+
+check_secret_mode_seeds() {
+	local seed_dir seed_file smoke_dir smoke_file smoke="$HESTIA/bin/h-check-sys-smoke"
+	seed_dir=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$(dirname "\$INSTALL_CONF")".*/\1/p' \
+		"$HESTIA/include/wizard.sh" | head -n1)
+	seed_file=$(sed -n 's/^[[:space:]]*chmod \([0-7]\{3,4\}\) "\$conf_dir\/hestia\.conf".*/\1/p' \
+		"$HESTIA/include/helper.sh" | head -n1)
+	smoke_dir=$(sed -n 's/^[[:space:]]*\[ "\$m" = "\([0-7]\{3,4\}\) root:root" \] || bad="\$bad \$CONF_DIR(.*/\1/p' \
+		"$smoke" | head -n1)
+	smoke_file=$(sed -n 's/^[[:space:]]*\[ "\$m" = "\([0-7]\{3,4\}\) root:root" \] || bad="\$bad hestia\.conf(.*/\1/p' \
+		"$smoke" | head -n1)
+	if [ -z "$seed_dir" ] || [ -z "$seed_file" ] || [ -z "$smoke_dir" ] || [ -z "$smoke_file" ]; then
+		no "secret modes: a seed or smoke line was not found" \
+			"wizard '$seed_dir' helper '$seed_file' smoke '$smoke_dir' '$smoke_file'"
+	elif [ "$seed_dir" != "$smoke_dir" ] || [ "$seed_file" != "$smoke_file" ]; then
+		no "secret modes: the smoke expects /etc/hestia $smoke_dir and hestia.conf $smoke_file" \
+			"the seed gives $seed_dir and $seed_file"
+	else
+		ok "secret modes: the smoke expects what the seed gives (/etc/hestia $seed_dir, hestia.conf $seed_file)"
+	fi
+}
+
 # check_sys_key_registry: the system key registry (share/hestia/sys-keys.json), three guards:
 # (1) the schema, through sysreg_check; (2) every key the tree writes into
 # hestia.conf is registered; the write sites are extracted from the shipped code (the seven mechanisms:
@@ -519,6 +592,9 @@ check_manifest_status_link
 check_update_manifests
 check_update_dispatcher
 check_source_conf_guard
+check_protected_names_effective
+check_panel_catalogs
+check_secret_mode_seeds
 # GHSA-cr7q and the GHSA-xffx class were once guarded file by file; this covers both and every other file.
 check_eval_sites
 check_record_name_patterns

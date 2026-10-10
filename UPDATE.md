@@ -42,10 +42,10 @@ mechanism, not a second channel and not something an operator configures.
 
 ## The lower bound
 
-**v0.21.** A box below it is reinstalled, not updated, and the fetched updater above will say so
-rather than start. It was `v0.19.0` until v0.21 shipped, which was the first release the one live
-box was actually carried onto; below that line there is nothing left in the field to reason about,
-and the manifests of the releases underneath can never apply again.
+**v0.25.** A box below it is reinstalled, not updated, and the fetched updater above will say so
+rather than start. It was raised from `v0.21` once every known box had reached v0.25; below that line
+there is nothing left in the field to reason about, and the manifests of the releases underneath can
+never apply again.
 
 The bound is a literal in `update.sh`, which means the copy that decides is the one in the release
 being installed: the old updater checks it, hands over to the new one, and the new one checks its own

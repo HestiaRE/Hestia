@@ -26,7 +26,7 @@ CHECK_ONLY=no
 [ "${1:-}" = "--check" ] && CHECK_ONLY=yes
 
 # A box below this is reinstalled, not updated. After the handover the target's own literal decides.
-UPDATE_MIN_VERSION='v0.21'
+UPDATE_MIN_VERSION='v0.25'
 
 tree_version() { cat "$HESTIA/VERSION" 2> /dev/null; }
 status_version() { sed -n "s/^VERSION='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" | head -1; }

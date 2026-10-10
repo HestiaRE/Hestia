@@ -2515,8 +2515,13 @@ format_domain_idn() {
 	domain_idn=$domain
 	if [[ "$domain_idn" = *[![:ascii:]]* ]]; then
 		domain_idn=$(idn2 --quiet $domain_idn)
+		# Empty, every path built from it names the parent directory instead.
+		[ -n "$domain_idn" ] || check_result "$E_INVALID" "$domain cannot be converted to punycode"
 	fi
 }
+
+# Records are UTF-8 whatever locale the caller brings; under C idn2 cannot read them and prints nothing.
+idn2() { LC_ALL=C.UTF-8 command idn2 "$@"; }
 
 format_aliases() {
 	if [ -n "$aliases" ] && [ "$aliases" != 'none' ]; then

@@ -118,9 +118,7 @@ h-*    HestiaRE commands (renamed from v-* in Issue #22)
 
 - There are no v-* aliases (removed in #1176). Upstream changes are reimplemented, never
   cherry-picked, so nothing needs the old names. Own aliases belong outside `$HESTIA/bin` (e.g.
-  `/usr/local/bin`), and `--help` does not work under them. Every v-* symlink in `$HESTIA/bin` is a
-  leftover: `configure_hestia` removes all of them, `h-check-sys-smoke` fails on any, the 0.24 update
-  entry fires only while `v-add-user` exists.
+  `/usr/local/bin`), and `--help` does not work under them.
 - Removal verb is `h-delete-*` across the board (upstream `v-delete-*` parity).
 
 ### Panel webserver

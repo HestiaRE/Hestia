@@ -95,7 +95,7 @@ if [ "$SSL" = 'yes' ]; then
 			le_dns_check "$(name_idn "$a")"
 			case $? in
 				0) ;;
-				1) check_result "$E_NOTEXIST" "no DNS record for $a, Let's Encrypt cannot issue the renamed certificate" ;;
+				1) check_result "$E_NOTEXIST" "no DNS record for $a, Let's Encrypt could not issue it" ;;
 				*) check_result "$E_CONNECT" "cannot verify DNS for $a" ;;
 			esac
 		done
@@ -194,17 +194,19 @@ mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain"
 # The rebuild copies the certificate in under the new name.
 rm -f "$HOMEDIR/$user/conf/web/$new_domain/ssl/$domain".*
 # The ssl variant of a fragment is an absolute link to the plain one; it follows the folder.
-for l in "$HOMEDIR/$user/conf/web/$new_domain"/*; do
+old_conf="$HOMEDIR/$user/conf/web/$domain" new_conf="$HOMEDIR/$user/conf/web/$new_domain"
+for l in "$new_conf"/*; do
 	[ -L "$l" ] || continue
 	t=$(readlink "$l")
 	case "$t" in
-		"$HOMEDIR/$user/conf/web/$domain"/*) ln -sfn "$HOMEDIR/$user/conf/web/$new_domain/${t#"$HOMEDIR/$user/conf/web/$domain/"}" "$l" ;;
+		"$old_conf"/*) ln -sfn "$new_conf/${t#"$old_conf/"}" "$l" ;;
 	esac
 done
 # A redirect to the domain itself (the panel's two choices) points at the new name, written anew.
 if [ "$REDIRECT" = "$domain" ] || [ "$REDIRECT" = "www.$domain" ]; then
 	$BIN/h-delete-web-domain-redirect "$user" "$new_domain" 'no' > /dev/null 2>&1
-	$BIN/h-add-web-domain-redirect "$user" "$new_domain" "$(rename_name "$REDIRECT")" "${REDIRECT_CODE:-301}" 'no' > /dev/null 2>&1 \
+	target=$(rename_name "$REDIRECT")
+	$BIN/h-add-web-domain-redirect "$user" "$new_domain" "$target" "${REDIRECT_CODE:-301}" 'no' > /dev/null 2>&1 \
 		|| rename_warn+=", the redirect to $REDIRECT is gone"
 fi
 
@@ -235,7 +237,8 @@ $BIN/h-rebuild-web-domains "$user" "$restart"
 if [ "$SSL" = 'yes' ] && [ "$LETSENCRYPT" = 'yes' ]; then
 	if ! le_msg=$($BIN/h-add-letsencrypt-domain "$user" "$new_domain" "$cert_aliases" 2>&1); then
 		$BIN/h-delete-web-domain-ssl "$user" "$new_domain" "$restart" > /dev/null 2>&1
-		rename_warn+=", Let's Encrypt failed and SSL is off (${le_msg//$'\n'/ }), h-add-letsencrypt-domain issues it later"
+		le_msg=${le_msg//$'\n'/ }
+		rename_warn+=", Let's Encrypt failed and SSL is off ($le_msg), h-add-letsencrypt-domain issues it later"
 	fi
 fi
 
@@ -249,7 +252,9 @@ if [ "$WP" = 'yes' ]; then
 	done
 	wp_cron_sync "$new_domain" || rename_warn+=", the WordPress cron job was not added"
 	wp_php=$(wp_domain_php "$new_domain")
-	wp_user() { (cd / && user_exec env HOME="$HOMEDIR/$user" timeout 60 "$wp_php" /usr/local/bin/wp "$@" --path="$docroot"); }
+	wp_user() {
+		(cd / && user_exec env HOME="$HOMEDIR/$user" timeout 60 "$wp_php" /usr/local/bin/wp "$@" --path="$docroot")
+	}
 	ssl_now=$(get_object_value 'web' 'DOMAIN' "$new_domain" '$SSL')
 	for opt in home siteurl; do
 		v=$(wp_user option get "$opt" 2> /dev/null)
@@ -261,9 +266,11 @@ if [ "$WP" = 'yes' ]; then
 		esac
 		[ "$ssl_now" = 'yes' ] || scheme=http
 		[ "$scheme://$host" != "$v" ] || continue
-		wp_user option update "$opt" "$scheme://$host" > /dev/null 2>&1 || rename_warn+=", WordPress $opt is still $v"
+		wp_user option update "$opt" "$scheme://$host" > /dev/null 2>&1 \
+			|| rename_warn+=", WordPress $opt is still $v"
 	done
-	echo "WordPress: links inside the content still name $domain; wp search-replace '$domain' '$new_domain' takes them along"
+	echo "WordPress: links inside the content still name $domain;" \
+		"wp search-replace '$domain' '$new_domain' takes them along"
 fi
 
 $BIN/h-log-action "$user" "Info" "Web" "Renamed web domain (Old Domain: $domain, New Domain: $new_domain)."

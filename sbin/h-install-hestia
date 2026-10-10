@@ -323,28 +323,34 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 	systemctl restart hestia-php
 
 	# panel cert must exist before caddy starts; LE replaces it later
-	echo "[ * ] Generating panel SSL certificate..."
-	# The key passes through this file: a private directory, not a fixed name in /tmp.
+	# Only without one for this hostname: a re-run would replace the host certificate, Let's Encrypt or the admin's own.
 	local CRT_END KEY_START KEY_END pem_dir pem
-	pem_dir=$(mktemp -d)
-	pem="$pem_dir/hst.pem"
-	"$BIN/h-generate-ssl-cert" "$HESTIA_HOSTNAME" '' 'US' 'California' 'San Francisco' 'HestiaRE' 'IT' > "$pem"
-	CRT_END=$(grep -n "END CERTIFICATE-" "$pem" | head -n1 | cut -f1 -d:)
-	KEY_START=$(grep -nE "BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY" "$pem" | head -n1 | cut -f1 -d:)
-	KEY_END=$(grep -nE "END (RSA |EC |ENCRYPTED )?PRIVATE KEY" "$pem" | head -n1 | cut -f1 -d:)
-	if [ -z "$KEY_START" ]; then
-		KEY_START=$(grep -n "BEGIN RSA" "$pem" | head -n1 | cut -f1 -d:)
-		KEY_END=$(grep -n "END RSA" "$pem" | head -n1 | cut -f1 -d:)
+	if [ -s "$HESTIA_SSL/certificate.key" ] && openssl x509 -noout -checkhost "$HESTIA_HOSTNAME" \
+		-in "$HESTIA_SSL/certificate.crt" 2> /dev/null | grep -q ' does match '; then
+		echo "[ skip ] panel SSL certificate already present, keeping it"
+	else
+		echo "[ * ] Generating panel SSL certificate..."
+		# The key passes through this file: a private directory, not a fixed name in /tmp.
+		pem_dir=$(mktemp -d)
+		pem="$pem_dir/hst.pem"
+		"$BIN/h-generate-ssl-cert" "$HESTIA_HOSTNAME" '' 'US' 'California' 'San Francisco' 'HestiaRE' 'IT' > "$pem"
+		CRT_END=$(grep -n "END CERTIFICATE-" "$pem" | head -n1 | cut -f1 -d:)
+		KEY_START=$(grep -nE "BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY" "$pem" | head -n1 | cut -f1 -d:)
+		KEY_END=$(grep -nE "END (RSA |EC |ENCRYPTED )?PRIVATE KEY" "$pem" | head -n1 | cut -f1 -d:)
+		if [ -z "$KEY_START" ]; then
+			KEY_START=$(grep -n "BEGIN RSA" "$pem" | head -n1 | cut -f1 -d:)
+			KEY_END=$(grep -n "END RSA" "$pem" | head -n1 | cut -f1 -d:)
+		fi
+		(
+			cd "$HESTIA_SSL"
+			sed -n "1,${CRT_END}p" "$pem" > certificate.crt
+			sed -n "${KEY_START},${KEY_END}p" "$pem" > certificate.key
+		)
+		chown root:mail "$HESTIA_SSL/"* 2> /dev/null || true
+		chmod 660 "$HESTIA_SSL/"*
+		rm -f "$pem"
+		rmdir "$pem_dir"
 	fi
-	(
-		cd "$HESTIA_SSL"
-		sed -n "1,${CRT_END}p" "$pem" > certificate.crt
-		sed -n "${KEY_START},${KEY_END}p" "$pem" > certificate.key
-	)
-	chown root:mail "$HESTIA_SSL/"* 2> /dev/null || true
-	chmod 660 "$HESTIA_SSL/"*
-	rm -f "$pem"
-	rmdir "$pem_dir"
 
 	echo "[ * ] Configuring Caddy..."
 	mkdir -p /etc/caddy

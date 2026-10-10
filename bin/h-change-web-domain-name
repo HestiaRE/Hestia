@@ -230,6 +230,21 @@ if [ -n "$FTP_USER" ]; then
 	done
 fi
 
+# A backup exclusion names the domain (WEB='old:tmp'); left alone it would stop applying.
+excl="$USER_DATA/backup-excludes.conf"
+if [ -f "$excl" ]; then
+	O="$domain" N="$new_domain" awk -v q="'" 'index($0, "WEB=" q) == 1 {
+		n = split(substr($0, 6, length($0) - 6), e, ","); out = ""
+		for (i = 1; i <= n; i++) {
+			if (e[i] == ENVIRON["O"] || index(e[i], ENVIRON["O"] ":") == 1)
+				e[i] = ENVIRON["N"] substr(e[i], length(ENVIRON["O"]) + 1)
+			out = out (i > 1 ? "," : "") e[i]
+		}
+		$0 = "WEB=" q out q
+	} { print }' "$excl" > "$excl.rename" && cat "$excl.rename" > "$excl"
+	rm -f "$excl.rename"
+fi
+
 $BIN/h-rebuild-web-domains "$user" "$restart"
 
 # Last, the one step that needs the network. Failing, it leaves the domain renamed over http rather than

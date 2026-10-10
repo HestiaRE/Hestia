@@ -508,10 +508,9 @@ install_mail() {
 	cp -f "$HESTIA/share/exim/limit.conf" /etc/exim4/
 	cp -f "$HESTIA/share/exim/system.filter" /etc/exim4/
 	touch /etc/exim4/white-blocks.conf
-	local SRS
 	# openssl, not tr < /dev/urandom | head: tr reports the broken pipe on every install.
-	SRS=$(openssl rand -hex 16)
-	echo "$SRS" > /etc/exim4/srs.conf
+	# Kept on a re-run: a new secret voids every SRS address already handed out, and their bounces get lost.
+	[ -s /etc/exim4/srs.conf ] || openssl rand -hex 16 > /etc/exim4/srs.conf
 	chmod 640 /etc/exim4/srs.conf /etc/exim4/exim4.conf.template
 	chown root:"$EXIM_USR" /etc/exim4/srs.conf
 	# Never emptied: on a re-run it holds every customer mail domain, and dovecot reads the passwords there.

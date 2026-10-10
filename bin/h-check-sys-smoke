@@ -4,14 +4,10 @@
 #
 # example: h-check-sys-smoke
 #
-# Verifies that a fresh install came up: the services implied by the active
-# configuration are running, the expected ports listen, the panel answers, and no
-# critical markers are in the key logs. Preset-independent, it derives what to
-# expect from hestia.conf: the status says what the box HAS. The recipe is read for
-# exactly one check, the addon recount, whose whole question is "chosen but absent".
-# Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise.
+# Checks that the services the configuration implies run, their ports answer and the key logs are clean.
+# Expectations come from the status keys in hestia.conf; only the addon recount reads the install recipe.
+# Exits 1 on any FAIL.
 
-# Includes
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
@@ -30,17 +26,12 @@ source $HESTIA/include/quota.sh
 source $HESTIA/include/limits.sh
 # shellcheck source=/usr/local/hestia/include/ports.sh
 source $HESTIA/include/ports.sh
-# record_line_valid, so the grammar has one definition and the guard does not carry a second
+# For record_line_valid, so the grammar keeps one definition.
 # shellcheck source=/usr/local/hestia/include/backup.sh
 source $HESTIA/include/backup.sh
-# load config file
 source_conf "$HESTIA/conf/hestia.conf"
 # The recipe, for the addon recount alone (chosen-but-absent). Every other gate reads the status.
 [ -f "$CONF_DIR/install.conf" ] && source "$CONF_DIR/install.conf"
-
-#----------------------------------------------------------#
-# Variables & Functions #
-#----------------------------------------------------------#
 
 pass=0
 fail=0
@@ -55,11 +46,10 @@ no() {
 }
 skip() { echo "[ skip ] $1"; }
 
-# Whether sudo keeps panel command lines out of the logs depends on the sudo flavor and the
-# distro, so assert the outcome per run: a throwaway marker through an allowed panel call must
-# not survive in any persistent log. The sink set is derived from a control marker written to
-# authpriv: no file receives it (journald-only) means nothing to assert, not nothing found.
-# Covers log FILES only; the journald copy is out of scope here.
+# A guard verifies an artefact, it never fills one: nothing here calls an upd_act_*.
+
+# A marker passed through an allowed panel call must not survive in any persistent log; whether sudo keeps argv
+# out depends on its flavour. A control marker to authpriv finds the sink files first. Covers files, not journald.
 check_sudo_secret_leak() {
 	local probe control f sinks='' leaked=''
 	id hestia > /dev/null 2>&1 || {
@@ -112,13 +102,9 @@ check_service() {
 }
 
 # check_config_loaded <unit> <label> <shipped config file>...
-# `systemctl start` on a running unit is a no-op, so a service can serve a configuration it never
-# read. Compares the unit's start against the newest file HestiaRE ships for it; an empty
-# file set is a failure, never a pass. Two things it deliberately does not cover, so nobody mistakes
-# it for a whole guard: everything written per object (dovecot conf.d/domains, exim's domain files,
-# customer FPM pools) changes without a restart by design and would make this red on every new
-# domain; and a unit that is RELOADED keeps its start timestamp, so services HestiaRE reloads rather
-# than restarts (hestia-php, see the addon installers) cannot be judged this way at all.
+# `systemctl start` on a running unit is a no-op, so a service can serve a config it never read. An empty file
+# set fails. Not covered: per-object files, which change without a restart by design, and reloaded units, which
+# keep their start time.
 check_config_loaded() {
 	local unit="$1" label="$2" started newest=0 n=0 f t
 	shift 2
@@ -144,23 +130,15 @@ check_config_loaded() {
 	fi
 }
 
-# THE BOUNDARY: a guard verifies an artefact, it never fills one. Nothing here may call an upd_act_*.
-# check_jail_sshd: both jails are installed on every box and have no delete command any more, so what
-# their system layer put into sshd_config has to be there. REPORTED, never repaired:
-# the line from 1a holds here too, a guard verifies an artefact and does not fill it, and sshd_config
-# is operator surface. The message names the add command that puts each piece back.
-# Not covered, on purpose: whether a customer is actually jailed. That is the per-customer layer
-# (group membership and login shell), it changes with every h-change-user-shell, and a box with no
-# jailed customer is a legitimate state.
+# Both jails' system layer in sshd_config, reported and never repaired: sshd_config is operator surface. Not
+# covered: whether a customer is jailed, which is per-customer state.
 check_jail_sshd() {
 	local cfg='/etc/ssh/sshd_config' bad=''
 	if [ ! -f "$cfg" ]; then
 		no "jail sshd: $cfg missing" "nothing to check against"
 		return
 	fi
-	# Effective, not merely present. sshd -T prints the GLOBAL section, so a Subsystem line that
-	# landed inside a Match block does not appear here - and that is the state the old grep-the-file
-	# form called healthy while sftp was dead for everyone.
+	# sshd -T prints the global section, so a Subsystem line that landed inside a Match block does not count.
 	if ! sshd -T > /dev/null 2>&1; then
 		no "jail sshd: sshd -T does not run" "$(sshd -t 2>&1 | head -1)"
 		return
@@ -227,8 +205,7 @@ check_firewall() {
 	fi
 }
 
-# check_fail2ban_jails: running must equal configured, in both directions: one of ours missing (how the
-# whole set stayed dead while the service looked healthy) and a distro jail we never asked for.
+# Running must equal configured in both directions: one of ours missing, or a distro jail we never asked for.
 check_fail2ban_jails() {
 	local want have missing='' extra='' j
 	want=$(fail2ban_enabled_jails | sort)
@@ -303,23 +280,9 @@ check_fail2ban_watch() {
 	fi
 }
 
-# Seven addon installs in h-install-hestia are soft (a flaky addon must not abort the install), and
-# nothing recounted afterwards: a failed one left a green install with the wizard's choice silently
-# unmet. This recounts every requested one by its artefact. Nothing here is a list: the addon
-# set and its stage come out of the installer file (the mail-tier addons are only attempted inside
-# install_mail), key and artefact out of the manifest (status_key, status_artefact, 1c ); an addon
-# without a manifest mapping fails instead of shipping unverified, an empty derivation fails too.
-# The anchor is the helper `addon_install <name>`; before the seven call sites ended in a bare
-# `|| true` and that literal was the anchor. NOT covered: addons installed outside the helper, whose
-# failure aborts the install and needs no recount.
-#
-# INSTALLER-ONLY. Its question is "the wizard asked for it and it did not appear", and that only
-# has an answer while the wizard's answer is the newest thing that happened. After a deliberate
-# h-delete-sys-* the recipe still says true and the box is right to disagree, so a permanent check here
-# would go red forever on a correct box. What the box HAS is watched all the time by
-# check_manifest_artefacts, which compares key against artefact in both directions.
-# Reads a recipe value, so it lives with its one caller: it stood among the service gates until those
-# moved to status keys, and would have read as dead code there.
+# Installer-only: the soft addon installs (addon_install in h-install-hestia) recounted by their manifest
+# artefact, so a swallowed failure does not leave a green install. After a deliberate h-delete-sys-* recipe and
+# box disagree on purpose; check_manifest_artefacts watches the box from then on. An empty derivation fails.
 is_on() { [ "${1:-}" = "true" ] || [ "${1:-}" = "yes" ]; }
 check_addons_swallowed() {
 	local m="$HESTIA/share/manifest.json" stage a cid gate key type val n=0
@@ -354,7 +317,7 @@ check_addons_swallowed() {
 			no "addon $a requested but its artefact is missing ($type $val)" "the installer swallowed the failure - see the install log"
 		fi
 	done <<< "$pairs"
-	# Redis installs inline in the db stage, and its package is also rspamd's Bayes companion: the key is the proof.
+	# Redis installs inline, and its package is also rspamd's companion: the key is the proof.
 	if is_on "${COMPONENT_DB_REDIS:-}"; then
 		n=$((n + 1))
 		if [ -n "$REDIS_SYSTEM" ]; then
@@ -400,9 +363,7 @@ check_http() {
 	fi
 }
 
-# check_rspamd_ctrl_isolation, the controller socket must be reachable by the
-# Caddy proxy process but NOT by the app FPM pools that share the caddy user.
-# Checked against live process creds + /etc/group, so a config regression fails here.
+# The controller socket must reach the caddy proxy process but not the app pools that share the caddy user.
 check_rspamd_ctrl_isolation() {
 	local gid pid pgroups
 	gid=$(getent group _rspamd-ctrl | cut -d: -f3)
@@ -410,19 +371,17 @@ check_rspamd_ctrl_isolation() {
 		no "rspamd controller group _rspamd-ctrl missing"
 		return
 	fi
-	# 1. socket carries the dedicated group (not plain _rspamd)
 	if [ "$(stat -c '%G' /run/rspamd/controller.sock 2> /dev/null)" = '_rspamd-ctrl' ]; then
 		ok "controller socket group is _rspamd-ctrl"
 	else
 		no "controller socket not group _rspamd-ctrl" "$(stat -c '%G' /run/rspamd/controller.sock 2> /dev/null)"
 	fi
-	# 2. caddy user NOT in the controller group (else app pools inherit via initgroups)
+	# In the group, the app pools would inherit it through initgroups.
 	if id -nG caddy 2> /dev/null | tr ' ' '\n' | grep -qxE '_rspamd(-ctrl)?'; then
 		no "caddy user is in an rspamd group (app pools would inherit socket access)" "$(id -nG caddy)"
 	else
 		ok "caddy user not in any rspamd group (app pools isolated)"
 	fi
-	# 3. caddy proxy process DOES hold the group (else controller UI breaks)
 	pid=$(systemctl show -p MainPID --value caddy.service 2> /dev/null)
 	pgroups=$(grep -E '^Groups:' /proc/"${pid:-0}"/status 2> /dev/null)
 	if echo "$pgroups" | tr ' \t' '\n' | grep -qx "$gid"; then
@@ -456,9 +415,7 @@ check_file_empty() {
 	fi
 }
 
-# check_banner <port> <label>, service answers with a protocol banner in 5s.
-# Catches "active + listening but dead" (e.g. dovecot IMAP login hangs) that
-# check_service/check_port miss.
+# check_banner <port> <label>: active and listening is not answering, a hung IMAP login still listens.
 check_banner() {
 	local banner
 	# head -n1, NOT head -c N: a byte-count read blocks until N bytes arrive
@@ -470,10 +427,8 @@ check_banner() {
 	fi
 }
 
-# check_config_editor: every file the editor offers passes the path gate, h-open-fs-config reads by key and by path,
-# and refuses the secrets next to them with rc 2. The expected keys are those the page of each installed service
-# reads, plus hestia, so a lister that stops naming a file fails here instead of leaving an empty page.
-# Not covered: whether a lister names the right file, and page keys built at runtime other than php-X.Y.
+# Every file the editor offers passes the path gate and opens by key and by path, and the secrets next to them
+# are refused with rc 2. Expected keys come from the installed services' pages. Not covered: runtime page keys.
 check_config_editor() {
 	local key p n=0 bad='' gone='' neg=0 leak='' rc svc want='hestia' page exp
 	sys_config_preload
@@ -542,9 +497,7 @@ check_panel_languages() {
 	fi
 }
 
-# The panel PHP version is a file, not a constant: /etc/php/hestia/php-version
-# names whatever the wrappers and hestia-php.service run. An empty file or a version
-# whose binaries are gone means every panel request dies at exec - say which half broke.
+# /etc/php/hestia/php-version names what the wrappers and hestia-php run; a gap there kills every request.
 check_panel_php_version() {
 	local v
 	v=$(cat /etc/php/hestia/php-version 2> /dev/null)
@@ -556,13 +509,11 @@ check_panel_php_version() {
 		no "panel PHP $v binaries (cli+fpm)" "php-version names $v but /usr/bin/php$v or /usr/sbin/php-fpm$v is missing"
 		return
 	fi
-	# a PHP package update replaces the binary; the distro postinst does not know
-	# hestia-php.service, so without the apt hook the master serves the old image
+	# A PHP update replaces the binary, and the distro postinst does not know hestia-php.service.
 	local pid exe
 	pid=$(systemctl show -p MainPID --value hestia-php 2> /dev/null)
 	if [ -z "$pid" ] || [ "$pid" = 0 ]; then
-		# master not running: the service check above already flags that red -
-		# do not claim an image state nothing looked at
+		# The service check above already reports a stopped master.
 		ok "panel PHP $v (php-version file and binaries present; master not running, see the service check)"
 		return
 	fi
@@ -573,8 +524,7 @@ check_panel_php_version() {
 			return
 			;;
 	esac
-	# same string carries the version: file says $v, master may still run the old one
-	# (a version switch without the restart is exactly this state)
+	# A version switch without the restart leaves the master on the old binary.
 	if [ -n "$exe" ] && [ "${exe##*/}" != "php-fpm$v" ]; then
 		no "panel FPM master runs ${exe##*/} but php-version says $v" "restart hestia-php to load the recorded version"
 		return
@@ -582,10 +532,7 @@ check_panel_php_version() {
 	ok "panel PHP $v (php-version file, binaries present, master image on disk)"
 }
 
-# The MTA the panel actually calls. PHP's mail runs sendmail_path, so a box without
-# that binary loses every notification - password reset, backup report - while the wrapper still
-# exits 0. Nothing installed one without a mail block; on Debian the base image happened to ship
-# exim4-daemon-light and it looked fine, on Ubuntu it never did.
+# PHP mail runs sendmail_path, so without that binary every notification is lost while the wrapper exits 0.
 check_notification_mta() {
 	local relay='' path bin
 	if [ "${USE_SERVER_SMTP:-}" = 'true' ] && [ -n "${SERVER_SMTP_HOST:-}" ]; then
@@ -605,31 +552,23 @@ check_notification_mta() {
 	fi
 }
 
-# nomail's send-only promise is two config keys that a silent sed miss can
-# skip: assert them on every box that carries exim but no mail block, and prove the
-# listener side from the socket table rather than the config.
+# nomail's send-only promise, measured on the generated config and the socket table, never the input file.
 check_exim_sendonly() {
 	local c=/etc/exim4/update-exim4.conf.conf gen=/var/lib/exim4/config.autogenerated
 	if [ -n "$MAIL_SYSTEM" ]; then
 		return # full mail stack: its own service checks carry it
 	fi
-	# Said out loud instead of returning: a missing input file used to read as "not this
-	# box's contract" and the check vanished from the output - on a nomail box that absence IS
-	# the defect, and check_notification_mta is the one that says so.
+	# Skipped visibly: check_notification_mta reports the missing MTA itself.
 	if [ ! -f "$c" ]; then
 		skip "exim send-only: $c absent, routing not verifiable here"
 		return
 	fi
-	# measure the EFFECT on both halves: the generated config (did the generator
-	# run over the internet type - a hand-edited input without regeneration keeps
-	# exim on local-only) and the live socket table, never the input file alone
+	# A hand-edited input without regeneration keeps exim local-only.
 	if [ ! -f "$gen" ] || ! grep -q '^dnslookup:' "$gen"; then
 		no "exim send-only routing" "generated config carries no dnslookup router - remote delivery is off (regenerate: update-exim4.conf)"
 		return
 	fi
-	# runtime vs disk (the master-image pattern): a daemon started before the
-	# regeneration still carries the old config in memory. Narrow but real: the
-	# per-message exim spawn reads disk, the stale daemon owns the queue retries.
+	# A daemon started before the regeneration runs the queue retries on the old config.
 	local started gen_m
 	started=$(date -d "$(systemctl show -p ActiveEnterTimestamp --value exim4 2> /dev/null)" +%s 2> /dev/null)
 	gen_m=$(stat -c %Y "$gen" 2> /dev/null)
@@ -654,9 +593,7 @@ check_exim_sendonly() {
 	ok "exim send-only (dnslookup router generated, loopback listeners live)"
 }
 
-# Project quota: the key against measured enforcement, same probe the
-# installer wrote it from. Never quotaon -pP as oracle (prints "on" without
-# enforcing, exits 1 when good, localizes).
+# The key against measured enforcement. quotaon -pP is no measure: it prints on without enforcing.
 check_project_quota() {
 	local state="${PROJECT_QUOTA%%:*}" reason="${PROJECT_QUOTA#*:}"
 	case "$state" in
@@ -668,8 +605,7 @@ check_project_quota() {
 			fi
 			;;
 		pending)
-			# pending:reboot is the expected state before the demanded install
-			# reboot: a FAIL there trains people to ignore fails
+			# The expected state before the install reboot; a FAIL there trains people to ignore fails.
 			if [ "$reason" = 'reboot' ]; then
 				skip "project quota: armed, waiting for the install reboot (pending is not verified)"
 			else
@@ -708,12 +644,8 @@ check_panel_port() {
 	fi
 }
 
-# Customer PHP CPU cap: the ENFORCED value from the cgroup, never the systemd property -
-# the property reads the drop-in the moment it is written, so a fleet of masters still running in
-# system.slice reports itself capped. The boot step deliberately does not abort a boot, so nothing
-# else would notice a cap that never got computed.
-#
-# Not covered: whether the cap is the right size - a hand-set value is reported, not judged.
+# The enforced cpu.max from the cgroup, never the systemd property, which reads the drop-in as soon as it is
+# written. Not covered: whether the cap is the right size.
 check_customer_php_slice() {
 	local versions uncapped='' seen=0 ver cores cpu_max quota period pct conf
 	versions=$(customer_php_versions)
@@ -727,11 +659,7 @@ check_customer_php_slice() {
 		seen=$((seen + 1))
 		customer_php_in_slice "$ver" || uncapped="$uncapped php$ver-fpm"
 	done
-	# Counted, not inferred from an empty list: with no master running, $uncapped stays empty and
-	# the branch below would report every master capped having looked at none. Returning instead
-	# of falling through, because the slice then has no cgroup either and the cap branch would
-	# add "nothing is capped" - true, useless, and reading like a contradiction. That FPM is down
-	# is check_service's sentence to say, once.
+	# Counted: with no master running nothing was looked at, and that FPM is down is check_service's to say.
 	if [ "$seen" -eq 0 ]; then
 		skip "customer PHP cap: no customer php-fpm master is running (nothing to place, nothing to cap)"
 		return
@@ -744,8 +672,7 @@ check_customer_php_slice() {
 
 	cpu_max=$(customer_php_cpu_max)
 	cores=$(nproc --all 2> /dev/null)
-	# Same reader as the boot script, range check included: a value the script refuses must not
-	# be reported here as the configured one.
+	# The boot script's reader: a value it refuses must not be reported as the configured one.
 	if customer_php_percent; then
 		conf="${CUSTOMER_PHP_PERCENT}%"
 	else
@@ -754,16 +681,13 @@ check_customer_php_slice() {
 	quota=${cpu_max%% *}
 	period=${cpu_max##* }
 	if [ -z "$cpu_max" ]; then
-		# Measured: with the quota gone systemd drops the cpu controller from the subtree, so
-		# cpu.max is missing rather than "max" - and an inactive slice has no directory at all.
-		# Both mean the same thing here, and neither says anything about membership.
+		# Without a quota systemd drops the cpu controller, so cpu.max is absent rather than max.
 		no "customer PHP slice carries no CPU limit (cpu.max absent)" \
 			"nothing is capped - systemctl restart $CUSTOMER_PHP_LIMIT_UNIT, then read its status"
 	elif [ "$quota" = 'max' ]; then
 		no "customer PHP cap not applied (cpu.max: $cpu_max)" \
 			"nothing is capped - systemctl restart $CUSTOMER_PHP_LIMIT_UNIT, then read its status"
 	else
-		# Back to a share of the machine, which is what the config file promises.
 		pct=$((quota * 100 / period / ${cores:-1}))
 		ok "customer PHP cap enforced: cpu.max $cpu_max = ${pct}% of ${cores:-?} cores (configured $conf)"
 	fi
@@ -789,21 +713,14 @@ check_panel_translates() {
 	fi
 }
 
-# check_policy_fragment_coverage, a per-domain POLICY fragment (CrowdSec Layer A, bot rate limiting)
-# must be in EVERY customer-domain template of its web system: it applies to all traffic, so a template
-# missing one is a silent bypass (switch to the wordpress template, escape the throttle, nothing fails).
-# Feature fragments (ssl/hsts/forcessl/fastcgi_cache) are NOT checked - they belong only to the
-# templates implementing them. Scope = templates carrying %domain%, so the per-IP catch-all is skipped.
+# A policy fragment (CrowdSec, bot limit) must be in every domain template of its web system, or switching
+# templates escapes it. Feature fragments are not checked. Scope: templates carrying %domain%.
 check_policy_fragment_coverage() {
 	local f frag miss=0 first="" checked=0
-	# By file, not by service directory: a vhost template can live anywhere under the two
-	# roots (share/web/suspend/ does), and scanning fixed subdirs would quietly skip it.
-	# The pool templates under templates/php carry %domain% but are not vhosts.
+	# By file under both roots, not by service directory, so a template outside the usual subdirs is not skipped.
 	while read -r f; do
 		[ -n "$f" ] || continue
-		# Decided by content: a vhost declares either a VirtualHost or a server block.
-		# Keying on the path would break the moment a directory is renamed - which is
-		# exactly what just happened - and silently shrink the guard.
+		# Decided by content, not path: a rename would otherwise shrink the guard silently.
 		if grep -q '^[[:space:]]*<VirtualHost' "$f"; then
 			set -- botlimit.apache2.conf
 		elif grep -qE '^[[:space:]]*server[[:space:]]*\{' "$f"; then
@@ -857,14 +774,8 @@ check_sudoers() {
 	fi
 }
 
-# check_yescrypt_hashing: the panel login of every account whose /etc/shadow entry is yescrypt runs
-# through mkpasswd from the whois package, and yescrypt is the PAM default on all four targets. If
-# the binary is gone or its libcrypt cannot do yescrypt, NOBODY logs in and the panel says "invalid
-# password" - a total outage wearing the mask of a typo. So this asks by doing the thing the login
-# does: hash a known string, then reproduce it from its own setting, which is the exact comparison
-# h-check-user-password makes against the shadow entry.
-#
-# Does NOT cover md5/sha-512/des accounts - those go through h-generate-password-hash (perl crypt).
+# Panel logins of yescrypt accounts run through mkpasswd; without it, or a libcrypt without yescrypt, nobody
+# logs in. Asked by doing what the login does. Not covered: md5/sha-512 accounts (perl crypt).
 check_yescrypt_hashing() {
 	local ref again setting probe='hestia-smoke-probe'
 	if ! command -v mkpasswd > /dev/null 2>&1; then
@@ -887,11 +798,8 @@ check_yescrypt_hashing() {
 		ok "yescrypt hashing works and reproduces from its setting"
 	fi
 }
-# check_install_root_owner: nothing under the install root belongs
-# to anyone but root, nothing is group- or world-writable. The runtime directories a panel pool needs
-# (session.save_path, upload_tmp_dir, sys_temp_dir) are read from the FPM configuration, never written
-# here as a literal, so the check heals itself when such a directory moves out of the tree. Symlinks
-# are skipped, their targets live elsewhere. A scan that saw almost nothing is red, not green.
+# Nothing under the install root belongs to anyone but root or is group/world writable. Pool runtime dirs come
+# from the FPM config, symlinks are skipped, and a scan that saw almost nothing fails.
 check_install_root_owner() {
 	local allowed p hits n bad
 	allowed=$(grep -hoE '^ *(php_(admin_)?value\[)?(session\.save_path|upload_tmp_dir|sys_temp_dir)\]? *= *"?[^" ]+' \
@@ -944,13 +852,8 @@ check_secret_file_modes() {
 	fi
 }
 
-# The panel's session files are the one place a registry value lands on disk in a form nobody
-# curates: every key of h-list-sys-config json goes into $_SESSION and PHP serialises the lot. So
-# this asks the ARTEFACT, not the emitter - a secret flag quietly dropped from the registry would
-# make the emitter agree with itself and leak anyway (#976).
-# It also holds the store's three spellings together: the pool's php.ini, the daily cleanup and the
-# directory itself. #974 moved the store and left the cleanup sweeping a path that no longer exists.
-# Not covered: the customers' own sessions under /home/*/tmp, which carry no panel config.
+# Every key of h-list-sys-config json lands in $_SESSION, so the session files are asked for secret values, not
+# the registry. Also holds the store path, its php.ini and the daily cleanup together. Not covered: /home/*/tmp.
 check_panel_session_store() {
 	local ini='/etc/php/hestia/fpm/php.ini' cron='/etc/cron.daily/php-session-cleanup'
 	local path secrets f k v n=0 seen=0 bad='' named=0
@@ -969,8 +872,7 @@ check_panel_session_store() {
 		[ -f "$f" ] || continue
 		n=$((n + 1))
 		for k in $secrets; do
-			# The control: the key NAME must be in there. Without it the file is not a panel session,
-			# or it is unreadable, and "no value found" would only mean the probe never arrived.
+			# Control: without the key name the file is no panel session, and a clean result would prove nothing.
 			grep -qF -- "$k" "$f" 2> /dev/null && named=1
 			v=$(sed -n "s/^$k='\(.*\)'\$/\1/p" "$HESTIA/conf/hestia.conf" 2> /dev/null | head -1)
 			[ -n "$v" ] || continue
@@ -992,11 +894,10 @@ check_panel_session_store() {
 	fi
 }
 
-# check_restic_mode_supported: restic mode without the addon or without a repository means no
-# backup at all, and the nightly run says so only in the log.
+# restic mode without restic or a repository means no backup at all, said only in the nightly log.
 check_restic_mode_supported() {
 	local u m repo n=0 bad=0 first=""
-	# The gate's own resolution, called directly - the gate would exit through check_result.
+	# The gate's own resolution, called directly: the gate would exit through check_result.
 	repo=$(restic_repo_base) || repo=""
 	for u in $("$BIN/h-list-users" list 2> /dev/null); do
 		m=$(sed -n "s/^.*BACKUPS_MODE='\([^']*\)'.*/\1/p" "$CONF_DIR/users/$u/user.conf" 2> /dev/null | head -1)
@@ -1016,8 +917,7 @@ check_restic_mode_supported() {
 		no "$bad customer(s) in restic mode without support" "$first"
 	fi
 }
-# check_ioncube_versions: h-add-web-php only warns when a new version misses the loader. Asks the FPM binary,
-# whose conf.d customers run with; covers loading, not the loader's behaviour.
+# h-add-web-php only warns when a new version misses the loader. Covers loading, not the loader's behaviour.
 check_ioncube_versions() {
 	local v list checked=0 noload='' bad=''
 	[ -n "${IONCUBE_SYSTEM:-}" ] || {
@@ -1045,8 +945,7 @@ check_ioncube_versions() {
 		ok "ionCube loaded in $checked PHP version(s)${noload:+, no loader exists for$noload}"
 	fi
 }
-# check_logrotate_parses: a doubled path makes logrotate exit 1 and the unit stay failed. Only a
-# collision with one of our files is ours; base-system ones are named, not red.
+# A doubled path makes logrotate exit 1 and the unit stay failed. Only collisions with our files are red.
 check_logrotate_parses() {
 	local out owned line path f pat mine ours=0 base=0 first="" basefiles="" mycount=0
 	if ! command -v logrotate > /dev/null 2>&1; then
@@ -1091,9 +990,7 @@ check_logrotate_parses() {
 		ok "logrotate parses its configuration (ours: $mycount file(s))"
 	fi
 }
-# check_web_config_test: a vhost or fragment the server cannot load (a quic listen on an nginx without
-# http_v3, a cache flag whose zone is gone, a 0-byte or hostless-upstream vhost) stays harmless until the
-# next reload, which then fails box-wide. One config test per server covers every such cause at once.
+# A vhost or fragment the server cannot load stays harmless until the next reload, which then fails box-wide.
 check_web_config_test() {
 	local sys out rc n=0
 	for sys in $(printf '%s\n' "$WEB_SYSTEM" "$PROXY_SYSTEM" "${WEBMAIL_FRONT:-}" | grep . | sort -u); do
@@ -1203,11 +1100,8 @@ check_mail_domain_links() {
 		no "$miss mail domain(s) without a link, $stray stray entr(ies) in $dir" "${first:-$sfirst}"
 	fi
 }
-# check_record_grammar: every record line against record_line_valid, the one place that defines
-# the grammar (include/main.sh). A line that loses its quotes stays READABLE - source_conf takes
-# KEY=value just fine - while every writer looks for KEY='...' and silently finds nothing. The
-# record then shows a value that no change can move, and the panel looks correct while saving
-# nothing. Cheap, and it catches hand edits, ours included.
+# Every record line against record_line_valid: a line that loses its quotes stays readable, but every writer
+# looks for KEY='...' and silently changes nothing.
 check_record_grammar() {
 	local f n=0 bad=0 first="" line
 	if ! declare -F record_line_valid > /dev/null 2>&1; then
@@ -1237,9 +1131,7 @@ check_record_grammar() {
 	fi
 }
 
-# check_ip_object_counters: the ip-record counters had an authority but no guard (the
-# IP_AVAIL lage before ), and the NAT-blind decrease left real backlog. Object list
-# derives from the files; the authority's check mode is the only rule source.
+# The ip counters against the read-only check mode of their authority, the only rule source.
 check_ip_object_counters() {
 	local f addr line k want stored drift=0 checked=0 first='' obj_out obj_lines
 	for f in "$CONF_DIR"/ips/*; do
@@ -1273,13 +1165,8 @@ check_ip_object_counters() {
 	fi
 }
 
-# check_object_counters: the stored counters against what h-update-user-counters WOULD write.
-# The counting rules are not repeated here: this guard had its own set, and the two that were
-# missing from it (IP_AVAIL, IP_OWNED) drifted for exactly that reason. The authority is
-# asked in its read-only 'check' mode, so a counter added there is verified from that day on.
-#
-# It also asks the other way round: a counter-shaped key in the registry that the authority does
-# not compute lives outside both, which is how U_MAIL_SSL survived for years.
+# The stored counters against what h-update-user-counters check would write, so the rules live in one place.
+# Also a counter-shaped registry key that nothing computes.
 check_object_counters() {
 	local u line k stored want drift=0 checked=0 first="" computed missing="" reg
 	computed=$("$BIN/h-update-user-counters" "$ROOT_USER" check 2> /dev/null | cut -d= -f1)
@@ -1316,11 +1203,8 @@ check_object_counters() {
 		|| no "registry counter(s) nothing computes:$missing" "outside both the recount and this guard - remove them or compute them"
 }
 
-# Every operator key the registry declares has to be IN hestia.conf. Its default is reachable only
-# through h-repair-sys-config, and no cron runs that, so an absent key is a state nothing
-# else notices: the reader then gets an empty string, and the ad-hoc `[ -z "$X" ] && X=...` copies
-# that used to paper over it are a second home for the default. Registry keys are [A-Z0-9_], so the
-# anchored grep needs no escaping. An empty key set fails, it never passes.
+# Every operator key the registry declares must be in hestia.conf: only h-repair-sys-config writes its default,
+# and no cron runs that. An empty key set fails.
 check_operator_keys_present() {
 	local reg="$HESTIA/share/hestia/sys-keys.json" conf="$HESTIA/conf/hestia.conf" k n=0 miss=''
 	if [ ! -f "$reg" ] || [ ! -f "$conf" ]; then
@@ -1357,11 +1241,9 @@ check_update_version() {
 		no "update did not finish: tree is $tree, status says ${VERSION:-<empty>}" \
 			"work the plan off, then the status follows: h-update-hestia <run directory>/update.conf"
 	fi
-	# A bound above the tree would mean this release refuses to carry itself onward. Unreadable is red,
-	# never green: without the literal nothing turns a too-old box away.
+	# A bound above the tree would leave this release unable to carry itself onward; unreadable is red.
 	local bound
-	# Everything after the `=`, quotes stripped: the value decides, not how it is spelled. A commented
-	# out or renamed line matches nothing and is red below.
+	# The value after the `=`, quotes stripped; a commented-out line matches nothing and is red.
 	bound=$(sed -n 's/^UPDATE_MIN_VERSION=//p' "$HESTIA/update.sh" 2> /dev/null | head -1 | tr -d "\"'")
 	if [ -z "$bound" ]; then
 		no "update: no lower bound found in update.sh" "UPDATE_MIN_VERSION is what refuses a box below it"
@@ -1370,8 +1252,7 @@ check_update_version() {
 	else
 		no "update: the tree $tree is below its own lower bound $bound" "this release could not update itself onward"
 	fi
-	# Finished also means nothing pending, the test update.sh's early exit makes. No manifest entry read
-	# at all would pass that by looking at nothing, so it is red.
+	# Finished also means nothing pending; reading no manifest entry at all is red.
 	if [ "$tree" != "$VERSION" ]; then
 		skip "update: pending entries not checked while the run above is unfinished"
 		return
@@ -1392,21 +1273,15 @@ check_update_version() {
 	fi
 }
 
-# The crontab calls its jobs through sudo, and /etc/sudoers.d/hestia says which paths that grant
-# reaches. Two hand-kept lists over one surface, with nothing holding them together: a line pointing
-# one level above bin/ was refused every night for a week and the panel banner never appeared
-# (#1091). sudo is asked rather than the file parsed, so a grant from any sudoers file counts.
-#
-# Not covered: whether the command then does what the line intends. sudo is asked about the command
-# path, because that is what the grant is written in terms of, not about its arguments.
+# The crontab calls its jobs through sudo; sudo is asked whether the grant reaches each command path. Not
+# covered: the arguments.
 check_crontab_sudo_reach() {
 	local ct='/var/spool/cron/crontabs/hestia' line cmd n=0 bad=''
 	if [ ! -s "$ct" ]; then
 		no "crontab sudo reach: $ct is missing or empty" "nothing to compare, which is not a pass"
 		return
 	fi
-	# Controls first, both directions: sudo must call the granted path allowed and an unrelated one
-	# refused. Without them a sudo that answers nothing at all would clear every line in the file.
+	# Controls both ways, a granted path allowed and an unrelated one refused, or a silent sudo clears every line.
 	if ! sudo -l -U hestia "$HESTIA/bin/h-list-sys-services" > /dev/null 2>&1 \
 		|| sudo -l -U hestia /bin/sh > /dev/null 2>&1; then
 		skip "crontab sudo reach: sudo -l -U does not decide on this box, so the lines are unchecked"
@@ -1430,12 +1305,8 @@ check_crontab_sudo_reach() {
 	fi
 }
 
-# THE BOUNDARY: a guard verifies an artefact, it never fills one. Nothing here may call an upd_act_*.
-# check_system_keys_agree: the system keys the repair never fills, held against the box: a
-# lost one stays lost until something says so. ROOT_USER must name an admin record; every DB_SYSTEM
-# token must have its host registration under conf/; every BACKUP_SYSTEM token except local its
-# backup host file. VERSION is Phase 4, the component keys are the service gates below and the
-# artefact fields of 1c.
+# The system keys the repair never fills: ROOT_USER names an admin record, every DB_SYSTEM token has its host
+# file, every BACKUP_SYSTEM token but local its backup host file.
 check_system_keys_agree() {
 	local bad='' t
 	if [ -z "$ROOT_USER" ]; then
@@ -1463,8 +1334,7 @@ check_system_keys_agree() {
 	fi
 }
 
-# _artefact_present TYPE VALUE: 0 present, 1 absent, 2 unknown type. Present, never running (E2, 1c halt):
-# a unit file on disk, a socket path, a file, a command on PATH. Running is what check_service is for.
+# _artefact_present TYPE VALUE: 0 present, 1 absent, 2 unknown type. Present, not running.
 _artefact_present() {
 	case "$1" in
 		service) [ -n "$(systemctl list-unit-files --no-legend "$2.service" 2> /dev/null)" ] ;;
@@ -1475,11 +1345,8 @@ _artefact_present() {
 	esac
 }
 
-# THE BOUNDARY: a guard verifies an artefact, it never fills one. Nothing here may call an upd_act_*.
-# check_manifest_artefacts: for every component with a status_artefact: key set <=> artefact present,
-# both directions (a set key without its artefact is the swallowed-install class, an artefact without its
-# key is a hand install or a lost record). An unknown type is red, never skipped; zero components with an
-# artefact is red. Names keys and artefacts, never key values.
+# Every component with a status_artefact: key set if and only if the artefact is present. An unknown type and
+# zero components are red. Names keys, never values.
 check_manifest_artefacts() {
 	local m="$HESTIA/share/manifest.json" n=0 bad='' cid key type val v rc
 	while IFS=$'\t' read -r cid key type val; do
@@ -1505,10 +1372,8 @@ check_manifest_artefacts() {
 	fi
 }
 
-# check_key_registries: conf/defaults/*.conf must exist and match the key sets compiled into
-# include/syshealth.sh. A registry that is missing, stale or duplicated makes the repair functions
-# skip exactly the keys they exist to add, and does it silently, which is the whole reason
-# this guard is here rather than a comment.
+# conf/defaults/*.conf against the key sets compiled into include/syshealth.sh: a stale registry makes the
+# repair skip exactly the keys it exists to add.
 check_key_registries() {
 	local sys want have missing='' drift='' dupes=''
 	if ! declare -F syshealth_known_keys > /dev/null 2>&1; then
@@ -1516,11 +1381,9 @@ check_key_registries() {
 		return
 	fi
 	local unknown=''
-	# system is not here: its registry is share/hestia/sys-keys.json, checked in CI by .gitea/tools/check-tree.sh.
+	# system lives in share/hestia/sys-keys.json, checked by .gitea/tools/check-tree.sh.
 	for sys in web mail mail_accounts user cron db ip; do
-		# An empty reference must not pass as agreement: the writer feeds from the same function, so
-		# a subsystem with no branch would write an empty registry that then matches its own empty
-		# source. Caught here rather than reported as PASS on eight empty files.
+		# An empty reference would agree with the empty registry it writes.
 		if ! want="$(syshealth_known_keys "$sys")" || [ -z "$want" ]; then
 			unknown="$unknown $sys"
 			continue
@@ -1542,9 +1405,7 @@ check_key_registries() {
 	fi
 }
 
-# check_proc_hardening: the exemption is a live mount option, so verify the running
-# state, not the config. Catches a failed unit (fail-open is silent to users) and a gid
-# that drifted off the group after a delete/recreate cycle.
+# The live mount, not the config: a failed unit fails open silently, and a gid can drift off the group.
 check_proc_hardening() {
 	local unit='hestia-proc-hardening.service' mounted group_gid
 	if ! systemctl list-unit-files "$unit" > /dev/null 2>&1 \
@@ -1562,8 +1423,7 @@ check_proc_hardening() {
 		no "/proc has no hidepid" "every user can read foreign /proc/*/cmdline; systemctl start $unit"
 	fi
 
-	# A stale numeric gid would exempt whoever holds it now, which is the failure the
-	# unit resolves the group at boot to avoid - so it must not reappear.
+	# A stale numeric gid would exempt whoever holds it now.
 	mounted=$(awk '$2 == "/proc" { print $4 }' /proc/mounts | tr ',' '\n' | sed -n 's/^gid=//p')
 	group_gid=$(getent group procvis 2> /dev/null | cut -d: -f3)
 	if [ -z "$mounted" ]; then
@@ -1577,8 +1437,7 @@ check_proc_hardening() {
 }
 
 check_mesh_serve_staged() {
-	# Without the staging, /mesh-decisions.php 404s and every peer silently stops receiving this box's
-	# bans - and since /run is tmpfs, a missed refresh after a boot looks healthy from anywhere else.
+	# Without the staging every peer stops receiving this box's bans, and /run is empty after a boot.
 	if [ ! -s "$CONF_DIR/crowdsec/peers.conf" ]; then
 		ok "crowdsec mesh has no peers paired"
 	elif [ -f /run/hestia/mesh/tokens ] && [ -f /run/hestia/mesh/published.json ]; then
@@ -1588,8 +1447,7 @@ check_mesh_serve_staged() {
 	fi
 }
 
-# check_web_model_sentinel: flag an interrupted model switch so the box reports it
-# rather than the operator discovering it at the next reboot.
+# An interrupted model switch reports itself instead of surfacing at the next reboot.
 check_web_model_sentinel() {
 	local s="/var/lib/hestia/web-model-switch/IN_PROGRESS" op
 	if [ -f "$s" ]; then
@@ -1600,21 +1458,15 @@ check_web_model_sentinel() {
 	fi
 }
 
-#----------------------------------------------------------#
-# Action #
-#----------------------------------------------------------#
-
 echo "=== HestiaRE smoke test ==="
 
-# --- Panel (always expected) ---
 echo "-- panel --"
 check_service caddy "panel webserver"
 check_service hestia-php "panel PHP-FPM"
 check_panel_php_version
 check_panel_port
 check_http "https://127.0.0.1:${BACKEND_PORT:-8083}/login/" "panel login page"
-# The v6 twin of the same probe: a listener that binds only v4 looks identical from 127.0.0.1.
-# Loopback, so it needs a v6 kernel and nothing else - measured 200 on v4-only, dual and v6-only boxes.
+# The v6 twin: a listener bound to v4 only looks identical from 127.0.0.1.
 if [ -e /proc/net/if_inet6 ]; then
 	check_http "https://[::1]:${BACKEND_PORT:-8083}/login/" "panel login page over v6"
 else
@@ -1624,7 +1476,6 @@ check_sudoers
 check_project_quota
 check_customer_php_slice
 
-# --- Configured subsystems (derived from *_SYSTEM) ---
 echo "-- services --"
 [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'nginx' ] && check_service "$WEB_SYSTEM" "web"
 [ -n "$PROXY_SYSTEM" ] && check_service "$PROXY_SYSTEM" "reverse proxy"
@@ -1634,47 +1485,31 @@ echo "-- services --"
 check_notification_mta
 check_exim_sendonly
 [ -n "$IMAP_SYSTEM" ] && check_service "$IMAP_SYSTEM" "imap"
-# The one measured case: a dovecot that never read its own auth chain still answers on 143
-# with a banner, so the liveness check above cannot see it.
+# A dovecot that never read its auth chain still answers on 143.
 [ -n "$IMAP_SYSTEM" ] \
 	&& check_config_loaded dovecot "imap" /etc/dovecot/dovecot.conf /etc/dovecot/conf.d/*.conf
 [ -n "$ANTISPAM_SYSTEM" ] && check_service "$ANTISPAM_SYSTEM" "antispam"
 [ -n "$FTP_SYSTEM" ] && check_service "$FTP_SYSTEM" "ftp"
-# Not gated on CRON_SYSTEM: cron is in the installer's base package list, so it is on every box in
-# every profile. No command sets the key either, so gating here meant emptying it by hand REMOVED
-# this check instead of failing it - the key names the implementation, it does not decide whether
-# cron is expected (#971). An unusable registry leaves the name empty, which is red, not silent.
+# Not gated on CRON_SYSTEM: cron is on every box, and an emptied key must fail this, not remove it.
 check_service "${CRON_SYSTEM:-$(sysreg_default CRON_SYSTEM)}" "cron"
-# A LOCAL engine is the presence key, never DB_SYSTEM: that one is the host register and a token there can
-# name a remote server, on which no local service is expected to run. The recipe is gone from here
-# for the same reason it is gone everywhere else, it says what was chosen.
-#
-# What these gates do NOT cover, said out loud because the reference set got narrower: they now believe the
-# status key. An empty key where the service IS installed makes the check below skip in silence, and only
-# the components with a status_artefact are watched from the other side (check_manifest_artefacts).
-# MariaDB, PostgreSQL, Redis, CrowdSec and Adminer are not among them, so for those five the pairing rests
-# on their writers, which set the key on the success path AND on the already-installed path (the 1b build
-# rule). Redis has no artefact on purpose: the package is there in both states, and only the cap marker
-# tells the general service from rspamd's companion.
+# The local engine key, never DB_SYSTEM, which may name a remote server. Not covered: an empty key where the
+# service is installed skips silently; only components with a status_artefact are watched both ways.
 [ -n "$DB_MARIADB_SYSTEM" ] && check_service mariadb "database (mysql)"
 [ -n "$DB_POSTGRESQL_SYSTEM" ] && check_service postgresql "database (pgsql)"
 if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
 	check_service fail2ban "fail2ban"
-	# The service being up says nothing about whether any jail is: these four are what make a green run
-	# mean working brute-force protection.
+	# The service being up says nothing about the jails.
 	check_fail2ban_config
 	check_fail2ban_jails
 	check_fail2ban_watch
 fi
-# clamav's service check moved into the addon recount, which also verifies the other six
 check_addons_swallowed
 [ -n "$CROWDSEC_SYSTEM" ] && check_service crowdsec "crowdsec"
 # Layer separation runs whenever either system is present (marker or extension), not gated on a component.
 { [ -f "$CONF_DIR/firewall/crowdsec.conf" ] || [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; } && check_firewall_layer_separation
-# L3 feeder timer only where CrowdSec L3 is wired (the marker) - keyed off the artefact,
-# not just the component flag, so a crowdsec-without-L3 state doesn't false-fail.
+# Keyed off the L3 marker, not the component, so CrowdSec without L3 does not fail.
 [ -f "$CONF_DIR/firewall/crowdsec.conf" ] && check_service hestia-crowdsec-l3.timer "crowdsec L3 feeder timer"
-# fleet-mesh timer only where mesh is enabled (its marker conf), same artefact-gated reasoning.
+# Only where mesh is enabled (its marker).
 if [ -f "$CONF_DIR/crowdsec/mesh.conf" ]; then
 	check_service hestia-crowdsec-mesh.timer "crowdsec fleet-mesh timer"
 	check_mesh_serve_staged
@@ -1693,24 +1528,18 @@ if [ -n "$REDIS_SYSTEM" ] || [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
 	check_service redis-server "redis"
 fi
 
-# --- Firewall datapath (live state, not just the daemon) ---
-# The two invariants a green service check cannot see. Both keyed off FIREWALL_SYSTEM, since an
-# ACCEPT policy is correct when the firewall is deliberately off. The invariants outlive the
-# iptables renderer (re-expresses them against nft), the mechanism below does not.
+# An ACCEPT policy is correct when the firewall is deliberately off.
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
 	check_firewall
 fi
 
-# --- Ports implied by the active config ---
 echo "-- ports --"
 if [ -n "$PROXY_SYSTEM" ] || [ -n "$(webmail_front)" ]; then
 	check_port 80 "http"
 	check_port 443 "https"
 fi
-# The LOCAL engine key, not the host register: a registered mysql host may be a remote one, and then no
-# local listener is expected. Reachable after h-delete-sys-mariadb on a box that also has a remote host,
-# because the token only goes when the LAST host of its type does (measured: red on exactly that state).
+# The local engine key: a registered mysql host may be remote, and then no local listener is expected.
 [ -n "$DB_MARIADB_SYSTEM" ] && check_port 3306 "mysql"
 # banner, not just port: IMAP/SMTP must actually answer (a hung login still listens)
 if [ -n "$IMAP_SYSTEM" ]; then
@@ -1726,7 +1555,6 @@ fi
 # localhost-only (webmail managesieve plugin), not opened in the firewall
 [ "$SIEVE_SYSTEM" = 'yes' ] && check_port 4190 "managesieve"
 
-# --- Critical log markers ---
 echo "-- logs --"
 check_log_clean "/var/log/hestia-php-fpm.log" "PHP (Fatal|Parse) error|\[emergency\]|\[alert\]" "panel FPM"
 if [ -n "$PROXY_SYSTEM" ] || [ -n "${WEBMAIL_FRONT:-}" ]; then
@@ -1736,18 +1564,15 @@ fi
 # exim writes serious problems to a dedicated paniclog, non-empty means trouble
 [ -n "$MAIL_SYSTEM" ] && check_file_empty "/var/log/exim4/paniclog" "exim paniclog"
 
-# --- Invariants of this box (live state and records; the tree-only guards run in CI, check-tree.sh) ---
+# Invariants of this box; the tree-only guards run in CI (.gitea/tools/check-tree.sh).
 echo "-- invariants --"
 check_sudo_secret_leak
 check_config_editor
 check_panel_languages
 check_panel_translates
-# a policy fragment (crowdsec Layer A, bot rate limiting) missing from one template is a silent bypass.
 check_policy_fragment_coverage
 check_web_config_test
-# An interrupted model switch must not stay invisible.
 check_web_model_sentinel
-# fail-open is invisible to users: verify the live mount, not the intent.
 check_proc_hardening
 check_web_records
 check_mail_domain_links
@@ -1758,7 +1583,6 @@ check_install_root_owner
 check_secret_file_modes
 check_panel_session_store
 check_yescrypt_hashing
-# derived counters drift silently when an increase/decrease pair dies half way.
 check_object_counters
 check_ip_object_counters
 check_record_grammar
@@ -1769,10 +1593,6 @@ check_update_version
 check_crontab_sudo_reach
 check_system_keys_agree
 check_manifest_artefacts
-
-#----------------------------------------------------------#
-# Result #
-#----------------------------------------------------------#
 
 echo "=== result: $pass passed, $fail failed ==="
 if [ "$fail" -gt 0 ]; then

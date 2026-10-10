@@ -12,6 +12,11 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
+### Added
+
+- **Preset `latest` takes nginx from nginx.org mainline** (#194). CrowdSec runs there without the web bouncer,
+  detection plus firewall bans in mode local, because the bouncer module only loads into the distribution's nginx.
+
 ### Changed
 
 - **`hestia update` asks before it updates** (#1176). It shows the target first; `--yes` skips the question, and

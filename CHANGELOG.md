@@ -25,6 +25,8 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **Deleting a user could hand another customer's dedicated IP back to the admin** (#1176). Names differing only
+  where one has a dot matched each other; the panel's IP list had the same mix-up.
 - **After an uninstall every root shell reported a missing profile file** (#1176). The installer's `.bashrc` block
   goes with it now.
 - **`hestia uninstall --purge` left units behind that run from the deleted tree** (#1176). The firewall unit failed

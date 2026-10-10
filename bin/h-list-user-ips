@@ -66,10 +66,10 @@ is_object_valid 'user' 'USER' "$user"
 
 owner="$ROOT_USER"
 # The path prefix is stripped, not cut at a field number: the data/ depth differs from upstream.
-owner_ips="$(grep -A 1 -H "OWNER='$owner'" $CONF_DIR/ips/*)"
+owner_ips="$(grep -F -A 1 -H "OWNER='$owner'" $CONF_DIR/ips/*)"
 owner_ips="$(echo "$owner_ips" | grep "STATUS='shared'")"
 owner_ips="$(echo "$owner_ips" | sed "s|-STATUS=.*||; s|^$CONF_DIR/ips/||")"
-user_ips="$(grep -H "OWNER='$user'" $CONF_DIR/ips/*)"
+user_ips="$(grep -F -H "OWNER='$user'" $CONF_DIR/ips/*)"
 user_ips="$(echo "$user_ips" | sed "s|:OWNER=.*||; s|^$CONF_DIR/ips/||")"
 ips="$(echo -e "$user_ips\n$owner_ips" | sort -u | sed "/^$/d")"
 fields='$IP $OWNER $STATUS $NAME $NAT'

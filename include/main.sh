@@ -1228,21 +1228,18 @@ remove_user_queue_jobs() {
 	mv -f "$file.tmp" "$file"
 }
 
-# The only accessor that stays a regex: its search value is a flag, and h-backup-user-config passes
-# "*" to mean "any". The guard below keeps that from decaying into matching a domain by accident;
-# a comment cannot stop the next caller, a refusal can.
+# Search values are flags, and "*" means "any": the field is there, whatever it holds. Literal like every other
+# accessor; a name is refused all the same, since one record is get_object_value's job.
 search_objects() {
-	# A dot appears only in a domain or account and as a pattern matches anything. The wildcard is
-	# the one legitimate pattern here.
+	local pat="$2='$3'"
 	case "$3" in
-		'*') ;;
+		'*') pat="$2='" ;;
 		*.*) check_result "$E_INVALID" "search_objects takes flag values, not names (got '$3')" ;;
 	esac
 	OLD_IFS="$IFS"
 	IFS=$'\n'
 	if [ -f "$(_object_conf "$1")" ]; then
-		for line in $(grep -E "(^| )$2='$3'" "$(_object_conf "$1")"); do
-			[[ "$line" =~ ^[[:space:]]*# ]] && continue
+		for line in $(_object_lines "$1" "$pat"); do
 			parse_object_kv_list "$line"
 			echo "${!4}"
 		done

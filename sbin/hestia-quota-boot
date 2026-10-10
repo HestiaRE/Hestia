@@ -4,8 +4,7 @@
 # labels: internal
 # caller: hestia-quota-on.service
 #
-# Boot-time project quota apply (#211): quotaon -P on ext4 plus the one-time
-# pending->active flip; design in include/quota.sh.
+# quotaon -P on ext4 plus the one-time pending->active flip; the design is in include/quota.sh.
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source "$HESTIA/include/main.sh"

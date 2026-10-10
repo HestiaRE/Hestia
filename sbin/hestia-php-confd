@@ -6,18 +6,9 @@
 #
 # example: hestia-php-confd 8.3
 #
-# The panel PHP (hestia-php-fpm/hestia-php wrappers, PHP_INI_SCAN_DIR) loads a
-# curated extension set from its own conf.d, independent of what customers toggle
-# on the same version. This (re)builds /etc/php/hestia/{fpm,cli}/conf.d from the
-# version's mods-available, keeping Debian priority prefixes. Run after panel
-# install and by h-change-sys-panel-php (version-specific path).
-#
-# EVERY app on the single hestia FPM master shares this fpm conf.d — panel UI,
-# phpMyAdmin/Adminer, and the webmail clients (Roundcube/Tachyon). Before
-# dropping any extension, check all three groups (fpm_*, fpm_apps_*,
-# fpm_webmail_*): a 2026-07 audit removed `dom` after checking only panel + DB
-# tools and 500'd every Roundcube page. Critical = hard build-time failure;
-# optional = warn. See CODEMAP panel_php_service.confd_isolation for the coupling.
+# Every app on the one panel FPM master shares the fpm set: panel, phpMyAdmin/Adminer and webmail. Check all three
+# groups before dropping an extension. Critical fails the build, optional warns. Coupling: CODEMAP
+# panel_php_service.confd_isolation.
 
 # The rest of the tree gets --help through main.sh, which this command does not load.
 # shellcheck source=/usr/local/hestia/include/help.sh
@@ -46,13 +37,10 @@ fpm_optional="opcache curl gmp zip ftp"
 fpm_apps_critical="ctype iconv fileinfo simplexml xmlwriter xmlreader"
 fpm_apps_optional="gd bz2 pgsql pdo_pgsql"
 # webmail: intl(IDN), phar(Tachyon plugins), dom(Roundcube renders every page) critical.
-# sqlite3/pdo_sqlite carry the no-MariaDB webmail backend (#584) - optional HERE because a
-# one-minor-back box updating in lacks the package.
+# sqlite3/pdo_sqlite carry the webmail backend without MariaDB, optional because a box updating in lacks the package.
 fpm_webmail_critical="intl phar dom"
 fpm_webmail_optional="exif sqlite3 pdo_sqlite"
-# CLI (sbin/hestia-php): composer + the notification HTML sanitizer (dom) + gettext -
-# mail-wrapper runs under this wrapper since #191 and includes web/inc/i18n.php
-# (bindtextdomain), so notification mail dies without it. No DB chain.
+# CLI: composer, the notification sanitizer (dom) and gettext, which mail-wrapper needs for web/inc/i18n.php.
 cli_critical="mbstring ctype iconv phar dom gettext"
 cli_optional="curl zip"
 

@@ -324,23 +324,27 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 
 	# panel cert must exist before caddy starts; LE replaces it later
 	echo "[ * ] Generating panel SSL certificate..."
-	"$BIN/h-generate-ssl-cert" "$HESTIA_HOSTNAME" '' 'US' 'California' 'San Francisco' 'HestiaRE' 'IT' > /tmp/hst.pem
-	local CRT_END KEY_START KEY_END
-	CRT_END=$(grep -n "END CERTIFICATE-" /tmp/hst.pem | head -n1 | cut -f1 -d:)
-	KEY_START=$(grep -nE "BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY" /tmp/hst.pem | head -n1 | cut -f1 -d:)
-	KEY_END=$(grep -nE "END (RSA |EC |ENCRYPTED )?PRIVATE KEY" /tmp/hst.pem | head -n1 | cut -f1 -d:)
+	# The key passes through this file: a private directory, not a fixed name in /tmp.
+	local CRT_END KEY_START KEY_END pem_dir pem
+	pem_dir=$(mktemp -d)
+	pem="$pem_dir/hst.pem"
+	"$BIN/h-generate-ssl-cert" "$HESTIA_HOSTNAME" '' 'US' 'California' 'San Francisco' 'HestiaRE' 'IT' > "$pem"
+	CRT_END=$(grep -n "END CERTIFICATE-" "$pem" | head -n1 | cut -f1 -d:)
+	KEY_START=$(grep -nE "BEGIN (RSA |EC |ENCRYPTED )?PRIVATE KEY" "$pem" | head -n1 | cut -f1 -d:)
+	KEY_END=$(grep -nE "END (RSA |EC |ENCRYPTED )?PRIVATE KEY" "$pem" | head -n1 | cut -f1 -d:)
 	if [ -z "$KEY_START" ]; then
-		KEY_START=$(grep -n "BEGIN RSA" /tmp/hst.pem | head -n1 | cut -f1 -d:)
-		KEY_END=$(grep -n "END RSA" /tmp/hst.pem | head -n1 | cut -f1 -d:)
+		KEY_START=$(grep -n "BEGIN RSA" "$pem" | head -n1 | cut -f1 -d:)
+		KEY_END=$(grep -n "END RSA" "$pem" | head -n1 | cut -f1 -d:)
 	fi
 	(
 		cd "$HESTIA_SSL"
-		sed -n "1,${CRT_END}p" /tmp/hst.pem > certificate.crt
-		sed -n "${KEY_START},${KEY_END}p" /tmp/hst.pem > certificate.key
+		sed -n "1,${CRT_END}p" "$pem" > certificate.crt
+		sed -n "${KEY_START},${KEY_END}p" "$pem" > certificate.key
 	)
 	chown root:mail "$HESTIA_SSL/"* 2> /dev/null || true
 	chmod 660 "$HESTIA_SSL/"*
-	rm -f /tmp/hst.pem
+	rm -f "$pem"
+	rmdir "$pem_dir"
 
 	echo "[ * ] Configuring Caddy..."
 	mkdir -p /etc/caddy
@@ -1024,26 +1028,32 @@ configure_hestia() {
 install_composer_upstream() {
 	echo "[ * ] Installing composer (upstream installer)..."
 	if ! command -v composer > /dev/null 2>&1; then
-		local EXPECTED_CHECKSUM ACTUAL_CHECKSUM
+		local EXPECTED_CHECKSUM ACTUAL_CHECKSUM csd
+		# Hashed, then executed: a private directory, not the caller's working directory.
+		csd=$(mktemp -d)
 		EXPECTED_CHECKSUM="$(curl -fsS --max-time 30 https://composer.github.io/installer.sig)" \
 			|| {
+				rmdir "$csd"
 				echo "ERROR: could not fetch the composer installer signature"
 				exit 1
 			}
-		wget https://getcomposer.org/installer --timeout=30 --tries=3 --retry-connrefused --quiet -O composer-setup.php \
+		wget https://getcomposer.org/installer --timeout=30 --tries=3 --retry-connrefused --quiet -O "$csd/composer-setup.php" \
 			|| {
-				rm -f composer-setup.php
+				rm -f "$csd/composer-setup.php"
+				rmdir "$csd"
 				echo "ERROR: could not download the composer installer"
 				exit 1
 			}
-		ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+		ACTUAL_CHECKSUM="$(php -r 'echo hash_file("sha384", $argv[1]);' "$csd/composer-setup.php")"
 		if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
-			rm -f composer-setup.php
+			rm -f "$csd/composer-setup.php"
+			rmdir "$csd"
 			echo "ERROR: Composer installer checksum mismatch" >&2
 			exit 1
 		fi
-		php composer-setup.php --quiet --install-dir=/usr/local/bin --filename=composer
-		rm -f composer-setup.php
+		php "$csd/composer-setup.php" --quiet --install-dir=/usr/local/bin --filename=composer
+		rm -f "$csd/composer-setup.php"
+		rmdir "$csd"
 		echo "  composer installed"
 	else
 		echo "  composer already present — upgrading"

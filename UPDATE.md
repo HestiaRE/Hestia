@@ -21,7 +21,8 @@ the public repo, and a box follows either the newest tag or one it is pinned to.
 ## The one command
 
 ```
-hestia update            # find, fetch, verify, secure, unpack, apply
+hestia update            # find, fetch, verify, secure, unpack, apply - after a y on the terminal
+hestia update --yes      # the same without the question; without a terminal it is required
 hestia update --check    # say what would happen, change nothing
 ```
 

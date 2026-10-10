@@ -1,5 +1,4 @@
-# Was unrotated, and now takes rejected mesh-pull attempts - lines an unauthenticated caller can
-# provoke, so it must be bounded.
+# Takes rejected mesh-pull attempts, lines an unauthenticated caller can provoke, so it must be bounded.
 /var/log/hestia-php-fpm.log {
     rotate 8
     weekly
@@ -18,8 +17,4 @@
     missingok
     notifempty
     create 0600 root root
-    sharedscripts
-    postrotate
-        systemctl restart hestia.service >/dev/null 2>&1 || true
-    endscript
 }

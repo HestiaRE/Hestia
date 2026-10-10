@@ -12,7 +12,17 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **`hestia update` asks before it updates** (#1176). It shows the target first; `--yes` skips the question, and
+  without a terminal it refuses.
+
+### Fixed
+
+- **After an uninstall every root shell reported a missing profile file** (#1176). The installer's `.bashrc` block
+  goes with it now.
+- **`hestia uninstall --purge` left units behind that run from the deleted tree** (#1176). The firewall unit failed
+  at every boot and every apt run printed a missing hook; the prompt now says what stops.
 
 ## v0.26 (2026-10-10)
 

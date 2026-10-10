@@ -65,5 +65,8 @@ jobs:
             HestiaRE ${{ env.VERSION }}
 
             Install:
-              curl -fsSL https://hestiare.com/install.sh
-              bash install.sh
+
+            ```
+            curl -fsSLO https://hestiare.com/install.sh
+            bash install.sh
+            ```

@@ -67,6 +67,6 @@ jobs:
             Install:
 
             ```
-            curl -fsSL -o install.sh https://hestiare.com/install.sh
+            curl -fsSLO https://hestiare.com/install.sh
             bash install.sh
             ```

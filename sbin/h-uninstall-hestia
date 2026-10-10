@@ -27,9 +27,9 @@ echo "========================================================================"
 echo ""
 echo "This stops HestiaRE services and removes the panel system config."
 if [ "$PURGE" = true ]; then
-	echo "PURGE: also apt-removes panel packages and deletes $HESTIA + $CONF_DIR."
-	echo "       Web, mail and FTP services that use the panel certificates stop working, and the"
-	echo "       HestiaRE firewall is gone after the next reboot."
+	echo "PURGE: also purges caddy and deletes $HESTIA + $CONF_DIR."
+	echo "       Web, mail and FTP services that use the panel certificates fail at their next restart,"
+	echo "       and the HestiaRE firewall is gone after the next reboot."
 fi
 echo "/home user data and databases are ALWAYS kept."
 echo ""

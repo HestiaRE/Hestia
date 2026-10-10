@@ -757,14 +757,19 @@ check_sudoers() {
 	[ "$m" = "440 root:root" ] || bad="$bad; mode $m"
 	visudo -cf "$live" > /dev/null 2>&1 || bad="$bad; invalid: $(visudo -cf "$live" 2>&1 | tail -1)"
 	# visudo may prepend this one line on deploy, so the rest is compared.
-	tmp=$(mktemp) || return
-	if [ "$(head -1 "$live")" = 'Defaults:hestia !log_allowed' ]; then
-		tail -n +2 "$live" > "$tmp"
+	if [ ! -f "$tree" ]; then
+		bad="$bad; tree copy $tree missing"
+	elif ! tmp=$(mktemp); then
+		bad="$bad; no temp file to compare against the tree"
 	else
-		cat "$live" > "$tmp"
+		if [ "$(head -1 "$live")" = 'Defaults:hestia !log_allowed' ]; then
+			tail -n +2 "$live" > "$tmp"
+		else
+			cat "$live" > "$tmp"
+		fi
+		cmp -s "$tree" "$tmp" || bad="$bad; differs from the tree"
+		rm -f "$tmp"
 	fi
-	cmp -s "$tree" "$tmp" || bad="$bad; differs from the tree"
-	rm -f "$tmp"
 	if [ -f "$rtree" ] && [ -d /etc/rsyslog.d ] && ! cmp -s "$rtree" "$rlive"; then
 		bad="$bad; sudo log drop rule differs from the tree"
 	fi

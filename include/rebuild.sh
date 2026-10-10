@@ -422,7 +422,7 @@ rebuild_web_domain_conf() {
 		fi
 
 		webstats="$BIN/h-update-web-domain-stat $user $domain"
-		check_webstats=$(grep "$webstats" $CONF_DIR/queue/webstats.pipe)
+		check_webstats=$(grep -F -x -- "$webstats" $CONF_DIR/queue/webstats.pipe)
 		if [ -z "$check_webstats" ]; then
 			echo "$webstats" >> $CONF_DIR/queue/webstats.pipe
 		fi

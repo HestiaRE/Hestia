@@ -73,10 +73,10 @@ if [ -e "$HOMEDIR/$user/web/$new_domain" ] || [ -e "$HOMEDIR/$user/conf/web/$new
 	check_result "$E_EXISTS" "a folder for $new_domain already exists"
 fi
 
+rename_warn=''
 # These carry the old name or path where a rename does not reach; switched off first and on again after.
 blockers=''
 [ "$SSL" = 'yes' ] && blockers+=', SSL'
-[ -n "$FTP_USER" ] && blockers+=', FTP accounts'
 [ -n "$CUSTOM_DOCROOT" ] && blockers+=', custom document root'
 [ -n "$WP" ] && [ "$WP" != 'no' ] && blockers+=', WordPress'
 while IFS= read -r d; do
@@ -150,9 +150,32 @@ fi
 # The fragments move with the domain; the rebuild renders the vhosts into the new folder.
 mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain"
 
+# The accounts share the customer's uid, so usermod -d refuses while any of its processes runs. Removed instead,
+# the rebuild creates them again below the new folder from the record, which first gets the live hashes.
+if [ -n "$FTP_USER" ]; then
+	ftp_md5=$FTP_MD5
+	i=0
+	IFS=: read -ra _ftp_list <<< "$FTP_USER"
+	for f in "${_ftp_list[@]}"; do
+		i=$((i + 1))
+		[ -n "$f" ] || continue
+		h=$(getent shadow "$f" | cut -d: -f2)
+		[ -z "$h" ] || ftp_md5=$(ftp_list_edit "$ftp_md5" "$i" "$h")
+	done
+	update_object_value 'web' 'DOMAIN' "$new_domain" '$FTP_MD5' "$ftp_md5"
+	for f in "${_ftp_list[@]}"; do
+		[ -n "$f" ] || continue
+		/usr/sbin/userdel -f "$f" > /dev/null 2>&1
+		getent passwd "$f" > /dev/null && rename_warn+=", FTP account $f keeps its old home"
+	done
+fi
+
 $BIN/h-rebuild-web-domains "$user" "$restart"
 
 $BIN/h-log-action "$user" "Info" "Web" "Renamed web domain (Old Domain: $domain, New Domain: $new_domain)."
+if [ -n "$rename_warn" ]; then
+	check_result "$E_UPDATE" "$domain is renamed to $new_domain, but: ${rename_warn#, }"
+fi
 log_event "$OK" "$ARGUMENTS"
 
 exit

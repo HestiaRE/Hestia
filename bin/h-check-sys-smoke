@@ -828,7 +828,7 @@ check_install_root_owner() {
 }
 
 # The files whose mode means something. hestia.conf stays root's behind a 700 /etc/hestia, so the panel pool and
-# every customer stop at the directory (keep in step with the seed in include/wizard.sh and include/helper.sh).
+# every customer stop at the directory (.gitea/tools/check-tree.sh holds these modes to the seed).
 # Every private key and relay password file, found rather than listed, carries no world bit; group access is by
 # design (root:mail 660, exim reads them).
 check_secret_file_modes() {

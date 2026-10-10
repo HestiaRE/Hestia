@@ -46,6 +46,10 @@ rename_name() { # NAME
 		*) echo "$1" ;;
 	esac
 }
+name_idn() { # NAME
+	if [[ "$1" = *[![:ascii:]]* ]]; then idn2 --quiet "$1"; else echo "$1"; fi
+}
+new_domain_idn=$(name_idn "$new_domain")
 new_alias=''
 IFS=, read -ra _alias_list <<< "$ALIAS"
 for a in "${_alias_list[@]}"; do
@@ -63,9 +67,7 @@ for a in "${_alias_list[@]}"; do
 	[ -n "$a" ] || continue
 	[[ ",$ALIAS," == *",$a,"* ]] && continue
 	is_domain_new 'web' "$a"
-	if [[ "$a" = *[![:ascii:]]* ]]; then
-		is_domain_new 'web' "$(idn2 --quiet "$a")"
-	fi
+	[ "$(name_idn "$a")" = "$a" ] || is_domain_new 'web' "$(name_idn "$a")"
 	new_names+="${new_names:+,}$a"
 done
 is_base_domain_owner "$new_names"
@@ -73,10 +75,42 @@ if [ -e "$HOMEDIR/$user/web/$new_domain" ] || [ -e "$HOMEDIR/$user/conf/web/$new
 	check_result "$E_EXISTS" "a folder for $new_domain already exists"
 fi
 
+# The certificate's names after the rename: the domain and each alias it covers, mapped like the aliases. An own
+# certificate must already cover them, Let's Encrypt needs their DNS; both checked before anything moves.
+cert_aliases=''
+if [ "$SSL" = 'yes' ]; then
+	crt="$USER_DATA/ssl/$domain.crt"
+	san=",$(openssl x509 -noout -ext subjectAltName -in "$crt" 2> /dev/null | sed -n 's/DNS://gp' | tr -d ' '),"
+	IFS=, read -ra _alias_list <<< "$ALIAS"
+	for a in "${_alias_list[@]}"; do
+		[ -n "$a" ] && [[ "$san" == *",$(name_idn "$a"),"* ]] || continue
+		a=$(rename_name "$a")
+		[ "$a" = "$new_domain" ] || [[ ",$cert_aliases," == *",$a,"* ]] || cert_aliases+="${cert_aliases:+,}$a"
+	done
+	IFS=, read -ra _alias_list <<< "$new_domain,$cert_aliases"
+	if [ "$LETSENCRYPT" = 'yes' ]; then
+		LE_API='https://acme-v02.api.letsencrypt.org'
+		[ "$LE_STAGING" != 'yes' ] || LE_API='https://acme-staging-v02.api.letsencrypt.org'
+		for a in "${_alias_list[@]}"; do
+			le_dns_check "$(name_idn "$a")"
+			case $? in
+				0) ;;
+				1) check_result "$E_NOTEXIST" "no DNS record for $a, Let's Encrypt cannot issue the renamed certificate" ;;
+				*) check_result "$E_CONNECT" "cannot verify DNS for $a" ;;
+			esac
+		done
+	else
+		# By the text: OpenSSL 3.0 exits 0 on a mismatch as well.
+		for a in "${_alias_list[@]}"; do
+			openssl x509 -noout -checkhost "$(name_idn "$a")" -in "$crt" 2> /dev/null | grep -q ' does match ' \
+				|| check_result "$E_FORBIDEN" "the certificate does not cover $a; replace it or switch SSL off first"
+		done
+	fi
+fi
+
 rename_warn=''
 # These carry the old name or path where a rename does not reach; switched off first and on again after.
 blockers=''
-[ "$SSL" = 'yes' ] && blockers+=', SSL'
 [ -n "$WP" ] && [ "$WP" != 'no' ] && blockers+=', WordPress'
 if [ -n "$blockers" ]; then
 	check_result "$E_FORBIDEN" "switch off first: ${blockers#, }"
@@ -87,6 +121,12 @@ sed -i "s/DOMAIN='${domain//./\\.}'/DOMAIN='$new_domain'/" $USER_DATA/web.conf
 
 if [ "$ALIAS" != "$new_alias" ]; then
 	update_object_value 'web' 'DOMAIN' "$new_domain" '$ALIAS' "$new_alias"
+fi
+
+if [ "$SSL" = 'yes' ]; then
+	for f in crt key pem ca; do
+		[ ! -e "$USER_DATA/ssl/$domain.$f" ] || mv -f "$USER_DATA/ssl/$domain.$f" "$USER_DATA/ssl/$new_domain.$f"
+	done
 fi
 
 # A document root inside the old folder follows it, this domain's or another's of the user. Subshell: the
@@ -115,8 +155,6 @@ rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new
 if [ -n "$STATS" ]; then
 	sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
 	rm -f "/etc/awstats/$STATS.$domain_idn.conf"
-	new_domain_idn=$new_domain
-	[[ "$new_domain" = *[![:ascii:]]* ]] && new_domain_idn=$(idn2 --quiet "$new_domain")
 	stats_dir="$HOMEDIR/$user/web/$new_domain/stats"
 	# 551 by design, opened for the moves as the stat build does.
 	if ! user_exec test -w "$stats_dir"; then
@@ -160,6 +198,8 @@ fi
 
 # The fragments move with the domain; the rebuild renders the vhosts into the new folder.
 mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain"
+# The rebuild copies the certificate in under the new name.
+rm -f "$HOMEDIR/$user/conf/web/$new_domain/ssl/$domain".*
 
 # The accounts share the customer's uid, so usermod -d refuses while any of its processes runs. Removed instead,
 # the rebuild creates them again below the new folder from the record, which first gets the live hashes.
@@ -182,6 +222,15 @@ if [ -n "$FTP_USER" ]; then
 fi
 
 $BIN/h-rebuild-web-domains "$user" "$restart"
+
+# Last, the one step that needs the network. Failing, it leaves the domain renamed over http rather than
+# serving the old name's certificate.
+if [ "$SSL" = 'yes' ] && [ "$LETSENCRYPT" = 'yes' ]; then
+	if ! le_msg=$($BIN/h-add-letsencrypt-domain "$user" "$new_domain" "$cert_aliases" 2>&1); then
+		$BIN/h-delete-web-domain-ssl "$user" "$new_domain" "$restart" > /dev/null 2>&1
+		rename_warn+=", Let's Encrypt failed and SSL is off (${le_msg//$'\n'/ }), h-add-letsencrypt-domain issues it later"
+	fi
+fi
 
 $BIN/h-log-action "$user" "Info" "Web" "Renamed web domain (Old Domain: $domain, New Domain: $new_domain)."
 if [ -n "$rename_warn" ]; then

@@ -4,7 +4,8 @@
 #
 # example: h-change-web-domain-name alice wonderland.com lookinglass.com yes
 #
-# Renames a web domain. Aliases below the old name move with it; what a rename cannot carry is refused.
+# Renames a web domain and takes along what carries the name: aliases below it, SSL, FTP accounts, document roots,
+# statistics, WordPress, the redirect and the backup exclusions.
 
 user=$1
 domain=$2

@@ -32,6 +32,8 @@ echo ""
 echo "This stops HestiaRE services and removes the panel system config."
 if [ "$PURGE" = true ]; then
 	echo "PURGE: also apt-removes panel packages and deletes $HESTIA + $CONF_DIR."
+	echo "       Web, mail and FTP services that use the panel certificates stop working, and the"
+	echo "       HestiaRE firewall is gone after the next reboot."
 fi
 echo "/home user data and databases are ALWAYS kept."
 echo ""
@@ -45,7 +47,7 @@ case "$confirm" in
 esac
 
 echo "[ * ] Stopping services..."
-for s in hestia hestia-php caddy; do
+for s in hestia-php caddy; do
 	systemctl stop "$s" 2> /dev/null || true
 	systemctl disable "$s" 2> /dev/null || true
 done
@@ -89,6 +91,15 @@ fi
 if [ "$PURGE" = true ]; then
 	echo "[ * ] Purging panel packages and directories..."
 	DEBIAN_FRONTEND=noninteractive apt-get -y purge caddy 2> /dev/null || true
+	# Every hestia-* unit runs something from the tree removed below; the firewall's own sits in /lib.
+	# None has an ExecStop, so stopping leaves the loaded ruleset in place until the reboot.
+	for u in /etc/systemd/system/hestia-* /lib/systemd/system/hestia-*; do
+		[ -e "$u" ] || continue
+		systemctl disable --now "$(basename "$u")" 2> /dev/null || true
+		rm -rf "$u"
+	done
+	rm -f /etc/apt/apt.conf.d/95hestia-php-refresh /etc/logrotate.d/hestia
+	systemctl daemon-reload
 	rm -rf "$HESTIA" "$CONF_DIR"
 	# Both live outside the install root, so the line above does not reach them (#564). The SNI dir
 	# holds only symlinks into the customers' own mail conf, which stays.

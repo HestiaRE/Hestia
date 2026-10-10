@@ -33,7 +33,7 @@ fi
 mods="/etc/php/$version/mods-available"
 
 if [ ! -d "$mods" ]; then
-	echo "ERROR: $mods not found — is PHP $version installed?"
+	echo "ERROR: $mods not found - is PHP $version installed?"
 	exit 1
 fi
 
@@ -73,7 +73,7 @@ build_confd() {
 					echo "ERROR: critical extension '$e' missing ($src)."
 					missing_critical="$missing_critical $e"
 					;;
-				*) echo "WARN: $src missing — skipped." ;;
+				*) echo "WARN: $src missing - skipped." ;;
 			esac
 			continue
 		fi
@@ -87,7 +87,7 @@ build_confd /etc/php/hestia/fpm/conf.d "$fpm_critical $fpm_apps_critical $fpm_we
 build_confd /etc/php/hestia/cli/conf.d "$cli_critical" "$cli_optional"
 
 if [ -n "$missing_critical" ]; then
-	echo "ERROR: panel PHP conf.d incomplete — missing critical extension(s):$missing_critical" >&2
+	echo "ERROR: panel PHP conf.d incomplete - missing critical extension(s):$missing_critical" >&2
 	exit 1
 fi
 

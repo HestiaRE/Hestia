@@ -52,7 +52,7 @@ case "$cmd" in
 	status) exec "$BIN/h-list-sys-install" "$@" ;;
 	"" | help | -h | --help)
 		cat << 'EOF'
-hestia — HestiaRE control
+hestia - HestiaRE control
 
 Usage: hestia <command> [args]
 

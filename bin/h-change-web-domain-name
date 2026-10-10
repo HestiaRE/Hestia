@@ -34,16 +34,44 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 is_object_unsuspended 'web' 'DOMAIN' "$domain"
-check_new_domain=$(grep -F "DOMAIN='$new_domain'" $CONF_DIR/users/*/web.conf)
-if [ -n "$check_new_domain" ]; then
-	check_result "$E_EXISTS" "$new_domain already exists"
-fi
-is_domain_new '' "$new_domain"
+get_domain_values 'web'
+# The hostname's certificate is issued through the web domain of that name.
+[ "$domain" != "$(hostname -f)" ] || check_result "$E_FORBIDEN" "$domain carries the hostname's certificate"
+
+# An alias below the old name moves with it (www.old -> www.new); every other alias stays.
+rename_name() { # NAME
+	case "$1" in
+		"$domain") echo "$new_domain" ;;
+		*."$domain") echo "${1%."$domain"}.$new_domain" ;;
+		*) echo "$1" ;;
+	esac
+}
+new_alias=''
+IFS=, read -ra _alias_list <<< "$ALIAS"
+for a in "${_alias_list[@]}"; do
+	[ -n "$a" ] || continue
+	a=$(rename_name "$a")
+	[ "$a" = "$new_domain" ] && continue
+	[[ ",$new_alias," == *",$a,"* ]] || new_alias+="${new_alias:+,}$a"
+done
+
+# A name the domain does not answer to yet is held to what an add demands. Not is_domain_new '': it passes
+# every alias of the user, also one that another domain of the user holds.
+new_names=''
+IFS=, read -ra _alias_list <<< "$new_domain,$new_alias"
+for a in "${_alias_list[@]}"; do
+	[ -n "$a" ] || continue
+	[[ ",$ALIAS," == *",$a,"* ]] && continue
+	is_domain_new 'web' "$a"
+	if [[ "$a" = *[![:ascii:]]* ]]; then
+		is_domain_new 'web' "$(idn2 --quiet "$a")"
+	fi
+	new_names+="${new_names:+,}$a"
+done
+is_base_domain_owner "$new_names"
 if [ -e "$HOMEDIR/$user/web/$new_domain" ] || [ -e "$HOMEDIR/$user/conf/web/$new_domain" ]; then
 	check_result "$E_EXISTS" "a folder for $new_domain already exists"
 fi
-
-get_domain_values 'web'
 
 # These carry the old name or path where a rename does not reach; switched off first and on again after.
 blockers=''
@@ -62,18 +90,6 @@ fi
 # Dots escaped, or renaming a.b.com also rewrites the aXb.com record.
 sed -i "s/DOMAIN='${domain//./\\.}'/DOMAIN='$new_domain'/" $USER_DATA/web.conf
 
-# An alias below the old name moves with it (www.old -> www.new); every other alias stays.
-new_alias=''
-IFS=, read -ra _alias_list <<< "$ALIAS"
-for a in "${_alias_list[@]}"; do
-	[ -n "$a" ] || continue
-	case "$a" in
-		"$domain") a=$new_domain ;;
-		*."$domain") a=${a%."$domain"}.$new_domain ;;
-	esac
-	[ "$a" = "$new_domain" ] && continue
-	[[ ",$new_alias," == *",$a,"* ]] || new_alias+="${new_alias:+,}$a"
-done
 if [ "$ALIAS" != "$new_alias" ]; then
 	update_object_value 'web' 'DOMAIN' "$new_domain" '$ALIAS' "$new_alias"
 fi

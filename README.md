@@ -11,7 +11,7 @@ It is deliberately scoped for a small, professional fleet, on the order of a few
 
 ### Status: maturing
 
-Nearly all of it is in place, and the test fleet has been through many rounds of it: installer, panel, web, mail, backup, firewall, CrowdSec, Docker, IPv6. Every subsystem exists, and every release is measured on all four target systems before it is cut. That makes HestiaRE **usable**.
+Nearly all of it is in place, and the test fleet has been through many rounds of it: installer, panel, web, mail, backup, firewall, CrowdSec, Docker, IPv6. Every subsystem exists, and every release is measured on all four target systems before it is cut. From v0.24 to v0.27 every command went through an audit: read, run on a box including its failure path, then fixed, tightened or removed. That makes HestiaRE **usable**.
 
 It does not make it **stable**. Interfaces still move, any release can change behaviour, and **v1 is deliberately far away**, and the version number is not a countdown. Run it if you are willing to read a changelog and re-test after an update. Don't run it if you need something that stays put while you look elsewhere.
 
@@ -34,11 +34,11 @@ That is also why the deliberate omissions below are not a backlog.
 
 ### Reduced dependencies
 
-HestiaCP bundles and compiles a lot of its own stack. HestiaRE inverts that: **OS repositories are the default**, and every external source has to justify itself. What that leaves is at most three external apt repos, all of them conditional: **Sury** when a box wants several PHP versions, **MariaDB.org** when a specific server version is chosen over the distribution's, and the **Docker** repo when that addon is installed. A `singlephp` box on the OS MariaDB adds none at all.
+HestiaCP bundles and compiles a lot of its own stack. HestiaRE inverts that: **OS repositories are the default**, and every external source has to justify itself. What that leaves is at most four external apt repos, all of them conditional: **Sury** when a box wants several PHP versions, **MariaDB.org** when a specific server version is chosen over the distribution's, **nginx.org** mainline on the `latest` preset, and the **Docker** repo when that addon is installed. A `singlephp` box on the OS MariaDB adds none at all.
 
 - The panel runs on **Caddy** (OS repo) instead of a bundled nginx build.
 - **The panel PHP is the distribution's own**, in isolated FPM pools instead of a custom compiled build. Sury is the option for multi-version PHP, not the default source: `singlephp` never sets that repo up.
-- Web, mail, database and firewall tooling (nginx, Apache, exim/dovecot/rspamd, phpMyAdmin, fail2ban, ipset, Composer, WP-CLI, …) is installed straight from distro packages.
+- Web, mail, database and firewall tooling (nginx, Apache, exim/dovecot/rspamd, phpMyAdmin, nftables, fail2ban, Composer, WP-CLI, …) is installed straight from distro packages; only the `latest` preset takes nginx from nginx.org.
 - Optional components (ProFTPD, ClamAV, PostgreSQL, Redis, OpenSearch, Docker proxy, file manager, …) are **individually installable and removable**, so a given host only carries what it uses.
 - **IPv6 is first-class, never presupposed**: a box with both families serves both, a v6-only box installs and runs from the bootstrap onwards, and a box whose kernel has no IPv6 is a supported state rather than an accident.
 
@@ -51,7 +51,7 @@ HestiaCP builds versioned Debian **`.deb` packages** (including compiled binarie
 1. Pushing a `v*` git tag triggers CI (`.github/workflows/release.yml`).
 2. CI compares the committed `VERSION` against the tag, refuses a release where the two disagree, and packs the tree into a single versioned **`hestiare-<version>.tar.gz`** source tarball with its `.sha256` beside it.
 3. `install.sh`, the one curl-able bootstrap, fetches and extracts that tarball into `/usr/local/hestia`, then takes over.
-4. `hestia update` does the same for an installed box: it fetches and verifies the next release, unpacks it over the tree, and works off what `share/updates/` says a box coming from an older version still has to catch up on.
+4. `hestia update` does the same for an installed box: it names the target and asks, fetches and verifies the release, unpacks it over the tree, and works off what `share/updates/` says a box coming from an older version still has to catch up on.
 
 There is no compiled artifact, no private package repo, and no build toolchain required on the target host. (Earlier iterations used `just`/Make; that dependency has been removed, the installer is pure bash now.)
 
@@ -62,7 +62,7 @@ One piece of infrastructure does exist, and it is worth naming: `hestiare.com` m
 Because there are no packages doing the setup work, the installer had to be rebuilt around that source-tarball model. It is now a clean two-stage flow:
 
 - **`install.sh` (bootstrap):** installs prerequisites, detects the OS, fetches and extracts the release, runs the interactive **manifest-driven wizard** (`include/wizard.sh`) which writes `/etc/hestia/install.conf`, and seeds `/etc/hestia` so the `h-*` commands can run.
-- **`h-install-hestia` (installer):** non-interactive, reads `install.conf`, and is **component-gated and idempotent**: every subsystem is guarded by a flag, so profiles (minimal / standard) and optional add-ons (via `h-add-*` / `h-delete-*`) compose cleanly and re-runs don't fight themselves.
+- **`h-install-hestia` (installer):** non-interactive, reads `install.conf`, and is **component-gated and idempotent**: every subsystem is guarded by a flag, so presets (standard, compact, latest, singlephp, nomail, mailonly) and optional add-ons (via `h-add-*` / `h-delete-*`) compose cleanly and re-runs don't fight themselves.
 
 A post-install smoke test then verifies that the services implied by the chosen configuration actually came up.
 

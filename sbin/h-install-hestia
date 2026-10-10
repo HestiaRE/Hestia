@@ -354,6 +354,16 @@ install_web() {
 	esac
 
 	if web_model_uses_nginx "$web_model"; then
+		# Preset latest. A source that does not answer leaves the distribution's nginx, said in the summary.
+		if [ "${COMPONENT_WEB_SERVER_SOURCE:-}" = "nginx_org" ]; then
+			echo "[ * ] Adding the nginx.org mainline repo..."
+			if ! { add_nginx_org_repo "$OS_ID" "$CODENAME" && apt-get -qq update; }; then
+				rm -f /etc/apt/sources.list.d/nginx-org.list /etc/apt/preferences.d/99nginx-org
+				apt-get -qq update || true
+				echo "[ ! ] nginx.org could not be added, the distribution's nginx is installed instead"
+				HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}web nginx: nginx.org unavailable, distribution nginx"$'\n'
+			fi
+		fi
 		configure_nginx
 		update-rc.d nginx defaults > /dev/null 2>&1
 		# restart, not start: replace the distro default site and free :80 before apache2

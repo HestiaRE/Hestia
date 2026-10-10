@@ -25,8 +25,8 @@ before v0.20.0 are folded into one section by theme.
   at every boot and every apt run printed a missing hook; the prompt now says what stops.
 - **Re-running the installer on a live box broke every customer mail domain** (#1176). Re-answering the wizard
   re-ran the mail stage, which emptied `/etc/exim4/domains`: mail to the domains bounced and IMAP logins failed.
-  The same re-run no longer replaces a host certificate that covers the hostname with a self-signed one, and no
-  longer adds a second line to `/etc/rc.local`.
+  The same re-run keeps a valid host certificate for the hostname and the SRS secret, and no longer adds a second
+  line to `/etc/rc.local`.
 
 ## v0.26 (2026-10-10)
 

@@ -196,80 +196,34 @@ check_socket() {
 	fi
 }
 
-# With the firewall enabled INPUT must default to DROP; nothing else notices a box that came up with policy
-# ACCEPT and no rules at all.
-check_firewall_closed() {
-	local pol
+# The live policy, the file the boot unit reloads, and every active rule: fw_rule skips a source that is not
+# renderable, and a list without its cache file renders an empty set, both without anything going red.
+check_firewall() {
+	local ruleset=/etc/hestia/firewall/ruleset.nft rules="$CONF_DIR/firewall/rules.conf" bad='' pol line n=0
 	pol=$(fw_policy_get INPUT)
-	if [ -z "$pol" ]; then
-		skip "firewall INPUT policy (backend not readable - root?)"
-	elif [ "$pol" = 'DROP' ]; then
-		ok "firewall INPUT policy closed (DROP)"
-	else
-		no "firewall INPUT policy is not DROP" "$pol"
-	fi
-}
-
-# check_firewall_ruleset_loadable: that file IS what the boot unit reloads, so if it stops parsing the box
-# boots with no ruleset at all. Sets and their rules load in one transaction now, so only this can go wrong.
-check_firewall_ruleset_loadable() {
-	local ruleset=/etc/hestia/firewall/ruleset.nft
+	[ "$pol" = 'DROP' ] || bad="$bad; INPUT policy ${pol:-unreadable}"
 	if [ ! -f "$ruleset" ]; then
-		no "firewall ruleset not persisted" "$ruleset missing - a reboot would come up unfiltered"
-		return
+		bad="$bad; $ruleset missing, a reboot comes up unfiltered"
+	elif ! nft -c -f "$ruleset" > /dev/null 2>&1; then
+		bad="$bad; nft rejects $ruleset: $(nft -c -f "$ruleset" 2>&1 | head -n1)"
 	fi
-	if nft -c -f "$ruleset" > /dev/null 2>&1; then
-		ok "persisted firewall ruleset loads"
-	else
-		no "persisted firewall ruleset is rejected by nft" "$(nft -c -f "$ruleset" 2>&1 | head -n1)"
+	if [ -f "$rules" ]; then
+		while IFS= read -r line; do
+			[ -n "$line" ] || continue
+			parse_object_kv_list "$line"
+			[ "${SUSPENDED:-no}" = 'yes' ] && continue
+			n=$((n + 1))
+			case "$IP" in
+				0.0.0.0/0 | ::/0 | '') ;;
+				ipset:*) [ -s "$(fw_set_src "${IP#ipset:}")" ] || bad="$bad; rule $RULE matches the empty list ${IP#ipset:}" ;;
+				*) fw_is_addr "$IP" || fw_is_addr6 "$IP" || bad="$bad; rule $RULE has the unrenderable source $IP" ;;
+			esac
+		done < "$rules"
 	fi
-}
-
-# check_firewall_rules_rendered: the other direction: fw_rule skips a source that is neither any, an ipset
-# nor a valid address, so a corrupted entry drops out of the firewall with nothing going red.
-check_firewall_rules_rendered() {
-	local rules="$CONF_DIR/firewall/rules.conf" bad='' line
-	[ -f "$rules" ] || {
-		ok "firewall rules all renderable (none)"
-		return
-	}
-	while IFS= read -r line; do
-		[ -n "$line" ] || continue
-		parse_object_kv_list "$line"
-		[ "${SUSPENDED:-no}" = 'yes' ] && continue
-		case "$IP" in
-			0.0.0.0/0 | ::/0 | '' | ipset:*) continue ;;
-		esac
-		fw_is_addr "$IP" || fw_is_addr6 "$IP" || bad="$bad RULE=$RULE($IP)"
-	done < "$rules"
-	if [ -z "$bad" ]; then
-		ok "firewall rules all render (valid source per entry)"
+	if [ -n "$bad" ]; then
+		no "firewall" "${bad#; }"
 	else
-		no "firewall rule with an unrenderable source (silently skipped)" "${bad# }"
-	fi
-}
-
-# check_firewall_ipsets_populated: the guard above accepts any ipset: source, but never checks the list
-# behind it. No cache file renders an EMPTY set: rule present, panel shows the list, nothing matches.
-check_firewall_ipsets_populated() {
-	local rules="$CONF_DIR/firewall/rules.conf" bad='' line name src
-	[ -f "$rules" ] || {
-		ok "firewall IP lists all populated (no rules)"
-		return
-	}
-	while IFS= read -r line; do
-		[ -n "$line" ] || continue
-		parse_object_kv_list "$line"
-		[ "${SUSPENDED:-no}" = 'yes' ] && continue
-		case "$IP" in ipset:*) ;; *) continue ;; esac
-		name="${IP#ipset:}"
-		src="$(fw_set_src "$name")"
-		[ -s "$src" ] || bad="$bad $name(${src##*/})"
-	done < "$rules"
-	if [ -z "$bad" ]; then
-		ok "firewall IP lists referenced by a rule are populated"
-	else
-		no "firewall rule matches an empty IP list (blocks nothing)" "${bad# }"
+		ok "firewall closed (INPUT DROP), persisted ruleset loads, $n active rule(s) render, their lists populated"
 	fi
 }
 
@@ -1899,10 +1853,7 @@ fi
 # iptables renderer (re-expresses them against nft), the mechanism below does not.
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
-	check_firewall_closed
-	check_firewall_ruleset_loadable
-	check_firewall_rules_rendered
-	check_firewall_ipsets_populated
+	check_firewall
 fi
 
 # --- Ports implied by the active config ---

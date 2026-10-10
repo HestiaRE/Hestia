@@ -752,10 +752,10 @@ is_backup_mode_restic() {
 	fi
 }
 
-# Check for a queued backup job
+# A queued job of the user, as text and in both forms the schedulers write: a restore line carries the user quoted.
 is_backup_scheduled() {
 	if [ -e "$CONF_DIR/queue/backup.pipe" ]; then
-		check_q=$(grep " $user " $CONF_DIR/queue/backup.pipe | grep $1)
+		check_q=$(grep -F -e " $user " -e " '$user' " "$CONF_DIR/queue/backup.pipe" | grep -F -- "$1")
 		if [ -n "$check_q" ]; then
 			check_result "$E_EXISTS" "$1 is already scheduled"
 		fi

@@ -200,7 +200,8 @@ if [ -e "$BACKUP/$user/$user.log" ] && [ "$notify" = "yes" ]; then
 	$BIN/h-add-user-notification "$user" "Snapshot created successfully" "Snap shot of user successfully created"
 fi
 
-sed -i "/h-backup-user-restic $user /d" $CONF_DIR/queue/backup.pipe
+QUEUE_JOB="h-backup-user-restic $user "
+queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 $BIN/h-log-action "$user" "Info" "Backup" "Backup created."
 $BIN/h-log-action "system" "Info" "Backup" "Backup created (User: $user)."

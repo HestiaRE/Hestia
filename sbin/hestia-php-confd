@@ -40,6 +40,8 @@ fi
 # panel UI: DB chain + mbstring + gettext(i18n) critical; perf/stage extras optional
 fpm_critical="mysqlnd pdo mysqli pdo_mysql mbstring gettext"
 fpm_optional="opcache curl gmp zip ftp"
+# Part of the core from 8.5 on, without an ini of its own.
+[ "$(printf '%s\n' 8.5 "$version" | sort -V | head -n1)" = 8.5 ] && fpm_optional=${fpm_optional#opcache }
 # phpMyAdmin/Adminer: ctype/iconv/fileinfo (php-common) + xml family (php-xml) critical
 fpm_apps_critical="ctype iconv fileinfo simplexml xmlwriter xmlreader"
 fpm_apps_optional="gd bz2 pgsql pdo_pgsql"

@@ -34,6 +34,11 @@ if [ "$pub" != "nginx" ]; then
 	echo "Error: CrowdSec requires nginx as the public web server"
 	exit "$E_NOTEXIST"
 fi
+# The per-domain check is the L7 bouncer; without it the switch would be stored and do nothing.
+if ! crowdsec_domain_capable; then
+	echo "Error: CrowdSec has no L7 bouncer on this nginx, so there is no per-domain check to enable"
+	exit "$E_NOTEXIST"
+fi
 
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 

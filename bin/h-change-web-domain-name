@@ -79,7 +79,6 @@ blockers=''
 [ -n "$FTP_USER" ] && blockers+=', FTP accounts'
 [ -n "$CUSTOM_DOCROOT" ] && blockers+=', custom document root'
 [ -n "$WP" ] && [ "$WP" != 'no' ] && blockers+=', WordPress'
-[ -n "$STATS" ] && blockers+=', web statistics'
 while IFS= read -r d; do
 	[ -n "$d" ] && blockers+=", custom document root of $d"
 done < <(awk -v p="CUSTOM_DOCROOT='$HOMEDIR/$user/web/$domain/" 'index($0, p) { match($0, /^DOMAIN='"'"'[^'"'"']*'"'"'/); print substr($0, 9, RLENGTH - 9) }' "$USER_DATA/web.conf")
@@ -100,6 +99,27 @@ mv "$domain.log" "$new_domain.log"
 mv "$domain.error.log" "$new_domain.error.log"
 mv "$domain.bytes" "$new_domain.bytes"
 rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new_domain/logs/$domain.error.log"
+
+# awstats names its data files by the config, the IDN name; renamed, the history stays. The rebuild writes the
+# new config, link and queue line.
+if [ -n "$STATS" ]; then
+	sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
+	rm -f "/etc/awstats/$STATS.$domain_idn.conf"
+	new_domain_idn=$new_domain
+	[[ "$new_domain" = *[![:ascii:]]* ]] && new_domain_idn=$(idn2 --quiet "$new_domain")
+	stats_dir="$HOMEDIR/$user/web/$new_domain/stats"
+	# 551 by design, opened for the moves as the stat build does.
+	if ! user_exec test -w "$stats_dir"; then
+		user_exec chmod u+w "$stats_dir"
+		stats_closed=yes
+	fi
+	for f in "$stats_dir"/awstats[0-9]*."$domain_idn".txt "$stats_dir/dnscachelastupdate.$domain_idn.hash"; do
+		[ -e "$f" ] || continue
+		g=${f##*/}
+		user_exec mv -n "$f" "$stats_dir/${g%."$domain_idn".*}.$new_domain_idn.${g##*.}"
+	done
+	[ -z "$stats_closed" ] || user_exec chmod u-w "$stats_dir"
+fi
 
 # The jail is watching the old filename; a rename is invisible to it.
 if [ -n "$FIREWALL_EXTENSION" ]; then

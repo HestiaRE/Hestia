@@ -29,7 +29,7 @@ These are absolute. Never deviate, never re-suggest rejected items.
 **Never suggest:**
 - PHP frameworks of any kind
 - Docker for HestiaRE itself
-- External repos beyond: MariaDB repo, Sury PHP
+- External repos beyond: MariaDB repo, Sury PHP, and nginx.org mainline for the preset `latest` only (#194)
 - Node.js on the Gitea Act Runner host
 - `ALL=(ALL) NOPASSWD:ALL` sudo rules
 

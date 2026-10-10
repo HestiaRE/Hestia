@@ -22,6 +22,9 @@ SMTP_RELAY_USER=$(record_value_decode "$SMTP_RELAY_USER")
 # The panel offers the per-domain http3 switch only where nginx has http_v3; a quic listen fails nginx -t.
 WEB_HTTP3=''
 command -v nginx > /dev/null 2>&1 && nginx -V 2>&1 | grep -q -- '--with-http_v3_module' && WEB_HTTP3='yes'
+# The per-domain CrowdSec switch only where the L7 bouncer is wired; same artefact as crowdsec_domain_capable.
+CROWDSEC_L7=''
+[ -f /etc/nginx/conf.d/crowdsec_init.conf ] && CROWDSEC_L7='yes'
 
 # Every registry key, in registry order, never a second list. An unreadable registry ends non-zero: the login refuses.
 json_list() {
@@ -36,6 +39,8 @@ json_list() {
 	# Not a registry key and never in hestia.conf, hence outside the loop.
 	json_escape WEB_HTTP3
 	printf '			"WEB_HTTP3": "%s",\n' "$WEB_HTTP3"
+	json_escape CROWDSEC_L7
+	printf '			"CROWDSEC_L7": "%s",\n' "$CROWDSEC_L7"
 	for _k in $_keys; do
 		# Masked: the panel puts every key in $_SESSION, which PHP writes to a file. Emptiness survives.
 		case "$_secrets" in *" $_k "*) [ -z "${!_k}" ] || printf -v "$_k" '%s' '********' ;; esac

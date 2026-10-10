@@ -25,15 +25,15 @@
     },
     "$comment_php_supported": "The release-tested PHP set: h-add-web-php validates against it, and the wizard offers only the intersection with Sury's packages - Sury ships pre-release builds, so availability alone offered versions the installer refused (#688). Bump per release. Checked 2026-09-22 for v0.21 on bookworm: 8.5 is still the newest GA (8.5.10-1), Sury's php8.6 is still 8.6.0~alpha1, so no bump. Checked 2026-09-26 for v0.23 on bookworm: 8.5.11-1 is the newest GA, php8.6 is 8.6.0~beta3, so no bump. Checked 2026-10-06 for v0.24 on bookworm, trixie and noble: unchanged, 8.5.11-1 and 8.6.0~beta3, so no bump.",
     "$comment_apt_key_fpr": "Primary-key fingerprints of the external apt repos whose key is fetched at install (apt_key_fetch in include/helper.sh); a download carrying another key is refused. A rotation shows up as a refused install: check the new key against the vendor's published fingerprint, then bump. Set 2026-10-07: Docker's matches its published fingerprint, Sury's (expires 2028-02) matches the keyrings already on the fleet.",
-    "apt_key_fpr": { "docker": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88", "sury": "15058500A0235D97F5D10063B188E2B695BD4743" },
+    "apt_key_fpr": { "docker": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88", "nginx": "8540A6F18833A80E9C1653A42FD21310B49F6B46", "sury": "15058500A0235D97F5D10063B188E2B695BD4743" },
     "php_supported": ["5.6", "7.0", "7.1", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
   },
 
   "$comment_presets": "No custom preset on purpose: a config beyond every preset = write /etc/hestia/install.conf by hand and run h-install-hestia. Never put $-comment keys INSIDE .presets - menu and validation iterate its keys verbatim.",
   "presets": {
-    "standard":  { "label": "Standard (full hosting + full mail + DB + MultiPHP + addons)" },
+    "standard":  { "label": "Standard (hosting, mail, DB, MultiPHP, addons)" },
     "compact":   { "label": "Compact (nginx only, leaner addon selection)" },
-    "latest":    { "label": "Latest (newest versions, external repos for web/PHP/DB)" },
+    "latest":    { "label": "Latest (newest: nginx.org, Sury PHP, MariaDB repo)" },
     "singlephp": { "label": "SinglePHP (OS PHP instead of Sury, lean setup)" },
     "nomail":    { "label": "No-Mail (hosting only, no mail block, Exim send-only)" },
     "mailonly":  { "label": "Mail-Only (mail stack only, no customer web server)" }
@@ -64,7 +64,7 @@
     {
       "id": "HESTIA_EMAIL",
       "type": "text",
-      "question": "Admin email (an address outside this host receives system and panel mail; the default keeps it in /var/mail/root):",
+      "question": "Admin email for system and panel mail (default: /var/mail/root):",
       "stage": "pre_preset",
       "note": "No static default: it is derived from the answer to HESTIA_HOSTNAME."
     },
@@ -118,10 +118,11 @@
         "nomail":    "BOTH",
         "mailonly":  "MAILFRONT"
       },
+      "source_default": { "latest": "nginx_org" },
       "fixed_no_prompt": {
         "mailonly": "MAILFRONT"
       },
-      "note": "Fixed to MAILFRONT on mailonly, not asked (#193): nginx serves webmail vhosts + ACME termination, but WEB_SYSTEM stays EMPTY - no customer web, every web command refuses, WEBMAIL_FRONT carries the nginx. Repo source (OS vs. Sury Apache / nginx.org) follows repo_strategy, see WEB_REPO_SOURCE."
+      "note": "Fixed to MAILFRONT on mailonly, not asked (#193): nginx serves webmail vhosts + ACME termination, but WEB_SYSTEM stays EMPTY - no customer web, every web command refuses, WEBMAIL_FRONT carries the nginx. source_default nginx_org: nginx from the nginx.org mainline repo (key pinned in apt_key_fpr.nginx), only where the model uses nginx; that package has no distribution nginx ABI, so CrowdSec runs without its L7 bouncer there (detection and L3 only, mode local). No entry = the distribution's nginx."
     },
 
     "PHP_MODE": {
@@ -190,7 +191,7 @@
       "status_key": "DB_POSTGRESQL_SYSTEM",
       "fixed_no_prompt": { "mailonly": false },
       "label": "PostgreSQL",
-      "description": "Object-relational DB server (web UI via Adminer addon)",
+      "description": "Object-relational DB (web UI via Adminer addon)",
       "question": "Install PostgreSQL?",
       "default": false
     },
@@ -267,7 +268,7 @@
       "group": "mail",
       "type": "checklist",
       "status_key": "WEBMAIL_SYSTEM",
-      "question": "Webmail clients (any, all, or none - selectable per mail domain):",
+      "question": "Webmail clients (selectable per mail domain):",
       "visible_if": "MAIL_BLOCK_PRESENT == true",
       "options": [
         { "value": "ROUNDCUBE", "status_token": "roundcube",  "label": "Roundcube",  "description": "Full-featured webmail" },
@@ -326,7 +327,7 @@
       "type": "checkbox",
       "status_key": "DB_ADMINER_ALIAS",
       "label": "Adminer",
-      "description": "Web DB UI for PostgreSQL (vendored single-file). MySQL keeps phpMyAdmin.",
+      "description": "Web DB UI for PostgreSQL (MySQL keeps phpMyAdmin)",
       "visible_if": "DB_POSTGRESQL == true",
       "default": true,
       "note": "Only shown/preselected when PostgreSQL was chosen (visible_if DB_POSTGRESQL == true, default true) - hidden and thus not installed without PostgreSQL. Replaces the former DB_PGADMIN derivation (pgadmin4-web exists in no OS repo, phpPgAdmin dormant; #350). Vendored from share/adminer/ instead of an OS package (OS versions are CVE-prone). A full build can also do MySQL, but phpMyAdmin remains untouched as the MySQL default."
@@ -359,7 +360,7 @@
       "type": "checkbox",
       "status_key": "CROWDSEC_SYSTEM",
       "label": "CrowdSec",
-      "description": "Collaborative intrusion prevention (nginx web protection)",
+      "description": "Collaborative intrusion prevention",
       "visible_if": "WEB_SERVER != APACHE",
       "fixed_no_prompt": { "mailonly": false },
       "default": { "standard": true, "compact": true, "latest": true, "singlephp": true, "nomail": true, "mailonly": false },
@@ -374,11 +375,12 @@
       "question": "CrowdSec model (where ban decisions come from)?",
       "visible_if": "ADDON_CROWDSEC == true",
       "options": [
-        { "value": "capi", "label": "Community blocklist (recommended)", "description": "Shared blocklist + telemetry" },
+        { "value": "capi", "label": "Community blocklist (recommended)", "description": "sends telemetry" },
         { "value": "local", "label": "Local only", "description": "No telemetry, this server alone" },
         { "value": "mesh", "label": "Fleet mesh", "description": "Share bans across your servers" }
       ],
-      "default": { "standard": "capi", "compact": "capi", "latest": "capi", "singlephp": "capi", "nomail": "capi", "mailonly": "capi" },
+      "fixed_no_prompt": { "latest": "local" },
+      "default": { "standard": "capi", "compact": "capi", "latest": "local", "singlephp": "capi", "nomail": "capi", "mailonly": "capi" },
       "note": "One radio, not a CAPI question plus a separate mesh toggle: CAPI and mesh are technically orthogonal (different mechanisms, they do combine), but only these three models are supported. 'mesh' implies local - it disables the CAPI online_client - and only arms the mechanism; peers are paired afterwards in the panel (Firewall > Fleet Mesh) or with h-generate-sys-crowdsec-pairing / h-add-sys-crowdsec-peer, and the mesh stays togglable via h-add/delete-sys-crowdsec-mesh. A radio also because a checkbox in the combined addons screen can never see its own visible_if (see fn_ask_group_checklist)."
     },
 
@@ -397,7 +399,7 @@
       "status_key": "IONCUBE_SYSTEM",
       "status_artefact": { "file": "/usr/local/lib/ioncube/hestia-pin" },
       "label": "ionCube Loader",
-      "description": "Runs ionCube-encoded PHP (pinned loader, every customer PHP version)",
+      "description": "Runs ionCube-encoded PHP (all PHP versions)",
       "fixed_no_prompt": { "mailonly": false },
       "default": { "standard": true, "compact": true, "latest": false, "singlephp": false, "nomail": false, "mailonly": false },
       "note": "Not on mailonly: no customer PHP there. The panel pool never loads it."
@@ -421,7 +423,7 @@
       "status_key": "RESTIC_SYSTEM",
       "status_artefact": { "command": "restic" },
       "label": "restic",
-      "description": "Incremental backup mode (per-customer repository). Without it a customer package cannot select BACKUPS_MODE='restic'.",
+      "description": "Incremental backups, one repository per customer",
       "default": { "standard": true, "compact": false, "latest": false, "singlephp": false, "nomail": false, "mailonly": false },
       "note": "OS package, no pin: the repo format is compatible across 0.14 to 0.18 (measured), and capabilities are asked from the binary. Was in the base package block and in tools.selection until #217 - the checkbox there was inert because the base block installed it regardless."
     },
@@ -432,7 +434,7 @@
       "status_key": "ANTISPAM_SYSTEM",
       "status_artefact": { "service": "rspamd" },
       "label": "rspamd",
-      "description": "Spam filter incl. Bayes learning (mail block only; brings a small capped Redis)",
+      "description": "Spam filter with Bayes learning (brings a small Redis)",
       "visible_if": "MAIL_BLOCK_PRESENT == true",
       "default": { "standard": true, "compact": true, "latest": true, "singlephp": true, "mailonly": true },
       "note": "Hidden on nomail (no mail block). Pure spam-filter component, NOT responsible for DKIM (see the PANEL_EXIM note). ALWAYS brings a Redis as the Bayes backend: without DB_REDIS hard-limited to 64 MB (share/rspamd/redis-rspamd-limit.conf), with DB_REDIS the general-purpose instance is shared unlimited. h-add-sys-redis must remove the limit (promote), h-delete-sys-redis must restore it instead of uninstalling (demote)."

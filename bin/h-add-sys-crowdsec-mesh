@@ -25,6 +25,11 @@ if ! dpkg -l crowdsec 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: CrowdSec is not installed. Run h-add-sys-crowdsec first."
 	exit "$E_NOTEXIST"
 fi
+# Imported peer bans reach only the L7 bouncer; L3 takes the box's own detections.
+if ! crowdsec_l7_capable; then
+	echo "ERROR: this nginx has no lua module for the CrowdSec bouncer, so the mesh would import bans nobody enforces."
+	exit "$E_INVALID"
+fi
 
 mkdir -p "$CONF_DIR/crowdsec" /var/lib/crowdsec/mesh/peers
 [ -f "$MESH_CONF" ] || cp -f "$HESTIA/share/crowdsec/mesh.conf" "$MESH_CONF"

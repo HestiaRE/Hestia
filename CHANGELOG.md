@@ -25,8 +25,14 @@ before v0.20.0 are folded into one section by theme.
 
 ### Fixed
 
+- **Backup rotation on a shared ftp, sftp or rclone target could delete another customer's archives** (#1176).
+  User names differing only where one has a dot matched each other.
+- **A restore started from the panel ran again every five minutes** (#1176). Its queue entry stayed behind after
+  a successful run, and a second restore could be queued over the first.
 - **Deleting a user could hand another customer's dedicated IP back to the admin** (#1176). Names differing only
-  where one has a dot matched each other; the panel's IP list had the same mix-up.
+  where one has a dot matched each other; the panel's IP list had the same mix-up, as did the user lists of IPs
+  and database hosts, queued jobs and the account cleanup when `userdel` fails.
+- **A web backup exclusion of one domain also applied to another whose name starts the same** (#1176).
 - **After an uninstall every root shell reported a missing profile file** (#1176). The installer's `.bashrc` block
   goes with it now.
 - **`hestia uninstall --purge` left units behind that run from the deleted tree** (#1176). The firewall unit failed

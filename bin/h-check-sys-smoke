@@ -1076,10 +1076,15 @@ check_mail_domain_links() {
 			d=$(sed -n "s/.*DOMAIN='\([^']*\)'.*/\1/p" <<< "$line")
 			[ -n "$d" ] || continue
 			[[ "$line" == *"SUSPENDED='yes'"* ]] && continue
+			n=$((n + 1))
 			idn="$d"
 			[[ "$d" =~ [^a-z0-9.-] ]] && idn=$(idn2 --quiet "$d")
+			if [ -z "$idn" ]; then
+				miss=$((miss + 1))
+				[ -z "$first" ] && first="$u/$d cannot be converted to punycode"
+				continue
+			fi
 			want["$idn"]=1
-			n=$((n + 1))
 			l="$dir/$idn"
 			[ -L "$l" ] && [ "$(readlink "$l")" = "$HOMEDIR/$u/conf/mail/$d" ] && [ -d "$l" ] && continue
 			miss=$((miss + 1))

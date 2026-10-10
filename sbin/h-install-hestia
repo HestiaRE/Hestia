@@ -948,10 +948,14 @@ configure_hestia() {
 		# NAT: record PUB_IP as the NAT address of the local IP object; the default
 		# domain stays on the LOCAL IP (no ips/<public> object exists) with PUB_IP in
 		# its NAT field for DNS/display
-		[ -e /etc/rc.local ] && sed -i '/exit 0/d' /etc/rc.local || touch /etc/rc.local
+		touch /etc/rc.local
 		grep -q '^#!' /etc/rc.local || echo '#!/bin/sh' >> /etc/rc.local
-		echo "$HESTIA/bin/h-update-sys-ip" >> /etc/rc.local
-		echo "exit 0" >> /etc/rc.local
+		# Once: the stage re-runs with every changed install.conf. Only a bare exit 0 goes, not the admin's lines.
+		if ! grep -qxF "$HESTIA/bin/h-update-sys-ip" /etc/rc.local; then
+			sed -i '/^exit 0$/d' /etc/rc.local
+			echo "$HESTIA/bin/h-update-sys-ip" >> /etc/rc.local
+			echo "exit 0" >> /etc/rc.local
+		fi
 		chmod +x /etc/rc.local
 		systemctl enable rc-local > /dev/null 2>&1 || true
 		"$BIN/h-change-sys-ip-nat" "$IP" "$PUB_IP" > /dev/null 2>&1 || true

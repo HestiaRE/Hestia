@@ -996,7 +996,7 @@ local_backup() {
 
 	# An adopted archive is the operator's own file and carries a date like any other, so the rotation
 	# would take it first. Excluded by NAME.
-	backup_list=$(ls -lrt $BACKUP/$user/ 2> /dev/null | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+	backup_list=$(ls -lrt $BACKUP/$user/ 2> /dev/null | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	if [ -s "$USER_DATA/backup.conf" ]; then
 		while IFS= read -r _adopted; do
 			[ -n "$_adopted" ] || continue
@@ -1154,9 +1154,9 @@ ftp_backup() {
 
 	# tr -d CR: expect runs in a pty, every line ends CRLF and tar$ never matches.
 	if [ -z $BPATH ]; then
-		backup_list=$(ftpc "ls" | tr -d "\r" | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(ftpc "ls" | tr -d "\r" | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	else
-		backup_list=$(ftpc "cd $BPATH" "ls" | tr -d "\r" | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(ftpc "cd $BPATH" "ls" | tr -d "\r" | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	fi
 	backups_count=$(grep -c . <<< "$backup_list")
 	target_keep=$(backup_target_keep ftp)
@@ -1647,9 +1647,9 @@ sftp_backup() {
 	fi
 
 	if [ -z $BPATH ]; then
-		backup_list=$(sftpc "ls -l" | tr -d "\r" | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(sftpc "ls -l" | tr -d "\r" | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	else
-		backup_list=$(sftpc "cd $BPATH" "ls -l" | tr -d "\r" | awk '{print $9}' | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(sftpc "cd $BPATH" "ls -l" | tr -d "\r" | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	fi
 	backups_count=$(grep -c . <<< "$backup_list")
 	target_keep=$(backup_target_keep sftp)
@@ -1757,7 +1757,7 @@ rclone_backup() {
 		fi
 
 		# Only include *.tar files
-		backup_list=$(rclone lsf $HOST: | cut -d' ' -f1 | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(rclone lsf $HOST: | cut -d' ' -f1 | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 		backups_count=$(grep -c . <<< "$backup_list")
 		target_keep=$(backup_target_keep rclone)
 		if [ "$backups_count" -ge "$target_keep" ]; then
@@ -1794,7 +1794,7 @@ rclone_backup() {
 		fi
 
 		# Only include *.tar files
-		backup_list=$(rclone lsf $HOST:$BPATH | cut -d' ' -f1 | grep -E "^${user}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(rclone lsf $HOST:$BPATH | cut -d' ' -f1 | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 		backups_count=$(grep -c . <<< "$backup_list")
 		target_keep=$(backup_target_keep rclone)
 		if [ "$backups_count" -ge "$target_keep" ]; then

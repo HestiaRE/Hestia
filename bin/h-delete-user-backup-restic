@@ -47,7 +47,8 @@ if [ "$?" -ne 0 ]; then
 fi
 rm -f "$meta_pkg"
 
-sed -i "/h-delete-user-backup-restic '$user' '$snapshot' /d" $CONF_DIR/queue/backup.pipe
+QUEUE_JOB="h-delete-user-backup-restic '$user' '$snapshot'"
+queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 $BIN/h-log-action "system" "Info" "Backup" "Restic snapshot successfully deleted (User: $user, Snapshot: $snapshot)."
 $BIN/h-log-action "$user" "Info" "Backup" "Restic snapshot successfully deleted (Snapshot: $snapshot)."

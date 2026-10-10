@@ -80,13 +80,13 @@ fi
 
 /usr/sbin/userdel -f "$user" >> /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	sed -i "/^$user:/d" /etc/passwd
-	sed -i "/^$user:/d" /etc/shadow
+	remove_line_by_prefix /etc/passwd "$user:"
+	remove_line_by_prefix /etc/shadow "$user:"
 fi
 
 /usr/sbin/groupdel "$user" >> /dev/null 2>&1
 if [ $? -ne 0 ]; then
-	sed -i "/^$user:/d" /etc/group
+	remove_line_by_prefix /etc/group "$user:"
 fi
 
 chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1

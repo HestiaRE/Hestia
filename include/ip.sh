@@ -114,7 +114,7 @@ increase_ip_value() {
 	if [ -z "$current_usr" ]; then
 		new_usr="$USER"
 	else
-		check_usr=$(echo -e "${current_usr//,/\\n}" | grep -x "$USER")
+		check_usr=$(echo -e "${current_usr//,/\\n}" | grep -Fx -- "$USER")
 		if [ -z "$check_usr" ]; then
 			new_usr="$current_usr,$USER"
 		else
@@ -156,12 +156,12 @@ decrease_ip_value() {
 	recount=$(sed -n "s/^U_SYS_USERS='\(.*\)'\$/\1/p" <<< "$recount_out")
 	check_ip=1
 	if grep -q "^U_SYS_USERS=" <<< "$recount_out"; then
-		if grep -qx "$user" <<< "${recount//,/$'\n'}"; then check_ip=1; else check_ip=0; fi
+		if grep -qFx -- "$user" <<< "${recount//,/$'\n'}"; then check_ip=1; else check_ip=0; fi
 	fi
 	if [[ $check_ip = 0 ]]; then
 		new_usr=$(echo "$current_usr" \
 			| sed "s/,/\n/g" \
-			| sed "s/^$user$//g" \
+			| awk -v u="$user" '$0 != u' \
 			| sed "/^$/d" \
 			| sort -u \
 			| sed ':a;N;$!ba;s/\n/,/g')

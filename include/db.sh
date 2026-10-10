@@ -333,7 +333,7 @@ increase_dbhost_values() {
 	parse_object_kv_list "$host_str"
 	if [ -z "$U_SYS_USERS" ]; then
 		U_SYS_USERS="$user"
-	elif [ -z "$(echo $U_SYS_USERS | sed "s/,/\n/g" | grep -w $user)" ]; then
+	elif [ -z "$(echo "$U_SYS_USERS" | sed "s/,/\n/g" | grep -Fx -- "$user")" ]; then
 		U_SYS_USERS="$U_SYS_USERS,$user"
 	fi
 	update_object_value "$HESTIA/conf/$type" 'HOST' "$host" '$U_SYS_USERS' "$U_SYS_USERS"
@@ -355,7 +355,7 @@ decrease_dbhost_values() {
 	parse_object_kv_list "$host_str"
 	U_SYS_USERS=$(echo "$U_SYS_USERS" \
 		| sed "s/,/\n/g" \
-		| sed "s/^$user$//g" \
+		| awk -v u="$user" '$0 != u' \
 		| sed "/^$/d" \
 		| sed ':a;N;$!ba;s/\n/,/g')
 	update_object_value "$HESTIA/conf/$TYPE" 'HOST' "$HOST" '$U_SYS_USERS' "$U_SYS_USERS"

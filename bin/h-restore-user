@@ -1374,7 +1374,7 @@ $BIN/h-add-user-notification "$user" "Backup restored successfully" "<p><span cl
 
 rm -rf $tmpdir
 
-sed -i "/h-restore-user $user /d" $CONF_DIR/queue/backup.pipe
+queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 # Adopt the archive restored from, or it stays unlisted and rotatable. Last, because the restore may create the account.
 # -qF: the archive name carries dots, which as a regex match any character.

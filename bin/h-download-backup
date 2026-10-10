@@ -61,7 +61,7 @@ if ! backup_archive_path "$user" "$backup"; then
 	if [ -z "$downloaded" ]; then
 		subj="Download of $backup failed for $user"
 		$BIN/h-add-user-notification $user "$subj" "<p class='u-text-bold'>Unable to retrieve backup file from remote server.</p><p><span class='u-text-bold'>Error:</span> $backup file doesn't exist in <code>'${BACKUP}'</code> directory.</p>"
-		sed -i "/h-download-backup $user /d" $CONF_DIR/queue/backup.pipe
+		queue_drop_job "$CONF_DIR/queue/backup.pipe"
 		check_result "$E_NOTEXIST" "backup file $backup doesn't exist in '${BACKUP}' folder"
 	else
 		# Through the resolver, no hand-built second two-place rule; a fetched copy gets the owner and mode of a local one.
@@ -80,7 +80,7 @@ if backup_archive_path "$user" "$backup"; then
 	$BIN/h-add-user-notification "$user" "$subj" "<p>Backup file <code>$backup</code> was retrieved from the remote server and will be available to download for 24 hours.</p>"
 fi
 
-sed -i "/h-download-backup $user /d" $CONF_DIR/queue/backup.pipe
+queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 $BIN/h-log-action "system" "Info" "Backup" "Backup download requested (User: $user, Archive: $backup)."
 $BIN/h-log-action "$user" "Info" "Backup" "Backup download requested (Archive: $backup)."

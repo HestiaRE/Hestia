@@ -23,6 +23,10 @@ before v0.20.0 are folded into one section by theme.
   goes with it now.
 - **`hestia uninstall --purge` left units behind that run from the deleted tree** (#1176). The firewall unit failed
   at every boot and every apt run printed a missing hook; the prompt now says what stops.
+- **Re-running the installer on a live box broke every customer mail domain** (#1176). Re-answering the wizard
+  re-ran the mail stage, which emptied `/etc/exim4/domains`: mail to the domains bounced and IMAP logins failed.
+  The same re-run keeps a valid host certificate for the hostname and the SRS secret, and no longer adds a second
+  line to `/etc/rc.local`.
 
 ## v0.26 (2026-10-10)
 

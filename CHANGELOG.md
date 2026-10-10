@@ -12,6 +12,13 @@ before v0.20.0 are folded into one section by theme.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.26 (2026-10-09)
+
+The command audit covers backup and restore, the host, statistics, the remaining commands and the updater; mail-only gets a
+trusted hostname certificate, and nginx can be added to an apache-only server.
+
 ### Security
 
 - **The server statistics are stricter** (#1176).

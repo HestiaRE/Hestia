@@ -247,65 +247,54 @@ check_fail2ban_jails() {
 	fi
 }
 
-# check_fail2ban_config: a config error leaves the service up and the jail gone, so the exit status is not
-# enough: fail2ban prints these on stderr while the dump itself still succeeds.
+# One dump answers three questions: a config error leaves the service up and the jail gone, a foreign banaction
+# bans into a ruleset we do not manage, and a jail on a missing file never fires.
 check_fail2ban_config() {
-	local errs
-	errs=$(fail2ban-client -d 2>&1 > /dev/null | grep ERROR | head -n1)
-	if [ -z "$errs" ]; then
-		ok "fail2ban config parses without error"
-	else
-		no "fail2ban config error" "${errs#*ERROR   }"
-	fi
-}
-
-# check_fail2ban_banaction: one assertion covering the distro leftover, a future package default and a
-# renderer swap that leaves the action behind.
-check_fail2ban_banaction() {
-	local foreign
-	# `action = hestia[name=SSH]` is instantiated as the action `hestia-SSH`, so match the prefix. Testing
-	# for a bare `hestia` looks right and never matches anything.
-	foreign=$(fail2ban-client -d 2> /dev/null \
-		| grep -oE "'addaction', '[^']+'" | sed "s/.*'\(.*\)'/\1/" | sort -u | grep -v '^hestia-')
-	if [ -z "$foreign" ]; then
-		ok "fail2ban bans through the hestia action only"
-	else
-		no "fail2ban jail using a foreign banaction" "$(echo "$foreign" | tr '\n' ' ')"
-	fi
-}
-
-# A jail watching a missing file never fires and says so only in fail2ban's own log - how the mail jails
-# stayed enabled on boxes without mail.
-check_fail2ban_logpaths() {
-	local missing='' p
+	local all errs foreign p missing='' bad=''
+	all=$(fail2ban-client -d 2>&1)
+	# The dump lines are python lists; everything else is the client's own log.
+	errs=$(grep -v "^\[" <<< "$all" | grep -m1 ERROR)
+	[ -n "$errs" ] && bad="$bad; config error: ${errs#*ERROR   }"
+	# `action = hestia[name=SSH]` is instantiated as `hestia-SSH`; a bare `hestia` never matches.
+	foreign=$(grep -oE "'addaction', '[^']+'" <<< "$all" | sed "s/.*'\(.*\)'/\1/" | sort -u | grep -v '^hestia-')
+	[ -n "$foreign" ] && bad="$bad; foreign banaction: $(echo $foreign)"
 	while read -r p; do
-		[ -n "$p" ] || continue
 		case "$p" in /*) [ -e "$p" ] || missing="$missing $p" ;; esac
-	done <<< "$(fail2ban-client -d 2> /dev/null | grep -oE "'addlogpath', '[^']+'" | sed "s/.*'\(.*\)'/\1/" | sort -u)"
-	if [ -z "$missing" ]; then
-		ok "fail2ban jail logpaths all exist"
+	done <<< "$(grep -oE "'addlogpath', '[^']+'" <<< "$all" | sed "s/.*'\(.*\)'/\1/" | sort -u)"
+	[ -n "$missing" ] && bad="$bad; jail watching a missing logpath:$missing"
+	if [ -n "$bad" ]; then
+		no "fail2ban config" "${bad#; }"
 	else
-		no "fail2ban jail watching a missing logpath" "${missing# }"
+		ok "fail2ban config parses, bans through the hestia action only, every logpath exists"
 	fi
 }
 
-# A jail on the systemd backend keeps its logpath, starts cleanly and reports healthy while monitoring
-# nothing: so neither "the file exists" nor "the jail runs" catches it. Asking what it monitors does.
-check_fail2ban_backends() {
-	local blind='' j pat
+# A jail on the systemd backend, or a web jail left on the old stack after a model switch, starts cleanly and
+# reports healthy while it watches nothing.
+check_fail2ban_watch() {
+	local blind='' stale='' j pat want lp
 	for j in $(fail2ban_enabled_jails); do
 		fail2ban-client status "$j" > /dev/null 2>&1 || continue
 		fail2ban-client get "$j" logpath 2> /dev/null | grep -q '^ *`\?- */' && continue
-		# A glob matching nothing yet is not a defect - a box with no web domains has nothing to watch. The
-		# defect this guard is for is a jail whose files exist and that monitors them anyway.
+		# A glob matching nothing yet is a box without web domains, not a defect.
 		pat="$(fail2ban_jail_logpath "$j")"
 		[ -n "$pat" ] && ! compgen -G "$pat" > /dev/null 2>&1 && continue
 		blind="$blind $j"
 	done
-	if [ -z "$blind" ]; then
-		ok "fail2ban jails are watching their log files"
+	if want="$(fail2ban_web_logdir 2> /dev/null)"; then
+		for j in $F2B_WEB_JAILS; do
+			fail2ban_jail_enabled "$j" || continue
+			lp="$(fail2ban_jail_logpath "$j")"
+			[ -n "$lp" ] || continue
+			case "$lp" in "$want"/*) ;; *) stale="$stale $j" ;; esac
+		done
+	fi
+	[ -n "$blind" ] && blind="monitors no file (backend?):$blind"
+	[ -n "$stale" ] && stale="not under $want:$stale"
+	if [ -n "$blind$stale" ]; then
+		no "fail2ban jail watches nothing" "$blind${blind:+${stale:+; }}$stale"
 	else
-		no "fail2ban jail monitors no file (wrong backend?)" "${blind# }"
+		ok "fail2ban jails watch their log files${want:+, web jails under $want}"
 	fi
 }
 
@@ -371,28 +360,6 @@ check_addons_swallowed() {
 	fi
 	if [ "$n" -eq 0 ]; then
 		skip "addon recount (none of the swallowed addons requested)"
-	fi
-}
-
-# A web jail must watch the CURRENT web system's dir. After a switch that forgets to re-gate, its logpath
-# points at the old stack - a REAL path, so the "what does a jail watch" guard cannot see it, and the next
-# restart from any cause leaves it watching a stack with no traffic. Compared against the WEB_SYSTEM dir.
-check_fail2ban_web_logpath() {
-	local want jail lp bad=''
-	want="$(fail2ban_web_logdir 2> /dev/null)" || {
-		skip "web jail logpath (no web system)"
-		return
-	}
-	for jail in $F2B_WEB_JAILS; do
-		fail2ban_jail_enabled "$jail" || continue
-		lp="$(fail2ban_jail_logpath "$jail")"
-		[ -n "$lp" ] || continue
-		case "$lp" in "$want"/*) ;; *) bad="$bad $jail" ;; esac
-	done
-	if [ -z "$bad" ]; then
-		ok "fail2ban web jails watch the current web system ($want)"
-	else
-		no "fail2ban web jail logpath stale vs WEB_SYSTEM" "${bad# } not under $want - a web-model switch did not re-gate; a fail2ban restart would go blind"
 	fi
 }
 
@@ -1815,10 +1782,7 @@ if [ "$FIREWALL_EXTENSION" = 'fail2ban' ]; then
 	# mean working brute-force protection.
 	check_fail2ban_config
 	check_fail2ban_jails
-	check_fail2ban_banaction
-	check_fail2ban_logpaths
-	check_fail2ban_backends
-	check_fail2ban_web_logpath
+	check_fail2ban_watch
 fi
 # clamav's service check moved into the addon recount, which also verifies the other six
 check_addons_swallowed

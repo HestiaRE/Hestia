@@ -250,7 +250,7 @@ check_fail2ban_jails() {
 # One dump answers three questions: a config error leaves the service up and the jail gone, a foreign banaction
 # bans into a ruleset we do not manage, and a jail on a missing file never fires.
 check_fail2ban_config() {
-	local all errs foreign p missing='' bad=''
+	local all errs foreign j pat missing='' bad=''
 	all=$(fail2ban-client -d 2>&1)
 	# The dump lines are python lists; everything else is the client's own log.
 	errs=$(grep -v "^\[" <<< "$all" | grep -m1 ERROR)
@@ -258,10 +258,15 @@ check_fail2ban_config() {
 	# `action = hestia[name=SSH]` is instantiated as `hestia-SSH`; a bare `hestia` never matches.
 	foreign=$(grep -oE "'addaction', '[^']+'" <<< "$all" | sed "s/.*'\(.*\)'/\1/" | sort -u | grep -v '^hestia-')
 	[ -n "$foreign" ] && bad="$bad; foreign banaction: $(echo $foreign)"
-	while read -r p; do
-		case "$p" in /*) [ -e "$p" ] || missing="$missing $p" ;; esac
-	done <<< "$(grep -oE "'addlogpath', '[^']+'" <<< "$all" | sed "s/.*'\(.*\)'/\1/" | sort -u)"
-	[ -n "$missing" ] && bad="$bad; jail watching a missing logpath:$missing"
+	# A missing log file drops out of the dump and leaves only this warning. A glob matching nothing yet is a box
+	# without web domains, not a defect.
+	while read -r j; do
+		[ -n "$j" ] || continue
+		pat="$(fail2ban_jail_logpath "$j")"
+		[[ "$pat" == *[*?]* ]] && continue
+		missing="$missing $j(${pat:-logpath outside $F2B_OURS})"
+	done <<< "$(grep -v "^\[" <<< "$all" | sed -n 's/.*Have not found any log file for \(.*\) jail$/\1/p' | sort -u)"
+	[ -n "$missing" ] && bad="$bad; jail without its log file:$missing"
 	if [ -n "$bad" ]; then
 		no "fail2ban config" "${bad#; }"
 	else

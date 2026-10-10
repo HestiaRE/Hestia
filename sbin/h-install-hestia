@@ -284,10 +284,11 @@ php${PHP_VER}-gd php${PHP_VER}-bz2 php${PHP_VER}-pgsql php${PHP_VER}-intl php${P
 	# restart, not start: on a re-run the master is up, and start would leave the pool and ini above unread.
 	systemctl restart hestia-php
 
-	# caddy needs a certificate to start. Only without one for this hostname: a re-run keeps LE or the admin's own.
+	# caddy needs a certificate. Only without a valid one for this hostname: a re-run keeps LE or the admin's own.
 	local CRT_END KEY_START KEY_END pem_dir pem
 	if [ -s "$HESTIA_SSL/certificate.key" ] && openssl x509 -noout -checkhost "$HESTIA_HOSTNAME" \
-		-in "$HESTIA_SSL/certificate.crt" 2> /dev/null | grep -q ' does match '; then
+		-in "$HESTIA_SSL/certificate.crt" 2> /dev/null | grep -q ' does match ' \
+		&& openssl x509 -noout -checkend 0 -in "$HESTIA_SSL/certificate.crt" > /dev/null 2>&1; then
 		echo "[ skip ] panel SSL certificate already present, keeping it"
 	else
 		echo "[ * ] Generating panel SSL certificate..."

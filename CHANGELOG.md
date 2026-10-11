@@ -22,9 +22,13 @@ the releases of the command audit, into another.
 ### Fixed
 
 - **A renamed web domain could take a name another domain of the same customer answered to** (#1197), and a
-  redirect to the domain itself or a web backup exclusion kept the old name.
+  redirect to a host on the old name or a web backup exclusion kept the old name.
 - **The statistics of a restored domain could stay unbuilt** (#1197) when a longer name of the same customer
   started with it.
+- **Changing the path of an FTP account failed while the customer's site was running** (#1197).
+- **A new WordPress showed the placeholder page instead of the site** on apache (#1197).
+- **Deleting an IDN domain left its statistics configuration behind** (#1197).
+- **Let's Encrypt staging failed for a user who already had a production account** (#1197).
 
 ## v0.24 to v0.27 (2026-10-06 to 2026-10-10)
 

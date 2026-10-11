@@ -1158,11 +1158,7 @@ mail_ssl_modes_apply() {
 
 # The name a client sends as SNI and dovecot's local_name: punycode for an IDN domain, while files keep the record's name.
 mail_sni_name() { # DOMAIN
-	if [[ "$1" = *[![:ascii:]]* ]]; then
-		idn2 --quiet "$1"
-	else
-		printf '%s\n' "$1"
-	fi
+	name_idn "$1"
 }
 
 add_mail_ssl_config() {

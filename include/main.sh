@@ -2534,6 +2534,15 @@ format_domain_idn() {
 # Records are UTF-8 whatever locale the caller brings; under C idn2 cannot read them and prints nothing.
 idn2() { LC_ALL=C.UTF-8 command idn2 "$@"; }
 
+# Punycode for an IDN name, an ASCII name as it is.
+name_idn() { # NAME
+	if [[ "$1" = *[![:ascii:]]* ]]; then
+		idn2 --quiet "$1"
+	else
+		printf '%s\n' "$1"
+	fi
+}
+
 format_aliases() {
 	if [ -n "$aliases" ] && [ "$aliases" != 'none' ]; then
 		aliases=$(echo $aliases | tr '[:upper:]' '[:lower:]' | tr ',' '\n')

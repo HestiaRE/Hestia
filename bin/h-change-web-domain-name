@@ -47,15 +47,14 @@ rename_name() { # NAME
 		*) echo "$1" ;;
 	esac
 }
-# A host as a redirect or WordPress writes it, in the record's form or in punycode; answered in the same form.
+# A host as a redirect or WordPress writes it: in ASCII (punycode) it is answered in ASCII, in the record's Unicode
+# form in Unicode.
 rename_host() { # HOST
-	if [ "$domain_idn" != "$domain" ]; then
-		case "$1" in
-			"$domain_idn") echo "$new_domain_idn" && return ;;
-			*."$domain_idn") echo "${1%."$domain_idn"}.$new_domain_idn" && return ;;
-		esac
-	fi
-	rename_name "$1"
+	case "$1" in
+		"$domain_idn") echo "$new_domain_idn" ;;
+		*."$domain_idn") echo "${1%."$domain_idn"}.$new_domain_idn" ;;
+		*) rename_name "$1" ;;
+	esac
 }
 new_domain_idn=$(name_idn "$new_domain")
 [ -n "$new_domain_idn" ] || check_result "$E_INVALID" "$new_domain cannot be converted to punycode"
@@ -132,7 +131,8 @@ fi
 
 if [ "$SSL" = 'yes' ]; then
 	for f in crt key pem ca; do
-		[ ! -e "$USER_DATA/ssl/$domain.$f" ] || mv -f "$USER_DATA/ssl/$domain.$f" "$USER_DATA/ssl/$new_domain.$f"
+		[ ! -e "$USER_DATA/ssl/$domain.$f" ] || mv -f "$USER_DATA/ssl/$domain.$f" "$USER_DATA/ssl/$new_domain.$f" \
+			|| rename_warn+=", the certificate file $domain.$f did not move"
 	done
 fi
 
@@ -151,9 +151,9 @@ while IFS= read -r line; do
 	done
 done < "$USER_DATA/web.conf"
 
-for f in log error.log bytes; do
-	[ ! -e "/var/log/$WEB_SYSTEM/domains/$domain.$f" ] \
-		|| mv "/var/log/$WEB_SYSTEM/domains/$domain.$f" "/var/log/$WEB_SYSTEM/domains/$new_domain.$f"
+# Rotated ones too; in the both model nginx writes into the same files.
+web_domain_logs "$domain" | while IFS= read -r f; do
+	mv "$f" "${f%/*}/$new_domain${f#"${f%/*}/$domain"}"
 done
 rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new_domain/logs/$domain.error.log"
 
@@ -204,7 +204,8 @@ if [ -n "$BACKEND" ]; then
 fi
 
 # The fragments move with the domain; the rebuild renders the vhosts into the new folder.
-mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain"
+mv "$HOMEDIR/$user/conf/web/$domain" "$HOMEDIR/$user/conf/web/$new_domain" \
+	|| rename_warn+=", $HOMEDIR/$user/conf/web/$domain did not move"
 # The rebuild copies the certificate in under the new name.
 rm -f "$HOMEDIR/$user/conf/web/$new_domain/ssl/$domain".*
 # The ssl variant of a fragment is an absolute link to the plain one; it follows the folder.

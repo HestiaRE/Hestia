@@ -41,11 +41,6 @@ is_password_valid
 
 get_domain_values 'web'
 
-shell=$(which nologin)
-if [ -n "$FTP_SHELL" ]; then
-	shell=$FTP_SHELL
-fi
-
 if [ -z "$ftp_path" ]; then
 	ftp_path_a="$HOMEDIR/$user/web/$domain"
 else
@@ -59,12 +54,7 @@ else
 	fi
 fi
 
-/usr/sbin/useradd $ftp_user \
-	-s $shell \
-	-o -u $(id -u $user) \
-	-g $(id -g $user) \
-	-G hestia-users \
-	-M -d "$ftp_path_a" > /dev/null 2>&1
+ftp_account_add "$ftp_user" "$ftp_path_a"
 
 echo "$ftp_user:$password" | /usr/sbin/chpasswd
 

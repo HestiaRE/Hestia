@@ -1008,6 +1008,17 @@ ftp_list_edit() { # LIST N [VALUE]
 	echo "${_out[*]}"
 }
 
+# An FTP account is a second name on the customer's uid, homed below the domain folder.
+ftp_account_add() { # FTP_USER HOME
+	/usr/sbin/useradd "$1" -s "${FTP_SHELL:-$(which nologin)}" -o -u "$(id -u "$user")" -g "$(id -g "$user")" \
+		-G hestia-users -M -d "$2" > /dev/null 2>&1
+}
+
+# A crypt string and nothing else: the value can come from an archive and goes to chpasswd -e.
+ftp_hash_usable() { # HASH
+	[[ "$1" =~ ^[!*]?[A-Za-z0-9./$]+$ ]]
+}
+
 # Replaces the certificate of $domain with the one in SSL_DIR, in the user's store and in the copy the vhost reads,
 # and re-renders the vhost: a chain file that came or went changes the apache template.
 web_ssl_replace() {

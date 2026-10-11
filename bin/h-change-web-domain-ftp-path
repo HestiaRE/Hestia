@@ -39,6 +39,9 @@ if [ -z "$position" ]; then
 fi
 ftp_path_a=$(readlink -f "$HOMEDIR/$user/web/$domain/$ftp_path")
 is_record_path_valid "$ftp_path_a" "$HOMEDIR/$user/web/$domain" 'ftp path'
+hash=$(getent shadow "$ftp_user" | cut -d: -f2)
+ftp_hash_usable "$hash" || hash=$(ftp_list_get "$FTP_MD5" "$position")
+ftp_hash_usable "$hash" || check_result "$E_INVALID" "$ftp_user has no usable password hash, set a new password first"
 
 if [ ! -e "$ftp_path_a" ]; then
 	mkdir -p "$ftp_path_a"
@@ -46,17 +49,19 @@ if [ ! -e "$ftp_path_a" ]; then
 	chmod 751 "$ftp_path_a"
 fi
 
-/usr/sbin/usermod -d "$ftp_path_a" "$ftp_user"
-check_result $? "home of $ftp_user was not changed" > /dev/null
+ftp_path_r=$(echo $ftp_path_a | sed "s%$HOMEDIR/$user/web/$domain%%")
+update_object_value 'web' 'DOMAIN' "$domain" '$FTP_PATH' "$(ftp_list_edit "$FTP_PATH" "$position" "$ftp_path_r")"
+update_object_value 'web' 'DOMAIN' "$domain" '$FTP_MD5' "$(ftp_list_edit "$FTP_MD5" "$position" "$hash")"
+
+# The account shares the customer's uid, so usermod -d refuses while any of its processes runs. Created anew with
+# its hash instead; the record already holds both, so a failed step is mended by a rebuild.
+/usr/sbin/userdel -f "$ftp_user" > /dev/null 2>&1
+ftp_account_add "$ftp_user" "$ftp_path_a"
+check_result $? "$ftp_user was not created again, h-rebuild-web-domain $user $domain does it" > /dev/null
+echo "$ftp_user:$hash" | /usr/sbin/chpasswd -e
 
 delete_chroot_jail $ftp_user
 add_chroot_jail $ftp_user
-
-ftp_path_r=$(echo $ftp_path_a | sed "s%$HOMEDIR/$user/web/$domain%%")
-
-ftp_path=$(ftp_list_edit "$FTP_PATH" "$position" "$ftp_path_r")
-
-update_object_value 'web' 'DOMAIN' "$domain" '$FTP_PATH' "$ftp_path"
 
 $BIN/h-log-action "$user" "Info" "Web" "FTP account path changed (User: $ftp_user@$domain, Path: $ftp_path_a)."
 log_event "$OK" "$ARGUMENTS"

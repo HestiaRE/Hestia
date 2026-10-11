@@ -29,6 +29,8 @@ the releases of the command audit, into another.
 - **A new WordPress showed the placeholder page instead of the site** on apache (#1197).
 - **Deleting an IDN domain left its statistics configuration behind** (#1197).
 - **Let's Encrypt staging failed for a user who already had a production account** (#1197).
+- **apache-only on Debian 12 left apache unable to start** (#1235). Its mod_qos no longer loads on the current
+  apache; the bot rate limiting stays off there instead.
 
 ## v0.24 to v0.27 (2026-10-06 to 2026-10-10)
 

@@ -64,6 +64,24 @@ botpolicy_render_nginx() {
 	chmod 644 "$out"
 }
 
+# Debian 12's mod_qos wants pcre symbols its apache no longer exports, and enabled it stops apache. Loaded on its own
+# first; the package enables it on install, so a module that does not load is switched off again.
+botpolicy_qos_enable() {
+	local conf rc
+	conf=$(mktemp) || return 1
+	printf '%s\n' 'ServerRoot /etc/apache2' 'ServerName localhost' 'ErrorLog /dev/null' \
+		'Include mods-available/mpm_event.load' 'Include mods-available/qos.load' > "$conf"
+	apache2 -t -f "$conf" > /dev/null 2>&1
+	rc=$?
+	rm -f "$conf"
+	if [ "$rc" = 0 ]; then
+		a2enmod -q qos > /dev/null 2>&1
+	else
+		a2dismod -q -f qos > /dev/null 2>&1
+		return 1
+	fi
+}
+
 # mod_qos counts per client IP, not per domain; the per-domain fragment sets the QS_Event_<fam>_<level> it counts.
 botpolicy_render_apache() {
 	local obj="$CONF_DIR/botfamilies"

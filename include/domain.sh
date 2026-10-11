@@ -417,6 +417,14 @@ le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable
 	return 2
 }
 
+# A domain's line in the stats queue, matched by its last two fields whatever path the command was written with.
+webstats_queue_drop() { # USER DOMAIN
+	local q="$CONF_DIR/queue/webstats.pipe"
+	[ -f "$q" ] || return 0
+	U=$1 D=$2 awk '!($NF == ENVIRON["D"] && $(NF - 1) == ENVIRON["U"])' "$q" > "$q.tmp" && cat "$q.tmp" > "$q"
+	rm -f "$q.tmp"
+}
+
 # A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
 # "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
 is_web_domain_name_valid() { # DOMAIN

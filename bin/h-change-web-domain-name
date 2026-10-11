@@ -47,16 +47,24 @@ rename_name() { # NAME
 		*) echo "$1" ;;
 	esac
 }
-name_idn() { # NAME
-	if [[ "$1" = *[![:ascii:]]* ]]; then idn2 --quiet "$1"; else echo "$1"; fi
+# A host as a redirect or WordPress writes it, in the record's form or in punycode; answered in the same form.
+rename_host() { # HOST
+	if [ "$domain_idn" != "$domain" ]; then
+		case "$1" in
+			"$domain_idn") echo "$new_domain_idn" && return ;;
+			*."$domain_idn") echo "${1%."$domain_idn"}.$new_domain_idn" && return ;;
+		esac
+	fi
+	rename_name "$1"
 }
 new_domain_idn=$(name_idn "$new_domain")
+[ -n "$new_domain_idn" ] || check_result "$E_INVALID" "$new_domain cannot be converted to punycode"
+# Compared before the mapping: an alias below the old name that becomes the name would map past it.
 new_alias=''
 IFS=, read -ra _alias_list <<< "$ALIAS"
 for a in "${_alias_list[@]}"; do
-	[ -n "$a" ] || continue
+	[ -n "$a" ] && [ "$a" != "$new_domain" ] || continue
 	a=$(rename_name "$a")
-	[ "$a" = "$new_domain" ] && continue
 	[[ ",$new_alias," == *",$a,"* ]] || new_alias+="${new_alias:+,}$a"
 done
 
@@ -76,22 +84,24 @@ if [ -e "$HOMEDIR/$user/web/$new_domain" ] || [ -e "$HOMEDIR/$user/conf/web/$new
 	check_result "$E_EXISTS" "a folder for $new_domain already exists"
 fi
 
+# By the text: OpenSSL 3.0 exits 0 on a mismatch as well. Also matches a wildcard name.
+cert_covers() { # CRT NAME
+	openssl x509 -noout -checkhost "$(name_idn "$2")" -in "$1" 2> /dev/null | grep -q ' does match '
+}
+
 # The certificate's names after the rename: the domain and each alias it covers, mapped like the aliases. An own
 # certificate must already cover them, Let's Encrypt needs their DNS; both checked before anything moves.
 cert_aliases=''
 if [ "$SSL" = 'yes' ]; then
 	crt="$USER_DATA/ssl/$domain.crt"
-	san=",$(openssl x509 -noout -ext subjectAltName -in "$crt" 2> /dev/null | sed -n 's/DNS://gp' | tr -d ' '),"
 	IFS=, read -ra _alias_list <<< "$ALIAS"
 	for a in "${_alias_list[@]}"; do
-		[ -n "$a" ] && [[ "$san" == *",$(name_idn "$a"),"* ]] || continue
+		[ -n "$a" ] && [ "$a" != "$new_domain" ] && cert_covers "$crt" "$a" || continue
 		a=$(rename_name "$a")
-		[ "$a" = "$new_domain" ] || [[ ",$cert_aliases," == *",$a,"* ]] || cert_aliases+="${cert_aliases:+,}$a"
+		[[ ",$cert_aliases," == *",$a,"* ]] || cert_aliases+="${cert_aliases:+,}$a"
 	done
 	IFS=, read -ra _alias_list <<< "$new_domain,$cert_aliases"
 	if [ "$LETSENCRYPT" = 'yes' ]; then
-		LE_API='https://acme-v02.api.letsencrypt.org'
-		[ "$LE_STAGING" != 'yes' ] || LE_API='https://acme-staging-v02.api.letsencrypt.org'
 		for a in "${_alias_list[@]}"; do
 			le_dns_check "$(name_idn "$a")"
 			case $? in
@@ -101,13 +111,16 @@ if [ "$SSL" = 'yes' ]; then
 			esac
 		done
 	else
-		# By the text: OpenSSL 3.0 exits 0 on a mismatch as well.
 		for a in "${_alias_list[@]}"; do
-			openssl x509 -noout -checkhost "$(name_idn "$a")" -in "$crt" 2> /dev/null | grep -q ' does match ' \
+			cert_covers "$crt" "$a" \
 				|| check_result "$E_FORBIDEN" "the certificate does not cover $a; replace it or switch SSL off first"
 		done
 	fi
 fi
+
+# The move most likely to fail goes first, while a refusal still leaves everything as it was.
+mv "$HOMEDIR/$user/web/$domain" "$HOMEDIR/$user/web/$new_domain" \
+	|| check_result "$E_UPDATE" "$HOMEDIR/$user/web/$domain could not be moved, nothing is renamed"
 
 rename_warn=''
 # Dots escaped, or renaming a.b.com also rewrites the aXb.com record.
@@ -138,16 +151,16 @@ while IFS= read -r line; do
 	done
 done < "$USER_DATA/web.conf"
 
-mv "$HOMEDIR/$user/web/$domain" "$HOMEDIR/$user/web/$new_domain"
 for f in log error.log bytes; do
-	mv "/var/log/$WEB_SYSTEM/domains/$domain.$f" "/var/log/$WEB_SYSTEM/domains/$new_domain.$f"
+	[ ! -e "/var/log/$WEB_SYSTEM/domains/$domain.$f" ] \
+		|| mv "/var/log/$WEB_SYSTEM/domains/$domain.$f" "/var/log/$WEB_SYSTEM/domains/$new_domain.$f"
 done
 rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new_domain/logs/$domain.error.log"
 
 # awstats names its data files by the config, the IDN name; renamed, the history stays. The rebuild writes the
 # new config, link and queue line.
 if [ -n "$STATS" ]; then
-	sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
+	webstats_queue_drop "$user" "$domain"
 	rm -f "/etc/awstats/$STATS.$domain_idn.conf"
 	stats_dir="$HOMEDIR/$user/web/$new_domain/stats"
 	# 551 by design, opened for the moves as the stat build does.
@@ -203,12 +216,17 @@ for l in "$new_conf"/*; do
 		"$old_conf"/*) ln -sfn "$new_conf/${t#"$old_conf/"}" "$l" ;;
 	esac
 done
-# A redirect to the domain itself (the panel's two choices) points at the new name, written anew.
-if [ "$REDIRECT" = "$domain" ] || [ "$REDIRECT" = "www.$domain" ]; then
-	$BIN/h-delete-web-domain-redirect "$user" "$new_domain" 'no' > /dev/null 2>&1
-	target=$(rename_name "$REDIRECT")
-	$BIN/h-add-web-domain-redirect "$user" "$new_domain" "$target" "${REDIRECT_CODE:-301}" 'no' > /dev/null 2>&1 \
-		|| rename_warn+=", the redirect to $REDIRECT is gone"
+# A redirect to a host on the old name points at the new one, written anew; scheme, port and path stay.
+if [ -n "$REDIRECT" ]; then
+	r_scheme='' r=$REDIRECT
+	[[ "$r" != *://* ]] || r_scheme="${r%%://*}://" r=${r#*://}
+	r_host=${r%%[:/]*}
+	target="$r_scheme$(rename_host "$r_host")${r#"$r_host"}"
+	if [ "$target" != "$REDIRECT" ]; then
+		$BIN/h-delete-web-domain-redirect "$user" "$new_domain" 'no' > /dev/null 2>&1
+		$BIN/h-add-web-domain-redirect "$user" "$new_domain" "$target" "${REDIRECT_CODE:-301}" 'no' > /dev/null 2>&1 \
+			|| rename_warn+=", the redirect to $REDIRECT is gone"
+	fi
 fi
 
 # The accounts share the customer's uid, so usermod -d refuses while any of its processes runs. Removed instead,
@@ -262,11 +280,12 @@ if [ "$SSL" = 'yes' ] && [ "$LETSENCRYPT" = 'yes' ]; then
 	fi
 fi
 
-# WordPress keeps its docroot in the cron job and its address in home and siteurl. An address on a name that
+# WordPress keeps its docroot in the cron job and its address in home and siteurl. Only an address on a name that
 # moved is rewritten; links inside the content are the customer's, the output names the command for them.
 if [ "$WP" = 'yes' ]; then
 	old_root="$HOMEDIR/$user/web/$domain/public_html"
-	docroot="$HOMEDIR/$user/web/$new_domain/public_html"
+	docroot=$(get_object_value 'web' 'DOMAIN' "$new_domain" '$CUSTOM_DOCROOT')
+	docroot=${docroot:-$HOMEDIR/$user/web/$new_domain/public_html}
 	for job in $("$BIN/h-list-cron-jobs" "$user" plain 2> /dev/null | grep -F -- "--path=$old_root " | cut -f 1); do
 		"$BIN/h-delete-cron-job" "$user" "$job" > /dev/null 2>&1
 	done
@@ -277,17 +296,21 @@ if [ "$WP" = 'yes' ]; then
 	}
 	ssl_now=$(get_object_value 'web' 'DOMAIN' "$new_domain" '$SSL')
 	for opt in home siteurl; do
-		v=$(wp_user option get "$opt" 2> /dev/null)
-		[[ "$v" =~ ^(https?)://([^/]+)$ ]] || continue
-		scheme=${BASH_REMATCH[1]} host=${BASH_REMATCH[2]}
-		case "$host" in
-			"$domain_idn") host=$new_domain_idn ;;
-			*) host=$(rename_name "$host") ;;
-		esac
-		[ "$ssl_now" = 'yes' ] || scheme=http
-		[ "$scheme://$host" != "$v" ] || continue
-		wp_user option update "$opt" "$scheme://$host" > /dev/null 2>&1 \
-			|| rename_warn+=", WordPress $opt is still $v"
+		if ! v=$(wp_user option get "$opt" 2> /dev/null) || [ -z "$v" ]; then
+			rename_warn+=", WordPress $opt could not be read"
+			continue
+		fi
+		if [[ "$v" =~ ^(https?)://([^/:?#]+)(.*)$ ]]; then
+			scheme=${BASH_REMATCH[1]} host=${BASH_REMATCH[2],,} rest=${BASH_REMATCH[3]}
+			new_host=$(rename_host "$host")
+			[ "$new_host" != "$host" ] || continue
+			# TLS can end in front of the box; only the fallback that just switched SSL off makes it http.
+			[ "$SSL" != 'yes' ] || [ "$ssl_now" = 'yes' ] || scheme=http
+			wp_user option update "$opt" "$scheme://$new_host$rest" > /dev/null 2>&1 \
+				|| rename_warn+=", WordPress $opt is still $v"
+		elif [[ "${v,,}" == *"$domain"* || "${v,,}" == *"$domain_idn"* ]]; then
+			rename_warn+=", WordPress $opt is still $v"
+		fi
 	done
 	echo "WordPress: links inside the content still name $domain;" \
 		"wp search-replace '$domain' '$new_domain' takes them along"

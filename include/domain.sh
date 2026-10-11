@@ -403,15 +403,16 @@ le_dns_has_record() { # NAME [RESOLVER]: A or AAAA counts, the challenge rides e
 			|| nslookup -timeout=3 -retry=1 -query=AAAA "$1" > /dev/null 2>&1
 	fi
 }
-le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable; LE_API is the caller's
-	local r
+le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable
+	local r api
+	api=$(le_api)
 	le_dns_has_record "$1" && return 0
 	for r in 1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe; do
 		le_dns_has_record "$1" "$r" && return 0
 	done
 	# nslookup cannot tell NXDOMAIN from an unreachable resolver by exit code; a name that must exist can.
 	for r in 1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe; do
-		le_dns_has_record "${LE_API#https://}" "$r" && return 1
+		le_dns_has_record "${api#https://}" "$r" && return 1
 	done
 	return 2
 }

@@ -266,6 +266,15 @@ le_conf_load() {
 	done
 }
 
+# The ACME server; staging lets a box test issuing and renewal against the rate limits.
+le_api() {
+	if [ "$LE_STAGING" = 'yes' ]; then
+		echo 'https://acme-staging-v02.api.letsencrypt.org'
+	else
+		echo 'https://acme-v02.api.letsencrypt.org'
+	fi
+}
+
 # Read from share/manifest.json; empty on miss. jq is an install.sh prereq, so it is always there.
 manifest_get() {
 	jq -r "$1" "$HESTIA/share/manifest.json" 2> /dev/null

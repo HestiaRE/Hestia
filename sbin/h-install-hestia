@@ -376,9 +376,12 @@ install_web() {
 	botpolicy_seed_families
 	if [ "$web_model" = "apache" ]; then
 		apt_install_optional "apache mod_qos (bot rate limiting)" libapache2-mod-qos || true
-		a2enmod qos > /dev/null 2>&1
-		mkdir -p /etc/apache2/conf.d
-		botpolicy_render_apache
+		if botpolicy_qos_enable; then
+			mkdir -p /etc/apache2/conf.d
+			botpolicy_render_apache
+		else
+			echo "Warning: mod_qos does not load, bot rate limiting stays off" >&2
+		fi
 	else
 		mkdir -p /etc/nginx/conf.d
 		botpolicy_render_nginx

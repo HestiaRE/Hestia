@@ -183,6 +183,16 @@ RewriteRule . /index.php [L]
 HTACCESS
 fi
 
+# The skeleton's placeholder is served before index.php; only an unchanged one goes, its domain line aside.
+if [ -f "$docroot/index.html" ] && [ ! -L "$docroot/index.html" ]; then
+	if cmp -s <(grep -v '<strong>Domain:</strong>' "$SHARETPL/skel/public_html/index.html") \
+		<(user_exec cat "$docroot/index.html" | grep -v '<strong>Domain:</strong>'); then
+		user_exec rm -f "$docroot/index.html"
+	else
+		echo "WARN: $docroot/index.html stays and is served before WordPress"
+	fi
+fi
+
 # deterministic cron instead of pageview-triggered wp-cron (DISABLE_WP_CRON is set above)
 wp_cron_sync "$domain" \
 	|| echo "WARN: could not add the wp-cron entry (CRON quota?) - scheduled WP tasks will not run"

@@ -266,6 +266,15 @@ le_conf_load() {
 	done
 }
 
+# The ACME server; staging lets a box test issuing and renewal against the rate limits.
+le_api() {
+	if [ "$LE_STAGING" = 'yes' ]; then
+		echo 'https://acme-staging-v02.api.letsencrypt.org'
+	else
+		echo 'https://acme-v02.api.letsencrypt.org'
+	fi
+}
+
 # Read from share/manifest.json; empty on miss. jq is an install.sh prereq, so it is always there.
 manifest_get() {
 	jq -r "$1" "$HESTIA/share/manifest.json" 2> /dev/null
@@ -2524,6 +2533,15 @@ format_domain_idn() {
 
 # Records are UTF-8 whatever locale the caller brings; under C idn2 cannot read them and prints nothing.
 idn2() { LC_ALL=C.UTF-8 command idn2 "$@"; }
+
+# Punycode for an IDN name, an ASCII name as it is.
+name_idn() { # NAME
+	if [[ "$1" = *[![:ascii:]]* ]]; then
+		idn2 --quiet "$1"
+	else
+		printf '%s\n' "$1"
+	fi
+}
 
 format_aliases() {
 	if [ -n "$aliases" ] && [ "$aliases" != 'none' ]; then

@@ -14,11 +14,7 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-LE_API='https://acme-v02.api.letsencrypt.org'
-
-if [[ "$LE_STAGING" = 'yes' ]]; then
-	LE_API='https://acme-staging-v02.api.letsencrypt.org'
-fi
+LE_API=$(le_api)
 
 encode_base64() {
 	cat | base64 | tr '+/' '-_' | tr -d '\r\n='
@@ -60,6 +56,8 @@ if [ -e "$USER_DATA/ssl/user.key" ] && [ -n "$MODULUS" ]; then
 		unset KID MODULUS EXPONENT THUMB
 	fi
 fi
+# An account belongs to the server that registered it; after a staging switch the key registers there anew.
+[[ "$KID" == "$LE_API/"* ]] || KID=''
 if [ -n "$KID" ]; then
 	exit
 fi

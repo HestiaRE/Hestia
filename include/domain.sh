@@ -392,6 +392,39 @@ wp_cron_sync() { # DOMAIN
 		"$(wp_domain_php "$1") /usr/local/bin/wp cron event run --due-now --path=$docroot --quiet" > /dev/null 2>&1
 }
 
+# The fallback resolvers are IP literals (naming them needs the resolver that failed): two operators,
+# both families each, so one operator outage does not take the whole second opinion.
+le_dns_has_record() { # NAME [RESOLVER]: A or AAAA counts, the challenge rides either family
+	if [ -n "$2" ]; then
+		nslookup -timeout=3 -retry=1 -query=A "$1" "$2" > /dev/null 2>&1 \
+			|| nslookup -timeout=3 -retry=1 -query=AAAA "$1" "$2" > /dev/null 2>&1
+	else
+		nslookup -timeout=3 -retry=1 -query=A "$1" > /dev/null 2>&1 \
+			|| nslookup -timeout=3 -retry=1 -query=AAAA "$1" > /dev/null 2>&1
+	fi
+}
+le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable
+	local r api
+	api=$(le_api)
+	le_dns_has_record "$1" && return 0
+	for r in 1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe; do
+		le_dns_has_record "$1" "$r" && return 0
+	done
+	# nslookup cannot tell NXDOMAIN from an unreachable resolver by exit code; a name that must exist can.
+	for r in 1.1.1.1 9.9.9.9 2606:4700:4700::1111 2620:fe::fe; do
+		le_dns_has_record "${api#https://}" "$r" && return 1
+	done
+	return 2
+}
+
+# A domain's line in the stats queue, matched by its last two fields whatever path the command was written with.
+webstats_queue_drop() { # USER DOMAIN
+	local q="$CONF_DIR/queue/webstats.pipe"
+	[ -f "$q" ] || return 0
+	U=$1 D=$2 awk '!($NF == ENVIRON["D"] && $(NF - 1) == ENVIRON["U"])' "$q" > "$q.tmp" && cat "$q.tmp" > "$q"
+	rm -f "$q.tmp"
+}
+
 # A new web domain needs a dot: per-domain cache zones and paths are named by it, and a single label like
 # "cache" or "temp" meets the global ones in nginx.conf. Only where a name is given, so existing ones stay manageable.
 is_web_domain_name_valid() { # DOMAIN
@@ -975,6 +1008,17 @@ ftp_list_edit() { # LIST N [VALUE]
 	echo "${_out[*]}"
 }
 
+# An FTP account is a second name on the customer's uid, homed below the domain folder.
+ftp_account_add() { # FTP_USER HOME
+	/usr/sbin/useradd "$1" -s "${FTP_SHELL:-$(which nologin)}" -o -u "$(id -u "$user")" -g "$(id -g "$user")" \
+		-G hestia-users -M -d "$2" > /dev/null 2>&1
+}
+
+# A crypt string and nothing else: the value can come from an archive and goes to chpasswd -e.
+ftp_hash_usable() { # HASH
+	[[ "$1" =~ ^[!*]?[A-Za-z0-9./$]+$ ]]
+}
+
 # Replaces the certificate of $domain with the one in SSL_DIR, in the user's store and in the copy the vhost reads,
 # and re-renders the vhost: a chain file that came or went changes the apache template.
 web_ssl_replace() {
@@ -1133,11 +1177,7 @@ mail_ssl_modes_apply() {
 
 # The name a client sends as SNI and dovecot's local_name: punycode for an IDN domain, while files keep the record's name.
 mail_sni_name() { # DOMAIN
-	if [[ "$1" = *[![:ascii:]]* ]]; then
-		idn2 --quiet "$1"
-	else
-		printf '%s\n' "$1"
-	fi
+	name_idn "$1"
 }
 
 add_mail_ssl_config() {

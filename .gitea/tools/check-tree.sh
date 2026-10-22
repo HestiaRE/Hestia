@@ -586,7 +586,34 @@ check_webmail_value_domain() {
 	no "webmail templates outside the value domain:$missing" "extend WEBMAIL_KNOWN_CLIENTS in include/main.sh"
 }
 
+# The login alias passdb may only rename: continue-fail keeps a nopassword line from passing a login, the filter keeps
+# address logins out of it. Checked in the tree file and in every update patch that adds it, not on a box.
+check_login_alias_passdb() {
+	local f n=0 bad='' block
+	for f in "$HESTIA/share/dovecot/2.4/conf.d/auth-passwdfile.conf.ext" "$HESTIA"/share/updates/patches/*/*.patch; do
+		[ -e "$f" ] || continue
+		case "$f" in
+			*.patch) block=$(sed -n 's/^+//p' "$f" | awk '/^passdb login-alias \{/,/^\}/') ;;
+			*) block=$(awk '/^passdb login-alias \{/,/^\}/' "$f") ;;
+		esac
+		[ -n "$block" ] || continue
+		n=$((n + 1))
+		[ "$(grep -cE '^\s*result_success\s*=' <<< "$block")" = 1 ] \
+			&& grep -qxE '\s*result_success = continue-fail' <<< "$block" \
+			&& [ "$(grep -cE '^\s*username_filter\s*=' <<< "$block")" = 1 ] \
+			&& grep -qxF '  username_filter = !*@*' <<< "$block" || bad="$bad ${f#"$HESTIA"/}"
+	done
+	if ! awk '/^passdb login-alias \{/' "$HESTIA/share/dovecot/2.4/conf.d/auth-passwdfile.conf.ext" | grep -q .; then
+		no "login alias passdb guard found no block in the 2.4 auth file" "renamed or moved"
+	elif [ -n "$bad" ]; then
+		no "login alias passdb without continue-fail or the no-@ filter:$bad"
+	else
+		ok "login alias passdb renames only ($n block(s): tree file and update patches)"
+	fi
+}
+
 check_share_json
+check_login_alias_passdb
 check_sys_key_registry
 check_manifest_status_link
 check_update_manifests

@@ -562,6 +562,9 @@ install_mail() {
 	fi
 	cp -f "$HESTIA/share/dovecot/logrotate" /etc/logrotate.d/dovecot
 	chown -R root:root /etc/dovecot*
+	if [ "$DCDIR" = "$HESTIA/share/dovecot/2.4" ]; then
+		dovecot_login_aliases_ensure
+	fi
 	touch /var/log/dovecot.log
 	chown dovecot:mail /var/log/dovecot.log
 	chmod 660 /var/log/dovecot.log

@@ -1,0 +1,21 @@
+{
+  "version": "0.28",
+  "entries": [
+    {
+      "id": "dovecot-login-alias",
+      "description": "A mailbox can carry a second login name from /etc/dovecot/login-aliases, which is created empty; dovecot 2.4 only, patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/auth-passwdfile.conf.ext", "value": "/etc/exim4/domains/%{ user | domain }/passwd" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.28/dovecot-login-alias.patch",
+          "target": "/etc/dovecot/conf.d/auth-passwdfile.conf.ext"
+        }
+      ],
+      "action": { "type": "function_call", "function": "dovecot_login_alias_apply" },
+      "paths": ["/etc/dovecot/conf.d/auth-passwdfile.conf.ext"],
+      "reversible": false
+    }
+  ]
+}

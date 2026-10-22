@@ -7,6 +7,8 @@ passdb login-alias {
   driver = passwd-file
   passwd_file_path = /etc/dovecot/login-aliases
   auth_username_format = %{user}
+  # An alias has no @, so a login by address never reads the file.
+  username_filter = !*@*
   # continue-fail: a nopassword in the file would otherwise let any password through.
   result_success = continue-fail
   result_failure = continue

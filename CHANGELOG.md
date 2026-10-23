@@ -24,6 +24,9 @@ the releases of the command audit, into another.
 - **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**
   (#1197) instead of refusing them. A Let's Encrypt certificate is requested for the new name; if that fails,
   the domain stays renamed without SSL.
+- **A new web domain folder is 751, the same as after a rebuild or restore** (#1237). It used to start at
+  551 and turn 751 on the first rebuild, so the operator key `DOMAINDIR_WRITABLE` only covered the time in
+  between; the key is gone.
 
 ### Fixed
 

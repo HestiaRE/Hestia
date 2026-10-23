@@ -109,10 +109,6 @@
    "default": "",
    "values": ["docker", ""]
   },
-  "DOMAINDIR_WRITABLE": {
-   "class": "betreiber",
-   "default": "no"
-  },
   "ENFORCE_SUBDOMAIN_OWNERSHIP": {
    "class": "betreiber",
    "default": "yes"

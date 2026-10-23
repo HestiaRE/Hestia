@@ -555,10 +555,6 @@ auth_basic_user_file    $htpasswd;"
 		restart_required='yes'
 	fi
 
-	# domain folder permissions: DOMAINDIR_WRITABLE: default-val:no source:hestia.conf
-	DOMAINDIR_MODE=551
-	if [ "$DOMAINDIR_WRITABLE" = 'yes' ]; then DOMAINDIR_MODE=751; fi
-
 	# Set folder permissions
 	no_symlink_chmod 751 $HOMEDIR/$user/web/$domain \
 		$HOMEDIR/$user/web/$domain/stats \

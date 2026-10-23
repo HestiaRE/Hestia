@@ -43,9 +43,11 @@ the releases of the command audit, into another.
 
 ### Removed
 
-- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251). Both tools are always installed system-wide; the
-  per-user copy only put an alias in front of the pinned one and went stale unless rerun. An update removes the
-  commands from installed boxes. Upstream #5787 adds a delete for its per-user wp-cli, which this makes moot.
+- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251). wp-cli is always installed system-wide and pinned;
+  composer is a system-wide addon, off on compact and absent on mailonly, which `h-update-sys-composer os` adds to
+  a box without it. The per-user copy only put an alias in front of the system one and went stale unless rerun.
+  An update removes the commands from installed boxes. Upstream #5787 adds a delete for its per-user wp-cli, which
+  this makes moot.
 
 ### Fixed
 

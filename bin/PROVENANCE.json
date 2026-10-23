@@ -12,6 +12,12 @@
       "derived": "Reimplemented or diverged from upstream on purpose (churn >3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
+    "upstream_files_not_adopted": {
+      "_note": "Only upstream commands HestiaRE carried once and removed on purpose. Not the whole unmapped set: that is upstream ls-tree bin/ minus every upstream_path below (125 files at 9098bf2f), most of them ground-rule exclusions.",
+      "bin/v-add-user-wp-cli": "Removed in #1251: wp-cli is installed system-wide and pinned; a per-user copy only shadowed the pin.",
+      "bin/v-add-user-composer": "Removed in #1251: composer is a system-wide addon (h-update-sys-composer installs or switches it); a per-user copy only shadowed it.",
+      "bin/v-delete-user-wp-cli": "Upstream #5787, the delete for the per-user copy above; moot without it."
+    },
     "aggregate": {
       "upstream_mapped_files": 400,
       "eigenbau_files": 117,

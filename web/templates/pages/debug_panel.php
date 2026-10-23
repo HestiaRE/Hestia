@@ -26,10 +26,7 @@ foreach ($_SESSION as $key => $val) {
 	if (is_string($val)) {
 		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> " . tohtml($val) . " ";
 	} elseif (is_array($val)) {
-		array_walk_recursive($val, function (&$value) {
-			$value = htmlentities($value);
-		});
-		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> "  .var_dump($val). " ";
+		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> " . tohtml(var_export($val, true)) . " ";
 	}
 }
 ?>
@@ -39,10 +36,7 @@ foreach ($_POST as $key => $val) {
 	if (is_string($val)) {
 		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> " . tohtml($val) . " ";
 	} elseif (is_array($val)) {
-		array_walk_recursive($val, function (&$value) {
-			$value = htmlentities($value);
-		});
-		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> "  .var_dump($val). " ";
+		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> " . tohtml(var_export($val, true)) . " ";
 	}
 }
 ?>
@@ -52,10 +46,7 @@ foreach ($_GET as $key => $val) {
 	if (is_string($val)) {
 		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> " . tohtml($val) . " ";
 	} elseif (is_array($val)) {
-		array_walk_recursive($val, function (&$value) {
-			$value = htmlentities($value);
-		});
-		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> "  .var_dump($val). " ";
+		echo "<span class=\"u-text-bold\">" . tohtml($key) . "= </span> " . tohtml(var_export($val, true)) . " ";
 	}
 }
 ?>

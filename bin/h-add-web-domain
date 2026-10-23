@@ -127,7 +127,8 @@ web_domain_logs "$domain" | while IFS= read -r f; do
 	chmod 640 "$f"
 done
 user_exec chmod 751 $HOMEDIR/$user/web/$domain $HOMEDIR/$user/web/$domain/*
-find $HOMEDIR/$user/web/$domain/public_html -type d -exec chmod 755 {} +
+# public_html itself stays 751 as the rebuild leaves it; only what is below it opens up.
+find $HOMEDIR/$user/web/$domain/public_html -mindepth 1 -type d -exec chmod 755 {} +
 find $HOMEDIR/$user/web/$domain/public_html -type f -exec chmod 644 {} +
 chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
 

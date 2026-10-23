@@ -127,7 +127,7 @@ PHP: Sury 8.3, isolated FPM pool — replaces hestia-php.
 
 ### Always installed components
 php multi (Sury 5.6–8.4), mariadb (ext repo), phpmyadmin (OS), caddy (OS),
-iptables, fail2ban (OS), ipset, composer (system-wide), wp-cli (system-wide)
+nftables, fail2ban (OS), composer (system-wide), wp-cli (system-wide)
 
 **The web model decides the web-server packages, not just who serves.** apache-only means no
 nginx on the box; nginx-only and both install nginx. Mail-only gets nginx through the mailfront
@@ -343,7 +343,9 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   **A bumped Tachyon pin reaches an installed box only through a `tachyon-pin` entry in that
   release's own `share/updates/` manifest.** The entries of manifests at or below the update bound
   are not read, so the one in `0.20.0.json` stopped carrying bumps at v0.21, and 4.2.5 and 4.3.1
-  reached fresh installs only. The same holds for every other `pin_differs` entry (ioncube).
+  reached fresh installs only. The same holds for every other `pin_differs` entry (ioncube) and
+  every shipped file a `file_differs`/`file_copy` entry once carried; `check-tree.sh` fails a PR
+  that changes one of them without an entry above the last public tag.
 - **Check `php_supported` against Sury**: has a new PHP gone GA? The wizard offers only the
   intersection of Sury's packages and this list (#688) — a missing bump means the new version
   is silently never offered, an eager bump offers a beta to customers. Decide here, per release.

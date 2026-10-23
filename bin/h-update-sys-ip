@@ -133,11 +133,11 @@ for ip6 in $ip6s; do
 done
 
 # NAT: v4 only (a global v6 is public), and only on a non-empty answer: an empty one names the directory.
-pub_ipv4="$(curl -fsLm5 --retry 2 --ipv4 https://ip.hestiacp.com/)"
+pub_ipv4="$(public_ipv4)" || pub_ipv4=''
 if [ -n "$pub_ipv4" ] && [ ! -e "$CONF_DIR/ips/$pub_ipv4" ]; then
 	if ! grep -rqxF "NAT='$pub_ipv4'" "$CONF_DIR/ips/"; then
 		ip="$(find "$CONF_DIR/ips/" -maxdepth 1 -type f ! -name '*:*' -printf '%T@ %f\n' | sort -rn | head -n1 | cut -d' ' -f2)"
-		[ -n "$ip" ] && $BIN/h-change-sys-ip-nat "$ip" "$pub_ipv4"
+		[ -n "$ip" ] && $BIN/h-change-sys-ip-nat "$ip" "$pub_ipv4" && nat_boot_entry_ensure
 	fi
 fi
 

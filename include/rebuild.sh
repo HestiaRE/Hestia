@@ -422,7 +422,7 @@ rebuild_web_domain_conf() {
 		fi
 
 		webstats="$BIN/h-update-web-domain-stat $user $domain"
-		check_webstats=$(grep "$webstats" $CONF_DIR/queue/webstats.pipe)
+		check_webstats=$(grep -F -x -- "$webstats" $CONF_DIR/queue/webstats.pipe)
 		if [ -z "$check_webstats" ]; then
 			echo "$webstats" >> $CONF_DIR/queue/webstats.pipe
 		fi
@@ -466,7 +466,7 @@ rebuild_web_domain_conf() {
 			fi
 			# The hash comes from the record, possibly an archive: only a crypt string goes in, else the account
 			# keeps the random password and the customer sets a new one.
-			if [[ "$ftp_md5" =~ ^[!*]?[A-Za-z0-9./$]+$ ]]; then
+			if ftp_hash_usable "$ftp_md5"; then
 				echo "$ftp_user:$ftp_md5" | /usr/sbin/chpasswd -e
 			else
 				echo "Warning!: FTP account $ftp_user of $domain has no usable password hash, set a new password"
@@ -554,10 +554,6 @@ auth_basic_user_file    $htpasswd;"
 		rm -f "$htaccess" "$shtaccess" "$htpasswd"
 		restart_required='yes'
 	fi
-
-	# domain folder permissions: DOMAINDIR_WRITABLE: default-val:no source:hestia.conf
-	DOMAINDIR_MODE=551
-	if [ "$DOMAINDIR_WRITABLE" = 'yes' ]; then DOMAINDIR_MODE=751; fi
 
 	# Set folder permissions
 	no_symlink_chmod 751 $HOMEDIR/$user/web/$domain \

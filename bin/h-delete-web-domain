@@ -76,9 +76,9 @@ if [ -n "$PROXY_SYSTEM" ]; then
 fi
 
 if [ -n "$STATS" ] && [ "$STATS" != 'no' ]; then
-	sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
+	webstats_queue_drop "$user" "$domain"
 	rm -f $HOMEDIR/$user/conf/web/$domain/$STATS.conf
-	rm -f /etc/awstats/$STATS.$domain.conf
+	rm -f "/etc/awstats/$STATS.$domain_idn.conf"
 fi
 
 # Detach first, or the jail keeps polling a path that is gone.

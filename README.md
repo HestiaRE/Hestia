@@ -38,7 +38,7 @@ HestiaCP bundles and compiles a lot of its own stack. HestiaRE inverts that: **O
 
 - The panel runs on **Caddy** (OS repo) instead of a bundled nginx build.
 - **The panel PHP is the distribution's own**, in isolated FPM pools instead of a custom compiled build. Sury is the option for multi-version PHP, not the default source: `singlephp` never sets that repo up.
-- Web, mail, database and firewall tooling (nginx, Apache, exim/dovecot/rspamd, phpMyAdmin, nftables, fail2ban, Composer, WP-CLI, …) is installed straight from distro packages; only the `latest` preset takes nginx from nginx.org.
+- Web, mail, database and firewall tooling (nginx, Apache, exim/dovecot/rspamd, phpMyAdmin, nftables, fail2ban, Composer, …) is installed straight from distro packages; only the `latest` preset takes nginx from nginx.org. WP-CLI, which no distribution packages, comes as a release phar pinned by checksum.
 - Optional components (ProFTPD, ClamAV, PostgreSQL, Redis, OpenSearch, Docker proxy, file manager, …) are **individually installable and removable**, so a given host only carries what it uses.
 - **IPv6 is first-class, never presupposed**: a box with both families serves both, a v6-only box installs and runs from the bootstrap onwards, and a box whose kernel has no IPv6 is a supported state rather than an accident.
 

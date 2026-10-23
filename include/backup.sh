@@ -949,6 +949,42 @@ server_component_items() {
 	done
 }
 
+# restore_pair_conflict WEB_DOMAINS MAIL_DOMAINS: the reason, if a web name (domain or alias, read from the records under
+# PROBE_RECORDS) mail.<d> or webmail.<d> meets the mail domain <d>, in the backup or on the box. Run before writing.
+restore_pair_conflict() {
+	local _w _names _n _r _m _rec _a
+	while IFS= read -r _w; do
+		[ -n "$_w" ] || continue
+		_names=$_w
+		_rec=$(backup_record_file web "$_w")
+		if [ -s "$_rec" ] && _a=$(record_field "$(head -n1 "$_rec")" ALIAS); then
+			_names="$_names"$'\n'"${_a//,/$'\n'}"
+		fi
+		while IFS= read -r _n; do
+			[ -n "$_n" ] || continue
+			for _r in mail ${WEBMAIL_ALIAS:+"$WEBMAIL_ALIAS"}; do
+				[ "${_n%%.*}" = "$_r" ] || continue
+				if grep -qxF -- "${_n#*.}" <<< "$2"; then
+					echo "the backup carries the web name $_n and the mail domain ${_n#*.}, which cannot coexist"
+					return 0
+				fi
+			done
+			_m=$(is_mail_web_pair_free "$_n" web) || {
+				echo "${_m#Error: }"
+				return 0
+			}
+		done <<< "$_names"
+	done <<< "$1"
+	while IFS= read -r _m; do
+		[ -n "$_m" ] || continue
+		_r=$(is_mail_web_pair_free "$_m" mail) || {
+			echo "${_r#Error: }"
+			return 0
+		}
+	done <<< "$2"
+	return 0
+}
+
 # backup_record_file KIND OBJECT: the extracted record of one object, or nothing.
 backup_record_file() {
 	case "$1" in
@@ -1254,6 +1290,28 @@ ftp_delete() {
 	fi
 }
 
+# restic_exclude_entry BASE ENTRY web|mail: domain[:part...] as paths under BASE, read the way h-backup-user reads it.
+# web: each part is a path in the domain, a domain * stands for every domain. mail: each part is an account, a star
+# in one means every account, and a domain * matches nothing, as in the archive.
+restic_exclude_entry() {
+	local _base="$1" _d="${2%%:*}" _p
+	local -a _parts
+	if [ "$_d" = "$2" ]; then
+		echo "$_base/$2"
+		return 0
+	fi
+	[ "$3" = mail ] && [ "$_d" = '*' ] && return 0
+	IFS=':' read -r -a _parts <<< "${2#*:}"
+	for _p in "${_parts[@]}"; do
+		[ -n "$_p" ] || continue
+		if [ "$3" = mail ] && [[ "$_p" == *'*'* ]]; then
+			echo "$_base/$_d/*"
+			return 0
+		fi
+		echo "$_base/$_d/$_p"
+	done
+}
+
 # Path-producing exclusions only: DB and CRON exclude objects, not paths. The stage is never
 # excluded, whatever the customer writes into the list.
 restic_excludes() {
@@ -1269,7 +1327,7 @@ restic_excludes() {
 		?*)
 			IFS=',' read -r -a _list <<< "$WEB"
 			for _e in "${_list[@]}"; do
-				[ -n "$_e" ] && echo "$HOMEDIR/$_u/web/$_e"
+				[ -n "$_e" ] && restic_exclude_entry "$HOMEDIR/$_u/web" "$_e" web
 			done
 			;;
 	esac
@@ -1278,7 +1336,7 @@ restic_excludes() {
 		?*)
 			IFS=',' read -r -a _list <<< "$MAIL"
 			for _e in "${_list[@]}"; do
-				[ -n "$_e" ] && echo "$HOMEDIR/$_u/mail/$_e"
+				[ -n "$_e" ] && restic_exclude_entry "$HOMEDIR/$_u/mail" "$_e" mail
 			done
 			;;
 	esac
@@ -1848,22 +1906,28 @@ backup_map_taropt() {
 	esac
 }
 
+# The start points are mail account names the customer can create, so they reach find through a file: a name
+# starting with - is a path there, never an expression. find prints them as given, so the hasher needs -- as well.
+backup_map_find() {
+	[ $# -gt 0 ] || set -- .
+	printf '%s\0' "$@" | find -files0-from - -type f -printf '%p\0%s.%T@\0' 2> /dev/null
+}
+
 # backup_map_hash_tree OUTTABLE [PATH...]: <path>\0<hash>\0 off the live tree, batched. Pairing is
 # positional, so a vanished file shifts columns; the count check catches it, one retry absorbs it.
 backup_map_hash_tree() {
 	local _out="$1" _try _paths _hashes
 	shift
-	[ $# -gt 0 ] || set -- .
 	_paths=$(mktemp)
 	_hashes=$(mktemp)
 	for _try in 1 2; do
 		# Count runs against the frozen list xargs consumed, never a re-walk: arrival plus
 		# expunge would count the same twice with a shifted middle.
-		find "$@" -type f -printf '%p\0%s.%T@\0' 2> /dev/null > "$_out.stat"
+		backup_map_find "$@" > "$_out.stat"
 		# BEGIN-only; -v keeps awk from re-reading the file in its empty main loop.
 		awk -v sf="$_out.stat" 'BEGIN { RS = "\0"; while ((getline p < sf) > 0) { if ((getline s < sf) <= 0) break; printf "%s%c", p, 0 } }' \
 			< /dev/null > "$_paths"
-		xargs -0 -r "$BACKUP_MAP_ALGO" --no-names < "$_paths" 2> "$_hashes.err" > "$_hashes"
+		xargs -0 -r "$BACKUP_MAP_ALGO" --no-names -- < "$_paths" 2> "$_hashes.err" > "$_hashes"
 		if [ "$(tr -cd '\0' < "$_paths" | wc -c)" -eq "$(grep -c . "$_hashes")" ]; then
 			awk -v pf="$_paths" -v hf="$_hashes" 'BEGIN {
 				while ((getline h < hf) > 0) { n++; hash[n] = h }
@@ -1888,9 +1952,8 @@ backup_map_hash_verify() {
 	shift
 	[ -s "$_out" ] || return 0
 	[ -s "$_out.stat" ] || return 0
-	[ $# -gt 0 ] || set -- .
 	_now=$(mktemp)
-	find "$@" -type f -printf '%p\0%s.%T@\0' 2> /dev/null > "$_now"
+	backup_map_find "$@" > "$_now"
 	awk -v tf="$_out.stat" -v nf="$_now" -v of="$_out" 'BEGIN {
 		RS = "\0"
 		while ((getline p < tf) > 0) { if ((getline s < tf) <= 0) break; then_stat[p] = s }

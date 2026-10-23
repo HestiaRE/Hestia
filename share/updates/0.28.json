@@ -1,0 +1,62 @@
+{
+  "version": "0.28",
+  "entries": [
+    {
+      "id": "dovecot-login-alias",
+      "description": "A mailbox can carry a second login name from /etc/dovecot/login-aliases, which is created empty; dovecot 2.4 only, patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/auth-passwdfile.conf.ext", "value": "/etc/exim4/domains/%{ user | domain }/passwd" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.28/dovecot-login-alias.patch",
+          "target": "/etc/dovecot/conf.d/auth-passwdfile.conf.ext"
+        }
+      ],
+      "action": { "type": "function_call", "function": "dovecot_login_alias_apply" },
+      "paths": ["/etc/dovecot/conf.d/auth-passwdfile.conf.ext"],
+      "reversible": false
+    },
+    {
+      "id": "tachyon-pin",
+      "description": "Tachyon 4.4.7: 4.4.3 closes a logout that left the server-side session alive and a backup restore reachable without an admin session. The 0.25 entry that moved the pin sits at the update bound and is no longer read",
+      "conditions": [
+        { "type": "pin_differs", "name": "tachyon", "path": "/var/lib/tachyon/data/VERSION" }
+      ],
+      "action": { "type": "function_call", "function": "tachyon_pin_apply" },
+      "paths": ["/var/lib/tachyon"],
+      "reversible": false
+    },
+    {
+      "id": "adminer-core",
+      "description": "Adminer 6.1.2 as shipped: h-add-sys-adminer stops at an existing install, and the 0.24 entry that copied it lies below the update bound",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/share/adminer/index.php" },
+        { "type": "file_differs", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" }
+      ],
+      "action": { "type": "file_copy", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" },
+      "paths": ["/usr/share/adminer/index.php"],
+      "reversible": true
+    },
+    {
+      "id": "remove-h-add-user-wp-cli",
+      "description": "h-add-user-wp-cli is gone: wp-cli is always installed system-wide and pinned, a per-user copy only shadowed it",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-add-user-wp-cli" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-add-user-wp-cli" },
+      "paths": ["/usr/local/hestia/bin/h-add-user-wp-cli"],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-user-composer",
+      "description": "h-add-user-composer is gone: composer is always installed system-wide, a per-user copy only shadowed it",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-add-user-composer" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-add-user-composer" },
+      "paths": ["/usr/local/hestia/bin/h-add-user-composer"],
+      "reversible": false
+    }
+  ]
+}

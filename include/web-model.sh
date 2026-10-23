@@ -498,10 +498,11 @@ web_model_botlimit_sync() {
 	botpolicy_seed_families
 	if [ "$1" = 'apache' ]; then
 		rm -f /etc/nginx/conf.d/hestia_botlimit.conf
-		if _web_apt_install libapache2-mod-qos > /dev/null 2>&1 && a2enmod -q qos > /dev/null 2>&1; then
+		if _web_apt_install libapache2-mod-qos > /dev/null 2>&1 && botpolicy_qos_enable; then
 			botpolicy_render_apache
 		else
-			echo "Warning: mod_qos is not available, bot rate limiting stays off" >&2
+			rm -f /etc/apache2/conf.d/hestia_botlimit.conf
+			echo "Warning: mod_qos is not available or does not load, bot rate limiting stays off" >&2
 		fi
 	else
 		rm -f /etc/apache2/conf.d/hestia_botlimit.conf

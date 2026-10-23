@@ -126,15 +126,10 @@ web_domain_logs "$domain" | while IFS= read -r f; do
 	chown root:"$user" "$f"
 	chmod 640 "$f"
 done
-user_exec chmod 751 $HOMEDIR/$user/web/$domain/*
-user_exec chmod 551 $HOMEDIR/$user/web/$domain/stats $HOMEDIR/$user/web/$domain/logs
-find $HOMEDIR/$user/web/$domain/public_html -type d -exec chmod 755 {} +
+user_exec chmod 751 $HOMEDIR/$user/web/$domain $HOMEDIR/$user/web/$domain/*
+# public_html itself stays 751 as the rebuild leaves it; only what is below it opens up.
+find $HOMEDIR/$user/web/$domain/public_html -mindepth 1 -type d -exec chmod 755 {} +
 find $HOMEDIR/$user/web/$domain/public_html -type f -exec chmod 644 {} +
-
-DOMAINDIR_MODE=551
-if [ "$DOMAINDIR_WRITABLE" = 'yes' ]; then DOMAINDIR_MODE=751; fi
-
-user_exec chmod $DOMAINDIR_MODE $HOMEDIR/$user/web/$domain
 chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
 
 if [ -n "$WEB_BACKEND" ]; then

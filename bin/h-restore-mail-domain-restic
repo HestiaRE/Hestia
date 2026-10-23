@@ -69,6 +69,13 @@ requested=",$(
 	echo "${domains_array[*]}"
 ),"
 
+pair_mail=''
+for domain in "${domains[@]}"; do
+	[[ "$mail" = '*' || "$requested" == *",${domain},"* ]] && pair_mail="$pair_mail$domain"$'\n'
+done
+pair=$(restore_pair_conflict '' "$pair_mail")
+[ -z "$pair" ] || check_result "$E_EXISTS" "$pair - nothing was written. Remove one of the two at the source."
+
 exim_user="exim"
 check_exim_username=$(grep -c '^Debian-exim:' /etc/passwd)
 if [ "$check_exim_username" -eq 1 ]; then

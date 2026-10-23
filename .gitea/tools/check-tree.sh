@@ -1,7 +1,7 @@
 #!/bin/bash
 # Tree guards for CI: checks whose answer depends on the shipped code alone, so they run once per PR
 # against the checkout instead of on every box (#1147). What only a box can answer stays in
-# bin/h-check-sys-smoke. Needs bash, coreutils, grep/sed/awk and jq, which lint.yml already
+# bin/h-check-sys-smoke. Needs bash, coreutils, grep/sed/awk, git and jq, which lint.yml already
 # requires; a guard that would need more belongs on the box, not on the runner.
 # Prints PASS/FAIL per check; exits 0 if all pass, 1 otherwise.
 cd "$(dirname "$0")/../.." || exit 1
@@ -202,6 +202,63 @@ check_manifest_status_link() {
 		no "manifest status link:${missing:+ no status_key:$missing}${unknown:+ key not in registry:$unknown}${badtok:+ bad status_token:$badtok}" "every component names a registered key (1c)"
 	else
 		ok "manifest status link: $n components name a registered status key"
+	fi
+}
+
+# A shipped file or pin reaches an installed box only through an entry in a manifest above the last public release:
+# the entries at or below the update bound are not read. Watched is every pin_differs name and file_differs or
+# file_copy source any manifest has named. Not covered: a file no manifest has named yet, and a change that ships
+# by a rebuild instead of an entry.
+check_update_entries_follow_changes() {
+	local tag m v pin s now was old n=0 changed=0 miss=''
+	local pin_q='.. | objects | select(.type == "pin_differs") | .name // empty'
+	local src_q='.. | objects | select(.type == "file_differs" or .type == "file_copy") | .source // empty'
+	# The version and its companions (tachyon_sha256, tachyon_plugins) without their $comment keys: pin_differs
+	# compares the version alone, so a companion that moves without it never reaches a box.
+	local pins_q='.software_versions | with_entries(select(.key == $k or (.key | startswith($k + "_"))))
+		| [tostream | select(length == 2) | select(.[0] | map(tostring) | any(startswith("$comment")) | not)]'
+	local -a later=()
+	tag=$(git tag -l 'v*' 2> /dev/null | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
+	if [ -z "$tag" ]; then
+		no "update entries: no public release tag in this checkout" "nothing to compare, the clone needs the tags"
+		return
+	fi
+	old=$(git show "$tag:share/manifest.json" 2> /dev/null)
+	for m in share/updates/*.json; do
+		[ -e "$m" ] || continue
+		v=$(basename "$m" .json)
+		[ "$v" != "${tag#v}" ] && [ "$(printf '%s\n%s\n' "${tag#v}" "$v" | sort -V | tail -1)" = "$v" ] && later+=("$m")
+	done
+	while IFS= read -r pin; do
+		[ -n "$pin" ] || continue
+		n=$((n + 1))
+		now=$(jq -c --arg k "$pin" "$pins_q" share/manifest.json)
+		was=$(jq -c --arg k "$pin" "$pins_q" <<< "$old" 2> /dev/null)
+		[ "$now" = "$was" ] && continue
+		changed=$((changed + 1))
+		now=$(jq -r --arg k "$pin" '.software_versions[$k] // ""' share/manifest.json)
+		was=$(jq -r --arg k "$pin" '.software_versions[$k] // ""' <<< "$old" 2> /dev/null)
+		if [ "$now" = "$was" ]; then
+			miss="$miss $pin (a companion changed, the version did not, so no box sees it)"
+		elif [ "${#later[@]}" -eq 0 ] || ! jq -r "$pin_q" "${later[@]}" | grep -qxF -- "$pin"; then
+			miss="$miss $pin"
+		fi
+	done < <(jq -r "$pin_q" share/updates/*.json | sort -u)
+	while IFS= read -r s; do
+		[ -n "$s" ] || continue
+		n=$((n + 1))
+		[ "$(git rev-parse -q --verify "$tag:$s" 2> /dev/null)" = "$(git hash-object "$s" 2> /dev/null)" ] && continue
+		changed=$((changed + 1))
+		if [ "${#later[@]}" -eq 0 ] || ! jq -r "$src_q" "${later[@]}" | grep -qxF -- "$s"; then
+			miss="$miss $s"
+		fi
+	done < <(jq -r "$src_q" share/updates/*.json | sort -u)
+	if [ "$n" -eq 0 ]; then
+		no "update entries: no pin or file is watched" "the manifests name none, so nothing was compared"
+	elif [ -n "$miss" ]; then
+		no "update entries: changed since $tag without an entry in a manifest above it" "${miss# }"
+	else
+		ok "update entries: $n watched against $tag, $changed changed, each with an entry above it"
 	fi
 }
 
@@ -586,10 +643,38 @@ check_webmail_value_domain() {
 	no "webmail templates outside the value domain:$missing" "extend WEBMAIL_KNOWN_CLIENTS in include/main.sh"
 }
 
+# The login alias passdb may only rename: continue-fail keeps a nopassword line from passing a login, the filter keeps
+# address logins out of it. Checked in the tree file and in every update patch that adds it, not on a box.
+check_login_alias_passdb() {
+	local f n=0 bad='' block
+	for f in "$HESTIA/share/dovecot/2.4/conf.d/auth-passwdfile.conf.ext" "$HESTIA"/share/updates/patches/*/*.patch; do
+		[ -e "$f" ] || continue
+		case "$f" in
+			*.patch) block=$(sed -n 's/^+//p' "$f" | awk '/^passdb login-alias \{/,/^\}/') ;;
+			*) block=$(awk '/^passdb login-alias \{/,/^\}/' "$f") ;;
+		esac
+		[ -n "$block" ] || continue
+		n=$((n + 1))
+		[ "$(grep -cE '^\s*result_success\s*=' <<< "$block")" = 1 ] \
+			&& grep -qxE '\s*result_success = continue-fail' <<< "$block" \
+			&& [ "$(grep -cE '^\s*username_filter\s*=' <<< "$block")" = 1 ] \
+			&& grep -qxF '  username_filter = !*@*' <<< "$block" || bad="$bad ${f#"$HESTIA"/}"
+	done
+	if ! awk '/^passdb login-alias \{/' "$HESTIA/share/dovecot/2.4/conf.d/auth-passwdfile.conf.ext" | grep -q .; then
+		no "login alias passdb guard found no block in the 2.4 auth file" "renamed or moved"
+	elif [ -n "$bad" ]; then
+		no "login alias passdb without continue-fail or the no-@ filter:$bad"
+	else
+		ok "login alias passdb renames only ($n block(s): tree file and update patches)"
+	fi
+}
+
 check_share_json
+check_login_alias_passdb
 check_sys_key_registry
 check_manifest_status_link
 check_update_manifests
+check_update_entries_follow_changes
 check_update_dispatcher
 check_source_conf_guard
 check_protected_names_effective

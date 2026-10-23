@@ -36,8 +36,7 @@ rm -f "/etc/awstats/$STATS.$domain_idn.conf"
 rm -f "$HOMEDIR/$user/conf/web/$domain/$STATS.conf"
 rm -f "$HOMEDIR/$user/conf/web/$domain/nginx.stats_auth.conf"
 
-# Dots escaped, or a.b.com takes aXb.com's entry.
-sed -i "/ ${domain//./\\.}$/d" $CONF_DIR/queue/webstats.pipe
+webstats_queue_drop "$user" "$domain"
 
 update_object_value 'web' 'DOMAIN' "$domain" '$STATS' ''
 # The password files went with the folder; a stats user left in the record would come back without them.

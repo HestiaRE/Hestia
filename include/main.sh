@@ -266,6 +266,15 @@ le_conf_load() {
 	done
 }
 
+# The ACME server; staging lets a box test issuing and renewal against the rate limits.
+le_api() {
+	if [ "$LE_STAGING" = 'yes' ]; then
+		echo 'https://acme-staging-v02.api.letsencrypt.org'
+	else
+		echo 'https://acme-v02.api.letsencrypt.org'
+	fi
+}
+
 # Read from share/manifest.json; empty on miss. jq is an install.sh prereq, so it is always there.
 manifest_get() {
 	jq -r "$1" "$HESTIA/share/manifest.json" 2> /dev/null
@@ -1785,6 +1794,30 @@ looks_like_ip46() {
 	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
 }
 
+# The box's IPv4 as the outside sees it; nothing and rc 1 when the responder fails or answers anything but a
+# public address. One source for h-update-sys-ip and the installer, keep tools/ip-responder on docs in step.
+public_ipv4() {
+	local a
+	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 https://ip.hestiare.com/ 2> /dev/null) || return 1
+	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP,
+		FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? 0 : 1;' -- "$a")" = 0 ] || return 1
+	printf '%s\n' "$a"
+}
+
+# A NAT address goes stale without the boot run. Added once, so a re-run keeps the admin's lines; only a bare
+# exit 0 moves to the end.
+nat_boot_entry_ensure() {
+	touch /etc/rc.local
+	grep -q '^#!' /etc/rc.local || echo '#!/bin/sh' >> /etc/rc.local
+	if ! grep -qxF "$HESTIA/bin/h-update-sys-ip" /etc/rc.local; then
+		sed -i '/^exit 0$/d' /etc/rc.local
+		echo "$HESTIA/bin/h-update-sys-ip" >> /etc/rc.local
+		echo "exit 0" >> /etc/rc.local
+	fi
+	chmod +x /etc/rc.local
+	systemctl enable rc-local > /dev/null 2>&1 || true
+}
+
 is_ip46_format_valid() {
 	if ! looks_like_ip46 "$1"; then
 		check_result "$E_INVALID" "invalid IP format :: $1"
@@ -2525,6 +2558,15 @@ format_domain_idn() {
 # Records are UTF-8 whatever locale the caller brings; under C idn2 cannot read them and prints nothing.
 idn2() { LC_ALL=C.UTF-8 command idn2 "$@"; }
 
+# Punycode for an IDN name, an ASCII name as it is.
+name_idn() { # NAME
+	if [[ "$1" = *[![:ascii:]]* ]]; then
+		idn2 --quiet "$1"
+	else
+		printf '%s\n' "$1"
+	fi
+}
+
 format_aliases() {
 	if [ -n "$aliases" ] && [ "$aliases" != 'none' ]; then
 		aliases=$(echo $aliases | tr '[:upper:]' '[:lower:]' | tr ',' '\n')
@@ -2758,15 +2800,6 @@ user_exec() {
 # writer, and its value lands in nft rules, vhosts and daemon.json.
 docker_ip_valid() {
 	[[ "$1" =~ ^127\.20\.(0|[1-9][0-9]{0,2})\.1$ ]] && [ "${BASH_REMATCH[1]}" -le 254 ]
-}
-
-# bash_alias_set NAME VALUE: exactly one "alias NAME=VALUE" in $user's .bash_aliases, written as $user,
-# since root writing there follows whatever link the customer put in its place.
-bash_alias_set() {
-	local file="$HOMEDIR/$user/.bash_aliases"
-	user_exec touch "$file" || return 1
-	user_exec sed -i "/^alias $1=/d" "$file" || return 1
-	echo "alias $1=$2" | user_exec tee -a "$file" > /dev/null
 }
 
 # home_dir_own PATH OWNER MODE: root sets up a directory inside a customer's home, which the customer can rename.

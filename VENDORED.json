@@ -1,7 +1,7 @@
 {
   "_meta": {
     "description": "Central manifest of all third-party code vendored into this repository, OS packages the panel depends on at runtime, and Eigenbau components with notable upstream inspiration. Update this file whenever a component is added, upgraded, or removed. License files for inline-vendored code must remain in their respective directories; this manifest points to them but does not replace them.",
-    "last_updated": "2026-08-28",
+    "last_updated": "2026-10-23",
     "source_type_values": {
       "inline":     "Third-party source copied into the repo. HestiaRE carries the full license-compliance obligation — license file must live alongside the code.",
       "os-package": "Installed via apt. The distro ships the code; HestiaRE only declares the dependency. Verify GPL compatibility, but no obligation to ship a separate license file.",
@@ -26,30 +26,30 @@
       "source_type": "inline",
       "path": "web/js/vendor/alpinejs.min.js",
       "upstream_repo": "https://github.com/alpinejs/alpine",
-      "upstream_version": "3.16.3",
+      "upstream_version": "3.17.5",
       "upstream_branch": "upstream/alpinejs",
-      "source_url": "https://registry.npmjs.org/alpinejs/-/alpinejs-3.16.3.tgz (dist/cdn.min.js)",
-      "sha256": "e31d6d92aefd41979d3c66f994d3a6b77fafa5062aec67d13f3ec5099d70d5d6",
+      "source_url": "https://registry.npmjs.org/alpinejs/-/alpinejs-3.17.5.tgz (dist/cdn.min.js)",
+      "sha256": "b4036e9e9ac22fa6f6ae1ba292e015e1f3e9c85d0d79e73e4c8eb9bb139b522e",
       "license": "MIT",
       "license_file": "web/js/vendor/LICENSE-alpinejs.md",
       "reason": "Panel UI interactivity framework (x-data bindings, stores, notifications, bulk edit). Prebuilt CDN artifact — the GitHub repo commits no dist files and attaches no release assets; the npm registry tarball is the project's official publish artifact (#248).",
       "transitive_deps": [],
-      "last_verified": "2026-08-28"
+      "last_verified": "2026-10-23"
     },
     {
       "name": "alpinejs-collapse",
       "source_type": "inline",
       "path": "web/js/vendor/alpinejs-collapse.min.js",
       "upstream_repo": "https://github.com/alpinejs/alpine",
-      "upstream_version": "3.16.3",
+      "upstream_version": "3.17.5",
       "upstream_branch": "upstream/alpinejs",
-      "source_url": "https://registry.npmjs.org/@alpinejs/collapse/-/collapse-3.16.3.tgz (dist/cdn.min.js)",
+      "source_url": "https://registry.npmjs.org/@alpinejs/collapse/-/collapse-3.17.5.tgz (dist/cdn.min.js)",
       "sha256": "c7661d4e2cf0465e3cd693190debb5f592ac72dcc4cfe650581273767558b27b",
       "license": "MIT",
       "license_file": "web/js/vendor/LICENSE-alpinejs.md",
       "reason": "Alpine collapse plugin (x-collapse transitions). Same monorepo and release cadence as alpinejs — updated together (#248).",
       "transitive_deps": [],
-      "last_verified": "2026-08-28"
+      "last_verified": "2026-10-23"
     },
     {
       "name": "normalize.css",
@@ -92,14 +92,14 @@
       "path": "share/adminer/adminer.php",
       "upstream_repo": "https://github.com/vrana/adminer",
       "upstream_branch": "upstream/adminer",
-      "upstream_version": "6.0.1",
-      "source_url": "https://github.com/vrana/adminer/releases/download/v6.0.1/adminer-6.0.1-en.php",
-      "sha256": "c820771612aedd70b26b8f75f442cc9fc118f8225d0166cc6c5909a89f314805",
+      "upstream_version": "6.1.2",
+      "source_url": "https://github.com/vrana/adminer/releases/download/v6.1.2/adminer-6.1.2-en.php",
+      "sha256": "56fae7a3bdaae6ff12c404378b1045c02dbe9529a5afda0b901ded0e1f63302f",
       "license": "Apache-2.0 OR GPL-2.0",
       "license_file": "share/adminer/LICENSE-adminer.txt",
-      "reason": "PostgreSQL web admin UI, offered as an addon (default-on when PostgreSQL is selected, #350). Vendored as the official pre-built single-file (EN, all drivers) rather than the OS `adminer` package: all four target distros ship CVE-affected versions (deb12/noble 4.8.1 with CVE-2023-45195/45196 + CVE-2025-43960; even 5.4.1 on 26.04 carries CVE-2026-25892, fixed only in 5.4.2) and there is no prebuilt pgsql-only asset. phpMyAdmin stays the MySQL default; the full build can also reach MySQL but is positioned as the Postgres UI. Canonical source is vrana/adminer (5.x) — NOT AdminerEvo (repo closed/dead) or AdminNeo (sidebranch).",
+      "reason": "PostgreSQL web admin UI, offered as an addon (default-on when PostgreSQL is selected, #350). Vendored as the official pre-built single-file (EN, all drivers) rather than the OS `adminer` package: all four target distros ship CVE-affected versions (deb12/noble 4.8.1 with CVE-2023-45195/45196 + CVE-2025-43960; even 5.4.1 on 26.04 carries CVE-2026-25892, fixed only in 5.4.2) and there is no prebuilt pgsql-only asset. phpMyAdmin stays the MySQL default; the full build can also reach MySQL but is positioned as the Postgres UI. Canonical source is vrana/adminer — NOT AdminerEvo (repo closed/dead) or AdminNeo (sidebranch).",
       "transitive_deps": [],
-      "last_verified": "2026-08-28"
+      "last_verified": "2026-10-23"
     },
     {
       "name": "adminer-login-servers",

@@ -138,6 +138,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Item | Path |
 |------|------|
 | Config | `/etc/dovecot/dovecot.conf` |
+| Login aliases (2.4 only) | `/etc/dovecot/login-aliases`, root:dovecot 0640, kept by hand, not in any backup (#1238) |
 | Active Sieve script (addon) | `/home/$user/mail/$domain/$account/dovecot.sieve` (symlink); holds the panel's vacation rule (#784) |
 | Note | Dovecot 2.4 has breaking changes vs 2.3 — check upstream/hestiacp for Debian 13 handling |
 

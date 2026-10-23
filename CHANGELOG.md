@@ -41,6 +41,14 @@ the releases of the command audit, into another.
   551 and turn 751 on the first rebuild, so the operator key `DOMAINDIR_WRITABLE` only covered the time in
   between; the key is gone.
 
+### Removed
+
+- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251). wp-cli is always installed system-wide and pinned;
+  composer is a system-wide addon, off on compact and absent on mailonly, which `h-update-sys-composer os` adds to
+  a box without it. The per-user copy only put an alias in front of the system one and went stale unless rerun.
+  An update removes the commands from installed boxes. Upstream #5787 adds a delete for its per-user wp-cli, which
+  this makes moot.
+
 ### Fixed
 
 - **A home entry or mail account whose name starts with `-` broke the backup** (#1245, upstream #5754). The

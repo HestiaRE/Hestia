@@ -6,7 +6,7 @@
 # example: h-update-sys-composer upstream
 #
 # OS package (security backports) or the signed upstream phar (newest, no auto-updates). The new source is verified
-# before the old goes, and the old must go: /usr/local/bin shadows /usr/bin. Per-user copies stay.
+# before the old goes, and the old must go: /usr/local/bin shadows /usr/bin.
 
 source_arg=$1
 

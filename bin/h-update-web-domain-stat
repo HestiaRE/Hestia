@@ -97,7 +97,7 @@ build_awstats() {
 	sed "s/%select_month%/$select_m/" < $SHARETPL/awstats/nav.tpl | user_exec tee "$dir/nav.html" > /dev/null
 }
 
-# The folder is 551 by design; the build opens it for itself and closes it again.
+# An older folder may still be 551; the build opens it for itself and closes it again.
 dir_closed=''
 if ! user_exec test -w "$dir"; then
 	user_exec chmod u+w "$dir"

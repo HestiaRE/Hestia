@@ -42,7 +42,8 @@ the releases of the command audit, into another.
 - **A mail backup exclusion could drop other accounts without a word** (#1245). The account list was matched
   as a prefix and a regex against the whole entry, domain included: excluding `box2` on `info-shop.example` also
   left out `box` and `info` there, and the same accounts on `shop.example`. An account is now excluded only by
-  its own name or a star in its domain's entry.
+  its own name or a star in its domain's entry. The home exclusion had the same class the other way round: the
+  customer's entry name was the pattern, so excluding `aXb` also left out `a.b`.
 - **A web or mail backup exclusion with a path or account did nothing in restic mode** (#1245). The entry
   `domain:part` reached restic as the single path `domain:part`, which never exists, so the snapshot carried
   what the customer had excluded. Each part is a path or an account under its domain now, as in the archive.

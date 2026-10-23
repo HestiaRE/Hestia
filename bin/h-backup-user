@@ -737,7 +737,7 @@ if [ "$USER" != '*' ]; then
 	# leftovers (what a restore handed over) and .dumps (the restic stage) are reserved names: archiving them grows
 	# the archive or carries raw dumps. Fixed list here, not backup-excludes.conf, which the customer can edit.
 	for udir in $(ls -a | grep -E -v "^conf$|^web$|^dns$|^tmp$|^mail$|^leftovers$|^\.dumps$|^\.\.$|^\.$"); do
-		exclusion=$(echo "$USER" | tr ',' '\n' | grep "^$udir$")
+		exclusion=$(echo "$USER" | tr ',' '\n' | grep -Fx -- "$udir")
 		if [ -z "$exclusion" ]; then
 			((i++))
 			# The archive keeps every entry; the record lists only names it can hold.

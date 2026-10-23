@@ -13,6 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **A mailbox can carry a second login name** (#1238), for IMAP, POP3 and SMTP. The admin keeps the aliases by
+  hand as root in `/etc/dovecot/login-aliases`, one line per alias; the address stays a login, and rate limits,
+  fail2ban and the password grace still see the address. Not in any backup, no panel, and dovecot 2.4 only.
+
 ### Changed
 
 - **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**

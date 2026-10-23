@@ -1,0 +1,22 @@
+--- auth-passwdfile.conf.ext
++++ auth-passwdfile.conf.ext
+@@ -2,6 +2,19 @@
+ # Dovecot conf file modified by Hestia #
+ ########################################
+ 
++# Second login name for a mailbox, kept by hand in the file. It only renames, the next passdb checks the password.
++passdb login-alias {
++  driver = passwd-file
++  passwd_file_path = /etc/dovecot/login-aliases
++  auth_username_format = %{user}
++  # An alias has no @, so a login by address never reads the file.
++  username_filter = !*@*
++  # continue-fail: a nopassword in the file would otherwise let any password through.
++  result_success = continue-fail
++  result_failure = continue
++  result_internalfail = continue
++}
++
+ passdb passwd-file {
+   driver = passwd-file
+   default_password_scheme = BLF-CRYPT

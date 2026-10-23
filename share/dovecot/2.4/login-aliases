@@ -1,0 +1,5 @@
+# Login aliases: a second login name for a mailbox, for IMAP, POP3 and SMTP. The address keeps working.
+# One line per alias, root edits, dovecot reads it within seconds. Not part of any backup.
+# An alias carries no @, is unique on the box, and the address must exist here.
+#
+#web4p1:::::::user=info@example.com noauthenticate

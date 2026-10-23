@@ -48,7 +48,7 @@
 							echo _("No exclusions");
 						}
 			foreach ($value as $ex_key => $ex_value) {
-				echo "<span class='u-text-bold'>" . $ex_key . " </span>" . $ex_value . "<br>";
+				echo "<span class='u-text-bold'>" . tohtml($ex_key) . " </span>" . tohtml($ex_value) . "<br>";
 			}
 			?>
 				</div>

@@ -850,7 +850,7 @@ configure_hestia() {
 		[ -z "$_reg_ip" ] && _reg_ip="$(ls -t "$CONF_DIR/ips/" 2> /dev/null | head -n1)"
 		[ -n "$_reg_ip" ] && IP="$_reg_ip"
 	fi
-	PUB_IP="$(curl -fsLm5 --retry 2 --ipv4 https://ip.hestiacp.com/ 2> /dev/null || echo "")"
+	PUB_IP="$(public_ipv4)" || PUB_IP=''
 	if [ -n "$PUB_IP" ] && [ "$PUB_IP" != "$IP" ]; then
 		# NAT: record PUB_IP as the NAT address of the local IP object; the default
 		# domain stays on the LOCAL IP (no ips/<public> object exists) with PUB_IP in

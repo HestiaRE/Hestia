@@ -24,6 +24,9 @@ the releases of the command audit, into another.
 - **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**
   (#1197) instead of refusing them. A Let's Encrypt certificate is requested for the new name; if that fails,
   the domain stays renamed without SSL.
+- **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215), no longer from the HestiaCP
+  project's `ip.hestiacp.com`. The installer and `h-update-sys-ip` share one function, which takes only a valid
+  IPv4 from the answer, so an error page or a portal is no longer taken for an address.
 - **A new web domain folder is 751, the same as after a rebuild or restore** (#1237). It used to start at
   551 and turn 751 on the first rebuild, so the operator key `DOMAINDIR_WRITABLE` only covered the time in
   between; the key is gone.

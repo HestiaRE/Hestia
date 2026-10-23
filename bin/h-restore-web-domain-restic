@@ -81,7 +81,8 @@ for domain in "${domains[@]}"; do
 		pair_web="$pair_web$domain"$'\n'
 	fi
 done
-pair=$(restore_pair_conflict "$pair_web" "${MAIL//,/$'\n'}")
+# Against the box only, as the archive restore with mail left out: the mail of the snapshot is not restored here.
+pair=$(restore_pair_conflict "$pair_web" '')
 [ -z "$pair" ] || check_result "$E_EXISTS" "$pair - nothing was written. Remove one of the two at the source."
 for domain in "${domains[@]}"; do
 	if [[ "$web" = '*' || "$requested" == *",${domain},"* ]]; then

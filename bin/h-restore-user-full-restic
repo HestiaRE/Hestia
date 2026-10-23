@@ -35,31 +35,38 @@ is_restic_repo_configured
 
 check_user=$(is_object_valid 'user' 'USER' "$user")
 
+# A failure before the parts takes back the account this run created, so a retry starts as the first run did.
+created_user=''
+restore_refuse() { # CODE MESSAGE
+	[ -n "$created_user" ] && $BIN/h-delete-user "$user" > /dev/null 2>&1
+	check_result "$1" "$2"
+}
+
 if [ -n "$check_user" ]; then
 	if [ -z "$key" ]; then
 		check_result "$E_PASSWORD" "Invalid Restic encryption key"
 	fi
-	$BIN/h-add-user "$user" "$key" 'info@hestiacp.com'
+	$BIN/h-add-user "$user" "$key" 'info@hestiacp.com' && created_user='yes'
 
 	echo "$key" > $USER_DATA/restic.conf
 
 	restic --repo "$REPO$user" --password-file $USER_DATA/restic.conf snapshots
 	if [ "$?" -ne 0 ]; then
-		check_result "$E_PASSWORD" "Invalid Restic repository / encryption key"
+		restore_refuse "$E_PASSWORD" "Invalid Restic repository / encryption key"
 	fi
 fi
 
-tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
+tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || restore_refuse "$E_NOTEXIST" "Can't create tmp dir"
 trap 'rm -rf "$tmpdir"' EXIT
 
 # The metadata is the package beside the repository, not part of the snapshot.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
 if [ -z "$meta_pkg" ]; then
-	check_result "$E_NOTEXIST" "no metadata package for snapshot $snapshot of $user - look for $BACKUP/$user/*.meta.tgz"
+	restore_refuse "$E_NOTEXIST" "no metadata package for snapshot $snapshot of $user - look for $BACKUP/$user/*.meta.tgz"
 fi
 restic_meta_cat "$meta_pkg" backup.conf > "$tmpdir/backup.conf"
 if [ ! -s "$tmpdir/backup.conf" ]; then
-	check_result "$E_PARSING" "$meta_pkg carries no backup.conf - the snapshot cannot be described"
+	restore_refuse "$E_PARSING" "$meta_pkg carries no backup.conf - the snapshot cannot be described"
 fi
 restic_meta_unpack "$meta_pkg" "$tmpdir" ./hestia ./pam
 
@@ -76,11 +83,11 @@ if [ -n "$WEB_SYSTEM" ]; then
 fi
 [ -n "$MAIL_SYSTEM" ] && pair_mail=$(record_field "$snapshot_record" MAIL)
 pair=$(restore_pair_conflict "${pair_web//,/$'\n'}" "${pair_mail//,/$'\n'}")
-[ -z "$pair" ] || check_result "$E_EXISTS" "$pair - no part was restored. Remove one of the two at the source."
+[ -z "$pair" ] || restore_refuse "$E_EXISTS" "$pair - no part was restored. Remove one of the two at the source."
 
 # Filtered, not copied: the archive is hostile input.
 copy_record_filtered "$tmpdir/hestia/user.conf" "$USER_DATA/user.conf" user \
-	|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"
+	|| restore_refuse "$E_PARSING" "the archived user.conf of $user carries no usable keys"
 cp -r "$tmpdir/hestia/ssl" "$USER_DATA/" > /dev/null 2>&1
 # Filtered like user.conf: it runs through source_conf later; an absent one is normal.
 if [ -f "$tmpdir/hestia/backup-excludes.conf" ]; then
@@ -91,7 +98,7 @@ fi
 
 # Without it every chown below matches nothing and the home stays owned by the old uid.
 if ! restore_passwd_read "$tmpdir/pam/passwd"; then
-	check_result "$E_PARSING" "$meta_pkg carries no valid pam/passwd entry, the old owner cannot be read"
+	restore_refuse "$E_PARSING" "$meta_pkg carries no valid pam/passwd entry, the old owner cannot be read"
 fi
 rebuild_user_conf
 

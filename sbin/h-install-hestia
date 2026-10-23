@@ -852,7 +852,7 @@ configure_hestia() {
 	fi
 	PUB_IP="$(public_ipv4)" || {
 		PUB_IP=''
-		echo "[ ! ] Public IPv4 not detected: behind NAT, run h-update-sys-ip once ip.hestiare.com answers"
+		echo "[ ! ] Public IPv4 not detected. If this box is behind NAT, run h-update-sys-ip once ip.hestiare.com answers"
 	}
 	if [ -n "$PUB_IP" ] && [ "$PUB_IP" != "$IP" ]; then
 		# NAT: record PUB_IP as the NAT address of the local IP object; the default

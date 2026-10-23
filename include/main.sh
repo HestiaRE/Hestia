@@ -1794,12 +1794,13 @@ looks_like_ip46() {
 	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
 }
 
-# The box's IPv4 as the outside sees it; nothing and rc 1 when the responder fails or answers anything but an
-# address. One source for h-update-sys-ip and the installer, keep tools/ip-responder on docs in step.
+# The box's IPv4 as the outside sees it; nothing and rc 1 when the responder fails or answers anything but a
+# public address. One source for h-update-sys-ip and the installer, keep tools/ip-responder on docs in step.
 public_ipv4() {
 	local a
-	a=$(curl -fsLm5 --retry 2 --ipv4 https://ip.hestiare.com/ 2> /dev/null) || return 1
-	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ? 0 : 1;' "$a")" = 0 ] || return 1
+	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 https://ip.hestiare.com/ 2> /dev/null) || return 1
+	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP,
+		FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? 0 : 1;' -- "$a")" = 0 ] || return 1
 	printf '%s\n' "$a"
 }
 

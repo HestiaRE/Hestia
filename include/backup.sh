@@ -1848,6 +1848,18 @@ backup_map_taropt() {
 	esac
 }
 
+# The start points are mail account names the customer can create, so they reach find through a file: a name
+# starting with - is a path there, never an expression. find prints them as given, so the hasher needs -- as well.
+backup_map_find() {
+	local _list _rc
+	_list=$(mktemp) || return 1
+	printf '%s\0' "$@" > "$_list"
+	find -files0-from "$_list" -type f -printf '%p\0%s.%T@\0' 2> /dev/null
+	_rc=$?
+	rm -f "$_list"
+	return $_rc
+}
+
 # backup_map_hash_tree OUTTABLE [PATH...]: <path>\0<hash>\0 off the live tree, batched. Pairing is
 # positional, so a vanished file shifts columns; the count check catches it, one retry absorbs it.
 backup_map_hash_tree() {
@@ -1859,11 +1871,11 @@ backup_map_hash_tree() {
 	for _try in 1 2; do
 		# Count runs against the frozen list xargs consumed, never a re-walk: arrival plus
 		# expunge would count the same twice with a shifted middle.
-		find "$@" -type f -printf '%p\0%s.%T@\0' 2> /dev/null > "$_out.stat"
+		backup_map_find "$@" > "$_out.stat"
 		# BEGIN-only; -v keeps awk from re-reading the file in its empty main loop.
 		awk -v sf="$_out.stat" 'BEGIN { RS = "\0"; while ((getline p < sf) > 0) { if ((getline s < sf) <= 0) break; printf "%s%c", p, 0 } }' \
 			< /dev/null > "$_paths"
-		xargs -0 -r "$BACKUP_MAP_ALGO" --no-names < "$_paths" 2> "$_hashes.err" > "$_hashes"
+		xargs -0 -r "$BACKUP_MAP_ALGO" --no-names -- < "$_paths" 2> "$_hashes.err" > "$_hashes"
 		if [ "$(tr -cd '\0' < "$_paths" | wc -c)" -eq "$(grep -c . "$_hashes")" ]; then
 			awk -v pf="$_paths" -v hf="$_hashes" 'BEGIN {
 				while ((getline h < hf) > 0) { n++; hash[n] = h }
@@ -1890,7 +1902,7 @@ backup_map_hash_verify() {
 	[ -s "$_out.stat" ] || return 0
 	[ $# -gt 0 ] || set -- .
 	_now=$(mktemp)
-	find "$@" -type f -printf '%p\0%s.%T@\0' 2> /dev/null > "$_now"
+	backup_map_find "$@" > "$_now"
 	awk -v tf="$_out.stat" -v nf="$_now" -v of="$_out" 'BEGIN {
 		RS = "\0"
 		while ((getline p < tf) > 0) { if ((getline s < tf) <= 0) break; then_stat[p] = s }

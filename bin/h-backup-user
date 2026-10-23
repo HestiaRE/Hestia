@@ -558,7 +558,7 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
 
 			if [ -z "$exclusion" ] && [[ "$MAIL_SYSTEM" =~ exim ]]; then
-				accounts+=($account)
+				accounts+=("$account")
 			else
 				echo "$(date "+%F %T") excluding mail account $account" \
 					| tee -a $BACKUP/$user/$user.log
@@ -573,7 +573,8 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			else
 				_member="$tmpdir/mail/$domain/accounts.tar.gz"
 			fi
-			if ! backup_member_write "$_member" --sort=name -cpf- "${accounts[@]}"; then
+			# The account names are the customer's: -- keeps one starting with - a path.
+			if ! backup_member_write "$_member" --sort=name -cpf- -- "${accounts[@]}"; then
 				backup_member_abort "$user" "mail/$domain" "$_member"
 			fi
 			backup_map_hash_verify "$maptbl/mail.$domain.tbl" "${accounts[@]}"
@@ -749,7 +750,8 @@ if [ "$USER" != '*' ]; then
 			else
 				_member="$tmpdir/user_dir/$udir.tar.gz"
 			fi
-			if ! backup_member_write "$_member" --anchored --sort=name -cpf- "${fargs[@]}" $udir; then
+			# A home entry is named by the customer: -- keeps one starting with - a path.
+			if ! backup_member_write "$_member" --anchored --sort=name -cpf- "${fargs[@]}" -- "$udir"; then
 				backup_member_abort "$user" "user_dir/$udir" "$_member"
 			fi
 

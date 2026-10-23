@@ -1111,6 +1111,28 @@ check_mail_domain_links() {
 		no "$miss mail domain(s) without a link, $stray stray entr(ies) in $dir" "${first:-$sfirst}"
 	fi
 }
+# The adds refuse a web name mail.<d> or webmail.<d> beside the mail domain <d>; a box from before that can still
+# carry one. Same test as the adds.
+check_mail_web_pairs() {
+	local f line d r n=0 bad=0 first=""
+	for f in "$CONF_DIR"/users/*/mail.conf; do
+		[ -e "$f" ] || continue
+		while IFS= read -r line; do
+			d=$(record_field "$line" DOMAIN) || continue
+			n=$((n + 1))
+			r=$(is_mail_web_pair_free "$d" mail) && continue
+			bad=$((bad + 1))
+			[ -z "$first" ] && first="${r#Error: }"
+		done < "$f"
+	done
+	if [ "$n" -eq 0 ]; then
+		skip "no mail domain - mail.<d> pairs not checked"
+	elif [ "$bad" -eq 0 ]; then
+		ok "no web domain or alias takes the webmail name of a mail domain ($n checked)"
+	else
+		no "$bad mail domain(s) share their webmail name with a web domain or alias" "$first"
+	fi
+}
 # Every record line against record_line_valid: a line that loses its quotes stays readable, but every writer
 # looks for KEY='...' and silently changes nothing.
 check_record_grammar() {
@@ -1587,6 +1609,7 @@ check_web_model_sentinel
 check_proc_hardening
 check_web_records
 check_mail_domain_links
+check_mail_web_pairs
 check_logrotate_parses
 check_restic_mode_supported
 check_ioncube_versions

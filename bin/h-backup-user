@@ -76,6 +76,13 @@ add_usage() {
 	u_usage=$((u_usage + $1))
 }
 
+# mail_exclusion DOMAIN ACCOUNT LIST: the entries of LIST that exclude ACCOUNT. Whole fields, never a prefix:
+# info must not match the domain info-shop.example. A star still means every account.
+mail_exclusion() {
+	echo "$3" | tr ',' '\n' | awk -F: -v d="$1" -v a="$2" '
+		$1 == d { for (i = 2; i <= NF; i++) if ($i == a || index($i, "*")) print $i }'
+}
+
 # get_user_disk_usage: echo the MB the backup needs, rc 1 when a part cannot be read.
 get_user_disk_usage() {
 	u_usage=0
@@ -135,8 +142,7 @@ get_user_disk_usage() {
 
 				for account in $accounts; do
 					home_dir=$HOMEDIR/$user/mail/$domain/$account
-					exclusion=$(echo "$mail_exclusions" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) > 0')
-					exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
+					exclusion=$(mail_exclusion "$domain" "$account" "$mail_exclusions")
 
 					if [ -z "$exclusion" ] && [ -e "$home_dir" ]; then
 						disk_usage=$(nice -n 19 du -shm "$home_dir" | cut -f 1)
@@ -554,11 +560,10 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		for account in *; do
 			# A mail domain without an account leaves the glob unexpanded: the star would become a name.
 			[ -d "$account" ] || continue
-			exclusion=$(echo "$MAIL" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) > 0')
-			exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
+			exclusion=$(mail_exclusion "$domain" "$account" "$MAIL")
 
 			if [ -z "$exclusion" ] && [[ "$MAIL_SYSTEM" =~ exim ]]; then
-				accounts+=($account)
+				accounts+=("$account")
 			else
 				echo "$(date "+%F %T") excluding mail account $account" \
 					| tee -a $BACKUP/$user/$user.log
@@ -573,7 +578,8 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			else
 				_member="$tmpdir/mail/$domain/accounts.tar.gz"
 			fi
-			if ! backup_member_write "$_member" --sort=name -cpf- "${accounts[@]}"; then
+			# The account names are the customer's: -- keeps one starting with - a path.
+			if ! backup_member_write "$_member" --sort=name -cpf- -- "${accounts[@]}"; then
 				backup_member_abort "$user" "mail/$domain" "$_member"
 			fi
 			backup_map_hash_verify "$maptbl/mail.$domain.tbl" "${accounts[@]}"
@@ -731,7 +737,7 @@ if [ "$USER" != '*' ]; then
 	# leftovers (what a restore handed over) and .dumps (the restic stage) are reserved names: archiving them grows
 	# the archive or carries raw dumps. Fixed list here, not backup-excludes.conf, which the customer can edit.
 	for udir in $(ls -a | grep -E -v "^conf$|^web$|^dns$|^tmp$|^mail$|^leftovers$|^\.dumps$|^\.\.$|^\.$"); do
-		exclusion=$(echo "$USER" | tr ',' '\n' | grep "^$udir$")
+		exclusion=$(echo "$USER" | tr ',' '\n' | grep -Fx -- "$udir")
 		if [ -z "$exclusion" ]; then
 			((i++))
 			# The archive keeps every entry; the record lists only names it can hold.
@@ -749,7 +755,8 @@ if [ "$USER" != '*' ]; then
 			else
 				_member="$tmpdir/user_dir/$udir.tar.gz"
 			fi
-			if ! backup_member_write "$_member" --anchored --sort=name -cpf- "${fargs[@]}" $udir; then
+			# A home entry is named by the customer: -- keeps one starting with - a path.
+			if ! backup_member_write "$_member" --anchored --sort=name -cpf- "${fargs[@]}" -- "$udir"; then
 				backup_member_abort "$user" "user_dir/$udir" "$_member"
 			fi
 

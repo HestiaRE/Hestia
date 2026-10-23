@@ -833,10 +833,16 @@ sieve_managesieve_local_apply() {
 	return 1
 }
 
-# The login alias file is the admin's once it exists, so it is only ever created. dovecot 2.4 only.
+# The login alias content is the admin's once the file exists, owner and mode stay ours: the installer's
+# chown -R /etc/dovecot* takes the group on a re-run, and dovecot then reads no alias. dovecot 2.4 only.
 dovecot_login_aliases_ensure() {
 	local f=/etc/dovecot/login-aliases
-	[ -e "$f" ] || [ -L "$f" ] && return 0
+	[ -L "$f" ] && return 0
+	if [ -f "$f" ]; then
+		chown root:dovecot "$f" && chmod 640 "$f"
+		return
+	fi
+	[ -e "$f" ] && return 0
 	install -m 640 -o root -g dovecot "$HESTIA/share/dovecot/2.4/login-aliases" "$f"
 }
 

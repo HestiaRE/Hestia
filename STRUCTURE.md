@@ -480,7 +480,7 @@ These are settled decisions (`README.md:53-59`, registry `CODEMAP.json` `removed
 | **`v-*` command names** (#22/#1176) | the HestiaCP CLI, kept as 421 symlinks to `h-*` | Every command is `h-*` only, with HestiaCP's arguments. Scripts written against HestiaCP call `h-*` or bring their own aliases. A HestiaCP archive from before 1.9 can carry the old system cron jobs (`sudo /usr/local/hestia/bin/v-...`); the restore names them in its log and leaves them failing rather than rewriting them into a second set of system jobs. |
 | **vsftpd** (#213) | `install/deb/vsftpd` | FTP is **ProFTPd only** (`share/proftpd/`); `FTP_SYSTEM` must not branch on vsftpd. |
 | **SpamAssassin / spamd** (#284) | spamd config + panel spam-editor | **rspamd is the sole filter**; `ANTISPAM_SYSTEM` has no spamassassin branch. Config targets `/etc/rspamd/`. |
-| **Software Installer** (#56) | webapp catalog, Node build chain | No one-click app-install surface. Composer/WP-CLI exist as CLI tools; there is no panel installer to extend. |
+| **Software Installer** (#56) | webapp catalog, Node build chain | No one-click app-install surface. wp-cli is installed system-wide and pinned, composer is a system-wide addon; there is no panel installer to extend, and no per-user copy either (#1251): `v-add-user-wp-cli`/`v-add-user-composer` have no `h-*` counterpart. |
 
 ---
 
@@ -753,6 +753,45 @@ empty DBPASS means reuse. A name another customer or the server already has is r
   host connection overwrites it.
 
 ---
+
+## 20. Mail login: the address only -> a second login name (#1238)
+
+**Upstream.** dovecot authenticates a mailbox by its full address against the domain's
+`/etc/exim4/domains/<d>/passwd`, and exim's SMTP auth asks dovecot. There is no other name to log in with.
+
+**HestiaRE.** On dovecot 2.4 a first passdb reads `/etc/dovecot/login-aliases`, a passwd-file the admin
+keeps by hand (`share/dovecot/2.4/conf.d/auth-passwdfile.conf.ext`). It only renames an alias without `@`
+to its address; the domain's passdb behind it still checks the password. exim takes the translated name,
+so rate limits, fail2ban and the password grace see the address, never the alias.
+
+**Follow-on.**
+- No record, no panel, no backup: the file is box configuration. Moving a mailbox to another box leaves
+  its alias behind.
+- `result_success = continue-fail` is the guard: a `nopassword` line in the file would otherwise let any
+  password through.
+- The installer's `chown -R` over `/etc/dovecot*` would take the file's group, so
+  `dovecot_login_aliases_ensure` (`include/helper.sh`) restores owner and mode; an update patches the conf
+  rather than copying it, since the operator may have edited it. dovecot 2.3 gets nothing.
+
+---
+
+## 21. Domain names: `mail.<d>` free for anyone -> reserved for the mail domain (#1246)
+
+**Upstream.** A web domain `mail.<d>` may sit beside the mail domain `<d>`. Both then use the
+certificate name `mail.<d>` and the nginx server name `mail.<d>`: the mail certificate replaces the web
+domain's, nginx answers for only one, and the mail renewal can read the web certificate.
+
+**HestiaRE.** The pair is refused instead of mended at each site. `is_mail_web_pair_free`
+(`include/domain.sh`, called from `is_domain_new`) rejects a web domain or alias `mail.<d>` or
+`<WEBMAIL_ALIAS>.<d>` while the mail domain `<d>` exists on any account, and the mail domain while such a
+web name exists.
+
+**Follow-on.**
+- A restore that would create the pair stops before it writes anything (`restore_pair_conflict` in
+  `include/backup.sh`); the restic restores do the same, and a full restore deletes an account it created.
+- The installer only warns when the hostname itself is `mail.<d>`: the default domain is the hostname.
+- The smoke run reports a pair that predates the guard (`check_mail_web_pairs`).
+- A HestiaCP archive carrying the pair does not restore here unchanged; that is the price of the guard.
 
 ---
 

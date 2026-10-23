@@ -1532,7 +1532,44 @@ is_domain_new() {
 		if [ -n "$MAIL_SYSTEM" ]; then
 			is_mail_domain_new $object $type
 		fi
+		is_mail_web_pair_free "$object" "$type"
 	done
+}
+
+# mail.<d> and webmail.<d> belong to the mail domain <d> on every account: its webmail vhost answers them, and its
+# certificate is stored as mail.<d>, the name a web domain mail.<d> stores its own under. So the two never coexist.
+is_mail_web_pair_free() { # NAME web|mail
+	local r conf line a
+	local -a _a_list
+	for r in mail ${WEBMAIL_ALIAS:+"$WEBMAIL_ALIAS"}; do
+		case "$2" in
+			web)
+				[ "${1%%.*}" = "$r" ] || continue
+				for conf in "$CONF_DIR"/users/*/mail/"${1#*.}".conf; do
+					[ -e "$conf" ] || continue
+					check_result "$E_EXISTS" "$1 is reserved for the mail domain ${1#*.}"
+				done
+				;;
+			mail)
+				for conf in "$CONF_DIR"/users/*/web.conf; do
+					[ -e "$conf" ] || continue
+					grep -qF -- "$r.$1" "$conf" || continue
+					while IFS= read -r line || [ -n "$line" ]; do
+						if [ "$(record_field "$line" DOMAIN)" = "$r.$1" ]; then
+							check_result "$E_EXISTS" "web domain $r.$1 exists, and the mail domain $1 needs that name"
+						fi
+						IFS=, read -ra _a_list <<< "$(record_field "$line" ALIAS)"
+						for a in "${_a_list[@]}"; do
+							if [ "$a" = "$r.$1" ]; then
+								check_result "$E_EXISTS" "web alias $r.$1 exists, and the mail domain $1 needs that name"
+							fi
+						done
+					done < "$conf"
+				done
+				;;
+		esac
+	done
+	return 0
 }
 
 get_domain_values() {

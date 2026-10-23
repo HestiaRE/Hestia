@@ -305,6 +305,23 @@ if [ -n "$restore_refused" ]; then
 	restore_suggest=$(tr ' ' ',' <<< "${restore_refused# }")
 	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version."
 fi
+
+restore_web_sel=''
+[ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && restore_web_sel=$domains
+restore_mail_sel=''
+if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
+	if [ -z "$mail" ] || [ "$mail" = '*' ]; then
+		restore_mail_sel=$PROBE_MAIL
+	else
+		restore_mail_sel=$(grep -E -x -f <(tr ',' '\n' <<< "$mail") <<< "$PROBE_MAIL")
+	fi
+fi
+restore_pair=$(restore_pair_conflict "$restore_web_sel" "$restore_mail_sel")
+if [ -n "$restore_pair" ]; then
+	rm -rf "$tmpdir"
+	queue_drop_job "$CONF_DIR/queue/backup.pipe"
+	check_result "$E_EXISTS" "$restore_pair - nothing was written. Remove one of the two at the source, or leave one out of this restore."
+fi
 counters_recount='yes'
 
 if [ "$create_user" = 'yes' ]; then

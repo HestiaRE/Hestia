@@ -72,6 +72,17 @@ requested=",$(
 	IFS=','
 	echo "${domains_array[*]}"
 ),"
+
+PROBE_RECORDS="$tmpdir/.pair"
+pair_web=''
+for domain in "${domains[@]}"; do
+	if [[ "$web" = '*' || "$requested" == *",${domain},"* ]]; then
+		restic_meta_unpack "$meta_pkg" "$PROBE_RECORDS" "./web/$domain"
+		pair_web="$pair_web$domain"$'\n'
+	fi
+done
+pair=$(restore_pair_conflict "$pair_web" "${MAIL//,/$'\n'}")
+[ -z "$pair" ] || check_result "$E_EXISTS" "$pair - nothing was written. Remove one of the two at the source."
 for domain in "${domains[@]}"; do
 	if [[ "$web" = '*' || "$requested" == *",${domain},"* ]]; then
 		unset -v DOMAIN IP IP6 ALIAS TPL SSL SSL_FORCE SSL_HSTS HTTP3 DOCKER DOCKER_PORT DOCKER_OCTET LETSENCRYPT FTP_USER FTP_MD5 FTP_PATH BACKEND PHP_VERSION PHP_PROFILE PROXY PROXY_EXT PROXY_CACHE PROXY_CACHE_DURATION FASTCGI_CACHE FASTCGI_DURATION REDIRECT REDIRECT_CODE STATS STATS_USER STATS_CRYPT U_DISK OFFLINE CUSTOM_DOCROOT CUSTOM_PHPROOT restore_web_effect restore_proxy_effect

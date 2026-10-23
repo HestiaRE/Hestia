@@ -63,6 +63,21 @@ if [ ! -s "$tmpdir/backup.conf" ]; then
 fi
 restic_meta_unpack "$meta_pkg" "$tmpdir" ./hestia ./pam
 
+# Before the parts: one of them refusing alone would restore the other half.
+snapshot_record=$(head -n1 "$tmpdir/backup.conf")
+pair_web='' pair_mail=''
+if [ -n "$WEB_SYSTEM" ]; then
+	pair_web=$(record_field "$snapshot_record" WEB)
+	PROBE_RECORDS="$tmpdir/.pair"
+	IFS=',' read -r -a _pair_list <<< "$pair_web"
+	for _d in "${_pair_list[@]}"; do
+		[ -n "$_d" ] && restic_meta_unpack "$meta_pkg" "$PROBE_RECORDS" "./web/$_d"
+	done
+fi
+[ -n "$MAIL_SYSTEM" ] && pair_mail=$(record_field "$snapshot_record" MAIL)
+pair=$(restore_pair_conflict "${pair_web//,/$'\n'}" "${pair_mail//,/$'\n'}")
+[ -z "$pair" ] || check_result "$E_EXISTS" "$pair - no part was restored. Remove one of the two at the source."
+
 # Filtered, not copied: the archive is hostile input.
 copy_record_filtered "$tmpdir/hestia/user.conf" "$USER_DATA/user.conf" user \
 	|| check_result "$E_PARSING" "the archived user.conf of $user carries no usable keys"

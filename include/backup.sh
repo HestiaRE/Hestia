@@ -949,6 +949,42 @@ server_component_items() {
 	done
 }
 
+# restore_pair_conflict WEB_DOMAINS MAIL_DOMAINS: the reason, if a web name (domain or alias, read from the records under
+# PROBE_RECORDS) mail.<d> or webmail.<d> meets the mail domain <d>, in the backup or on the box. Run before writing.
+restore_pair_conflict() {
+	local _w _names _n _r _m _rec _a
+	while IFS= read -r _w; do
+		[ -n "$_w" ] || continue
+		_names=$_w
+		_rec=$(backup_record_file web "$_w")
+		if [ -s "$_rec" ] && _a=$(record_field "$(head -n1 "$_rec")" ALIAS); then
+			_names="$_names"$'\n'"${_a//,/$'\n'}"
+		fi
+		while IFS= read -r _n; do
+			[ -n "$_n" ] || continue
+			for _r in mail ${WEBMAIL_ALIAS:+"$WEBMAIL_ALIAS"}; do
+				[ "${_n%%.*}" = "$_r" ] || continue
+				if grep -qxF -- "${_n#*.}" <<< "$2"; then
+					echo "the backup carries the web name $_n and the mail domain ${_n#*.}, which cannot coexist"
+					return 0
+				fi
+			done
+			_m=$(is_mail_web_pair_free "$_n" web) || {
+				echo "${_m#Error: }"
+				return 0
+			}
+		done <<< "$_names"
+	done <<< "$1"
+	while IFS= read -r _m; do
+		[ -n "$_m" ] || continue
+		_r=$(is_mail_web_pair_free "$_m" mail) || {
+			echo "${_r#Error: }"
+			return 0
+		}
+	done <<< "$2"
+	return 0
+}
+
 # backup_record_file KIND OBJECT: the extracted record of one object, or nothing.
 backup_record_file() {
 	case "$1" in

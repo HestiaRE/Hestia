@@ -895,6 +895,14 @@ configure_hestia() {
 	else
 		"$BIN/h-add-web-domain" "$HESTIA_ADMIN" "$HESTIA_HOSTNAME" "$IP" || true
 	fi
+	_wm_alias=$(sed -n "s/^WEBMAIL_ALIAS='\([^']*\)'.*/\1/p" "$CONF_DIR/conf/hestia.conf" 2> /dev/null | head -1)
+	if [ -n "$_web_sys" ]; then
+		case "${HESTIA_HOSTNAME%%.*}" in
+			mail | "${_wm_alias:-mail}")
+				echo "[ ! ] $HESTIA_HOSTNAME is a web domain here, so this box cannot carry the mail domain ${HESTIA_HOSTNAME#*.}"
+				;;
+		esac
+	fi
 
 	echo "[ * ] Creating hestia crontab..."
 	# One renderer, shared with the repair.

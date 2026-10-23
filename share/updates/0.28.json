@@ -37,6 +37,26 @@
       "action": { "type": "file_copy", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" },
       "paths": ["/usr/share/adminer/index.php"],
       "reversible": true
+    },
+    {
+      "id": "remove-h-add-user-wp-cli",
+      "description": "h-add-user-wp-cli is gone: wp-cli is always installed system-wide and pinned, a per-user copy only shadowed it",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-add-user-wp-cli" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-add-user-wp-cli" },
+      "paths": ["/usr/local/hestia/bin/h-add-user-wp-cli"],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-add-user-composer",
+      "description": "h-add-user-composer is gone: composer is always installed system-wide, a per-user copy only shadowed it",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-add-user-composer" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-add-user-composer" },
+      "paths": ["/usr/local/hestia/bin/h-add-user-composer"],
+      "reversible": false
     }
   ]
 }

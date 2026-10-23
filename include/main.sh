@@ -2802,15 +2802,6 @@ docker_ip_valid() {
 	[[ "$1" =~ ^127\.20\.(0|[1-9][0-9]{0,2})\.1$ ]] && [ "${BASH_REMATCH[1]}" -le 254 ]
 }
 
-# bash_alias_set NAME VALUE: exactly one "alias NAME=VALUE" in $user's .bash_aliases, written as $user,
-# since root writing there follows whatever link the customer put in its place.
-bash_alias_set() {
-	local file="$HOMEDIR/$user/.bash_aliases"
-	user_exec touch "$file" || return 1
-	user_exec sed -i "/^alias $1=/d" "$file" || return 1
-	echo "alias $1=$2" | user_exec tee -a "$file" > /dev/null
-}
-
 # home_dir_own PATH OWNER MODE: root sets up a directory inside a customer's home, which the customer can rename.
 # A link is refused and chown never follows one; a swap between the test and chmod is not covered.
 home_dir_own() {

@@ -13,12 +13,12 @@
       "eigenbau": "HestiaRE-native: no upstream counterpart. The one curated value - a recompute never changes it. An 'inspired by' pointer belongs in the note, not in upstream_path."
     },
     "aggregate": {
-      "upstream_mapped_files": 402,
+      "upstream_mapped_files": 400,
       "eigenbau_files": 117,
       "weighted_pct": 46,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 519,
-      "files_mapped": 402
+      "files_total": 517,
+      "files_mapped": 400
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -994,22 +994,6 @@
       "note": "Registers an archive already in the backup folder from its own members, so a HestiaCP one placed by hand becomes visible to the panel; the record is marked ADOPTED and is exempt from rotation (#709)."
     },
     {
-      "path": "h-add-user-composer",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-user-composer",
-      "upstream_ref": "9098bf2f",
-      "last_reconciled": "2026-10-10",
-      "divergence": {
-        "upstream_lines": 103,
-        "our_lines": 71,
-        "added": 19,
-        "removed": 51,
-        "pct": 40,
-        "measured_at": "2026-10-10"
-      },
-      "note": ""
-    },
-    {
       "path": "h-add-user-docker",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -1087,22 +1071,6 @@
         "added": 27,
         "removed": 52,
         "pct": 65,
-        "measured_at": "2026-10-10"
-      },
-      "note": ""
-    },
-    {
-      "path": "h-add-user-wp-cli",
-      "source_type": "derived",
-      "upstream_path": "bin/v-add-user-wp-cli",
-      "upstream_ref": "9098bf2f",
-      "last_reconciled": "2026-10-10",
-      "divergence": {
-        "upstream_lines": 74,
-        "our_lines": 58,
-        "added": 26,
-        "removed": 42,
-        "pct": 51,
         "measured_at": "2026-10-10"
       },
       "note": ""

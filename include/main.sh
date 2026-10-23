@@ -1794,6 +1794,30 @@ looks_like_ip46() {
 	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
 }
 
+# The box's IPv4 as the outside sees it; nothing and rc 1 when the responder fails or answers anything but a
+# public address. One source for h-update-sys-ip and the installer, keep tools/ip-responder on docs in step.
+public_ipv4() {
+	local a
+	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 https://ip.hestiare.com/ 2> /dev/null) || return 1
+	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP,
+		FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? 0 : 1;' -- "$a")" = 0 ] || return 1
+	printf '%s\n' "$a"
+}
+
+# A NAT address goes stale without the boot run. Added once, so a re-run keeps the admin's lines; only a bare
+# exit 0 moves to the end.
+nat_boot_entry_ensure() {
+	touch /etc/rc.local
+	grep -q '^#!' /etc/rc.local || echo '#!/bin/sh' >> /etc/rc.local
+	if ! grep -qxF "$HESTIA/bin/h-update-sys-ip" /etc/rc.local; then
+		sed -i '/^exit 0$/d' /etc/rc.local
+		echo "$HESTIA/bin/h-update-sys-ip" >> /etc/rc.local
+		echo "exit 0" >> /etc/rc.local
+	fi
+	chmod +x /etc/rc.local
+	systemctl enable rc-local > /dev/null 2>&1 || true
+}
+
 is_ip46_format_valid() {
 	if ! looks_like_ip46 "$1"; then
 		check_result "$E_INVALID" "invalid IP format :: $1"

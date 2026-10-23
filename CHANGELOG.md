@@ -59,8 +59,10 @@ the releases of the command audit, into another.
   certificate name in the customer's records and a server name: the mail certificate overwrote the web domain's,
   which served it after the next rebuild, nginx answered the name for only one of them, and deleting the customer
   left exim certificate links behind. The pair, and `webmail.<d>` likewise, is now refused when either side is added,
-  renamed or aliased, on any account; a restore that would create it stops before it writes anything, and the
-  installer warns when the hostname is such a name.
+  renamed or aliased, on any account; a restore that would create it stops before it writes anything, the
+  installer warns when the hostname is such a name, and the smoke run reports a pair a box carries from before.
+- **A restore that named its objects could take more than it named** (#1246). The selection was matched as a
+  pattern, so selecting `a.com` also restored `aXcom` from the same archive. Names are compared as names now.
 - **Three small upstream fixes after 1.10.5** (#1246). A new web domain's `public_html` starts at 751 as after a
   rebuild (upstream #5730); the mail certificate renewal reads the certificate the mail service uses, where a web
   domain `mail.<domain>` could hide an expiring one (upstream #5829); and the panel escapes four outputs it

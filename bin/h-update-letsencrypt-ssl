@@ -114,7 +114,7 @@ for user in $("$BIN/h-list-users" list); do
 		now=$(date +%s)
 		seconds_valid=$((expiration - now))
 		days_valid=$((seconds_valid / 86400))
-		if [[ "$days_valid" -lt 31 ]]; then
+		if [[ "$days_valid" -lt "$days_valid_setting" ]]; then
 			if [ $lecounter -gt 0 ]; then
 				sleep 10
 			fi

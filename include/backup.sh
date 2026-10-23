@@ -1851,13 +1851,8 @@ backup_map_taropt() {
 # The start points are mail account names the customer can create, so they reach find through a file: a name
 # starting with - is a path there, never an expression. find prints them as given, so the hasher needs -- as well.
 backup_map_find() {
-	local _list _rc
-	_list=$(mktemp) || return 1
-	printf '%s\0' "$@" > "$_list"
-	find -files0-from "$_list" -type f -printf '%p\0%s.%T@\0' 2> /dev/null
-	_rc=$?
-	rm -f "$_list"
-	return $_rc
+	[ $# -gt 0 ] || set -- .
+	printf '%s\0' "$@" | find -files0-from - -type f -printf '%p\0%s.%T@\0' 2> /dev/null
 }
 
 # backup_map_hash_tree OUTTABLE [PATH...]: <path>\0<hash>\0 off the live tree, batched. Pairing is
@@ -1865,7 +1860,6 @@ backup_map_find() {
 backup_map_hash_tree() {
 	local _out="$1" _try _paths _hashes
 	shift
-	[ $# -gt 0 ] || set -- .
 	_paths=$(mktemp)
 	_hashes=$(mktemp)
 	for _try in 1 2; do
@@ -1900,7 +1894,6 @@ backup_map_hash_verify() {
 	shift
 	[ -s "$_out" ] || return 0
 	[ -s "$_out.stat" ] || return 0
-	[ $# -gt 0 ] || set -- .
 	_now=$(mktemp)
 	backup_map_find "$@" > "$_now"
 	awk -v tf="$_out.stat" -v nf="$_now" -v of="$_out" 'BEGIN {

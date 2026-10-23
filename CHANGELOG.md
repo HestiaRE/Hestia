@@ -27,7 +27,8 @@ the releases of the command audit, into another.
 - **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215), no longer from the HestiaCP
   project's `ip.hestiacp.com`. The installer and `h-update-sys-ip` share one function, which takes only a public
   IPv4 from the answer, so an error page, a portal or a private address is no longer taken for one. An install
-  that gets no address says so, since without it a NAT box also gets no boot entry.
+  that gets no address says so, and a later `h-update-sys-ip` that sets the NAT address adds the boot entry the
+  install could not, so the address keeps following the box.
 - **A new web domain folder is 751, the same as after a rebuild or restore** (#1237). It used to start at
   551 and turn 751 on the first rebuild, so the operator key `DOMAINDIR_WRITABLE` only covered the time in
   between; the key is gone.

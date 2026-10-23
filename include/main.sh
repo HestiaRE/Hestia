@@ -1804,6 +1804,20 @@ public_ipv4() {
 	printf '%s\n' "$a"
 }
 
+# A NAT address goes stale without the boot run. Added once, so a re-run keeps the admin's lines; only a bare
+# exit 0 moves to the end.
+nat_boot_entry_ensure() {
+	touch /etc/rc.local
+	grep -q '^#!' /etc/rc.local || echo '#!/bin/sh' >> /etc/rc.local
+	if ! grep -qxF "$HESTIA/bin/h-update-sys-ip" /etc/rc.local; then
+		sed -i '/^exit 0$/d' /etc/rc.local
+		echo "$HESTIA/bin/h-update-sys-ip" >> /etc/rc.local
+		echo "exit 0" >> /etc/rc.local
+	fi
+	chmod +x /etc/rc.local
+	systemctl enable rc-local > /dev/null 2>&1 || true
+}
+
 is_ip46_format_valid() {
 	if ! looks_like_ip46 "$1"; then
 		check_result "$E_INVALID" "invalid IP format :: $1"

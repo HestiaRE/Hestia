@@ -226,7 +226,7 @@ if [ -z "$web" ] || [ "$web" = '*' ]; then
 	domains="$backup_domains"
 else
 	echo "$web" | tr ',' '\n' > $tmpdir/selected.txt
-	domains=$(echo "$backup_domains" | grep -E -x -f $tmpdir/selected.txt)
+	domains=$(echo "$backup_domains" | grep -F -x -f $tmpdir/selected.txt)
 fi
 
 # The queue cleanup at the end matches the customer name, not the line: two queued jobs for one customer both go.
@@ -313,7 +313,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 	if [ -z "$mail" ] || [ "$mail" = '*' ]; then
 		restore_mail_sel=$PROBE_MAIL
 	else
-		restore_mail_sel=$(grep -E -x -f <(tr ',' '\n' <<< "$mail") <<< "$PROBE_MAIL")
+		restore_mail_sel=$(grep -F -x -f <(tr ',' '\n' <<< "$mail") <<< "$PROBE_MAIL")
 	fi
 fi
 restore_pair=$(restore_pair_conflict "$restore_web_sel" "$restore_mail_sel")
@@ -787,7 +787,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 		domains="$backup_domains"
 	else
 		echo "$mail" | tr ',' '\n' > $tmpdir/selected.txt
-		domains=$(echo "$backup_domains" | grep -E -x -f $tmpdir/selected.txt)
+		domains=$(echo "$backup_domains" | grep -F -x -f $tmpdir/selected.txt)
 	fi
 
 	exim_user="exim"
@@ -1028,7 +1028,7 @@ if [ "$db" != 'no' ] && [ -n "$DB_SYSTEM" ]; then
 		databases="$backup_databases"
 	else
 		echo "$db" | tr ',' '\n' > $tmpdir/selected.txt
-		databases=$(echo "$backup_databases" | grep -E -x -f $tmpdir/selected.txt)
+		databases=$(echo "$backup_databases" | grep -F -x -f $tmpdir/selected.txt)
 	fi
 
 	# Shared users: a slot whose user is not here yet waits for the database holding the password, and this run's
@@ -1272,7 +1272,7 @@ if [ "$udir" != 'no' ]; then
 			user_dirs="$backup_dirs"
 		else
 			echo "$udir" | tr ',' '\n' > $tmpdir/selected.txt
-			user_dirs=$(echo "$backup_dirs" | grep -E -x -f $tmpdir/selected.txt)
+			user_dirs=$(echo "$backup_dirs" | grep -F -x -f $tmpdir/selected.txt)
 		fi
 
 		# A top-level home directory can be named anything, spaces included: the value is not even archive-shaped.

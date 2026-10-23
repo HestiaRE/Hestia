@@ -57,7 +57,7 @@ the releases of the command audit, into another.
   what the customer had excluded. Each part is a path or an account under its domain now, as in the archive.
 - **Three small upstream fixes after 1.10.5** (#1246). A new web domain's `public_html` starts at 751 as after a
   rebuild (upstream #5730); the mail certificate renewal reads the certificate the mail service uses, where a web
-  domain `mail.<domain>` could hide an expiring one (upstream #5829); and the panel escapes three outputs it
+  domain `mail.<domain>` could hide an expiring one (upstream #5829); and the panel escapes four outputs it
   printed raw (upstream #5750).
 - **A renamed web domain could take a name another domain of the same customer answered to** (#1197), and a
   redirect to a host on the old name or a web backup exclusion kept the old name.

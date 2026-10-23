@@ -19,6 +19,13 @@ the releases of the command audit, into another.
   hand as root in `/etc/dovecot/login-aliases`, one line per alias; the address stays a login, and rate limits,
   fail2ban and the password grace still see the address. Not in any backup, no panel, and dovecot 2.4 only.
 
+### Security
+
+- **Tachyon 4.4.7, Adminer 6.1.2 and Alpine.js 3.17.5** (#1243). Tachyon 4.4.3 ends the server-side session on
+  logout and closes a backup restore that ran without an admin session. Adminer 6.1.1 closes a file write through
+  SQLite, a driver the panel's Adminer, fixed to the local PostgreSQL and MariaDB, does not offer. An installed
+  box gets both through the update, not only a fresh install.
+
 ### Changed
 
 - **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**

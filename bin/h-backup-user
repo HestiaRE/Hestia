@@ -76,6 +76,13 @@ add_usage() {
 	u_usage=$((u_usage + $1))
 }
 
+# mail_exclusion DOMAIN ACCOUNT LIST: the entries of LIST that exclude ACCOUNT. Whole fields, never a prefix:
+# info must not match the domain info-shop.example. A star still means every account.
+mail_exclusion() {
+	echo "$3" | tr ',' '\n' | awk -F: -v d="$1" -v a="$2" '
+		$1 == d { for (i = 2; i <= NF; i++) if ($i == a || index($i, "*")) print $i }'
+}
+
 # get_user_disk_usage: echo the MB the backup needs, rc 1 when a part cannot be read.
 get_user_disk_usage() {
 	u_usage=0
@@ -135,8 +142,7 @@ get_user_disk_usage() {
 
 				for account in $accounts; do
 					home_dir=$HOMEDIR/$user/mail/$domain/$account
-					exclusion=$(echo "$mail_exclusions" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) > 0')
-					exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
+					exclusion=$(mail_exclusion "$domain" "$account" "$mail_exclusions")
 
 					if [ -z "$exclusion" ] && [ -e "$home_dir" ]; then
 						disk_usage=$(nice -n 19 du -shm "$home_dir" | cut -f 1)
@@ -554,8 +560,7 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 		for account in *; do
 			# A mail domain without an account leaves the glob unexpanded: the star would become a name.
 			[ -d "$account" ] || continue
-			exclusion=$(echo "$MAIL" | tr ',' '\n' | awk -v d="$domain:" 'index($0, d) > 0')
-			exclusion=$(echo "$exclusion" | tr ':' '\n' | grep -E "^$account|\*")
+			exclusion=$(mail_exclusion "$domain" "$account" "$MAIL")
 
 			if [ -z "$exclusion" ] && [[ "$MAIL_SYSTEM" =~ exim ]]; then
 				accounts+=("$account")

@@ -39,6 +39,10 @@ the releases of the command audit, into another.
   backup handed these customer-chosen names to tar, find and the hasher as root without an end of options: a
   home entry stopped the whole backup, and a mail account directory, which may start with `-` like the mailbox
   name, was read as an option and left out of the archive without a word. They are paths now.
+- **A mail backup exclusion could drop other accounts without a word** (#1245). The account list was matched
+  as a prefix and a regex against the whole entry, domain included: excluding `box2` on `info-shop.example` also
+  left out `box` and `info` there, and the same accounts on `shop.example`. An account is now excluded only by
+  its own name or a star in its domain's entry.
 - **A renamed web domain could take a name another domain of the same customer answered to** (#1197), and a
   redirect to a host on the old name or a web backup exclusion kept the old name.
 - **The statistics of a restored domain could stay unbuilt** (#1197) when a longer name of the same customer

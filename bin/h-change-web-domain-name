@@ -163,7 +163,7 @@ if [ -n "$STATS" ]; then
 	webstats_queue_drop "$user" "$domain"
 	rm -f "/etc/awstats/$STATS.$domain_idn.conf"
 	stats_dir="$HOMEDIR/$user/web/$new_domain/stats"
-	# 551 by design, opened for the moves as the stat build does.
+	# An older folder may still be 551, opened for the moves as the stat build does.
 	if ! user_exec test -w "$stats_dir"; then
 		user_exec chmod u+w "$stats_dir"
 		stats_closed=yes

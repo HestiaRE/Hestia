@@ -55,6 +55,12 @@ the releases of the command audit, into another.
 - **A web or mail backup exclusion with a path or account did nothing in restic mode** (#1245). The entry
   `domain:part` reached restic as the single path `domain:part`, which never exists, so the snapshot carried
   what the customer had excluded. Each part is a path or an account under its domain now, as in the archive.
+- **A web domain `mail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829). The two shared a
+  certificate name in the customer's records and a server name: the mail certificate overwrote the web domain's,
+  which served it after the next rebuild, nginx answered the name for only one of them, and deleting the customer
+  left exim certificate links behind. The pair, and `webmail.<d>` likewise, is now refused when either side is added,
+  renamed or aliased, on any account; a restore that would create it stops before it writes anything, and the
+  installer warns when the hostname is such a name.
 - **Three small upstream fixes after 1.10.5** (#1246). A new web domain's `public_html` starts at 751 as after a
   rebuild (upstream #5730); the mail certificate renewal reads the certificate the mail service uses, where a web
   domain `mail.<domain>` could hide an expiring one (upstream #5829); and the panel escapes four outputs it

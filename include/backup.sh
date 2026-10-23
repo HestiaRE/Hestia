@@ -1254,6 +1254,28 @@ ftp_delete() {
 	fi
 }
 
+# restic_exclude_entry BASE ENTRY web|mail: domain[:part...] as paths under BASE, read the way h-backup-user reads it.
+# web: each part is a path in the domain, a domain * stands for every domain. mail: each part is an account, a star
+# in one means every account, and a domain * matches nothing, as in the archive.
+restic_exclude_entry() {
+	local _base="$1" _d="${2%%:*}" _p
+	local -a _parts
+	if [ "$_d" = "$2" ]; then
+		echo "$_base/$2"
+		return 0
+	fi
+	[ "$3" = mail ] && [ "$_d" = '*' ] && return 0
+	IFS=':' read -r -a _parts <<< "${2#*:}"
+	for _p in "${_parts[@]}"; do
+		[ -n "$_p" ] || continue
+		if [ "$3" = mail ] && [[ "$_p" == *'*'* ]]; then
+			echo "$_base/$_d/*"
+			return 0
+		fi
+		echo "$_base/$_d/$_p"
+	done
+}
+
 # Path-producing exclusions only: DB and CRON exclude objects, not paths. The stage is never
 # excluded, whatever the customer writes into the list.
 restic_excludes() {
@@ -1269,7 +1291,7 @@ restic_excludes() {
 		?*)
 			IFS=',' read -r -a _list <<< "$WEB"
 			for _e in "${_list[@]}"; do
-				[ -n "$_e" ] && echo "$HOMEDIR/$_u/web/$_e"
+				[ -n "$_e" ] && restic_exclude_entry "$HOMEDIR/$_u/web" "$_e" web
 			done
 			;;
 	esac
@@ -1278,7 +1300,7 @@ restic_excludes() {
 		?*)
 			IFS=',' read -r -a _list <<< "$MAIL"
 			for _e in "${_list[@]}"; do
-				[ -n "$_e" ] && echo "$HOMEDIR/$_u/mail/$_e"
+				[ -n "$_e" ] && restic_exclude_entry "$HOMEDIR/$_u/mail" "$_e" mail
 			done
 			;;
 	esac

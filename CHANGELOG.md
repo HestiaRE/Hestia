@@ -43,6 +43,9 @@ the releases of the command audit, into another.
   as a prefix and a regex against the whole entry, domain included: excluding `box2` on `info-shop.example` also
   left out `box` and `info` there, and the same accounts on `shop.example`. An account is now excluded only by
   its own name or a star in its domain's entry.
+- **A web or mail backup exclusion with a path or account did nothing in restic mode** (#1245). The entry
+  `domain:part` reached restic as the single path `domain:part`, which never exists, so the snapshot carried
+  what the customer had excluded. Each part is a path or an account under its domain now, as in the archive.
 - **A renamed web domain could take a name another domain of the same customer answered to** (#1197), and a
   redirect to a host on the old name or a web backup exclusion kept the old name.
 - **The statistics of a restored domain could stay unbuilt** (#1197) when a longer name of the same customer

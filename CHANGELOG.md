@@ -13,208 +13,138 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.28 (2026-10-23)
+
+A second login name per mailbox, a web domain rename that keeps what hangs on the domain, the upstream round
+after HestiaCP 1.10.5, and backup names, exclusions and selections that mean exactly what they say.
+
 ### Added
 
-- **A mailbox can carry a second login name** (#1238), for IMAP, POP3 and SMTP. The admin keeps the aliases by
-  hand as root in `/etc/dovecot/login-aliases`, one line per alias; the address stays a login, and rate limits,
-  fail2ban and the password grace still see the address. Not in any backup, no panel, and dovecot 2.4 only.
+- **A mailbox can carry a second login name** (#1238) for IMAP, POP3 and SMTP. The admin keeps the aliases by hand
+  in `/etc/dovecot/login-aliases`; rate limits, fail2ban and the password grace still see the address. Not in any
+  backup and no panel, dovecot 2.4 only.
 
 ### Security
 
 - **Tachyon 4.4.7, Adminer 6.1.2 and Alpine.js 3.17.5** (#1243). Tachyon 4.4.3 ends the server-side session on
-  logout and closes a backup restore that ran without an admin session. Adminer 6.1.1 closes a file write through
-  SQLite, a driver the panel's Adminer does not let a login pick: its server list maps each entry to the local
-  PostgreSQL or MariaDB and sets the driver itself. An installed box gets both through the update, not only a
-  fresh install.
+  logout and closes a backup restore that ran without an admin session; Adminer 6.1.1 closes a file write through
+  SQLite, a driver the panel's Adminer never lets a login pick. An update brings both to installed boxes.
 
 ### Changed
 
 - **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**
-  (#1197) instead of refusing them. A Let's Encrypt certificate is requested for the new name; if that fails,
-  the domain stays renamed without SSL.
-- **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215), no longer from the HestiaCP
-  project's `ip.hestiacp.com`. The installer and `h-update-sys-ip` share one function, which takes only a public
-  IPv4 from the answer, so an error page, a portal or a private address is no longer taken for one. An install
-  that gets no address says so, and a later `h-update-sys-ip` that sets the NAT address adds the boot entry the
-  install could not, so the address keeps following the box.
-- **A new web domain folder is 751, the same as after a rebuild or restore** (#1237). It used to start at
-  551 and turn 751 on the first rebuild, so the operator key `DOMAINDIR_WRITABLE` only covered the time in
-  between; the key is gone.
+  (#1197) instead of refusing them. A new Let's Encrypt certificate is requested; if that fails, the domain stays
+  renamed without SSL.
+- **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215) instead of the HestiaCP project's
+  service, and only a public IPv4 in the answer counts. A later `h-update-sys-ip` that sets the address adds the
+  boot entry an install without one could not.
+- **A new web domain's folder and `public_html` start at 751** (#1237/#1246, upstream #5730), where a rebuild
+  leaves them; the operator key `DOMAINDIR_WRITABLE` is gone.
 
 ### Removed
 
-- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251). wp-cli is always installed system-wide and pinned;
-  composer is a system-wide addon, off on compact and absent on mailonly, which `h-update-sys-composer os` adds to
-  a box without it. The per-user copy only put an alias in front of the system one and went stale unless rerun.
-  An update removes the commands from installed boxes. Upstream #5787 adds a delete for its per-user wp-cli, which
-  this makes moot.
+- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251, upstream #5787). wp-cli is installed system-wide and
+  pinned, composer is a system-wide addon that `h-update-sys-composer os` adds to a box without it; the per-user
+  copy only shadowed them and went stale. An update removes the commands.
 
 ### Fixed
 
-- **A home entry or mail account whose name starts with `-` broke the backup** (#1245, upstream #5754). The
-  backup handed these customer-chosen names to tar, find and the hasher as root without an end of options: a
-  home entry stopped the whole backup, and a mail account directory, which may start with `-` like the mailbox
-  name, was read as an option and left out of the archive without a word. They are paths now.
-- **A mail backup exclusion could drop other accounts without a word** (#1245). The account list was matched
-  as a prefix and a regex against the whole entry, domain included: excluding `box2` on `info-shop.example` also
-  left out `box` and `info` there, and the same accounts on `shop.example`. An account is now excluded only by
-  its own name or a star in its domain's entry. The home exclusion had the same class the other way round: the
-  customer's entry name was the pattern, so excluding `aXb` also left out `a.b`.
-- **A web or mail backup exclusion with a path or account did nothing in restic mode** (#1245). The entry
-  `domain:part` reached restic as the single path `domain:part`, which never exists, so the snapshot carried
-  what the customer had excluded. Each part is a path or an account under its domain now, as in the archive.
-- **A web domain `mail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829). The two shared a
-  certificate name in the customer's records and a server name: the mail certificate overwrote the web domain's,
-  which served it after the next rebuild, nginx answered the name for only one of them, and deleting the customer
-  left exim certificate links behind. The pair, and `webmail.<d>` likewise, is now refused when either side is added,
-  renamed or aliased, on any account; a restore that would create it stops before it writes anything, the
-  installer warns when the hostname is such a name, and the smoke run reports a pair a box carries from before.
-- **A restore that named its objects could take more than it named** (#1246). The selection was matched as a
-  pattern, so selecting `a.com` also restored `aXcom` from the same archive. Names are compared as names now.
-- **Three small upstream fixes after 1.10.5** (#1246). A new web domain's `public_html` starts at 751 as after a
-  rebuild (upstream #5730); the mail certificate renewal reads the certificate the mail service uses, where a web
-  domain `mail.<domain>` could hide an expiring one (upstream #5829); and the panel escapes four outputs it
-  printed raw (upstream #5750).
-- **A renamed web domain could take a name another domain of the same customer answered to** (#1197), and a
-  redirect to a host on the old name or a web backup exclusion kept the old name.
-- **The statistics of a restored domain could stay unbuilt** (#1197) when a longer name of the same customer
-  started with it.
-- **Changing the path of an FTP account failed while the customer's site was running** (#1197).
-- **A new WordPress showed the placeholder page instead of the site** on apache (#1197).
-- **Deleting an IDN domain left its statistics configuration behind** (#1197).
-- **Let's Encrypt staging failed for a user who already had a production account** (#1197).
-- **apache-only on Debian 12 left apache unable to start** (#1235). Its mod_qos no longer loads on the current
-  apache; the bot rate limiting stays off there instead.
+- **A home entry or mail account whose name starts with `-` broke the backup** (#1245, upstream #5754): tar and
+  find read it as an option, so a home entry stopped the backup and a mailbox was left out without a word.
+- **A backup exclusion could leave out more than it named** (#1245). Mail accounts matched as a prefix of the whole
+  entry, domain included, home entries as a pattern, and in restic mode a `domain:path` or `domain:account` entry
+  excluded nothing at all.
+- **A web domain `mail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829). They shared a
+  certificate name and a server name: the mail certificate replaced the web domain's, nginx answered for only one,
+  and the mail renewal could read the web certificate. The pair, and `webmail.<d>` likewise, is refused now on
+  every account; a restore that would create it stops before writing, and the smoke run reports an old one.
+- **A restore that named its objects could take more** (#1246): `a.com` also selected `aXcom` from the archive.
+- Smaller ones: a renamed web domain could take a name another of the customer's domains answered to (#1197), the
+  statistics of a restored domain could stay unbuilt (#1197), changing an FTP path failed while the site ran
+  (#1197), a new WordPress showed the placeholder on apache (#1197), deleting an IDN domain left its statistics
+  config (#1197), Let's Encrypt staging failed for an account with a production key (#1197), apache-only on
+  Debian 12 could not start apache (#1235), and four panel outputs were printed unescaped (#1246, upstream #5750).
 
 ## v0.24 to v0.27 (2026-10-06 to 2026-10-10)
 
-The command audit (#1176): over four releases every command was read, run on a box including its failure path,
-then fixed, tightened or removed, and its comments were cut to the why. Alongside it: a grace period after a mail
-password change, a FireHOL picker, Tachyon 4.4.1, and the `latest` preset on nginx.org mainline.
+The command audit (#1176): every command was read, run on a box including its failure path, then fixed,
+tightened or removed. Alongside it: a grace period after a mail password change, a FireHOL picker, Tachyon 4.4.1,
+and the `latest` preset on nginx.org mainline.
 
 ### Added
 
-- **A mail password change gives the other devices of the network time to catch up** (#1155). For 12 hours
-  dovecot failures of that account from that network do not count towards a ban, for one hour no exim failure
-  from it does, and a ban the network already has is lifted. Panel, Roundcube and Tachyon set it,
-  `h-add-mail-account-grace` by hand.
-- **FireHOL blocklists can be picked from the live catalogue** (#510): the ticked lists become one IP list with
-  one DROP rule, and a list FireHOL stops serving is skipped instead of freezing the set.
-- **Preset `latest` takes nginx from nginx.org mainline** (#194). CrowdSec runs there without the web bouncer,
-  whose module only loads into the distribution's nginx.
-- **CrowdSec protects new web domains by default** (#1176) wherever its nginx bouncer runs; off per domain.
+- **A mail password change gives the other devices of the network time to catch up** (#1155): for 12 hours their
+  dovecot failures and for one hour their exim failures do not count towards a ban.
+- **FireHOL blocklists can be picked from the live catalogue** (#510), as one IP list with one DROP rule.
+- **Preset `latest` takes nginx from nginx.org mainline** (#194), with CrowdSec but without its web bouncer.
+- **CrowdSec protects new web domains by default** (#1176) wherever its nginx bouncer runs.
 
 ### Security
 
-- **Tachyon 4.4.1** (#1194/#1207). 4.4.0 closes nine security issues, among them header injection through a
-  reply and two-step verification that a session alone could switch off.
-- **The server config editor read and wrote more than it offers** (#1176). It now works on one set of files
-  derived from the installed services, and a config the service rejects is never applied.
-- **Names and paths stay within their account** (#1176). A database or database user inside another account's
-  names is refused when created, moved or restored, paths compare as whole components, an FTP or SFTP home
-  through a link is refused, and Let's Encrypt validation no longer writes into the customer's docroot.
-- **Logins** (#1176): a suspended account no longer gets in by SSH key, a password reset no longer logs the user
-  in past 2FA and the address list, and a login names a suspension only after the right password.
-- **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171), and **a DROP rule over an IP list
-  could lock out the admin network** (#510).
-- **The Sury and Docker repository keys are checked against a pinned fingerprint** (#1176).
-- **Stricter throughout** (#1176): mail, web, SSL, stats, cache, WordPress, SSH key, 2FA, package and add-on
-  commands, record parsing, the server statistics and status pages, the site and database downloads, and
-  Tachyon serves only what belongs to the browser.
+- **Tachyon 4.4.1** (#1194/#1207); 4.4.0 closed nine security issues.
+- **The audit** (#1176): the server config editor works only on the files of the installed services, names and
+  paths stay within their account, a suspended account no longer logs in by SSH key, a password reset no longer
+  skips 2FA, and the Sury and Docker repository keys are pinned by fingerprint.
+- **The dovecot jail never banned on Debian 13 and Ubuntu 26.04** (#1171), and **a DROP rule over an IP list could
+  lock out the admin network** (#510).
 
 ### Changed
 
-- **Updates start from v0.25** (#1176); a box below it is reinstalled. **`hestia update` asks before it
-  updates**: it shows the target first, `--yes` skips the question, and without a terminal it refuses.
-- **https serves `public_html` like http** (#1176); `public_shtml` and the separate SSL docroot are gone.
-- **The backup exclusion list is stricter** (#1176). Each entry must be a domain, path, mailbox or database name.
+- **Updates start from v0.25** (#1176), and **`hestia update` asks before it updates**.
+- **https serves `public_html` like http** (#1176); `public_shtml` is gone. **The backup exclusion list is
+  stricter** (#1176).
 
 ### Removed
 
-- **The `v-*` command names** (#1176). Call `h-*` with the same arguments, or create aliases outside
-  `/usr/local/hestia/bin`. A restore of a pre-1.9 HestiaCP archive names the cron jobs that still call them.
-- **Commands without a caller or without a purpose here** (#1176): twelve file commands from HestiaCP's app
-  installer and the VestaCP file manager, the cron restart jobs, `h-check-mail-account-hash`, the Let's Encrypt
-  queue, `h-add-web-domain-ssl-preset`, `h-update-web-domain-traff`, `h-update-web-templates`,
-  `h-add-user-sftp-key`, and `h-run-cli-cmd`, which served the REST API. An update deletes them from the box.
+- **The `v-*` command names** (#1176); call `h-*` with the same arguments.
+- **Commands without a caller or a purpose here** (#1176), among them the app-installer file commands, the cron
+  restart jobs, the Let's Encrypt queue and `h-run-cli-cmd`. An update deletes them from the box.
 
 ### Fixed
 
-- **Commands that reported success without having done it** (#1176). Firewall changes the ruleset refuses are
-  rolled back, a database that cannot be dropped keeps its record, a service that fails to start or stop is
-  reported as failed, a restic restore with a failed part and a server backup that could not be written fail,
-  and deleting the mail queue deletes it.
-- **Re-running the installer on a live box broke every customer mail domain** (#1176): the mail stage emptied
-  `/etc/exim4/domains`. A re-run also keeps the host certificate and the SRS secret.
-- **Names differing only at a dot were treated as one user** (#1176). Backup rotation on a shared ftp, sftp or
-  rclone target could delete another customer's archives, and deleting a user could hand another customer's
-  dedicated IP back to the admin. Suspending a user no longer locks another whose name starts with it, and a web
-  backup exclusion no longer reaches a domain whose name starts the same.
-- **Backup and restore** (#1176): a restore started from the panel ran again every five minutes, and one with
-  `BACKUP_TEMP` set broke off at the mail and home archives. A restic restore keeps custom docroots and FTP
-  accounts and refuses a domain another user holds, deleting an archive reaches every transport, and restored
-  settings are held to the bounds the panel sets.
-- **Let's Encrypt** (#1176/#1210): the hostname on mail-only gets a trusted certificate, and an SSL domain with
-  aliases, the renewal of an already validated name and a webmail name without DNS work.
-- **Web domains and the web stack** (#1176/#1201): renaming a domain moves its aliases, logs and configs,
-  template, proxy, backend and PHP changes keep record and vhost in step, and nginx can be added to an
-  apache-only server. A model switch carries phpMyAdmin, bot rate limiting and the file manager to the new
-  front, and removing Docker no longer strands customers who still use it.
-- **Mail** (#1172/#1176): a new mail domain's webmail was unreachable until some later reload, suspended mailboxes
-  stay suspended through a rebuild, IDN mail domains can be suspended and moved, an IDN domain added without a
-  UTF-8 locale is no longer set up under the wrong name, one domain's spam settings no longer decide for
-  another's recipients, and removing rspamd no longer breaks logins.
-- **Users and packages** (#1176): deleting a user ends its processes and the counters stay right, deleting a
-  package moves its users to default, saving or renaming one reaches only its own users, and suspending a user
-  stops their Docker containers.
-- **Firewall and server settings** (#1176): IPv6 and network bans render, a manual ban survives a fail2ban
-  restart, the fail2ban page of the config editor can save, moving the panel port keeps its source restriction,
-  a NAT change moves only that address, and the server statistics show their graphs without doubled counts.
-- **Updates and uninstall** (#1176): a failed update run no longer leaves the panel and webmail stopped, and
-  `hestia uninstall --purge` leaves no unit and no profile line behind.
-- Smaller ones (#1176): mail through an authenticated SMTP relay was not DKIM-signed, moving a message from Spam
-  to Trash trained it as ham, ManageSieve listened on every address, a webmail alias change switched every domain
-  to the default client, an invalid time zone was accepted, and the smoke never noticed a fail2ban jail whose
-  log file is missing.
+- **Commands that reported success without having done it** (#1176): firewall changes, database drops, service
+  starts and stops, restic restores and server backups now fail when they fail.
+- **Re-running the installer on a live box broke every customer mail domain** (#1176).
+- **Names differing only at a dot were treated as one** (#1176): backup rotation, user deletion, suspension and
+  web backup exclusions could reach another customer's objects.
+- **Backup and restore** (#1176): a panel restore no longer reruns every five minutes, and `BACKUP_TEMP`, custom
+  docroots, FTP accounts and every transport behave.
+- **Let's Encrypt, web and mail** (#1172/#1176/#1201/#1210): mail-only hostnames get a trusted certificate,
+  renaming a domain moves everything that hangs on it, a model switch carries its add-ons along, a new mail
+  domain's webmail answers at once, and IDN mail domains can be suspended and moved.
+- Smaller ones (#1176): user and package deletion, firewall bans and the panel port, a failed update leaving the
+  panel stopped, `hestia uninstall --purge`, DKIM over an authenticated relay, and ManageSieve on every address.
 
 ## v0.23 (2026-09-27)
 
-The panel keeps eight languages and speaks German completely, a customer's databases can share a user or add a
-read-only one, ionCube joins the addons, and every PHP version gets one extension set.
+Eight panel languages with German complete, shared and read-only database users, ionCube as an addon, and one
+extension set for every PHP version.
 
 ### Added
 
-- **A MySQL database can share a user with another database of the customer, and carry a second one** (#725),
-  full or read-only, carried by suspend, rebuild, backup and restore.
-- **ionCube loader as an installer addon** (#1069), pinned per architecture, for every customer PHP but 8.0.
-- **The installer asks for the system locale, and the panel's language follows it** (#1164).
+- **A MySQL database can share a user with another database of the customer, and carry a second one** (#725).
+- **ionCube loader as an installer addon** (#1069), and **the installer asks for the system locale** (#1164).
 
 ### Security
 
-- **A customer could take over another customer's database user** (#725), because the prefix does not keep names
-  apart; a database restored without a password hash got a user without a password.
-- **The SMTP relay password was readable by every account** (#1142), and **mail certificate keys were
-  world-readable** (#1135).
+- **A customer could take over another customer's database user** (#725), **the SMTP relay password was readable
+  by every account** (#1142), and **mail certificate keys were world-readable** (#1135).
 
 ### Changed
 
-- **The panel speaks eight languages, from text sources** (#1160); English and German are maintained, 33 others
-  were dropped and their accounts moved to English.
-- **Sharing a domain is the owner's switch on the web domain** (#751).
-- **Every PHP version gets one extension set** (#1069), sized for WordPress, Nextcloud and Magento.
-- **The smoke checks the box; checks on the shipped code run in CI** (#1147), with `nginx -t` / `apache2ctl -t`.
+- **Eight panel languages from text sources** (#1160), **sharing a domain is the owner's switch** (#751), **one
+  extension set per PHP version** (#1069), and **checks on the shipped code run in CI** (#1147).
 
 ### Fixed
 
-- **The panel showed English on Debian 13 and both Ubuntu releases** (#1157), and **an update to v0.22 stopped
-  halfway** (#1132).
-- **An OS-PHP box left customer PHP unhardened** (#1069), and **saving the PHP page overwrote every php.ini on the
-  box** (#1144).
-- **An SMTP relay login with `\` or `` ` `` made the mail backup unrestorable** (#1143), and **an account created
-  under `umask 077` was broken without an error** (#1134).
-- Smaller ones: phpMyAdmin or Roundcube answered 500 on a PHP 8.5 panel (#1149), removing a PHP version could take
-  them along (#1069), a package rename and three more panel actions failed under sudo's path (#1158), and
-  counters drifted after an aborted restore (#1137).
+- **The panel showed English on Debian 13 and both Ubuntu releases** (#1157), **an update to v0.22 stopped
+  halfway** (#1132), **an OS-PHP box left customer PHP unhardened** (#1069), and **saving the PHP page overwrote
+  every php.ini** (#1144).
+- Smaller ones: an unrestorable mail backup after an SMTP relay login with `\` (#1143), accounts created under
+  `umask 077` (#1134), phpMyAdmin or Roundcube on a PHP 8.5 panel (#1149/#1069), panel actions under sudo's path
+  (#1158), and counters after an aborted restore (#1137).
 
 ## v0.22 (2026-09-24)
 

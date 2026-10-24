@@ -13,7 +13,17 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **An unban fail2ban runs itself no longer hangs for a minute** (#1259, upstream #5699). `h-delete-firewall-ban`
+  reported every unban back to fail2ban, which answers no client while it runs that very action, so each one waited
+  out the 60 s action timeout: every stop and reboot with an active ban, and a mail password change in the panel
+  whenever a device of that network was banned. The fail2ban actions now mark the call, panel and CLI keep the
+  callback. Existing boxes get the action files through the update, loaded by a reload.
+- **A panel unban of a panel-login ban reaches fail2ban** (#1259). The callback looked for an action named after
+  the chain and never found the panel jail's own, so fail2ban kept the ban and set it again at its next start. It
+  also missed a jail with more actions than one unless the hestia action came first.
+  An unban on WEB no longer reaches the WEBSCAN jails either.
 
 ## v0.28 (2026-10-23)
 

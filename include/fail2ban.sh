@@ -82,6 +82,17 @@ fail2ban_mail_grace_apply() {
 	fail2ban_restart
 }
 
+# Update path of the two hestia actions. A reload loads a changed action of the same name and keeps the bans; a
+# restart would stop every jail through the old actionunban, the one that waits out fail2ban's timeout per ban.
+fail2ban_unban_caller_apply() {
+	local f
+	for f in hestia.conf hestia-panel.conf; do
+		cp -f "$HESTIA/share/fail2ban/action.d/$f" "$F2B_DIR/action.d/" || return 1
+	done
+	systemctl -q is-active fail2ban 2> /dev/null || return 0
+	fail2ban_restart reload
+}
+
 # From our own config, not by deleting the dpkg conffile jail.d/defaults-debian.conf, which an update restores.
 fail2ban_disable_distro_jails() {
 	grep -q '^\[sshd\]' "$F2B_OURS" 2> /dev/null && return 0

@@ -1,0 +1,16 @@
+{
+  "version": "0.29",
+  "entries": [
+    {
+      "id": "fail2ban-unban-caller",
+      "description": "An unban fail2ban runs itself no longer calls fail2ban back and waits out its 60 s timeout, which held every stop and reboot with a ban; loaded by a reload, the bans stay",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/fail2ban/action.d/hestia.conf" },
+        { "type": "file_differs", "source": "share/fail2ban/action.d/hestia.conf", "target": "/etc/fail2ban/action.d/hestia.conf" }
+      ],
+      "action": { "type": "function_call", "function": "fail2ban_unban_caller_apply" },
+      "paths": ["/etc/fail2ban/action.d/hestia.conf", "/etc/fail2ban/action.d/hestia-panel.conf"],
+      "reversible": false
+    }
+  ]
+}

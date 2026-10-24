@@ -184,6 +184,11 @@ check_firewall() {
 		bad="$bad; $ruleset missing, a reboot comes up unfiltered"
 	elif ! nft -c -f "$ruleset" > /dev/null 2>&1; then
 		bad="$bad; nft rejects $ruleset: $(nft -c -f "$ruleset" 2>&1 | head -n1)"
+	elif [ ! -f "$FW_APPLIED" ]; then
+		bad="$bad; $FW_APPLIED missing, $ruleset was not written by this renderer"
+	# The boot copy is the applied document minus the jail set elements; anything else means they drifted apart.
+	elif ! sed -E '/^\tset f2b6?_/s/ elements = \{[^}]*\};//' "$FW_APPLIED" | cmp -s - "$ruleset"; then
+		bad="$bad; $ruleset differs from $FW_APPLIED in more than the ban elements"
 	fi
 	if [ -f "$rules" ]; then
 		while IFS= read -r line; do
@@ -202,6 +207,40 @@ check_firewall() {
 		no "firewall" "${bad#; }"
 	else
 		ok "firewall closed (INPUT DROP), persisted ruleset loads, $n active rule(s) render, their lists populated"
+	fi
+}
+
+# Every banlist row must be enforced, asked per row with get element: auto-merge folds overlapping CIDRs and nft
+# prints a /32 bare, so the set's text never equals the file's. The other way round only notes, as a merged
+# element has no row of its own. Covers fail2ban's jail sets, not the blocklist or CrowdSec ones.
+check_firewall_bans() {
+	local banlist="$CONF_DIR/firewall/banlist.conf" line ip chain target n=0 miss='' note='' e
+	while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		n=$((n + 1))
+		ip=''
+		chain=''
+		[[ "$line" =~ (^|[[:space:]])IP=\'([^\']*)\' ]] && ip="${BASH_REMATCH[2]}"
+		[[ "$line" =~ (^|[[:space:]])CHAIN=\'([^\']*)\' ]] && chain="${BASH_REMATCH[2]}"
+		target="$(fw_jail_set_for "$chain" "$ip")"
+		if [ -z "$target" ] || ! nft get element "$FW_FAMILY" "$FW_TABLE" "$target" "{ $ip }" > /dev/null 2>&1; then
+			miss="$miss $ip/$chain"
+		fi
+	done < <(cat "$banlist" 2> /dev/null)
+	while read -r target e; do
+		[ -n "$e" ] || continue
+		chain="${target#f2b_}"
+		chain="${chain#f2b6_}"
+		grep -qE "IP='${e//./\\.}(/32|/128)?' CHAIN='$chain' " "$banlist" 2> /dev/null || note="$note $e/$chain"
+	done < <(nft list table "$FW_FAMILY" "$FW_TABLE" 2> /dev/null | awk '
+		/^\tset f2b6?_/ { s = $2; inset = 1; next }
+		inset && /^\t}/ { inset = 0; inel = 0; next }
+		inset && /elements = \{/ { inel = 1; sub(/.*elements = \{/, "") }
+		inel { end = /}/; sub(/}.*/, ""); k = split($0, a, ","); for (i = 1; i <= k; i++) { gsub(/[ \t]/, "", a[i]); if (a[i] != "") print s, a[i] } if (end) inel = 0 }')
+	if [ -n "$miss" ]; then
+		no "banlist rows not enforced ($n row(s) checked)" "${miss# }"
+	else
+		ok "every banlist row is in its jail set ($n row(s) checked)${note:+; set elements without their own row (merged or orphaned):$note}"
 	fi
 }
 
@@ -1565,6 +1604,9 @@ fi
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
 	check_firewall
+	if [ -n "$FIREWALL_EXTENSION" ]; then
+		check_firewall_bans
+	fi
 fi
 
 echo "-- ports --"

@@ -1,0 +1,81 @@
+#!/bin/bash
+# info: load the banlist into the jail sets
+# options: NONE
+# labels: internal
+# caller: hestia-nftables.service
+#
+# example: h-update-firewall-bans
+#
+# The boot ruleset carries no bans, so this adds every banlist.conf row to its set once the unit has loaded it. A bad
+# row is skipped and reported: one block fewer is the harmless direction, and no row may take the firewall down.
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+# Under the unit stderr is the journal, which reads a leading <N> as the priority.
+say() {
+	if [ -n "${JOURNAL_STREAM:-}" ]; then
+		echo "<$1>firewall: $2" >&2
+	else
+		echo "firewall: $2" >&2
+	fi
+}
+
+banlist="$CONF_DIR/firewall/banlist.conf"
+
+# The render replays bans only with fail2ban on, and only then are there jail sets to fill.
+[ -n "$FIREWALL_SYSTEM" ] && [ -n "$FIREWALL_EXTENSION" ] || exit 0
+if [ ! -s "$banlist" ]; then
+	say 6 "banlist.conf is empty, no bans to load"
+	exit 0
+fi
+
+doc="$(mktemp)"
+trap 'rm -f "$doc"' EXIT
+total=0
+skipped=0
+lineno=0
+rows=()
+# Read by pattern, not by parse_object_kv_list: that one aborts the whole run on the first bad row.
+while IFS= read -r line || [ -n "$line" ]; do
+	lineno=$((lineno + 1))
+	[ -n "$line" ] || continue
+	total=$((total + 1))
+	ip=''
+	chain=''
+	target=''
+	[[ "$line" =~ (^|[[:space:]])IP=\'([^\']*)\' ]] && ip="${BASH_REMATCH[2]}"
+	[[ "$line" =~ (^|[[:space:]])CHAIN=\'([^\']*)\' ]] && chain="${BASH_REMATCH[2]}"
+	# Both land in nft grammar, so anything beyond a chain name and an address literal stays out of the batch.
+	[[ "$chain" =~ ^[A-Za-z0-9_-]+$ ]] && target="$(fw_jail_set_for "$chain" "$ip")"
+	if [ -z "$target" ]; then
+		say 4 "banlist.conf line $lineno skipped, no chain and address to load: $line"
+		skipped=$((skipped + 1))
+		continue
+	fi
+	rows+=("$lineno $target $ip")
+	echo "add element $FW_FAMILY $FW_TABLE $target { $ip }" >> "$doc"
+done < "$banlist"
+
+# One transaction is the fast path. nft refuses it whole for a single bad element, so only then row by row.
+if [ "${#rows[@]}" -gt 0 ] && ! "$FW_NFT" -f "$doc" 2> /dev/null; then
+	for row in "${rows[@]}"; do
+		read -r n target ip <<< "$row"
+		if ! err="$("$FW_NFT" add element "$FW_FAMILY" "$FW_TABLE" "$target" "{ $ip }" 2>&1)"; then
+			say 4 "banlist.conf line $n skipped, nft refused $ip in $target: ${err%%$'\n'*}"
+			skipped=$((skipped + 1))
+		fi
+	done
+fi
+
+if [ "$skipped" -gt 0 ]; then
+	say 4 "loaded $((total - skipped)) of $total bans from banlist.conf, $skipped skipped"
+else
+	say 6 "loaded $total of $total bans from banlist.conf"
+fi
+exit 0

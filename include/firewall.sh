@@ -14,6 +14,8 @@ FW_NFT="/usr/sbin/nft"
 FW_FAMILY="inet"
 FW_TABLE="hestia"
 FW_RULESET="/etc/hestia/firewall/ruleset.nft"
+# The document last applied, bans included; the smoke holds ruleset.nft against it.
+FW_APPLIED="/etc/hestia/firewall/ruleset.applied.nft"
 FW_WORK=""
 FW_INPUT_POLICY="drop"
 
@@ -53,6 +55,7 @@ fw_sec() {
 }
 
 # The empty declaration before the delete keeps a box with no table yet from failing the whole transaction.
+# $1=boot renders the boot copy: the same document without the ban elements.
 fw_batch_render() {
 	local f
 	# share/updates/0.24.json looks for this line. A fixed string: callers run with IFS=newline, which splits a list.
@@ -60,7 +63,7 @@ fw_batch_render() {
 	echo "table $FW_FAMILY $FW_TABLE {}"
 	echo "delete table $FW_FAMILY $FW_TABLE"
 	echo "table $FW_FAMILY $FW_TABLE {"
-	fw_render_sets
+	fw_render_sets "${1:-}"
 	echo "	chain input {"
 	echo "		type filter hook input priority filter; policy $FW_INPUT_POLICY;"
 	# Jails above the conntrack accept, so a ban drops live connections too.
@@ -83,20 +86,26 @@ fw_batch_render() {
 }
 
 # `-c -f`, never `-f -c`: that order takes -c as the filename and reports a syntax error against the real path.
+# The boot copy is never applied here, so it passes the same check before it may replace the one that booted.
 fw_batch_apply() {
-	local doc="$FW_WORK/ruleset.nft"
+	local doc="$FW_WORK/ruleset.nft" boot="$FW_WORK/boot.nft" f
 	fw_batch_render > "$doc"
-	if ! "$FW_NFT" -c -f "$doc" 2> "$FW_WORK/err"; then
-		echo "firewall: rendered ruleset rejected, keeping the running one" >&2
-		sed 's/^/  /' "$FW_WORK/err" >&2
-		return 1
-	fi
+	fw_batch_render boot > "$boot"
+	for f in "$doc" "$boot"; do
+		if ! "$FW_NFT" -c -f "$f" 2> "$FW_WORK/err"; then
+			echo "firewall: rendered ${f##*/} rejected, keeping the running ruleset and $FW_RULESET" >&2
+			sed 's/^/  /' "$FW_WORK/err" >&2
+			return 1
+		fi
+	done
 	"$FW_NFT" -f "$doc" 2> "$FW_WORK/err" || {
 		echo "firewall: apply failed, ruleset unchanged" >&2
 		sed 's/^/  /' "$FW_WORK/err" >&2
 		return 1
 	}
-	cp -f "$doc" "$FW_RULESET"
+	# Through a temporary name, so a crash mid-copy never leaves the boot unit half a document.
+	cp -f "$boot" "$FW_RULESET.new" && mv -f "$FW_RULESET.new" "$FW_RULESET"
+	cp -f "$doc" "$FW_APPLIED"
 	return 0
 }
 
@@ -261,9 +270,10 @@ fw_set_declare() {
 }
 
 # Buffered bans plus the source file, filtered to the set's own family: one bad element fails the whole document.
+# The boot copy leaves the bans out; hestia-nftables adds them from banlist.conf, row by row if it must.
 fw_set_elements() {
 	local id="$1" src
-	[ -s "$FW_WORK/elem.$id" ] && cat "$FW_WORK/elem.$id"
+	[ "${2:-}" != boot ] && [ -s "$FW_WORK/elem.$id" ] && cat "$FW_WORK/elem.$id"
 	src="$(fw_set_src "$(cat "$FW_WORK/name.$id")")"
 	case "$(cat "$FW_WORK/set.$id" 2> /dev/null)" in
 		v6*) [ -s "$src" ] && grep -oE "$FW_ADDR6_RE" "$src" ;;
@@ -278,7 +288,7 @@ fw_render_sets() {
 		[ -e "$f" ] || continue
 		id="${f##*/set.}"
 		kind="$(cat "$f")"
-		elems="$(fw_set_elements "$id" | sort -u | paste -sd, - | sed 's/,/, /g')"
+		elems="$(fw_set_elements "$id" "${1:-}" | sort -u | paste -sd, - | sed 's/,/, /g')"
 		[ -n "$elems" ] && elems=" elements = { $elems };"
 		case "$kind" in
 			interval) echo "	set $id { type ipv4_addr; flags interval; auto-merge;${elems} }" ;;
@@ -535,7 +545,7 @@ fw_ban_delete() {
 	return 0
 }
 
-# fw_batch_apply already wrote the ruleset file, so persisting is only the boot unit; the applied document reloads.
+# fw_batch_apply already wrote the ruleset file, so persisting is only the boot unit.
 # Own file and unit, not the dpkg conffile /etc/nftables.conf: writing to one is how the distro jail returned.
 fw_boot_unit_path() {
 	echo "/lib/systemd/system/hestia-nftables.service"
@@ -560,6 +570,8 @@ fw_boot_unit_write() {
 		echo "RemainAfterExit=yes"
 		# No separate set-provisioning ExecStartPre: sets and their rules load in one transaction.
 		echo "ExecStart=$FW_NFT -f $FW_RULESET"
+		# '-': a bad banlist row costs that ban, never the unit. Before= waits for ExecStartPost too.
+		echo "ExecStartPost=-$HESTIA/bin/h-update-firewall-bans"
 		echo ""
 		echo "[Install]"
 		echo "WantedBy=multi-user.target"
@@ -591,7 +603,7 @@ fw_persist_disable() {
 
 fw_table_destroy() {
 	"$FW_NFT" delete table "$FW_FAMILY" "$FW_TABLE" 2> /dev/null
-	rm -f "$FW_RULESET"
+	rm -f "$FW_RULESET" "$FW_APPLIED"
 	return 0
 }
 
@@ -619,6 +631,11 @@ fw_blocklist_interval_apply() {
 
 # Update entry firewall-keep-private (share/updates/0.24.json): existing rules only get the backstop with a new render.
 firewall_keep_private_apply() {
+	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
+}
+
+# Without this render the first reboot after the update still boots the bans of the last one.
+firewall_boot_banlist_apply() {
 	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }
 

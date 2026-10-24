@@ -21,7 +21,8 @@ the releases of the command audit, into another.
   whenever a device of that network was banned. The fail2ban actions now mark the call, panel and CLI keep the
   callback. Existing boxes get the action files through the update, loaded by a reload.
 - **A panel unban of a panel-login ban reaches fail2ban** (#1259). The callback looked for an action named after
-  the chain and never found the panel jail's own, so fail2ban kept the ban and set it again at its next start.
+  the chain and never found the panel jail's own, so fail2ban kept the ban and set it again at its next start. It
+  also missed a jail with more actions than one unless the hestia action came first.
   An unban on WEB no longer reaches the WEBSCAN jails either.
 
 ## v0.28 (2026-10-23)

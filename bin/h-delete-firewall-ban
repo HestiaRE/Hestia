@@ -14,12 +14,13 @@ f2bcli="/usr/bin/fail2ban-client"
 
 # fail2ban answers no client while it runs its own actionunban, so calling it back from there waits out its timeout.
 f2b_unban() {
-	local action="^hestia-$1\$"
+	local action="hestia-$1"
 	[ -z "${HESTIA_F2B_CALLER:-}" ] || return 0
 	# The panel login jail bans on HESTIA and WEB under one action of its own name.
-	case $1 in HESTIA | WEB) action="^hestia-($1|panel)\$" ;; esac
+	case $1 in HESTIA | WEB) action="hestia-($1|panel)" ;; esac
 	for f2bjail in $("$f2bcli" status | grep -i 'Jail list:' | cut -d':' -f2- | sed -E 's/\s*//g' | tr ',' ' '); do
-		if "$f2bcli" get "$f2bjail" actions | grep -Eq "$action" 2> /dev/null; then
+		# A jail lists all its actions on one line, comma-separated.
+		if "$f2bcli" get "$f2bjail" actions | grep -Eq "(^|, )$action(,|\$)" 2> /dev/null; then
 			"$f2bcli" set "$f2bjail" unbanip "$2" &> /dev/null
 		fi
 	done

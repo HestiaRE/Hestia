@@ -210,11 +210,28 @@ check_firewall() {
 	fi
 }
 
-# Every banlist row must be enforced, asked per row with get element: auto-merge folds overlapping CIDRs and nft
-# prints a /32 bare, so the set's text never equals the file's. The other way round only notes, as a merged
-# element has no row of its own. Covers fail2ban's jail sets, not the blocklist or CrowdSec ones.
+# Every banlist row must be enforced, asked with get element, which fails unless the set covers every element it
+# names: auto-merge folds overlapping CIDRs and nft prints a /32 bare, so the set's text never equals the file's.
+# One query per set, halved down to the missing rows. The other way round only notes, as a merged element has no row
+# of its own. Covers fail2ban's jail sets, not the blocklist or CrowdSec ones.
+_fw_ban_probe() {
+	local set="$1" half chain IFS=,
+	shift
+	[ "$#" -gt 0 ] || return 0
+	nft get element "$FW_FAMILY" "$FW_TABLE" "$set" "{ $* }" > /dev/null 2>&1 && return 0
+	if [ "$#" -eq 1 ]; then
+		chain="${set#f2b_}"
+		miss="$miss $1/${chain#f2b6_}"
+		return 0
+	fi
+	half=$(($# / 2))
+	_fw_ban_probe "$set" "${@:1:half}"
+	_fw_ban_probe "$set" "${@:half+1}"
+}
+
 check_firewall_bans() {
-	local banlist="$CONF_DIR/firewall/banlist.conf" line ip chain target n=0 miss='' note='' e
+	local banlist="$CONF_DIR/firewall/banlist.conf" line ip chain target fam n=0 miss='' note='' e
+	local -A want=() setname=() have=()
 	while IFS= read -r line; do
 		[ -n "$line" ] || continue
 		n=$((n + 1))
@@ -222,16 +239,30 @@ check_firewall_bans() {
 		chain=''
 		[[ "$line" =~ (^|[[:space:]])IP=\'([^\']*)\' ]] && ip="${BASH_REMATCH[2]}"
 		[[ "$line" =~ (^|[[:space:]])CHAIN=\'([^\']*)\' ]] && chain="${BASH_REMATCH[2]}"
-		target="$(fw_jail_set_for "$chain" "$ip")"
-		if [ -z "$target" ] || ! nft get element "$FW_FAMILY" "$FW_TABLE" "$target" "{ $ip }" > /dev/null 2>&1; then
-			miss="$miss $ip/$chain"
+		have["$ip/$chain"]=1
+		fam=''
+		if fw_is_addr "$ip"; then
+			fam=4
+		elif fw_is_addr6_strict "$ip"; then
+			fam=6
 		fi
+		if [ -z "$fam" ]; then
+			miss="$miss $ip/$chain"
+			continue
+		fi
+		[ -n "${setname["$chain/$fam"]:-}" ] || setname["$chain/$fam"]="$(fw_ban_set_for "$chain" "$ip")"
+		target="${setname["$chain/$fam"]}"
+		want[$target]="${want[$target]:+${want[$target]} }$ip"
 	done < <(cat "$banlist" 2> /dev/null)
+	for target in "${!want[@]}"; do
+		# shellcheck disable=SC2086  # the list is addresses that passed fw_ban_set_for, split on purpose
+		_fw_ban_probe "$target" ${want[$target]}
+	done
 	while read -r target e; do
 		[ -n "$e" ] || continue
 		chain="${target#f2b_}"
 		chain="${chain#f2b6_}"
-		grep -qE "IP='${e//./\\.}(/32|/128)?' CHAIN='$chain' " "$banlist" 2> /dev/null || note="$note $e/$chain"
+		[ -n "${have["$e/$chain"]:-}${have["$e/32/$chain"]:-}${have["$e/128/$chain"]:-}" ] || note="$note $e/$chain"
 	done < <(nft list table "$FW_FAMILY" "$FW_TABLE" 2> /dev/null | awk '
 		/^\tset f2b6?_/ { s = $2; inset = 1; next }
 		inset && /^\t}/ { inset = 0; inel = 0; next }

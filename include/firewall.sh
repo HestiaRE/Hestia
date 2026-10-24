@@ -103,10 +103,18 @@ fw_batch_apply() {
 		sed 's/^/  /' "$FW_WORK/err" >&2
 		return 1
 	}
-	# Through a temporary name, so a crash mid-copy never leaves the boot unit half a document.
-	cp -f "$boot" "$FW_RULESET.new" && mv -f "$FW_RULESET.new" "$FW_RULESET"
-	cp -f "$doc" "$FW_APPLIED"
+	fw_persist_file "$boot" "$FW_RULESET"
+	fw_persist_file "$doc" "$FW_APPLIED"
 	return 0
+}
+
+# Through a temporary name, so a crash mid-copy never leaves the boot unit half a document; a name of its own,
+# because nothing serialises two renders. 644 as cp left it: mktemp makes 600.
+fw_persist_file() {
+	local tmp
+	tmp="$(mktemp "$2.XXXXXX")" || return 1
+	cp -f "$1" "$tmp" && chmod 644 "$tmp" && mv -f "$tmp" "$2"
+	rm -f "$tmp"
 }
 
 # A record nft rejects makes every later render fail, so a command that writes one renders with a way back.
@@ -224,6 +232,40 @@ fw_is_addr() {
 
 fw_is_addr6() {
 	[[ "$1" =~ $FW_ADDR6_RE ]]
+}
+
+# For rows nobody validated on the way in (ban loader, its smoke check): nft resolves by DNS whatever it cannot read
+# as an address, and the loose pattern passes words like dead:beef. A full v6 literal with no v4 tail.
+fw_is_addr6_strict() {
+	local a="${1%/*}" x n=0
+	local -a g
+	if [[ "$1" == */* ]]; then
+		[[ "${1##*/}" =~ ^[0-9]{1,3}$ ]] && [ "${1##*/}" -le 128 ] || return 1
+	fi
+	[[ "$a" =~ ^[0-9A-Fa-f:]+$ ]] || return 1
+	case "$a" in *:::* | *::*::*) return 1 ;; esac
+	[[ "$a" == :* && "$a" != ::* ]] && return 1
+	[[ "$a" == *: && "$a" != *:: ]] && return 1
+	IFS=: read -ra g <<< "$a"
+	for x in "${g[@]}"; do
+		[ -n "$x" ] || continue
+		[ "${#x}" -le 4 ] || return 1
+		n=$((n + 1))
+	done
+	if [[ "$a" == *::* ]]; then
+		[ "$n" -le 7 ]
+	else
+		[ "$n" -eq 8 ]
+	fi
+}
+
+# fw_jail_set_for with the strict v6 test. v4 stays on the pattern: a token that starts with a digit is never a name.
+fw_ban_set_for() {
+	if fw_is_addr "$2"; then
+		fw_jail_set "$1"
+	elif fw_is_addr6_strict "$2"; then
+		fw_jail_set6 "$1"
+	fi
 }
 
 # 4, 6, or nothing. The nothing case is what keeps a malformed value out of nft entirely.

@@ -36,13 +36,15 @@ if [ ! -s "$banlist" ]; then
 fi
 
 doc="$(mktemp)"
-trap 'rm -f "$doc"' EXIT
+err="$(mktemp)"
+trap 'rm -f "$doc" "$err"' EXIT
 total=0
 skipped=0
 lineno=0
-rows=()
-sets=()
-declare -A elems
+rline=()
+rset=()
+rip=()
+declare -A setname
 # Read by pattern, not by parse_object_kv_list: that one aborts the whole run on the first bad row.
 while IFS= read -r line || [ -n "$line" ]; do
 	lineno=$((lineno + 1))
@@ -50,35 +52,64 @@ while IFS= read -r line || [ -n "$line" ]; do
 	total=$((total + 1))
 	ip=''
 	chain=''
-	target=''
+	fam=''
 	[[ "$line" =~ (^|[[:space:]])IP=\'([^\']*)\' ]] && ip="${BASH_REMATCH[2]}"
 	[[ "$line" =~ (^|[[:space:]])CHAIN=\'([^\']*)\' ]] && chain="${BASH_REMATCH[2]}"
 	# Both land in nft grammar, so anything beyond a chain name and an address literal stays out of the batch.
-	[[ "$chain" =~ ^[A-Za-z0-9_-]+$ ]] && target="$(fw_jail_set_for "$chain" "$ip")"
-	if [ -z "$target" ]; then
+	if [[ "$chain" =~ ^[A-Za-z0-9_-]+$ ]]; then
+		if fw_is_addr "$ip"; then
+			fam=4
+		elif fw_is_addr6_strict "$ip"; then
+			fam=6
+		fi
+	fi
+	if [ -z "$fam" ]; then
 		say 4 "banlist.conf line $lineno skipped, no chain and address to load: $line"
 		skipped=$((skipped + 1))
 		continue
 	fi
-	rows+=("$lineno $target $ip")
-	[ -n "${elems[$target]:-}" ] || sets+=("$target")
-	elems[$target]="${elems[$target]:+${elems[$target]}, }$ip"
+	# Named once per chain and family: a fork per row is what makes thousands of rows slow.
+	[ -n "${setname["$chain/$fam"]:-}" ] || setname["$chain/$fam"]="$(fw_ban_set_for "$chain" "$ip")"
+	rline+=("$lineno")
+	rset+=("${setname["$chain/$fam"]}")
+	rip+=("$ip")
 done < "$banlist"
 
-# One statement per set, as the render writes it: one per row, v4 and v6 interleaved, nft rejects once auto-merge
-# folds neighbours. One transaction is the fast path, refused whole for a single bad element, so only then row by row.
-for target in "${sets[@]}"; do
-	echo "add element $FW_FAMILY $FW_TABLE $target { ${elems[$target]} }"
-done > "$doc"
-if [ "${#rows[@]}" -gt 0 ] && ! "$FW_NFT" -f "$doc" 2> /dev/null; then
-	for row in "${rows[@]}"; do
-		read -r n target ip <<< "$row"
-		if ! err="$("$FW_NFT" add element "$FW_FAMILY" "$FW_TABLE" "$target" "{ $ip }" 2>&1)"; then
-			say 4 "banlist.conf line $n skipped, nft refused $ip in $target: ${err%%$'\n'*}"
-			skipped=$((skipped + 1))
-		fi
+# Rows $1 to $1+$2 as one transaction, one statement per set as the render writes it: one per row, v4 and v6
+# interleaved, nft rejects once auto-merge folds neighbours.
+load_batch() {
+	local i t
+	local -A e=()
+	local -a order=()
+	for ((i = $1; i < $1 + $2; i++)); do
+		t="${rset[$i]}"
+		[ -n "${e[$t]:-}" ] || order+=("$t")
+		e[$t]="${e[$t]:+${e[$t]}, }${rip[$i]}"
 	done
-fi
+	for t in "${order[@]}"; do
+		echo "add element $FW_FAMILY $FW_TABLE $t { ${e[$t]} }"
+	done > "$doc"
+	"$FW_NFT" -f "$doc" 2> "$err"
+}
+
+# nft refuses a transaction whole for a single bad element, so a refused one is halved until the bad rows stand
+# alone: a few dozen calls for one bad row among thousands, where row by row would hold the boot for minutes.
+load_rows() {
+	local half e
+	[ "$2" -gt 0 ] || return 0
+	load_batch "$1" "$2" && return 0
+	if [ "$2" -eq 1 ]; then
+		e="$(head -n1 "$err")"
+		say 4 "banlist.conf line ${rline[$1]} skipped, nft refused ${rip[$1]} in ${rset[$1]}: ${e#"$doc":*: }"
+		skipped=$((skipped + 1))
+		return 0
+	fi
+	half=$(($2 / 2))
+	load_rows "$1" "$half"
+	load_rows $(($1 + half)) $(($2 - half))
+}
+
+load_rows 0 "${#rip[@]}"
 
 if [ "$skipped" -gt 0 ]; then
 	say 4 "loaded $((total - skipped)) of $total bans from banlist.conf, $skipped skipped"

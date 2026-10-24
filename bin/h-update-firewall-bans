@@ -41,6 +41,8 @@ total=0
 skipped=0
 lineno=0
 rows=()
+sets=()
+declare -A elems
 # Read by pattern, not by parse_object_kv_list: that one aborts the whole run on the first bad row.
 while IFS= read -r line || [ -n "$line" ]; do
 	lineno=$((lineno + 1))
@@ -59,10 +61,15 @@ while IFS= read -r line || [ -n "$line" ]; do
 		continue
 	fi
 	rows+=("$lineno $target $ip")
-	echo "add element $FW_FAMILY $FW_TABLE $target { $ip }" >> "$doc"
+	[ -n "${elems[$target]:-}" ] || sets+=("$target")
+	elems[$target]="${elems[$target]:+${elems[$target]}, }$ip"
 done < "$banlist"
 
-# One transaction is the fast path. nft refuses it whole for a single bad element, so only then row by row.
+# One statement per set, as the render writes it: one per row, v4 and v6 interleaved, nft rejects once auto-merge
+# folds neighbours. One transaction is the fast path, refused whole for a single bad element, so only then row by row.
+for target in "${sets[@]}"; do
+	echo "add element $FW_FAMILY $FW_TABLE $target { ${elems[$target]} }"
+done > "$doc"
 if [ "${#rows[@]}" -gt 0 ] && ! "$FW_NFT" -f "$doc" 2> /dev/null; then
 	for row in "${rows[@]}"; do
 		read -r n target ip <<< "$row"

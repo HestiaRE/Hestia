@@ -217,11 +217,16 @@ check_firewall() {
 
 # Every banlist row must be enforced, asked with get element, which fails unless the set covers every element it
 # names: auto-merge folds overlapping CIDRs and nft prints a /32 bare, so the set's text never equals the file's.
-# One query per set, halved down to the missing rows. The other way round only notes, as a merged element has no row
-# of its own. Covers fail2ban's jail sets; check_firewall_feeds covers the others.
+# Queries of at most 100 elements, halved down to the missing rows: get element crashes nft from a few hundred. The
+# other way round only notes, as a merged element has no row of its own. Covers fail2ban's jail sets;
+# check_firewall_feeds covers the others.
 _fw_ban_probe() {
 	local set="$1" half chain IFS=,
 	shift
+	while [ "$#" -gt 100 ]; do
+		_fw_ban_probe "$set" "${@:1:100}"
+		shift 100
+	done
 	[ "$#" -gt 0 ] || return 0
 	nft get element "$FW_FAMILY" "$FW_TABLE" "$set" "{ $* }" > /dev/null 2>&1 && return 0
 	if [ "$#" -eq 1 ]; then

@@ -21,6 +21,12 @@
 
 require_once __DIR__ . '/adminer-plugins/login-servers.php';
 
+// verify_token() splits the posted token unchecked, so an array or a non-numeric half ends in a Fatal before any
+// login. The shape get_token() writes passes; anything else becomes a token that never verifies.
+if (isset($_POST["token"]) && !(is_string($_POST["token"]) && preg_match('/^[0-9]+:[0-9]+$/', $_POST["token"]))) {
+	$_POST["token"] = "-1:0";
+}
+
 return array(
 	new AdminerLoginServers(array(
 		'PostgreSQL (local)' => array('server' => 'localhost', 'driver' => 'pgsql'),

@@ -77,6 +77,17 @@ the releases of the command audit, into another.
   failed restart reaches the system log, naming the delete.
 - **A failed web or proxy config test reaches the system log** (#1277). `h-restart-web` and `h-restart-proxy`
   stop at the config test before any restart, mailed the admin and printed an error, and left no log line.
+- **The mail DNS page lists the addresses the domain sends from** (#1279). It showed the customer's first v4 and
+  v6 whatever the domain used, so a domain on another address got the wrong A row and SPF entry, and one without a
+  v6 an AAAA row it never answers. A domain whose mail goes out through a relay keeps the per-family pick.
+- **A MAIL backup exclusion `*:account` leaves that account out on every domain** (#1279), as `*:dir` does for WEB.
+  The exclusion list accepted it, but the archive and the restic mode both backed the account up everywhere.
+- **A malformed CSRF token no longer crashes Adminer** (#1279). A posted token that was an array or not two numbers
+  ended in a PHP Fatal and a 500, which the smoke then reported as a panel log error; it is now an ordinary invalid
+  token.
+- **The smoke's firewall checks hold on large sets** (#1279). The ban check asked nft for a whole jail set at once,
+  which crashed nft from a few hundred bans, and the feed check passed a set whose copy came out empty although its
+  cache file held addresses.
 
 ## v0.28 (2026-10-23)
 

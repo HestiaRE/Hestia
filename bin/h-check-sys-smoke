@@ -217,11 +217,16 @@ check_firewall() {
 
 # Every banlist row must be enforced, asked with get element, which fails unless the set covers every element it
 # names: auto-merge folds overlapping CIDRs and nft prints a /32 bare, so the set's text never equals the file's.
-# One query per set, halved down to the missing rows. The other way round only notes, as a merged element has no row
-# of its own. Covers fail2ban's jail sets; check_firewall_feeds covers the others.
+# Queries of at most 100 elements, halved down to the missing rows: get element crashes nft from a few hundred. The
+# other way round only notes, as a merged element has no row of its own. Covers fail2ban's jail sets;
+# check_firewall_feeds covers the others.
 _fw_ban_probe() {
 	local set="$1" half chain IFS=,
 	shift
+	while [ "$#" -gt 100 ]; do
+		_fw_ban_probe "$set" "${@:1:100}"
+		shift 100
+	done
 	[ "$#" -gt 0 ] || return 0
 	nft get element "$FW_FAMILY" "$FW_TABLE" "$set" "{ $* }" > /dev/null 2>&1 && return 0
 	if [ "$#" -eq 1 ]; then
@@ -290,7 +295,7 @@ _fw_set_listing() {
 # hundred elements. Every live set must be of a known kind, or a set would silently drop out of this check. The copy
 # is filled by fw_set_replace, so a fault in its filter would show on both sides.
 check_firewall_feeds() {
-	local name id src lines n=0 e=0 diff='' extra='' sets live=0 scratch=hestia_smoke
+	local name id src lines valid listed n=0 e=0 c=0 diff='' extra='' sets live=0 scratch=hestia_smoke re
 	local -A known=([excludes]=1 [excludes6]=1)
 	if ! sets="$(nft -t list table "$FW_FAMILY" "$FW_TABLE" 2>&1)"; then
 		no "firewall sets unreadable" "$(head -n1 <<< "$sets")"
@@ -311,6 +316,14 @@ check_firewall_feeds() {
 			diff="$diff $name (cache not loadable)"
 		elif [ "$(_fw_set_listing "$FW_FAMILY" "$FW_TABLE" "$id")" != "$(_fw_set_listing "$FW_FAMILY" "$scratch" "$id")" ]; then
 			diff="$diff $name"
+		else
+			# Two empty listings agree too: addresses in the cache that left the copy empty mean nothing was read.
+			re="$FW_ADDR_RE"
+			[ "$(fw_cache_set_family "$name")" = '6' ] && re="$FW_ADDR6_RE"
+			valid="$(LC_ALL=C grep -cE "$re" "$src" 2> /dev/null)"
+			listed="$(_fw_set_listing "$FW_FAMILY" "$scratch" "$id" | grep -c .)"
+			c=$((c + listed))
+			[ "${valid:-0}" -gt 0 ] && [ "$listed" -eq 0 ] && diff="$diff $name (cache addresses, empty listing)"
 		fi
 	done < <(fw_cache_sets)
 	nft delete table "$FW_FAMILY" "$scratch" 2> /dev/null
@@ -325,7 +338,7 @@ check_firewall_feeds() {
 	elif [ -n "$diff" ]; then
 		no "firewall sets differ from their cache file ($n set(s), $e cache lines checked)" "${diff# }"
 	else
-		ok "every fed set holds its cache file ($n set(s), $e cache lines checked, $live live set(s) of known kinds)"
+		ok "every fed set holds its cache file ($n set(s), $e cache lines, $c elements, $live live set(s) of known kinds)"
 	fi
 }
 

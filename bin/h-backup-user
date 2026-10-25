@@ -77,10 +77,10 @@ add_usage() {
 }
 
 # mail_exclusion DOMAIN ACCOUNT LIST: the entries of LIST that exclude ACCOUNT. Whole fields, never a prefix:
-# info must not match the domain info-shop.example. A star still means every account.
+# info must not match the domain info-shop.example. A star account means every account, a star domain every domain.
 mail_exclusion() {
 	echo "$3" | tr ',' '\n' | awk -F: -v d="$1" -v a="$2" '
-		$1 == d { for (i = 2; i <= NF; i++) if ($i == a || index($i, "*")) print $i }'
+		$1 == d || $1 == "*" { for (i = 2; i <= NF; i++) if ($i == a || index($i, "*")) print $i }'
 }
 
 # get_user_disk_usage: echo the MB the backup needs, rc 1 when a part cannot be read.

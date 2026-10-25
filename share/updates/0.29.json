@@ -22,6 +22,17 @@
       "action": { "type": "function_call", "function": "firewall_boot_banlist_apply" },
       "paths": ["/etc/hestia/firewall/ruleset.nft", "/etc/hestia/firewall/ruleset.applied.nft", "/lib/systemd/system/hestia-nftables.service"],
       "reversible": false
+    },
+    {
+      "id": "adminer-plugins-token",
+      "description": "Adminer's plugin file drops a posted token of the wrong shape, which ended in a PHP Fatal before any login",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/share/adminer/adminer-plugins.php" },
+        { "type": "file_differs", "source": "share/adminer/adminer-plugins.php", "target": "/usr/share/adminer/adminer-plugins.php" }
+      ],
+      "action": { "type": "file_copy", "source": "share/adminer/adminer-plugins.php", "target": "/usr/share/adminer/adminer-plugins.php" },
+      "paths": ["/usr/share/adminer/adminer-plugins.php"],
+      "reversible": true
     }
   ]
 }

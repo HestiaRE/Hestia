@@ -72,6 +72,14 @@
 				</div>
 			</div>
 			<div class="u-mb10">
+				<label for="v_ip_version" class="form-label"><?= tohtml(_("IP Version")) ?></label>
+				<select class="form-select" name="v_ip_version" id="v_ip_version">
+					<option value="">IPv4 + IPv6</option>
+					<option value="v4" <?= $v_ip_version === "v4" ? "selected" : "" ?>>IPv4</option>
+					<option value="v6" <?= $v_ip_version === "v6" ? "selected" : "" ?>>IPv6</option>
+				</select>
+			</div>
+			<div class="u-mb10">
 				<label for="v_comment" class="form-label">
 					<?= tohtml(_("Comment")) ?> <span class="optional">(<?= tohtml(_("Optional")) ?>)</span>
 				</label>

@@ -29,9 +29,13 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 get_domain_values 'mail'
 accounts=$(wc -l "$USER_DATA/mail/$domain.conf" | cut -f 1 -d ' ')
 
+# The subcommands restart nothing: their restart failure would end the delete midway, the restarts follow at the end.
+restart_mail='' restart_web=''
+
 # Before the conf dir goes, and whatever the flag says: SNI links and the dovecot file can outlive SSL='no'.
 if [ "$SSL" = 'yes' ]; then
-	$BIN/h-delete-mail-domain-ssl "$user" "$domain"
+	$BIN/h-delete-mail-domain-ssl "$user" "$domain" 'no'
+	restart_mail='yes' restart_web='yes'
 else
 	del_mail_ssl_config
 	del_mail_ssl_certificates
@@ -47,7 +51,8 @@ fi
 # Keyed on the front, not WEB_SYSTEM: a mailfront box has none, and a skipped delete leaves a vhost link nginx rejects.
 if [ -n "$(webmail_front)" ] || [ -n "$PROXY_SYSTEM" ]; then
 	if [ -n "$IMAP_SYSTEM" ]; then
-		$BIN/h-delete-mail-domain-webmail "$user" "$domain" 'yes'
+		$BIN/h-delete-mail-domain-webmail "$user" "$domain" 'no'
+		restart_web='yes'
 	fi
 fi
 
@@ -73,6 +78,12 @@ if [ -n "$SUSPENDED" ]; then
 	if [ "$SUSPENDED" == "yes" ]; then
 		decrease_user_value "$user" '$SUSPENDED_MAIL'
 	fi
+fi
+
+[ -n "$restart_mail" ] && restart_after_delete h-restart-mail ''
+if [ -n "$restart_web" ]; then
+	restart_after_delete h-restart-web ''
+	restart_after_delete h-restart-proxy ''
 fi
 
 $BIN/h-log-action "$user" "Info" "Mail" "Mail domain deleted (Domain: $domain)."

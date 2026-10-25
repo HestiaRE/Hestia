@@ -97,12 +97,20 @@ fi
 
 rm -f $CONF_DIR/ips/$ip
 
-# Mail source pins on this address go with it: exim reads them live, and no counter guards them.
-for _pin in "$HOMEDIR"/*/conf/mail/*/ip "$HOMEDIR"/*/conf/mail/*/ipv6; do
-	[ -f "$_pin" ] || continue
-	if [ "$(cat "$_pin" 2> /dev/null)" = "$ip" ]; then
-		rm -f "$_pin"
-	fi
+# Mail source pins on this address go with it: exim reads them live, and no counter guards them. Their domains and
+# those whose webmail vhost names the address are rebuilt below; by content, so a relay domain without a pin counts.
+_mail_hit=''
+for _f in "$HOMEDIR"/*/conf/mail/*/ip "$HOMEDIR"/*/conf/mail/*/ipv6 "$HOMEDIR"/*/conf/mail/*/nginx*.conf \
+	"$HOMEDIR"/*/conf/mail/*/apache2*.conf; do
+	[ -f "$_f" ] || continue
+	case "${_f##*/}" in
+		ip | ipv6)
+			[ "$(cat "$_f" 2> /dev/null)" = "$ip" ] || continue
+			rm -f "$_f"
+			;;
+		*) grep -qwF -- "$ip" "$_f" || continue ;;
+	esac
+	_mail_hit="$_mail_hit ${_f%/*}"
 done
 
 # mailfront: the ip.conf lives with the webmail front.
@@ -142,12 +150,19 @@ else
 	decrease_user_value "$ROOT_USER" '$IP_AVAIL'
 fi
 
-$BIN/h-restart-web
-check_result $? "Web restart failed" > /dev/null
+# A mail domain without a web domain renders webmail and pins mail on the user's first address, maybe this one. After
+# the counters: the rebuild recounts IP_AVAIL, and a decrement after it would take the address off twice.
+if [ -n "$MAIL_SYSTEM" ]; then
+	for _d in $(printf '%s\n' $_mail_hit | sort -u); do
+		_u="${_d#"$HOMEDIR"/}"
+		"$BIN/h-rebuild-mail-domain" "${_u%%/*}" "${_d##*/}" no > /dev/null 2>&1
+	done
+fi
+
+restart_after_delete h-restart-web
 
 if [ -n "$PROXY_SYSTEM" ]; then
-	$BIN/h-restart-proxy
-	check_result $? "Proxy restart failed" > /dev/null
+	restart_after_delete h-restart-proxy
 fi
 
 if [ -n "$FIREWALL_SYSTEM" ]; then

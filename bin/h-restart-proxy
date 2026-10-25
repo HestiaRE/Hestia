@@ -69,6 +69,7 @@ else
 fi
 if [ $? -ne 0 ]; then
 	send_email_report
+	$BIN/h-log-action "system" "Error" "System" "Service config test failed (Name: $PROXY_SYSTEM)."
 	check_result "$E_RESTART" "$PROXY_SYSTEM restart failed"
 fi
 

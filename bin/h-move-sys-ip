@@ -1,0 +1,86 @@
+#!/bin/bash
+# info: move everything on one system IP to another
+# options: IP NEW_IP [RESTART]
+#
+# example: h-move-sys-ip 203.0.113.10 203.0.113.20
+#
+# For a renumbered box: every web domain on IP, suspended ones included, with its webmail and mail, the mail source
+# addresses and the firewall move to NEW_IP, rebuilt and restarted at the end. An IP no longer on any interface is
+# deleted with it; one still configured stays, unused, for h-delete-sys-ip.
+
+# ip46 for the format dispatch, which validates by variable name.
+ip46="$1"
+new46="$2"
+restart="$3"
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '2' "$#" 'IP NEW_IP [RESTART]'
+is_format_valid 'ip46' 'restart'
+old="$ip46"
+ip46="$new46"
+is_format_valid 'ip46'
+new="$new46"
+family=$(ip_family "$old")
+[ "$(ip_family "$new")" = "$family" ] || check_result "$E_INVALID" "both addresses must be of one family"
+if [ "$family" = 6 ]; then
+	old=$(ip6_canonical "$old") || check_result "$E_INVALID" "cannot canonicalise $1, the panel php backend did not answer"
+	new=$(ip6_canonical "$new") || check_result "$E_INVALID" "cannot canonicalise $2, the panel php backend did not answer"
+fi
+[ "$old" != "$new" ] || check_result "$E_INVALID" "IP and NEW_IP are the same address"
+[ -e "$CONF_DIR/ips/$old" ] || check_result "$E_NOTEXIST" "IP $old doesn't exist"
+[ -e "$CONF_DIR/ips/$new" ] || check_result "$E_NOTEXIST" "IP $new doesn't exist, h-update-sys-ip registers the box's addresses"
+old_nat=$(sed -n "s/^NAT='\([^']\{1,\}\)'$/\1/p" "$CONF_DIR/ips/$old")
+
+# Every user on IP must be allowed NEW_IP, checked before anything moves: a half-moved box is the worse state.
+old_re=$(printf '%s' "$old" | sed 's/[].[\*^$]/\\&/g')
+nat_re=$(printf '%s' "$old_nat" | sed 's/[].[\*^$]/\\&/g')
+denied=''
+moved=0
+for user in $("$BIN/h-list-users" list); do
+	n=$(grep -cE "(^| )IP6?='(${old_re}${old_nat:+|$nat_re})(/32)?'" "$CONF_DIR/users/$user/web.conf" 2> /dev/null)
+	[ "${n:-0}" -gt 0 ] || continue
+	moved=$((moved + n))
+	(is_ip_valid "$new" "$user") > /dev/null 2>&1 || denied="$denied $user"
+done
+[ -z "$denied" ] || check_result "$E_FORBIDEN" "NEW_IP $new is dedicated elsewhere, not usable by:$denied; nothing moved"
+
+ip_references_move "$old" "$new" "$old_nat"
+"$BIN/h-update-sys-ip-counters"
+
+# A vanished address keeps its own listener file, which fails every restart, and only its deletion moves the mail
+# domains that merely default to it. An unreadable address list deletes nothing. This is read at run time: an
+# interface that is down has lost its v6 addresses (keep_addr_on_down=0), so such a v6 counts as vanished too.
+addrs=$(ip -j addr show 2> /dev/null | jq -r '.[].addr_info[].local' 2> /dev/null)
+if [ -n "$addrs" ] && ! grep -qxF "$old" <<< "$addrs"; then
+	"$BIN/h-delete-sys-ip" "$old"
+	check_result $? "moved $moved domain address(es) to $new, but deleting the vanished $old failed"
+fi
+
+# A renumbering leaves the web units at systemd's start limit, which refuses even a clean config.
+for svc in "$WEB_SYSTEM" "$PROXY_SYSTEM" "$(webmail_front)"; do
+	[ -n "$svc" ] && systemctl reset-failed "$svc" > /dev/null 2>&1
+done
+# Every restart is tried: the move is done, and a failed web restart must not keep mail on its old config.
+failed=''
+$BIN/h-restart-web "$restart" || failed="$failed web"
+$BIN/h-restart-proxy "$restart" || failed="$failed proxy"
+if [ -n "$MAIL_SYSTEM" ]; then
+	$BIN/h-restart-mail "$restart" || failed="$failed mail"
+fi
+
+$BIN/h-log-action "system" "Info" "System" "Moved $moved domain address(es) from IP $old to $new."
+if [ -n "$failed" ]; then
+	check_result "$E_RESTART" "moved $moved domain address(es) to $new, but the restart failed for:$failed"
+fi
+log_event "$OK" "$ARGUMENTS"
+
+exit

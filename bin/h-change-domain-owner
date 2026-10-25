@@ -75,26 +75,23 @@ if [ -n "$web_data" ]; then
 		fi
 	fi
 
-	# get_user_ips prints one IP per line; the inner split joins them for a single grep.
-	# shellcheck disable=SC2046 # intentional: fold the IP list onto one line
-	if [ -z "$(echo $(get_user_ips) | grep "$IP")" ]; then
+	# The record may hold the NAT address, the IP objects are named by the local one.
+	old_ip=$(get_real_ip "$IP")
+	new_ip=''
+	if [ -n "$IP" ] && { [ -z "$old_ip" ] || ! get_user_ips 4 | grep -qxF "$old_ip"; }; then
 		echo "[*] IP dedicated to $owner select new ip address..."
 		get_user_ip
-	fi
-	old_ip=$IP
-	new_ip=${local_ip:-$ip}
-	echo $ip
-
-	# Change IP
-	if [ -n "$ip" ]; then
-		web_data=$(echo "$web_data" | sed "s/IP='$IP'/IP='$ip'/")
+		if [ -n "$ip" ]; then
+			new_ip=$local_ip
+			web_data=$(echo "$web_data" | sed "s/IP='$IP'/IP='$ip'/")
+		fi
 	fi
 
 	# The v6 slot moves the same way. Matched per line, not through a folded list: an
 	# unanchored grep accepts a longer address that merely contains this one.
 	old_ip6="$IP6"
 	new_ip6="$IP6"
-	if [ -n "$IP6" ] && ! get_user_ips 6 | grep -qxF "$IP6"; then
+	if [ -n "$IP6" ] && [ "$IP6" != 'none' ] && ! get_user_ips 6 | grep -qxF "$IP6"; then
 		echo "[*] IPv6 dedicated to $owner select new ipv6 address..."
 		new_ip6=''
 		get_user_ip6 && new_ip6="$ip6"
@@ -145,6 +142,14 @@ if [ -n "$web_data" ]; then
 		rm $ssl_pem > /dev/null 2>&1
 		rm -f $HOMEDIR/$owner/conf/web/ssl.$domain.*
 	fi
+
+	# The suspend above set the links into the old conf dir again, and conf_link_set hands no live link to another
+	# customer.
+	for srv in $WEB_SYSTEM $PROXY_SYSTEM; do
+		for link in "/etc/$srv/conf.d/domains/$domain.conf" "/etc/$srv/conf.d/domains/$domain.ssl.conf"; do
+			[[ "$(readlink "$link")" == "$HOMEDIR/$owner/conf/web/$domain/"* ]] && rm -f "$link"
+		done
+	done
 
 	# Rebuild config
 	$BIN/h-unsuspend-web-domain "$user" "$domain" no >> /dev/null 2>&1
@@ -263,16 +268,13 @@ $BIN/h-update-user-counters "$owner"
 $BIN/h-update-user-counters "$user"
 
 # Mail domains currently don't have the IP variable set see #2306
-if [ -n "$old_ip" ]; then
-	# Recalculate ip usage
-	if [ -n "$ip" ]; then
-		decrease_ip_value $old_ip $owner
-		increase_ip_value $new_ip
-	else
-		# recalculate ip
-		decrease_ip_value $old_ip $owner
-		increase_ip_value $old_ip
-	fi
+if [ -n "$new_ip" ]; then
+	[ -n "$old_ip" ] && decrease_ip_value "$old_ip" "$owner"
+	increase_ip_value "$new_ip"
+elif [ -n "$old_ip" ]; then
+	# The address stays, its user count moves.
+	decrease_ip_value "$old_ip" "$owner"
+	increase_ip_value "$old_ip"
 fi
 # Same for the v6 object, which the block above never counted (#602)
 if [ -n "$old_ip6" ] && [ -e "$CONF_DIR/ips/$old_ip6" ]; then

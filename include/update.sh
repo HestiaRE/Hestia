@@ -353,7 +353,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	sieve_managesieve_local_apply proftpd_chroot_symlinks_apply proftpd_systemlog_apply stats_auth_fragment_apply
 	pma_proxy_nginx_apply acme_host_location_apply apache_remoteip_link_apply
 	web_model_snap_dir_apply filemanager_refresh_apply panel_caddy_rrd_internal_apply
-	panel_caddy_accel_apply dovecot_login_alias_apply)
+	panel_caddy_accel_apply dovecot_login_alias_apply fail2ban_unban_caller_apply
+	firewall_boot_banlist_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

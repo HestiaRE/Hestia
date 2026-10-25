@@ -239,7 +239,9 @@ rebuild_web_domain_conf() {
 	# v6 is SOFT here: empty IP6 adopts the default (auto-assign reaches existing domains
 	# through rebuild), a vanished object renders without v6 plus a warning - no abort.
 	local_ip6="$IP6"
-	if [ -z "$local_ip6" ]; then
+	if [ "$local_ip6" = 'none' ]; then
+		local_ip6=''
+	elif [ -z "$local_ip6" ]; then
 		if get_user_ip6; then
 			local_ip6="$ip6"
 			update_object_value 'web' 'DOMAIN' "$domain" '$IP6' "$ip6"

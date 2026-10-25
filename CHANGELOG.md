@@ -15,6 +15,49 @@ the releases of the command audit, into another.
 
 _Nothing yet._
 
+## v0.29 (2026-10-25)
+
+Renumbering a box in one command, IPv6 chosen per web domain and per firewall rule, and a reboot that brings back
+the bans and blocklists of the moment instead of those of the last render.
+
+### Added
+
+- **`h-move-sys-ip IP NEW_IP` moves everything on one address to another** (#1265): every web domain, suspended ones
+  included, with its webmail, its mail source addresses and the firewall records. It tries every restart and names
+  the failed ones, and an address no longer on any interface is deleted along with it. Before, each domain had to be
+  moved on its own, and each move failed while any other domain still pointed at the vanished address. The v4 rename
+  of `h-update-sys-ip` takes the same path.
+- **A firewall rule for any source can be limited to IPv4 or IPv6** (#544). A rule for 0.0.0.0/0 always covered
+  both families, so a port could not be opened on v6 alone. Forms and CLI take an IP version, the list names it.
+- **A web domain on a dual-stack box can leave the IPv6 off** (#1266) for DNS without an AAAA on purpose:
+  `h-change-web-domain-ip6 USER DOMAIN none`, or "No IPv6" in the panel. Rebuild, restore and an owner change keep
+  it, mail and webmail follow it. A domain without a v4 cannot drop its v6.
+
+### Fixed
+
+- **A reboot brought back lifted bans and outdated CrowdSec decisions and blocklists** (#1260/#1263). The boot
+  ruleset carried these sets as of the last render: a lifted ban was enforced again out of reach of any unban, a
+  ban set since was missing, a cleared false positive was blocked again until the feeder ran. The sets now boot
+  empty and hestia-nftables fills them from banlist.conf and the feeders' cache files before the network comes up.
+- **An unban fail2ban runs itself hung for a minute** (#1259, upstream #5699): every stop and reboot with an
+  active ban, and a panel mail password change while a device of that network was banned. A panel unban of a
+  panel-login ban never reached fail2ban either, which set it again at its next start.
+- **Deleting a customer, a web domain or a mail domain failed while the web server would not restart**
+  (#1265/#1275), the normal state in the middle of an IP change. Records and files were gone, the steps after the
+  restart skipped, and `h-delete-user` stopped before mail, databases and the account. A restart failure after a
+  delete is now a warning in the system log and to the admin. Deleting an IP also moves the webmail of mail domains
+  that only defaulted to it, which kept the web server from starting.
+- **Moving a web domain to another customer broke off halfway** (#1270), and behind NAT a second time at the IP
+  counters. Domain, SSL, mail and webmail now arrive in one go, and an address the new owner can use stays.
+- **Changing a web domain's IP left its mail source address and webmail vhost behind** (#1274) on the CLI, and the
+  vhost broke every web server restart once the address was gone.
+- **The mail DNS page listed the customer's first addresses** (#1279) instead of those the domain sends from, so a
+  domain on another address got the wrong A row and SPF entry.
+- **A MAIL backup exclusion `*:account` excluded nothing** (#1279); it now leaves that account out on every domain,
+  as `*:dir` does for WEB.
+- Smaller ones: saving a v6-only web domain in the panel gave it an IPv4 (#1271), a failed web or proxy config test
+  left no system log line (#1277), and a malformed CSRF token crashed Adminer with a 500 (#1279).
+
 ## v0.28 (2026-10-23)
 
 A second login name per mailbox, a web domain rename that keeps what hangs on the domain, the upstream round
@@ -22,50 +65,36 @@ after HestiaCP 1.10.5, and backup names, exclusions and selections that mean exa
 
 ### Added
 
-- **A mailbox can carry a second login name** (#1238) for IMAP, POP3 and SMTP. The admin keeps the aliases by hand
-  in `/etc/dovecot/login-aliases`; rate limits, fail2ban and the password grace still see the address. Not in any
-  backup and no panel, dovecot 2.4 only.
+- **A mailbox can carry a second login name** (#1238) for IMAP, POP3 and SMTP, kept by hand in
+  `/etc/dovecot/login-aliases`; dovecot 2.4 only, no panel, not in any backup.
 
 ### Security
 
 - **Tachyon 4.4.7, Adminer 6.1.2 and Alpine.js 3.17.5** (#1243). Tachyon 4.4.3 ends the server-side session on
-  logout and closes a backup restore that ran without an admin session; Adminer 6.1.1 closes a file write through
-  SQLite, a driver the panel's Adminer never lets a login pick. An update brings both to installed boxes.
+  logout and closes a backup restore without an admin session. An update brings both to installed boxes.
 
 ### Changed
 
 - **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**
-  (#1197) instead of refusing them. A new Let's Encrypt certificate is requested; if that fails, the domain stays
-  renamed without SSL.
+  (#1197) instead of refusing them.
 - **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215) instead of the HestiaCP project's
-  service, and only a public IPv4 in the answer counts. A later `h-update-sys-ip` that sets the address adds the
-  boot entry an install without one could not.
+  service.
 - **A new web domain's folder and `public_html` start at 751** (#1237/#1246, upstream #5730), where a rebuild
-  leaves them; the operator key `DOMAINDIR_WRITABLE` is gone.
+  leaves them.
 
 ### Removed
 
-- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251, upstream #5787). wp-cli is installed system-wide and
-  pinned, composer is a system-wide addon that `h-update-sys-composer os` adds to a box without it; the per-user
-  copy only shadowed them and went stale. An update removes the commands.
+- **`h-add-user-wp-cli` and `h-add-user-composer`** (#1251, upstream #5787); the system-wide copies serve.
 
 ### Fixed
 
-- **A home entry or mail account whose name starts with `-` broke the backup** (#1245, upstream #5754): tar and
-  find read it as an option, so a home entry stopped the backup and a mailbox was left out without a word.
-- **A backup exclusion could leave out more than it named** (#1245). Mail accounts matched as a prefix of the whole
-  entry, domain included, home entries as a pattern, and in restic mode a `domain:path` or `domain:account` entry
-  excluded nothing at all.
-- **A web domain `mail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829). They shared a
-  certificate name and a server name: the mail certificate replaced the web domain's, nginx answered for only one,
-  and the mail renewal could read the web certificate. The pair, and `webmail.<d>` likewise, is refused now on
-  every account; a restore that would create it stops before writing, and the smoke run reports an old one.
-- **A restore that named its objects could take more** (#1246): `a.com` also selected `aXcom` from the archive.
-- Smaller ones: a renamed web domain could take a name another of the customer's domains answered to (#1197), the
-  statistics of a restored domain could stay unbuilt (#1197), changing an FTP path failed while the site ran
-  (#1197), a new WordPress showed the placeholder on apache (#1197), deleting an IDN domain left its statistics
-  config (#1197), Let's Encrypt staging failed for an account with a production key (#1197), apache-only on
-  Debian 12 could not start apache (#1235), and four panel outputs were printed unescaped (#1246, upstream #5750).
+- **Backup names and exclusions** (#1245/#1246, upstream #5754): a name starting with `-` broke the backup or left
+  a mailbox out, an exclusion could leave out more than it named or in restic mode nothing at all, and a restore
+  selecting `a.com` also took `aXcom`.
+- **A web domain `mail.<d>` or `webmail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829);
+  the pair is refused now and the smoke reports an old one.
+- Smaller ones (#1197/#1235/#1246): several rename and IDN edge cases, Let's Encrypt staging, apache-only on
+  Debian 12, and four unescaped panel outputs.
 
 ## v0.24 to v0.27 (2026-10-06 to 2026-10-10)
 

@@ -20,6 +20,20 @@ $data = cli_json("h-list-firewall json");
 // move arrows appeared to do.
 krsort($data, SORT_NUMERIC);
 
+// What a rule reaches: a CIDR or a list fixes its family, a rule for any source names its own.
+$ipsets = cli_json("h-list-firewall-ipset json");
+foreach ($data as $key => $rule) {
+	$ip = $rule["IP"] ?? "";
+	if (str_starts_with($ip, "ipset:")) {
+		$family = ($ipsets[substr($ip, 6)]["IP_VERSION"] ?? "v4") === "v6" ? "IPv6" : "IPv4";
+	} elseif (in_array($ip, ["0.0.0.0/0", "::/0", ""], true)) {
+		$family = ["v4" => "IPv4", "v6" => "IPv6"][$rule["IP_VERSION"] ?? ""] ?? "IPv4 + IPv6";
+	} else {
+		$family = str_contains($ip, ":") ? "IPv6" : "IPv4";
+	}
+	$data[$key]["FAMILY"] = $family;
+}
+
 // Render page
 render_page($user, $TAB, "list_firewall");
 

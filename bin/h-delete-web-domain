@@ -119,14 +119,11 @@ if [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then
 else
 	version=$(multiphp_default_version)
 fi
-$BIN/h-restart-web "$restart"
-check_result $? "Web restart failed" > /dev/null
+restart_after_delete h-restart-web "$restart"
 
-$BIN/h-restart-proxy "$restart"
-check_result $? "Proxy restart failed" > /dev/null
+restart_after_delete h-restart-proxy "$restart"
 
-$BIN/h-restart-web-backend "$restart" "$version"
-check_result $? "PHP restart failed" > /dev/null
+restart_after_delete h-restart-web-backend "$restart" "$version"
 
 # The first or last log on the box arms or disarms the fail2ban web jails.
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh

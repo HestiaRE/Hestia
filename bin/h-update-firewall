@@ -93,6 +93,8 @@ fi
 
 IFS=$'\n'
 for line in $(sort -r -n -k 2 -t \' $rules); do
+	# Older records carry no IP_VERSION, and the parse would leave the previous rule's in place.
+	IP_VERSION=''
 	parse_object_kv_list "$line"
 	if [ "$SUSPENDED" = 'no' ]; then
 		# Warn but still render: a missing set costs the one rule, not the whole batch.
@@ -102,7 +104,7 @@ for line in $(sort -r -n -k 2 -t \' $rules); do
 			fi
 		fi
 
-		fw_rule "$ACTION" "$PROTOCOL" "$PORT" "$IP" "$conntrack_ftp"
+		fw_rule "$ACTION" "$PROTOCOL" "$PORT" "$IP" "$conntrack_ftp" "$IP_VERSION"
 	fi
 done
 
@@ -126,6 +128,8 @@ if [ -n "$FIREWALL_EXTENSION" ]; then
 	fi
 fi
 
+# The unit before the boot copy: that copy carries the fed sets empty, and only the unit's loaders fill them.
+fw_boot_unit_write
 fw_batch_apply || {
 	fw_batch_discard
 	log_event "$E_INVALID" "$ARGUMENTS"

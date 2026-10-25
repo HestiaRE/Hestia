@@ -14,6 +14,8 @@ FW_NFT="/usr/sbin/nft"
 FW_FAMILY="inet"
 FW_TABLE="hestia"
 FW_RULESET="/etc/hestia/firewall/ruleset.nft"
+# The document last applied, bans included; the smoke holds ruleset.nft against it.
+FW_APPLIED="/etc/hestia/firewall/ruleset.applied.nft"
 FW_WORK=""
 FW_INPUT_POLICY="drop"
 
@@ -53,6 +55,7 @@ fw_sec() {
 }
 
 # The empty declaration before the delete keeps a box with no table yet from failing the whole transaction.
+# $1=boot renders the boot copy: the same document without the ban elements.
 fw_batch_render() {
 	local f
 	# share/updates/0.24.json looks for this line. A fixed string: callers run with IFS=newline, which splits a list.
@@ -60,7 +63,7 @@ fw_batch_render() {
 	echo "table $FW_FAMILY $FW_TABLE {}"
 	echo "delete table $FW_FAMILY $FW_TABLE"
 	echo "table $FW_FAMILY $FW_TABLE {"
-	fw_render_sets
+	fw_render_sets "${1:-}"
 	echo "	chain input {"
 	echo "		type filter hook input priority filter; policy $FW_INPUT_POLICY;"
 	# Jails above the conntrack accept, so a ban drops live connections too.
@@ -83,21 +86,35 @@ fw_batch_render() {
 }
 
 # `-c -f`, never `-f -c`: that order takes -c as the filename and reports a syntax error against the real path.
+# The boot copy is never applied here, so it passes the same check before it may replace the one that booted.
 fw_batch_apply() {
-	local doc="$FW_WORK/ruleset.nft"
+	local doc="$FW_WORK/ruleset.nft" boot="$FW_WORK/boot.nft" f
 	fw_batch_render > "$doc"
-	if ! "$FW_NFT" -c -f "$doc" 2> "$FW_WORK/err"; then
-		echo "firewall: rendered ruleset rejected, keeping the running one" >&2
-		sed 's/^/  /' "$FW_WORK/err" >&2
-		return 1
-	fi
+	fw_batch_render boot > "$boot"
+	for f in "$doc" "$boot"; do
+		if ! "$FW_NFT" -c -f "$f" 2> "$FW_WORK/err"; then
+			echo "firewall: rendered ${f##*/} rejected, keeping the running ruleset and $FW_RULESET" >&2
+			sed 's/^/  /' "$FW_WORK/err" >&2
+			return 1
+		fi
+	done
 	"$FW_NFT" -f "$doc" 2> "$FW_WORK/err" || {
 		echo "firewall: apply failed, ruleset unchanged" >&2
 		sed 's/^/  /' "$FW_WORK/err" >&2
 		return 1
 	}
-	cp -f "$doc" "$FW_RULESET"
+	fw_persist_file "$boot" "$FW_RULESET"
+	fw_persist_file "$doc" "$FW_APPLIED"
 	return 0
+}
+
+# Through a temporary name, so a crash mid-copy never leaves the boot unit half a document; a name of its own,
+# because nothing serialises two renders. 644 as cp left it: mktemp makes 600.
+fw_persist_file() {
+	local tmp
+	tmp="$(mktemp "$2.XXXXXX")" || return 1
+	cp -f "$1" "$tmp" && chmod 644 "$tmp" && mv -f "$tmp" "$2"
+	rm -f "$tmp"
 }
 
 # A record nft rejects makes every later render fail, so a command that writes one renders with a way back.
@@ -217,6 +234,40 @@ fw_is_addr6() {
 	[[ "$1" =~ $FW_ADDR6_RE ]]
 }
 
+# For rows nobody validated on the way in (ban loader, its smoke check): nft resolves by DNS whatever it cannot read
+# as an address, and the loose pattern passes words like dead:beef. A full v6 literal with no v4 tail.
+fw_is_addr6_strict() {
+	local a="${1%/*}" x n=0
+	local -a g
+	if [[ "$1" == */* ]]; then
+		[[ "${1##*/}" =~ ^[0-9]{1,3}$ ]] && [ "${1##*/}" -le 128 ] || return 1
+	fi
+	[[ "$a" =~ ^[0-9A-Fa-f:]+$ ]] || return 1
+	case "$a" in *:::* | *::*::*) return 1 ;; esac
+	[[ "$a" == :* && "$a" != ::* ]] && return 1
+	[[ "$a" == *: && "$a" != *:: ]] && return 1
+	IFS=: read -ra g <<< "$a"
+	for x in "${g[@]}"; do
+		[ -n "$x" ] || continue
+		[ "${#x}" -le 4 ] || return 1
+		n=$((n + 1))
+	done
+	if [[ "$a" == *::* ]]; then
+		[ "$n" -le 7 ]
+	else
+		[ "$n" -eq 8 ]
+	fi
+}
+
+# fw_jail_set_for with the strict v6 test. v4 stays on the pattern: a token that starts with a digit is never a name.
+fw_ban_set_for() {
+	if fw_is_addr "$2"; then
+		fw_jail_set "$1"
+	elif fw_is_addr6_strict "$2"; then
+		fw_jail_set6 "$1"
+	fi
+}
+
 # 4, 6, or nothing. The nothing case is what keeps a malformed value out of nft entirely.
 fw_addr_family() {
 	if fw_is_addr "$1"; then
@@ -251,6 +302,22 @@ fw_set_src() {
 	esac
 }
 
+# The fed sets that have a cache file: CrowdSec's two and every list a rule matches. The jail sets load from banlist.conf.
+fw_cache_sets() {
+	echo crowdsec-blacklists
+	echo crowdsec6-blacklists
+	grep -o "IP='ipset:[^']*'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null | sed "s/^IP='ipset://;s/'\$//" | sort -u
+}
+
+# The family fw_set_replace filters a cache file to.
+fw_cache_set_family() {
+	case "$1" in
+		crowdsec-blacklists) echo 4 ;;
+		crowdsec6-blacklists) echo 6 ;;
+		*) fw_ipset_family "$1" ;;
+	esac
+}
+
 # Metadata, not a finished line, so elements fold in at assembly time; a set referenced twice declares once.
 # `interval` is required for CIDR members and brings auto-merge, so overlaps collapse instead of failing.
 fw_set_declare() {
@@ -260,11 +327,23 @@ fw_set_declare() {
 	echo "$1" > "$FW_WORK/name.$id"
 }
 
+# Only a render changes the excludes. Every other set has a writer outside the render, so hestia-nftables refills
+# it at boot: the jail sets from banlist.conf, the CrowdSec and blocklist sets from their cache files.
+fw_set_fed() {
+	case "$1" in
+		excludes | excludes6) return 1 ;;
+	esac
+	return 0
+}
+
 # Buffered bans plus the source file, filtered to the set's own family: one bad element fails the whole document.
+# The boot copy leaves every fed set empty, so a reboot cannot bring back an element its writer has lifted since.
 fw_set_elements() {
-	local id="$1" src
+	local id="$1" name src
+	name="$(cat "$FW_WORK/name.$id")"
+	[ "${2:-}" = boot ] && fw_set_fed "$name" && return 0
 	[ -s "$FW_WORK/elem.$id" ] && cat "$FW_WORK/elem.$id"
-	src="$(fw_set_src "$(cat "$FW_WORK/name.$id")")"
+	src="$(fw_set_src "$name")"
 	case "$(cat "$FW_WORK/set.$id" 2> /dev/null)" in
 		v6*) [ -s "$src" ] && grep -oE "$FW_ADDR6_RE" "$src" ;;
 		*) [ -s "$src" ] && grep -oE "$FW_ADDR_RE" "$src" ;;
@@ -278,7 +357,7 @@ fw_render_sets() {
 		[ -e "$f" ] || continue
 		id="${f##*/set.}"
 		kind="$(cat "$f")"
-		elems="$(fw_set_elements "$id" | sort -u | paste -sd, - | sed 's/,/, /g')"
+		elems="$(fw_set_elements "$id" "${1:-}" | sort -u | paste -sd, - | sed 's/,/, /g')"
 		[ -n "$elems" ] && elems=" elements = { $elems };"
 		case "$kind" in
 			interval) echo "	set $id { type ipv4_addr; flags interval; auto-merge;${elems} }" ;;
@@ -305,13 +384,25 @@ fw_set_replace() {
 	doc="$(mktemp)"
 	{
 		echo "flush set $FW_FAMILY $FW_TABLE $id"
-		grep -oE "$re" "$2" 2> /dev/null \
-			| sort -u | sed "s|^|add element $FW_FAMILY $FW_TABLE $id { |;s|$| }|"
+		# C locale and a thousand elements per command: element by element, a list of catalog size delays the boot.
+		# Safe in C because the patterns are ASCII addresses; one per set, since adds interleaved across sets fail.
+		LC_ALL=C grep -oE "$re" "$2" 2> /dev/null | LC_ALL=C sort -u \
+			| awk -v cmd="add element $FW_FAMILY $FW_TABLE $id" \
+				'{ b = b (n++ ? ", " : "") $0 } n == 1000 { print cmd " { " b " }"; b = ""; n = 0 } END { if (n) print cmd " { " b " }" }'
 	} > "$doc"
 	"$FW_NFT" -f "$doc" 2> /dev/null
 	local rc=$?
 	rm -f "$doc"
 	return $rc
+}
+
+# For the boot loaders. Under the unit stderr is the journal, which reads a leading <N> as the priority.
+fw_say() {
+	if [ -n "${JOURNAL_STREAM:-}" ]; then
+		echo "<$1>firewall: $2" >&2
+	else
+		echo "firewall: $2" >&2
+	fi
 }
 
 fw_set_exists() {
@@ -368,12 +459,70 @@ fw_restrict_docker_nets() {
 	done
 }
 
+# A rule's IP_VERSION as stored, on two lines: the source, then v4, v6 or empty for both. Only a rule for any source
+# carries one, and its source literal follows it, so the record reads right; a CIDR or a list fixes its own family, so
+# a contradicting value is refused and a matching one dropped.
+fw_rule_family() {
+	local src="$1" ver="$2" proto="${3:-}" fam
+	case "$ver" in
+		'' | v4 | v6 | both) ;;
+		*)
+			echo "invalid ip version '$ver', valid: v4, v6, both"
+			return 1
+			;;
+	esac
+	case "$src" in
+		0.0.0.0/0 | ::/0 | '')
+			# The record reads as it acts: ::/0 given without a version is v6, and both is spelled 0.0.0.0/0.
+			[ "$src" = '::/0' ] && [ -z "$ver" ] && ver=v6
+			case "$ver" in
+				v4) src='0.0.0.0/0' ;;
+				v6) src='::/0' ;;
+				both)
+					[ -n "$src" ] && src='0.0.0.0/0'
+					ver=''
+					;;
+			esac
+			fam="$ver"
+			;;
+		ipset:*) fam="v$(fw_ipset_family "${src#ipset:}")" ;;
+		*) fam="v$(fw_addr_family "$src")" ;;
+	esac
+	# The base chain accepts all ICMPv6 ahead of the rules, neighbour discovery needs it.
+	if [ "$fam" = v6 ] && [ "$proto" = 'ICMP' ]; then
+		echo "ICMPv6 is always accepted, so an ICMP rule applies to IPv4 only"
+		return 1
+	fi
+	case "$src" in
+		0.0.0.0/0 | ::/0 | '')
+			printf '%s\n%s\n' "$src" "$ver"
+			return 0
+			;;
+	esac
+	[ "$ver" = both ] && ver=''
+	if [ -n "$ver" ] && [ "$ver" != "$fam" ]; then
+		echo "$src is an IP$fam source and cannot be limited to IP$ver"
+		return 1
+	fi
+	printf '%s\n\n' "$src"
+}
+
 # One rules.conf record. Custom PassivePorts get neither FTP range.
 fw_rule() {
-	local action="$1" protocol="$2" port_val="$3" source="$4" conntrack_ftp="${5:-}"
+	local action="$1" protocol="$2" port_val="$3" source="$4" conntrack_ftp="${5:-}" ip_version="${6:-}"
 	local proto expr=""
 
 	proto="$(echo "$protocol" | tr '[:upper:]' '[:lower:]')"
+
+	# An unknown family is skipped like a malformed source: rendered without a qualifier it would cover both.
+	case "$ip_version" in
+		'' | v4 | v6) ;;
+		*)
+			command -v log_event > /dev/null 2>&1 \
+				&& log_event "${E_PARSING:-}" "firewall rule skipped: unknown ip version '$ip_version'"
+			return 0
+			;;
+	esac
 
 	case "$source" in
 		ipset:*)
@@ -388,7 +537,13 @@ fw_rule() {
 				[ "$action" = 'DROP' ] && expr="${expr}ip saddr != { $(fw_join "${FW_KEEP_V4[@]}") } "
 			fi
 			;;
-		0.0.0.0/0 | ::/0 | '') ;; # match everything: no family qualifier, so the rule covers v4 and v6
+		# Any source: no family qualifier covers v4 and v6, IP_VERSION narrows it to one.
+		0.0.0.0/0 | ::/0 | '')
+			case "$ip_version" in
+				v4) expr="meta nfproto ipv4 " ;;
+				v6) expr="meta nfproto ipv6 " ;;
+			esac
+			;;
 		*)
 			# A malformed source is skipped, never rendered wide open; the validators prevent it, this is depth.
 			case "$(fw_addr_family "$source")" in
@@ -535,7 +690,7 @@ fw_ban_delete() {
 	return 0
 }
 
-# fw_batch_apply already wrote the ruleset file, so persisting is only the boot unit; the applied document reloads.
+# fw_batch_apply already wrote the ruleset file, so persisting is only the boot unit.
 # Own file and unit, not the dpkg conffile /etc/nftables.conf: writing to one is how the distro jail returned.
 fw_boot_unit_path() {
 	echo "/lib/systemd/system/hestia-nftables.service"
@@ -560,6 +715,9 @@ fw_boot_unit_write() {
 		echo "RemainAfterExit=yes"
 		# No separate set-provisioning ExecStartPre: sets and their rules load in one transaction.
 		echo "ExecStart=$FW_NFT -f $FW_RULESET"
+		# '-': a bad banlist row or cache file costs those elements, never the unit. Before= waits for ExecStartPost too.
+		echo "ExecStartPost=-$HESTIA/bin/h-update-firewall-bans"
+		echo "ExecStartPost=-$HESTIA/bin/h-update-firewall-sets"
 		echo ""
 		echo "[Install]"
 		echo "WantedBy=multi-user.target"
@@ -591,7 +749,7 @@ fw_persist_disable() {
 
 fw_table_destroy() {
 	"$FW_NFT" delete table "$FW_FAMILY" "$FW_TABLE" 2> /dev/null
-	rm -f "$FW_RULESET"
+	rm -f "$FW_RULESET" "$FW_APPLIED"
 	return 0
 }
 
@@ -619,6 +777,11 @@ fw_blocklist_interval_apply() {
 
 # Update entry firewall-keep-private (share/updates/0.24.json): existing rules only get the backstop with a new render.
 firewall_keep_private_apply() {
+	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
+}
+
+# Without this render the first reboot after the update still boots the bans and caches of the last one.
+firewall_boot_banlist_apply() {
 	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }
 

@@ -290,7 +290,9 @@ msgstr "Automatische Aktualisierung"
 msgid "Data Source"
 msgstr "Datenquelle"
 
-#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
+#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/edit_firewall.php
 #: web/templates/pages/list_firewall_ipset.php
 msgid "IP Version"
 msgstr "IP-Version"
@@ -627,7 +629,8 @@ msgstr "Willkommen bei %s"
 msgid "Domain {%s} has been created successfully."
 msgstr "Domain {%s} wurde erfolgreich erstellt."
 
-#: web/add/web/index.php web/templates/pages/edit_web.php
+#: web/add/web/index.php web/templates/pages/add_web.php
+#: web/templates/pages/edit_web.php
 msgid "IPv6 Address"
 msgstr "IPv6-Adresse"
 
@@ -1970,6 +1973,10 @@ msgstr "Web-Domain hinzufügen"
 msgid "Mail Support"
 msgstr "E-Mail Unterstützung"
 
+#: web/templates/pages/add_web.php web/templates/pages/edit_web.php
+msgid "No IPv6"
+msgstr "Ohne IPv6"
+
 #: web/templates/pages/add_web.php
 msgid "Share: other accounts on this server may add subdomains of this domain (web and mail)"
 msgstr "Teilen: Andere Konten auf diesem Server dürfen Subdomains dieser Domain anlegen (Web und Mail)"
@@ -2845,6 +2852,10 @@ msgstr "Zertifikat ausblenden"
 #: web/templates/pages/edit_web.php
 msgid "If the aliases changes, Let's Encrypt will obtain a new SSL certificate."
 msgstr "Wenn sich die Aliase ändern, holt Let's Encrypt ein neues SSL-Zertifikat."
+
+#: web/templates/pages/edit_web.php
+msgid "No IPv4"
+msgstr "Ohne IPv4"
 
 #: web/templates/pages/edit_web.php
 msgid "None (no PHP)"

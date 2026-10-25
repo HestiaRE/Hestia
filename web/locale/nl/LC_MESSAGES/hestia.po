@@ -290,7 +290,9 @@ msgstr "Automatische update"
 msgid "Data Source"
 msgstr "Bron"
 
-#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
+#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/edit_firewall.php
 #: web/templates/pages/list_firewall_ipset.php
 msgid "IP Version"
 msgstr "IP Versie"
@@ -627,7 +629,8 @@ msgstr "Welkom bij %s"
 msgid "Domain {%s} has been created successfully."
 msgstr "Domein {%s} is met success aangemaakt."
 
-#: web/add/web/index.php web/templates/pages/edit_web.php
+#: web/add/web/index.php web/templates/pages/add_web.php
+#: web/templates/pages/edit_web.php
 msgid "IPv6 Address"
 msgstr "IPv6-adres"
 
@@ -1970,6 +1973,10 @@ msgstr "Domein toevoegen"
 msgid "Mail Support"
 msgstr "Mail Ondersteuning"
 
+#: web/templates/pages/add_web.php web/templates/pages/edit_web.php
+msgid "No IPv6"
+msgstr ""
+
 #: web/templates/pages/add_web.php
 msgid "Share: other accounts on this server may add subdomains of this domain (web and mail)"
 msgstr "Delen: andere accounts op deze server mogen subdomeinen van dit domein toevoegen (web en mail)"
@@ -2845,6 +2852,10 @@ msgstr "Verberg Certificaat"
 #: web/templates/pages/edit_web.php
 msgid "If the aliases changes, Let's Encrypt will obtain a new SSL certificate."
 msgstr "Als de aliassen veranderen, zal Let's Encrypt een nieuw SSL-certificaat aanvragen."
+
+#: web/templates/pages/edit_web.php
+msgid "No IPv4"
+msgstr ""
 
 #: web/templates/pages/edit_web.php
 msgid "None (no PHP)"

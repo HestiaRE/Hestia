@@ -80,34 +80,19 @@ if [ -n "$old_ip" ]; then
 			sed -i "s/$old_ip/$new_ip/g" $new_ip.conf
 		fi
 
-		for user in $("$BIN/h-list-users" list); do
-			if [ -n "$WEB_SYSTEM" ]; then
-				ip_field_replace "$CONF_DIR/users/$user/web.conf" "$old_ip" "$new_ip"
-				$BIN/h-rebuild-web-domains "$user" no
-			fi
-			# webmail vhosts render %ip% too, and mailfront has no other rebuild path.
-			[ -n "$MAIL_SYSTEM" ] && $BIN/h-rebuild-mail-domains "$user" no
-		done
+	fi
 
+	# The record was renamed above and keeps its NAT, so a web record carrying the NAT address still resolves.
+	ip_references_move "$old_ip" "$new_ip"
+
+	if [ -n "$ws" ]; then
 		apache_remoteip_refresh
-
 		$BIN/h-restart-proxy
 		$BIN/h-restart-web
 	fi
 
 	if [ -n "$IMAP_SYSTEM" ]; then
-		for user in $("$BIN/h-list-users" list); do
-			$BIN/h-rebuild-mail-domains "$user" no
-		done
 		$BIN/h-restart-mail
-	fi
-
-	if [ -n "$FIREWALL_SYSTEM" ]; then
-		for fw_conf in "$CONF_DIR"/firewall/*.conf; do
-			[ -e "$fw_conf" ] || continue
-			ip_field_replace "$fw_conf" "$old_ip" "$new_ip"
-		done
-		$BIN/h-update-firewall
 	fi
 fi
 

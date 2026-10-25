@@ -2868,6 +2868,10 @@ msgid "If the aliases changes, Let's Encrypt will obtain a new SSL certificate."
 msgstr "Если алиасы изменятся, Let's Encrypt-у потребуется новый SSL-сертификат."
 
 #: web/templates/pages/edit_web.php
+msgid "No IPv4"
+msgstr ""
+
+#: web/templates/pages/edit_web.php
 msgid "None (no PHP)"
 msgstr "Нет (без PHP)"
 

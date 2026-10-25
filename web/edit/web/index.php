@@ -252,12 +252,14 @@ $v_ip6 = $data[$v_domain]["IP6"] ?? "";
 // of reading as "cleared" (#649).
 $ip_offered = !empty($ips_v4);
 $ip6_offered = !empty($ips_v6);
-// From the record, not $v_ip: the NAT lookup below fills an empty $v_ip.
-$ip6_none_offered = ($data[$v_domain]["IP"] ?? "") !== "";
+$ip6_none_offered = $v_ip !== "";
+// Only a domain without one: no command takes a v4 away, h-change-web-domain-ip adds one.
+$ip_none_offered = $v_ip === "";
 
 // A record written by the CLI holds the public address (get_user_ip substitutes NAT), the IP list
 // is keyed by the local one. Unmatched, the select preselects nothing and the save rewrites the IP.
-if (!isset($ips[$v_ip])) {
+// An empty $v_ip would match the first object without a NAT.
+if ($v_ip !== "" && !isset($ips[$v_ip])) {
 	foreach ($ips as $ip_local => $ip_meta) {
 		if (($ip_meta["NAT"] ?? "") === $v_ip) {
 			$v_ip = $ip_local;
@@ -410,7 +412,7 @@ if (!empty($_POST["save"])) {
 	// Change web domain IP
 	$post_ip = post_or_keep("v_ip", $ip_offered, $v_ip);
 	$post_ip6 = post_or_keep("v_ip6", $ip6_offered, $v_ip6);
-	if ($v_ip != $post_ip && empty($_SESSION["error_msg"])) {
+	if ($post_ip !== "" && $v_ip != $post_ip && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
 				"h-change-web-domain-ip " .

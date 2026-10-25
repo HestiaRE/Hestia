@@ -142,12 +142,10 @@ else
 	decrease_user_value "$ROOT_USER" '$IP_AVAIL'
 fi
 
-$BIN/h-restart-web
-check_result $? "Web restart failed" > /dev/null
+restart_after_delete h-restart-web
 
 if [ -n "$PROXY_SYSTEM" ]; then
-	$BIN/h-restart-proxy
-	check_result $? "Proxy restart failed" > /dev/null
+	restart_after_delete h-restart-proxy
 fi
 
 if [ -n "$FIREWALL_SYSTEM" ]; then

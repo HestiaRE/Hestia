@@ -501,7 +501,8 @@ restart_after_delete() {
 	local out
 	out="$("$BIN/$1" "${@:2}" 2>&1)" && return 0
 	out="$(head -n1 <<< "${out:-$1 failed}")"
-	out="${out#Error: }"
+	out="${out##*[Ee][Rr][Rr][Oo][Rr]: }"
+	out="${out%.}"
 	echo "Warning: $out; the deletion stands, the service needs attention"
 	"$BIN/h-log-action" "system" "Warning" "System" "Restart failed after a deletion ($(basename "$0")): $out." > /dev/null 2>&1
 	return 0

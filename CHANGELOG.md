@@ -38,8 +38,9 @@ the releases of the command audit, into another.
 - **Deleting a customer or a web domain works while the web server will not restart** (#1265). The delete
   removed records, vhosts and files first and then failed at the restart, so it was reported as failed, the steps
   after the restart were skipped, and `h-delete-user` stopped before the mail domains, databases and the account.
-  Every retry failed the same way, which is the normal state in the middle of an IP change. A restart failure after
-  a delete is now a warning, written to the system log and mailed to the admin as before.
+  Every retry failed the same way, which is the normal state in the middle of an IP change. Deleting the vanished
+  IP itself stopped there as well, before the firewall dropped its accept rule. A restart failure after a delete is
+  now a warning, written to the system log and mailed to the admin as before.
 
 ## v0.28 (2026-10-23)
 

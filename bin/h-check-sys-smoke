@@ -295,7 +295,7 @@ _fw_set_listing() {
 # hundred elements. Every live set must be of a known kind, or a set would silently drop out of this check. The copy
 # is filled by fw_set_replace, so a fault in its filter would show on both sides.
 check_firewall_feeds() {
-	local name id src lines n=0 e=0 diff='' extra='' sets live=0 scratch=hestia_smoke
+	local name id src lines valid listed n=0 e=0 c=0 diff='' extra='' sets live=0 scratch=hestia_smoke re
 	local -A known=([excludes]=1 [excludes6]=1)
 	if ! sets="$(nft -t list table "$FW_FAMILY" "$FW_TABLE" 2>&1)"; then
 		no "firewall sets unreadable" "$(head -n1 <<< "$sets")"
@@ -316,6 +316,14 @@ check_firewall_feeds() {
 			diff="$diff $name (cache not loadable)"
 		elif [ "$(_fw_set_listing "$FW_FAMILY" "$FW_TABLE" "$id")" != "$(_fw_set_listing "$FW_FAMILY" "$scratch" "$id")" ]; then
 			diff="$diff $name"
+		else
+			# Two empty listings agree too: addresses in the cache that left the copy empty mean nothing was read.
+			re="$FW_ADDR_RE"
+			[ "$(fw_cache_set_family "$name")" = '6' ] && re="$FW_ADDR6_RE"
+			valid="$(LC_ALL=C grep -cE "$re" "$src" 2> /dev/null)"
+			listed="$(_fw_set_listing "$FW_FAMILY" "$scratch" "$id" | grep -c .)"
+			c=$((c + listed))
+			[ "${valid:-0}" -gt 0 ] && [ "$listed" -eq 0 ] && diff="$diff $name (cache addresses, empty listing)"
 		fi
 	done < <(fw_cache_sets)
 	nft delete table "$FW_FAMILY" "$scratch" 2> /dev/null
@@ -330,7 +338,7 @@ check_firewall_feeds() {
 	elif [ -n "$diff" ]; then
 		no "firewall sets differ from their cache file ($n set(s), $e cache lines checked)" "${diff# }"
 	else
-		ok "every fed set holds its cache file ($n set(s), $e cache lines checked, $live live set(s) of known kinds)"
+		ok "every fed set holds its cache file ($n set(s), $e cache lines, $c elements, $live live set(s) of known kinds)"
 	fi
 }
 

@@ -142,6 +142,14 @@ else
 	decrease_user_value "$ROOT_USER" '$IP_AVAIL'
 fi
 
+# A mail domain without a web domain renders webmail and pins mail on the user's first address, maybe this one. After
+# the counters: the rebuild recounts IP_AVAIL, and a decrement after it would take the address off twice.
+if [ -n "$MAIL_SYSTEM" ]; then
+	for _user in $("$BIN/h-list-users" list); do
+		"$BIN/h-rebuild-mail-domains" "$_user" > /dev/null 2>&1
+	done
+fi
+
 restart_after_delete h-restart-web
 
 if [ -n "$PROXY_SYSTEM" ]; then

@@ -6876,6 +6876,15 @@
       "note": ""
     },
     {
+      "path": "h-update-firewall-bans",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-10-24",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "h-update-firewall-blocklist-catalog",
       "source_type": "eigenbau",
       "upstream_path": null,

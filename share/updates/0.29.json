@@ -11,6 +11,17 @@
       "action": { "type": "function_call", "function": "fail2ban_unban_caller_apply" },
       "paths": ["/etc/fail2ban/action.d/hestia.conf", "/etc/fail2ban/action.d/hestia-panel.conf"],
       "reversible": false
+    },
+    {
+      "id": "firewall-boot-banlist",
+      "description": "The boot ruleset no longer carries the bans of the last render; hestia-nftables loads them from banlist.conf after the ruleset, so a reboot neither revives a lifted ban nor drops a recorded one. One render writes both",
+      "conditions": [
+        { "type": "key_is", "name": "FIREWALL_SYSTEM", "value": "nftables" },
+        { "type": "file_lacks", "path": "/lib/systemd/system/hestia-nftables.service", "value": "h-update-firewall-bans" }
+      ],
+      "action": { "type": "function_call", "function": "firewall_boot_banlist_apply" },
+      "paths": ["/etc/hestia/firewall/ruleset.nft", "/etc/hestia/firewall/ruleset.applied.nft", "/lib/systemd/system/hestia-nftables.service"],
+      "reversible": false
     }
   ]
 }

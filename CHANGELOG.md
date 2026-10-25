@@ -24,6 +24,12 @@ the releases of the command audit, into another.
   the chain and never found the panel jail's own, so fail2ban kept the ban and set it again at its next start. It
   also missed a jail with more actions than one unless the hestia action came first.
   An unban on WEB no longer reaches the WEBSCAN jails either.
+- **A reboot brings back the bans banlist.conf holds, not those of the last render** (#1260). A live ban never
+  rewrote the boot ruleset, so after a reboot a lifted ban was enforced again, out of reach of any unban, and a
+  ban set by hand since the last render was missing although the panel listed it. The boot ruleset now carries
+  no bans; hestia-nftables loads them from banlist.conf right after it, still before the network comes up, and
+  a row nft refuses is skipped and logged instead of costing the others. The smoke checks every row against its
+  set. The update renders once, so the first reboot after it is already right.
 
 ## v0.28 (2026-10-23)
 

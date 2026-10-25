@@ -67,6 +67,17 @@
 				?>
 					</select>
 				</div>
+				<?php if ($ip6_offered) { ?>
+				<div class="u-mb20">
+					<label for="v_ip6" class="form-label"><?= tohtml(_("IPv6 Address")) ?></label>
+					<select class="form-select" name="v_ip6" id="v_ip6">
+						<?php foreach ($ips_v6 as $ip => $value) { ?>
+						<option value="<?= tohtml($ip) ?>" <?= ($_POST["v_ip6"] ?? "") === $ip ? "selected" : "" ?>><?= tohtml($ip) ?></option>
+						<?php } ?>
+						<option value="none" <?= ($_POST["v_ip6"] ?? "") === "none" ? "selected" : "" ?>><?= tohtml(_("No IPv6")) ?></option>
+					</select>
+				</div>
+				<?php } ?>
 
 				<?php if (isset($_SESSION["IMAP_SYSTEM"]) && !empty($_SESSION["IMAP_SYSTEM"])) { ?>
 					<?php if ($panel[$user_plain]["MAIL_DOMAINS"] != "0") { ?>

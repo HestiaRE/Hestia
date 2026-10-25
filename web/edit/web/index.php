@@ -252,6 +252,8 @@ $v_ip6 = $data[$v_domain]["IP6"] ?? "";
 // of reading as "cleared" (#649).
 $ip_offered = !empty($ips_v4);
 $ip6_offered = !empty($ips_v6);
+// From the record, not $v_ip: the NAT lookup below fills an empty $v_ip.
+$ip6_none_offered = ($data[$v_domain]["IP"] ?? "") !== "";
 
 // A record written by the CLI holds the public address (get_user_ip substitutes NAT), the IP list
 // is keyed by the local one. Unmatched, the select preselects nothing and the save rewrites the IP.

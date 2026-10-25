@@ -94,7 +94,7 @@ if [ -n "$web_data" ]; then
 	# unanchored grep accepts a longer address that merely contains this one.
 	old_ip6="$IP6"
 	new_ip6="$IP6"
-	if [ -n "$IP6" ] && ! get_user_ips 6 | grep -qxF "$IP6"; then
+	if [ -n "$IP6" ] && [ "$IP6" != 'none' ] && ! get_user_ips 6 | grep -qxF "$IP6"; then
 		echo "[*] IPv6 dedicated to $owner select new ipv6 address..."
 		new_ip6=''
 		get_user_ip6 && new_ip6="$ip6"

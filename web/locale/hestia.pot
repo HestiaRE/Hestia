@@ -585,7 +585,8 @@ msgstr ""
 msgid "Domain {%s} has been created successfully."
 msgstr ""
 
-#: web/add/web/index.php web/templates/pages/edit_web.php
+#: web/add/web/index.php web/templates/pages/add_web.php
+#: web/templates/pages/edit_web.php
 msgid "IPv6 Address"
 msgstr ""
 
@@ -1902,6 +1903,10 @@ msgstr ""
 
 #: web/templates/pages/add_web.php
 msgid "Mail Support"
+msgstr ""
+
+#: web/templates/pages/add_web.php web/templates/pages/edit_web.php
+msgid "No IPv6"
 msgstr ""
 
 #: web/templates/pages/add_web.php

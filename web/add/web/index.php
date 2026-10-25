@@ -52,6 +52,10 @@ if (!empty($_POST["ok"])) {
 		$v_public_ip = trim($ips[$v_clean_ip]["NAT"]);
 		$v_public_ip = quoteshellarg($v_public_ip);
 	}
+	// The gate of the view below: the v6 select exists only beside a v4 one.
+	$ips_v6 = array_filter($ips, fn ($k) => str_contains($k, ":"), ARRAY_FILTER_USE_KEY);
+	$ip6_offered = $ips_v6 && count($ips_v6) < count($ips);
+	$v_ip6 = $ip6_offered ? $_POST["v_ip6"] ?? "" : "";
 
 	// Define domain aliases
 	$v_aliases = "";
@@ -82,6 +86,27 @@ if (!empty($_POST["ok"])) {
 		check_return_code($return_var, $output);
 		unset($output);
 		$domain_added = empty($_SESSION["error_msg"]);
+	}
+
+	// The add has already given the domain the default v6; only another choice needs the second command.
+	if ($v_ip6 !== "" && empty($_SESSION["error_msg"])) {
+		$added = cli_json("h-list-web-domain " . $user . " " . quoteshellarg($v_domain) . " json");
+		if ((array_values($added)[0]["IP6"] ?? "") !== $v_ip6) {
+			exec(
+				HESTIA_CMD .
+					"h-change-web-domain-ip6 " .
+					$user .
+					" " .
+					quoteshellarg($v_domain) .
+					" " .
+					quoteshellarg($v_ip6) .
+					" ''",
+				$output,
+				$return_var,
+			);
+			check_return_code($return_var, $output);
+			unset($output);
+		}
 	}
 
 	// Share at creation: the gate of /edit/web/, on the domain as it was saved. A subdomain would be refused by the CLI.
@@ -154,6 +179,8 @@ if (!empty($_SESSION["PROXY_SYSTEM"])) {
 // command sorts that address into IP6 (#892).
 $ips = cli_json("h-list-user-ips " . $user . " json");
 $ips_v4 = array_filter($ips, fn ($k) => !str_contains($k, ":"), ARRAY_FILTER_USE_KEY);
+$ips_v6 = array_filter($ips, fn ($k) => str_contains($k, ":"), ARRAY_FILTER_USE_KEY);
+$ip6_offered = $ips_v4 && $ips_v6;
 $ips = $ips_v4 ?: $ips;
 // ... and the label follows the list: a v6-only box would otherwise offer v6 under "IP Address"
 $ip_label = $ips_v4 ? _("IP Address") : _("IPv6 Address");

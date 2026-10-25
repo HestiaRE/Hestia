@@ -606,7 +606,9 @@ for a v6 `NETMASK` holds the PREFIX LENGTH and `NAT` is always empty, because NA
 never by a path or a flag, and a v6 is canonicalised at the door (`ip6_canonical`, RFC 5952) so two
 spellings cannot become two objects. In the web record `IP` is the v4 and `IP6` the v6; either may
 be empty, at least one is set. That is why `get_user_ip` yields the v4 SLOT or nothing: its nine
-callers all write the result into an `IP` field or a `%ip%` listen line, both v4-shaped.
+callers all write the result into an `IP` field or a `%ip%` listen line, both v4-shaped. An empty
+`IP6` means "take the default v6" and a rebuild fills it in, so the per-domain opt-out is a value of
+its own: `IP6='none'`, refused on a domain without a v4.
 
 **One renderer, no post-processing.** `web_render_template` substitutes `%ip6%` RAW - the brackets
 are template text (`listen [%ip6%]:443`), because that is where the reader sees them. A repeatable

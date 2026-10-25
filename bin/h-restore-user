@@ -532,9 +532,11 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				old_ip=$IP
 				IP=$ip
 			fi
+			# The opt-out holds while the domain keeps a v4; without one it takes the v6 like an empty field.
+			[ "$IP6" = 'none' ] && [ -z "$IP" ] && IP6=''
 			# A foreign box's v6 must not survive verbatim (it would listen on a missing address): remap to ours, else
 			# drop.
-			if [ -n "$IP6" ] && [ ! -e "$CONF_DIR/ips/$IP6" ]; then
+			if [ -n "$IP6" ] && [ "$IP6" != 'none' ] && [ ! -e "$CONF_DIR/ips/$IP6" ]; then
 				if get_user_ip6; then
 					IP6="$ip6"
 				else

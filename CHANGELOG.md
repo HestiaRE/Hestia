@@ -25,6 +25,11 @@ the releases of the command audit, into another.
   both families, so a port could not be opened on v6 alone, or opened on v6 and restricted to one network on v4.
   The rule forms have an IP version select, the CLI an optional last argument, and the list names the family of
   every rule. A rule with a CIDR or a list keeps the family of its source.
+- **A web domain on a dual-stack box can leave the IPv6 off** (#1266). Every domain took the default v6, and a
+  rebuild filled an emptied field again, so a domain whose DNS has no AAAA on purpose could not opt out.
+  `h-change-web-domain-ip6 USER DOMAIN none` sets `IP6='none'`, an address sets a v6 again. The panel offers
+  "No IPv6" when adding and editing. Rebuild, restore and an owner change keep it; mail and webmail of the
+  domain follow it. A domain without a v4 cannot drop its v6.
 
 ### Fixed
 

@@ -112,6 +112,9 @@
 						echo "\n\t\t\t\t\t<option value=\"" . htmlentities($ip) . "\" {$ip_selected}>" . htmlentities($ip) . "</option>\n";
 					}
 				?>
+					<?php if ($ip6_none_offered) { ?>
+					<option value="none" <?= $v_ip6 == "none" ? "selected" : "" ?>><?= tohtml(_("No IPv6")) ?></option>
+					<?php } ?>
 				</select>
 			</div>
 			<?php } ?>

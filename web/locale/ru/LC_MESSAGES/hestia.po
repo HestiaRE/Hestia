@@ -629,7 +629,8 @@ msgstr "Добро пожаловать на %s"
 msgid "Domain {%s} has been created successfully."
 msgstr "Домен {%s} успешно создан."
 
-#: web/add/web/index.php web/templates/pages/edit_web.php
+#: web/add/web/index.php web/templates/pages/add_web.php
+#: web/templates/pages/edit_web.php
 msgid "IPv6 Address"
 msgstr "IPv6-адрес"
 
@@ -1985,6 +1986,10 @@ msgstr "Добавить веб-домен"
 #: web/templates/pages/add_web.php
 msgid "Mail Support"
 msgstr "Поддержка почты"
+
+#: web/templates/pages/add_web.php web/templates/pages/edit_web.php
+msgid "No IPv6"
+msgstr ""
 
 #: web/templates/pages/add_web.php
 msgid "Share: other accounts on this server may add subdomains of this domain (web and mail)"

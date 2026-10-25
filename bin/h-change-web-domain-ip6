@@ -4,8 +4,8 @@
 #
 # example: h-change-web-domain-ip6 admin example.com 2001:db8::2 yes
 #
-# Moves the domain to another v6. No per-domain opt-out: a rebuild re-adopts the default v6 into an empty
-# field, "no v6" is decided per box. Rebuild, not sed: adding a family creates lines a replace cannot.
+# Moves the domain to another v6, or with "none" off v6 altogether. An empty field is not the opt-out: a
+# rebuild adopts the default v6 into it. Rebuild, not sed: adding a family creates lines a replace cannot.
 
 user=$1
 domain=$2
@@ -27,10 +27,14 @@ format_domain
 format_domain_idn
 
 check_args '3' "$#" 'USER DOMAIN IPV6 [RESTART]'
-is_format_valid 'user' 'domain' 'ip46' 'restart'
-[ "$(ip_family "$ip46")" = 6 ] || check_result "$E_INVALID" "a v6 address is expected here - the v4 address changes via h-change-web-domain-ip"
-ip46=$(ip6_canonical "$ip46") || check_result "$E_INVALID" "cannot canonicalise the v6 address - the panel php backend did not answer"
-is_ip_valid "$ip46" "$user"
+if [ "$ip46" = 'none' ]; then
+	is_format_valid 'user' 'domain' 'restart'
+else
+	is_format_valid 'user' 'domain' 'ip46' 'restart'
+	[ "$(ip_family "$ip46")" = 6 ] || check_result "$E_INVALID" "a v6 address is expected here - the v4 address changes via h-change-web-domain-ip"
+	ip46=$(ip6_canonical "$ip46") || check_result "$E_INVALID" "cannot canonicalise the v6 address - the panel php backend did not answer"
+	is_ip_valid "$ip46" "$user"
+fi
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
@@ -39,11 +43,14 @@ is_object_unsuspended 'web' 'DOMAIN' "$domain"
 
 get_domain_values 'web'
 old_ip6="$IP6"
+if [ "$ip46" = 'none' ] && [ -z "$IP" ]; then
+	check_result "$E_FORBIDEN" "$domain has no IPv4 address, without its IPv6 it would have none"
+fi
 
 update_object_value 'web' 'DOMAIN' "$domain" '$IP6' "$ip46"
 
 # A stale record must not crash the change that fixes it.
-increase_ip_value "$ip46"
+[ "$ip46" != 'none' ] && increase_ip_value "$ip46"
 if [ -n "$old_ip6" ] && [ -e "$CONF_DIR/ips/$old_ip6" ]; then
 	decrease_ip_value "$old_ip6"
 fi

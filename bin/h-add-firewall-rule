@@ -6,7 +6,7 @@
 #          h-add-firewall-rule ACCEPT 0.0.0.0/0 8443 TCP '' '' v6
 #
 # Adds a rule to the firewall; without RULE it takes the next free id. IP_VERSION (v4, v6, both) limits a rule for any
-# source to one family; a CIDR or a list carries its own.
+# source to one family, and ::/0 alone means v6; a CIDR or a list carries its own.
 
 action=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 ipv4_cidr=$2
@@ -57,7 +57,7 @@ else
 	# Either family (a v6 source renders `ip6 saddr`); the variable keeps its legacy name.
 	is_ip_cidr_format_valid "$ipv4_cidr"
 fi
-family=$(fw_rule_family "$ipv4_cidr" "$ip_version") || check_result "$E_INVALID" "$family"
+family=$(fw_rule_family "$ipv4_cidr" "$ip_version" "$protocol") || check_result "$E_INVALID" "$family"
 {
 	read -r ipv4_cidr
 	read -r ip_version

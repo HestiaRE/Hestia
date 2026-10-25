@@ -49,10 +49,10 @@ fi
 # A caller from before IP_VERSION passes six arguments and must not widen a rule limited to one family.
 [ "$#" -ge 7 ] || ip_version=$(get_object_value "$CONF_DIR/firewall/rules" 'RULE' "$rule" '$IP_VERSION')
 case "$ipv4_cidr" in
-	0.0.0.0/0 | ::/0 | '') ;;
+	0.0.0.0/0 | ::/0 | '') [ "$#" -ge 7 ] || ip_version="${ip_version:-both}" ;;
 	*) [ "$#" -ge 7 ] || ip_version='' ;;
 esac
-family=$(fw_rule_family "$ipv4_cidr" "$ip_version") || check_result "$E_INVALID" "$family"
+family=$(fw_rule_family "$ipv4_cidr" "$ip_version" "$protocol") || check_result "$E_INVALID" "$family"
 {
 	read -r ipv4_cidr
 	read -r ip_version

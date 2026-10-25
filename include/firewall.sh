@@ -463,10 +463,9 @@ fw_restrict_docker_nets() {
 # carries one, and its source literal follows it, so the record reads right; a CIDR or a list fixes its own family, so
 # a contradicting value is refused and a matching one dropped.
 fw_rule_family() {
-	local src="$1" ver="$2" fam
+	local src="$1" ver="$2" proto="${3:-}" fam
 	case "$ver" in
-		both) ver='' ;;
-		'' | v4 | v6) ;;
+		'' | v4 | v6 | both) ;;
 		*)
 			echo "invalid ip version '$ver', valid: v4, v6, both"
 			return 1
@@ -474,16 +473,33 @@ fw_rule_family() {
 	esac
 	case "$src" in
 		0.0.0.0/0 | ::/0 | '')
+			# The record reads as it acts: ::/0 given without a version is v6, and both is spelled 0.0.0.0/0.
+			[ "$src" = '::/0' ] && [ -z "$ver" ] && ver=v6
 			case "$ver" in
 				v4) src='0.0.0.0/0' ;;
 				v6) src='::/0' ;;
+				both)
+					[ -n "$src" ] && src='0.0.0.0/0'
+					ver=''
+					;;
 			esac
-			printf '%s\n%s\n' "$src" "$ver"
-			return 0
+			fam="$ver"
 			;;
 		ipset:*) fam="v$(fw_ipset_family "${src#ipset:}")" ;;
 		*) fam="v$(fw_addr_family "$src")" ;;
 	esac
+	# The base chain accepts all ICMPv6 ahead of the rules, neighbour discovery needs it.
+	if [ "$fam" = v6 ] && [ "$proto" = 'ICMP' ]; then
+		echo "ICMPv6 is always accepted, so an ICMP rule applies to IPv4 only"
+		return 1
+	fi
+	case "$src" in
+		0.0.0.0/0 | ::/0 | '')
+			printf '%s\n%s\n' "$src" "$ver"
+			return 0
+			;;
+	esac
+	[ "$ver" = both ] && ver=''
 	if [ -n "$ver" ] && [ "$ver" != "$fam" ]; then
 		echo "$src is an IP$fam source and cannot be limited to IP$ver"
 		return 1
@@ -497,6 +513,16 @@ fw_rule() {
 	local proto expr=""
 
 	proto="$(echo "$protocol" | tr '[:upper:]' '[:lower:]')"
+
+	# An unknown family is skipped like a malformed source: rendered without a qualifier it would cover both.
+	case "$ip_version" in
+		'' | v4 | v6) ;;
+		*)
+			command -v log_event > /dev/null 2>&1 \
+				&& log_event "${E_PARSING:-}" "firewall rule skipped: unknown ip version '$ip_version'"
+			return 0
+			;;
+	esac
 
 	case "$source" in
 		ipset:*)

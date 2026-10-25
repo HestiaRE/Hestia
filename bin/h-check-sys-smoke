@@ -193,9 +193,14 @@ check_firewall() {
 	if [ -f "$rules" ]; then
 		while IFS= read -r line; do
 			[ -n "$line" ] || continue
+			IP_VERSION=''
 			parse_object_kv_list "$line"
 			[ "${SUSPENDED:-no}" = 'yes' ] && continue
 			n=$((n + 1))
+			case "$IP_VERSION" in
+				'' | v4 | v6) ;;
+				*) bad="$bad; rule $RULE has the unknown ip version $IP_VERSION" ;;
+			esac
 			case "$IP" in
 				0.0.0.0/0 | ::/0 | '') ;;
 				ipset:*) [ -s "$(fw_set_src "${IP#ipset:}")" ] || bad="$bad; rule $RULE matches the empty list ${IP#ipset:}" ;;

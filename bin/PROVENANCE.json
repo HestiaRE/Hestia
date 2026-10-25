@@ -5626,6 +5626,15 @@
       "note": ""
     },
     {
+      "path": "h-move-sys-ip",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-10-25",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "h-open-fs-config",
       "source_type": "derived",
       "upstream_path": "bin/v-open-fs-config",

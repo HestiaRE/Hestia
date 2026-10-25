@@ -322,13 +322,40 @@ is_ip_valid() {
 	fi
 }
 
-# ip_field_replace FILE OLD NEW: the IP field matched whole (or as /32), never a substring of another address.
+# ip_field_replace FILE OLD NEW [FIELD]: the field (IP unless named) matched whole (or as /32), never a substring of
+# another address.
 ip_field_replace() {
-	local f="$1" old new
+	local f="$1" old new field="${4:-IP}"
 	[ -f "$f" ] || return 0
 	old=$(printf '%s' "$2" | sed 's/[].[\*^$/]/\\&/g')
 	new=$(printf '%s' "$3" | sed 's/[&/\]/\\&/g')
-	sed -i "s/\(^\| \)IP='$old\(\/32\)\?'/\1IP='$new\2'/g" "$f"
+	sed -i "s/\(^\| \)$field='$old\(\/32\)\?'/\1$field='$new\2'/g" "$f"
+}
+
+# Every record that names OLD as one of the box's addresses now names NEW, and everything rendered from them is
+# rebuilt; the caller restarts. A web record may carry the NAT address instead, so OLD_NAT is matched as well.
+ip_references_move() { # OLD NEW [OLD_NAT]
+	local old="$1" new="$2" old_nat="${3:-}" user f
+	for user in $("$BIN/h-list-users" list); do
+		f="$CONF_DIR/users/$user/web.conf"
+		if [ -n "$WEB_SYSTEM" ]; then
+			ip_field_replace "$f" "$old" "$new"
+			[ -n "$old_nat" ] && ip_field_replace "$f" "$old_nat" "$new"
+			ip_field_replace "$f" "$old" "$new" IP6
+			"$BIN/h-rebuild-web-domains" "$user" no
+		fi
+		# Webmail vhosts render %ip% too, mailfront has no other rebuild path, and the rebuild writes the source pins.
+		# A mail domain without a web domain follows the user's first address: it moves once OLD is gone, not here.
+		[ -n "$MAIL_SYSTEM" ] && "$BIN/h-rebuild-mail-domains" "$user"
+	done
+	if [ -n "$FIREWALL_SYSTEM" ]; then
+		for f in "$CONF_DIR"/firewall/*.conf; do
+			[ -e "$f" ] || continue
+			ip_field_replace "$f" "$old" "$new"
+		done
+		"$BIN/h-update-firewall"
+	fi
+	return 0
 }
 
 # proftpd has one MasqueradeAddress for the daemon: the first IP record carrying a NAT address, or no drop-in at all,

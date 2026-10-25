@@ -13,6 +13,15 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **`h-move-sys-ip IP NEW_IP` moves everything on one address to another** (#1265). It moves every web domain,
+  suspended ones included, with its webmail, its mail source addresses and the firewall records, rebuilds them and
+  tries every restart, naming the failed ones. Before, a renumbered box meant moving each domain on its own, each move
+  failing at the restart while any other domain still pointed at the vanished address, and a suspended domain could
+  not be moved at all. An address no longer on any interface is deleted along with it. The single-v4 rename of
+  `h-update-sys-ip` takes the same path and now also moves the mail source addresses.
+
 ### Fixed
 
 - **An unban fail2ban runs itself no longer hangs for a minute** (#1259, upstream #5699). `h-delete-firewall-ban`
@@ -41,6 +50,9 @@ the releases of the command audit, into another.
   Every retry failed the same way, which is the normal state in the middle of an IP change. Deleting the vanished
   IP itself stopped there as well, before the firewall dropped its accept rule. A restart failure after a delete is
   now a warning, written to the system log and mailed to the admin as before.
+- **Deleting an IP moves the webmail of mail domains that only defaulted to it** (#1265). A mail domain without a
+  web domain renders its webmail on the user's first address. After that address was deleted, the vhost kept
+  listening on it and the web server no longer started.
 
 ## v0.28 (2026-10-23)
 

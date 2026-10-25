@@ -34,7 +34,7 @@ the releases of the command audit, into another.
   carried the CrowdSec and blocklist sets as of the last render, until their feeders next ran: a cleared false
   positive was blocked again for about 45 s, a blocklist was as old as the last render for up to 45 min. These
   sets now boot empty and hestia-nftables fills them from the cache files their feeders last wrote, before the
-  network comes up. The smoke checks every cache entry against its set.
+  network comes up. The smoke compares every such set with its cache file.
 
 ## v0.28 (2026-10-23)
 

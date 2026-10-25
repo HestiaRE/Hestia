@@ -212,20 +212,21 @@ check_firewall() {
 
 # Every banlist row must be enforced, asked with get element, which fails unless the set covers every element it
 # names: auto-merge folds overlapping CIDRs and nft prints a /32 bare, so the set's text never equals the file's.
-# One query per set, halved down to the missing rows, each named ADDRESS/$2. The other way round only notes, as a
-# merged element has no row of its own. Covers fail2ban's jail sets; check_firewall_feeds covers the others.
-_fw_set_probe() {
-	local set="$1" label="$2" half IFS=,
-	shift 2
+# One query per set, halved down to the missing rows. The other way round only notes, as a merged element has no row
+# of its own. Covers fail2ban's jail sets; check_firewall_feeds covers the others.
+_fw_ban_probe() {
+	local set="$1" half chain IFS=,
+	shift
 	[ "$#" -gt 0 ] || return 0
 	nft get element "$FW_FAMILY" "$FW_TABLE" "$set" "{ $* }" > /dev/null 2>&1 && return 0
 	if [ "$#" -eq 1 ]; then
-		miss="$miss $1/$label"
+		chain="${set#f2b_}"
+		miss="$miss $1/${chain#f2b6_}"
 		return 0
 	fi
 	half=$(($# / 2))
-	_fw_set_probe "$set" "$label" "${@:1:half}"
-	_fw_set_probe "$set" "$label" "${@:half+1}"
+	_fw_ban_probe "$set" "${@:1:half}"
+	_fw_ban_probe "$set" "${@:half+1}"
 }
 
 check_firewall_bans() {
@@ -254,9 +255,8 @@ check_firewall_bans() {
 		want[$target]="${want[$target]:+${want[$target]} }$ip"
 	done < <(cat "$banlist" 2> /dev/null)
 	for target in "${!want[@]}"; do
-		chain="${target#f2b_}"
 		# shellcheck disable=SC2086  # the list is addresses that passed fw_ban_set_for, split on purpose
-		_fw_set_probe "$target" "${chain#f2b6_}" ${want[$target]}
+		_fw_ban_probe "$target" ${want[$target]}
 	done
 	while read -r target e; do
 		[ -n "$e" ] || continue
@@ -275,38 +275,52 @@ check_firewall_bans() {
 	fi
 }
 
-# Every cache entry must be in its set. The boot copy carries these sets empty, so what can still go wrong is a set
-# the loader did not fill or a feeder that left it behind its cache. Every live set must be of a known kind, or a set
-# would silently drop out of this check. Covers the entries, not elements the set holds beyond them.
+# A set's elements one per line, as nft prints them: merged by auto-merge, so only another listing compares to it.
+_fw_set_listing() {
+	nft list set "$1" "$2" "$3" 2> /dev/null | tr -d ' \t\n' | sed -n 's/.*elements={\([^}]*\)}.*/\1/p' | tr ',' '\n' | sort
+}
+
+# Each set must hold exactly what its cache file loads to: the cache goes into a copy of the set in a scratch table
+# without chains, which sees no traffic, and the two listings must agree. get element is no help, it crashes from a few
+# hundred elements. Every live set must be of a known kind, or a set would silently drop out of this check. The copy
+# is filled by fw_set_replace, so a fault in its filter would show on both sides.
 check_firewall_feeds() {
-	local name id re n=0 e=0 i miss='' extra=''
-	local -a elems
+	local name id src lines n=0 e=0 diff='' extra='' sets live=0 scratch=hestia_smoke
 	local -A known=([excludes]=1 [excludes6]=1)
+	if ! sets="$(nft -t list table "$FW_FAMILY" "$FW_TABLE" 2>&1)"; then
+		no "firewall sets unreadable" "$(head -n1 <<< "$sets")"
+		return
+	fi
+	nft delete table "$FW_FAMILY" "$scratch" 2> /dev/null
 	while IFS= read -r name; do
 		[ -n "$name" ] || continue
 		id="$(fw_set_id "$name")"
 		known[$id]=1
 		fw_set_exists "$name" || continue
 		n=$((n + 1))
-		re="$FW_ADDR_RE"
-		[ "$(fw_cache_set_family "$name")" = 6 ] && re="$FW_ADDR6_RE"
-		mapfile -t elems < <(grep -oE "$re" "$(fw_set_src "$name")" 2> /dev/null | sort -u)
-		e=$((e + ${#elems[@]}))
-		# In slices: one argument is capped at 128 KiB, and a big list in one would fail for that alone.
-		for ((i = 0; i < ${#elems[@]}; i += 2000)); do
-			_fw_set_probe "$id" "$name" "${elems[@]:i:2000}"
-		done
+		src="$(fw_set_src "$name")"
+		lines="$(grep -c . "$src" 2> /dev/null)"
+		e=$((e + ${lines:-0}))
+		if ! nft -t list set "$FW_FAMILY" "$FW_TABLE" "$id" 2> /dev/null | sed "1s/^table $FW_FAMILY $FW_TABLE {/table $FW_FAMILY $scratch {/" \
+			| nft -f /dev/stdin 2> /dev/null || ! FW_TABLE="$scratch" fw_set_replace "$name" "$src" "$(fw_cache_set_family "$name")"; then
+			diff="$diff $name (cache not loadable)"
+		elif [ "$(_fw_set_listing "$FW_FAMILY" "$FW_TABLE" "$id")" != "$(_fw_set_listing "$FW_FAMILY" "$scratch" "$id")" ]; then
+			diff="$diff $name"
+		fi
 	done < <(fw_cache_sets)
+	nft delete table "$FW_FAMILY" "$scratch" 2> /dev/null
 	while read -r id; do
+		[ -n "$id" ] || continue
+		live=$((live + 1))
 		case "$id" in f2b_* | f2b6_*) continue ;; esac
 		[ -n "${known[$id]:-}" ] || extra="$extra $id"
-	done < <(nft list sets "$FW_FAMILY" "$FW_TABLE" 2> /dev/null | awk '$1 == "set" { print $2 }')
+	done < <(awk '$1 == "set" { print $2 }' <<< "$sets")
 	if [ -n "$extra" ]; then
 		no "firewall set of no known kind, unchecked" "${extra# }"
-	elif [ -n "$miss" ]; then
-		no "cache entries not in their set ($e entries in $n set(s) checked)" "$(echo "${miss# }" | cut -c1-300)"
+	elif [ -n "$diff" ]; then
+		no "firewall sets differ from their cache file ($n set(s), $e cache lines checked)" "${diff# }"
 	else
-		ok "every cache entry is in its set ($e entries in $n set(s) checked)"
+		ok "every fed set holds its cache file ($n set(s), $e cache lines checked, $live live set(s) of known kinds)"
 	fi
 }
 

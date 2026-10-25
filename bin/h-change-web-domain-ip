@@ -52,15 +52,15 @@ if [ "$HTTP3" = 'yes' ] && nginx_has_http3; then
 	add_web_http3_config "$new" "$IP6"
 fi
 
-# Only when a mail domain of this name exists.
-if [ -n "$IMAP_SYSTEM" ] && grep -qF "DOMAIN='$domain'" "$USER_DATA/mail.conf" 2> /dev/null; then
-	$BIN/h-rebuild-mail-domain "$user" "$domain"
-fi
-
 update_object_value 'web' 'DOMAIN' "$domain" '$IP' "$3"
 
 # The vhosts carry no v4 line yet, so they are rendered from the updated record.
 [ -z "$old" ] && $BIN/h-rebuild-web-domain "$user" "$domain" no
+
+# After the record update: the mail pin and the webmail vhost are derived from it.
+if [ -n "$IMAP_SYSTEM" ] && grep -qF "DOMAIN='$domain'" "$USER_DATA/mail.conf" 2> /dev/null; then
+	$BIN/h-rebuild-mail-domain "$user" "$domain" no
+fi
 
 increase_ip_value "$new"
 if [ -n "$old" ] && [ -e "$CONF_DIR/ips/$old" ]; then

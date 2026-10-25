@@ -449,26 +449,6 @@ if (!empty($_POST["save"])) {
 		unset($output);
 	}
 
-	// Change mail domain IP
-	if ($v_ip != $post_ip && empty($_SESSION["error_msg"])) {
-		exec(
-			HESTIA_CMD . "h-list-mail-domain " . $user . " " . quoteshellarg($v_domain) . " json",
-			$output,
-			$return_var,
-		);
-		unset($output);
-		if ($return_var == 0) {
-			exec(
-				HESTIA_CMD . "h-rebuild-mail-domain " . $user . " " . quoteshellarg($v_domain),
-				$output,
-				$return_var,
-			);
-			check_return_code($return_var, $output);
-			unset($output);
-			$restart_email = "yes";
-		}
-	}
-
 	if ($can_edit_templates) {
 		// Hidden on apache-web models: the vhost renders from share/, nothing to select
 		$post_template = post_or_keep("v_template", $offer_web_template, $v_template);

@@ -186,9 +186,9 @@ check_firewall() {
 		bad="$bad; nft rejects $ruleset: $(nft -c -f "$ruleset" 2>&1 | head -n1)"
 	elif [ ! -f "$FW_APPLIED" ]; then
 		bad="$bad; $FW_APPLIED missing, $ruleset was not written by this renderer"
-	# The boot copy is the applied document minus the jail set elements; anything else means they drifted apart.
-	elif ! sed -E '/^\tset f2b6?_/s/ elements = \{[^}]*\};//' "$FW_APPLIED" | cmp -s - "$ruleset"; then
-		bad="$bad; $ruleset differs from $FW_APPLIED in more than the ban elements"
+	# The boot copy is the applied document with only the excludes left filled; anything else means they drifted apart.
+	elif ! sed -E '/^\tset excludes6? /!s/ elements = \{[^}]*\};//' "$FW_APPLIED" | cmp -s - "$ruleset"; then
+		bad="$bad; $ruleset differs from $FW_APPLIED in more than the fed set elements"
 	fi
 	if [ -f "$rules" ]; then
 		while IFS= read -r line; do
@@ -213,7 +213,7 @@ check_firewall() {
 # Every banlist row must be enforced, asked with get element, which fails unless the set covers every element it
 # names: auto-merge folds overlapping CIDRs and nft prints a /32 bare, so the set's text never equals the file's.
 # One query per set, halved down to the missing rows. The other way round only notes, as a merged element has no row
-# of its own. Covers fail2ban's jail sets, not the blocklist or CrowdSec ones.
+# of its own. Covers fail2ban's jail sets; check_firewall_feeds covers the others.
 _fw_ban_probe() {
 	local set="$1" half chain IFS=,
 	shift
@@ -272,6 +272,55 @@ check_firewall_bans() {
 		no "banlist rows not enforced ($n row(s) checked)" "${miss# }"
 	else
 		ok "every banlist row is in its jail set ($n row(s) checked)${note:+; set elements without their own row (merged or orphaned):$note}"
+	fi
+}
+
+# A set's elements one per line, as nft prints them: merged by auto-merge, so only another listing compares to it.
+_fw_set_listing() {
+	nft list set "$1" "$2" "$3" 2> /dev/null | tr -d ' \t\n' | sed -n 's/.*elements={\([^}]*\)}.*/\1/p' | tr ',' '\n' | sort
+}
+
+# Each set must hold exactly what its cache file loads to: the cache goes into a copy of the set in a scratch table
+# without chains, which sees no traffic, and the two listings must agree. get element is no help, it crashes from a few
+# hundred elements. Every live set must be of a known kind, or a set would silently drop out of this check. The copy
+# is filled by fw_set_replace, so a fault in its filter would show on both sides.
+check_firewall_feeds() {
+	local name id src lines n=0 e=0 diff='' extra='' sets live=0 scratch=hestia_smoke
+	local -A known=([excludes]=1 [excludes6]=1)
+	if ! sets="$(nft -t list table "$FW_FAMILY" "$FW_TABLE" 2>&1)"; then
+		no "firewall sets unreadable" "$(head -n1 <<< "$sets")"
+		return
+	fi
+	nft delete table "$FW_FAMILY" "$scratch" 2> /dev/null
+	while IFS= read -r name; do
+		[ -n "$name" ] || continue
+		id="$(fw_set_id "$name")"
+		known[$id]=1
+		fw_set_exists "$name" || continue
+		n=$((n + 1))
+		src="$(fw_set_src "$name")"
+		lines="$(grep -c . "$src" 2> /dev/null)"
+		e=$((e + ${lines:-0}))
+		if ! nft -t list set "$FW_FAMILY" "$FW_TABLE" "$id" 2> /dev/null | sed "1s/^table $FW_FAMILY $FW_TABLE {/table $FW_FAMILY $scratch {/" \
+			| nft -f /dev/stdin 2> /dev/null || ! FW_TABLE="$scratch" fw_set_replace "$name" "$src" "$(fw_cache_set_family "$name")"; then
+			diff="$diff $name (cache not loadable)"
+		elif [ "$(_fw_set_listing "$FW_FAMILY" "$FW_TABLE" "$id")" != "$(_fw_set_listing "$FW_FAMILY" "$scratch" "$id")" ]; then
+			diff="$diff $name"
+		fi
+	done < <(fw_cache_sets)
+	nft delete table "$FW_FAMILY" "$scratch" 2> /dev/null
+	while read -r id; do
+		[ -n "$id" ] || continue
+		live=$((live + 1))
+		case "$id" in f2b_* | f2b6_*) continue ;; esac
+		[ -n "${known[$id]:-}" ] || extra="$extra $id"
+	done < <(awk '$1 == "set" { print $2 }' <<< "$sets")
+	if [ -n "$extra" ]; then
+		no "firewall set of no known kind, unchecked" "${extra# }"
+	elif [ -n "$diff" ]; then
+		no "firewall sets differ from their cache file ($n set(s), $e cache lines checked)" "${diff# }"
+	else
+		ok "every fed set holds its cache file ($n set(s), $e cache lines checked, $live live set(s) of known kinds)"
 	fi
 }
 
@@ -1635,6 +1684,7 @@ fi
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
 	check_firewall
+	check_firewall_feeds
 	if [ -n "$FIREWALL_EXTENSION" ]; then
 		check_firewall_bans
 	fi

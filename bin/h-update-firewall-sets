@@ -1,0 +1,38 @@
+#!/bin/bash
+# info: load the CrowdSec and blocklist caches into their sets
+# options: NONE
+# labels: internal
+# caller: hestia-nftables.service
+#
+# example: h-update-firewall-sets
+#
+# The boot ruleset carries these sets empty, so this fills each from the cache file its feeder last wrote once the unit
+# has loaded the ruleset. A set nft refuses stays empty and is reported: no list may take the firewall down.
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source "$HESTIA/include/firewall.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+[ -n "$FIREWALL_SYSTEM" ] || exit 0
+
+total=0
+failed=''
+while IFS= read -r name; do
+	[ -n "$name" ] || continue
+	# The render declares a set only where a rule matches it.
+	fw_set_exists "$name" || continue
+	total=$((total + 1))
+	fw_set_replace "$name" "$(fw_set_src "$name")" "$(fw_cache_set_family "$name")" || failed="$failed $name"
+done < <(fw_cache_sets)
+
+if [ -n "$failed" ]; then
+	fw_say 4 "nft refused the cache file of${failed}, empty until its feeder runs"
+	fw_say 4 "loaded $((total - $(wc -w <<< "$failed"))) of $total sets from their cache files"
+else
+	fw_say 6 "loaded $total of $total sets from their cache files"
+fi
+exit 0

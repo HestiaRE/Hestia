@@ -78,6 +78,7 @@ if [ $WEB_SYSTEM = 'nginx' ]; then
 	fi
 	if [ $? -ne 0 ]; then
 		send_email_report
+		$BIN/h-log-action "system" "Error" "System" "Service config test failed (Name: $WEB_SYSTEM)."
 		check_result "$E_RESTART" "$WEB_SYSTEM restart failed"
 	fi
 elif [ $WEB_SYSTEM = 'apache2' ]; then
@@ -89,6 +90,7 @@ elif [ $WEB_SYSTEM = 'apache2' ]; then
 	fi
 	if [ $? -ne 0 ]; then
 		send_email_report
+		$BIN/h-log-action "system" "Error" "System" "Service config test failed (Name: $WEB_SYSTEM)."
 		check_result "$E_RESTART" "$WEB_SYSTEM restart failed"
 	fi
 fi

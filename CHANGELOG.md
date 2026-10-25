@@ -75,6 +75,8 @@ the releases of the command audit, into another.
 - **Deleting a mail domain while a service will not restart is a warning** (#1275). The SSL and webmail steps
   broke off at their restart and left only an error line on stdout. The delete now restarts at the end, and a
   failed restart reaches the system log, naming the delete.
+- **A failed web or proxy config test reaches the system log** (#1277). `h-restart-web` and `h-restart-proxy`
+  stop at the config test before any restart, mailed the admin and printed an error, and left no log line.
 
 ## v0.28 (2026-10-23)
 

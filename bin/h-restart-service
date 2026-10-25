@@ -110,7 +110,7 @@ for service in $service_list; do
 	# Check the result of the service restart and report whether it failed.
 	if [ $? -ne 0 ]; then
 		$BIN/h-log-action "system" "Error" "System" "Service failed to restart (Name: $service)."
-		check_result "$E_RESTART" "ERROR: Restart of $service failed."
+		check_result "$E_RESTART" "Restart of $service failed"
 	else
 		$BIN/h-log-action "system" "Info" "System" "Service restarted (Name: $service)."
 	fi

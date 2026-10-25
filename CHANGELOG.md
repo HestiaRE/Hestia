@@ -62,6 +62,19 @@ the releases of the command audit, into another.
 - **Deleting an IP moves the webmail of mail domains that only defaulted to it** (#1265). A mail domain without a
   web domain renders its webmail on the user's first address. After that address was deleted, the vhost kept
   listening on it and the web server no longer started.
+- **Moving a web domain to another customer works again** (#1270). `h-change-domain-owner` broke off halfway for
+  every web domain: its own suspend pointed the vhost links back into the old home, which the rebuild for the new
+  owner then refused to take over. On a box behind NAT it died a second time at the IP counters, and always picked
+  a new address. The domain, its SSL, mail and webmail now arrive in one go, an address the new owner can use stays,
+  a v6-only domain keeps no v4, and the counters agree.
+- **Changing a web domain's IP moves its mail and webmail along** (#1274). On the CLI the outgoing mail address
+  and the webmail vhost stayed on the old address, and the webmail vhost broke every web server restart once that
+  address was gone. The panel's own second rebuild had hidden it there.
+- **Saving a v6-only web domain unchanged in the panel no longer gives it an IPv4** (#1271). Such a domain now
+  shows "No IPv4" in the address select. Picking an address adds one as before.
+- **Deleting a mail domain while a service will not restart is a warning** (#1275). The SSL and webmail steps
+  broke off at their restart and left only an error line on stdout. The delete now restarts at the end, and a
+  failed restart reaches the system log, naming the delete.
 
 ## v0.28 (2026-10-23)
 

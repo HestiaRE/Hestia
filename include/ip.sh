@@ -333,10 +333,9 @@ ip_field_replace() {
 }
 
 # Every record that names OLD as one of the box's addresses now names NEW, and everything rendered from them is
-# rebuilt; the caller restarts. A web record may carry the NAT address instead, so OLD_NAT is matched as well. Mail
-# domains without a web domain pin the user's first address, which may still be OLD, so the pins are rewritten too.
+# rebuilt; the caller restarts. A web record may carry the NAT address instead, so OLD_NAT is matched as well.
 ip_references_move() { # OLD NEW [OLD_NAT]
-	local old="$1" new="$2" old_nat="${3:-}" user f pin
+	local old="$1" new="$2" old_nat="${3:-}" user f
 	for user in $("$BIN/h-list-users" list); do
 		f="$CONF_DIR/users/$user/web.conf"
 		if [ -n "$WEB_SYSTEM" ]; then
@@ -345,12 +344,9 @@ ip_references_move() { # OLD NEW [OLD_NAT]
 			ip_field_replace "$f" "$old" "$new" IP6
 			"$BIN/h-rebuild-web-domains" "$user" no
 		fi
-		# webmail vhosts render %ip% too, and mailfront has no other rebuild path.
+		# Webmail vhosts render %ip% too, mailfront has no other rebuild path, and the rebuild writes the source pins.
+		# A mail domain without a web domain follows the user's first address: it moves once OLD is gone, not here.
 		[ -n "$MAIL_SYSTEM" ] && "$BIN/h-rebuild-mail-domains" "$user"
-	done
-	for pin in "$HOMEDIR"/*/conf/mail/*/ip "$HOMEDIR"/*/conf/mail/*/ipv6; do
-		[ -f "$pin" ] || continue
-		[ "$(cat "$pin" 2> /dev/null)" = "$old" ] && echo "$new" > "$pin"
 	done
 	if [ -n "$FIREWALL_SYSTEM" ]; then
 		for f in "$CONF_DIR"/firewall/*.conf; do

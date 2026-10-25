@@ -385,6 +385,7 @@ fw_set_replace() {
 	{
 		echo "flush set $FW_FAMILY $FW_TABLE $id"
 		# C locale and a thousand elements per command: element by element, a list of catalog size delays the boot.
+		# Safe in C because the patterns are ASCII addresses; one per set, since adds interleaved across sets fail.
 		LC_ALL=C grep -oE "$re" "$2" 2> /dev/null | LC_ALL=C sort -u \
 			| awk -v cmd="add element $FW_FAMILY $FW_TABLE $id" \
 				'{ b = b (n++ ? ", " : "") $0 } n == 1000 { print cmd " { " b " }"; b = ""; n = 0 } END { if (n) print cmd " { " b " }" }'

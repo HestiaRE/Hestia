@@ -16,11 +16,11 @@ the releases of the command audit, into another.
 ### Added
 
 - **`h-move-sys-ip IP NEW_IP` moves everything on one address to another** (#1265). It moves every web domain,
-  suspended ones included, with its webmail, its mail source addresses and the firewall records, then rebuilds
-  and restarts once. Before, a renumbered box meant moving each domain on its own, each move failing at the restart
-  while any other domain still pointed at the vanished address, and a suspended domain could not be moved at all.
-  An address no longer on any interface is deleted along with it. The single-v4 rename of `h-update-sys-ip` takes
-  the same path and now also moves the mail source addresses.
+  suspended ones included, with its webmail, its mail source addresses and the firewall records, rebuilds them and
+  tries every restart, naming the failed ones. Before, a renumbered box meant moving each domain on its own, each move
+  failing at the restart while any other domain still pointed at the vanished address, and a suspended domain could
+  not be moved at all. An address no longer on any interface is deleted along with it. The single-v4 rename of
+  `h-update-sys-ip` takes the same path and now also moves the mail source addresses.
 
 ### Fixed
 

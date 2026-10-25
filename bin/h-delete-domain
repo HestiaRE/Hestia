@@ -42,10 +42,8 @@ if [ -z "$domain_found" ]; then
 	check_result "$E_NOTEXIST" "domain $domain doesn't exist"
 fi
 
-$BIN/h-restart-web "$restart"
-check_result $? "can't restart web" > /dev/null
+restart_after_delete h-restart-web "$restart"
 
-$BIN/h-restart-proxy "$restart"
-check_result $? "can't restart proxy" > /dev/null
+restart_after_delete h-restart-proxy "$restart"
 
 exit

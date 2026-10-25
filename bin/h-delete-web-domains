@@ -26,11 +26,9 @@ for domain in $(search_objects 'web' 'SUSPENDED' "*" 'DOMAIN'); do
 	$BIN/h-delete-web-domain "$user" "$domain" 'no'
 done
 
-$BIN/h-restart-web "$restart"
-check_result $? "Web restart failed" > /dev/null
+restart_after_delete h-restart-web "$restart"
 
-$BIN/h-restart-proxy "$restart"
-check_result $? "Proxy restart failed" > /dev/null
+restart_after_delete h-restart-proxy "$restart"
 
 log_event "$OK" "$ARGUMENTS"
 

@@ -36,7 +36,8 @@ if getent passwd "${user}-docker" > /dev/null 2>&1; then
 fi
 
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
-	$BIN/h-unsuspend-web-domains "$user" "$restart"
+	# No restart for the unsuspend: the domains go next, and their delete restarts once, a failure only warning.
+	$BIN/h-unsuspend-web-domains "$user" no
 	$BIN/h-delete-web-domains "$user" "$restart"
 	check_result "$?" "web domain deletion failed"
 fi
@@ -55,7 +56,7 @@ fi
 
 # Unsuspend first so the admin's SUSPENDED_USERS counter gives the account back.
 if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
-	$BIN/h-unsuspend-user "$user" "$restart"
+	$BIN/h-unsuspend-user "$user" no
 fi
 
 $BIN/h-delete-user-ips "$user"

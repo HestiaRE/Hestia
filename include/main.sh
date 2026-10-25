@@ -495,6 +495,19 @@ check_result() {
 	fi
 }
 
+# For a delete: once its records and files are gone the deletion stands, so a service that will not restart (a vhost
+# on a vanished address, say) is a warning, never a failed delete that every retry repeats. The restart mails the admin.
+restart_after_delete() {
+	local out
+	out="$("$BIN/$1" "${@:2}" 2>&1)" && return 0
+	out="$(head -n1 <<< "${out:-$1 failed}")"
+	out="${out##*[Ee][Rr][Rr][Oo][Rr]: }"
+	out="${out%.}"
+	echo "Warning: $out; the deletion stands, the service needs attention"
+	"$BIN/h-log-action" "system" "Warning" "System" "Restart failed after a deletion ($(basename "$0")): $out." > /dev/null 2>&1
+	return 0
+}
+
 # Argument list checker
 check_args() {
 	if [ "$1" -gt "$2" ]; then

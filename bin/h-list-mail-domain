@@ -21,7 +21,7 @@ json_list() {
 	U_SMTP_RELAY_USERNAME=$(record_value_decode "$U_SMTP_RELAY_USERNAME")
 	echo '{'
 	webmail_addr="$WEBMAIL_ALIAS.$domain"
-	json_escape webmail_addr DOMAIN ANTIVIRUS ANTISPAM DKIM CATCHALL ACCOUNTS RATE_LIMIT REJECT U_DISK SSL LETSENCRYPT SUSPENDED TIME DATE WEBMAIL_ALIAS WEBMAIL U_SMTP_RELAY U_SMTP_RELAY_HOST U_SMTP_RELAY_PORT U_SMTP_RELAY_USERNAME U_SPAM_SCORE U_SPAM_REJECT_SCORE U_SPAM_SUBJECT_TAG
+	json_escape webmail_addr OUTGOING_IP OUTGOING_IP6 DOMAIN ANTIVIRUS ANTISPAM DKIM CATCHALL ACCOUNTS RATE_LIMIT REJECT U_DISK SSL LETSENCRYPT SUSPENDED TIME DATE WEBMAIL_ALIAS WEBMAIL U_SMTP_RELAY U_SMTP_RELAY_HOST U_SMTP_RELAY_PORT U_SMTP_RELAY_USERNAME U_SPAM_SCORE U_SPAM_REJECT_SCORE U_SPAM_SUBJECT_TAG
 	printf '    "%s": {\n' "$DOMAIN"
 	printf '        "ANTIVIRUS": "%s",\n' "$ANTIVIRUS"
 	printf '        "ANTISPAM": "%s",\n' "$ANTISPAM"
@@ -38,6 +38,8 @@ json_list() {
 	printf '        "DATE": "%s",\n' "$DATE"
 	printf '        "WEBMAIL_ALIAS": "%s",\n' "$webmail_addr"
 	printf '        "WEBMAIL":"%s",\n' "$WEBMAIL"
+	printf '        "OUTGOING_IP":"%s",\n' "$OUTGOING_IP"
+	printf '        "OUTGOING_IP6":"%s",\n' "$OUTGOING_IP6"
 	printf '        "U_SMTP_RELAY":"%s",\n' "$U_SMTP_RELAY"
 	printf '        "U_SMTP_RELAY_HOST":"%s",\n' "$U_SMTP_RELAY_HOST"
 	printf '        "U_SMTP_RELAY_PORT":"%s",\n' "$U_SMTP_RELAY_PORT"
@@ -66,6 +68,8 @@ shell_list() {
 	echo "DATE:                  $DATE"
 	echo "WEBMAIL_ALIAS:         $WEBMAIL_ALIAS.$domain"
 	echo "WEBMAIL:               $WEBMAIL"
+	echo "OUTGOING_IP:           $OUTGOING_IP"
+	echo "OUTGOING_IP6:          $OUTGOING_IP6"
 	echo "U_SMTP_RELAY:          $U_SMTP_RELAY"
 	echo "U_SMTP_RELAY_HOST:     $U_SMTP_RELAY_HOST"
 	echo "U_SMTP_RELAY_PORT:     $U_SMTP_RELAY_PORT"
@@ -80,7 +84,7 @@ plain_list() {
 	echo -ne "$DOMAIN\t$ANTIVIRUS\t$ANTISPAM\t$DKIM\t$CATCHALL\t"
 	echo -ne "$ACCOUNTS\t$U_DISK\t$SSL\t$LETSENCRYPT\t$SUSPENDED\t$TIME\t$DATE\t$WEBMAIL_ALIAS.$domain\t$WEBMAIL\t"
 	echo -ne "$U_SMTP_RELAY\t$U_SMTP_RELAY_HOST\t$U_SMTP_RELAY_PORT\t$U_SMTP_RELAY_USERNAME\t"
-	echo -e "$U_SPAM_SCORE\t$U_SPAM_REJECT_SCORE\t$U_SPAM_SUBJECT_TAG"
+	echo -e "$U_SPAM_SCORE\t$U_SPAM_REJECT_SCORE\t$U_SPAM_SUBJECT_TAG\t$OUTGOING_IP\t$OUTGOING_IP6"
 }
 
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
@@ -90,6 +94,15 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/mail.conf)"
 U_SMTP_RELAY_USERNAME=$(record_value_decode "$U_SMTP_RELAY_USERNAME")
+
+# The source addresses exim sends from, the local spelling; none of them while a relay carries the mail.
+pin_read() {
+	local v=''
+	{ read -r v < "$HOMEDIR/$user/conf/mail/$domain/$1"; } 2> /dev/null
+	[[ "$v" =~ ^[0-9A-Fa-f:.]+$ ]] && echo "$v"
+}
+OUTGOING_IP=$(pin_read ip)
+OUTGOING_IP6=$(pin_read ipv6)
 
 case $format in
 	json) json_list ;;

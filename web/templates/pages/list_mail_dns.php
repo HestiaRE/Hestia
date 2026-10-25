@@ -29,16 +29,22 @@ if (!empty($_SESSION["WEBMAIL_ALIAS"])) {
 		</div>
 
 		<?php
-		// Family-resolved picks: with v6 IP objects in the pool, array_key_first could hand a
-		// v6 to the A row (lexicographic order). Each row renders only for its own family - an
-		// A record cannot carry a v6, so a box without v4 gets the AAAA row alone.
-		$first_v4 = "";
-$first_v6 = "";
-foreach ($ips as $k => $v) {
-	if (str_contains($k, ":")) {
-		$first_v6 = $first_v6 ?: $k;
-	} else {
-		$first_v4 = $first_v4 ?: (empty($v["NAT"]) ? $k : $v["NAT"]);
+		// The addresses the domain sends from, which its webmail follows too: a domain without a v6 gets no AAAA
+		// row, one on another address no foreign SPF entry. Without such pins (a relay sends) the user's first
+		// address per family, each row only for its own family.
+		$v_out = is_array($data) ? reset($data) : [];
+$first_v4 = $v_out["OUTGOING_IP"] ?? "";
+$first_v6 = $v_out["OUTGOING_IP6"] ?? "";
+if ($first_v4 !== "" && !empty($ips[$first_v4]["NAT"])) {
+	$first_v4 = $ips[$first_v4]["NAT"];
+}
+if ($first_v4 === "" && $first_v6 === "") {
+	foreach ($ips as $k => $v) {
+		if (str_contains($k, ":")) {
+			$first_v6 = $first_v6 ?: $k;
+		} else {
+			$first_v4 = $first_v4 ?: (empty($v["NAT"]) ? $k : $v["NAT"]);
+		}
 	}
 }
 ?>

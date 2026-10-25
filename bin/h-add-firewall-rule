@@ -1,10 +1,12 @@
 #!/bin/bash
 # info: add firewall rule
-# options: ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [RULE]
+# options: ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [RULE] [IP_VERSION]
 #
 # example: h-add-firewall-rule DROP 185.137.111.77 25
+#          h-add-firewall-rule ACCEPT 0.0.0.0/0 8443 TCP '' '' v6
 #
-# Adds a rule to the firewall; without RULE it takes the next free id.
+# Adds a rule to the firewall; without RULE it takes the next free id. IP_VERSION (v4, v6, both) limits a rule for any
+# source to one family; a CIDR or a list carries its own.
 
 action=$(echo "$1" | tr '[:lower:]' '[:upper:]')
 ipv4_cidr=$2
@@ -13,6 +15,7 @@ protocol=${4:-TCP}
 protocol=$(echo "$protocol" | tr '[:lower:]' '[:upper:]')
 comment=$5
 rule=$6
+ip_version=$7
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -37,7 +40,7 @@ sort_fw_rules() {
 		$CONF_DIR/firewall/rules.conf
 }
 
-check_args '3' "$#" 'ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [RULE]'
+check_args '3' "$#" 'ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [RULE] [IP_VERSION]'
 [ -n "$port_ext" ] || check_result "$E_INVALID" "PORT is empty (0 means every port)"
 is_format_valid 'action' 'protocol' 'port_ext'
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
@@ -54,13 +57,18 @@ else
 	# Either family (a v6 source renders `ip6 saddr`); the variable keeps its legacy name.
 	is_ip_cidr_format_valid "$ipv4_cidr"
 fi
+family=$(fw_rule_family "$ipv4_cidr" "$ip_version") || check_result "$E_INVALID" "$family"
+{
+	read -r ipv4_cidr
+	read -r ip_version
+} <<< "$family"
 
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 str="RULE='$rule' ACTION='$action' PROTOCOL='$protocol' PORT='$port_ext'"
-str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='no'"
+str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='no' IP_VERSION='$ip_version'"
 str="$str TIME='$time' DATE='$date'"
 
 fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"

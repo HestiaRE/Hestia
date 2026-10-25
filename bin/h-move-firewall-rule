@@ -50,6 +50,8 @@ if [ -z "$target_rule" ]; then
 	exit 1
 fi
 
+# Reset first: a record from before IP_VERSION has none, and the parse would keep the other rule's.
+IP_VERSION=''
 parse_object_kv_list "$(grep "RULE='$source_rule'" $CONF_DIR/firewall/rules.conf)"
 
 time_n_date=$(date +'%T %F')
@@ -57,12 +59,13 @@ time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 source_str="RULE='$target_rule' ACTION='$ACTION' PROTOCOL='$PROTOCOL' PORT='$PORT'"
-source_str="$source_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED'"
+source_str="$source_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED' IP_VERSION='$IP_VERSION'"
 source_str="$source_str TIME='$time' DATE='$date'"
 
 fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"
 sed -i "/RULE='$source_rule' /d" $CONF_DIR/firewall/rules.conf
 
+IP_VERSION=''
 parse_object_kv_list "$(grep "RULE='$target_rule'" $CONF_DIR/firewall/rules.conf)"
 
 time_n_date=$(date +'%T %F')
@@ -70,7 +73,7 @@ time=$(echo "$time_n_date" | cut -f 1 -d \ )
 date=$(echo "$time_n_date" | cut -f 2 -d \ )
 
 target_str="RULE='$source_rule' ACTION='$ACTION' PROTOCOL='$PROTOCOL' PORT='$PORT'"
-target_str="$target_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED'"
+target_str="$target_str IP='$IP' COMMENT='$COMMENT' SUSPENDED='$SUSPENDED' IP_VERSION='$IP_VERSION'"
 target_str="$target_str TIME='$time' DATE='$date'"
 
 sed -i "/RULE='$target_rule' /d" $CONF_DIR/firewall/rules.conf

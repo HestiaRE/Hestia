@@ -69,6 +69,8 @@ if (!empty($_POST["ok"])) {
 	$v_port = quoteshellarg($v_port);
 	$v_ip = quoteshellarg($_POST["v_ip"]);
 	$v_comment = quoteshellarg($_POST["v_comment"]);
+	// Only for a rule for any source; a CIDR or a list carries its own family, and the command refuses a mismatch.
+	$v_ip_version = in_array($_POST["v_ip_version"] ?? "", ["v4", "v6"], true) ? $_POST["v_ip_version"] : "";
 
 	// Add firewall rule
 	if (empty($_SESSION["error_msg"])) {
@@ -83,7 +85,9 @@ if (!empty($_POST["ok"])) {
 				" " .
 				$v_protocol .
 				" " .
-				$v_comment,
+				$v_comment .
+				" '' " .
+				quoteshellarg($v_ip_version === "" ? "both" : $v_ip_version),
 			$output,
 			$return_var,
 		);
@@ -97,6 +101,7 @@ if (!empty($_POST["ok"])) {
 		unset($v_port);
 		unset($v_ip);
 		unset($v_comment);
+		$v_ip_version = "";
 	}
 }
 
@@ -115,6 +120,7 @@ if (empty($v_ip)) {
 if (empty($v_comment)) {
 	$v_comment = "";
 }
+$v_ip_version ??= "";
 
 // Render
 render_page($user, $TAB, "add_firewall");

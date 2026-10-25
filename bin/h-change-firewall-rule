@@ -1,10 +1,10 @@
 #!/bin/bash
 # info: change firewall rule
-# options: RULE ACTION IP_CIDR PORT [PROTOCOL] [COMMENT]
+# options: RULE ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [IP_VERSION]
 #
 # example: h-change-firewall-rule 3 ACCEPT 5.188.123.17 443
 #
-# Replaces a firewall rule with a new one under the same id.
+# Replaces a firewall rule with a new one under the same id. Without IP_VERSION a rule for any source keeps its own.
 
 rule=$1
 action=$(echo "$2" | tr '[:lower:]' '[:upper:]')
@@ -13,6 +13,7 @@ port_ext=$4
 protocol=${5:-TCP}
 protocol=$(echo "$protocol" | tr '[:lower:]' '[:upper:]')
 comment=$6
+ip_version=$7
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -29,7 +30,7 @@ sort_fw_rules() {
 		$CONF_DIR/firewall/rules.conf
 }
 
-check_args '4' "$#" 'RULE ACTION IP_CIDR PORT [PROTOCOL] [COMMENT]'
+check_args '4' "$#" 'RULE ACTION IP_CIDR PORT [PROTOCOL] [COMMENT] [IP_VERSION]'
 [ -n "$port_ext" ] || check_result "$E_INVALID" "PORT is empty (0 means every port)"
 is_format_valid 'rule' 'action' 'protocol' 'port_ext'
 if [ ! -z "$comment" ]; then
@@ -45,6 +46,17 @@ else
 	# Either family (a v6 source renders `ip6 saddr`); the variable keeps its legacy name.
 	is_ip_cidr_format_valid "$ipv4_cidr"
 fi
+# A caller from before IP_VERSION passes six arguments and must not widen a rule limited to one family.
+[ "$#" -ge 7 ] || ip_version=$(get_object_value "$CONF_DIR/firewall/rules" 'RULE' "$rule" '$IP_VERSION')
+case "$ipv4_cidr" in
+	0.0.0.0/0 | ::/0 | '') ;;
+	*) [ "$#" -ge 7 ] || ip_version='' ;;
+esac
+family=$(fw_rule_family "$ipv4_cidr" "$ip_version") || check_result "$E_INVALID" "$family"
+{
+	read -r ipv4_cidr
+	read -r ip_version
+} <<< "$family"
 
 time_n_date=$(date +'%T %F')
 time=$(echo "$time_n_date" | cut -f 1 -d \ )
@@ -54,7 +66,7 @@ date=$(echo "$time_n_date" | cut -f 2 -d \ )
 suspended=$(get_object_value "$CONF_DIR/firewall/rules" 'RULE' "$rule" '$SUSPENDED')
 
 str="RULE='$rule' ACTION='$action' PROTOCOL='$protocol' PORT='$port_ext'"
-str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='${suspended:-no}'"
+str="$str IP='$ipv4_cidr' COMMENT='$comment' SUSPENDED='${suspended:-no}' IP_VERSION='$ip_version'"
 str="$str TIME='$time' DATE='$date'"
 
 fw_conf_checkpoint "$CONF_DIR/firewall/rules.conf"

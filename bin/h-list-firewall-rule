@@ -17,12 +17,13 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 json_list() {
 	echo '{'
-	json_escape RULE ACTION PROTOCOL PORT IP COMMENT SUSPENDED TIME DATE
+	json_escape RULE ACTION PROTOCOL PORT IP IP_VERSION COMMENT SUSPENDED TIME DATE
 	printf '    "%s": {\n' "$RULE"
 	printf '        "ACTION": "%s",\n' "$ACTION"
 	printf '        "PROTOCOL": "%s",\n' "$PROTOCOL"
 	printf '        "PORT": "%s",\n' "$PORT"
 	printf '        "IP": "%s",\n' "$IP"
+	printf '        "IP_VERSION": "%s",\n' "$IP_VERSION"
 	printf '        "COMMENT": "%s",\n' "$COMMENT"
 	printf '        "SUSPENDED": "%s",\n' "$SUSPENDED"
 	printf '        "TIME": "%s",\n' "$TIME"
@@ -36,6 +37,9 @@ shell_list() {
 	echo "PROTOCOL:       $PROTOCOL"
 	echo "PORT:           $PORT"
 	echo "IP:             $IP"
+	ver="${IP_VERSION:--}"
+	case "$IP" in 0.0.0.0/0 | ::/0 | '') ver="${IP_VERSION:-both}" ;; esac
+	echo "IP_VERSION:     $ver"
 	echo "COMMENT:        $COMMENT"
 	echo "SUSPENDED:      $SUSPENDED"
 	echo "TIME:           $TIME"
@@ -44,7 +48,7 @@ shell_list() {
 
 plain_list() {
 	echo -ne "$RULE\t$ACTION\t$PROTOCOL\t$PORT\t$IP\t$COMMENT\t"
-	echo -e "$SUSPENDED\t$TIME\t$DATE"
+	echo -e "$SUSPENDED\t$TIME\t$DATE\t$IP_VERSION"
 }
 
 check_args '1' "$#" 'RULE [FORMAT]'

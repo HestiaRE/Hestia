@@ -34,6 +34,7 @@ $v_protocol = $data[$v_rule]["PROTOCOL"];
 $v_port = $data[$v_rule]["PORT"];
 $v_ip = $data[$v_rule]["IP"];
 $v_comment = $data[$v_rule]["COMMENT"];
+$v_ip_version = $data[$v_rule]["IP_VERSION"] ?? "";
 $v_date = $data[$v_rule]["DATE"];
 $v_time = $data[$v_rule]["TIME"];
 $v_suspended = $data[$v_rule]["SUSPENDED"];
@@ -97,6 +98,8 @@ if (!empty($_POST["save"])) {
 		$v_port = quoteshellarg($v_port);
 		$v_ip = quoteshellarg($_POST["v_ip"]);
 		$v_comment = quoteshellarg($_POST["v_comment"]);
+		// Always passed: the select is always rendered, and a rule for any source keeps what the form says.
+		$v_ip_version = in_array($_POST["v_ip_version"] ?? "", ["v4", "v6"], true) ? $_POST["v_ip_version"] : "";
 
 		// Change Status
 		exec(
@@ -112,7 +115,9 @@ if (!empty($_POST["save"])) {
 				" " .
 				$v_protocol .
 				" " .
-				$v_comment,
+				$v_comment .
+				" " .
+				quoteshellarg($v_ip_version === "" ? "both" : $v_ip_version),
 			$output,
 			$return_var,
 		);

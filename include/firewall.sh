@@ -459,9 +459,41 @@ fw_restrict_docker_nets() {
 	done
 }
 
+# A rule's IP_VERSION as stored, on two lines: the source, then v4, v6 or empty for both. Only a rule for any source
+# carries one, and its source literal follows it, so the record reads right; a CIDR or a list fixes its own family, so
+# a contradicting value is refused and a matching one dropped.
+fw_rule_family() {
+	local src="$1" ver="$2" fam
+	case "$ver" in
+		both) ver='' ;;
+		'' | v4 | v6) ;;
+		*)
+			echo "invalid ip version '$ver', valid: v4, v6, both"
+			return 1
+			;;
+	esac
+	case "$src" in
+		0.0.0.0/0 | ::/0 | '')
+			case "$ver" in
+				v4) src='0.0.0.0/0' ;;
+				v6) src='::/0' ;;
+			esac
+			printf '%s\n%s\n' "$src" "$ver"
+			return 0
+			;;
+		ipset:*) fam="v$(fw_ipset_family "${src#ipset:}")" ;;
+		*) fam="v$(fw_addr_family "$src")" ;;
+	esac
+	if [ -n "$ver" ] && [ "$ver" != "$fam" ]; then
+		echo "$src is an IP$fam source and cannot be limited to IP$ver"
+		return 1
+	fi
+	printf '%s\n\n' "$src"
+}
+
 # One rules.conf record. Custom PassivePorts get neither FTP range.
 fw_rule() {
-	local action="$1" protocol="$2" port_val="$3" source="$4" conntrack_ftp="${5:-}"
+	local action="$1" protocol="$2" port_val="$3" source="$4" conntrack_ftp="${5:-}" ip_version="${6:-}"
 	local proto expr=""
 
 	proto="$(echo "$protocol" | tr '[:upper:]' '[:lower:]')"
@@ -479,7 +511,13 @@ fw_rule() {
 				[ "$action" = 'DROP' ] && expr="${expr}ip saddr != { $(fw_join "${FW_KEEP_V4[@]}") } "
 			fi
 			;;
-		0.0.0.0/0 | ::/0 | '') ;; # match everything: no family qualifier, so the rule covers v4 and v6
+		# Any source: no family qualifier covers v4 and v6, IP_VERSION narrows it to one.
+		0.0.0.0/0 | ::/0 | '')
+			case "$ip_version" in
+				v4) expr="meta nfproto ipv4 " ;;
+				v6) expr="meta nfproto ipv6 " ;;
+			esac
+			;;
 		*)
 			# A malformed source is skipped, never rendered wide open; the validators prevent it, this is depth.
 			case "$(fw_addr_family "$source")" in

@@ -21,13 +21,16 @@ json_list() {
 	echo "{"
 	while read -r str; do
 		[[ -z "$str" ]] && continue
+		# Older records carry no IP_VERSION, and the parse would keep the previous rule's.
+		IP_VERSION=''
 		parse_object_kv_list "$str"
-		json_escape RULE ACTION PROTOCOL PORT IP COMMENT SUSPENDED TIME DATE
+		json_escape RULE ACTION PROTOCOL PORT IP IP_VERSION COMMENT SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$RULE"
 		printf '        "ACTION": "%s",\n' "$ACTION"
 		printf '        "PROTOCOL": "%s",\n' "$PROTOCOL"
 		printf '        "PORT": "%s",\n' "$PORT"
 		printf '        "IP": "%s",\n' "$IP"
+		printf '        "IP_VERSION": "%s",\n' "$IP_VERSION"
 		printf '        "COMMENT": "%s",\n' "$COMMENT"
 		printf '        "SUSPENDED": "%s",\n' "$SUSPENDED"
 		printf '        "TIME": "%s",\n' "$TIME"
@@ -45,12 +48,15 @@ json_list() {
 
 shell_list() {
 	IFS=$'\n'
-	echo "RULE^ACTION^PROTO^PORT^IP^SPND^DATE"
-	echo "----^------^-----^----^--^----^----"
+	echo "RULE^ACTION^PROTO^PORT^IP^VER^SPND^DATE"
+	echo "----^------^-----^----^--^---^----^----"
 	while read str; do
 		[[ -z "$str" ]] && continue
+		IP_VERSION=''
 		parse_object_kv_list "$str"
-		echo "$RULE^$ACTION^$PROTOCOL^$PORT^$IP^$SUSPENDED^$DATE"
+		ver="${IP_VERSION:--}"
+		case "$IP" in 0.0.0.0/0 | ::/0 | '') ver="${IP_VERSION:-both}" ;; esac
+		echo "$RULE^$ACTION^$PROTOCOL^$PORT^$IP^$ver^$SUSPENDED^$DATE"
 	done < <(cat $CONF_DIR/firewall/rules.conf)
 }
 
@@ -58,9 +64,10 @@ plain_list() {
 	IFS=$'\n'
 	while read str; do
 		[[ -z "$str" ]] && continue
+		IP_VERSION=''
 		parse_object_kv_list "$str"
 		echo -ne "$RULE\t$ACTION\t$PROTOCOL\t$PORT\t$IP\t$COMMENT\t"
-		echo -e "$SUSPENDED\t$TIME\t$DATE"
+		echo -e "$SUSPENDED\t$TIME\t$DATE\t$IP_VERSION"
 	done < <(cat $CONF_DIR/firewall/rules.conf)
 }
 

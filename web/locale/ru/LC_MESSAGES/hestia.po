@@ -290,7 +290,9 @@ msgstr "Автоматическое обновление"
 msgid "Data Source"
 msgstr "Источник данных"
 
-#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall_ipset.php
+#: web/add/firewall/ipset/index.php web/templates/pages/add_firewall.php
+#: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/edit_firewall.php
 #: web/templates/pages/list_firewall_ipset.php
 msgid "IP Version"
 msgstr "IP-версия"

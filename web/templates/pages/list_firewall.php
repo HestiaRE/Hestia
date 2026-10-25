@@ -247,6 +247,7 @@
 				<div class="units-table-cell u-text-center-desktop">
 					<span class="u-hide-desktop u-text-bold"><?= tohtml(_("IP Address")) ?>:</span>
 					<?= tohtml($data[$key]["IP"]) ?>
+					<br><span class="u-text-small"><?= tohtml($data[$key]["FAMILY"]) ?></span>
 				</div>
 			</div>
 		<?php } ?>

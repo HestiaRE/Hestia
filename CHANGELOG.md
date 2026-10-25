@@ -21,6 +21,10 @@ the releases of the command audit, into another.
   failing at the restart while any other domain still pointed at the vanished address, and a suspended domain could
   not be moved at all. An address no longer on any interface is deleted along with it. The single-v4 rename of
   `h-update-sys-ip` takes the same path and now also moves the mail source addresses.
+- **A firewall rule for any source can be limited to IPv4 or IPv6** (#544). A rule for 0.0.0.0/0 always covered
+  both families, so a port could not be opened on v6 alone, or opened on v6 and restricted to one network on v4.
+  The rule forms have an IP version select, the CLI an optional last argument, and the list names the family of
+  every rule. A rule with a CIDR or a list keeps the family of its source.
 
 ### Fixed
 

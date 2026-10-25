@@ -546,8 +546,8 @@ conf_link_drop() {
 # belongs to someone else can still be caught after is_domain_new refused it at the front (#956,
 # the damage this produced is #925). A missing link, a dangling one, or one already pointing into
 # the same home is replaced exactly as before; only a live link into a DIFFERENT home refuses, and
-# the message names both customers. No supported command moves a domain between customers, so there
-# is no legitimate path that needs a way around this.
+# the message names both customers. h-change-domain-owner, the one command that moves a domain between
+# customers, removes the old links before its rebuild.
 conf_link_set() {
 	local _conf="$1" _link="$2" _cur _own_new _own_cur
 	if [ -L "$_link" ]; then

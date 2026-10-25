@@ -17,21 +17,12 @@ source "$HESTIA/include/main.sh"
 source "$HESTIA/include/firewall.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Under the unit stderr is the journal, which reads a leading <N> as the priority.
-say() {
-	if [ -n "${JOURNAL_STREAM:-}" ]; then
-		echo "<$1>firewall: $2" >&2
-	else
-		echo "firewall: $2" >&2
-	fi
-}
-
 banlist="$CONF_DIR/firewall/banlist.conf"
 
 # The render replays bans only with fail2ban on, and only then are there jail sets to fill.
 [ -n "$FIREWALL_SYSTEM" ] && [ -n "$FIREWALL_EXTENSION" ] || exit 0
 if [ ! -s "$banlist" ]; then
-	say 6 "banlist.conf is empty, no bans to load"
+	fw_say 6 "banlist.conf is empty, no bans to load"
 	exit 0
 fi
 
@@ -64,7 +55,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 		fi
 	fi
 	if [ -z "$fam" ]; then
-		say 4 "banlist.conf line $lineno skipped, no chain and address to load: $line"
+		fw_say 4 "banlist.conf line $lineno skipped, no chain and address to load: $line"
 		skipped=$((skipped + 1))
 		continue
 	fi
@@ -100,7 +91,7 @@ load_rows() {
 	load_batch "$1" "$2" && return 0
 	if [ "$2" -eq 1 ]; then
 		e="$(head -n1 "$err")"
-		say 4 "banlist.conf line ${rline[$1]} skipped, nft refused ${rip[$1]} in ${rset[$1]}: ${e#"$doc":*: }"
+		fw_say 4 "banlist.conf line ${rline[$1]} skipped, nft refused ${rip[$1]} in ${rset[$1]}: ${e#"$doc":*: }"
 		skipped=$((skipped + 1))
 		return 0
 	fi
@@ -112,8 +103,8 @@ load_rows() {
 load_rows 0 "${#rip[@]}"
 
 if [ "$skipped" -gt 0 ]; then
-	say 4 "loaded $((total - skipped)) of $total bans from banlist.conf, $skipped skipped"
+	fw_say 4 "loaded $((total - skipped)) of $total bans from banlist.conf, $skipped skipped"
 else
-	say 6 "loaded $total of $total bans from banlist.conf"
+	fw_say 6 "loaded $total of $total bans from banlist.conf"
 fi
 exit 0

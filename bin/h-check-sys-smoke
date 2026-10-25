@@ -186,9 +186,9 @@ check_firewall() {
 		bad="$bad; nft rejects $ruleset: $(nft -c -f "$ruleset" 2>&1 | head -n1)"
 	elif [ ! -f "$FW_APPLIED" ]; then
 		bad="$bad; $FW_APPLIED missing, $ruleset was not written by this renderer"
-	# The boot copy is the applied document minus the jail set elements; anything else means they drifted apart.
-	elif ! sed -E '/^\tset f2b6?_/s/ elements = \{[^}]*\};//' "$FW_APPLIED" | cmp -s - "$ruleset"; then
-		bad="$bad; $ruleset differs from $FW_APPLIED in more than the ban elements"
+	# The boot copy is the applied document with only the excludes left filled; anything else means they drifted apart.
+	elif ! sed -E '/^\tset excludes6? /!s/ elements = \{[^}]*\};//' "$FW_APPLIED" | cmp -s - "$ruleset"; then
+		bad="$bad; $ruleset differs from $FW_APPLIED in more than the fed set elements"
 	fi
 	if [ -f "$rules" ]; then
 		while IFS= read -r line; do
@@ -212,21 +212,20 @@ check_firewall() {
 
 # Every banlist row must be enforced, asked with get element, which fails unless the set covers every element it
 # names: auto-merge folds overlapping CIDRs and nft prints a /32 bare, so the set's text never equals the file's.
-# One query per set, halved down to the missing rows. The other way round only notes, as a merged element has no row
-# of its own. Covers fail2ban's jail sets, not the blocklist or CrowdSec ones.
-_fw_ban_probe() {
-	local set="$1" half chain IFS=,
-	shift
+# One query per set, halved down to the missing rows, each named ADDRESS/$2. The other way round only notes, as a
+# merged element has no row of its own. Covers fail2ban's jail sets; check_firewall_feeds covers the others.
+_fw_set_probe() {
+	local set="$1" label="$2" half IFS=,
+	shift 2
 	[ "$#" -gt 0 ] || return 0
 	nft get element "$FW_FAMILY" "$FW_TABLE" "$set" "{ $* }" > /dev/null 2>&1 && return 0
 	if [ "$#" -eq 1 ]; then
-		chain="${set#f2b_}"
-		miss="$miss $1/${chain#f2b6_}"
+		miss="$miss $1/$label"
 		return 0
 	fi
 	half=$(($# / 2))
-	_fw_ban_probe "$set" "${@:1:half}"
-	_fw_ban_probe "$set" "${@:half+1}"
+	_fw_set_probe "$set" "$label" "${@:1:half}"
+	_fw_set_probe "$set" "$label" "${@:half+1}"
 }
 
 check_firewall_bans() {
@@ -255,8 +254,9 @@ check_firewall_bans() {
 		want[$target]="${want[$target]:+${want[$target]} }$ip"
 	done < <(cat "$banlist" 2> /dev/null)
 	for target in "${!want[@]}"; do
+		chain="${target#f2b_}"
 		# shellcheck disable=SC2086  # the list is addresses that passed fw_ban_set_for, split on purpose
-		_fw_ban_probe "$target" ${want[$target]}
+		_fw_set_probe "$target" "${chain#f2b6_}" ${want[$target]}
 	done
 	while read -r target e; do
 		[ -n "$e" ] || continue
@@ -272,6 +272,41 @@ check_firewall_bans() {
 		no "banlist rows not enforced ($n row(s) checked)" "${miss# }"
 	else
 		ok "every banlist row is in its jail set ($n row(s) checked)${note:+; set elements without their own row (merged or orphaned):$note}"
+	fi
+}
+
+# Every cache entry must be in its set. The boot copy carries these sets empty, so what can still go wrong is a set
+# the loader did not fill or a feeder that left it behind its cache. Every live set must be of a known kind, or a set
+# would silently drop out of this check. Covers the entries, not elements the set holds beyond them.
+check_firewall_feeds() {
+	local name id re n=0 e=0 i miss='' extra=''
+	local -a elems
+	local -A known=([excludes]=1 [excludes6]=1)
+	while IFS= read -r name; do
+		[ -n "$name" ] || continue
+		id="$(fw_set_id "$name")"
+		known[$id]=1
+		fw_set_exists "$name" || continue
+		n=$((n + 1))
+		re="$FW_ADDR_RE"
+		[ "$(fw_cache_set_family "$name")" = 6 ] && re="$FW_ADDR6_RE"
+		mapfile -t elems < <(grep -oE "$re" "$(fw_set_src "$name")" 2> /dev/null | sort -u)
+		e=$((e + ${#elems[@]}))
+		# In slices: one argument is capped at 128 KiB, and a big list in one would fail for that alone.
+		for ((i = 0; i < ${#elems[@]}; i += 2000)); do
+			_fw_set_probe "$id" "$name" "${elems[@]:i:2000}"
+		done
+	done < <(fw_cache_sets)
+	while read -r id; do
+		case "$id" in f2b_* | f2b6_*) continue ;; esac
+		[ -n "${known[$id]:-}" ] || extra="$extra $id"
+	done < <(nft list sets "$FW_FAMILY" "$FW_TABLE" 2> /dev/null | awk '$1 == "set" { print $2 }')
+	if [ -n "$extra" ]; then
+		no "firewall set of no known kind, unchecked" "${extra# }"
+	elif [ -n "$miss" ]; then
+		no "cache entries not in their set ($e entries in $n set(s) checked)" "$(echo "${miss# }" | cut -c1-300)"
+	else
+		ok "every cache entry is in its set ($e entries in $n set(s) checked)"
 	fi
 }
 
@@ -1635,6 +1670,7 @@ fi
 if [ -n "$FIREWALL_SYSTEM" ]; then
 	echo "-- firewall --"
 	check_firewall
+	check_firewall_feeds
 	if [ -n "$FIREWALL_EXTENSION" ]; then
 		check_firewall_bans
 	fi

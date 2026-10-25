@@ -30,6 +30,11 @@ the releases of the command audit, into another.
   no bans; hestia-nftables loads them from banlist.conf right after it, still before the network comes up, and
   a row nft refuses is skipped and logged instead of costing the others. The smoke checks every row against its
   set. The update renders once, so the first reboot after it is already right.
+- **A reboot no longer brings back lifted CrowdSec decisions and outdated blocklists** (#1263). The boot ruleset
+  carried the CrowdSec and blocklist sets as of the last render, until their feeders next ran: a cleared false
+  positive was blocked again for about 45 s, a blocklist was as old as the last render for up to 45 min. These
+  sets now boot empty and hestia-nftables fills them from the cache files their feeders last wrote, before the
+  network comes up. The smoke checks every cache entry against its set.
 
 ## v0.28 (2026-10-23)
 

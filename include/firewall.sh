@@ -302,6 +302,22 @@ fw_set_src() {
 	esac
 }
 
+# The fed sets that have a cache file: CrowdSec's two and every list a rule matches. The jail sets load from banlist.conf.
+fw_cache_sets() {
+	echo crowdsec-blacklists
+	echo crowdsec6-blacklists
+	grep -o "IP='ipset:[^']*'" "$CONF_DIR/firewall/rules.conf" 2> /dev/null | sed "s/^IP='ipset://;s/'\$//" | sort -u
+}
+
+# The family fw_set_replace filters a cache file to.
+fw_cache_set_family() {
+	case "$1" in
+		crowdsec-blacklists) echo 4 ;;
+		crowdsec6-blacklists) echo 6 ;;
+		*) fw_ipset_family "$1" ;;
+	esac
+}
+
 # Metadata, not a finished line, so elements fold in at assembly time; a set referenced twice declares once.
 # `interval` is required for CIDR members and brings auto-merge, so overlaps collapse instead of failing.
 fw_set_declare() {
@@ -311,12 +327,23 @@ fw_set_declare() {
 	echo "$1" > "$FW_WORK/name.$id"
 }
 
+# Only a render changes the excludes. Every other set has a writer outside the render, so hestia-nftables refills
+# it at boot: the jail sets from banlist.conf, the CrowdSec and blocklist sets from their cache files.
+fw_set_fed() {
+	case "$1" in
+		excludes | excludes6) return 1 ;;
+	esac
+	return 0
+}
+
 # Buffered bans plus the source file, filtered to the set's own family: one bad element fails the whole document.
-# The boot copy leaves the bans out; hestia-nftables adds them from banlist.conf, row by row if it must.
+# The boot copy leaves every fed set empty, so a reboot cannot bring back an element its writer has lifted since.
 fw_set_elements() {
-	local id="$1" src
-	[ "${2:-}" != boot ] && [ -s "$FW_WORK/elem.$id" ] && cat "$FW_WORK/elem.$id"
-	src="$(fw_set_src "$(cat "$FW_WORK/name.$id")")"
+	local id="$1" name src
+	name="$(cat "$FW_WORK/name.$id")"
+	[ "${2:-}" = boot ] && fw_set_fed "$name" && return 0
+	[ -s "$FW_WORK/elem.$id" ] && cat "$FW_WORK/elem.$id"
+	src="$(fw_set_src "$name")"
 	case "$(cat "$FW_WORK/set.$id" 2> /dev/null)" in
 		v6*) [ -s "$src" ] && grep -oE "$FW_ADDR6_RE" "$src" ;;
 		*) [ -s "$src" ] && grep -oE "$FW_ADDR_RE" "$src" ;;
@@ -364,6 +391,15 @@ fw_set_replace() {
 	local rc=$?
 	rm -f "$doc"
 	return $rc
+}
+
+# For the boot loaders. Under the unit stderr is the journal, which reads a leading <N> as the priority.
+fw_say() {
+	if [ -n "${JOURNAL_STREAM:-}" ]; then
+		echo "<$1>firewall: $2" >&2
+	else
+		echo "firewall: $2" >&2
+	fi
 }
 
 fw_set_exists() {
@@ -612,8 +648,9 @@ fw_boot_unit_write() {
 		echo "RemainAfterExit=yes"
 		# No separate set-provisioning ExecStartPre: sets and their rules load in one transaction.
 		echo "ExecStart=$FW_NFT -f $FW_RULESET"
-		# '-': a bad banlist row costs that ban, never the unit. Before= waits for ExecStartPost too.
+		# '-': a bad banlist row or cache file costs those elements, never the unit. Before= waits for ExecStartPost too.
 		echo "ExecStartPost=-$HESTIA/bin/h-update-firewall-bans"
+		echo "ExecStartPost=-$HESTIA/bin/h-update-firewall-sets"
 		echo ""
 		echo "[Install]"
 		echo "WantedBy=multi-user.target"
@@ -676,7 +713,7 @@ firewall_keep_private_apply() {
 	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }
 
-# Without this render the first reboot after the update still boots the bans of the last one.
+# Without this render the first reboot after the update still boots the bans and caches of the last one.
 firewall_boot_banlist_apply() {
 	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }

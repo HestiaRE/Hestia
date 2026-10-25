@@ -126,6 +126,8 @@ if [ -n "$FIREWALL_EXTENSION" ]; then
 	fi
 fi
 
+# The unit before the boot copy: that copy carries the fed sets empty, and only the unit's loaders fill them.
+fw_boot_unit_write
 fw_batch_apply || {
 	fw_batch_discard
 	log_event "$E_INVALID" "$ARGUMENTS"

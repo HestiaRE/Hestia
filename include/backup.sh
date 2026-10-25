@@ -1291,8 +1291,8 @@ ftp_delete() {
 }
 
 # restic_exclude_entry BASE ENTRY web|mail: domain[:part...] as paths under BASE, read the way h-backup-user reads it.
-# web: each part is a path in the domain, a domain * stands for every domain. mail: each part is an account, a star
-# in one means every account, and a domain * matches nothing, as in the archive.
+# web: each part is a path in the domain, mail: each part is an account, and a star in one means every account. A
+# domain * stands for every domain in both, as in the archive.
 restic_exclude_entry() {
 	local _base="$1" _d="${2%%:*}" _p
 	local -a _parts
@@ -1300,7 +1300,6 @@ restic_exclude_entry() {
 		echo "$_base/$2"
 		return 0
 	fi
-	[ "$3" = mail ] && [ "$_d" = '*' ] && return 0
 	IFS=':' read -r -a _parts <<< "${2#*:}"
 	for _p in "${_parts[@]}"; do
 		[ -n "$_p" ] || continue

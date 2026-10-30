@@ -13,7 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284). It failed with
+  `invalid alias format ::`: the panel passes a single space as the alias list, which the alias validator has refused
+  since it splits on commas only. The panel passes an empty list now, and `h-add-letsencrypt-domain` takes a blank one
+  as empty, so scripts in the HestiaCP style work again.
 
 ## v0.29 (2026-10-25)
 

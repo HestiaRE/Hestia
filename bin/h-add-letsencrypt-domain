@@ -11,6 +11,8 @@
 user=$1
 domain=$2
 aliases=$3
+# A blank list means none: the panel and HestiaCP-style callers pass ' ', and the validator splits on commas only.
+[[ "$aliases" =~ ^[[:space:]]*$ ]] && aliases=''
 mail=${4// /}
 host=''
 if [ "$mail" = 'host' ]; then

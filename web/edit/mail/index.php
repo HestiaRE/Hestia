@@ -779,7 +779,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 				$user .
 				" " .
 				quoteshellarg($v_domain) .
-				" ' ' 'yes'",
+				" '' 'yes'",
 			$output,
 			$return_var,
 		);

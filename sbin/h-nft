@@ -1,0 +1,189 @@
+#!/bin/bash
+# info: change the live firewall by hand, iptables style
+# options: list | -I|-A|-D CHAIN SOURCE ACTION [PORT] [PROTOCOL] | -D CHAIN HANDLE | -P INPUT ACTION
+#
+# example: h-nft -I INPUT 203.0.113.0/24 DROP
+# example: h-nft -A INPUT 198.51.100.7 ACCEPT 3306 tcp
+# example: h-nft -P INPUT ACCEPT
+#
+# Works on the loaded inet hestia table only and keeps nothing: the next render (any rule, ipset or exclude change,
+# h-update-firewall) and every reboot restore the configured state. Periodic refreshes and bans touch sets only.
+# CHAIN is INPUT (matches the source) or OUTPUT (matches the destination). ACTION is ACCEPT or DROP. Without PORT a
+# rule matches every protocol; a PORT without PROTOCOL means tcp and udp.
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/firewall.sh
+source $HESTIA/include/firewall.sh
+
+# The comment carries the normalised spec, so -D finds its rule by text rather than by how nft prints the match.
+TAG='h-nft'
+
+usage() {
+	echo "Usage: h-nft list | -I|-A|-D CHAIN SOURCE ACTION [PORT] [PROTOCOL] | -D CHAIN HANDLE | -P INPUT ACTION" >&2
+	exit "$E_ARGS"
+}
+
+die() {
+	echo "Error: $1" >&2
+	exit "${2:-$E_INVALID}"
+}
+
+nft_chain() {
+	case "${1^^}" in
+		INPUT) echo input ;;
+		OUTPUT) echo output ;;
+		*) die "chain must be INPUT or OUTPUT: $1" ;;
+	esac
+}
+
+table_loaded() {
+	$FW_NFT list chain $FW_FAMILY $FW_TABLE input > /dev/null 2>&1 \
+		|| die "no live $FW_FAMILY $FW_TABLE table (FIREWALL_SYSTEM='${FIREWALL_SYSTEM:-}')" "$E_NOTEXIST"
+}
+
+# Strict v6 test: nft resolves by DNS whatever it cannot read as an address.
+source_family() {
+	case "$1" in
+		any) echo any ;;
+		*)
+			if fw_is_addr "$1"; then
+				echo 4
+			elif fw_is_addr6_strict "$1"; then
+				echo 6
+			else
+				die "not an address or CIDR: $1"
+			fi
+			;;
+	esac
+}
+
+port_valid() {
+	local p
+	[[ "$1" =~ ^[0-9]+([-:][0-9]+)?(,[0-9]+([-:][0-9]+)?)*$ ]] || return 1
+	for p in ${1//[,:-]/ }; do
+		[ "$p" -ge 1 ] && [ "$p" -le 65535 ] || return 1
+	done
+}
+
+# Sets EXPR (the nft match and verdict) and KEY (the comment) from CHAIN SOURCE ACTION [PORT] [PROTOCOL].
+build_rule() {
+	local chain="${1^^}" src="${2,,}" action="${3^^}" port="${4:-}" proto="${5,,}" dir fam
+	nft_chain "$chain" > /dev/null
+	case "$action" in ACCEPT | DROP) ;; *) die "action must be ACCEPT or DROP: $3" ;; esac
+	case "$proto" in '' | tcp | udp | icmp) ;; *) die "protocol must be tcp, udp or icmp: $5" ;; esac
+	[ -z "$port" ] || port_valid "$port" || die "not a port, range or list: $port"
+	[ -n "$port" ] && [ "$proto" = 'icmp' ] && die "icmp has no port"
+	port="${port//:/-}"
+	fam=$(source_family "$src") || exit
+	dir=saddr
+	[ "$chain" = 'OUTPUT' ] && dir=daddr
+	EXPR=''
+	case "$fam" in
+		4) EXPR="ip $dir $src " ;;
+		6) EXPR="ip6 $dir $src " ;;
+	esac
+	if [ -n "$port" ]; then
+		if [ -n "$proto" ]; then
+			EXPR="${EXPR}$proto dport $(fw_port_expr "$port") "
+		else
+			EXPR="${EXPR}meta l4proto { tcp, udp } th dport $(fw_port_expr "$port") "
+		fi
+	elif [ -n "$proto" ]; then
+		EXPR="${EXPR}meta l4proto $proto "
+	fi
+	EXPR="${EXPR}counter ${action,,}"
+	KEY="$TAG $chain $src $action${port:+ $port}${proto:+ $proto}"
+}
+
+handles_of() {
+	$FW_NFT -a list chain $FW_FAMILY $FW_TABLE "$1" 2> /dev/null \
+		| awk -v k="comment \"$2\"" 'index($0, k) { print $NF }'
+}
+
+list() {
+	local c policy
+	echo "table $FW_FAMILY $FW_TABLE (live; [$TAG] marks a hand rule, gone at the next render)"
+	for c in input output; do
+		policy=$($FW_NFT list chain $FW_FAMILY $FW_TABLE $c 2> /dev/null | sed -n 's/.*policy \([a-z]*\);.*/\1/p')
+		echo
+		echo "Chain ${c^^} (policy ${policy^^})"
+		printf '%7s  %s\n' handle rule
+		$FW_NFT -a list chain $FW_FAMILY $FW_TABLE $c 2> /dev/null | awk -v tag="$TAG" '
+			/# handle [0-9]+$/ && !/^[ \t]*(chain|type) / {
+				h = $NF; sub(/[ \t]*# handle [0-9]+$/, ""); sub(/^[ \t]+/, "")
+				m = ""
+				if (match($0, " comment \"" tag "[^\"]*\"")) {
+					m = "  [" tag "]"
+					$0 = substr($0, 1, RSTART - 1) substr($0, RSTART + RLENGTH)
+				}
+				printf "%7s  %s%s\n", h, $0, m
+			}'
+	done
+	echo
+	echo "Sets (elements after auto-merge)"
+	# The table, not list sets: that one prints declarations without their elements.
+	$FW_NFT -j list table $FW_FAMILY $FW_TABLE 2> /dev/null | jq -r '
+		.nftables[] | select(.set) | .set | "\(.name) \(.type) \((.elem // []) | length)"' \
+		| sort | awk '{ printf "  %-28s %-10s %8s\n", $1, $2, $3 }'
+	c=$($FW_NFT list tables 2> /dev/null | grep -v "^table $FW_FAMILY $FW_TABLE$" | sed 's/^table //' | tr '\n' ' ')
+	[ -z "$c" ] || echo "Other tables (they filter as well): $c"
+}
+
+note() {
+	echo "$1 Live only: the next firewall render or a reboot restores the configured state."
+}
+
+table_loaded
+case "${1:-}" in
+	list | -L | -nL)
+		list
+		;;
+	-I | -A)
+		[ "$#" -ge 4 ] && [ "$#" -le 6 ] || usage
+		build_rule "$2" "$3" "$4" "${5:-}" "${6:-}"
+		[ -z "$(handles_of "$(nft_chain "$2")" "$KEY")" ] || die "already loaded: $KEY" "$E_EXISTS"
+		verb=add
+		[ "$1" = '-I' ] && verb=insert
+		# shellcheck disable=SC2086  # EXPR is a list of nft words by construction
+		$FW_NFT $verb rule $FW_FAMILY $FW_TABLE "$(nft_chain "$2")" $EXPR comment "\"$KEY\"" || die "nft refused: $EXPR"
+		$BIN/h-log-action "system" "Warning" "Firewall" "Live rule by hand: $KEY ($1)."
+		note "Loaded: $KEY."
+		;;
+	-D)
+		chain=$(nft_chain "${2:-}") || exit
+		if [ "$#" -eq 3 ] && [[ "$3" =~ ^[0-9]+$ ]]; then
+			$FW_NFT delete rule $FW_FAMILY $FW_TABLE "$chain" handle "$3" \
+				|| die "no rule with handle $3 in ${chain^^}" "$E_NOTEXIST"
+			KEY="${chain^^} handle $3"
+		else
+			[ "$#" -ge 4 ] && [ "$#" -le 6 ] || usage
+			build_rule "$2" "$3" "$4" "${5:-}" "${6:-}"
+			h=$(handles_of "$chain" "$KEY")
+			[ -n "$h" ] || die "no hand rule $KEY (h-nft list shows them; delete others by handle)" "$E_NOTEXIST"
+			for x in $h; do
+				$FW_NFT delete rule $FW_FAMILY $FW_TABLE "$chain" handle "$x" || die "nft refused deleting handle $x"
+			done
+		fi
+		$BIN/h-log-action "system" "Warning" "Firewall" "Live rule deleted by hand: $KEY."
+		note "Deleted: $KEY."
+		;;
+	-P)
+		[ "$#" -eq 3 ] || usage
+		# OUTPUT has no established accept, so a drop policy there would cut this very session.
+		[ "${2^^}" = 'INPUT' ] || die "only the INPUT policy can be set"
+		case "${3^^}" in ACCEPT | DROP) ;; *) die "policy must be ACCEPT or DROP: $3" ;; esac
+		$FW_NFT "chain $FW_FAMILY $FW_TABLE input { policy ${3,,} ; }" || die "nft refused the policy"
+		$BIN/h-log-action "system" "Warning" "Firewall" "Live INPUT policy set by hand: ${3^^}."
+		note "INPUT policy is ${3^^}."
+		[ "${3^^}" = 'DROP' ] || echo "Back: h-nft -P INPUT DROP"
+		;;
+	*)
+		usage
+		;;
+esac
+
+log_event "$OK" "$ARGUMENTS"
+exit

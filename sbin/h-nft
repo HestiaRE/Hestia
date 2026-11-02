@@ -4,12 +4,15 @@
 #
 # example: h-nft -I INPUT 203.0.113.0/24 DROP
 # example: h-nft -A INPUT 198.51.100.7 ACCEPT 3306 tcp
+# example: h-nft -I INPUT 2001:db8::/32 DROP icmp
 # example: h-nft -P INPUT ACCEPT
 #
-# Works on the loaded inet hestia table only and keeps nothing: the next render (any rule, ipset or exclude change,
-# h-update-firewall) and every reboot restore the configured state. Periodic refreshes and bans touch sets only.
-# CHAIN is INPUT (matches the source) or OUTPUT (matches the destination). ACTION is ACCEPT or DROP. Without PORT a
-# rule matches every protocol; a PORT without PROTOCOL means tcp and udp.
+# Works on the loaded inet hestia table only and keeps nothing: a render (any rule, exclude or ip change,
+# h-update-firewall), a restart of hestia-nftables and every reboot restore the configured state; a render that
+# replaces hand rules says so in the activity log. Periodic refreshes, bans and fail2ban restarts touch sets only.
+# CHAIN is INPUT (matches the source) or OUTPUT (matches the destination), SOURCE an address, a CIDR or any. ACTION
+# is ACCEPT or DROP. Without PORT a rule matches every protocol, a PORT without PROTOCOL means tcp and udp, icmp
+# follows the family of SOURCE. A DROP that covers your own address cuts this session as well: console or reboot.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -19,7 +22,7 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/firewall.sh
 
 # The comment carries the normalised spec, so -D finds its rule by text rather than by how nft prints the match.
-TAG='h-nft'
+TAG=$FW_HAND_TAG
 
 usage() {
 	echo "Usage: h-nft list | -I|-A|-D CHAIN SOURCE ACTION [PORT] [PROTOCOL] | -D CHAIN HANDLE | -P INPUT ACTION" >&2
@@ -71,6 +74,11 @@ port_valid() {
 # Sets EXPR (the nft match and verdict) and KEY (the comment) from CHAIN SOURCE ACTION [PORT] [PROTOCOL].
 build_rule() {
 	local chain="${1^^}" src="${2,,}" action="${3^^}" port="${4:-}" proto="${5,,}" dir fam
+	# A protocol in the port's place, so a protocol without a port needs no empty argument.
+	if [ -z "$proto" ] && [[ "${port,,}" =~ ^(tcp|udp|icmp)$ ]]; then
+		proto="${port,,}"
+		port=''
+	fi
 	nft_chain "$chain" > /dev/null
 	case "$action" in ACCEPT | DROP) ;; *) die "action must be ACCEPT or DROP: $3" ;; esac
 	case "$proto" in '' | tcp | udp | icmp) ;; *) die "protocol must be tcp, udp or icmp: $5" ;; esac
@@ -91,6 +99,13 @@ build_rule() {
 		else
 			EXPR="${EXPR}meta l4proto { tcp, udp } th dport $(fw_port_expr "$port") "
 		fi
+	elif [ "$proto" = 'icmp' ]; then
+		# meta l4proto icmp is v4 only: after an ip6 match it loads and never matches.
+		case "$fam" in
+			4) EXPR="${EXPR}meta l4proto icmp " ;;
+			6) EXPR="${EXPR}meta l4proto ipv6-icmp " ;;
+			any) EXPR="${EXPR}meta l4proto { icmp, ipv6-icmp } " ;;
+		esac
 	elif [ -n "$proto" ]; then
 		EXPR="${EXPR}meta l4proto $proto "
 	fi
@@ -112,7 +127,7 @@ list() {
 		echo "Chain ${c^^} (policy ${policy^^})"
 		printf '%7s  %s\n' handle rule
 		$FW_NFT -a list chain $FW_FAMILY $FW_TABLE $c 2> /dev/null | awk -v tag="$TAG" '
-			/# handle [0-9]+$/ && !/^[ \t]*(chain|type) / {
+			/# handle [0-9]+$/ && !/^[ \t]*(table|chain|type) / {
 				h = $NF; sub(/[ \t]*# handle [0-9]+$/, ""); sub(/^[ \t]+/, "")
 				m = ""
 				if (match($0, " comment \"" tag "[^\"]*\"")) {
@@ -133,7 +148,7 @@ list() {
 }
 
 note() {
-	echo "$1 Live only: the next firewall render or a reboot restores the configured state."
+	echo "$1 Live only: a firewall render, a hestia-nftables restart or a reboot restores the configured state."
 }
 
 table_loaded
@@ -155,9 +170,12 @@ case "${1:-}" in
 	-D)
 		chain=$(nft_chain "${2:-}") || exit
 		if [ "$#" -eq 3 ] && [[ "$3" =~ ^[0-9]+$ ]]; then
-			$FW_NFT delete rule $FW_FAMILY $FW_TABLE "$chain" handle "$3" \
-				|| die "no rule with handle $3 in ${chain^^}" "$E_NOTEXIST"
-			KEY="${chain^^} handle $3"
+			# The text, not only the number: a render hands out new handles.
+			text=$($FW_NFT -a list chain $FW_FAMILY $FW_TABLE "$chain" 2> /dev/null \
+				| sed -n "s/^[[:space:]]*\(.*[^[:space:]]\)[[:space:]]*# handle $3\$/\1/p")
+			[ -n "$text" ] || die "no rule with handle $3 in ${chain^^}" "$E_NOTEXIST"
+			$FW_NFT delete rule $FW_FAMILY $FW_TABLE "$chain" handle "$3" || die "nft refused deleting handle $3"
+			KEY="${chain^^} handle $3: $text"
 		else
 			[ "$#" -ge 4 ] && [ "$#" -le 6 ] || usage
 			build_rule "$2" "$3" "$4" "${5:-}" "${6:-}"

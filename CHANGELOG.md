@@ -13,6 +13,15 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **`h-nft` changes the live firewall by hand, the way `iptables` did** (#1273). `h-nft list` shows the loaded table
+  with handles, policies and set sizes; `-I`/`-A`/`-D INPUT|OUTPUT SOURCE ACCEPT|DROP [PORT] [PROTOCOL]` adds or removes
+  a rule, `-D CHAIN HANDLE` any rule, and `-P INPUT ACCEPT|DROP` opens or closes the box. Nothing is kept: a firewall
+  render, a restart of `hestia-nftables` or a reboot restores the configured state, the periodic blocklist, CrowdSec
+  and ban updates do not. A render that replaces hand rules says so in the activity log, and the smoke check fails
+  while one is loaded. Root only, not in the panel.
+
 ### Fixed
 
 - **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284). It failed with

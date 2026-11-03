@@ -21,6 +21,12 @@ the releases of the command audit, into another.
   render, a restart of `hestia-nftables` or a reboot restores the configured state, the periodic blocklist, CrowdSec
   and ban updates do not. A render that replaces hand rules says so in the activity log, and the smoke check fails
   while one is loaded. Root only, not in the panel.
+- **New certificates get an ECDSA P-256 key** (#1247, upstream #5629). Let's Encrypt and self-signed certificates,
+  the panel certificate of a fresh install included. `h-add-letsencrypt-domain` takes `KEY_ALGO` as fifth argument and
+  `h-generate-ssl-cert` as tenth (`ecdsa-256`, `ecdsa-384`, `rsa`), the same signature as HestiaCP 1.10.6, and the
+  choice is kept as `SSL_KEY_ALGO` in the web or mail record. Renewal keeps the key type a domain has: a certificate
+  issued before this release stays RSA until someone passes another type. No panel choice; RSA is the exception for
+  old clients. proftpd logs `expected RSA certificate, found EC` for an ECDSA host certificate and serves it anyway.
 
 ### Fixed
 

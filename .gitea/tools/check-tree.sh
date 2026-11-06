@@ -296,6 +296,57 @@ check_update_patches_reverse() {
 	fi
 }
 
+# The other direction, for the patches a box on the last public release still has to take: each alone applies to that
+# release's file (an earlier entry may fail on an operator's edit, and identical contexts can anchor a hunk on the wrong
+# spot), and all of them in manifest order turn it into the shipped file, byte for byte. Not covered: an order the
+# manifest's `after` graph would change, and targets the tag did not ship.
+check_update_patches_from_tag() {
+	local tag m v src tgt name cand rel tmp n=0 bad='' base
+	local -a later=()
+	tag=$(git tag -l 'v*' 2> /dev/null | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
+	if [ -z "$tag" ]; then
+		no "update patches from the last release: no public release tag in this checkout" "nothing to compare, the clone needs the tags"
+		return
+	fi
+	for m in share/updates/*.json; do
+		[ -e "$m" ] || continue
+		v=$(basename "$m" .json)
+		[ "$v" != "${tag#v}" ] && [ "$(printf '%s\n%s\n' "${tag#v}" "$v" | sort -V | tail -1)" = "$v" ] && later+=("$m")
+	done
+	tmp=$(mktemp -d) || return
+	declare -A seq=()
+	while IFS=$'\t' read -r src tgt; do
+		[ -n "$src" ] || continue
+		n=$((n + 1))
+		name=$(sed -n 's/^+++ \([^[:space:]]*\).*/\1/p' "$src" | head -1)
+		cand=$(find share -path share/updates -prune -o -type f -name "$(basename "$tgt")" -print | head -1)
+		rel=$cand
+		if [ -z "$name" ] || [ -z "$cand" ] || ! git show "$tag:$rel" > "$tmp/base" 2> /dev/null; then
+			bad="$bad $src(no file at $tag)"
+			continue
+		fi
+		mkdir -p "$tmp/alone" && cp "$tmp/base" "$tmp/alone/$name"
+		(cd "$tmp/alone" && git apply -p0 --check < "$HESTIA/$src") > /dev/null 2>&1 || bad="$bad $src(alone)"
+		[ -n "${seq[$rel]:-}" ] || {
+			mkdir -p "$tmp/seq/$n" && cp "$tmp/base" "$tmp/seq/$n/$name"
+			seq[$rel]="$tmp/seq/$n/$name"
+		}
+		(cd "$(dirname "${seq[$rel]}")" && git apply -p0 < "$HESTIA/$src") > /dev/null 2>&1 || bad="$bad $src(in order)"
+	done < <([ "${#later[@]}" -gt 0 ] && jq -r '.entries[] | .conditions[]? | select(.type == "file_patch_pending")
+		| [.source // "", .target // ""] | @tsv' "${later[@]}")
+	for base in "${!seq[@]}"; do
+		cmp -s "${seq[$base]}" "$base" || bad="$bad $base(differs from the shipped file after all patches)"
+	done
+	rm -rf "$tmp"
+	if [ "$n" -eq 0 ]; then
+		ok "update patches from $tag: none above it, nothing to apply"
+	elif [ -n "$bad" ]; then
+		no "update patches from $tag:$bad"
+	else
+		ok "update patches from $tag: $n apply alone and in order, and end at the shipped file"
+	fi
+}
+
 # THE BOUNDARY: this verifies, it never repairs. See the header of include/update.sh.
 # Structure of the update manifests, not their effect: types, ids, the `after` graph and the
 # reversibility claim. It says how many entries it read, because until the first release ships a
@@ -710,6 +761,7 @@ check_manifest_status_link
 check_update_manifests
 check_update_entries_follow_changes
 check_update_patches_reverse
+check_update_patches_from_tag
 check_update_dispatcher
 check_source_conf_guard
 check_protected_names_effective

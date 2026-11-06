@@ -39,6 +39,7 @@ if (($v_spam_score ?? "") === "") {
 			letsEncryptEnabled: <?= tohtml($v_letsencrypt == "yes" ? "true" : "false") ?>,
 			hasSmtpRelay: <?= tohtml($v_smtp_relay == "true" ? "true" : "false") ?>,
 			spamFilterEnabled: <?= tohtml($v_antispam == "yes" ? "true" : "false") ?>,
+			dkimEnabled: <?= tohtml($v_dkim == "yes" ? "true" : "false") ?>,
 			spamSensitivity: '<?= tohtml($v_spam_sensitivity ?? "default") ?>'
 		}"
 		id="main-form"
@@ -180,12 +181,28 @@ if (($v_spam_score ?? "") === "") {
 				</div>
 			<?php } ?>
 			<div class="form-check u-mb10">
-				<input class="form-check-input" type="checkbox" name="v_dkim" id="v_dkim" <?php if ($v_dkim == 'yes') {
+				<input x-model="dkimEnabled" class="form-check-input" type="checkbox" name="v_dkim" id="v_dkim" <?php if ($v_dkim == 'yes') {
 					echo 'checked';
 				} ?>>
 				<label for="v_dkim">
 					<?= tohtml(_("DKIM Support")) ?>
 				</label>
+				<?php
+				$dkim_dns_marks = [
+					"ok" => ["fa-circle-check icon-green", _("The DKIM record in DNS carries this key.")],
+					"missing" => ["fa-triangle-exclamation icon-orange", sprintf(_("No DKIM record at %s. Signed mail fails DKIM until it is published."), $v_dkim_dns_record ?? "")],
+					"mismatch" => ["fa-triangle-exclamation icon-orange", sprintf(_("The DKIM record at %s carries a different key. Signed mail fails DKIM until it is updated."), $v_dkim_dns_record ?? "")],
+					"unchecked" => ["fa-circle-question icon-dim", _("DNS not checked: the lookup gave no answer.")],
+				];
+				if (isset($v_dkim_dns_status, $dkim_dns_marks[$v_dkim_dns_status])) {
+					[$mark_icon, $mark_title] = $dkim_dns_marks[$v_dkim_dns_status]; ?>
+					<i class="fas <?= tohtml($mark_icon) ?> u-ml5" title="<?= tohtml($mark_title) ?>"></i>
+				<?php } ?>
+			</div>
+			<div x-cloak x-show="dkimEnabled" class="u-pl30 u-mb10">
+				<label for="v_dkim_selector" class="form-label"><?= tohtml(_("DKIM Selector")) ?></label>
+				<input type="text" class="form-control" name="v_dkim_selector" id="v_dkim_selector" maxlength="63" value="<?= tohtml($v_dkim_selector ?? "mail") ?>">
+				<small class="hint"><?= tohtml(_("Changing the selector keeps the key. Publish the TXT record under the new name first, or DKIM fails until it is there.")) ?></small>
 			</div>
 			<div class="form-check u-mb10">
 				<input x-model="sslEnabled" class="form-check-input" type="checkbox" name="v_ssl" id="v_ssl">

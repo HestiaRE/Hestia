@@ -57,6 +57,10 @@ if (!empty($_POST["ok"])) {
 	} else {
 		$v_dkim = "no";
 	}
+	$v_dkim_selector = trim($_POST["v_dkim_selector"] ?? "");
+	if ($v_dkim_selector === "" || $v_dkim === "no") {
+		$v_dkim_selector = "mail";
+	}
 
 	$v_domain = preg_replace("/^www\./i", "", $_POST["v_domain"]);
 	$v_domain = quoteshellarg($v_domain);
@@ -74,7 +78,9 @@ if (!empty($_POST["ok"])) {
 				" " .
 				$v_antivirus .
 				" " .
-				$v_dkim,
+				$v_dkim .
+				" 2048 '' no " .
+				quoteshellarg($v_dkim_selector),
 			$output,
 			$return_var,
 		);

@@ -1748,6 +1748,10 @@ msgid "Anti-Virus"
 msgstr ""
 
 #: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
+msgid "DKIM Selector"
+msgstr ""
+
+#: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
 msgid "DKIM Support"
 msgstr ""
 
@@ -1770,6 +1774,10 @@ msgstr ""
 #: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
 #: web/templates/pages/edit_server.php web/templates/pages/list_mail.php
 msgid "Spam Filter"
+msgstr ""
+
+#: web/templates/pages/add_mail.php
+msgid "The key is published as a TXT record under <selector>._domainkey."
 msgstr ""
 
 #: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
@@ -2008,7 +2016,15 @@ msgid "Catch-All Email"
 msgstr ""
 
 #: web/templates/pages/edit_mail.php
+msgid "Changing the selector keeps the key. Publish the TXT record under the new name first, or DKIM fails until it is there."
+msgstr ""
+
+#: web/templates/pages/edit_mail.php
 msgid "Custom threshold"
+msgstr ""
+
+#: web/templates/pages/edit_mail.php
+msgid "DNS not checked: the lookup gave no answer."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php web/templates/pages/list_mail.php
@@ -2055,6 +2071,11 @@ msgstr ""
 
 #: web/templates/pages/edit_mail.php
 msgid "Never treated as spam. One sender per line: user@example.com, *@example.com, example.com or *.example.com."
+msgstr ""
+
+#: web/templates/pages/edit_mail.php
+#, php-format
+msgid "No DKIM record at %s. Signed mail fails DKIM until it is published."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php
@@ -2129,6 +2150,15 @@ msgstr ""
 #: web/templates/pages/edit_mail.php web/templates/pages/edit_server.php
 #: web/templates/pages/edit_web.php
 msgid "Strict"
+msgstr ""
+
+#: web/templates/pages/edit_mail.php
+#, php-format
+msgid "The DKIM record at %s carries a different key. Signed mail fails DKIM until it is updated."
+msgstr ""
+
+#: web/templates/pages/edit_mail.php
+msgid "The DKIM record in DNS carries this key."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php

@@ -21,7 +21,8 @@
 
 	<form
 		x-data="{
-			hasSmtpRelay: <?= tohtml($v_smtp_relay == "true" ? "true" : "false") ?>
+			hasSmtpRelay: <?= tohtml($v_smtp_relay == "true" ? "true" : "false") ?>,
+			dkimEnabled: <?= tohtml(empty($v_dkim) || $v_dkim == "yes" ? "true" : "false") ?>
 		}"
 		id="main-form"
 		name="v_add_mail"
@@ -103,12 +104,17 @@
 					</div>
 				<?php } ?>
 				<div class="form-check u-mb10">
-					<input class="form-check-input" type="checkbox" name="v_dkim" id="v_dkim" <?php if (empty($v_dkim) || $v_dkim == "yes") {
+					<input x-model="dkimEnabled" class="form-check-input" type="checkbox" name="v_dkim" id="v_dkim" <?php if (empty($v_dkim) || $v_dkim == "yes") {
 						echo "checked";
 					} ?>>
 					<label for="v_dkim">
 						<?= tohtml(_("DKIM Support")) ?>
 					</label>
+				</div>
+				<div x-cloak x-show="dkimEnabled" class="u-pl30 u-mb10">
+					<label for="v_dkim_selector" class="form-label"><?= tohtml(_("DKIM Selector")) ?></label>
+					<input type="text" class="form-control" name="v_dkim_selector" id="v_dkim_selector" maxlength="63" value="<?= tohtml($v_dkim_selector ?? "mail") ?>">
+					<small class="hint"><?= tohtml(_("The key is published as a TXT record under <selector>._domainkey.")) ?></small>
 				</div>
 				<div class="form-check u-mb10">
 					<input x-model="hasSmtpRelay" class="form-check-input" type="checkbox" name="v_smtp_relay" id="v_smtp_relay">

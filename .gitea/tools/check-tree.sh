@@ -262,10 +262,32 @@ check_update_entries_follow_changes() {
 	fi
 }
 
+# Applies or checks PATCH on FILE the way the updater does: patch(1) with -F0 searches forward from the previous hunk
+# only. git apply also searches backwards and passes a hunk the updater rejects, so it is a fallback the result line
+# names, not an equal. Args: FILE PATCH check|apply [-R]
+_tree_patch() {
+	local f=$1 pf=$2 mode=$3 rev=${4:-} name
+	local -a opt=()
+	if command -v patch > /dev/null 2>&1; then
+		[ "$mode" = check ] && opt+=(--dry-run)
+		[ -n "$rev" ] && opt+=(-R)
+		patch "${opt[@]}" -F0 -s --no-backup-if-mismatch "$f" < "$pf" > /dev/null 2>&1
+		return
+	fi
+	name=$(sed -n 's/^+++ \([^[:space:]]*\).*/\1/p' "$pf" | head -1)
+	[ -n "$name" ] && [ "$(basename "$f")" = "$name" ] || return 1
+	[ "$mode" = check ] && opt+=(--check)
+	[ -n "$rev" ] && opt+=(-R)
+	(cd "$(dirname "$f")" && git apply -p0 "${opt[@]}" < "$pf") > /dev/null 2>&1
+}
+_tree_patch_tool() {
+	if command -v patch > /dev/null 2>&1; then echo "patch(1)"; else echo "git apply, more lenient than the updater"; fi
+}
+
 # file_patch_pending tells applied from pending by the patch's reverse, so on a box installed from this tree the reverse
 # must apply to the shipped file, or the entry answers rc 2 there. The shipped file is every file under share/ named like
-# the target; none, or none that takes the reverse, fails. git apply, not patch(1): the runner has git. Not covered: the
-# manifests at or below the update bound, which no box reads.
+# the target; none, or none that takes the reverse, fails. Not covered: the manifests at or below the update bound,
+# which no box reads.
 check_update_patches_reverse() {
 	local lib="$HESTIA/include/update.sh" src tgt name cand tmp n=0 hit bad=''
 	tmp=$(mktemp -d) || return
@@ -277,7 +299,7 @@ check_update_patches_reverse() {
 		while IFS= read -r cand; do
 			[ -n "$cand" ] && [ -n "$name" ] || continue
 			cp "$cand" "$tmp/$name"
-			(cd "$tmp" && git apply -p0 -R --check < "$HESTIA/$src") > /dev/null 2>&1 && hit=1 && break
+			_tree_patch "$tmp/$name" "$HESTIA/$src" check -R && hit=1 && break
 		done < <(find share -path share/updates -prune -o -type f -name "$(basename "$tgt")" -print)
 		[ -n "$hit" ] || bad="$bad $src"
 	done < <(
@@ -292,7 +314,7 @@ check_update_patches_reverse() {
 	elif [ -n "$bad" ]; then
 		no "update patches whose reverse does not apply to the shipped file:$bad" "the entry would answer rc 2 on a fresh box"
 	else
-		ok "update patches: $n in scope, each reverse applies to the shipped file"
+		ok "update patches: $n in scope, each reverse applies to the shipped file ($(_tree_patch_tool))"
 	fi
 }
 
@@ -301,11 +323,12 @@ check_update_patches_reverse() {
 # spot), and all of them in manifest order turn it into the shipped file, byte for byte. Not covered: an order the
 # manifest's `after` graph would change, and targets the tag did not ship.
 check_update_patches_from_tag() {
-	local tag m v src tgt name cand rel tmp n=0 bad='' base
+	local tag m v src tgt name cand tmp n=0 bad='' f
 	local -a later=()
+	local -A seq=()
 	tag=$(git tag -l 'v*' 2> /dev/null | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
 	if [ -z "$tag" ]; then
-		no "update patches from the last release: no public release tag in this checkout" "nothing to compare, the clone needs the tags"
+		no "update patches from the last release: no public release tag in this checkout" "the clone needs the tags"
 		return
 	fi
 	for m in share/updates/*.json; do
@@ -314,28 +337,26 @@ check_update_patches_from_tag() {
 		[ "$v" != "${tag#v}" ] && [ "$(printf '%s\n%s\n' "${tag#v}" "$v" | sort -V | tail -1)" = "$v" ] && later+=("$m")
 	done
 	tmp=$(mktemp -d) || return
-	declare -A seq=()
 	while IFS=$'\t' read -r src tgt; do
 		[ -n "$src" ] || continue
 		n=$((n + 1))
 		name=$(sed -n 's/^+++ \([^[:space:]]*\).*/\1/p' "$src" | head -1)
 		cand=$(find share -path share/updates -prune -o -type f -name "$(basename "$tgt")" -print | head -1)
-		rel=$cand
-		if [ -z "$name" ] || [ -z "$cand" ] || ! git show "$tag:$rel" > "$tmp/base" 2> /dev/null; then
+		mkdir -p "$tmp/alone"
+		if [ -z "$name" ] || [ -z "$cand" ] || ! git show "$tag:$cand" > "$tmp/alone/$name" 2> /dev/null; then
 			bad="$bad $src(no file at $tag)"
 			continue
 		fi
-		mkdir -p "$tmp/alone" && cp "$tmp/base" "$tmp/alone/$name"
-		(cd "$tmp/alone" && git apply -p0 --check < "$HESTIA/$src") > /dev/null 2>&1 || bad="$bad $src(alone)"
-		[ -n "${seq[$rel]:-}" ] || {
-			mkdir -p "$tmp/seq/$n" && cp "$tmp/base" "$tmp/seq/$n/$name"
-			seq[$rel]="$tmp/seq/$n/$name"
-		}
-		(cd "$(dirname "${seq[$rel]}")" && git apply -p0 < "$HESTIA/$src") > /dev/null 2>&1 || bad="$bad $src(in order)"
+		_tree_patch "$tmp/alone/$name" "$HESTIA/$src" check || bad="$bad $src(alone)"
+		if [ -z "${seq[$cand]:-}" ]; then
+			mkdir -p "$tmp/seq/$n" && cp "$tmp/alone/$name" "$tmp/seq/$n/$name"
+			seq[$cand]="$tmp/seq/$n/$name"
+		fi
+		_tree_patch "${seq[$cand]}" "$HESTIA/$src" apply || bad="$bad $src(in order)"
 	done < <([ "${#later[@]}" -gt 0 ] && jq -r '.entries[] | .conditions[]? | select(.type == "file_patch_pending")
 		| [.source // "", .target // ""] | @tsv' "${later[@]}")
-	for base in "${!seq[@]}"; do
-		cmp -s "${seq[$base]}" "$base" || bad="$bad $base(differs from the shipped file after all patches)"
+	for f in "${!seq[@]}"; do
+		cmp -s "${seq[$f]}" "$f" || bad="$bad $f(differs from the shipped file after all patches)"
 	done
 	rm -rf "$tmp"
 	if [ "$n" -eq 0 ]; then
@@ -343,7 +364,7 @@ check_update_patches_from_tag() {
 	elif [ -n "$bad" ]; then
 		no "update patches from $tag:$bad"
 	else
-		ok "update patches from $tag: $n apply alone and in order, and end at the shipped file"
+		ok "update patches from $tag: $n apply alone and in order, and end at the shipped file ($(_tree_patch_tool))"
 	fi
 }
 

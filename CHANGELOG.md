@@ -24,14 +24,10 @@ the releases of the command audit, into another.
 
 ### Security
 
-- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token again when login data is posted along,
-  which it skipped since 6.0.1. Tachyon no longer lets a sender's own `Authentication-Results` header mark its message
-  as DKIM verified when the receiving server names its own authserv-id, and an IMAP keyword can no longer put markup
-  into the message view. Both reach installed boxes through `0.30.json`.
-- **Webmail showed a sender's own DKIM verdict as verified** (#1288). Without a server-side `Authentication-Results`
-  header Tachyon takes the topmost one as local, and ours wrote none, so a header the sender put in its own message was
-  believed. exim now drops every incoming `Authentication-Results` and adds its own on top for unauthenticated mail;
-  installed boxes get it as a template patch.
+- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token at login again. Tachyon fixes how the
+  message view shows the DKIM result and IMAP keywords. Both reach installed boxes through `0.30.json`.
+- **Webmail could show a DKIM result the sender wrote** (#1288). exim now drops incoming authentication result headers
+  and writes its own for unauthenticated mail; installed boxes get it as a template patch.
 
 ### Fixed
 

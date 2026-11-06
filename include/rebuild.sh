@@ -238,6 +238,7 @@ rebuild_web_domain_conf() {
 	# Before the old config goes: a refused domain keeps serving what it had.
 	if ! web_dir_trusted "$user" "$domain"; then
 		echo "Error: $HOMEDIR/$user/web/$domain is a link or ~/web is not root's, nothing rebuilt" >&2
+		web_config_skipped=$((${web_config_skipped:-0} + 1))
 		return 1
 	fi
 	is_ip_valid $IP

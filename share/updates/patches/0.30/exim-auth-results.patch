@@ -1,0 +1,21 @@
+--- exim4.conf.template
++++ exim4.conf.template
+@@ -157,6 +157,8 @@
+ 
+ 
+ acl_check_rcpt:
++  # Webmail believes the topmost Authentication-Results, so only the one our DATA ACL adds may reach a mailbox.
++  warn    remove_header = Authentication-Results
+ .ifdef RSPAMD
+   # Only our own scan speaks through X-Spam-*. A foreign X-Spam-Status in front of ours hid it from every ^Yes test
+   # (spam folder, subject tag, autoreply): "No" kept spam in the inbox, "Yes" moved ham out. Removed here, before
+@@ -254,6 +256,9 @@
+ 
+ 
+ acl_check_data:
++  warn   !authenticated = *
++         add_header     = :at_start:${authresults{$primary_hostname}}
++
+ .ifdef CLAMD
+   deny   message        = Message contains a virus ($malware_name) and has been rejected
+          malware        = */defer_ok

@@ -21,6 +21,17 @@
       "action": { "type": "file_copy", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" },
       "paths": ["/usr/share/adminer/index.php"],
       "reversible": true
+    },
+    {
+      "id": "exim-auth-results",
+      "description": "Incoming Authentication-Results headers are dropped and exim adds its own on top, so webmail no longer shows a sender's own DKIM verdict as verified; patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.30/exim-auth-results.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_auth_results_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
     }
   ]
 }

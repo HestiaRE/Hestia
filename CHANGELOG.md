@@ -28,6 +28,10 @@ the releases of the command audit, into another.
   which it skipped since 6.0.1. Tachyon no longer lets a sender's own `Authentication-Results` header mark its message
   as DKIM verified when the receiving server names its own authserv-id, and an IMAP keyword can no longer put markup
   into the message view. Both reach installed boxes through `0.30.json`.
+- **Webmail showed a sender's own DKIM verdict as verified** (#1288). Without a server-side `Authentication-Results`
+  header Tachyon takes the topmost one as local, and ours wrote none, so a header the sender put in its own message was
+  believed. exim now drops every incoming `Authentication-Results` and adds its own on top for unauthenticated mail;
+  installed boxes get it as a template patch.
 
 ### Fixed
 

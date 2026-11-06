@@ -262,6 +262,40 @@ check_update_entries_follow_changes() {
 	fi
 }
 
+# file_patch_pending tells applied from pending by the patch's reverse, so on a box installed from this tree the reverse
+# must apply to the shipped file, or the entry answers rc 2 there. The shipped file is every file under share/ named like
+# the target; none, or none that takes the reverse, fails. git apply, not patch(1): the runner has git. Not covered: the
+# manifests at or below the update bound, which no box reads.
+check_update_patches_reverse() {
+	local lib="$HESTIA/include/update.sh" src tgt name cand tmp n=0 hit bad=''
+	tmp=$(mktemp -d) || return
+	while IFS=$'\t' read -r src tgt; do
+		[ -n "$src" ] || continue
+		n=$((n + 1))
+		name=$(sed -n 's/^+++ \([^[:space:]]*\).*/\1/p' "$src" | head -1)
+		hit=''
+		while IFS= read -r cand; do
+			[ -n "$cand" ] && [ -n "$name" ] || continue
+			cp "$cand" "$tmp/$name"
+			(cd "$tmp" && git apply -p0 -R --check < "$HESTIA/$src") > /dev/null 2>&1 && hit=1 && break
+		done < <(find share -path share/updates -prune -o -type f -name "$(basename "$tgt")" -print)
+		[ -n "$hit" ] || bad="$bad $src"
+	done < <(
+		# shellcheck source=/usr/local/hestia/include/update.sh
+		source "$lib" > /dev/null 2>&1
+		upd_manifest_files "$UPD_VERSION_MAX" 2> /dev/null | xargs -r jq -r \
+			'.. | objects | select(.type == "file_patch_pending") | [.source // "", .target // ""] | @tsv'
+	)
+	rm -rf "$tmp"
+	if [ "$n" -eq 0 ]; then
+		no "update patches: no file_patch_pending entry in scope" "the derivation found nothing, so nothing was checked"
+	elif [ -n "$bad" ]; then
+		no "update patches whose reverse does not apply to the shipped file:$bad" "the entry would answer rc 2 on a fresh box"
+	else
+		ok "update patches: $n in scope, each reverse applies to the shipped file"
+	fi
+}
+
 # THE BOUNDARY: this verifies, it never repairs. See the header of include/update.sh.
 # Structure of the update manifests, not their effect: types, ids, the `after` graph and the
 # reversibility claim. It says how many entries it read, because until the first release ships a
@@ -675,6 +709,7 @@ check_sys_key_registry
 check_manifest_status_link
 check_update_manifests
 check_update_entries_follow_changes
+check_update_patches_reverse
 check_update_dispatcher
 check_source_conf_guard
 check_protected_names_effective

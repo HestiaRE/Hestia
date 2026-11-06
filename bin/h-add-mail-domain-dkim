@@ -1,14 +1,16 @@
 #!/bin/bash
 # info: add mail domain dkim support
-# options: USER DOMAIN [DKIM_SIZE]
+# options: USER DOMAIN [DKIM_SIZE] [DKIM_SELECTOR]
 #
 # example: h-add-mail-domain-dkim admin acme.com
 #
-# Signs the domain's outgoing mail with a new DKIM key of DKIM_SIZE bits (1024, 2048, 4096; default 2048).
+# Signs the domain's outgoing mail with a new DKIM key of DKIM_SIZE bits (1024, 2048, 4096; default 2048),
+# published under DKIM_SELECTOR (default mail).
 
 user=$1
 domain=$2
 dkim_size=${3-2048}
+dkim_selector=${4:-mail}
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -27,8 +29,8 @@ fi
 format_domain
 format_domain_idn
 
-check_args '2' "$#" 'USER DOMAIN [DKIM_SIZE]'
-is_format_valid 'user' 'domain' 'dkim_size'
+check_args '2' "$#" 'USER DOMAIN [DKIM_SIZE] [DKIM_SELECTOR]'
+is_format_valid 'user' 'domain' 'dkim_size' 'dkim_selector'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
@@ -44,9 +46,12 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	cp $USER_DATA/mail/$domain.pem $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 	chown -h $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 	chmod 660 $HOMEDIR/$user/conf/mail/$domain/dkim.pem
+	mail_dkim_selector_write "$user" "$domain" "$dkim_selector"
 fi
 
 update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM' 'yes'
+add_object_key 'mail' 'DOMAIN' "$domain" 'DKIM_SELECTOR' 'DKIM'
+update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR' "$dkim_selector"
 increase_user_value "$user" '$U_MAIL_DKIM'
 
 $BIN/h-log-action "$user" "Info" "Mail" "DKIM message signing enabled (Domain: $domain)."

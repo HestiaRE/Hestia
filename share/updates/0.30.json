@@ -43,6 +43,17 @@
       "action": { "type": "function_call", "function": "exim_helo_checks_apply" },
       "paths": ["/etc/exim4/exim4.conf.template"],
       "reversible": false
+    },
+    {
+      "id": "exim-dkim-selector",
+      "description": "exim signs with the selector in the domain's selector file and with mail where there is none, so a mail domain can publish its key under its own selector; patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.30/exim-dkim-selector.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_dkim_selector_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
     }
   ]
 }

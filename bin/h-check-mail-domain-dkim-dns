@@ -1,0 +1,71 @@
+#!/bin/bash
+# info: check the published dkim record of a mail domain
+# options: USER DOMAIN [FORMAT]
+#
+# example: h-check-mail-domain-dkim-dns admin mydomain.tld
+#
+# Looks up <selector>._domainkey and compares its key with ours: ok, missing, mismatch, unchecked (no answer in
+# time, or a resolver error) or disabled. One query with a short timeout, so a slow resolver cannot hold the panel.
+
+user=$1
+domain=$2
+format=${3-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+format_domain
+format_domain_idn
+
+check_args '2' "$#" 'USER DOMAIN [FORMAT]'
+is_format_valid 'user' 'domain'
+is_object_valid 'user' 'USER' "$user"
+is_object_valid 'mail' 'DOMAIN' "$domain"
+
+selector=$(get_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR')
+if [ -z "$selector" ] || ! dkim_selector_ok "$selector"; then
+	selector=mail
+fi
+record="$selector._domainkey.$domain_idn"
+
+dkim_status() {
+	local pub out rc txt p found=''
+	if [ "$(get_object_value 'mail' 'DOMAIN' "$domain" '$DKIM')" != 'yes' ] || [ ! -s "$USER_DATA/mail/$domain.pub" ]; then
+		echo disabled
+		return
+	fi
+	pub=$(grep -v -- '-----' "$USER_DATA/mail/$domain.pub" | tr -d '\n')
+	out=$(timeout 3 dig +time=2 +tries=1 +noall +comments +answer TXT "$record" 2> /dev/null)
+	rc=$?
+	# NXDOMAIN is an answer; SERVFAIL, REFUSED or no reply are not, and must not read as a missing record.
+	if [ "$rc" -ne 0 ] || ! grep -qE 'status: (NOERROR|NXDOMAIN)' <<< "$out"; then
+		echo unchecked
+		return
+	fi
+	while IFS= read -r txt; do
+		[ -n "$txt" ] || continue
+		found=1
+		# The record arrives as quoted strings of up to 255 bytes each; joined they are one tag list.
+		txt=$(sed -e 's/^[^"]*"//' -e 's/"$//' -e 's/" "//g' <<< "$txt")
+		p=$(sed -n -e 's/^\(.*;\)\{0,1\}[[:space:]]*p=\([^;]*\).*/\2/p' <<< "$txt" | tr -d ' \t')
+		if [ "$p" = "$pub" ]; then
+			echo ok
+			return
+		fi
+	done < <(awk '$4 == "TXT"' <<< "$out")
+	if [ -n "$found" ]; then echo mismatch; else echo missing; fi
+}
+
+status=$(dkim_status)
+
+case $format in
+	json) printf '{\n\t"%s": {\n\t\t"RECORD": "%s",\n\t\t"STATUS": "%s"\n\t}\n}\n' "$domain" "$record" "$status" ;;
+	plain) printf '%s\t%s\n' "$record" "$status" ;;
+	shell) printf 'RECORD: %s\nSTATUS: %s\n' "$record" "$status" ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

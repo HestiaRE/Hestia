@@ -1,0 +1,48 @@
+#!/bin/bash
+# info: change mail domain dkim selector
+# options: USER DOMAIN DKIM_SELECTOR
+#
+# example: h-change-mail-domain-dkim-selector admin mydomain.tld mail2026
+#
+# Signs with the same key under another selector. DKIM fails until the TXT record is published under the new name.
+
+user=$1
+domain=$2
+dkim_selector=$3
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/domain.sh
+source $HESTIA/include/domain.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+if [ "$MAIL_SYSTEM" = 'exim4' ]; then
+	MAIL_USER=Debian-exim
+else
+	MAIL_USER=exim
+fi
+
+format_domain
+
+check_args '3' "$#" 'USER DOMAIN DKIM_SELECTOR'
+is_format_valid 'user' 'domain' 'dkim_selector'
+is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
+is_object_valid 'user' 'USER' "$user"
+is_object_unsuspended 'user' 'USER' "$user"
+is_object_valid 'mail' 'DOMAIN' "$domain"
+is_object_unsuspended 'mail' 'DOMAIN' "$domain"
+is_object_value_exist 'mail' 'DOMAIN' "$domain" '$DKIM'
+
+if [[ "$MAIL_SYSTEM" =~ exim ]]; then
+	mail_dkim_selector_write "$user" "$domain" "$dkim_selector" || check_result "$E_DISK" "cannot write the selector of $domain"
+fi
+
+add_object_key 'mail' 'DOMAIN' "$domain" 'DKIM_SELECTOR' 'DKIM'
+update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR' "$dkim_selector"
+
+$BIN/h-log-action "$user" "Info" "Mail" "DKIM selector changed (Domain: $domain, Selector: $dkim_selector)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

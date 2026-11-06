@@ -906,6 +906,11 @@ exim_helo_checks_apply() {
 	exim_template_patch 0.30/exim-helo-checks.patch
 }
 
+# exim takes the DKIM selector from the domain's selector file, mail without one.
+exim_dkim_selector_apply() {
+	exim_template_patch 0.30/exim-dkim-selector.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

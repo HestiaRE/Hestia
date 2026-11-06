@@ -1295,6 +1295,14 @@ mail_dkim_keys_write() { # DOMAIN SIZE
 	return 1
 }
 
+# The file exim reads the selector from, in the lsearch form HestiaCP writes. No selector removes it, exim then signs as mail.
+mail_dkim_selector_write() { # USER DOMAIN [SELECTOR]
+	local f="$HOMEDIR/$1/conf/mail/$2/selector"
+	rm -f "$f"
+	[ -n "$3" ] || return 0
+	printf 'selector:%s\n' "$3" > "$f" && chown -h "$MAIL_USER:mail" "$f" && chmod 660 "$f"
+}
+
 del_mail_ssl_certificates() {
 	rm -f $USER_DATA/ssl/mail.$domain.ca
 	rm -f $USER_DATA/ssl/mail.$domain.crt

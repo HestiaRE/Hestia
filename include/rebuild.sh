@@ -582,7 +582,7 @@ rebuild_mail_domain_conf() {
 	# get_domain_values leaves keys absent on a domain's line untouched, so a
 	# value parsed for a previous domain in the rebuild loop would leak over
 	unset -v U_SMTP_RELAY_EXCLUDE U_SPAM_SCORE U_SPAM_REJECT_SCORE U_SPAM_SUBJECT_TAG \
-		U_SPAM_WHITELIST U_SPAM_BLACKLIST
+		U_SPAM_WHITELIST U_SPAM_BLACKLIST DKIM_SELECTOR
 	get_domain_values 'mail'
 	if [[ "$domain" = *[![:ascii:]]* ]]; then
 		domain_idn=$(idn2 --quiet $domain)
@@ -684,6 +684,15 @@ rebuild_mail_domain_conf() {
 			rm -f $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 			cp $USER_DATA/mail/$domain.pem \
 				$HOMEDIR/$user/conf/mail/$domain/dkim.pem
+			# The record may come from a backup; a selector that is no DNS label signs as mail instead of reaching exim.
+			if [ -n "$DKIM_SELECTOR" ] && ! dkim_selector_ok "$DKIM_SELECTOR"; then
+				echo "Warning: $domain has an invalid DKIM_SELECTOR, signing as mail" >&2
+				mail_dkim_selector_write "$user" "$domain"
+			else
+				mail_dkim_selector_write "$user" "$domain" "$DKIM_SELECTOR"
+			fi
+		else
+			mail_dkim_selector_write "$user" "$domain"
 		fi
 
 		# Rebuild SMTP Relay configuration

@@ -235,6 +235,11 @@ rebuild_web_domain_conf() {
 
 	syshealth_repair_web_config
 	get_domain_values 'web'
+	# Before the old config goes: a refused domain keeps serving what it had.
+	if ! web_dir_trusted "$user" "$domain"; then
+		echo "Error: $HOMEDIR/$user/web/$domain is a link or ~/web is not root's, nothing rebuilt" >&2
+		return 1
+	fi
 	is_ip_valid $IP
 	# v6 is SOFT here: empty IP6 adopts the default (auto-assign reaches existing domains
 	# through rebuild), a vanished object renders without v6 plus a warning - no abort.

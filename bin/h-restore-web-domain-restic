@@ -274,6 +274,8 @@ for domain in "${domains[@]}"; do
 		done
 
 		rebuild_web_domain_conf
+		web_dir_trusted "$user" "$domain" \
+			|| check_result "$E_FORBIDEN" "$HOMEDIR/$user/web/$domain: a link, or ~/web is not root's; not restored"
 
 		# As the customer, from /: same wipe as h-restore-user.
 		if [ -d "$HOMEDIR/$user/web/$domain/public_html" ]; then
@@ -281,7 +283,8 @@ for domain in "${domains[@]}"; do
 				-exec rm -rf {} +)
 		fi
 
-		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"
+		[ -d "$HOMEDIR/$user/web/$domain/stats" ] && [ ! -L "$HOMEDIR/$user/web/$domain/stats" ] \
+			&& chmod u+w "$HOMEDIR/$user/web/$domain/stats"
 
 		# restic will not write over an existing symlink, and the rebuild just created the log links.
 		find "$HOMEDIR/$user/web/$domain/logs" -maxdepth 1 -type l -delete 2> /dev/null

@@ -1506,6 +1506,14 @@ mail_dir_trusted() {
 	[ -z "$2" ] || { [ ! -L "$m/$2" ] && [ -d "$m/$2" ]; }
 }
 
+# web_dir_trusted USER DOMAIN: root may chmod and chown below ~/web/DOMAIN, the same question as mail_dir_trusted.
+# The domain directory may be missing, it is created after this. Does not cover a swap after the check.
+web_dir_trusted() {
+	local w="$HOMEDIR/$1/web"
+	[ ! -L "$w" ] && [ -d "$w" ] && [ "$(stat -c %u "$w")" = 0 ] || return 1
+	[ ! -L "$w/$2" ]
+}
+
 # exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.
 # Without ACCOUNT it clears every mailbox of the domain. The names are exim's, see the userautoreply transport.
 mail_autoreply_once_clear() { # DOMAIN_IDN [ACCOUNT]

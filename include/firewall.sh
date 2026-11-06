@@ -18,6 +18,8 @@ FW_RULESET="/etc/hestia/firewall/ruleset.nft"
 FW_APPLIED="/etc/hestia/firewall/ruleset.applied.nft"
 FW_WORK=""
 FW_INPUT_POLICY="drop"
+# Comment prefix of a live hand rule; sbin/h-nft writes it, the render and the smoke count it.
+FW_HAND_TAG="h-nft"
 
 # One address pattern for the whole library, so the grep form and the test form cannot drift apart.
 FW_ADDR_RE='^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$'
@@ -88,7 +90,7 @@ fw_batch_render() {
 # `-c -f`, never `-f -c`: that order takes -c as the filename and reports a syntax error against the real path.
 # The boot copy is never applied here, so it passes the same check before it may replace the one that booted.
 fw_batch_apply() {
-	local doc="$FW_WORK/ruleset.nft" boot="$FW_WORK/boot.nft" f
+	local doc="$FW_WORK/ruleset.nft" boot="$FW_WORK/boot.nft" f hand
 	fw_batch_render > "$doc"
 	fw_batch_render boot > "$boot"
 	for f in "$doc" "$boot"; do
@@ -98,11 +100,18 @@ fw_batch_apply() {
 			return 1
 		fi
 	done
+	hand=$(fw_hand_rules)
 	"$FW_NFT" -f "$doc" 2> "$FW_WORK/err" || {
 		echo "firewall: apply failed, ruleset unchanged" >&2
 		sed 's/^/  /' "$FW_WORK/err" >&2
 		return 1
 	}
+	# A vanished hand DROP is the unsafe direction, so the replacement is said rather than done silently.
+	if [ "$hand" -gt 0 ]; then
+		fw_say 4 "the render replaced $hand live hand rule(s) from h-nft"
+		"$HESTIA/bin/h-log-action" system Warning Firewall \
+			"The firewall render replaced $hand live hand rule(s) from h-nft." > /dev/null 2>&1 || true
+	fi
 	fw_persist_file "$boot" "$FW_RULESET"
 	fw_persist_file "$doc" "$FW_APPLIED"
 	return 0
@@ -149,6 +158,11 @@ fw_chain_id() {
 fw_chain_create() { [ "$(fw_chain_id "$1")" = 'input' ] || touch "$FW_WORK/chain.$(fw_chain_id "$1")"; }
 
 # Schema-versioned JSON, not the text rendering, whose layout shifts between nft versions. jq is a prereq.
+# Live rules carrying FW_HAND_TAG; 0 without a table. grep -c prints its 0 itself, so no fallback echo.
+fw_hand_rules() {
+	"$FW_NFT" list table "$FW_FAMILY" "$FW_TABLE" 2> /dev/null | grep -c "comment \"$FW_HAND_TAG" || true
+}
+
 fw_policy_get() {
 	"$FW_NFT" -j list chain "$FW_FAMILY" "$FW_TABLE" "$(fw_chain_id "$1")" 2> /dev/null \
 		| jq -r 'first(.nftables[] | select(.chain) | .chain.policy) // empty' 2> /dev/null \

@@ -84,6 +84,8 @@ timeout_frozen_after = 7d
 DKIM_DOMAIN = ${lc:${domain:$h_from:}}
 DKIM_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/dkim.pem
 DKIM_PRIVATE_KEY = ${if exists{DKIM_FILE}{DKIM_FILE}{0}}
+DKIM_SELECTOR_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/selector
+DKIM_SELECTOR_NAME = ${if exists{DKIM_SELECTOR_FILE}{${lookup{selector}lsearch{DKIM_SELECTOR_FILE}{$value}{mail}}}{mail}}
 
 OUTGOING_IP = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/ip
 # A second FILE so every /ip reader stays untouched; missing = no v6 pin, kernel picks.
@@ -140,23 +142,41 @@ acl_check_mail:
 			message       = HELO required before MAIL
 
 	drop    !authenticated = *
-			message       =  Helo name contains an IP address (HELO was $sender_helo_name) and not is valid
-			condition     = ${if match{$sender_helo_name}{\N((\d{1,3}[.-]\d{1,3}[.-]\d{1,3}[.-]\d{1,3})|([0-9a-f]{8})|([0-9A-F]{8}))\N}{yes}{no}}
-			condition     = ${if match {${lookup dnsdb{>: defer_never,ptr=$sender_host_address}}\}{$sender_helo_name}{no}{yes}}
-			delay         = 45s
-
-	drop    !authenticated = *
 			condition     = ${if isip{$sender_helo_name}}
-			message       = Access denied - Invalid HELO name (See RFC2821 4.1.3)
+			message       = HELO is a bare IP address: $sender_helo_name (see RFC 5321 4.1.3)
+
+	# The PTR comparisons below need a finished lookup; a DNS hiccup asks the sender to retry, not to give up.
+	defer   !authenticated = *
+			condition     = ${if eq{$host_lookup_deferred}{1}}
+			message       = Temporary DNS verification failure
 
 	drop    !authenticated = *
-			condition    = ${if eq{[$interface_address]}{$sender_helo_name}}
-			message       = $interface_address is _my_ address
+			condition     = ${if or{{eq{[$interface_address]}{$sender_helo_name}}{eq{$interface_address}{$sender_helo_name}}}}
+			message       = $interface_address is our address
+
+	# $sender_host_name is the verified PTR: forward-confirmed by exim, so a sender cannot claim it.
+	drop    !authenticated = *
+			condition     = ${if match{$sender_helo_name}{\N\d{1,3}[.-]\d{1,3}[.-]\d{1,3}[.-]\d{1,3}\N}}
+			condition     = ${if eqi{$sender_helo_name}{$sender_host_name}{no}{yes}}
+			message       = HELO contains an IP address and does not match PTR: $sender_helo_name
+
+	# Log only, to see what enforcing would cost before it does.
+	warn    !authenticated = *
+			condition     = ${if eq{$sender_host_name}{}}
+			log_message   = NO_FCRDNS host=$sender_host_address helo=$sender_helo_name
+
+	warn    !authenticated = *
+			condition     = ${if def:sender_host_name}
+			condition     = ${if eqi{$sender_helo_name}{$sender_host_name}{no}{yes}}
+			log_message   = HELO_PTR_MISMATCH helo=$sender_helo_name ptr=$sender_host_name host=$sender_host_address
 
 	accept
 
 
 acl_check_rcpt:
+  # Webmail shows these as the server's verdict on DKIM, spam and viruses. Of them only Authentication-Results is ours.
+  warn    remove_header = Authentication-Results : X-DKIM-Authentication-Results : X-Spamd-Result : X-Bogosity : \
+                          X-Spam-Flag : X-Spam-Info : X-Virus : X-Virus-Status
 .ifdef RSPAMD
   # Only our own scan speaks through X-Spam-*. A foreign X-Spam-Status in front of ours hid it from every ^Yes test
   # (spam folder, subject tag, autoreply): "No" kept spam in the inbox, "Yes" moved ham out. Removed here, before
@@ -254,6 +274,9 @@ acl_check_rcpt:
 
 
 acl_check_data:
+  warn   !authenticated = *
+         add_header     = :at_start:${authresults{$primary_hostname}}
+
 .ifdef CLAMD
   deny   message        = Message contains a virus ($malware_name) and has been rejected
          malware        = */defer_ok
@@ -276,7 +299,13 @@ acl_check_data:
         set acl_m2     = $spam_score_int
 
  warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
+        condition      = ${if >{$acl_m2}{$acl_m4} {no}{yes}}
+        add_header     = X-Spam-Status: No, score=$spam_score required=${eval:$acl_m4/10}.${eval:$acl_m4%10}
+
+  # Spam keeps a bare Yes, the vacation's Sieve test is :is "Yes"; webmail reads its score from X-Spam-Info.
+ warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
         condition      = ${if >{$acl_m2}{$acl_m4} {yes}{no}}
+        add_header     = X-Spam-Info: $spam_score/${eval:$acl_m4/10}.${eval:$acl_m4%10}
         add_header     = X-Spam-Status: Yes
         message        = rspamd detected spam (from $sender_address to $recipients).
 
@@ -564,7 +593,7 @@ smtp_relay_smtp:
   hosts_require_auth = $host_address
   hosts_require_tls = $host_address
   dkim_domain = DKIM_DOMAIN
-  dkim_selector = mail
+  dkim_selector = DKIM_SELECTOR_NAME
   dkim_private_key = DKIM_PRIVATE_KEY
   dkim_canon = relaxed
   dkim_strict = 0
@@ -575,7 +604,7 @@ remote_smtp:
   driver = smtp
   helo_data = ${lookup dnsdb{>: defer_never,ptr=$sending_ip_address}{${listextract{1}{$value}}}{$primary_hostname}}
   dkim_domain = DKIM_DOMAIN
-  dkim_selector = mail
+  dkim_selector = DKIM_SELECTOR_NAME
   dkim_private_key = DKIM_PRIVATE_KEY
   dkim_canon = relaxed
   dkim_strict = 0
@@ -586,7 +615,7 @@ remote_forwarded_smtp:
   driver = smtp
   helo_data = ${lookup dnsdb{>: defer_never,ptr=$sending_ip_address}{${listextract{1}{$value}}}{$primary_hostname}}
   dkim_domain = DKIM_DOMAIN
-  dkim_selector = mail
+  dkim_selector = DKIM_SELECTOR_NAME
   dkim_private_key = DKIM_PRIVATE_KEY
   dkim_canon = relaxed
   dkim_strict = 0

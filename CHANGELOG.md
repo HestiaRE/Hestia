@@ -15,48 +15,77 @@ the releases of the command audit, into another.
 
 _Nothing yet._
 
-## v0.29 (2026-10-25)
+## v0.30 (2026-11-06)
 
-Renumbering a box in one command, IPv6 chosen per web domain and per firewall rule, and a reboot that brings back
-the bans and blocklists of the moment instead of those of the last render.
+The HestiaCP 1.10.6 round, webmail that shows only the server's own verdicts, ECDSA certificates and a DKIM
+selector per mail domain.
 
 ### Added
 
-- **`h-move-sys-ip IP NEW_IP` moves everything on one address to another** (#1265): every web domain, suspended ones
-  included, with its webmail, its mail source addresses and the firewall records. It tries every restart and names
-  the failed ones, and an address no longer on any interface is deleted along with it. Before, each domain had to be
-  moved on its own, and each move failed while any other domain still pointed at the vanished address. The v4 rename
-  of `h-update-sys-ip` takes the same path.
-- **A firewall rule for any source can be limited to IPv4 or IPv6** (#544). A rule for 0.0.0.0/0 always covered
-  both families, so a port could not be opened on v6 alone. Forms and CLI take an IP version, the list names it.
-- **A web domain on a dual-stack box can leave the IPv6 off** (#1266) for DNS without an AAAA on purpose:
-  `h-change-web-domain-ip6 USER DOMAIN none`, or "No IPv6" in the panel. Rebuild, restore and an owner change keep
-  it, mail and webmail follow it. A domain without a v4 cannot drop its v6.
+- **New certificates get an ECDSA P-256 key** (#1247, upstream #5629): Let's Encrypt, self-signed and the panel
+  certificate of a fresh install. `h-add-letsencrypt-domain` and `h-generate-ssl-cert` take the key type with
+  HestiaCP 1.10.6's signature (`ecdsa-256`, `ecdsa-384`, `rsa`), kept as `SSL_KEY_ALGO` in the record. A renewal keeps
+  the type a domain has, so existing domain certificates stay RSA until someone passes another type; a mail-only
+  box's host certificate becomes ECDSA at its next renewal. proftpd logs `expected RSA certificate, found EC` and
+  serves it anyway.
+- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760), with HestiaCP 1.10.6's record key
+  and selector file, so a restore keeps it on both sides. The panel sets and changes it and keeps the key, so DNS has
+  to follow; the edit page looks up `<selector>._domainkey` and marks DKIM orange when the record is missing or
+  carries another key.
+- **`h-nft` changes the live firewall by hand, the way `iptables` did** (#1273): list with handles, insert, append
+  and delete rules, set the INPUT policy. Nothing is kept; a render, a restart of `hestia-nftables` or a reboot
+  restores the configured state, and the smoke check fails while hand rules are loaded. Root only.
+- **Webmail shows the spam score of every scanned mail** (#1295): `X-Spam-Status: No, score=... required=...` under
+  the threshold, the bare `Yes` plus `X-Spam-Info` above it.
+
+### Security
+
+- **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim drops incoming authentication
+  result and verdict headers and writes its own for unauthenticated mail.
+- **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). A domain whose web or mail
+  directory is not root's own is refused, and its served config stays as it was.
+- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token at login again; Tachyon fixes how the
+  message view shows the DKIM result and IMAP keywords.
+
+Installed boxes get the exim changes as template patches and the new versions through the update.
 
 ### Fixed
 
-- **A reboot brought back lifted bans and outdated CrowdSec decisions and blocklists** (#1260/#1263). The boot
-  ruleset carried these sets as of the last render: a lifted ban was enforced again out of reach of any unban, a
-  ban set since was missing, a cleared false positive was blocked again until the feeder ran. The sets now boot
-  empty and hestia-nftables fills them from banlist.conf and the feeders' cache files before the network comes up.
-- **An unban fail2ban runs itself hung for a minute** (#1259, upstream #5699): every stop and reboot with an
-  active ban, and a panel mail password change while a device of that network was banned. A panel unban of a
-  panel-login ban never reached fail2ban either, which set it again at its next start.
-- **Deleting a customer, a web domain or a mail domain failed while the web server would not restart**
-  (#1265/#1275), the normal state in the middle of an IP change. Records and files were gone, the steps after the
-  restart skipped, and `h-delete-user` stopped before mail, databases and the account. A restart failure after a
-  delete is now a warning in the system log and to the admin. Deleting an IP also moves the webmail of mail domains
-  that only defaulted to it, which kept the web server from starting.
-- **Moving a web domain to another customer broke off halfway** (#1270), and behind NAT a second time at the IP
-  counters. Domain, SSL, mail and webmail now arrive in one go, and an address the new owner can use stays.
-- **Changing a web domain's IP left its mail source address and webmail vhost behind** (#1274) on the CLI, and the
-  vhost broke every web server restart once the address was gone.
-- **The mail DNS page listed the customer's first addresses** (#1279) instead of those the domain sends from, so a
-  domain on another address got the wrong A row and SPF entry.
-- **A MAIL backup exclusion `*:account` excluded nothing** (#1279); it now leaves that account out on every domain,
-  as `*:dir` does for WEB.
-- Smaller ones: saving a v6-only web domain in the panel gave it an IPv4 (#1271), a failed web or proxy config test
-  left no system log line (#1277), and a malformed CSRF token crashed Adminer with a 500 (#1279).
+- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862); its PTR lookup expanded to nothing. An
+  IP-like HELO that is not the forward-confirmed PTR is refused now, a deferred lookup answers 4xx, and a missing or
+  mismatching PTR is only logged.
+- **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284): the alias list it passed was
+  a single space, which the validator refused. `h-add-letsencrypt-domain` takes a blank list as empty again.
+- Smaller ones: a suspended customer kept the edit buttons `POLICY_USER_VIEW_SUSPENDED` takes away (#1290, upstream
+  #5835), the cron form ate a command's own quotes (#1290, upstream #5892), and a self-signed certificate for an IDN
+  domain without aliases named it in Unicode in the SAN (#1247, upstream #5814).
+
+## v0.29 (2026-10-25)
+
+Renumbering a box in one command, IPv6 chosen per web domain and per firewall rule, and a reboot that brings back
+the bans and blocklists of the moment.
+
+### Added
+
+- **`h-move-sys-ip IP NEW_IP` moves everything on one address to another** (#1265): web domains, webmail, mail
+  source addresses and firewall records, suspended domains included; before, each domain had to be moved alone.
+- **A firewall rule for any source can be limited to IPv4 or IPv6** (#544).
+- **A web domain on a dual-stack box can leave the IPv6 off** (#1266), `h-change-web-domain-ip6 USER DOMAIN none` or
+  "No IPv6" in the panel; mail and webmail follow it.
+
+### Fixed
+
+- **A reboot brought back lifted bans and outdated CrowdSec decisions and blocklists** (#1260/#1263). The sets now
+  boot empty and are filled from the current state before the network comes up.
+- **An unban fail2ban runs itself hung for a minute** (#1259, upstream #5699), at every stop or reboot with an
+  active ban; a panel unban of a panel-login ban never reached fail2ban.
+- **Deleting a customer or domain failed while the web server would not restart** (#1265/#1275), the normal state
+  in the middle of an IP change; a restart failure after a delete is a warning now.
+- **Moving a web domain to another customer broke off halfway** (#1270), and changing its IP left mail source
+  address and webmail behind (#1274).
+- Smaller ones: the mail DNS page listed the wrong addresses (#1279), a MAIL exclusion `*:account` excluded nothing
+  (#1279), a v6-only web domain saved in the panel got an IPv4 (#1271), a failed config test left no log line
+  (#1277), and a malformed CSRF token crashed Adminer (#1279).
 
 ## v0.28 (2026-10-23)
 
@@ -66,21 +95,18 @@ after HestiaCP 1.10.5, and backup names, exclusions and selections that mean exa
 ### Added
 
 - **A mailbox can carry a second login name** (#1238) for IMAP, POP3 and SMTP, kept by hand in
-  `/etc/dovecot/login-aliases`; dovecot 2.4 only, no panel, not in any backup.
+  `/etc/dovecot/login-aliases`; dovecot 2.4 only.
 
 ### Security
 
-- **Tachyon 4.4.7, Adminer 6.1.2 and Alpine.js 3.17.5** (#1243). Tachyon 4.4.3 ends the server-side session on
-  logout and closes a backup restore without an admin session. An update brings both to installed boxes.
+- **Tachyon 4.4.7, Adminer 6.1.2 and Alpine.js 3.17.5** (#1243). Tachyon ends the server-side session on logout and
+  closes a backup restore without an admin session.
 
 ### Changed
 
-- **Renaming a web domain takes SSL, FTP accounts, custom document roots, statistics and WordPress along**
-  (#1197) instead of refusing them.
-- **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215) instead of the HestiaCP project's
-  service.
-- **A new web domain's folder and `public_html` start at 751** (#1237/#1246, upstream #5730), where a rebuild
-  leaves them.
+- **Renaming a web domain takes SSL, FTP accounts, document roots, statistics and WordPress along** (#1197).
+- **A box behind NAT learns its public IPv4 from `ip.hestiare.com`** (#1215), and a new web domain's folders start
+  at 751 (#1237/#1246, upstream #5730).
 
 ### Removed
 
@@ -88,13 +114,12 @@ after HestiaCP 1.10.5, and backup names, exclusions and selections that mean exa
 
 ### Fixed
 
-- **Backup names and exclusions** (#1245/#1246, upstream #5754): a name starting with `-` broke the backup or left
-  a mailbox out, an exclusion could leave out more than it named or in restic mode nothing at all, and a restore
-  selecting `a.com` also took `aXcom`.
-- **A web domain `mail.<d>` or `webmail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829);
-  the pair is refused now and the smoke reports an old one.
-- Smaller ones (#1197/#1235/#1246): several rename and IDN edge cases, Let's Encrypt staging, apache-only on
-  Debian 12, and four unescaped panel outputs.
+- **Backup names and exclusions** (#1245/#1246, upstream #5754): a name starting with `-`, an exclusion that left
+  out more or nothing, and a restore selecting `a.com` that also took `aXcom`.
+- **A web domain `mail.<d>` or `webmail.<d>` beside the mail domain `<d>` broke both** (#1246, upstream #5829); the
+  pair is refused now.
+- Smaller ones (#1197/#1235/#1246): rename and IDN edge cases, Let's Encrypt staging, apache-only on Debian 12, and
+  four unescaped panel outputs.
 
 ## v0.24 to v0.27 (2026-10-06 to 2026-10-10)
 

@@ -180,6 +180,10 @@ check_firewall() {
 	local ruleset=/etc/hestia/firewall/ruleset.nft rules="$CONF_DIR/firewall/rules.conf" bad='' pol line n=0
 	pol=$(fw_policy_get INPUT)
 	[ "$pol" = 'DROP' ] || bad="$bad; INPUT policy ${pol:-unreadable}"
+	# The files below never see the live table, so a forgotten h-nft rule shows only here.
+	n=$(fw_hand_rules)
+	[ "$n" -eq 0 ] || bad="$bad; $n live hand rule(s) from h-nft, see h-nft list"
+	n=0
 	if [ ! -f "$ruleset" ]; then
 		bad="$bad; $ruleset missing, a reboot comes up unfiltered"
 	elif ! nft -c -f "$ruleset" > /dev/null 2>&1; then

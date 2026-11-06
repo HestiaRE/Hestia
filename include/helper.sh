@@ -896,6 +896,26 @@ exim_relay_dkim_apply() {
 	exim_template_patch 0.24/exim-relay-dkim.patch
 }
 
+# Only our own Authentication-Results reaches a mailbox, so webmail cannot show a sender's own verdict.
+exim_auth_results_apply() {
+	exim_template_patch 0.30/exim-auth-results.patch
+}
+
+# The HELO checks compare against the verified PTR; the old IP-like rule never fired.
+exim_helo_checks_apply() {
+	exim_template_patch 0.30/exim-helo-checks.patch
+}
+
+# exim takes the DKIM selector from the domain's selector file, mail without one.
+exim_dkim_selector_apply() {
+	exim_template_patch 0.30/exim-dkim-selector.patch
+}
+
+# Every scanned mail says its score and threshold; spam keeps the bare Yes the Sieve vacation tests for.
+exim_spam_status_score_apply() {
+	exim_template_patch 0.30/exim-spam-status-score.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

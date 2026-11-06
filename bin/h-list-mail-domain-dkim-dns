@@ -18,7 +18,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 json_list() {
 	echo '{'
-	echo -e "\n\t\"mail._domainkey\": {"
+	echo -e "\n\t\"$selector._domainkey\": {"
 	echo "            \"TTL\": \"3600\","
 	json_escape pub
 	echo "            \"TXT\": \"'v=DKIM1; k=rsa; p=$pub'\""
@@ -28,17 +28,23 @@ json_list() {
 shell_list() {
 	echo "RECORD            TTL         TYPE      VALUE"
 	echo "------            ---         ----      -----"
-	echo "mail._domainkey   3600   IN   TXT      \"v=DKIM1; k=rsa; p=$pub\""
+	echo "$selector._domainkey   3600   IN   TXT      \"v=DKIM1; k=rsa; p=$pub\""
 }
 
 plain_list() {
-	echo -e "mail._domainkey\t3600\tIN\tTXT\t\"v=DKIM1; k=rsa; p=$pub\""
+	echo -e "$selector._domainkey\t3600\tIN\tTXT\t\"v=DKIM1; k=rsa; p=$pub\""
 }
 
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'
 is_format_valid 'user' 'domain'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
+
+selector=$(get_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR')
+# What exim signs with: the rebuild falls back to mail for a selector that is no DNS label.
+if [ -z "$selector" ] || ! dkim_selector_ok "$selector"; then
+	selector=mail
+fi
 
 if [ -e "$USER_DATA/mail/$domain.pub" ]; then
 	pub=$(cat $USER_DATA/mail/$domain.pub | grep -v "KEY-----")

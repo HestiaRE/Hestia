@@ -75,6 +75,7 @@ if (!empty($_POST["ok"])) {
 		check_return_code($return_var, $output);
 		unset($output);
 	}
+	$v_cmd = $_POST["v_cmd"] ?? "";
 
 	// Flush field values on success
 	if (empty($_SESSION["error_msg"])) {

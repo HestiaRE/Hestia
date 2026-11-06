@@ -1,22 +1,28 @@
 #!/bin/bash
 # info: check letsencrypt domain
-# options: USER DOMAIN [ALIASES] [MAIL]
+# options: USER DOMAIN [ALIASES] [MAIL] [KEY_ALGO]
 #
 # example: h-add-letsencrypt-domain admin wonderland.com www.wonderland.com,demo.wonderland.com
 # example: h-add-letsencrypt-domain admin wonderland.com '' yes
+# example: h-add-letsencrypt-domain admin wonderland.com '' '' rsa
 #
 # Issues a Let's Encrypt certificate over HTTP-01 for a web domain, or with MAIL for its mail names.
 # MAIL=host is h-add-letsencrypt-host on mail-only: the hostname, answered by the default server.
+# KEY_ALGO is ecdsa-256, ecdsa-384 or rsa. Without it the domain keeps the one it has, rsa for a certificate issued
+# before the record carried it, and a new one gets ecdsa-256.
 
 user=$1
 domain=$2
 aliases=$3
+# A blank list means none: the panel and HestiaCP-style callers pass ' ', and the validator splits on commas only.
+[[ "$aliases" =~ ^[[:space:]]*$ ]] && aliases=''
 mail=${4// /}
 host=''
 if [ "$mail" = 'host' ]; then
 	host='yes'
 	mail=''
 fi
+key_algo=${5,,}
 
 deleted_redirect=0
 deleted_force_ssl=0
@@ -80,8 +86,8 @@ on_error_exit() {
 
 trap on_error_exit EXIT
 
-check_args '2' "$#" 'USER DOMAIN [ALIASES] [MAIL]'
-is_format_valid 'user' 'domain' 'aliases'
+check_args '2' "$#" 'USER DOMAIN [ALIASES] [MAIL] [KEY_ALGO]'
+is_format_valid 'user' 'domain' 'aliases' 'key_algo'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 if [ -n "$mail" ]; then
@@ -144,6 +150,20 @@ elif [ -z "$host" ]; then
 	fi
 fi
 
+if [ -z "$key_algo" ] && [ -z "$host" ]; then
+	if [ -n "$mail" ]; then
+		key_algo=$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$SSL_KEY_ALGO')
+		had_le=$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$LETSENCRYPT')
+	else
+		key_algo=$SSL_KEY_ALGO
+		had_le=$LETSENCRYPT
+	fi
+	[ -n "$key_algo" ] || [ "$had_le" != 'yes' ] || key_algo=rsa
+fi
+key_algo=${key_algo:-ecdsa-256}
+# A restored record brings its own value.
+is_format_valid 'key_algo'
+
 log_file="/var/log/hestia/LE-${user}-${domain}.log"
 touch "$log_file"
 chmod 600 "$log_file"
@@ -169,6 +189,7 @@ proto="http-01"
 echo -e "
 - aliases: ${aliases}
 - proto: ${proto}
+- key_algo: ${key_algo}
 " >> "$log_file"
 
 if [ "$proto" = "http-01" ]; then
@@ -366,7 +387,7 @@ for auth in $authz; do
 done
 
 ssl_dir=$($BIN/h-generate-ssl-cert "$domain" "info@$domain" "US" "California" \
-	"San Francisco" "Hestia" "IT" "$aliases" | tail -n1 | awk '{print $2}')
+	"San Francisco" "Hestia" "IT" "$aliases" shell "$key_algo" | tail -n1 | awk '{print $2}')
 
 # Step 6: finalize with the CSR
 csr=$(openssl req -in $ssl_dir/$domain.csr -outform DER | encode_base64)
@@ -500,8 +521,10 @@ if [ -z "$mail" ] && [ -z "$host" ]; then
 		add_object_key "web" 'DOMAIN' "$domain" 'LETSENCRYPT' 'FTP_USER'
 		add_object_key "web" 'DOMAIN' "$domain" 'LETSENCRYPT_FAIL_COUNT' 'LETSENCRYPT'
 	fi
+	add_object_key "web" 'DOMAIN' "$domain" 'SSL_KEY_ALGO' 'LETSENCRYPT'
 	update_object_value 'web' 'DOMAIN' "$domain" '$LETSENCRYPT' 'yes'
 	update_object_value 'web' 'DOMAIN' "$domain" '$LETSENCRYPT_FAIL_COUNT' "0"
+	update_object_value 'web' 'DOMAIN' "$domain" '$SSL_KEY_ALGO' "$key_algo"
 
 	if [[ "$domain_forcessl" == 'yes' ]]; then
 		$BIN/h-add-web-domain-ssl-force $user $domain
@@ -517,8 +540,10 @@ elif [ -n "$mail" ]; then
 		add_object_key "mail" 'DOMAIN' "$root_domain" 'LETSENCRYPT'
 		add_object_key "mail" 'DOMAIN' "$root_domain" 'LETSENCRYPT_FAIL_COUNT' 'LETSENCRYPT'
 	fi
+	add_object_key "mail" 'DOMAIN' "$root_domain" 'SSL_KEY_ALGO' 'LETSENCRYPT'
 	update_object_value 'mail' 'DOMAIN' "$root_domain" '$LETSENCRYPT' 'yes'
 	update_object_value 'mail' 'DOMAIN' "$root_domain" '$LETSENCRYPT_FAIL_COUNT' "0"
+	update_object_value 'mail' 'DOMAIN' "$root_domain" '$SSL_KEY_ALGO' "$key_algo"
 fi
 
 if [ -x "$CONF_DIR/hooks/le_post.sh" ]; then

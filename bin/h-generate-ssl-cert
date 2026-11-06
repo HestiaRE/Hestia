@@ -1,10 +1,10 @@
 #!/bin/bash
 # info: generate self signed certificate and CSR request
-# options: DOMAIN EMAIL COUNTRY STATE CITY ORG UNIT [ALIASES] [FORMAT]
+# options: DOMAIN EMAIL COUNTRY STATE CITY ORG UNIT [ALIASES] [FORMAT] [KEY_ALGO]
 #
 # example: h-generate-ssl-cert example.com mail@yahoo.com USA California Monterey ACME.COM IT
 #
-# Generates a self-signed certificate and a CSR.
+# Generates a self-signed certificate and a CSR. KEY_ALGO is ecdsa-256 (default), ecdsa-384 or rsa.
 
 domain=$1
 domain=$(echo "$domain" | sed -e 's/\.*$//g' -e 's/^\.*//g')
@@ -17,6 +17,8 @@ org=$6
 org_unit=$7
 aliases=$8
 format=${9-shell}
+key_algo=${10:-ecdsa-256}
+key_algo=${key_algo,,}
 KEY_SIZE=4096
 DAYS=365
 
@@ -62,9 +64,9 @@ if [[ "$email" = *[![:ascii:]]* ]]; then
 	email="$local"@"$email_domain_idn"
 fi
 
-args_usage='DOMAIN EMAIL COUNTRY STATE CITY ORG UNIT [ALIASES] [FORMAT]'
+args_usage='DOMAIN EMAIL COUNTRY STATE CITY ORG UNIT [ALIASES] [FORMAT] [KEY_ALGO]'
 check_args '7' "$#" "$args_usage"
-is_format_valid 'domain' 'aliases' 'format' 'email'
+is_format_valid 'domain' 'aliases' 'format' 'email' 'key_algo'
 is_common_format_valid "$country" "country"
 is_common_format_spaces_valid "$state" "state"
 is_common_format_spaces_valid "$org" "org"
@@ -83,7 +85,11 @@ fi
 workdir=$(mktemp -d)
 cd $workdir
 
-openssl genrsa "$KEY_SIZE" > "$domain.key" 2> /dev/null
+case "$key_algo" in
+	ecdsa-256) openssl ecparam -name prime256v1 -genkey -noout -out "$domain.key" 2> /dev/null ;;
+	ecdsa-384) openssl ecparam -name secp384r1 -genkey -noout -out "$domain.key" 2> /dev/null ;;
+	*) openssl genrsa "$KEY_SIZE" > "$domain.key" 2> /dev/null ;;
+esac
 
 subj=""
 if [ -n "$email" ]; then
@@ -106,7 +112,7 @@ if [ -z "$aliases" ]; then
 		-key $domain.key \
 		-reqexts SAN \
 		-config <(cat $ssl_conf \
-			<(printf "[SAN]\nsubjectAltName=DNS:$domain")) \
+			<(printf "\n[SAN]\nsubjectAltName=DNS:$domain_idn")) \
 		-out $domain.csr > /dev/null 2>&1
 else
 	for alias in $(echo $domain,$aliases | tr ',' '\n' | sort -u); do
@@ -122,7 +128,7 @@ else
 		-key $domain.key \
 		-reqexts SAN \
 		-config <(cat $ssl_conf \
-			<(printf "[SAN]\nsubjectAltName=$dns_aliases")) \
+			<(printf "\n[SAN]\nsubjectAltName=$dns_aliases")) \
 		-out $domain.csr > /dev/null 2>&1
 fi
 
@@ -131,7 +137,7 @@ if [ -z "$aliases" ]; then
 		-days $DAYS \
 		-in $domain.csr \
 		-signkey $domain.key \
-		-extfile <(printf "[SAN]\nsubjectAltName=DNS:$domain") \
+		-extfile <(printf "[SAN]\nsubjectAltName=DNS:$domain_idn") \
 		-extensions SAN \
 		-out $domain.crt > /dev/null 2>&1
 else

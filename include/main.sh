@@ -2405,6 +2405,11 @@ is_format_valid_shell() {
 	fi
 }
 
+# A DNS label, lowercase as HestiaCP writes it. A test without side effects, for the rebuild that must not abort.
+dkim_selector_ok() {
+	[[ "$1" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]
+}
+
 # Service name validator
 is_service_format_valid() {
 	if ! [[ "$1" =~ ^[[:alnum:]][-._[:alnum:]]{0,64}$ ]]; then
@@ -2416,6 +2421,10 @@ is_hash_format_valid() {
 	if ! [[ "$1" =~ ^[[:alnum:]|\:|\=|_|-]{1,80}$ ]]; then
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
+}
+
+is_key_algo_format_valid() {
+	[[ "$1" =~ ^(rsa|ecdsa-256|ecdsa-384)$ ]] || check_result "$E_INVALID" "invalid key_algo format :: $1"
 }
 
 # Validates by VARIABLE NAME: the name is both the type and the variable read via ${!name}, so a
@@ -2449,6 +2458,7 @@ is_format_valid() {
 				dbuser) is_dbuser_format_valid "$arg" 'dbuser' ;;
 				dkim) is_boolean_format_valid "$arg" 'dkim' ;;
 				dkim_size) [[ "$arg" =~ ^(1024|2048|4096)$ ]] || check_result "$E_INVALID" "invalid dkim_size :: $arg (1024, 2048 or 4096)" ;;
+				dkim_selector) dkim_selector_ok "$arg" || check_result "$E_INVALID" "invalid dkim_selector :: $arg (a-z, 0-9 and inner hyphens, up to 63)" ;;
 				domain) is_domain_format_valid "$arg" ;;
 				dom_alias) is_alias_format_valid "$arg" ;;
 				email) is_email_format_valid "$arg" ;;
@@ -2474,6 +2484,7 @@ is_format_valid() {
 				ip_status) is_ip_status_format_valid "$arg" ;;
 				job) is_int_format_valid "$arg" 'job' ;;
 				key) is_common_format_valid "$arg" "$arg_name" ;;
+				key_algo) is_key_algo_format_valid "$arg" ;;
 				malias) is_localpart_format_valid "$arg" "$arg_name" '64' ;;
 				max_db) is_int_format_valid "$arg" 'max db' ;;
 				min) is_cron_format_valid "$arg" $arg_name ;;

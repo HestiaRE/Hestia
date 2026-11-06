@@ -1,0 +1,16 @@
+--- exim4.conf.template
++++ exim4.conf.template
+@@ -299,7 +299,13 @@
+         set acl_m2     = $spam_score_int
+ 
+  warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
++        condition      = ${if >{$acl_m2}{$acl_m4} {no}{yes}}
++        add_header     = X-Spam-Status: No, score=$spam_score required=${eval:$acl_m4/10}.${eval:$acl_m4%10}
++
++  # Spam keeps a bare Yes, the vacation's Sieve test is :is "Yes"; webmail reads its score from X-Spam-Info.
++ warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
+         condition      = ${if >{$acl_m2}{$acl_m4} {yes}{no}}
++        add_header     = X-Spam-Info: $spam_score/${eval:$acl_m4/10}.${eval:$acl_m4%10}
+         add_header     = X-Spam-Status: Yes
+         message        = rspamd detected spam (from $sender_address to $recipients).
+ 

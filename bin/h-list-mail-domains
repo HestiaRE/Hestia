@@ -76,8 +76,8 @@ plain_list() {
 	IFS=$'\n'
 	while read -r str; do
 		parse_row "$str"
-		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$DOMAIN" "$ANTIVIRUS" "$ANTISPAM" "$DKIM" "$SSL" \
-			"$CATCHALL" "$ACCOUNTS" "$U_DISK" "$SUSPENDED" "$TIME" "$DATE" "$WEBMAIL_ALIAS" "$WEBMAIL" "$DKIM_SELECTOR"
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$DOMAIN" "$ANTIVIRUS" "$ANTISPAM" "$DKIM" "$SSL" \
+			"$CATCHALL" "$ACCOUNTS" "$U_DISK" "$SUSPENDED" "$TIME" "$DATE" "$WEBMAIL_ALIAS" "$WEBMAIL"
 	done < <(rows)
 }
 

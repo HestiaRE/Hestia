@@ -46,7 +46,11 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	cp $USER_DATA/mail/$domain.pem $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 	chown -h $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/dkim.pem
 	chmod 660 $HOMEDIR/$user/conf/mail/$domain/dkim.pem
-	mail_dkim_selector_write "$user" "$domain" "$dkim_selector"
+	# The record follows the file: a selector exim cannot read signs as mail, and the record must say so.
+	if ! mail_dkim_selector_write "$user" "$domain" "$dkim_selector"; then
+		echo "Warning: cannot write the DKIM selector of $domain, it signs as mail" >&2
+		dkim_selector=''
+	fi
 fi
 
 update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM' 'yes'

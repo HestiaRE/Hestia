@@ -5,7 +5,8 @@
 # example: h-check-mail-domain-dkim-dns admin mydomain.tld
 #
 # Looks up <selector>._domainkey and compares its key with ours: ok, missing, mismatch, unchecked (no answer in
-# time, or a resolver error) or disabled. One query with a short timeout, so a slow resolver cannot hold the panel.
+# time, or a resolver error), unavailable (no dig) or disabled. One query with a short timeout, so a slow resolver
+# cannot hold the panel.
 
 user=$1
 domain=$2
@@ -35,6 +36,10 @@ dkim_status() {
 	local pub out rc txt p found=''
 	if [ "$(get_object_value 'mail' 'DOMAIN' "$domain" '$DKIM')" != 'yes' ] || [ ! -s "$USER_DATA/mail/$domain.pub" ]; then
 		echo disabled
+		return
+	fi
+	if ! command -v dig > /dev/null; then
+		echo unavailable
 		return
 	fi
 	pub=$(grep -v -- '-----' "$USER_DATA/mail/$domain.pub" | tr -d '\n')

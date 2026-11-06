@@ -86,9 +86,9 @@ else
 	dkim_selector=''
 fi
 
-s="DOMAIN='$domain' ANTIVIRUS='$antivirus' ANTISPAM='$antispam' REJECT='$reject' DKIM='$dkim' DKIM_SELECTOR='$dkim_selector'"
-s="$s WEBMAIL='' SSL='no' LETSENCRYPT='no' CATCHALL='' ACCOUNTS='0' RATE_LIMIT='$RATE_LIMIT' U_DISK='0'"
-s="$s SUSPENDED='no' TIME='$time' DATE='$date'"
+s="DOMAIN='$domain' ANTIVIRUS='$antivirus' ANTISPAM='$antispam' REJECT='$reject' DKIM='$dkim'"
+s="$s DKIM_SELECTOR='$dkim_selector' WEBMAIL='' SSL='no' LETSENCRYPT='no' CATCHALL='' ACCOUNTS='0'"
+s="$s RATE_LIMIT='$RATE_LIMIT' U_DISK='0' SUSPENDED='no' TIME='$time' DATE='$date'"
 echo $s >> $USER_DATA/mail.conf
 touch $USER_DATA/mail/$domain.conf
 
@@ -138,7 +138,11 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	if [ "$dkim" = 'yes' ]; then
 		cp -f $USER_DATA/mail/$domain.pem \
 			$HOMEDIR/$user/conf/mail/$domain/dkim.pem
-		mail_dkim_selector_write "$user" "$domain" "$dkim_selector"
+		# The record follows the file: a selector exim cannot read signs as mail, and the record must say so.
+		if ! mail_dkim_selector_write "$user" "$domain" "$dkim_selector"; then
+			echo "Warning: cannot write the DKIM selector of $domain, it signs as mail" >&2
+			update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR' ''
+		fi
 	fi
 
 	chmod 771 $HOMEDIR/$user/conf/mail/$domain

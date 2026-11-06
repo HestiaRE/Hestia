@@ -22,6 +22,13 @@ the releases of the command audit, into another.
   and ban updates do not. A render that replaces hand rules says so in the activity log, and the smoke check fails
   while one is loaded. Root only, not in the panel.
 
+### Security
+
+- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token again when login data is posted along,
+  which it skipped since 6.0.1. Tachyon no longer lets a sender's own `Authentication-Results` header mark its message
+  as DKIM verified when the receiving server names its own authserv-id, and an IMAP keyword can no longer put markup
+  into the message view. Both reach installed boxes through `0.30.json`.
+
 ### Fixed
 
 - **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284). It failed with

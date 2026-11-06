@@ -1,0 +1,26 @@
+{
+  "version": "0.30",
+  "entries": [
+    {
+      "id": "tachyon-pin",
+      "description": "Tachyon 4.5.0: a sender could make its own message show as DKIM verified, and an IMAP keyword could put markup into the message view",
+      "conditions": [
+        { "type": "pin_differs", "name": "tachyon", "path": "/var/lib/tachyon/data/VERSION" }
+      ],
+      "action": { "type": "function_call", "function": "tachyon_pin_apply" },
+      "paths": ["/var/lib/tachyon"],
+      "reversible": false
+    },
+    {
+      "id": "adminer-core",
+      "description": "Adminer 6.3.0 as shipped: it checks the CSRF token again when login data is posted along (skipped since 6.0.1). h-add-sys-adminer stops at an existing install",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/share/adminer/index.php" },
+        { "type": "file_differs", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" }
+      ],
+      "action": { "type": "file_copy", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" },
+      "paths": ["/usr/share/adminer/index.php"],
+      "reversible": true
+    }
+  ]
+}

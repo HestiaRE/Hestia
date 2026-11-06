@@ -1845,8 +1845,8 @@ msgid "Spam Filter"
 msgstr "Spamfilter"
 
 #: web/templates/pages/add_mail.php
-msgid "The key is published as a TXT record under <selector>._domainkey."
-msgstr "Der Schlüssel wird als TXT-Eintrag unter <Selektor>._domainkey veröffentlicht."
+msgid "The key belongs in your DNS as a TXT record under <selector>._domainkey."
+msgstr "Der Schlüssel gehört als TXT-Eintrag unter <Selektor>._domainkey in Ihr DNS."
 
 #: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
 msgid "Webmail Client"
@@ -2084,16 +2084,20 @@ msgid "Catch-All Email"
 msgstr "Catch-all Adresse"
 
 #: web/templates/pages/edit_mail.php
-msgid "Changing the selector keeps the key. Publish the TXT record under the new name first, or DKIM fails until it is there."
-msgstr "Ein neuer Selektor behält den Schlüssel. Veröffentlichen Sie den TXT-Eintrag zuerst unter dem neuen Namen, sonst schlägt DKIM fehl, bis er dort steht."
+msgid "Changing the selector keeps the key. Publish the TXT record under the new name first, or DKIM fails until it is published."
+msgstr "Beim Ändern des Selektors bleibt der Schlüssel erhalten. Veröffentlichen Sie den TXT-Eintrag zuerst unter dem neuen Namen, sonst schlägt DKIM fehl, bis er veröffentlicht ist."
 
 #: web/templates/pages/edit_mail.php
 msgid "Custom threshold"
 msgstr "Eigener Schwellenwert"
 
 #: web/templates/pages/edit_mail.php
+msgid "DNS not checked: dig is not installed."
+msgstr "DNS nicht geprüft: dig ist nicht installiert."
+
+#: web/templates/pages/edit_mail.php
 msgid "DNS not checked: the lookup gave no answer."
-msgstr "DNS nicht geprüft: die Abfrage blieb ohne Antwort."
+msgstr "DNS nicht geprüft: Die Abfrage blieb ohne Antwort."
 
 #: web/templates/pages/edit_mail.php web/templates/pages/list_mail.php
 #: web/templates/pages/list_mail_acc.php
@@ -2143,8 +2147,8 @@ msgstr "Nie als Spam behandelt. Ein Absender pro Zeile: user@example.com, *@exam
 
 #: web/templates/pages/edit_mail.php
 #, php-format
-msgid "No DKIM record at %s. Signed mail fails DKIM until it is published."
-msgstr "Kein DKIM-Eintrag unter %s. Signierte Mails bestehen DKIM erst, wenn er veröffentlicht ist."
+msgid "No DKIM record at %s. Signed mail fails the DKIM check until it is published."
+msgstr "Kein DKIM-Eintrag unter %s. Signierte Mails fallen bei der DKIM-Prüfung durch, bis er veröffentlicht ist."
 
 #: web/templates/pages/edit_mail.php
 msgid "Normal"
@@ -2222,8 +2226,8 @@ msgstr "Strikt"
 
 #: web/templates/pages/edit_mail.php
 #, php-format
-msgid "The DKIM record at %s carries a different key. Signed mail fails DKIM until it is updated."
-msgstr "Der DKIM-Eintrag unter %s enthält einen anderen Schlüssel. Signierte Mails bestehen DKIM erst, wenn er angepasst ist."
+msgid "The DKIM record at %s carries a different key. Signed mail fails the DKIM check until it is updated."
+msgstr "Der DKIM-Eintrag unter %s enthält einen anderen Schlüssel. Signierte Mails fallen bei der DKIM-Prüfung durch, bis er angepasst ist."
 
 #: web/templates/pages/edit_mail.php
 msgid "The DKIM record in DNS carries this key."

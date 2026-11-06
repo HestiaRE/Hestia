@@ -57,7 +57,7 @@ if (!empty($_POST["ok"])) {
 	} else {
 		$v_dkim = "no";
 	}
-	$v_dkim_selector = trim($_POST["v_dkim_selector"] ?? "");
+	$v_dkim_selector = strtolower(trim($_POST["v_dkim_selector"] ?? ""));
 	if ($v_dkim_selector === "" || $v_dkim === "no") {
 		$v_dkim_selector = "mail";
 	}

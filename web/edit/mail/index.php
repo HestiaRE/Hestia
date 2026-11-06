@@ -247,7 +247,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
-	$post_dkim_selector = trim(post_or_keep("v_dkim_selector", true, $v_dkim_selector)) ?: "mail";
+	$post_dkim_selector = strtolower(trim(post_or_keep("v_dkim_selector", true, $v_dkim_selector))) ?: "mail";
 
 	if ($v_dkim == "yes" && empty($_POST["v_dkim"]) && empty($_SESSION["error_msg"])) {
 		exec(

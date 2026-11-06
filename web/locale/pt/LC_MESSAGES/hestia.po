@@ -1845,7 +1845,7 @@ msgid "Spam Filter"
 msgstr "Filtro De Spam"
 
 #: web/templates/pages/add_mail.php
-msgid "The key is published as a TXT record under <selector>._domainkey."
+msgid "The key belongs in your DNS as a TXT record under <selector>._domainkey."
 msgstr ""
 
 #: web/templates/pages/add_mail.php web/templates/pages/edit_mail.php
@@ -2084,12 +2084,16 @@ msgid "Catch-All Email"
 msgstr "E-mail captura-tudo"
 
 #: web/templates/pages/edit_mail.php
-msgid "Changing the selector keeps the key. Publish the TXT record under the new name first, or DKIM fails until it is there."
+msgid "Changing the selector keeps the key. Publish the TXT record under the new name first, or DKIM fails until it is published."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php
 msgid "Custom threshold"
 msgstr "Limiar personalizado"
+
+#: web/templates/pages/edit_mail.php
+msgid "DNS not checked: dig is not installed."
+msgstr ""
 
 #: web/templates/pages/edit_mail.php
 msgid "DNS not checked: the lookup gave no answer."
@@ -2143,7 +2147,7 @@ msgstr "Nunca tratado como spam. Um remetente por linha: user@example.com, *@exa
 
 #: web/templates/pages/edit_mail.php
 #, php-format
-msgid "No DKIM record at %s. Signed mail fails DKIM until it is published."
+msgid "No DKIM record at %s. Signed mail fails the DKIM check until it is published."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php
@@ -2222,7 +2226,7 @@ msgstr "Rigoroso"
 
 #: web/templates/pages/edit_mail.php
 #, php-format
-msgid "The DKIM record at %s carries a different key. Signed mail fails DKIM until it is updated."
+msgid "The DKIM record at %s carries a different key. Signed mail fails the DKIM check until it is updated."
 msgstr ""
 
 #: web/templates/pages/edit_mail.php

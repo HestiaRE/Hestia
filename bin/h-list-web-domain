@@ -76,7 +76,7 @@ shell_list() {
 		echo "SSL:              $SSL"
 		if [ -n "$LETSENCRYPT" ] && [ "$LETSENCRYPT" != 'no' ]; then
 			echo "LETSENCRYPT:      $LETSENCRYPT"
-			echo "SSL_KEY_ALGO:     ${SSL_KEY_ALGO:-rsa}"
+			echo "SSL_KEY_ALGO:     $SSL_KEY_ALGO"
 		fi
 		if [ -n "$SSL_FORCE" ]; then
 			echo "SSL_FORCE:        $SSL_FORCE"

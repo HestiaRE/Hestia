@@ -150,13 +150,15 @@ elif [ -z "$host" ]; then
 	fi
 fi
 
-if [ -n "$mail" ]; then
-	SSL_KEY_ALGO=$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$SSL_KEY_ALGO')
-	LETSENCRYPT=$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$LETSENCRYPT')
-fi
 if [ -z "$key_algo" ] && [ -z "$host" ]; then
-	key_algo=$SSL_KEY_ALGO
-	[ -n "$key_algo" ] || [ "$LETSENCRYPT" != 'yes' ] || key_algo=rsa
+	if [ -n "$mail" ]; then
+		key_algo=$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$SSL_KEY_ALGO')
+		had_le=$(get_object_value 'mail' 'DOMAIN' "$root_domain" '$LETSENCRYPT')
+	else
+		key_algo=$SSL_KEY_ALGO
+		had_le=$LETSENCRYPT
+	fi
+	[ -n "$key_algo" ] || [ "$had_le" != 'yes' ] || key_algo=rsa
 fi
 key_algo=${key_algo:-ecdsa-256}
 # A restored record brings its own value.

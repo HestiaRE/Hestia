@@ -1,15 +1,16 @@
 --- exim4.conf.template
 +++ exim4.conf.template
-@@ -157,6 +157,8 @@
+@@ -157,6 +157,9 @@
  
  
  acl_check_rcpt:
-+  # Webmail reads the topmost Authentication-Results, else X-DKIM-Authentication-Results: only ours may reach a mailbox.
-+  warn    remove_header = Authentication-Results : X-DKIM-Authentication-Results
++  # Webmail shows these as the server's verdict on DKIM, spam and viruses. Of them only Authentication-Results is ours.
++  warn    remove_header = Authentication-Results : X-DKIM-Authentication-Results : X-Spamd-Result : X-Bogosity : \
++                          X-Spam-Flag : X-Spam-Info : X-Virus : X-Virus-Status
  .ifdef RSPAMD
    # Only our own scan speaks through X-Spam-*. A foreign X-Spam-Status in front of ours hid it from every ^Yes test
    # (spam folder, subject tag, autoreply): "No" kept spam in the inbox, "Yes" moved ham out. Removed here, before
-@@ -254,6 +256,9 @@
+@@ -254,6 +257,9 @@
  
  
  acl_check_data:

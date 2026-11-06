@@ -26,8 +26,8 @@ the releases of the command audit, into another.
 
 - **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token at login again. Tachyon fixes how the
   message view shows the DKIM result and IMAP keywords. Both reach installed boxes through `0.30.json`.
-- **Webmail could show a DKIM result the sender wrote** (#1288). exim now drops incoming authentication result headers
-  and writes its own for unauthenticated mail; installed boxes get it as a template patch.
+- **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim now drops incoming authentication
+  result and verdict headers and writes its own for unauthenticated mail; installed boxes get it as a template patch.
 
 ### Fixed
 

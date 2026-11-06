@@ -1627,6 +1627,15 @@
       "note": ""
     },
     {
+      "path": "h-change-mail-domain-dkim-selector",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-06",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "h-change-mail-domain-rate-limit",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-domain-rate-limit",
@@ -2419,6 +2428,15 @@
       "upstream_path": null,
       "upstream_ref": null,
       "last_reconciled": "2026-08-12",
+      "divergence": null,
+      "note": ""
+    },
+    {
+      "path": "h-check-mail-domain-dkim-dns",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-06",
       "divergence": null,
       "note": ""
     },

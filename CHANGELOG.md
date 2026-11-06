@@ -28,6 +28,12 @@ the releases of the command audit, into another.
   certificate issued before this release stays RSA until someone passes another type. The host certificate of a
   mail-only box has no record, so an RSA one becomes ECDSA at its next renewal. No panel choice; RSA is the exception
   for old clients. proftpd logs `expected RSA certificate, found EC` for an ECDSA host certificate and serves it anyway.
+- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760). `h-add-mail-domain` and
+  `h-add-mail-domain-dkim` take it as their last argument as in HestiaCP, the record carries `DKIM_SELECTOR`, and a
+  HestiaCP 1.10.6 export with its own selector keeps signing under it after the restore. In the panel the selector is
+  set when DKIM is switched on and can be changed later; the key stays, so DNS has to follow. The edit page looks up
+  `<selector>._domainkey` and marks DKIM orange when the record is missing or carries another key
+  (`h-check-mail-domain-dkim-dns`). Installed boxes get the exim side as a template patch.
 
 ### Security
 
@@ -35,9 +41,6 @@ the releases of the command audit, into another.
   message view shows the DKIM result and IMAP keywords. Both reach installed boxes through `0.30.json`.
 - **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim now drops incoming authentication
   result and verdict headers and writes its own for unauthenticated mail; installed boxes get it as a template patch.
-
-### Security
-
 - **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). The customer owns the home,
   so a `~/web` or `~/mail` of their own could sit on a path root then chmods or chowns. The restores and the web
   rebuild now refuse such a domain with rc 10 and leave its served config as it was; `~/mail/<domain>` is only

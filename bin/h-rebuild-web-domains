@@ -104,13 +104,16 @@ for domain in $($BIN/h-list-web-domains $user plain | cut -f 1); do
 		fi
 		$BIN/h-add-web-domain-backend "$user" "$domain" "$template" "$restart"
 	fi
+	skipped=${web_config_skipped:-0}
 	rebuild_web_domain_conf
+	[ "${web_config_skipped:-0}" -gt "$skipped" ] && skipped_domains="$skipped_domains $domain"
 done
 
 # Balance line, not exit code: web-model.sh treats a nonzero rebuild as switch failure, and one broken
 # record must not veto a model switch.
 if [ "${web_config_skipped:-0}" -gt 0 ]; then
 	echo "Warning: $web_config_skipped vhost config(s) skipped over an unusable record (see errors above)."
+	$BIN/h-log-action "system" "Warning" "Web" "Rebuild of $user skipped:$skipped_domains (configs kept as they were)."
 fi
 
 $BIN/h-update-user-counters "$user"

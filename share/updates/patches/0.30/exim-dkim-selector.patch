@@ -1,38 +1,22 @@
 --- exim4.conf.template
 +++ exim4.conf.template
-@@ -84,6 +84,8 @@
- DKIM_DOMAIN = ${lc:${domain:$h_from:}}
- DKIM_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/dkim.pem
+@@ -86,2 +86,4 @@
  DKIM_PRIVATE_KEY = ${if exists{DKIM_FILE}{DKIM_FILE}{0}}
 +DKIM_SELECTOR_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/selector
 +DKIM_SELECTOR_NAME = ${if exists{DKIM_SELECTOR_FILE}{${lookup{selector}lsearch{DKIM_SELECTOR_FILE}{$value}{mail}}}{mail}}
  
- OUTGOING_IP = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/ip
- # A second FILE so every /ip reader stays untouched; missing = no v6 pin, kernel picks.
-@@ -579,7 +581,7 @@
-   hosts_require_auth = $host_address
-   hosts_require_tls = $host_address
+@@ -581,3 +583,3 @@
    dkim_domain = DKIM_DOMAIN
 -  dkim_selector = mail
 +  dkim_selector = DKIM_SELECTOR_NAME
    dkim_private_key = DKIM_PRIVATE_KEY
-   dkim_canon = relaxed
-   dkim_strict = 0
-@@ -590,7 +592,7 @@
-   driver = smtp
-   helo_data = ${lookup dnsdb{>: defer_never,ptr=$sending_ip_address}{${listextract{1}{$value}}}{$primary_hostname}}
+@@ -592,3 +594,3 @@
    dkim_domain = DKIM_DOMAIN
 -  dkim_selector = mail
 +  dkim_selector = DKIM_SELECTOR_NAME
    dkim_private_key = DKIM_PRIVATE_KEY
-   dkim_canon = relaxed
-   dkim_strict = 0
-@@ -601,7 +603,7 @@
-   driver = smtp
-   helo_data = ${lookup dnsdb{>: defer_never,ptr=$sending_ip_address}{${listextract{1}{$value}}}{$primary_hostname}}
+@@ -603,3 +605,3 @@
    dkim_domain = DKIM_DOMAIN
 -  dkim_selector = mail
 +  dkim_selector = DKIM_SELECTOR_NAME
    dkim_private_key = DKIM_PRIVATE_KEY
-   dkim_canon = relaxed
-   dkim_strict = 0

@@ -1,0 +1,44 @@
+--- exim4.conf.template
++++ exim4.conf.template
+@@ -140,18 +140,33 @@
+ 			message       = HELO required before MAIL
+ 
+ 	drop    !authenticated = *
+-			message       =  Helo name contains an IP address (HELO was $sender_helo_name) and not is valid
+-			condition     = ${if match{$sender_helo_name}{\N((\d{1,3}[.-]\d{1,3}[.-]\d{1,3}[.-]\d{1,3})|([0-9a-f]{8})|([0-9A-F]{8}))\N}{yes}{no}}
+-			condition     = ${if match {${lookup dnsdb{>: defer_never,ptr=$sender_host_address}}\}{$sender_helo_name}{no}{yes}}
+-			delay         = 45s
++			condition     = ${if isip{$sender_helo_name}}
++			message       = HELO is a bare IP address: $sender_helo_name (see RFC 5321 4.1.3)
++
++	# The PTR comparisons below need a finished lookup; a DNS hiccup asks the sender to retry, not to give up.
++	defer   !authenticated = *
++			condition     = ${if eq{$host_lookup_deferred}{1}}
++			message       = Temporary DNS verification failure
+ 
+ 	drop    !authenticated = *
+-			condition     = ${if isip{$sender_helo_name}}
+-			message       = Access denied - Invalid HELO name (See RFC2821 4.1.3)
++			condition     = ${if or{{eq{[$interface_address]}{$sender_helo_name}}{eq{$interface_address}{$sender_helo_name}}}}
++			message       = $interface_address is our address
+ 
++	# $sender_host_name is the verified PTR: forward-confirmed by exim, so a sender cannot claim it.
+ 	drop    !authenticated = *
+-			condition    = ${if eq{[$interface_address]}{$sender_helo_name}}
+-			message       = $interface_address is _my_ address
++			condition     = ${if match{$sender_helo_name}{\N\d{1,3}[.-]\d{1,3}[.-]\d{1,3}[.-]\d{1,3}\N}}
++			condition     = ${if eqi{$sender_helo_name}{$sender_host_name}{no}{yes}}
++			message       = HELO contains an IP address and does not match PTR: $sender_helo_name
++
++	# Log only, to see what enforcing would cost before it does.
++	warn    !authenticated = *
++			condition     = ${if eq{$sender_host_name}{}}
++			log_message   = NO_FCRDNS host=$sender_host_address helo=$sender_helo_name
++
++	warn    !authenticated = *
++			condition     = ${if def:sender_host_name}
++			condition     = ${if eqi{$sender_helo_name}{$sender_host_name}{no}{yes}}
++			log_message   = HELO_PTR_MISMATCH helo=$sender_helo_name ptr=$sender_host_name host=$sender_host_address
+ 
+ 	accept
+ 

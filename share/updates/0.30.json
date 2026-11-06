@@ -32,6 +32,17 @@
       "action": { "type": "function_call", "function": "exim_auth_results_apply" },
       "paths": ["/etc/exim4/exim4.conf.template"],
       "reversible": false
+    },
+    {
+      "id": "exim-helo-checks",
+      "description": "The HELO checks compare an IP-like HELO against the verified PTR; the old rule's PTR lookup expanded to nothing, so it never dropped anything. Two log-only lines show what enforcing FCrDNS and HELO = PTR would cost",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.30/exim-helo-checks.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_helo_checks_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
     }
   ]
 }

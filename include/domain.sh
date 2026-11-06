@@ -1304,7 +1304,7 @@ mail_dkim_selector_write() { # USER DOMAIN [SELECTOR]
 		return
 	}
 	t=$(mktemp "$f.XXXXXX") || return 1
-	if printf 'selector:%s\n' "$3" > "$t" && chown "$MAIL_USER:mail" "$t" && chmod 660 "$t" && mv -f "$t" "$f"; then
+	if printf 'selector:%s\n' "$3" > "$t" && chown "$MAIL_USER:mail" "$t" && chmod 660 "$t" && mv -fT "$t" "$f"; then
 		return 0
 	fi
 	rm -f "$t"

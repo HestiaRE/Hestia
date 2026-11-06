@@ -36,8 +36,22 @@ the releases of the command audit, into another.
 - **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim now drops incoming authentication
   result and verdict headers and writes its own for unauthenticated mail; installed boxes get it as a template patch.
 
+### Security
+
+- **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). The customer owns the home,
+  so a `~/web` or `~/mail` of their own could sit on a path root then chmods or chowns. The restores and the web
+  rebuild now refuse such a domain with rc 10 and leave its served config as it was; `~/mail/<domain>` is only
+  created under a root-owned `~/mail`.
+
 ### Fixed
 
+- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862). Its PTR lookup expanded to an empty
+  string. The block follows HestiaCP 1.10.6 now: an IP-like HELO that is not the forward-confirmed PTR is refused, a
+  deferred reverse lookup answers 4xx, and a missing or mismatching PTR is logged without refusing anything.
+- **A suspended customer kept the edit buttons that `POLICY_USER_VIEW_SUSPENDED` takes away** (#1290, upstream #5835).
+  The policy looked the customer up under the shell-quoted name and found no row.
+- **The cron form ate a command's own quotes** (#1290, upstream #5892). `echo 'x'` showed as `echo 'x`, and a save
+  wrote that back.
 - **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284). It failed with
   `invalid alias format ::`: the panel passes a single space as the alias list, which the alias validator has refused
   since it splits on commas only. The panel passes an empty list now, and `h-add-letsencrypt-domain` takes a blank one

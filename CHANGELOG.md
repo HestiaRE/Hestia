@@ -35,6 +35,9 @@ the releases of the command audit, into another.
   `invalid alias format ::`: the panel passes a single space as the alias list, which the alias validator has refused
   since it splits on commas only. The panel passes an empty list now, and `h-add-letsencrypt-domain` takes a blank one
   as empty, so scripts in the HestiaCP style work again.
+- **A self-signed certificate for an IDN domain without aliases named the domain in Unicode** (#1247, upstream #5814).
+  The subjectAltName of CSR and certificate carried the name as typed, while the CN and every alias were punycode;
+  now the SAN is punycode too.
 
 ## v0.29 (2026-10-25)
 

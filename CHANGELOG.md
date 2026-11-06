@@ -41,10 +41,8 @@ the releases of the command audit, into another.
   message view shows the DKIM result and IMAP keywords. Both reach installed boxes through `0.30.json`.
 - **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim now drops incoming authentication
   result and verdict headers and writes its own for unauthenticated mail; installed boxes get it as a template patch.
-- **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). The customer owns the home,
-  so a `~/web` or `~/mail` of their own could sit on a path root then chmods or chowns. The restores and the web
-  rebuild now refuse such a domain with rc 10 and leave its served config as it was; `~/mail/<domain>` is only
-  created under a root-owned `~/mail`.
+- **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). A domain whose web or mail
+  directory is not root's own is refused with rc 10, and its served config stays as it was.
 
 ### Fixed
 

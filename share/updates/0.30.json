@@ -54,6 +54,17 @@
       "action": { "type": "function_call", "function": "exim_dkim_selector_apply" },
       "paths": ["/etc/exim4/exim4.conf.template"],
       "reversible": false
+    },
+    {
+      "id": "exim-spam-status-score",
+      "description": "Every mail rspamd scanned carries its score and threshold for webmail, ham as X-Spam-Status: No, spam in X-Spam-Info next to the unchanged Yes; patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.30/exim-spam-status-score.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_spam_status_score_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
     }
   ]
 }

@@ -911,6 +911,11 @@ exim_dkim_selector_apply() {
 	exim_template_patch 0.30/exim-dkim-selector.patch
 }
 
+# Every scanned mail says its score and threshold; spam keeps the bare Yes the Sieve vacation tests for.
+exim_spam_status_score_apply() {
+	exim_template_patch 0.30/exim-spam-status-score.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

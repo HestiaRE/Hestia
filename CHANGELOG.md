@@ -35,6 +35,9 @@ the releases of the command audit, into another.
   `<selector>._domainkey` and marks DKIM orange when the record is missing or carries another key
   (`h-check-mail-domain-dkim-dns`); a record published a moment ago can stay orange until the resolver's negative
   cache expires. Installed boxes get the exim side as a template patch.
+- **Webmail shows the spam score of every scanned mail** (#1295). Mail under the threshold carries
+  `X-Spam-Status: No, score=... required=...`, spam keeps the bare `Yes` the vacation's Sieve test and the spam folder
+  key off and gets its numbers in `X-Spam-Info`. Installed boxes get it as a template patch.
 
 ### Security
 

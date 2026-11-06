@@ -29,11 +29,12 @@ the releases of the command audit, into another.
   mail-only box has no record, so an RSA one becomes ECDSA at its next renewal. No panel choice; RSA is the exception
   for old clients. proftpd logs `expected RSA certificate, found EC` for an ECDSA host certificate and serves it anyway.
 - **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760). `h-add-mail-domain` and
-  `h-add-mail-domain-dkim` take it as their last argument as in HestiaCP, the record carries `DKIM_SELECTOR`, and a
-  HestiaCP 1.10.6 export with its own selector keeps signing under it after the restore. In the panel the selector is
-  set when DKIM is switched on and can be changed later; the key stays, so DNS has to follow. The edit page looks up
+  `h-add-mail-domain-dkim` take it as their last argument as in HestiaCP, and record key and selector file are
+  HestiaCP 1.10.6's, so a restore keeps the selector on both sides. In the panel the selector is set when DKIM is
+  switched on and can be changed later; the key stays, so DNS has to follow. The edit page looks up
   `<selector>._domainkey` and marks DKIM orange when the record is missing or carries another key
-  (`h-check-mail-domain-dkim-dns`). Installed boxes get the exim side as a template patch.
+  (`h-check-mail-domain-dkim-dns`); a record published a moment ago can stay orange until the resolver's negative
+  cache expires. Installed boxes get the exim side as a template patch.
 
 ### Security
 

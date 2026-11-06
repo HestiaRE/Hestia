@@ -1,22 +1,30 @@
 --- exim4.conf.template
 +++ exim4.conf.template
-@@ -86,2 +86,4 @@
+@@ -85,4 +85,6 @@
+ DKIM_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/dkim.pem
  DKIM_PRIVATE_KEY = ${if exists{DKIM_FILE}{DKIM_FILE}{0}}
 +DKIM_SELECTOR_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/selector
 +DKIM_SELECTOR_NAME = ${if exists{DKIM_SELECTOR_FILE}{${lookup{selector}lsearch{DKIM_SELECTOR_FILE}{$value}{mail}}}{mail}}
  
-@@ -581,3 +583,3 @@
+ OUTGOING_IP = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/ip
+@@ -580,5 +582,5 @@
+   hosts_require_tls = $host_address
    dkim_domain = DKIM_DOMAIN
 -  dkim_selector = mail
 +  dkim_selector = DKIM_SELECTOR_NAME
    dkim_private_key = DKIM_PRIVATE_KEY
-@@ -592,3 +594,3 @@
+   dkim_canon = relaxed
+@@ -591,5 +593,5 @@
+   helo_data = ${lookup dnsdb{>: defer_never,ptr=$sending_ip_address}{${listextract{1}{$value}}}{$primary_hostname}}
    dkim_domain = DKIM_DOMAIN
 -  dkim_selector = mail
 +  dkim_selector = DKIM_SELECTOR_NAME
    dkim_private_key = DKIM_PRIVATE_KEY
-@@ -603,3 +605,3 @@
+   dkim_canon = relaxed
+@@ -602,5 +604,5 @@
+   helo_data = ${lookup dnsdb{>: defer_never,ptr=$sending_ip_address}{${listextract{1}{$value}}}{$primary_hostname}}
    dkim_domain = DKIM_DOMAIN
 -  dkim_selector = mail
 +  dkim_selector = DKIM_SELECTOR_NAME
    dkim_private_key = DKIM_PRIVATE_KEY
+   dkim_canon = relaxed

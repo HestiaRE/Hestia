@@ -29,6 +29,13 @@ the releases of the command audit, into another.
   mail-only box has no record, so an RSA one becomes ECDSA at its next renewal. No panel choice; RSA is the exception
   for old clients. proftpd logs `expected RSA certificate, found EC` for an ECDSA host certificate and serves it anyway.
 
+### Security
+
+- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token at login again. Tachyon fixes how the
+  message view shows the DKIM result and IMAP keywords. Both reach installed boxes through `0.30.json`.
+- **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim now drops incoming authentication
+  result and verdict headers and writes its own for unauthenticated mail; installed boxes get it as a template patch.
+
 ### Fixed
 
 - **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284). It failed with

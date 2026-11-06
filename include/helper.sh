@@ -896,6 +896,11 @@ exim_relay_dkim_apply() {
 	exim_template_patch 0.24/exim-relay-dkim.patch
 }
 
+# Only our own Authentication-Results reaches a mailbox, so webmail cannot show a sender's own verdict.
+exim_auth_results_apply() {
+	exim_template_patch 0.30/exim-auth-results.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

@@ -15,8 +15,9 @@ Nearly all of it is in place, and the test fleet has been through many rounds of
 
 It does not make it **stable**. Interfaces still move, any release can change behaviour, and **v1 is deliberately far away**, and the version number is not a countdown. Run it if you are willing to read a changelog and re-test after an update. Don't run it if you need something that stays put while you look elsewhere.
 
-**Target systems**, all first-class, equal priority (every feature must work on all four):
-- Debian 12 (Bookworm), Debian 13 (Trixie), Ubuntu 24.04 LTS (Noble), Ubuntu 26.04 LTS
+**Target systems:**
+- Primary: Debian 13 (Trixie) and Ubuntu 26.04 LTS. Every feature is built for these two.
+- Secondary, best effort: Debian 12 (Bookworm) and Ubuntu 24.04 LTS (Noble). Still installed and tested every release, but a feature that would need old packages or other backward compatibility may not reach them; the changelog says so when it happens.
 
 ## Philosophy
 

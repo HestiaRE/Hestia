@@ -13,7 +13,11 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **Debian 13 and Ubuntu 26.04 LTS are the primary targets** (#1300). Debian 12 and Ubuntu 24.04 LTS stay
+  supported and tested, as best effort: a feature that would need old packages or other backward compatibility
+  may leave them behind, and its entry here says so.
 
 ## v0.30 (2026-11-06)
 

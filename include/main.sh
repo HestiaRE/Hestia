@@ -2418,6 +2418,10 @@ is_hash_format_valid() {
 	fi
 }
 
+is_key_algo_format_valid() {
+	[[ "$1" =~ ^(rsa|ecdsa-256|ecdsa-384)$ ]] || check_result "$E_INVALID" "invalid key_algo format :: $1"
+}
+
 # Validates by VARIABLE NAME: the name is both the type and the variable read via ${!name}, so a
 # rename changes which check runs and the name is part of the interface. An UNSET variable is a hard
 # error, or a typo silently disables a check; a declared-but-empty one stays a legitimate skip.
@@ -2474,6 +2478,7 @@ is_format_valid() {
 				ip_status) is_ip_status_format_valid "$arg" ;;
 				job) is_int_format_valid "$arg" 'job' ;;
 				key) is_common_format_valid "$arg" "$arg_name" ;;
+				key_algo) is_key_algo_format_valid "$arg" ;;
 				malias) is_localpart_format_valid "$arg" "$arg_name" '64' ;;
 				max_db) is_int_format_valid "$arg" 'max db' ;;
 				min) is_cron_format_valid "$arg" $arg_name ;;

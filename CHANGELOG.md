@@ -28,6 +28,13 @@ the releases of the command audit, into another.
   certificate issued before this release stays RSA until someone passes another type. The host certificate of a
   mail-only box has no record, so an RSA one becomes ECDSA at its next renewal. No panel choice; RSA is the exception
   for old clients. proftpd logs `expected RSA certificate, found EC` for an ECDSA host certificate and serves it anyway.
+- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760). `h-add-mail-domain` and
+  `h-add-mail-domain-dkim` take it as their last argument as in HestiaCP, and record key and selector file are
+  HestiaCP 1.10.6's, so a restore keeps the selector on both sides. In the panel the selector is set when DKIM is
+  switched on and can be changed later; the key stays, so DNS has to follow. The edit page looks up
+  `<selector>._domainkey` and marks DKIM orange when the record is missing or carries another key
+  (`h-check-mail-domain-dkim-dns`); a record published a moment ago can stay orange until the resolver's negative
+  cache expires. Installed boxes get the exim side as a template patch.
 
 ### Security
 
@@ -35,9 +42,18 @@ the releases of the command audit, into another.
   message view shows the DKIM result and IMAP keywords. Both reach installed boxes through `0.30.json`.
 - **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim now drops incoming authentication
   result and verdict headers and writes its own for unauthenticated mail; installed boxes get it as a template patch.
+- **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). A domain whose web or mail
+  directory is not root's own is refused with rc 10, and its served config stays as it was.
 
 ### Fixed
 
+- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862). Its PTR lookup expanded to an empty
+  string. The block follows HestiaCP 1.10.6 now: an IP-like HELO that is not the forward-confirmed PTR is refused, a
+  deferred reverse lookup answers 4xx, and a missing or mismatching PTR is logged without refusing anything.
+- **A suspended customer kept the edit buttons that `POLICY_USER_VIEW_SUSPENDED` takes away** (#1290, upstream #5835).
+  The policy looked the customer up under the shell-quoted name and found no row.
+- **The cron form ate a command's own quotes** (#1290, upstream #5892). `echo 'x'` showed as `echo 'x`, and a save
+  wrote that back.
 - **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284). It failed with
   `invalid alias format ::`: the panel passes a single space as the alias list, which the alias validator has refused
   since it splits on commas only. The panel passes an empty list now, and `h-add-letsencrypt-domain` takes a blank one

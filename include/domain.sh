@@ -1295,6 +1295,22 @@ mail_dkim_keys_write() { # DOMAIN SIZE
 	return 1
 }
 
+# The file exim reads the selector from, in the lsearch form HestiaCP writes. No selector removes it, exim then signs as mail.
+# Renamed into place, so no message in between signs as mail.
+mail_dkim_selector_write() { # USER DOMAIN [SELECTOR]
+	local f="$HOMEDIR/$1/conf/mail/$2/selector" t
+	[ -n "$3" ] || {
+		rm -f "$f"
+		return
+	}
+	t=$(mktemp "$f.XXXXXX") || return 1
+	if printf 'selector:%s\n' "$3" > "$t" && chown "$MAIL_USER:mail" "$t" && chmod 660 "$t" && mv -fT "$t" "$f"; then
+		return 0
+	fi
+	rm -f "$t"
+	return 1
+}
+
 del_mail_ssl_certificates() {
 	rm -f $USER_DATA/ssl/mail.$domain.ca
 	rm -f $USER_DATA/ssl/mail.$domain.crt
@@ -1504,6 +1520,14 @@ mail_dir_trusted() {
 	local m="$HOMEDIR/$1/mail"
 	[ ! -L "$m" ] && [ -d "$m" ] && [ "$(stat -c %u "$m")" = 0 ] || return 1
 	[ -z "$2" ] || { [ ! -L "$m/$2" ] && [ -d "$m/$2" ]; }
+}
+
+# web_dir_trusted USER DOMAIN: root may chmod and chown below ~/web/DOMAIN, the same question as mail_dir_trusted.
+# The domain directory may be missing, it is created after this. Does not cover a swap after the check.
+web_dir_trusted() {
+	local w="$HOMEDIR/$1/web"
+	[ ! -L "$w" ] && [ -d "$w" ] && [ "$(stat -c %u "$w")" = 0 ] || return 1
+	[ ! -L "$w/$2" ]
 }
 
 # exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.

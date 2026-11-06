@@ -1,11 +1,11 @@
 #!/bin/bash
 # info: add mail domain
-# options: USER DOMAIN [ANTISPAM] [ANTIVIRUS] [DKIM] [DKIM_SIZE] [RESTART] [REJECT_SPAM]
+# options: USER DOMAIN [ANTISPAM] [ANTIVIRUS] [DKIM] [DKIM_SIZE] [RESTART] [REJECT_SPAM] [DKIM_SELECTOR]
 #
 # example: h-add-mail-domain admin mydomain.tld
 #
 # Adds a mail domain with its config dir and maildir, and unless DKIM is no a DKIM key of DKIM_SIZE bits
-# (1024, 2048, 4096).
+# (1024, 2048, 4096), published under DKIM_SELECTOR (default mail).
 
 user=$1
 domain=$2
@@ -15,6 +15,7 @@ dkim=${5-yes}
 dkim_size=${6-2048}
 restart="$7"
 reject=${8-no}
+dkim_selector=${9:-mail}
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -38,8 +39,8 @@ format_domain
 format_domain_idn
 domain_utf=$(idn2 --quiet -d "$domain_idn")
 
-check_args '2' "$#" 'USER DOMAIN [ANTISPAM] [ANTIVIRUS] [DKIM] [DKIM_SIZE] [RESTART] [REJECT_SPAM]'
-is_format_valid 'user' 'domain' 'antispam' 'antivirus' 'dkim' 'dkim_size' 'restart' 'reject'
+check_args '2' "$#" 'USER DOMAIN [ANTISPAM] [ANTIVIRUS] [DKIM] [DKIM_SIZE] [RESTART] [REJECT_SPAM] [DKIM_SELECTOR]'
+is_format_valid 'user' 'domain' 'antispam' 'antivirus' 'dkim' 'dkim_size' 'restart' 'reject' 'dkim_selector'
 is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
@@ -81,11 +82,13 @@ fi
 
 if [ "$dkim" = 'yes' ]; then
 	mail_dkim_keys_write "$domain" "$dkim_size" || check_result "$E_DISK" "DKIM key generation failed for $domain"
+else
+	dkim_selector=''
 fi
 
-s="DOMAIN='$domain' ANTIVIRUS='$antivirus' ANTISPAM='$antispam' REJECT='$reject' DKIM='$dkim' WEBMAIL=''"
-s="$s SSL='no' LETSENCRYPT='no' CATCHALL='' ACCOUNTS='0' RATE_LIMIT='$RATE_LIMIT' U_DISK='0' SUSPENDED='no' TIME='$time'"
-s="$s DATE='$date'"
+s="DOMAIN='$domain' ANTIVIRUS='$antivirus' ANTISPAM='$antispam' REJECT='$reject' DKIM='$dkim'"
+s="$s DKIM_SELECTOR='$dkim_selector' WEBMAIL='' SSL='no' LETSENCRYPT='no' CATCHALL='' ACCOUNTS='0'"
+s="$s RATE_LIMIT='$RATE_LIMIT' U_DISK='0' SUSPENDED='no' TIME='$time' DATE='$date'"
 echo $s >> $USER_DATA/mail.conf
 touch $USER_DATA/mail/$domain.conf
 
@@ -135,6 +138,11 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	if [ "$dkim" = 'yes' ]; then
 		cp -f $USER_DATA/mail/$domain.pem \
 			$HOMEDIR/$user/conf/mail/$domain/dkim.pem
+		# The record follows the file: a selector exim cannot read signs as mail, and the record must say so.
+		if ! mail_dkim_selector_write "$user" "$domain" "$dkim_selector"; then
+			echo "Warning: cannot write the DKIM selector of $domain, it signs as mail" >&2
+			update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR' ''
+		fi
 	fi
 
 	chmod 771 $HOMEDIR/$user/conf/mail/$domain

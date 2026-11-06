@@ -686,6 +686,13 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 
 		# The rebuild reconciles the http3 quic fragment from the HTTP3 field through the gate.
 		rebuild_web_domain_conf
+		if ! web_dir_trusted "$user" "$domain"; then
+			rm -rf $tmpdir
+			error="$HOMEDIR/$user/web/$domain: a link, or ~/web is not root's; $domain is not restored"
+			echo "$error" | $SENDMAIL -s "$subj" $email $notify
+			queue_drop_job "$CONF_DIR/queue/backup.pipe"
+			check_result "$E_FORBIDEN" "$error"
+		fi
 
 		# As the customer: the domain directory is theirs, root would follow whatever they put there.
 		# From /: find returns to its start directory and the customer cannot enter root's.
@@ -694,7 +701,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				-exec rm -rf {} +)
 		fi
 		chmod u+w "$HOMEDIR/$user/web/$domain"
-		[[ -d $HOMEDIR/$user/web/$domain/stats ]] && chmod u+w "$HOMEDIR/$user/web/$domain/stats"
+		[ -d "$HOMEDIR/$user/web/$domain/stats" ] && [ ! -L "$HOMEDIR/$user/web/$domain/stats" ] \
+			&& chmod u+w "$HOMEDIR/$user/web/$domain/stats"
 
 		# Two passes for a difference: the base filtered to what both maps agree on, then the diff over it. No
 		# --unlink-first (fails on non-empty dirs): tar already unlinks and recreates, only --overwrite writes through a
@@ -756,8 +764,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		fi
 
 		if [ "$old_uid" -ne "$new_uid" ]; then
-			find $HOMEDIR/$user/web/$domain/ -user $old_uid \
-				-exec chown -h $user:$user {} \;
+			find "$HOMEDIR/$user/web/$domain" -user "$old_uid" \
+				-exec chown -h "$user:$user" {} \;
 		fi
 
 		# Second rebuild so ftp users keep working.
@@ -951,8 +959,14 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 		domain_idn=$domain
 		format_domain_idn
 
-		if [ ! -d "$HOMEDIR/$user/mail/$domain_idn" ]; then
-			mkdir $HOMEDIR/$user/mail/$domain_idn
+		mdir="$HOMEDIR/$user/mail/$domain_idn"
+		[ -e "$mdir" ] || [ -L "$mdir" ] || ! mail_dir_trusted "$user" || mkdir "$mdir"
+		if ! mail_dir_trusted "$user" "$domain_idn"; then
+			rm -rf $tmpdir
+			error="$mdir: a link, or ~/mail is not root's; $domain is not restored"
+			echo "$error" | $SENDMAIL -s "$subj" $email $notify
+			queue_drop_job "$CONF_DIR/queue/backup.pipe"
+			check_result "$E_FORBIDEN" "$error"
 		fi
 
 		chmod u+w "$HOMEDIR/$user/mail/$domain_idn"

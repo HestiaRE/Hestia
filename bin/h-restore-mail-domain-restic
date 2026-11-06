@@ -213,8 +213,11 @@ for domain in "${domains[@]}"; do
 		domain_idn=$domain
 		format_domain_idn
 
-		if [ ! -d "$HOMEDIR/$user/mail/$domain_idn" ]; then
-			mkdir $HOMEDIR/$user/mail/$domain_idn
+		mdir="$HOMEDIR/$user/mail/$domain_idn"
+		[ -e "$mdir" ] || [ -L "$mdir" ] || ! mail_dir_trusted "$user" || mkdir "$mdir"
+		# Ends the whole list, as a failed download does: the next domain sits under the same ~/mail.
+		if ! mail_dir_trusted "$user" "$domain_idn"; then
+			check_result "$E_FORBIDEN" "$mdir: a link, or ~/mail is not root's; $domain is not restored"
 		fi
 
 		chmod u+w "$HOMEDIR/$user/mail/$domain_idn"

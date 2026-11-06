@@ -37,6 +37,7 @@ if (!empty($_GET["domain"]) && empty($_GET["account"])) {
 	$v_reject = $data[$v_domain]["REJECT"];
 	$v_antivirus = $data[$v_domain]["ANTIVIRUS"];
 	$v_dkim = $data[$v_domain]["DKIM"];
+	$v_dkim_selector = ($data[$v_domain]["DKIM_SELECTOR"] ?? "") ?: "mail";
 	$v_catchall = $data[$v_domain]["CATCHALL"];
 	$v_rate = $data[$v_domain]["RATE_LIMIT"];
 	$v_date = $data[$v_domain]["DATE"];
@@ -246,6 +247,8 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 		unset($output);
 	}
 
+	$post_dkim_selector = strtolower(trim(post_or_keep("v_dkim_selector", true, $v_dkim_selector))) ?: "mail";
+
 	if ($v_dkim == "yes" && empty($_POST["v_dkim"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -263,12 +266,39 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && empty($_GET["account"])
 
 	if ($v_dkim == "no" && !empty($_POST["v_dkim"]) && empty($_SESSION["error_msg"])) {
 		exec(
-			HESTIA_CMD . "h-add-mail-domain-dkim " . $v_username . " " . quoteshellarg($v_domain),
+			HESTIA_CMD .
+				"h-add-mail-domain-dkim " .
+				$v_username .
+				" " .
+				quoteshellarg($v_domain) .
+				" 2048 " .
+				quoteshellarg($post_dkim_selector),
 			$output,
 			$return_var,
 		);
 		check_return_code($return_var, $output);
 		$v_dkim = "yes";
+		$v_dkim_selector = $post_dkim_selector;
+		unset($output);
+	}
+
+	// Same key under the new name: the hint on the field says DKIM fails until DNS follows.
+	if ($v_dkim == "yes" && $post_dkim_selector !== $v_dkim_selector && empty($_SESSION["error_msg"])) {
+		exec(
+			HESTIA_CMD .
+				"h-change-mail-domain-dkim-selector " .
+				$v_username .
+				" " .
+				quoteshellarg($v_domain) .
+				" " .
+				quoteshellarg($post_dkim_selector),
+			$output,
+			$return_var,
+		);
+		check_return_code($return_var, $output);
+		if ($return_var == 0) {
+			$v_dkim_selector = $post_dkim_selector;
+		}
 		unset($output);
 	}
 
@@ -1424,6 +1454,13 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 }
 
 if (empty($_GET["account"])) {
+	// Looked up on every render, so the mark follows a change made on this page.
+	if (($v_dkim ?? "") == "yes") {
+		$dkim_dns = cli_json("h-check-mail-domain-dkim-dns " . $user . " " . quoteshellarg($v_domain) . " json");
+		$dkim_dns = reset($dkim_dns) ?: [];
+		$v_dkim_dns_status = $dkim_dns["STATUS"] ?? "unchecked";
+		$v_dkim_dns_record = $dkim_dns["RECORD"] ?? "";
+	}
 	render_page($user, $TAB, "edit_mail");
 } else {
 	render_page($user, $TAB, "edit_mail_acc");

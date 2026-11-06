@@ -29,9 +29,12 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	rm -f $USER_DATA/mail/$domain.pem
 	rm -f $USER_DATA/mail/$domain.pub
 	rm -f $HOMEDIR/$user/conf/mail/$domain/dkim.pem
+	mail_dkim_selector_write "$user" "$domain"
 fi
 
 update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM' 'no'
+add_object_key 'mail' 'DOMAIN' "$domain" 'DKIM_SELECTOR' 'DKIM'
+update_object_value 'mail' 'DOMAIN' "$domain" '$DKIM_SELECTOR' ''
 decrease_user_value "$user" '$U_MAIL_DKIM'
 
 $BIN/h-log-action "$user" "Info" "Mail" "DKIM message signing disabled (Domain: $domain)."

@@ -207,7 +207,7 @@ if ! DEBIAN_FRONTEND=noninteractive apt-get -y -qq \
 fi
 rm -f "${REPO_LIST}.bak"
 # From 11.x the old command names are a separate package, which an upgrade from 10.11 does not bring.
-mariadb_compat_apply || echo "[ ! ] mariadb-client-compat could not be installed: no mysql/mysqldump command names"
+mariadb_compat_apply || true
 
 systemctl restart mariadb
 if ! systemctl is-active --quiet mariadb; then

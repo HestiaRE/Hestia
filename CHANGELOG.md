@@ -21,7 +21,8 @@ the releases of the command audit, into another.
 - **HestiaRE calls the MariaDB client by its own names** (`mariadb`, `mariadb-dump`, `mariadb-admin`), and
   `mariadb-client-compat` comes with every MariaDB 11.x client, so `mysql`, `mysqldump` and `mysqladmin` stay
   for whoever types them (#1302). Installs, upgrades and the update add it; 10.11 on Debian 12 and Ubuntu 24.04
-  ships the old names itself.
+  ships the old names itself. A client older than its repo's newest version gets them with the first update after
+  its own upgrade, instead of stopping this one.
 
 ### Fixed
 
@@ -29,6 +30,8 @@ the releases of the command audit, into another.
   (#1302). It asked `mysql`, which there lives in `mariadb-client-compat`, and read the missing command as "no
   such database"; the restore took the same box for one with no database engine. A local server that does not
   answer is now a warning.
+- **The nightly table check before the user backups did nothing on MariaDB 11.x without Recommends** (#1302).
+  It called `mysqlrepair`, one of the old names in `mariadb-client-compat`, with its output thrown away.
 
 ## v0.30 (2026-11-06)
 

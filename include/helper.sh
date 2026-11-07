@@ -931,14 +931,23 @@ exim_template_patch() { # PATCH below share/updates/patches
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.
 mariadb_compat_apply() {
-	local v policy
+	local v avail out
 	case "$(dpkg-query -W -f='${db:Status-Abbrev}' mariadb-client 2> /dev/null)" in ii*) ;; *) return 0 ;; esac
 	# No pipe into grep -q: under the installer's pipefail apt-cache dies of SIGPIPE and the test reads false.
-	policy=$(LC_ALL=C apt-cache policy mariadb-client-compat 2> /dev/null)
-	[[ "$policy" == *'Candidate: '[!\(]* ]] || return 0
+	avail=$(apt-cache madison mariadb-client-compat 2> /dev/null)
+	[ -n "$avail" ] || return 0
 	v=$(dpkg-query -W -f='${Version}' mariadb-client 2> /dev/null)
-	DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
-		install "mariadb-client-compat=$v" > /dev/null 2>&1
+	# The MariaDB repo lists only its newest version, and a client behind it must not stop an update.
+	if [[ "$avail" != *" $v |"* ]]; then
+		echo "[ ! ] mariadb-client-compat $v is not in the index, the client is behind its repo:" \
+			"the next HestiaRE update after a MariaDB upgrade installs it"
+		return 0
+	fi
+	if ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
+		install "mariadb-client-compat=$v" 2>&1); then
+		echo "[ ! ] mariadb-client-compat could not be installed, no mysql/mysqldump names: ${out##*$'\n'}"
+		return 1
+	fi
 }
 
 # The hestia crontab is operator surface (#972), so this replaces ONE line and leaves everything

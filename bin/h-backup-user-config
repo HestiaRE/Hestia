@@ -247,21 +247,6 @@ if [ -n "$DB_SYSTEM" ] && [ "$DB" != '*' ]; then
 		dump="$dumpdir/$database.$TYPE.sql"
 		grants="$tmpdir/db/$database/conf/$database.$TYPE.$DBUSER"
 		if [ ! -f "$dump" ]; then
-
-			WAIT_LOOP_ENTERED=0
-			while true; do
-				if pgrep -x "mysqldump" > /dev/null; then
-					WAIT_LOOP_ENTERED=1
-					echo "Wait other mysqldump to finish"
-					sleep 1
-				else
-					if [ "$WAIT_LOOP_ENTERED" -eq 1 ]; then
-						echo "We can use mysqldump now"
-					fi
-					break
-				fi
-			done
-
 			case $TYPE in
 				mysql) dump_mysql_database ;;
 				pgsql) dump_pgsql_database ;;

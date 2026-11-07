@@ -11,8 +11,10 @@ HestiaRE (Refined Edition) is a lean, official derivative of HestiaCP.
 Author is an original HestiaCP co-founder. This is a personal professional
 tool, not a community project, not commercial.
 
-Targets (all first-class, equal priority): Debian 12, Debian 13, Ubuntu 24.04 LTS,
-Ubuntu 26.04 LTS. Every feature must work on all four; test on the VM fleet.
+Targets: **Debian 13 and Ubuntu 26.04 LTS are primary**, Debian 12 and Ubuntu 24.04 LTS are
+secondary (best effort, since 2026-11-06). Every feature is built for the primary two and tested on
+all four on the VM fleet. Where backward compatibility with the secondary pair gets in the way (old
+packages and the like), a feature may leave them behind; its PR and the CHANGELOG say so.
 Scale: ~300 domains, ~30 customers, ~15-20 servers.
 
 Tagline: "Rethink. Rebuild. Reboot."

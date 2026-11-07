@@ -25,8 +25,8 @@ member_name_ok() {
 # db_replace DB DUMP: make DB hold exactly what DUMP holds. Drop and recreate: --add-drop-table only replaces
 # the tables the dump carries, so a table the archive predates would survive.
 db_replace() {
-	mysql -e "DROP DATABASE IF EXISTS \`$1\`; CREATE DATABASE \`$1\`" 2> /dev/null || return 1
-	backup_decompress "$2" | mysql "$1" 2> /dev/null
+	mariadb -e "DROP DATABASE IF EXISTS \`$1\`; CREATE DATABASE \`$1\`" 2> /dev/null || return 1
+	backup_decompress "$2" | mariadb "$1" 2> /dev/null
 }
 
 # note WHAT: remember what did not come back, for the closing line and the exit status.
@@ -142,7 +142,7 @@ while IFS= read -r component; do
 					note "$component: $db is not a database member name - skipped, $db untouched"
 					continue
 				fi
-				if [ -z "$DB_SYSTEM" ] || ! command -v mysql > /dev/null 2>&1; then
+				if [ -z "$DB_SYSTEM" ] || ! command -v mariadb > /dev/null 2>&1; then
 					note "$component: no database engine on this host - $db not restored"
 					continue
 				fi
@@ -154,7 +154,7 @@ while IFS= read -r component; do
 				# A complete dump can still fail to load after the drop, so copy the live state first. A broken
 				# database may not copy: that does not block the restore, but the missing way back is said.
 				rollback="$tmpdir/rollback.$db.sql.$(backup_codec_suffix)"
-				if ! { mysqldump --add-drop-table --routines --triggers --single-transaction "$db" 2> /dev/null \
+				if ! { mariadb-dump --add-drop-table --routines --triggers --single-transaction "$db" 2> /dev/null \
 					| backup_compress > "$rollback" && backup_dump_complete "$rollback"; }; then
 					rollback=''
 					echo "Warning!: $component: no rollback copy of $db could be taken - a failed load cannot be undone"

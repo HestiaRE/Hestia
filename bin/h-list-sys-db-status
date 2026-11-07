@@ -29,17 +29,10 @@ for db in $(echo $DB_SYSTEM | tr ',' '\n'); do
 
 			if [ "$db" = 'mysql' ]; then
 				mysql_cnf_sync
-				if [ -f '/usr/bin/mariadb-admin' ]; then
-					echo "MySQL $HOST status"
-					mariadb-admin --defaults-file=$mycnf status | sed -e "s/  /\n/g"
-					echo
-					mariadb-admin --defaults-file=$mycnf processlist
-				else
-					echo "MySQL $HOST status"
-					mysqladmin --defaults-file=$mycnf status | sed -e "s/  /\n/g"
-					echo
-					mysqladmin --defaults-file=$mycnf processlist
-				fi
+				echo "MySQL $HOST status"
+				mariadb-admin --defaults-file=$mycnf status | sed -e "s/  /\n/g"
+				echo
+				mariadb-admin --defaults-file=$mycnf processlist
 				echo -en "\n---------------------------------------------"
 				echo -en "---------------------------------------------\n\n"
 			fi

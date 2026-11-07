@@ -2322,6 +2322,15 @@
       "note": "HestiaRE-native: the v0.30 update manifest. Upstream has no update path of this shape."
     },
     {
+      "path": "updates/0.31.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-07",
+      "divergence": null,
+      "note": "HestiaRE-native: the v0.31 update manifest. Upstream has no update path of this shape."
+    },
+    {
       "path": "updates/README.md",
       "source_type": "eigenbau",
       "upstream_path": null,

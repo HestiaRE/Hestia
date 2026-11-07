@@ -936,8 +936,16 @@ server_components() {
 
 # backup_db_exists ENGINE NAME: is that database here? Asked, not assumed from a config key.
 backup_db_exists() {
+	local _dbs
 	case "$1" in
-		mysql) mysql -N -e 'SHOW DATABASES' 2> /dev/null | grep -qxF "$2" ;;
+		mysql)
+			# A local server that does not answer must not read as "no such database".
+			if ! _dbs=$(mariadb -N -e 'SHOW DATABASES' 2> /dev/null); then
+				[ -x /usr/sbin/mariadbd ] && echo "Warning!: the local database server did not answer, database $2 left out" >&2
+				return 1
+			fi
+			grep -qxF "$2" <<< "$_dbs"
+			;;
 		*) return 1 ;;
 	esac
 }

@@ -927,6 +927,30 @@ exim_template_patch() { # PATCH below share/updates/patches
 	systemctl is-active --quiet exim4
 }
 
+# The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
+# mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
+# version, so this never upgrades the client and with it the server.
+mariadb_compat_apply() {
+	local v avail out
+	case "$(dpkg-query -W -f='${db:Status-Abbrev}' mariadb-client 2> /dev/null)" in ii*) ;; *) return 0 ;; esac
+	# No pipe into grep -q: under the installer's pipefail apt-cache dies of SIGPIPE and the test reads false.
+	avail=$(apt-cache madison mariadb-client-compat 2> /dev/null)
+	[ -n "$avail" ] || return 0
+	v=$(dpkg-query -W -f='${Version}' mariadb-client 2> /dev/null)
+	# The MariaDB repo lists only its newest version, and a client behind it must not stop an update.
+	if [[ "$avail" != *" $v |"* ]]; then
+		echo "[ ! ] mariadb-client-compat $v is not in the index, the client is behind its repo:" \
+			"upgrade MariaDB, then apt-get install mariadb-client-compat"
+		return 0
+	fi
+	# A convenience package: a failure is a warning and never stops an install or an update.
+	if ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
+		install "mariadb-client-compat=$v" 2>&1); then
+		echo "[ ! ] mariadb-client-compat could not be installed, no mysql/mysqldump names: ${out##*$'\n'}"
+	fi
+	return 0
+}
+
 # The hestia crontab is operator surface (#972), so this replaces ONE line and leaves everything
 # else standing. Rename and not truncate, for the same reason system_crontab_write does it: the
 # crontabs directory is sticky and group-writable, where opening the file is EACCES even for root.

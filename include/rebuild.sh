@@ -1057,11 +1057,7 @@ import_mysql_database() {
 	# Through a pipe: -p is on argv, and a file would outlive an abort, as the callers own the EXIT trap.
 	# Not mysql_connect: it exits on a failed connection, and the callers need the return code.
 	_import_mysql_cnf() { printf "[client]\nhost='%s'\nuser='%s'\npassword='%s'\nport='%s'\n" "$HOST" "$USER" "$PASSWORD" "${PORT:-3306}"; }
-	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
-	else
-		mysql --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
-	fi
+	mariadb --defaults-file=<(_import_mysql_cnf) "$DB" < "$1" > /dev/null 2>&1
 }
 
 import_pgsql_database() {

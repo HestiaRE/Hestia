@@ -12,7 +12,7 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-mysqlrepair --all-databases --check --auto-repair > /dev/null 2>&1
+mariadb-repair --all-databases --check --auto-repair > /dev/null 2>&1
 
 if [ -z "$BACKUP_SYSTEM" ]; then
 	exit

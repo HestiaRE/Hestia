@@ -472,6 +472,7 @@ install_db() {
 		# No local server, the client stays: a remote database host and every backup dump use these binaries.
 		echo "[ * ] MariaDB not selected - installing the client for remote hosts"
 		apt_install_optional "database client" mariadb-client || true
+		mariadb_compat_apply || echo "[ ! ] mariadb-client-compat could not be installed: no mysql/mysqldump command names"
 	fi
 
 	# PostgreSQL lifecycle in h-add-sys-postgresql. Fail-soft: optional, smoke-verified.

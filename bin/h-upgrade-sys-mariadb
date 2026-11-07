@@ -24,6 +24,8 @@ source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
+# shellcheck source=/usr/local/hestia/include/helper.sh
+source $HESTIA/include/helper.sh
 
 REPO_LIST="/etc/apt/sources.list.d/mariadb.list"
 
@@ -204,6 +206,8 @@ if ! DEBIAN_FRONTEND=noninteractive apt-get -y -qq \
 	exit "$E_INVALID"
 fi
 rm -f "${REPO_LIST}.bak"
+# From 11.x the old command names are a separate package, which an upgrade from 10.11 does not bring.
+mariadb_compat_apply || echo "[ ! ] mariadb-client-compat could not be installed: no mysql/mysqldump command names"
 
 systemctl restart mariadb
 if ! systemctl is-active --quiet mariadb; then

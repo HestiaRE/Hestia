@@ -18,6 +18,17 @@ the releases of the command audit, into another.
 - **Debian 13 and Ubuntu 26.04 LTS are the primary targets** (#1300). Debian 12 and Ubuntu 24.04 LTS stay
   supported and tested, as best effort: a feature that would need old packages or other backward compatibility
   may leave them behind, and its entry here says so.
+- **HestiaRE calls the MariaDB client by its own names** (`mariadb`, `mariadb-dump`, `mariadb-admin`), and
+  `mariadb-client-compat` comes with every MariaDB 11.x client, so `mysql`, `mysqldump` and `mysqladmin` stay
+  for whoever types them (#1302). Installs, upgrades and the update add it; 10.11 on Debian 12 and Ubuntu 24.04
+  ships the old names itself.
+
+### Fixed
+
+- **The server backup left the webmail databases out without a word on MariaDB 11.x without Recommends**
+  (#1302). It asked `mysql`, which there lives in `mariadb-client-compat`, and read the missing command as "no
+  such database"; the restore took the same box for one with no database engine. A local server that does not
+  answer is now a warning.
 
 ## v0.30 (2026-11-06)
 

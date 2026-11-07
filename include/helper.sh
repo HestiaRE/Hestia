@@ -940,14 +940,15 @@ mariadb_compat_apply() {
 	# The MariaDB repo lists only its newest version, and a client behind it must not stop an update.
 	if [[ "$avail" != *" $v |"* ]]; then
 		echo "[ ! ] mariadb-client-compat $v is not in the index, the client is behind its repo:" \
-			"the next HestiaRE update after a MariaDB upgrade installs it"
+			"upgrade MariaDB, then apt-get install mariadb-client-compat"
 		return 0
 	fi
+	# A convenience package: a failure is a warning and never stops an install or an update.
 	if ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
 		install "mariadb-client-compat=$v" 2>&1); then
 		echo "[ ! ] mariadb-client-compat could not be installed, no mysql/mysqldump names: ${out##*$'\n'}"
-		return 1
 	fi
+	return 0
 }
 
 # The hestia crontab is operator surface (#972), so this replaces ONE line and leaves everything

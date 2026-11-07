@@ -21,8 +21,8 @@ the releases of the command audit, into another.
 - **HestiaRE calls the MariaDB client by its own names** (`mariadb`, `mariadb-dump`, `mariadb-admin`), and
   `mariadb-client-compat` comes with every MariaDB 11.x client, so `mysql`, `mysqldump` and `mysqladmin` stay
   for whoever types them (#1302). Installs, upgrades and the update add it; 10.11 on Debian 12 and Ubuntu 24.04
-  ships the old names itself. A client older than its repo's newest version gets them with the first update after
-  its own upgrade, instead of stopping this one.
+  ships the old names itself. Where the package cannot be installed, for a client older than its repo's newest
+  version or an apt failure, that is a warning and never stops an install or an update.
 
 ### Fixed
 

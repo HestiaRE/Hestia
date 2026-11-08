@@ -770,7 +770,7 @@ restore_consent_ask() {
 				RESTORE_CONSENT="$RESTORE_CONSENT$1 "
 				return 0
 				;;
-			# The 'all' token, so php-fallback is still asked later.
+			# 'a' sets the all token, which does not cover php-fallback.
 			a | A)
 				[ "$1" != 'php-fallback' ] || return 1
 				RESTORE_CONSENT="$RESTORE_CONSENT$1 all "

@@ -14,6 +14,9 @@ if (($_SESSION["adminContext"] ?? "") !== "admin") {
 	exit();
 }
 
+// The key of the panel's zone count.
+$v_name = !empty($_SESSION["look"]) ? $_SESSION["look"] : $_SESSION["user"];
+
 // The zone a name lies in: the longest of the user's zones it is or lies under.
 function dns_zone_for(string $name, array $zones): string
 {
@@ -47,7 +50,9 @@ if (isset($_GET["providers"])) {
 } elseif (isset($_GET["domain"])) {
 	// The jump from a web or mail domain lands in the section of that domain.
 	$domain = (string) $_GET["domain"];
-	$zone = dns_zone_for($domain, cli_json("h-list-dns-zones " . $user . " json"));
+	$zones = cli_json("h-list-dns-zones " . $user . " json");
+	dns_zone_count($v_name, $zones);
+	$zone = dns_zone_for($domain, $zones);
 	if ($zone === "") {
 		$_SESSION["error_msg"] = sprintf(_("No DNS zone found for %s."), $domain);
 		header("Location: /list/dns/");
@@ -58,6 +63,7 @@ if (isset($_GET["providers"])) {
 } elseif (isset($_GET["zone"])) {
 	$v_zone = strtolower((string) $_GET["zone"]);
 	$zones = cli_json("h-list-dns-zones " . $user . " json");
+	dns_zone_count($v_name, $zones);
 	if (!isset($zones[$v_zone])) {
 		$_SESSION["error_msg"] = sprintf(_("No DNS zone found for %s."), $v_zone);
 		header("Location: /list/dns/");
@@ -103,6 +109,7 @@ if (isset($_GET["providers"])) {
 	render_page($user, $TAB, "list_dns_zone");
 } else {
 	$data = cli_json("h-list-dns-zones " . $user . " json");
+	dns_zone_count($v_name, $data);
 	ksort($data);
 	render_page($user, $TAB, "list_dns");
 }

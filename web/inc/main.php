@@ -430,6 +430,19 @@ function show_alert_message($data)
 	}
 }
 
+// The DNS tab's zone count. Deriving the zones takes a few hundred ms, too much for every page, so the count is
+// kept per user for ten minutes, and the DNS pages pass in the zones they list anyway.
+function dns_zone_count(string $name, ?array $zones = null): int
+{
+	$kept = $_SESSION["DNS_ZONE_COUNT"][$name] ?? null;
+	if ($zones === null && is_array($kept) && time() - $kept[1] < 600) {
+		return $kept[0];
+	}
+	$zones ??= cli_json("h-list-dns-zones " . quoteshellarg($name) . " json");
+	$_SESSION["DNS_ZONE_COUNT"][$name] = [count($zones), time()];
+	return count($zones);
+}
+
 function top_panel($user, $TAB)
 {
 	$command = HESTIA_CMD . "h-list-user " . $user . " 'json'";
@@ -495,6 +508,8 @@ function top_panel($user, $TAB)
 	// customer sees that customer's. Kept in its own session key so it never mixes
 	// with the legacy system-wide FILE_MANAGER (FileGator) key.
 	$_SESSION["USER_FILE_MANAGER"] = (($panel[$user]["FILE_MANAGER"] ?? "") === "yes") ? "yes" : "";
+
+	$dns_zones = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_zone_count($user) : 0;
 
 	include dirname(__FILE__) . "/../templates/includes/panel.php";
 	return $panel;

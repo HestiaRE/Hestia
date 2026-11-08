@@ -474,8 +474,9 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		# Derived from the record that set them, not a list: a list never learned CROWDSEC and BOTLIMIT and leaked them
 		# on.
 		restore_forget_record prev_web_keys
-		# Not record keys, so not covered above: what this loop derives per domain.
-		unset -v restore_web_effect restore_proxy_effect old_ip check_ip
+		# Not record keys, so not covered above: what this loop derives per domain. PHP_VERSION and HTTP3 are keys of
+		# ours but not of a HestiaCP record, which would hand the previous domain's derived value on.
+		unset -v restore_web_effect restore_proxy_effect old_ip check_ip PHP_VERSION HTTP3
 
 		check_config=$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)
 		if [ -z "$check_config" ]; then

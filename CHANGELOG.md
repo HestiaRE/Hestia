@@ -25,9 +25,14 @@ the releases of the command audit, into another.
   version or an apt failure, that is a warning and never stops an install or an update.
 - **The restore's consent questions take `a` for all** (#1305). It answers this section or component and
   every following one, like the `all` consent token, so moving domains onto another PHP version is still asked.
+  That question offers no `a`, and an `a` typed there counts as no.
 
 ### Fixed
 
+- **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305). A HestiaCP
+  record has no `PHP_VERSION`, so the restore derives it from `BACKEND`, and the derived value stayed set for the
+  next domain, which then skipped its own. `HTTP3` from a mapped http3 template leaked the same way. Backups of
+  HestiaRE carry both fields and were not affected.
 - **The server backup left the webmail databases out without a word on MariaDB 11.x without Recommends**
   (#1302). It asked `mysql`, which there lives in `mariadb-client-compat`, and read the missing command as "no
   such database"; the restore took the same box for one with no database engine. A local server that does not

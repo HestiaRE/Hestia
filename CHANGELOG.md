@@ -23,6 +23,8 @@ the releases of the command audit, into another.
   for whoever types them (#1302). Installs, upgrades and the update add it; 10.11 on Debian 12 and Ubuntu 24.04
   ships the old names itself. Where the package cannot be installed, for a client older than its repo's newest
   version or an apt failure, that is a warning and never stops an install or an update.
+- **The restore's consent questions take `a` for all** (#1305). It answers this section or component and
+  every following one, like the `all` consent token, so moving domains onto another PHP version is still asked.
 
 ### Fixed
 

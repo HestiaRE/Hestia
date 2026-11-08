@@ -758,10 +758,15 @@ restore_consent_ask() {
 	restore_consent_has "$1" && return 0
 	# A prompt only where somebody can answer: `read` on a queue's stdin eats the next pipe line.
 	if [ -t 0 ]; then
-		read -r -p "$2 [y/N] " _ans
+		read -r -p "$2 [y/N/a=all] " _ans
 		case "$_ans" in
 			y | Y)
 				RESTORE_CONSENT="$RESTORE_CONSENT$1 "
+				return 0
+				;;
+			# The 'all' token, so php-fallback is still asked later.
+			a | A)
+				RESTORE_CONSENT="$RESTORE_CONSENT$1 all "
 				return 0
 				;;
 		esac

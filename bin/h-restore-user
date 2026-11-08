@@ -239,6 +239,31 @@ fi
 # in include/backup.sh and bin/h-backup-user. The restic commands keep the environment, having no consent argument.
 
 restore_refused=''
+# Consent like the others: a missing version lands on the system default, which changes what the customer runs.
+# Asked first and naming the domains, as it is the one question unlike the rest and easily passed over after them.
+php_missing=''
+if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && [ -n "$domains" ]; then
+	# Called plainly, NOT in a substitution: in a subshell the register below never reaches here.
+	backup_php_missing "$domains"
+	php_missing="$BACKUP_PHP_MISSING"
+	# A record the probe did not extract means the question was never asked: refuse, do not read it as 'nothing
+	# missing'.
+	if [ -n "$BACKUP_PHP_UNREADABLE" ]; then
+		rm -rf "$tmpdir"
+		queue_drop_job "$CONF_DIR/queue/backup.pipe"
+		check_result "$E_PARSING" "no archived web record for:$BACKUP_PHP_UNREADABLE - cannot tell which PHP version they need"
+	fi
+	if [ -n "$php_missing" ]; then
+		php_default=$(multiphp_default_version)
+		php_moves=$(printf '%s' "$BACKUP_PHP_MOVES" | while read -r _d _v; do printf '\n    %s  PHP %s -> %s' "$_d" "$_v" "$php_default"; done)
+		restore_consent_ask 'php-fallback' \
+			"PHP $php_missing is not installed here, so these domains would change their PHP version:$php_moves
+  To keep them as they are, answer no and install the missing versions first (h-add-web-php VERSION).
+  Move them to PHP $php_default?" \
+			|| restore_refused="$restore_refused php-fallback"
+	fi
+fi
+
 # Per section: off, selected (which is the consent) or asked. One list, read twice: a section added to only one
 # reader would make a named run look like a full one.
 restore_sections='web:WEB_SYSTEM:PROBE_WEB mail:MAIL_SYSTEM:PROBE_MAIL db:DB_SYSTEM:PROBE_DB
@@ -257,25 +282,6 @@ for _sec in $restore_sections; do
 		|| restore_refused="$restore_refused $_name"
 done
 
-# Consent like the others: a missing version lands on the system default, which changes what the customer runs.
-php_missing=''
-if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && [ -n "$domains" ]; then
-	# Called plainly, NOT in a substitution: in a subshell the register below never reaches here.
-	backup_php_missing "$domains"
-	php_missing="$BACKUP_PHP_MISSING"
-	# A record the probe did not extract means the question was never asked: refuse, do not read it as 'nothing
-	# missing'.
-	if [ -n "$BACKUP_PHP_UNREADABLE" ]; then
-		rm -rf "$tmpdir"
-		queue_drop_job "$CONF_DIR/queue/backup.pipe"
-		check_result "$E_PARSING" "no archived web record for:$BACKUP_PHP_UNREADABLE - cannot tell which PHP version they need"
-	fi
-	if [ -n "$php_missing" ]; then
-		restore_consent_ask 'php-fallback' \
-			"PHP $php_missing is not installed here. Move those domains to the default ($(multiphp_default_version))?" \
-			|| restore_refused="$restore_refused php-fallback"
-	fi
-fi
 # Assigned in both directions: it is also the internal flag read later, and a miss must not let the environment answer.
 if restore_consent_has 'php-fallback'; then
 	RESTORE_PHP_FALLBACK='yes'
@@ -303,7 +309,10 @@ if [ -n "$restore_refused" ]; then
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	# The tokens actually refused: 'all' covers the sections and deliberately not php-fallback.
 	restore_suggest=$(tr ' ' ',' <<< "${restore_refused# }")
-	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version."
+	restore_php_hint=''
+	[[ " $restore_refused " == *" php-fallback "* ]] \
+		&& restore_php_hint=" To keep the domains on their PHP versions, install $php_missing first (h-add-web-php VERSION)."
+	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version.$restore_php_hint"
 fi
 
 restore_web_sel=''
@@ -565,6 +574,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				# Preflight approved a fallback for a version this host lacks
 				if [ "$RESTORE_PHP_FALLBACK" = 'yes' ] && [ "$PHP_VERSION" != 'none' ] \
 					&& ! restore_php_installed "$PHP_VERSION"; then
+					echo "Warning!: $domain moves from PHP $PHP_VERSION, not installed here, to $(multiphp_default_version)" \
+						| tee -a $tmpdir/restore.log
 					PHP_VERSION=$(multiphp_default_version)
 				fi
 			else

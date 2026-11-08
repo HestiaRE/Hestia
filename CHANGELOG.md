@@ -25,7 +25,9 @@ the releases of the command audit, into another.
   version or an apt failure, that is a warning and never stops an install or an update.
 - **The restore's consent questions take `a` for all** (#1305). It answers this section or component and
   every following one, like the `all` consent token, so moving domains onto another PHP version is still asked.
-  That question offers no `a`, and an `a` typed there counts as no.
+  That question offers no `a`, and an `a` typed there counts as no. It now comes first, names each domain with
+  its old and new version, and points to `h-add-web-php` for keeping them; a refusal says the same, and the
+  restore prints a line per domain it moves.
 
 ### Fixed
 

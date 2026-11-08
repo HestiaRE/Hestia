@@ -20,25 +20,31 @@ source $HESTIA/include/ip.sh
 source $HESTIA/include/dns.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-# ZONE STATE SECTIONS APEX USERS ROWS, the sections and users comma separated.
+# ZONE STATE SECTIONS APEX USERS ROWS ALIAS_OF; sections, users and the objects whose aliases the zone carries
+# are comma separated.
 zone_list() {
 	dns_sections <<< "$rows" | awk -F '\t' 'BEGIN { OFS = FS }
+		function add(a, t, k, v) { if (!((t, k, v) in seen)) { seen[t, k, v] = 1; a[k] = a[k] (a[k] ? "," : "") v } }
 		!($1 in st) { order[++n] = $1; st[$1] = $2 }
-		{ c[$1]++ }
-		!(($1, $3) in sk) { sk[$1, $3] = 1; s[$1] = s[$1] (s[$1] ? "," : "") $3 }
-		!(($1, $5) in uk) { uk[$1, $5] = 1; u[$1] = u[$1] (u[$1] ? "," : "") $5 }
+		{ c[$1]++; add(s, "s", $1, $3); add(u, "u", $1, $5) }
+		$3 == "alias" { add(al, "a", $1, $4) }
 		$6 == "@" { apex[$1] = 1 }
-		END { for (i = 1; i <= n; i++) { z = order[i]; print z, st[z], s[z], (apex[z] ? "yes" : "no"), u[z], c[z] } }'
+		END {
+			for (i = 1; i <= n; i++) {
+				z = order[i]
+				print z, st[z], s[z], (apex[z] ? "yes" : "no"), u[z], c[z], al[z]
+			}
+		}'
 }
 
 json_list() {
 	jq -R -n '[inputs | split("\t") | {ZONE: .[0], STATE: .[1], SECTIONS: .[2], APEX: .[3], USERS: .[4],
-		ROWS: .[5]}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
+		ROWS: .[5], ALIAS_OF: (.[6] // "")}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
 }
 
 shell_list() {
-	printf 'ZONE\tSTATE\tSECTIONS\tAPEX\tUSERS\tROWS\n'
-	printf -- '----\t-----\t--------\t----\t-----\t----\n'
+	printf 'ZONE\tSTATE\tSECTIONS\tAPEX\tUSERS\tROWS\tALIAS_OF\n'
+	printf -- '----\t-----\t--------\t----\t-----\t----\t--------\n'
 	[ -n "$list" ] && echo "$list"
 }
 

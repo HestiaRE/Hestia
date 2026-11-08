@@ -163,7 +163,8 @@
         "include/firewall.sh",
         "include/sieve.sh",
         "include/vacation.sh",
-        "include/vacation.php"
+        "include/vacation.php",
+        "include/dns.sh"
       ],
       "language": "bash",
       "file_roles": {
@@ -733,6 +734,7 @@
         "bin/h-list-mail-domain",
         "bin/h-list-mail-domain-dkim",
         "bin/h-list-mail-domain-dkim-dns",
+        "bin/h-list-mail-domain-dns",
         "bin/h-check-mail-domain-dkim-dns",
         "bin/h-list-mail-domain-relay-exclude",
         "bin/h-list-mail-domains",
@@ -1052,6 +1054,20 @@
         "share/manifest.json",
         "share/updates/0.23.json",
         "bin/h-check-sys-smoke"
+      ]
+    },
+    "external_dns": {
+      "description": "External DNS (#863), stage 1 without a provider: include/dns.sh derives the target records of every object on the box (web domains and aliases A/AAAA on the NAT address, mail MX/SPF/DMARC/DKIM and mail./webmail., the hostname) and owns each name and type by the most specific object. The zone of a name comes from public DNS: the SOA owned by the name itself, a CNAME means no apex, otherwise the authority section; a public suffix is never a zone. One lookup per anchor (the longest object name a row lies under), cached a day in /var/cache/hestia/dns-zones, never backed up. h-list-dns-zones lists a user's zones, h-list-dns-zone every section of one zone with its owner, other users' included; h-list-mail-domain-dns is the mail section of one domain for the mail domain's DNS page, without a lookup. Read-only: nothing talks to a provider yet. Plan: dns-provider-plan.md on docs.",
+      "entry_points": [
+        "include/dns.sh",
+        "bin/h-list-dns-zones",
+        "bin/h-list-dns-zone",
+        "bin/h-list-mail-domain-dns"
+      ],
+      "related_files": [
+        "web/list/mail/index.php",
+        "web/templates/pages/list_mail_dns.php",
+        "include/ip.sh"
       ]
     },
     "fail2ban": {

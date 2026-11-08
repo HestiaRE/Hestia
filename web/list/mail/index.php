@@ -16,12 +16,7 @@ if (empty($_GET["domain"])) {
 
 	render_page($user, $TAB, "list_mail");
 } elseif (!empty($_GET["dns"])) {
-	$data = array_reverse(cli_json("h-list-mail-domain " . $user . " " . quoteshellarg($_GET["domain"]) . " json"), true);
-	$ips = array_reverse(cli_json("h-list-user-ips " . $user . " json"), true);
-	$dkim = array_reverse(
-		cli_json("h-list-mail-domain-dkim-dns " . $user . " " . quoteshellarg($_GET["domain"]) . " json"),
-		true,
-	);
+	$records = cli_json("h-list-mail-domain-dns " . $user . " " . quoteshellarg($_GET["domain"]) . " json");
 
 	render_page($user, $TAB, "list_mail_dns");
 } else {

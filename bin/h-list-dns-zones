@@ -38,27 +38,28 @@ zone_list() {
 }
 
 json_list() {
-	jq -R -n '[inputs | split("\t") | {ZONE: .[0], STATE: .[1], SECTIONS: .[2], APEX: .[3], USERS: .[4],
-		ROWS: .[5], ALIAS_OF: (.[6] // "")}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
+	jq -R -n '[inputs | select(length > 0) | split("\t") | {ZONE: .[0], STATE: .[1], SECTIONS: .[2], APEX: .[3],
+		USERS: .[4], ROWS: .[5], ALIAS_OF: (.[6] // "")}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
 }
 
 shell_list() {
 	printf 'ZONE\tSTATE\tSECTIONS\tAPEX\tUSERS\tROWS\tALIAS_OF\n'
 	printf -- '----\t-----\t--------\t----\t-----\t----\t--------\n'
-	[ -n "$list" ] && echo "$list"
+	[ -z "$list" ] || echo "$list"
 }
 
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-zones=$(dns_user_zones "$user" | cut -d ' ' -f 1 | tr '\n' ' ')
+dns_user_zones "$user"
+zones=$(cut -d ' ' -f 1 <<< "$DNS_USER_ZONES" | tr '\n' ' ')
 rows=$(dns_zone_rows "$zones")
 list=$(zone_list)
 
 case $format in
 	json) json_list ;;
-	plain) [ -n "$list" ] && echo "$list" ;;
+	plain) [ -z "$list" ] || echo "$list" ;;
 	shell) shell_list | column -t -s $'\t' ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac

@@ -32,16 +32,18 @@ dns_row() {
 
 # dns_web_rows USER: A and AAAA for each web domain and every alias, each name in whatever zone it lives in.
 dns_web_rows() {
-	local u="$1" line d ip ip6 alias n
+	local u="$1" line d ip ip6 n aliases
 	[ -f "$CONF_DIR/users/$u/web.conf" ] || return 0
 	while IFS= read -r line; do
 		d=$(dns_kv DOMAIN "$line")
 		[ -n "$d" ] || continue
 		ip=$(dns_kv IP "$line")
 		ip6=$(dns_kv IP6 "$line")
-		alias=$(dns_kv ALIAS "$line")
+		# An array, not a word list: a wildcard alias would glob against the current directory.
+		IFS=, read -ra aliases <<< "$(dns_kv ALIAS "$line")"
 		[ "$ip6" = 'none' ] && ip6=''
-		for n in "$d" ${alias//,/ }; do
+		for n in "$d" "${aliases[@]}"; do
+			[ -n "$n" ] || continue
 			[ -n "$ip" ] && dns_row web "$d" "$u" "$n" A '' "$DNS_TTL" "$(dns_nat "$ip")"
 			[ -n "$ip6" ] && dns_row web "$d" "$u" "$n" AAAA '' "$DNS_TTL" "$ip6"
 		done
@@ -278,6 +280,14 @@ dns_anchored() {
 
 declare -A DNS_ZONE_MEMO
 
+# dns_load: the anchored rows into DNS_ANCHORED and their names into DNS_NAMES, once per process. The derivation is
+# the costly part, and a $() started afterwards inherits both.
+dns_load() {
+	[ -n "${DNS_ANCHORED+set}" ] && return 0
+	DNS_ANCHORED=$(dns_anchored)
+	DNS_NAMES=$(cut -f 5 <<< "$DNS_ANCHORED")
+}
+
 # dns_anchor_zone ANCHOR: dns_zone_of into DNS_ZONE_STATE, once per anchor and run. A global, not stdout: in a
 # $() the memo would die with the subshell.
 dns_anchor_zone() {
@@ -288,9 +298,8 @@ dns_anchor_zone() {
 # dns_zone_rows ZONES: the owned rows of every user that live in one of ZONES (blank separated), with zone and
 # state prefixed. Only names under one of them are looked up, so a delegated sub-zone drops out by its own SOA.
 dns_zone_rows() {
-	local zones=" $1 " z state hit anchor kind obj owner name rest rows
-	rows=$(dns_anchored)
-	DNS_NAMES=$(cut -f 5 <<< "$rows")
+	local zones=" $1 " z state hit anchor kind obj owner name rest
+	dns_load
 	while IFS=$'\t' read -r anchor kind obj owner name rest; do
 		[ -n "$name" ] || continue
 		hit=''
@@ -305,17 +314,18 @@ dns_zone_rows() {
 		read -r z state <<< "$DNS_ZONE_STATE"
 		[[ "$zones" == *" $z "* ]] || continue
 		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$z" "$state" "$kind" "$obj" "$owner" "$name" "$rest"
-	done <<< "$rows"
+	done <<< "$DNS_ANCHORED"
 }
 
-# dns_user_zones USER: the zones USER's rows live in, one "ZONE STATE" per line.
+# dns_user_zones USER: the zones USER's rows live in, one "ZONE STATE" per line, into DNS_USER_ZONES. Not stdout:
+# run in this shell, its lookups stay in the memo, which a later dns_zone_rows in a $() inherits.
 dns_user_zones() {
-	local anchor kind obj owner rest rows
-	rows=$(dns_anchored)
-	DNS_NAMES=$(cut -f 5 <<< "$rows")
+	local anchor kind obj owner rest out=''
+	dns_load
 	while IFS=$'\t' read -r anchor kind obj owner rest; do
 		[ "$owner" = "$1" ] || continue
 		dns_anchor_zone "$anchor"
-		echo "$DNS_ZONE_STATE"
-	done <<< "$rows" | sort -u
+		out+="$DNS_ZONE_STATE"$'\n'
+	done <<< "$DNS_ANCHORED"
+	DNS_USER_ZONES=$(sort -u <<< "$out" | sed '/^$/d')
 }

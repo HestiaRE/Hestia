@@ -21,7 +21,8 @@ source $HESTIA/include/dns.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 json_list() {
-	jq -R -n '[inputs | split("\t") | {NAME: .[3], TYPE: .[4], PRIORITY: .[5], TTL: .[6], VALUE: .[7]}]' <<< "$list"
+	jq -R -n '[inputs | select(length > 0) | split("\t")
+		| {NAME: .[3], TYPE: .[4], PRIORITY: .[5], TTL: .[6], VALUE: .[7]}]' <<< "$list"
 }
 
 shell_list() {

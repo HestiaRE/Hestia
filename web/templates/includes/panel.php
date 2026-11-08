@@ -336,6 +336,19 @@ if (!$impersonatingAdmin) { ?>
 					<?php } ?>
 				<?php } ?>
 
+				<!-- DNS tab: zones at external providers, the real admin's also while switched into a customer -->
+				<?php if (($_SESSION["adminContext"] ?? "") === "admin") { ?>
+					<li class="main-menu-item">
+						<a class="main-menu-item-link <?php if ($TAB == "DNS") {
+							echo "active";
+						} ?>" href="/list/dns/" title="<?= tohtml(_("DNS Zones")) ?>">
+							<p class="main-menu-item-label"><?= _("DNS") ?><i class="fas fa-book-atlas"></i></p>
+							<ul class="main-menu-stats">
+								<li><?= tohtml(_("Zones at providers")) ?></li>
+							</ul>
+						</a>
+					</li>
+				<?php } ?>
 
 				<!-- Mail tab -->
 				<?php if (isset($_SESSION["MAIL_SYSTEM"]) && !empty($_SESSION["MAIL_SYSTEM"])) { ?>

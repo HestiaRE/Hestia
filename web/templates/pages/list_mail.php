@@ -225,6 +225,18 @@ foreach ($data as $key => $value) {
 									<span class="u-hide-desktop"><?= tohtml(_("DNS Records")) ?></span>
 								</a>
 							</li>
+							<?php if (($_SESSION["adminContext"] ?? "") === "admin") { ?>
+								<li class="units-table-row-action" data-key-action="href">
+									<a
+										class="units-table-row-action-link"
+										href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key])) ?>"
+										title="<?= tohtml(_("DNS Zone")) ?>"
+									>
+										<i class="fas fa-sitemap icon-blue"></i>
+										<span class="u-hide-desktop"><?= tohtml(_("DNS Zone")) ?></span>
+									</a>
+								</li>
+							<?php } ?>
 							<?php if ($data[$key]["SUSPENDED"] == "no") { ?>
 									<li class="units-table-row-action" data-key-action="href">
 										<a
@@ -286,6 +298,18 @@ foreach ($data as $key => $value) {
 									<span class="u-hide-desktop"><?= tohtml(_("DNS Records")) ?></span>
 								</a>
 							</li>
+							<?php if (($_SESSION["adminContext"] ?? "") === "admin") { ?>
+								<li class="units-table-row-action" data-key-action="href">
+									<a
+										class="units-table-row-action-link"
+										href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key])) ?>"
+										title="<?= tohtml(_("DNS Zone")) ?>"
+									>
+										<i class="fas fa-sitemap icon-blue"></i>
+										<span class="u-hide-desktop"><?= tohtml(_("DNS Zone")) ?></span>
+									</a>
+								</li>
+							<?php } ?>
 							<li class="units-table-row-action shortcut-s" data-key-action="js">
 								<a
 									class="units-table-row-action-link data-controls js-confirm-action"

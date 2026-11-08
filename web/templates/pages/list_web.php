@@ -253,6 +253,18 @@
 								<span class="u-hide-desktop"><?= tohtml(_("Visit")) ?></span>
 							</a>
 						</li>
+						<?php if (($_SESSION["adminContext"] ?? "") === "admin") { ?>
+							<li class="units-table-row-action" data-key-action="href">
+								<a
+									class="units-table-row-action-link"
+									href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key])) ?>"
+									title="<?= tohtml(_("DNS Zone")) ?>"
+								>
+									<i class="fas fa-sitemap icon-blue"></i>
+									<span class="u-hide-desktop"><?= tohtml(_("DNS Zone")) ?></span>
+								</a>
+							</li>
+						<?php } ?>
 						<?php if ($read_only !== "true") { ?>
 							<?php if ($data[$key]["SUSPENDED"] == "no") { ?>
 								<li class="units-table-row-action shortcut-enter" data-key-action="href">

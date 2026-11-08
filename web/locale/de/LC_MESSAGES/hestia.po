@@ -1163,10 +1163,6 @@ msgstr "DB"
 msgid "DNS"
 msgstr "DNS"
 
-#: web/templates/includes/panel.php web/templates/pages/list_dns.php
-msgid "DNS Zones"
-msgstr "DNS-Zonen"
-
 #: web/templates/includes/panel.php
 msgid "Delete notification"
 msgstr "Benachrichtigung löschen"
@@ -1236,6 +1232,10 @@ msgid "Open menu"
 msgstr "Menü öffnen"
 
 #: web/templates/includes/panel.php
+msgid "Providers"
+msgstr "Provider"
+
+#: web/templates/includes/panel.php
 msgid "Server settings"
 msgstr "Server-Einstellungen"
 
@@ -1263,8 +1263,8 @@ msgid "WEB"
 msgstr "WEB"
 
 #: web/templates/includes/panel.php
-msgid "Zones at providers"
-msgstr "Zonen bei Providern"
+msgid "Zones"
+msgstr "Zonen"
 
 #: web/templates/includes/password-requirements.php
 #: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
@@ -3401,6 +3401,10 @@ msgstr "Alias"
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
 msgid "DNS Providers"
 msgstr "DNS-Provider"
+
+#: web/templates/pages/list_dns.php
+msgid "DNS Zones"
+msgstr "DNS-Zonen"
 
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php

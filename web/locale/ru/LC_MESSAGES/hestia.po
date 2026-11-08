@@ -1169,10 +1169,6 @@ msgstr "База данных"
 msgid "DNS"
 msgstr ""
 
-#: web/templates/includes/panel.php web/templates/pages/list_dns.php
-msgid "DNS Zones"
-msgstr ""
-
 #: web/templates/includes/panel.php
 msgid "Delete notification"
 msgstr "Удалить уведомление"
@@ -1242,6 +1238,10 @@ msgid "Open menu"
 msgstr "Развернуть меню"
 
 #: web/templates/includes/panel.php
+msgid "Providers"
+msgstr ""
+
+#: web/templates/includes/panel.php
 msgid "Server settings"
 msgstr "Настройки Сервера"
 
@@ -1269,7 +1269,7 @@ msgid "WEB"
 msgstr "ВЕБ"
 
 #: web/templates/includes/panel.php
-msgid "Zones at providers"
+msgid "Zones"
 msgstr ""
 
 #: web/templates/includes/password-requirements.php
@@ -3424,6 +3424,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
 msgid "DNS Providers"
+msgstr ""
+
+#: web/templates/pages/list_dns.php
+msgid "DNS Zones"
 msgstr ""
 
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php

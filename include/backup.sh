@@ -758,7 +758,12 @@ restore_consent_ask() {
 	restore_consent_has "$1" && return 0
 	# A prompt only where somebody can answer: `read` on a queue's stdin eats the next pipe line.
 	if [ -t 0 ]; then
-		read -r -p "$2 [y/N/a=all] " _ans
+		# php-fallback is outside 'all', so it offers no 'a', and an 'a' typed from habit counts as no.
+		if [ "$1" = 'php-fallback' ]; then
+			read -r -p "$2 [y/N] " _ans
+		else
+			read -r -p "$2 [y/N/a=all] " _ans
+		fi
 		case "$_ans" in
 			y | Y)
 				RESTORE_CONSENT="$RESTORE_CONSENT$1 "
@@ -766,6 +771,7 @@ restore_consent_ask() {
 				;;
 			# The 'all' token, so php-fallback is still asked later.
 			a | A)
+				[ "$1" != 'php-fallback' ] || return 1
 				RESTORE_CONSENT="$RESTORE_CONSENT$1 all "
 				return 0
 				;;

@@ -158,7 +158,8 @@ dns_public_suffix() {
 # dns_soa_lookup NAME: the zone NAME lives in, from public DNS; empty when that cannot be told.
 # The answer's SOA counts only when owned by NAME itself: a CNAME is followed, and the SOA after it is the
 # target's zone. A CNAME means NAME is no apex, so the parent is asked; otherwise the authority section names
-# the closest enclosing zone, for a missing name as for an existing one.
+# the closest enclosing zone, for a missing name as for an existing one. An answer with no SOA at all is the
+# local resolver speaking for the box's own hostname (systemd-resolved): the parent is asked as well.
 dns_soa_lookup() {
 	local q="$1" out zone
 	while [[ "$q" == *.* ]]; do
@@ -169,10 +170,10 @@ dns_soa_lookup() {
 			s == "a" && $4 == "SOA" && tolower($1) == q { print "self"; exit }
 			s == "a" && $4 == "CNAME" && tolower($1) == q { c = 1 }
 			s == "u" && $4 == "SOA" && !u { u = tolower($1) }
-			END { if (c) print "cname"; else if (u) print u }' <<< "$out" | head -n1)
+			END { if (c) print "up"; else if (u) print u; else print "up" }' <<< "$out" | head -n1)
 		case "$zone" in
 			self) zone="$q" ;;
-			cname)
+			up)
 				q="${q#*.}"
 				continue
 				;;

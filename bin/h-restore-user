@@ -255,10 +255,13 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ] && [ -n "$domains" ]; then
 	fi
 	if [ -n "$php_missing" ]; then
 		php_default=$(multiphp_default_version)
+		# On an OS-PHP box the install is no small step: h-add-web-php arms Sury for a version the OS lacks.
+		php_install="h-add-web-php VERSION"
+		[ "$PHP_SOURCE" = 'sury' ] || php_install="h-add-web-php VERSION, which adds the Sury repo on this box"
 		php_moves=$(printf '%s' "$BACKUP_PHP_MOVES" | while read -r _d _v; do printf '\n    %s  PHP %s -> %s' "$_d" "$_v" "$php_default"; done)
 		restore_consent_ask 'php-fallback' \
-			"PHP $php_missing is not installed here, so these domains would change their PHP version:$php_moves
-  To keep them as they are, answer no and install the missing versions first (h-add-web-php VERSION).
+			"Not installed here: PHP ${php_missing// /, }. These domains would change their PHP version:$php_moves
+  To keep them as they are, answer no and install the missing versions first ($php_install).
   Move them to PHP $php_default?" \
 			|| restore_refused="$restore_refused php-fallback"
 	fi
@@ -311,7 +314,7 @@ if [ -n "$restore_refused" ]; then
 	restore_suggest=$(tr ' ' ',' <<< "${restore_refused# }")
 	restore_php_hint=''
 	[[ " $restore_refused " == *" php-fallback "* ]] \
-		&& restore_php_hint=" To keep the domains on their PHP versions, install $php_missing first (h-add-web-php VERSION)."
+		&& restore_php_hint=" To keep the domains on their PHP versions, install ${php_missing// /, } first ($php_install)."
 	check_result "$E_INVALID" "no consent for:$restore_refused - nothing was written. Give '$restore_suggest' as the LAST argument (the tenth, after NOTIFY; an environment prefix is ignored on purpose), select the objects to restore, or answer the prompt on a terminal. 'all' stands for the sections and deliberately not for php-fallback, which moves a customer's domains onto another PHP version.$restore_php_hint"
 fi
 

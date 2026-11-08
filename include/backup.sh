@@ -654,8 +654,8 @@ backup_report() {
 	done <<< "$PROBE_WEB"
 	if [ -n "$_missing" ]; then
 		_found=1
-		printf '   PHP %s is not installed here - those domains would move to the default (%s):\n' \
-			"$_missing" "$(multiphp_default_version 2> /dev/null)"
+		printf '   not installed here: PHP %s - these domains would move to the default (%s):\n' \
+			"${_missing// /, }" "$(multiphp_default_version 2> /dev/null)"
 		printf '%s' "$BACKUP_PHP_MOVES" | while read -r _dom _ver; do printf '     %s (%s)\n' "$_dom" "$_ver"; done
 	fi
 

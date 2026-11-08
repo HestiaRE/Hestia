@@ -654,8 +654,9 @@ backup_report() {
 	done <<< "$PROBE_WEB"
 	if [ -n "$_missing" ]; then
 		_found=1
-		printf '   PHP %s is not installed here - those domains would move to the default (%s)\n' \
-			"$_missing" "$(multiphp_default_version 2> /dev/null)"
+		printf '   not installed here: PHP %s - these domains would move to the default (%s):\n' \
+			"${_missing// /, }" "$(multiphp_default_version 2> /dev/null)"
+		printf '%s' "$BACKUP_PHP_MOVES" | while read -r _dom _ver; do printf '     %s (%s)\n' "$_dom" "$_ver"; done
 	fi
 
 	# Record keys this host neither knows nor writes, three-way so our own newer fields do not read
@@ -758,10 +759,21 @@ restore_consent_ask() {
 	restore_consent_has "$1" && return 0
 	# A prompt only where somebody can answer: `read` on a queue's stdin eats the next pipe line.
 	if [ -t 0 ]; then
-		read -r -p "$2 [y/N] " _ans
+		# php-fallback is outside 'all', so it offers no 'a', and an 'a' typed from habit counts as no.
+		if [ "$1" = 'php-fallback' ]; then
+			read -r -p "$2 [y/N] " _ans
+		else
+			read -r -p "$2 [y/N/a=all] " _ans
+		fi
 		case "$_ans" in
 			y | Y)
 				RESTORE_CONSENT="$RESTORE_CONSENT$1 "
+				return 0
+				;;
+			# 'a' sets the all token, which does not cover php-fallback.
+			a | A)
+				[ "$1" != 'php-fallback' ] || return 1
+				RESTORE_CONSENT="$RESTORE_CONSENT$1 all "
 				return 0
 				;;
 		esac
@@ -770,11 +782,13 @@ restore_consent_ask() {
 }
 
 # backup_php_missing DOMAIN-LIST: one derivation, two readers, so the list is a parameter. Globals,
-# not stdout: in a $() subshell the unreadable register would not reach the caller.
+# not stdout: in a $() subshell the unreadable register would not reach the caller. BACKUP_PHP_MOVES holds one
+# "DOMAIN VERSION" line per domain that would leave its version.
 backup_php_missing() {
 	local _list="$1" _dom _rec _ver _missing='' _installed _file
 	BACKUP_PHP_UNREADABLE=''
 	BACKUP_PHP_MISSING=''
+	BACKUP_PHP_MOVES=''
 	[ -n "$WEB_BACKEND" ] || return 0
 	_installed=" $($BIN/h-list-sys-php plain 2> /dev/null | tr '\n' ' ') "
 	while IFS= read -r _dom; do
@@ -791,7 +805,9 @@ backup_php_missing() {
 		[ -z "$_ver" ] && _ver=$(sed -n "s/.*BACKEND='PHP-\([0-9]*\)_\([0-9]*\)'.*/\1.\2/p" <<< "$_rec")
 		{ [ -z "$_ver" ] || [ "$_ver" = 'none' ]; } && continue
 		# Format first, as in restore_php_installed: a value with a blank could span two installed versions.
-		[[ "$_ver" =~ ^[0-9]+\.[0-9]+$ ]] && [[ "$_installed" == *" $_ver "* ]] || _missing="$_missing $_ver"
+		[[ "$_ver" =~ ^[0-9]+\.[0-9]+$ ]] && [[ "$_installed" == *" $_ver "* ]] && continue
+		_missing="$_missing $_ver"
+		BACKUP_PHP_MOVES="$BACKUP_PHP_MOVES$_dom $_ver"$'\n'
 	done <<< "$_list"
 	BACKUP_PHP_MISSING=$(tr ' ' '\n' <<< "$_missing" | sed '/^$/d' | sort -u | tr '\n' ' ' | sed 's/ $//')
 }

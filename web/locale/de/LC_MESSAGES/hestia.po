@@ -191,7 +191,7 @@ msgstr "Bitte geben Sie eine gültige E-Mail Adresse ein."
 #: web/templates/pages/list_backup_detail_incremental.php
 #: web/templates/pages/list_backup_exclusions.php
 #: web/templates/pages/list_backup_incremental.php
-#: web/templates/pages/list_db.php
+#: web/templates/pages/list_db.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_mail_dns.php web/templates/pages/list_search.php
 msgid "Type"
@@ -870,6 +870,11 @@ msgstr "Symlink"
 msgid "Unknown"
 msgstr "Unbekannt"
 
+#: web/list/dns/index.php
+#, php-format
+msgid "No DNS zone found for %s."
+msgstr "Keine DNS-Zone für %s gefunden."
+
 #: web/login/index.php
 msgid "Account has been suspended"
 msgstr "Konto wurde gesperrt"
@@ -1155,6 +1160,14 @@ msgid "DB"
 msgstr "DB"
 
 #: web/templates/includes/panel.php
+msgid "DNS"
+msgstr "DNS"
+
+#: web/templates/includes/panel.php web/templates/pages/list_dns.php
+msgid "DNS Zones"
+msgstr "DNS-Zonen"
+
+#: web/templates/includes/panel.php
 msgid "Delete notification"
 msgstr "Benachrichtigung löschen"
 
@@ -1239,7 +1252,7 @@ msgid "USER"
 msgstr "BENUTZER"
 
 #: web/templates/includes/panel.php web/templates/pages/edit_server.php
-#: web/templates/pages/list_user.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_user.php
 msgid "Users"
 msgstr "Benutzer"
 
@@ -1248,6 +1261,10 @@ msgstr "Benutzer"
 #: web/templates/pages/add_package.php web/templates/pages/edit_package.php
 msgid "WEB"
 msgstr "WEB"
+
+#: web/templates/includes/panel.php
+msgid "Zones at providers"
+msgstr "Zonen bei Providern"
 
 #: web/templates/includes/password-requirements.php
 #: web/templates/pages/add_mail_acc.php web/templates/pages/edit_mail_acc.php
@@ -1306,6 +1323,8 @@ msgstr "Aug"
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php
 #: web/templates/pages/list_backup_exclusions.php
+#: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_banlist.php
@@ -3375,6 +3394,109 @@ msgstr "Alle entsperren"
 msgid "read-only"
 msgstr "nur lesen"
 
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+msgid "Alias"
+msgstr "Alias"
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
+msgid "DNS Providers"
+msgstr "DNS-Provider"
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
+msgid "Mail"
+msgstr "E-Mail"
+
+#: web/templates/pages/list_dns.php
+msgid "No web or mail domain of this user lies in a DNS zone."
+msgstr "Keine Web- oder Mail-Domain dieses Benutzers liegt in einer DNS-Zone."
+
+#: web/templates/pages/list_dns.php
+msgid "Provider"
+msgstr "Provider"
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+msgid "Public DNS does not know this zone. Its sections are grouped under the shortest domain on this server."
+msgstr "Das öffentliche DNS kennt diese Zone nicht. Ihre Abschnitte sind unter der kürzesten Domain auf diesem Server gruppiert."
+
+#: web/templates/pages/list_dns.php
+msgid "Records"
+msgstr "Einträge"
+
+#: web/templates/pages/list_dns.php
+msgid "Sections"
+msgstr "Abschnitte"
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+msgid "Server"
+msgstr "Server"
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+msgid "Subdomain"
+msgstr "Subdomain"
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
+msgid "Web"
+msgstr "Web"
+
+#: web/templates/pages/list_dns.php
+msgid "Zone"
+msgstr "Zone"
+
+#: web/templates/pages/list_dns.php
+msgid "no account"
+msgstr "kein Konto"
+
+#: web/templates/pages/list_dns.php
+msgid "only subdomains"
+msgstr "nur Subdomains"
+
+#: web/templates/pages/list_dns_providers.php
+msgid "No provider account yet. Accounts come with the first provider driver; until then every zone lists its records to enter by hand."
+msgstr "Noch kein Provider-Konto. Konten kommen mit dem ersten Provider-Treiber; bis dahin listet jede Zone ihre Einträge zum Eintragen von Hand."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Alias of"
+msgstr "Alias von"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Aliases in other zones"
+msgstr "Aliase in anderen Zonen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "As zone file lines"
+msgstr "Als Zonendatei-Zeilen"
+
+#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
+msgid "IP or Value"
+msgstr "IP oder Wert"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "No provider account holds this zone. Enter the records at the provider by hand."
+msgstr "Kein Provider-Konto führt diese Zone. Tragen Sie die Einträge beim Provider von Hand ein."
+
+#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
+msgid "Priority"
+msgstr "Priorität"
+
+#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
+msgid "Record"
+msgstr "Eintrag"
+
+#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
+msgid "TTL"
+msgstr "TTL"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Whole zone"
+msgstr "Ganze Zone"
+
+#: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "user %s"
+msgstr "Benutzer %s"
+
 #: web/templates/pages/list_files_incremental.php
 msgid "Date / Time"
 msgstr "Datum / Uhrzeit"
@@ -3774,6 +3896,10 @@ msgstr "DKIM"
 msgid "DNS Records"
 msgstr "DNS Einträge"
 
+#: web/templates/pages/list_mail.php web/templates/pages/list_web.php
+msgid "DNS Zone"
+msgstr "DNS-Zone"
+
 #: web/templates/pages/list_mail.php
 msgid "Not installed"
 msgstr "Nicht installiert"
@@ -3815,22 +3941,6 @@ msgstr "Weiterleitung"
 #: web/templates/pages/list_mail_acc.php
 msgid "No aliases"
 msgstr "Keine Aliase"
-
-#: web/templates/pages/list_mail_dns.php
-msgid "IP or Value"
-msgstr "IP oder Wert"
-
-#: web/templates/pages/list_mail_dns.php
-msgid "Priority"
-msgstr "Priorität"
-
-#: web/templates/pages/list_mail_dns.php
-msgid "Record"
-msgstr "Eintrag"
-
-#: web/templates/pages/list_mail_dns.php
-msgid "TTL"
-msgstr "TTL"
 
 #: web/templates/pages/list_packages.php
 #, php-format
@@ -3896,17 +4006,9 @@ msgstr "Prozessor"
 msgid "Hestia Control Panel"
 msgstr "Hestia Systemsteuerung"
 
-#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
-msgid "Mail"
-msgstr "E-Mail"
-
 #: web/templates/pages/list_server_info.php
 msgid "RAM"
 msgstr "Arbeitsspeicher"
-
-#: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
-msgid "Web"
-msgstr "Web"
 
 #: web/templates/pages/list_server_preview.php
 msgid "Partially implemented"

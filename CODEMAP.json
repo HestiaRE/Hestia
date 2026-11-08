@@ -86,9 +86,9 @@
           "pattern": "bin/h-*-mail*"
         },
         "dns": {
-          "count": 1,
+          "count": 8,
           "pattern": "bin/h-*-dns*",
-          "note": "Only h-list-mail-domain-dkim-dns retained — DNS zone management removed in Issue #58"
+          "note": "No DNS server since #58 (bind9 removed). h-list-dns-zones and h-list-dns-zone list the zones at external providers (#863), the rest are mail DNS records and the DNSBL list."
         },
         "database": {
           "count": 31,

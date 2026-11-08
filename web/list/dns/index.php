@@ -38,7 +38,8 @@ function dns_zone_line(array $r): string
 	if ($r["TYPE"] === "TXT") {
 		$value = implode(" ", array_map(fn ($s) => '"' . addcslashes($s, '"\\') . '"', str_split($value, 255)));
 	}
-	return implode("\t", array_filter([$r["NAME"], $r["TTL"], "IN", $r["TYPE"], $r["PRIORITY"], $value], fn ($v) => $v !== ""));
+	$fields = [$r["NAME"], $r["TTL"], "IN", $r["TYPE"], $r["PRIORITY"], $value];
+	return implode("\t", array_filter($fields, fn ($v) => $v !== ""));
 }
 
 if (isset($_GET["providers"])) {
@@ -94,7 +95,10 @@ if (isset($_GET["providers"])) {
 		$s["text"] = implode("\n", array_map("dns_zone_line", $s["rows"]));
 	}
 	unset($s);
-	$v_zone_text = implode("\n\n", array_map(fn ($s) => "; " . $s["kind"] . " " . $s["object"] . "\n" . $s["text"], $sections));
+	$v_zone_text = implode(
+		"\n\n",
+		array_map(fn ($s) => "; " . $s["kind"] . " " . $s["object"] . "\n" . $s["text"], $sections),
+	);
 
 	render_page($user, $TAB, "list_dns_zone");
 } else {

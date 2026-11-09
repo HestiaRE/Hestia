@@ -430,10 +430,11 @@ function show_alert_message($data)
 	}
 }
 
-// The DNS tab's zone count as the DNS pages last listed it, null before. Only they derive the zones: that waits on
-// public DNS, seconds per zone when it does not answer, and the panel head is on every page.
-function dns_zone_count(string $name, ?array $zones = null): ?int
+// The DNS tab's zone count for the shown user as the DNS pages last listed it, null before. Only they derive the
+// zones: that waits on public DNS, seconds per zone when it does not answer, and the panel head is on every page.
+function dns_zone_count(?array $zones = null): ?int
 {
+	$name = empty($_SESSION["look"]) ? $_SESSION["user"] : $_SESSION["look"];
 	if ($zones !== null) {
 		$_SESSION["DNS_ZONE_COUNT"][$name] = count($zones);
 	}
@@ -507,7 +508,7 @@ function top_panel($user, $TAB)
 	// with the legacy system-wide FILE_MANAGER (FileGator) key.
 	$_SESSION["USER_FILE_MANAGER"] = (($panel[$user]["FILE_MANAGER"] ?? "") === "yes") ? "yes" : "";
 
-	$dns_zones = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_zone_count($user) : null;
+	$dns_zones = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_zone_count() : null;
 
 	include dirname(__FILE__) . "/../templates/includes/panel.php";
 	return $panel;

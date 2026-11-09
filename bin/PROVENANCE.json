@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "14853ae5",
     "upstream_ref_date": "2026-11-06",
-    "last_updated": "2026-11-06",
+    "last_updated": "2026-11-09",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from `git diff --numstat` between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 400,
-      "eigenbau_files": 122,
+      "eigenbau_files": 125,
       "weighted_pct": 47,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 522,
+      "files_total": 525,
       "files_mapped": 400
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -50,14 +50,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-backup-host",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 244,
-        "our_lines": 175,
-        "added": 46,
+        "our_lines": 176,
+        "added": 47,
         "removed": 115,
         "pct": 38,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -130,14 +130,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-database-host",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 169,
-        "our_lines": 175,
-        "added": 69,
-        "removed": 63,
-        "pct": 38,
-        "measured_at": "2026-11-06"
+        "our_lines": 164,
+        "added": 71,
+        "removed": 76,
+        "pct": 44,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -1373,14 +1373,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-backup-user",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 800,
-        "our_lines": 981,
+        "our_lines": 966,
         "added": 487,
-        "removed": 306,
-        "pct": 44,
-        "measured_at": "2026-11-06"
+        "removed": 321,
+        "pct": 45,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -1389,14 +1389,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-backup-user-config",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 462,
-        "our_lines": 331,
+        "our_lines": 316,
         "added": 72,
-        "removed": 203,
-        "pct": 34,
-        "measured_at": "2026-11-06"
+        "removed": 218,
+        "pct": 37,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -1421,14 +1421,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-backup-users",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 56,
         "our_lines": 55,
-        "added": 28,
-        "removed": 29,
-        "pct": 51,
-        "measured_at": "2026-11-06"
+        "added": 29,
+        "removed": 30,
+        "pct": 53,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -4366,6 +4366,24 @@
       "note": ""
     },
     {
+      "path": "h-list-dns-zone",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-09",
+      "divergence": null,
+      "note": "DNS records per zone without a DNS server (#1307)."
+    },
+    {
+      "path": "h-list-dns-zones",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-09",
+      "divergence": null,
+      "note": "DNS records per zone without a DNS server (#1307)."
+    },
+    {
       "path": "h-list-firewall",
       "source_type": "derived",
       "upstream_path": "bin/v-list-firewall",
@@ -4569,6 +4587,15 @@
       "note": ""
     },
     {
+      "path": "h-list-mail-domain-dns",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-09",
+      "divergence": null,
+      "note": "The mail domain's DNS records from the zone derivation (#1307)."
+    },
+    {
       "path": "h-list-mail-domain-relay-exclude",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -4716,14 +4743,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-db-status",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 94,
-        "our_lines": 58,
-        "added": 13,
-        "removed": 49,
-        "pct": 40,
-        "measured_at": "2026-11-06"
+        "our_lines": 51,
+        "added": 17,
+        "removed": 60,
+        "pct": 53,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -6130,14 +6157,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-restore-user",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 972,
-        "our_lines": 1437,
-        "added": 1035,
+        "our_lines": 1452,
+        "added": 1050,
         "removed": 570,
         "pct": 66,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },

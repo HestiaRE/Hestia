@@ -1,0 +1,16 @@
+{
+  "version": "0.31",
+  "entries": [
+    {
+      "id": "mariadb-client-compat",
+      "description": "The mysql, mysqldump and mysqladmin names come back on MariaDB 11.x, where they sit in mariadb-client-compat, which a box without Recommends never got; installed at the client's own version",
+      "conditions": [
+        { "type": "package_installed", "name": "mariadb-client" },
+        { "type": "path_absent", "path": "/usr/bin/mysql" }
+      ],
+      "action": { "type": "function_call", "function": "mariadb_compat_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

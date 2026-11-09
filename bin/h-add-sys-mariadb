@@ -92,6 +92,7 @@ if ! dpkg -l mariadb-server 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: MariaDB package install failed"
 	exit "$E_INVALID"
 fi
+mariadb_compat_apply || true
 
 echo "[ * ] Configuring MariaDB..."
 MEM=$(awk '/MemTotal/{print $2}' /proc/meminfo)

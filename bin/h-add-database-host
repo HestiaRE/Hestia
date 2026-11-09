@@ -38,12 +38,7 @@ is_mysql_host_alive() {
 
 	chmod 600 $mycnf
 	mysql_out=$(mktemp)
-	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
-	else
-		mysql --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
-	fi
-	if [ "$?" -ne '0' ]; then
+	if ! mariadb --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1; then
 		# One error number covers an untrusted certificate and no TLS at all, and each needs a different fix.
 		case "$(tr 'A-Z' 'a-z' < "$mysql_out")" in
 			*'certificate'*)
@@ -65,13 +60,7 @@ is_mysql_host_alive() {
 	fi
 	rm -f "$mysql_out"
 
-	if [ -f '/usr/bin/mariadb' ]; then
-		grants=$(mariadb --defaults-file=$mycnf -e 'SHOW GRANTS FOR CURRENT_USER();')
-	else
-		grants=$(mysql --defaults-file=$mycnf -e 'SHOW GRANTS FOR CURRENT_USER();')
-	fi
-
-	if [ "$?" -ne '0' ]; then
+	if ! grants=$(mariadb --defaults-file=$mycnf -e 'SHOW GRANTS FOR CURRENT_USER();'); then
 		echo "Error: MySQL connection to $host failed"
 		rm $mycnf
 		log_event "$E_CONNECT" "$ARGUMENTS"

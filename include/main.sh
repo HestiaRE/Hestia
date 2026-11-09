@@ -803,6 +803,18 @@ _object_match() { # NUMBERED OBJECT FIELD
 _object_rows() { _object_match 1 "$@"; }
 _object_lines() { _object_match '' "$@"; }
 
+# record_sed SCRIPT FILE: sed -i on a record. A record that is there but cannot be written (read-only /etc under a
+# sandboxed unit, a full disk) ends the command: going on would leave service files changed, the record not, rc 0.
+# A missing file stays the silent no-op it always was, so a half-built box at install time sees no change.
+record_sed() {
+	local rc
+	sed -i "$1" "$2" && return 0
+	rc=$?
+	[ -e "$2" ] || return "$rc"
+	# sed's own message above says why: no write access, a full disk, or a value that broke the script.
+	check_result "$E_UPDATE" "record $2 not updated (sed rc $rc)"
+}
+
 # Check if object is new
 is_object_new() {
 	if [ $2 = 'USER' ]; then
@@ -1184,8 +1196,7 @@ update_object_value() {
 	old=$(echo "$old" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g' \
 		-e 's/\[/\\[/g' -e 's/\]/\\]/g' -e 's/\./\\./g' -e 's/\^/\\^/g' -e 's/\$/\\$/g')
 	new=$(echo "$5" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
-	sed -i "$lnr s/${4//$/}='${old//\*/\\*}'/${4//$/}='${new//\*/\\*}'/g" \
-		"$(_object_conf "$1")"
+	record_sed "$lnr s/${4//$/}='${old//\*/\\*}'/${4//$/}='${new//\*/\\*}'/g" "$(_object_conf "$1")"
 }
 
 # Add object key
@@ -1207,7 +1218,7 @@ add_object_key() {
 		2 | 3) return 0 ;;
 	esac
 	new=$(echo "$new" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
-	sed -i "$lnr s/.*/$new/" "$(_object_conf "$1")"
+	record_sed "$lnr s/.*/$new/" "$(_object_conf "$1")"
 }
 
 # Literal match on the full keys_zone prefix: a dot in the domain is a regex wildcard, so a.b.com
@@ -1300,7 +1311,7 @@ update_user_value() {
 		# 'c' rewrites any line, the last included, and unlike 's' has no delimiter a value could
 		# contain. A delete+insert loses the last line: the file is then $lnr-1 long, so inserting
 		# before $lnr addresses past EOF and writes nothing.
-		sed -i "${lnr}c\\$key='${3}'" $CONF_DIR/users/$1/user.conf
+		record_sed "${lnr}c\\$key='${3}'" "$CONF_DIR/users/$1/user.conf"
 	else
 		# The key is not in the record: nothing was written, and the caller has to say so.
 		return 1
@@ -1389,7 +1400,7 @@ increase_user_value() {
 		old=0
 	fi
 	new=$((old + factor))
-	sed -i "s/$key='$old'/$key='$new'/g" $conf
+	record_sed "s/$key='$old'/$key='$new'/g" "$conf"
 }
 
 # Decrease user counter
@@ -1409,7 +1420,7 @@ decrease_user_value() {
 	if [ "$new" -lt 0 ]; then
 		new=0
 	fi
-	sed -i "s/$key='$old'/$key='$new'/g" $conf
+	record_sed "s/$key='$old'/$key='$new'/g" "$conf"
 }
 
 # Notify user
@@ -2154,6 +2165,14 @@ record_path_ok() {
 	[ "$_tail" != "$1" ] && [[ "$_tail" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$_tail" = "${_tail//[^[:ascii:]]/}" ]
 }
 
+# A backup host's remote path, relative or absolute: it lands in the BPATH record field and, unquoted, in the remote
+# ftp, sftp and rclone commands. Non-ASCII letters pass, they always worked there; a blank never did.
+is_backup_path_format_valid() {
+	local a="${1//[^[:ascii:]]/}"
+	[ -n "$1" ] && [[ "$a" =~ ^[[:alnum:]._/+@~-]*$ ]] \
+		|| check_result "$E_INVALID" "invalid path :: only letters, digits and ._/+@~- are allowed"
+}
+
 # A name in a record's comma list (UDIR): the same set without the slash.
 is_record_list_item() {
 	[[ "$1" =~ ^[[:alnum:]._+@~-]+$ ]] && [ "$1" = "${1//[^[:ascii:]]/}" ]
@@ -2454,6 +2473,7 @@ is_format_valid() {
 				cron_command) is_cron_command_valid_format "$arg" ;;
 				database) is_database_format_valid "$arg" 'database' ;;
 				day) is_cron_format_valid "$arg" $arg_name ;;
+				delay) is_int_format_valid "$arg" 'delay' ;;
 				dbpass) is_password_format_valid "$arg" ;;
 				dbuser) is_dbuser_format_valid "$arg" 'dbuser' ;;
 				dkim) is_boolean_format_valid "$arg" 'dkim' ;;
@@ -2505,6 +2525,7 @@ is_format_valid() {
 				object) is_object_name_format_valid "$arg" 'object' ;;
 				package) is_object_format_valid "$arg" "$arg_name" ;;
 				password) is_password_format_valid "$arg" ;;
+				bpath) is_backup_path_format_valid "$arg" ;;
 				priority) is_int_format_valid $arg ;;
 				port) is_int_format_valid "$arg" 'port' ;;
 				port_ext) is_fw_port_format_valid "$arg" ;;

@@ -5,7 +5,7 @@
     "version_ref": "1.9.6",
     "description": "Machine-readable component map. Read before exploring the codebase. Update as part of every feature branch that adds or moves components.",
     "upstream_debt_legend": "Files/dirs still using HestiaCP-specific paths (/usr/local/hestia, /etc/hestiacp, hestia-nginx, hestia-php) that need migration to HestiaRE conventions.",
-    "os_targets": "All four are first-class, equal-priority: debian-bookworm (12), debian-trixie (13), ubuntu-noble (24.04), ubuntu-26lts (26.04). load_os_profile (include/helper.sh) is the single source for OS_ID/CODENAME/RELEASE/EXIM_USR/BASE_PKGS_EXTRA. Every feature must work on all four; verify on the VM fleet before a PR.",
+    "os_targets": "Primary: debian-trixie (13) and ubuntu-26lts (26.04); secondary, best effort since 2026-11-06: debian-bookworm (12) and ubuntu-noble (24.04). load_os_profile (include/helper.sh) is the single source for OS_ID/CODENAME/RELEASE/EXIM_USR/BASE_PKGS_EXTRA. Every feature is built for the primary two and tested on all four on the VM fleet before a PR; a feature may leave the secondary pair behind where backward compatibility gets in the way, and its PR says so.",
     "distro_quirks": "Cross-cutting gotchas that bite more than one service (grep these before assuming a service failure is your bug): (1) Ubuntu 26.04 ships ENFORCED AppArmor profiles that deny access other distros allow — proftpd can't read the panel cert under /usr/local/hestia/ssl (h-add-sys-proftpd drops share/proftpd/apparmor-local into the profile's local/ hook), and mariadbd's profile denies the dac_override the mariadb-install-db bootstrap needs (h-add-sys-mariadb unloads it for the init, reloads after). Suspect AppArmor on any 'Permission denied as root' on ub26. (2) Package names/splits differ by distro+version: proftpd-basic is bookworm-only (else proftpd-core), and modern proftpd (1.3.9 / 1.3.8 on trixie+ubuntu) moved mod_tls into proftpd-mod-crypto — omitting it silently disables FTPS. libzip is libzip4t64 on ub24 (t64 transition) but libzip5 on ub26. (3) apt-cache/apt-get output is localized — always LC_ALL=C before grepping for 'Candidate:' etc. (4) dovecot 2.3 (deb12) vs 2.4 (deb13/ub26) need version-split configs (share/dovecot/{2.3,2.4}/).",
     "reference_docs": "CLAUDE.md (rules), this map (component->files), PATHS.md (filesystem layout), BACKUP.md (the operator's view of backup and restore: modes, retention, adoption, remote targets, restic, exports, what the subsystem does NOT promise), UPDATE.md (the operator's view of updating: what a run does in order, what the run directory holds, the point of no return, and what the backup does NOT cover), and STRUCTURE.md (why the structure diverges from HestiaCP and what each divergence forces - read it before assuming why a subsystem was rebuilt: panel Caddy/Sury, the system-user split, protected downloads, webmail loopback, the FileManager/SFTP-jail rebuilds, /etc/hestia, and the permanent removals). Keep STRUCTURE.md current in the same PR as any structural change. Per-folder PROVENANCE.json (bin/, include/, web/, share/ - sbin/ has none: every file there is HestiaRE-native) tracks per-file upstream heritage + RAW churn divergence (triage only); complements VENDORED.json (third-party) and STRUCTURE.md; recompute is a manual, occasional job."
   },
@@ -86,9 +86,9 @@
           "pattern": "bin/h-*-mail*"
         },
         "dns": {
-          "count": 1,
+          "count": 8,
           "pattern": "bin/h-*-dns*",
-          "note": "Only h-list-mail-domain-dkim-dns retained — DNS zone management removed in Issue #58"
+          "note": "No DNS server since #58 (bind9 removed). h-list-dns-zones and h-list-dns-zone list the zones at external providers (#863), the rest are mail DNS records and the DNSBL list."
         },
         "database": {
           "count": 31,
@@ -163,7 +163,8 @@
         "include/firewall.sh",
         "include/sieve.sh",
         "include/vacation.sh",
-        "include/vacation.php"
+        "include/vacation.php",
+        "include/dns.sh"
       ],
       "language": "bash",
       "file_roles": {
@@ -505,9 +506,10 @@
       ],
       "language": "bash / config templates",
       "supported_distros": [
-        "Debian 12 (bookworm)",
-        "Ubuntu 24.04 LTS (noble)",
-        "Debian 13 (trixie, priority 2, planned June 2026+)"
+        "Debian 13 (trixie), primary",
+        "Ubuntu 26.04 LTS, primary",
+        "Debian 12 (bookworm), secondary",
+        "Ubuntu 24.04 LTS (noble), secondary"
       ],
       "note": "Monolithic bash installers removed in Issue #26b. install/hst-install.sh removed in Issue #26d. Install logic: Makefile (removed) → Justfile #102 → pure-bash sbin/h-install-hestia + include/wizard.sh + include/helper.sh in Issue #112 (just removed). See make_release component.",
       "web_templates": {
@@ -732,6 +734,7 @@
         "bin/h-list-mail-domain",
         "bin/h-list-mail-domain-dkim",
         "bin/h-list-mail-domain-dkim-dns",
+        "bin/h-list-mail-domain-dns",
         "bin/h-check-mail-domain-dkim-dns",
         "bin/h-list-mail-domain-relay-exclude",
         "bin/h-list-mail-domains",
@@ -1051,6 +1054,26 @@
         "share/manifest.json",
         "share/updates/0.23.json",
         "bin/h-check-sys-smoke"
+      ]
+    },
+    "external_dns": {
+      "description": "External DNS (#863), stage 1 without a provider: include/dns.sh derives the target records of every object on the box (web domains and aliases A/AAAA on the NAT address, mail MX/SPF/DMARC/DKIM and mail./webmail., the hostname) and owns each name and type by the most specific object. The zone of a name comes from public DNS: the SOA owned by the name itself, a CNAME means no apex, otherwise the authority section; a public suffix is never a zone. One lookup per anchor (the longest object name a row lies under), cached a day in /var/cache/hestia/dns-zones, never backed up. h-list-dns-zones lists a user's zones, h-list-dns-zone every section of one zone with its owner, other users' included; h-list-mail-domain-dns is the mail section of one domain for the mail domain's DNS page, without a lookup. Read-only: nothing talks to a provider yet. The panel's DNS tab (/list/dns/) is the real admin's (adminContext, so it also shows while switched into a customer, whose zones it lists): the zone list, one page per zone with its sections and zone file lines to copy, a provider page that stays empty until the first driver, and a jump from each web and mail domain row. The tab sits between DB and CRON; its zone count is what the DNS pages last listed for that user, kept in the session (dns_zone_count in web/inc/main.php), '?' before. No other page derives zones: that waits on public DNS, seconds per zone when it does not answer. /list/dns/ is a CSRF entry route like the other tabs. Plan: dns-provider-plan.md on docs.",
+      "entry_points": [
+        "include/dns.sh",
+        "bin/h-list-dns-zones",
+        "bin/h-list-dns-zone",
+        "bin/h-list-mail-domain-dns"
+      ],
+      "related_files": [
+        "web/list/dns/index.php",
+        "web/templates/pages/list_dns.php",
+        "web/templates/pages/list_dns_zone.php",
+        "web/templates/pages/list_dns_providers.php",
+        "web/templates/includes/panel.php",
+        "web/inc/prevent_csrf.php",
+        "web/list/mail/index.php",
+        "web/templates/pages/list_mail_dns.php",
+        "include/ip.sh"
       ]
     },
     "fail2ban": {

@@ -15,6 +15,40 @@ the releases of the command audit, into another.
 
 _Nothing yet._
 
+## v0.31 (2026-11-09)
+
+The DNS records HestiaRE needs, per zone and without a provider yet, the MariaDB client under its own names, and
+record writes that fail loudly.
+
+### Added
+
+- **A DNS tab that lists the records HestiaRE needs, per zone** (#1307/#1308, part of #863). It is no DNS server:
+  the zone comes from public DNS, each zone shows its sections and owners (web domains and aliases, mail, sub
+  domains of other users, the hostname), and its page gives the records as rows and as zone file lines to copy.
+  Admin only, also while switched into a customer. `h-list-dns-zones` and `h-list-dns-zone` give the same from the
+  command line, and the mail domain's "DNS records" page reads the same derivation.
+
+### Changed
+
+- **Debian 13 and Ubuntu 26.04 LTS are the primary targets** (#1300). Debian 12 and Ubuntu 24.04 LTS stay tested,
+  as best effort: a feature that needs old packages may leave them behind, and says so here.
+- **HestiaRE calls the MariaDB client by its own names** (`mariadb`, `mariadb-dump`, `mariadb-admin`) (#1302), and
+  `mariadb-client-compat` comes with every 11.x client, so `mysql` and friends stay for whoever types them. A
+  package that cannot be installed is a warning, never a stopped install or update.
+- **The restore's consent questions take `a` for all following sections** (#1305). Moving domains onto another
+  PHP version is still asked, first, with each domain's old and new version.
+
+### Fixed
+
+- **A record that could not be updated passed with rc 0** (#1312). A read-only `/etc` or a full disk left service
+  files changed and the record behind, reported as success; the command now stops with E_UPDATE.
+- **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305). The version
+  derived from `BACKEND` stayed set for the next domain; `HTTP3` leaked the same way.
+- **The server backup silently left the webmail databases out on MariaDB 11.x without Recommends** (#1302), and
+  the nightly table check before the user backups did nothing there: both called old client names the box did
+  not have.
+- **`h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked** (#1311).
+
 ## v0.30 (2026-11-06)
 
 The HestiaCP 1.10.6 round, webmail that shows only the server's own verdicts, ECDSA certificates and a DKIM
@@ -22,43 +56,27 @@ selector per mail domain.
 
 ### Added
 
-- **New certificates get an ECDSA P-256 key** (#1247, upstream #5629): Let's Encrypt, self-signed and the panel
-  certificate of a fresh install. `h-add-letsencrypt-domain` and `h-generate-ssl-cert` take the key type with
-  HestiaCP 1.10.6's signature (`ecdsa-256`, `ecdsa-384`, `rsa`), kept as `SSL_KEY_ALGO` in the record. A renewal keeps
-  the type a domain has, so existing domain certificates stay RSA until someone passes another type; a mail-only
-  box's host certificate becomes ECDSA at its next renewal. proftpd logs `expected RSA certificate, found EC` and
-  serves it anyway.
-- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760), with HestiaCP 1.10.6's record key
-  and selector file, so a restore keeps it on both sides. The panel sets and changes it and keeps the key, so DNS has
-  to follow; the edit page looks up `<selector>._domainkey` and marks DKIM orange when the record is missing or
-  carries another key.
-- **`h-nft` changes the live firewall by hand, the way `iptables` did** (#1273): list with handles, insert, append
-  and delete rules, set the INPUT policy. Nothing is kept; a render, a restart of `hestia-nftables` or a reboot
-  restores the configured state, and the smoke check fails while hand rules are loaded. Root only.
-- **Webmail shows the spam score of every scanned mail** (#1295): `X-Spam-Status: No, score=... required=...` under
-  the threshold, the bare `Yes` plus `X-Spam-Info` above it.
+- **New certificates get an ECDSA P-256 key** (#1247, upstream #5629), with HestiaCP 1.10.6's key type argument
+  and `SSL_KEY_ALGO` in the record. A renewal keeps the type a domain has, so existing certificates stay RSA.
+- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760), kept by a restore on both sides;
+  the edit page marks DKIM orange when DNS does not carry the key.
+- **`h-nft` changes the live firewall by hand** (#1273); a render, restart or reboot restores the configured state.
+- **Webmail shows the spam score of every scanned mail** (#1295).
 
 ### Security
 
-- **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim drops incoming authentication
-  result and verdict headers and writes its own for unauthenticated mail.
-- **Restore and web rebuild check the directory they work in** (#1289, upstream #5796). A domain whose web or mail
-  directory is not root's own is refused, and its served config stays as it was.
-- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288). Adminer checks the CSRF token at login again; Tachyon fixes how the
-  message view shows the DKIM result and IMAP keywords.
-
-Installed boxes get the exim changes as template patches and the new versions through the update.
+- **Webmail could show a DKIM, spam or virus verdict the sender wrote** (#1288). exim drops incoming verdict
+  headers and writes its own.
+- **Restore and web rebuild refuse a domain whose web or mail directory is not root's own** (#1289, upstream #5796).
+- **Adminer 6.3.0 and Tachyon 4.5.0** (#1288): Adminer's login CSRF check, Tachyon's DKIM and keyword display.
 
 ### Fixed
 
-- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862); its PTR lookup expanded to nothing. An
-  IP-like HELO that is not the forward-confirmed PTR is refused now, a deferred lookup answers 4xx, and a missing or
-  mismatching PTR is only logged.
-- **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284): the alias list it passed was
-  a single space, which the validator refused. `h-add-letsencrypt-domain` takes a blank list as empty again.
-- Smaller ones: a suspended customer kept the edit buttons `POLICY_USER_VIEW_SUSPENDED` takes away (#1290, upstream
-  #5835), the cron form ate a command's own quotes (#1290, upstream #5892), and a self-signed certificate for an IDN
-  domain without aliases named it in Unicode in the SAN (#1247, upstream #5814).
+- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862); it refuses one that is not the
+  forward-confirmed PTR now.
+- **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284).
+- Smaller ones: edit buttons for a suspended customer (#1290, upstream #5835), quotes in a cron command (#1290,
+  upstream #5892), and a Unicode SAN for an IDN self-signed certificate (#1247, upstream #5814).
 
 ## v0.29 (2026-10-25)
 

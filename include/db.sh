@@ -57,11 +57,7 @@ mysql_connect() {
 	fi
 	mysql_cnf_sync
 	mysql_out=$(mktemp)
-	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
-	else
-		mysql --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
-	fi
+	mariadb --defaults-file=$mycnf -e 'SELECT VERSION()' > $mysql_out 2>&1
 	if [ '0' -ne "$?" ]; then
 		if [ "$notify" != 'no' ]; then
 			email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf" | cut -f 2 -d \')
@@ -96,13 +92,8 @@ sql_escape() {
 mysql_query() {
 	sql_tmp=$(mktemp)
 	echo "$1" > $sql_tmp
-	if [ -f '/usr/bin/mariadb' ]; then
-		mariadb --defaults-file=$mycnf < "$sql_tmp" 2> /dev/null
-		return_code=$?
-	else
-		mysql --defaults-file=$mycnf < "$sql_tmp" 2> /dev/null
-		return_code=$?
-	fi
+	mariadb --defaults-file=$mycnf < "$sql_tmp" 2> /dev/null
+	return_code=$?
 	rm -f "$sql_tmp"
 	return $return_code
 }
@@ -110,13 +101,9 @@ mysql_query() {
 mysql_dump() {
 	local err
 	err=$(mktemp)
-	mysqldmp="mysqldump"
-	if [ -f '/usr/bin/mariadb-dump' ]; then
-		mysqldmp="/usr/bin/mariadb-dump"
-	fi
-	$mysqldmp --defaults-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
+	mariadb-dump --defaults-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
 	if [ '0' -ne "$?" ]; then
-		$mysqldmp --defaults-extra-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
+		mariadb-dump --defaults-extra-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
 		if [ '0' -ne "$?" ]; then
 			rm -rf $tmpdir
 			if [ "$notify" != 'no' ]; then

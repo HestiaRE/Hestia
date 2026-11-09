@@ -1,0 +1,67 @@
+#!/bin/bash
+# info: list the DNS zones a user has records in
+# options: USER [FORMAT]
+#
+# example: h-list-dns-zones admin json
+#
+# One entry per zone, never per domain: the sections in it, whether one of them holds the apex, and the users
+# owning them. The zone comes from public DNS until provider accounts exist.
+
+user=$1
+format=${2-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source $HESTIA/include/dns.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+# ZONE STATE SECTIONS APEX USERS ROWS ALIAS_OF; sections, users and the objects whose aliases the zone carries
+# are comma separated.
+zone_list() {
+	dns_sections <<< "$rows" | awk -F '\t' 'BEGIN { OFS = FS }
+		function add(a, t, k, v) { if (!((t, k, v) in seen)) { seen[t, k, v] = 1; a[k] = a[k] (a[k] ? "," : "") v } }
+		!($1 in st) { order[++n] = $1; st[$1] = $2 }
+		{ c[$1]++; add(s, "s", $1, $3); add(u, "u", $1, $5) }
+		$3 == "alias" { add(al, "a", $1, $4) }
+		$6 == "@" { apex[$1] = 1 }
+		END {
+			for (i = 1; i <= n; i++) {
+				z = order[i]
+				print z, st[z], s[z], (apex[z] ? "yes" : "no"), u[z], c[z], al[z]
+			}
+		}'
+}
+
+json_list() {
+	jq -R -n '[inputs | select(length > 0) | split("\t") | {ZONE: .[0], STATE: .[1], SECTIONS: .[2], APEX: .[3],
+		USERS: .[4], ROWS: .[5], ALIAS_OF: (.[6] // "")}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
+}
+
+shell_list() {
+	printf 'ZONE\tSTATE\tSECTIONS\tAPEX\tUSERS\tROWS\tALIAS_OF\n'
+	printf -- '----\t-----\t--------\t----\t-----\t----\t--------\n'
+	[ -z "$list" ] || echo "$list"
+}
+
+check_args '1' "$#" 'USER [FORMAT]'
+is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
+
+dns_user_zones "$user"
+zones=$(cut -d ' ' -f 1 <<< "$DNS_USER_ZONES" | tr '\n' ' ')
+rows=$(dns_zone_rows "$zones")
+list=$(zone_list)
+
+case $format in
+	json) json_list ;;
+	plain) [ -z "$list" ] || echo "$list" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "14853ae5",
     "upstream_ref_date": "2026-11-06",
-    "last_updated": "2026-11-06",
+    "last_updated": "2026-11-09",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from a line diff between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR, func/->include/), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 9,
-      "eigenbau_files": 21,
+      "eigenbau_files": 22,
       "weighted_pct": 59,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 30,
+      "files_total": 31,
       "files_mapped": 9
     },
     "scope": "include",
@@ -35,14 +35,14 @@
       "source_type": "derived",
       "upstream_path": "func/backup.sh",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 583,
-        "our_lines": 2377,
-        "added": 1971,
+        "our_lines": 2401,
+        "added": 1995,
         "removed": 177,
         "pct": 72,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": "Backup format is bidirectionally compatible with HestiaCP forever, so this stays close to upstream on purpose."
     },
@@ -78,16 +78,25 @@
       "source_type": "derived",
       "upstream_path": "func/db.sh",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 696,
-        "our_lines": 1045,
-        "added": 592,
-        "removed": 243,
-        "pct": 47,
-        "measured_at": "2026-11-06"
+        "our_lines": 1032,
+        "added": 596,
+        "removed": 260,
+        "pct": 49,
+        "measured_at": "2026-11-09"
       },
       "note": ""
+    },
+    {
+      "path": "dns.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-09",
+      "divergence": null,
+      "note": "Zone derivation for the DNS tab and listers (#1307)."
     },
     {
       "path": "docker.sh",
@@ -214,14 +223,14 @@
       "source_type": "derived",
       "upstream_path": "func/main.sh",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 2151,
-        "our_lines": 3216,
-        "added": 1915,
-        "removed": 850,
+        "our_lines": 3237,
+        "added": 1938,
+        "removed": 852,
         "pct": 51,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },
@@ -248,14 +257,14 @@
       "source_type": "derived",
       "upstream_path": "func/rebuild.sh",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 945,
-        "our_lines": 1089,
-        "added": 546,
-        "removed": 402,
+        "our_lines": 1085,
+        "added": 545,
+        "removed": 405,
         "pct": 46,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },

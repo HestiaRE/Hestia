@@ -45,6 +45,12 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **A record that could not be updated passed with rc 0** (#1312). The record helpers ended in a `sed -i` nobody
+  checked, so a command run with a read-only `/etc` (a sandboxed systemd unit) or a full disk changed its service
+  files, left the record behind and reported success. An existing record that cannot be updated, for any reason sed
+  gives, now stops the command with E_UPDATE; a missing file behaves as before.
+- **`h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked** (#1311). `is_format_valid` had no
+  branch for the two names. DELAY is an integer now, PATH takes letters, digits and `._/+@~-`.
 - **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305). A HestiaCP
   record has no `PHP_VERSION`, so the restore derives it from `BACKEND`, and the derived value stayed set for the
   next domain, which then skipped its own. `HTTP3` from a mapped http3 template leaked the same way. Backups of

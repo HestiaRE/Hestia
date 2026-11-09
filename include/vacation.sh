@@ -148,7 +148,9 @@ vacation_domain_to_exim() { # USER DOMAIN
 	local user="$1" domain="$2" domain_idn acc accs rc=0
 	format_domain_idn
 	accs=$(vacation_domain_sync "$user" "$domain" "$HOMEDIR/$user/conf/mail/$domain") || rc=1
-	for acc in $accs; do
+	# A record error inside the sync lands in $() as well: show it, never take its words for accounts.
+	sed -n '/^Error:/p' <<< "$accs" >&2
+	for acc in $(sed '/^Error:/d' <<< "$accs"); do
 		vacation_disable "$user" "$domain_idn" "$acc" || rc=1
 	done
 	return "$rc"

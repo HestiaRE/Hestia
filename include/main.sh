@@ -2164,6 +2164,13 @@ record_path_ok() {
 	[ "$_tail" != "$1" ] && [[ "$_tail" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$_tail" = "${_tail//[^[:ascii:]]/}" ]
 }
 
+# A backup host's remote path, relative or absolute: it lands in the BPATH record field and in the remote mkdir and
+# rclone commands.
+is_backup_path_format_valid() {
+	[[ "$1" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$1" = "${1//[^[:ascii:]]/}" ] \
+		|| check_result "$E_INVALID" "invalid path :: only letters, digits and ._/+@~- are allowed"
+}
+
 # A name in a record's comma list (UDIR): the same set without the slash.
 is_record_list_item() {
 	[[ "$1" =~ ^[[:alnum:]._+@~-]+$ ]] && [ "$1" = "${1//[^[:ascii:]]/}" ]
@@ -2464,6 +2471,7 @@ is_format_valid() {
 				cron_command) is_cron_command_valid_format "$arg" ;;
 				database) is_database_format_valid "$arg" 'database' ;;
 				day) is_cron_format_valid "$arg" $arg_name ;;
+				delay) is_int_format_valid "$arg" 'delay' ;;
 				dbpass) is_password_format_valid "$arg" ;;
 				dbuser) is_dbuser_format_valid "$arg" 'dbuser' ;;
 				dkim) is_boolean_format_valid "$arg" 'dkim' ;;
@@ -2515,6 +2523,7 @@ is_format_valid() {
 				object) is_object_name_format_valid "$arg" 'object' ;;
 				package) is_object_format_valid "$arg" "$arg_name" ;;
 				password) is_password_format_valid "$arg" ;;
+				path) is_backup_path_format_valid "$arg" ;;
 				priority) is_int_format_valid $arg ;;
 				port) is_int_format_valid "$arg" 'port' ;;
 				port_ext) is_fw_port_format_valid "$arg" ;;

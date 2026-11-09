@@ -390,10 +390,10 @@ if (!$impersonatingAdmin) { ?>
 					<li class="main-menu-item">
 						<a class="main-menu-item-link <?php if ($TAB == "DNS") {
 							echo "active";
-						} ?>" href="/list/dns/" title="<?= tohtml(_("Zones")) ?>: <?= $dns_zones ?>&#13;<?= tohtml(_("Providers")) ?>: 0">
+						} ?>" href="/list/dns/" title="<?= tohtml(_("Zones")) ?>: <?= $dns_zones ?? "?" ?>&#13;<?= tohtml(_("Providers")) ?>: 0">
 							<p class="main-menu-item-label"><?= _("DNS") ?><i class="fas fa-book-atlas"></i></p>
 							<ul class="main-menu-stats">
-								<li><?= tohtml(_("Zones")) ?>: <?= $dns_zones ?></li>
+								<li><?= tohtml(_("Zones")) ?>: <?= $dns_zones ?? "?" ?></li>
 								<!-- No provider store yet. -->
 								<li><?= tohtml(_("Providers")) ?>: 0</li>
 							</ul>

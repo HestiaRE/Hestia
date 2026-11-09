@@ -58,7 +58,9 @@ if (isset($_GET["providers"])) {
 		header("Location: /list/dns/");
 		exit();
 	}
-	header("Location: /list/dns/?" . http_build_query(["zone" => $zone]) . "#" . rawurlencode("obj-" . $domain));
+	// From the mail list to the mail section: a domain with web and mail has its web section first.
+	$anchor = (isset($_GET["mail"]) ? "obj-mail-" : "obj-") . $domain;
+	header("Location: /list/dns/?" . http_build_query(["zone" => $zone]) . "#" . rawurlencode($anchor));
 	exit();
 } elseif (isset($_GET["zone"])) {
 	$v_zone = strtolower((string) $_GET["zone"]);
@@ -101,7 +103,8 @@ if (isset($_GET["providers"])) {
 		$s["text"] = implode("\n", array_map("dns_zone_line", $s["rows"]));
 	}
 	unset($s);
-	$v_zone_text = implode(
+	// The names are relative, so a provider import needs the origin.
+	$v_zone_text = "\$ORIGIN " . $v_zone . ".\n\n" . implode(
 		"\n\n",
 		array_map(fn ($s) => "; " . $s["kind"] . " " . $s["object"] . "\n" . $s["text"], $sections),
 	);

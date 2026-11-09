@@ -37,9 +37,10 @@ $dns_section_labels = [
 	<?php
 	$anchored = [];
 foreach ($sections as $s) {
-	// The jump from a domain lands at its first section.
-	$id = isset($anchored[$s["object"]]) ? "" : "obj-" . $s["object"];
-	$anchored[$s["object"]] = true;
+	// The jump from a domain lands at its first section, the one from the mail list at its first mail section.
+	$key = ($s["kind"] === "mail" ? "obj-mail-" : "obj-") . $s["object"];
+	$id = isset($anchored[$key]) ? "" : $key;
+	$anchored[$key] = true;
 	?>
 		<h2 class="u-mt20 u-mb10"<?= $id !== "" ? ' id="' . tohtml($id) . '"' : "" ?>>
 			<?= tohtml($dns_section_labels[$s["kind"]] ?? $s["kind"]) ?>: <?= tohtml($s["object"]) ?>

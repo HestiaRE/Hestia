@@ -430,17 +430,15 @@ function show_alert_message($data)
 	}
 }
 
-// The DNS tab's zone count. Deriving the zones takes a few hundred ms, too much for every page, so the count is
-// kept per user for ten minutes, and the DNS pages pass in the zones they list anyway.
-function dns_zone_count(string $name, ?array $zones = null): int
+// The DNS tab's zone count as the DNS pages last listed it, null before. Only they derive the zones: that waits on
+// public DNS, seconds per zone when it does not answer, and the panel head is on every page.
+function dns_zone_count(string $name, ?array $zones = null): ?int
 {
-	$kept = $_SESSION["DNS_ZONE_COUNT"][$name] ?? null;
-	if ($zones === null && is_array($kept) && time() - $kept[1] < 600) {
-		return $kept[0];
+	if ($zones !== null) {
+		$_SESSION["DNS_ZONE_COUNT"][$name] = count($zones);
 	}
-	$zones ??= cli_json("h-list-dns-zones " . quoteshellarg($name) . " json");
-	$_SESSION["DNS_ZONE_COUNT"][$name] = [count($zones), time()];
-	return count($zones);
+	$kept = $_SESSION["DNS_ZONE_COUNT"][$name] ?? null;
+	return is_int($kept) ? $kept : null;
 }
 
 function top_panel($user, $TAB)
@@ -509,7 +507,7 @@ function top_panel($user, $TAB)
 	// with the legacy system-wide FILE_MANAGER (FileGator) key.
 	$_SESSION["USER_FILE_MANAGER"] = (($panel[$user]["FILE_MANAGER"] ?? "") === "yes") ? "yes" : "";
 
-	$dns_zones = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_zone_count($user) : 0;
+	$dns_zones = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_zone_count($user) : null;
 
 	include dirname(__FILE__) . "/../templates/includes/panel.php";
 	return $panel;

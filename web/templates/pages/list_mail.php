@@ -229,7 +229,7 @@ foreach ($data as $key => $value) {
 								<li class="units-table-row-action" data-key-action="href">
 									<a
 										class="units-table-row-action-link"
-										href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key])) ?>"
+										href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key, "mail" => 1])) ?>"
 										title="<?= tohtml(_("DNS Zone")) ?>"
 									>
 										<i class="fas fa-sitemap icon-blue"></i>
@@ -302,7 +302,7 @@ foreach ($data as $key => $value) {
 								<li class="units-table-row-action" data-key-action="href">
 									<a
 										class="units-table-row-action-link"
-										href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key])) ?>"
+										href="/list/dns/?<?= tohtml(http_build_query(["domain" => $key, "mail" => 1])) ?>"
 										title="<?= tohtml(_("DNS Zone")) ?>"
 									>
 										<i class="fas fa-sitemap icon-blue"></i>

@@ -25,7 +25,7 @@ the releases of the command audit, into another.
   the zones the user's domains lie in, with their sections and owners, and each zone has a page with the records
   HestiaRE needs, as rows and as zone file lines to copy, since no provider account exists yet. Admin only, also
   while switched into a customer; every web and mail domain row jumps to its section. The tab sits between DB
-  and CRON and counts zones and providers.
+  and CRON and counts zones and providers, the zones as the DNS pages last listed them.
 
 ### Changed
 

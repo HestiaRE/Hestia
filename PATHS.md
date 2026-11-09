@@ -184,6 +184,12 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | IP list cache | `/etc/hestia/firewall/ipset/<name>.v4.iplist` / `.v6.iplist` |
 | FireHOL catalogue | `/var/cache/hestia/firehol-catalog.json` (root 644, fetched on demand by the FireHOL page, #510) |
 
+### DNS (external providers, #863)
+
+| Item | Path |
+|------|------|
+| Zone lookup cache | `/var/cache/hestia/dns-zones` (root 600, one line per name: zone and lookup time; a day, an hour for no answer; never backed up) |
+
 ### Cron (hestia crontab)
 
 | Item | Path |
@@ -208,9 +214,8 @@ User home structure — unchanged from HestiaCP, bidirectional backup compatibil
 ├── conf/                 Generated service configs (immutable dir)
 │   ├── web/
 │   │   └── $domain/      nginx/apache vhost configs
-│   ├── mail/
-│   │   └── $domain/      Dovecot/Exim domain configs
-│   └── dns/              Zone files (if DNS enabled)
+│   └── mail/
+│       └── $domain/      Dovecot/Exim domain configs
 ├── backup/               User-level backups
 └── tmp/                  PHP session temp (`/home/*/tmp/sess_*`)
 ```

@@ -1,0 +1,48 @@
+#!/bin/bash
+# info: list the DNS records a mail domain needs
+# options: USER DOMAIN [FORMAT]
+#
+# example: h-list-mail-domain-dns admin example.com json
+#
+# The mail section of h-list-dns-zone for one domain, without a zone lookup: the mail domain's page shows it.
+
+user=$1
+domain=$2
+format=${3-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source $HESTIA/include/dns.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+json_list() {
+	jq -R -n '[inputs | select(length > 0) | split("\t")
+		| {NAME: .[3], TYPE: .[4], PRIORITY: .[5], TTL: .[6], VALUE: .[7]}]' <<< "$list"
+}
+
+shell_list() {
+	printf 'NAME\tTYPE\tPRIORITY\tTTL\tVALUE\n'
+	printf -- '----\t----\t--------\t---\t-----\n'
+	cut -f 4- <<< "$list"
+}
+
+check_args '2' "$#" 'USER DOMAIN [FORMAT]'
+is_format_valid 'user' 'domain'
+is_object_valid 'user' 'USER' "$user"
+is_object_valid 'mail' 'DOMAIN' "$domain"
+
+list=$(dns_mail_rows "$user" "$domain")
+
+case $format in
+	json) json_list ;;
+	plain) cut -f 4- <<< "$list" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

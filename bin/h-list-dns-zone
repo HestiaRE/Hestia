@@ -1,0 +1,53 @@
+#!/bin/bash
+# info: list the target records of a DNS zone
+# options: USER ZONE [FORMAT]
+#
+# example: h-list-dns-zone admin example.com json
+#
+# Every section of the zone with its owner, other users' included, and the records HestiaRE derives for it.
+# USER has to own a section there. Read-only: nothing is compared with or written to a provider.
+
+user=$1
+zone=$2
+format=${3-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source $HESTIA/include/dns.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+json_list() {
+	cut -f 2- <<< "$list" | jq -R -n '[inputs | select(length > 0) | split("\t") | {STATE: .[0], SECTION: .[1],
+		OBJECT: .[2], OWNER: .[3], NAME: .[4], TYPE: .[5], PRIORITY: .[6], TTL: .[7], VALUE: .[8]}]'
+}
+
+shell_list() {
+	printf 'SECTION\tOBJECT\tOWNER\tNAME\tTYPE\tPRIORITY\tTTL\tVALUE\n'
+	printf -- '-------\t------\t-----\t----\t----\t--------\t---\t-----\n'
+	cut -f 3- <<< "$list"
+}
+
+check_args '2' "$#" 'USER ZONE [FORMAT]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+
+zone=$(dns_ascii "$zone")
+list=$(dns_zone_rows "$zone" | dns_sections)
+if ! awk -F '\t' -v u="$user" '$5 == u { f = 1 } END { exit !f }' <<< "$list"; then
+	check_result "$E_NOTEXIST" "$user has no records in zone $zone"
+fi
+
+case $format in
+	json) json_list ;;
+	plain) cut -f 2- <<< "$list" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

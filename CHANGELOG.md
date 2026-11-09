@@ -13,6 +13,15 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **The DNS records HestiaRE needs, per zone, from the command line** (#1307, part of #863).
+  `h-list-dns-zones USER` lists the zones a user has records in, `h-list-dns-zone USER ZONE` every section of
+  one zone with its owner: web domains and their aliases, mail, sub domains of other users, the hostname. The
+  zone comes from public DNS, an alias in another zone is a section of that zone, and nothing is written
+  anywhere yet. The mail domain's "DNS records" page reads the same derivation through `h-list-mail-domain-dns`,
+  now with full names throughout and without the placeholder row for a domain without DKIM.
+
 ### Changed
 
 - **Debian 13 and Ubuntu 26.04 LTS are the primary targets** (#1300). Debian 12 and Ubuntu 24.04 LTS stay

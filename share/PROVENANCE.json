@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "14853ae5",
     "upstream_ref_date": "2026-11-06",
-    "last_updated": "2026-11-06",
+    "last_updated": "2026-11-09",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 72,
-      "eigenbau_files": 162,
+      "eigenbau_files": 163,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 234,
+      "files_total": 235,
       "files_mapped": 72
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."

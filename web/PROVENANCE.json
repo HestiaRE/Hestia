@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "14853ae5",
     "upstream_ref_date": "2026-11-06",
-    "last_updated": "2026-11-06",
+    "last_updated": "2026-11-09",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -14,12 +14,12 @@
     },
     "third_party_note": "Third-party vendored code is tracked in VENDORED.json, not here; those paths are excluded to keep the two manifests disjoint.",
     "aggregate": {
-      "upstream_mapped_files": 296,
-      "eigenbau_files": 50,
-      "weighted_pct": 32,
+      "upstream_mapped_files": 298,
+      "eigenbau_files": 52,
+      "weighted_pct": 33,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 346,
-      "files_mapped": 296
+      "files_total": 350,
+      "files_mapped": 298
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -1812,14 +1812,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/main.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 611,
-        "our_lines": 792,
-        "added": 305,
-        "removed": 124,
+        "our_lines": 806,
+        "added": 317,
+        "removed": 122,
         "pct": 30,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -1844,14 +1844,14 @@
       "source_type": "derived",
       "upstream_path": "web/inc/prevent_csrf.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 151,
-        "our_lines": 150,
+        "our_lines": 151,
         "added": 10,
-        "removed": 11,
+        "removed": 10,
         "pct": 6,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -2507,6 +2507,22 @@
       "note": ""
     },
     {
+      "path": "list/dns/index.php",
+      "source_type": "derived",
+      "upstream_path": "web/list/dns/index.php",
+      "upstream_ref": "14853ae5",
+      "last_reconciled": "2026-11-09",
+      "divergence": {
+        "upstream_lines": 108,
+        "our_lines": 118,
+        "added": 98,
+        "removed": 88,
+        "pct": 82,
+        "measured_at": "2026-11-09"
+      },
+      "note": "The DNS tab for external providers (#1308): the path of upstream's bind9 DNS page, which it replaces."
+    },
+    {
       "path": "list/firewall/banlist/index.php",
       "source_type": "derived",
       "upstream_path": "web/list/firewall/banlist/index.php",
@@ -2666,14 +2682,14 @@
       "source_type": "derived",
       "upstream_path": "web/list/mail/index.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 71,
-        "our_lines": 46,
-        "added": 17,
-        "removed": 42,
+        "our_lines": 41,
+        "added": 13,
+        "removed": 43,
         "pct": 50,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -2877,14 +2893,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/de/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 253,
-        "our_lines": 232,
+        "our_lines": 259,
         "added": 253,
         "removed": 253,
         "pct": 100,
-        "measured_at": "2026-11-06",
+        "measured_at": "2026-11-09",
         "method": "binary: byte compare"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
@@ -2955,14 +2971,14 @@
       "source_type": "derived",
       "upstream_path": "web/locale/hestiacp.pot",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 5103,
-        "our_lines": 4107,
-        "added": 2524,
-        "removed": 3520,
-        "pct": 65,
-        "measured_at": "2026-11-06"
+        "our_lines": 4213,
+        "added": 2641,
+        "removed": 3531,
+        "pct": 66,
+        "measured_at": "2026-11-09"
       },
       "note": "Generated by .gitea/tools/i18n.sh from the panel code (#1160). Not in the tarball."
     },
@@ -3581,14 +3597,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/includes/panel.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 473,
-        "our_lines": 435,
-        "added": 59,
-        "removed": 97,
-        "pct": 17,
-        "measured_at": "2026-11-06"
+        "our_lines": 450,
+        "added": 75,
+        "removed": 98,
+        "pct": 18,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -4292,6 +4308,40 @@
       "note": ""
     },
     {
+      "path": "templates/pages/list_dns.php",
+      "source_type": "derived",
+      "upstream_path": "web/templates/pages/list_dns.php",
+      "upstream_ref": "14853ae5",
+      "last_reconciled": "2026-11-09",
+      "divergence": {
+        "upstream_lines": 257,
+        "our_lines": 74,
+        "added": 42,
+        "removed": 225,
+        "pct": 80,
+        "measured_at": "2026-11-09"
+      },
+      "note": "The DNS tab for external providers (#1308): the path of upstream's bind9 DNS page, which it replaces."
+    },
+    {
+      "path": "templates/pages/list_dns_providers.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-09",
+      "divergence": null,
+      "note": "The DNS tab's provider page (#1308)."
+    },
+    {
+      "path": "templates/pages/list_dns_zone.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-09",
+      "divergence": null,
+      "note": "The DNS tab's zone page (#1308)."
+    },
+    {
       "path": "templates/pages/list_files_incremental.php",
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_files_incremental.php",
@@ -4451,14 +4501,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_mail.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 350,
-        "our_lines": 370,
-        "added": 166,
+        "our_lines": 394,
+        "added": 190,
         "removed": 146,
-        "pct": 43,
-        "measured_at": "2026-11-06"
+        "pct": 45,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -4483,14 +4533,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_mail_dns.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 165,
-        "our_lines": 244,
-        "added": 121,
-        "removed": 42,
-        "pct": 39,
-        "measured_at": "2026-11-06"
+        "our_lines": 51,
+        "added": 18,
+        "removed": 132,
+        "pct": 69,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },
@@ -4652,14 +4702,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_web.php",
       "upstream_ref": "14853ae5",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 355,
-        "our_lines": 360,
-        "added": 82,
+        "our_lines": 372,
+        "added": 94,
         "removed": 77,
-        "pct": 22,
-        "measured_at": "2026-11-06"
+        "pct": 23,
+        "measured_at": "2026-11-09"
       },
       "note": ""
     },

@@ -811,7 +811,8 @@ record_sed() {
 	sed -i "$1" "$2" && return 0
 	rc=$?
 	[ -e "$2" ] || return "$rc"
-	check_result "$E_UPDATE" "record $2 could not be written"
+	# sed's own message above says why: no write access, a full disk, or a value that broke the script.
+	check_result "$E_UPDATE" "record $2 not updated (sed rc $rc)"
 }
 
 # Check if object is new
@@ -2164,10 +2165,11 @@ record_path_ok() {
 	[ "$_tail" != "$1" ] && [[ "$_tail" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$_tail" = "${_tail//[^[:ascii:]]/}" ]
 }
 
-# A backup host's remote path, relative or absolute: it lands in the BPATH record field and in the remote mkdir and
-# rclone commands.
+# A backup host's remote path, relative or absolute: it lands in the BPATH record field and, unquoted, in the remote
+# ftp, sftp and rclone commands. Non-ASCII letters pass, they always worked there; a blank never did.
 is_backup_path_format_valid() {
-	[[ "$1" =~ ^[[:alnum:]._/+@~-]+$ ]] && [ "$1" = "${1//[^[:ascii:]]/}" ] \
+	local a="${1//[^[:ascii:]]/}"
+	[ -n "$1" ] && [[ "$a" =~ ^[[:alnum:]._/+@~-]*$ ]] \
 		|| check_result "$E_INVALID" "invalid path :: only letters, digits and ._/+@~- are allowed"
 }
 
@@ -2523,7 +2525,7 @@ is_format_valid() {
 				object) is_object_name_format_valid "$arg" 'object' ;;
 				package) is_object_format_valid "$arg" "$arg_name" ;;
 				password) is_password_format_valid "$arg" ;;
-				path) is_backup_path_format_valid "$arg" ;;
+				bpath) is_backup_path_format_valid "$arg" ;;
 				priority) is_int_format_valid $arg ;;
 				port) is_int_format_valid "$arg" 'port' ;;
 				port_ext) is_fw_port_format_valid "$arg" ;;

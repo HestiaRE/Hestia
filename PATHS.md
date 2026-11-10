@@ -188,7 +188,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 
 | Item | Path |
 |------|------|
-| Zone lookup cache | `/var/cache/hestia/dns-zones` (root 600, one line per name: zone and lookup time; a day, an hour for no answer; never backed up) |
+| Zone lookup cache | `/var/cache/hestia/dns-zones` (root 644, one line per name: zone and lookup time; a day, an hour for no answer; never backed up) |
 
 ### Cron (hestia crontab)
 

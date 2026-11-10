@@ -101,9 +101,9 @@ mysql_query() {
 mysql_dump() {
 	local err
 	err=$(mktemp)
-	mariadb-dump --defaults-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
+	mariadb-dump --defaults-file=$mycnf --single-transaction --routines --events -r $1 $2 2> $err
 	if [ '0' -ne "$?" ]; then
-		mariadb-dump --defaults-extra-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
+		mariadb-dump --defaults-extra-file=$mycnf --single-transaction --routines --events -r $1 $2 2> $err
 		if [ '0' -ne "$?" ]; then
 			rm -rf $tmpdir
 			if [ "$notify" != 'no' ]; then
@@ -880,7 +880,7 @@ dump_mysql_database() {
 	mysql_query "$query" | grep -v "Grants for" > $grants
 
 	query="SHOW GRANTS FOR '$DBUSER'@'%'"
-	mysql_query "$query" | grep -v "Grants for" > $grants
+	mysql_query "$query" | grep -v "Grants for" >> $grants
 }
 
 dump_pgsql_database() {

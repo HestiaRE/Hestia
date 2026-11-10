@@ -842,8 +842,8 @@ default_proxy_ext() {
 	ext="$ext,3gp,av1,avi,m4v,mkv,mov,mpg,mpeg,mp4,mp4v,webm"
 	# Fonts
 	ext="$ext,otf,ttf,woff,woff2"
-	# Productivity
-	ext="$ext,doc,docx,odf,odp,ods,odt,pdf,ppt,pptx,rtf,txt,xls,xlsx"
+	# Productivity, without txt: robots.txt must not get expires max
+	ext="$ext,doc,docx,odf,odp,ods,odt,pdf,ppt,pptx,rtf,xls,xlsx"
 	# Archive
 	ext="$ext,7z,bz2,gz,rar,tar,tgz,zip"
 	# Binaries

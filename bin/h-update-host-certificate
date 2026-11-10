@@ -47,17 +47,10 @@ fi
 cp "$src.pem" $HESTIA_SSL/certificate.crt
 cp "$src.key" $HESTIA_SSL/certificate.key
 
-# exim serves it to every mail domain without a certificate of its own.
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	exim_user="exim"
-	check_exim_username=$(grep -c '^Debian-exim:' /etc/passwd)
-	if [ "$check_exim_username" -eq 1 ]; then
-		exim_user="Debian-exim"
-	fi
-
-	chown $exim_user:mail $HESTIA_SSL/certificate.crt
-	chown $exim_user:mail $HESTIA_SSL/certificate.key
-fi
+# As the installer writes them: exim reads through the mail group, and proftpd's AppArmor profile (Ubuntu 26.04)
+# denies root the DAC override, so a key exim owns keeps proftpd from starting.
+chown root:mail "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key"
+chmod 660 "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key"
 
 if [ -z "$UPDATE_HOSTNAME_SSL" ]; then
 	echo "UPDATE_HOSTNAME_SSL='yes'" >> "$HESTIA/conf/hestia.conf"

@@ -607,6 +607,16 @@ proftpd_chroot_symlinks_apply() {
 	systemctl restart proftpd
 }
 
+# The host certificate back to what the installer writes. A proftpd that a key exim owned kept from starting
+# (AppArmor on Ubuntu 26.04) is started again; a running one is left alone.
+host_cert_owner_apply() {
+	chown root:mail "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key" || return 1
+	chmod 660 "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key" || return 1
+	systemctl -q is-enabled proftpd 2> /dev/null || return 0
+	systemctl -q is-active proftpd 2> /dev/null && return 0
+	systemctl restart proftpd
+}
+
 proftpd_systemlog_apply() {
 	grep -q '^DefaultRoot[[:space:]]' /etc/proftpd/proftpd.conf 2> /dev/null || return 0
 	proftpd_conf_line_add SystemLog 'SystemLog                       /var/log/proftpd/proftpd.log' || return 1

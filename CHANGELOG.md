@@ -37,6 +37,11 @@ the releases of the command audit, into another.
   document root of the domain above, notifications its priority, databases its charset, IPs their NAT address;
   fourteen listers now clear each record's fields first. A blank line in a record file no longer repeats the
   record above it, and the JSON around both stays valid.
+- **Rebuild, backup and counters wrote the previous record's value for a key a record lacks** (#1323). A mail
+  account without a hash got the one before it, a backup archived a domain with the previous domain's PHP version,
+  the user counters summed a disk and SSL figure twice, and with `ALLOW_USERS` on one's own domain a rename under
+  another customer's base domain passed the ownership check. The shared record readers now clear what the record
+  before them set, and an account without a hash is written locked.
 - Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
 
 ## v0.31 (2026-11-09)

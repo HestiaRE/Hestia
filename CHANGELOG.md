@@ -34,9 +34,9 @@ the releases of the command audit, into another.
 - **plain and shell output of the web-domain and mail-account lists dropped backslashes** from values and failed on
   an escaped quote, while json showed them right (#1317).
 - **A list showed the previous record's value for a key a record lacks** (#1321). Web domains inherited the
-  document root of the domain above, notifications its priority, databases its charset; eleven listers now clear
-  each record's fields first. A blank line in a record file no longer repeats the record above it, and the JSON
-  around both stays valid.
+  document root of the domain above, notifications its priority, databases its charset, IPs their NAT address;
+  fourteen listers now clear each record's fields first. A blank line in a record file no longer repeats the
+  record above it, and the JSON around both stays valid.
 - Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
 
 ## v0.31 (2026-11-09)

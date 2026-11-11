@@ -15,13 +15,22 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	DATE='' TIME='' PACKAGE='' IP_OWNED='' DISK_QUOTA='' U_DISK='' U_DISK_DIRS='' U_DISK_WEB='' U_DISK_MAIL=''
+	U_DISK_DB='' BANDWIDTH='' U_BANDWIDTH='' U_WEB_DOMAINS='' U_WEB_SSL='' U_WEB_ALIASES='' U_MAIL_DOMAINS=''
+	U_MAIL_DKIM='' U_MAIL_ACCOUNTS='' U_DATABASES='' U_CRON_JOBS='' U_BACKUPS='' U_USERS=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep DATE $USER_DATA/stats.log | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[ -n "$str" ] || continue
+		parse_row "$str"
 		json_escape DATE TIME PACKAGE IP_OWNED DISK_QUOTA U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB BANDWIDTH U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS
 		printf '    "%s": {\n' "$DATE"
 		printf '        "TIME": "%s",\n' "$TIME"
@@ -60,7 +69,8 @@ shell_list() {
 	echo "DATE   WEB   MAIL   DB   BACKUPS   IP   DISK   BW"
 	echo "----   ---   ---   ----   --   -------   --   ----   --"
 	while read str; do
-		parse_object_kv_list "$str"
+		[ -n "$str" ] || continue
+		parse_row "$str"
 		if [ -z "$U_USERS" ]; then
 			U_USERS=1
 		fi
@@ -73,7 +83,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		[ -n "$str" ] || continue
+		parse_row "$str"
 		echo -ne "$DATE\t$TIME\t$PACKAGE\t$IP_OWNED\t$DISK_QUOTA\t$U_DISK\t"
 		echo -ne "$U_DISK_DIRS\t$U_DISK_WEB\t$U_DISK_MAIL\t$U_DISK_DB\t"
 		echo -ne "$BANDWIDTH\t$U_BANDWIDTH\t$U_WEB_DOMAINS\t$U_WEB_SSL\t"

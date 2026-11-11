@@ -10,6 +10,27 @@
       "action": { "type": "function_call", "function": "host_cert_owner_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "unattended-upgrades",
+      "description": "A Debian box received no automatic updates at all: the installer never installed unattended-upgrades, and only Ubuntu's image carries it. Debian's own configuration comes with it, security updates and point releases",
+      "conditions": [
+        { "type": "path_absent", "path": "/usr/bin/unattended-upgrade" }
+      ],
+      "action": { "type": "package_install", "name": "unattended-upgrades" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "sury-unattended",
+      "description": "unattended-upgrades patched the distribution's origins only, so Sury PHP got no update without a hand step; the Sury origin is added where the repo is",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/apt/sources.list.d/php.list" },
+        { "type": "path_absent", "path": "/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php" }
+      ],
+      "action": { "type": "function_call", "function": "sury_unattended_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

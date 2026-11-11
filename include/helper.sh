@@ -283,7 +283,8 @@ add_sury_repo() {
 		return 1
 	}
 	printf 'deb [arch=%s signed-by=%s] https://packages.sury.org/php/ %s main\n' \
-		"$arch" "$keyring" "$codename" > "$list"
+		"$arch" "$keyring" "$codename" > "$list" || return 1
+	sury_unattended_apply
 }
 
 # nginx.org mainline for preset latest: the key by pinned fingerprint, and a pin so a distribution update never
@@ -595,6 +596,14 @@ proftpd_conf_line_add() { # DIRECTIVE LINE
 		return 1
 	fi
 	rm -f "$bak"
+}
+
+# unattended-upgrades allows the distribution's origins only, so Sury PHP is never patched without this. Written
+# with the repo, by add_sury_repo.
+sury_unattended_apply() {
+	local f='/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php'
+	printf 'Unattended-Upgrade::Origins-Pattern {\n\t"origin=deb.sury.org";\n};\n' > "$f" || return 1
+	chmod 644 "$f"
 }
 
 proftpd_chroot_symlinks_apply() {

@@ -235,6 +235,15 @@
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },
     {
+      "path": "object-parser.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-11",
+      "divergence": null,
+      "note": "The record parser of parse_object_kv_list, moved out of a heredoc in main.sh so one PHP start can validate a whole file (#1317)."
+    },
+    {
       "path": "ports.sh",
       "source_type": "eigenbau",
       "upstream_path": null,

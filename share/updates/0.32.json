@@ -1,0 +1,15 @@
+{
+  "version": "0.32",
+  "entries": [
+    {
+      "id": "host-cert-owner",
+      "description": "Every Let's Encrypt host renewal handed the panel certificate to exim, which keeps proftpd from starting under the AppArmor profile of Ubuntu 26.04; the files get root:mail again, as the installer writes them",
+      "conditions": [
+        { "type": "file_owner_differs", "path": "/etc/ssl/hestia/certificate.key", "value": "root" }
+      ],
+      "action": { "type": "function_call", "function": "host_cert_owner_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

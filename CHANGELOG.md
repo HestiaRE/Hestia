@@ -13,7 +13,18 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **proftpd did not start on Ubuntu 26.04 after a Let's Encrypt host certificate** (#1318, upstream #5778). Every
+  issue and renewal handed the panel certificate to exim, and proftpd's AppArmor profile denies root a key it does
+  not own. Replacing the certificate in the panel kept that owner, so it did not help either. The files stay
+  `root:mail` now, as the installer writes them; the update puts them back and starts proftpd again.
+- **A web domain renamed to `www.<name>` could not be reached by any command** (#1318, upstream #4958), not even
+  deleted, since every command strips the `www.`. The new name is formatted like an add formats it.
+- **A docroot in another domain of the same user lacked that domain's `private/`** in `open_basedir` (#1318,
+  upstream #5930). An existing pool gets it at its next rebuild or docroot change.
+- **Database backups left out the events and the localhost grants** (#1318, upstream #5923).
+- Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
 
 ## v0.31 (2026-11-09)
 

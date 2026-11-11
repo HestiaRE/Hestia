@@ -607,6 +607,18 @@ proftpd_chroot_symlinks_apply() {
 	systemctl restart proftpd
 }
 
+# The host certificate back to what the installer writes. Only a failed proftpd is started again (a key exim owned
+# kept it from starting under AppArmor on Ubuntu 26.04); one stopped on purpose stays stopped. The files are the
+# entry's job: a proftpd that fails for another reason is a hint, never a halted update.
+host_cert_owner_apply() {
+	chown root:mail "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key" || return 1
+	chmod 660 "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key" || return 1
+	systemctl -q is-failed proftpd 2> /dev/null || return 0
+	systemctl restart proftpd > /dev/null 2>&1 \
+		|| echo "[ ! ] proftpd still does not start, and the certificate is no longer the reason: journalctl -u proftpd"
+	return 0
+}
+
 proftpd_systemlog_apply() {
 	grep -q '^DefaultRoot[[:space:]]' /etc/proftpd/proftpd.conf 2> /dev/null || return 0
 	proftpd_conf_line_add SystemLog 'SystemLog                       /var/log/proftpd/proftpd.log' || return 1

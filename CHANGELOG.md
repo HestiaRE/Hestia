@@ -19,8 +19,9 @@ the releases of the command audit, into another.
   locked now.
 - **The subdomain ownership check could be passed on another customer's domain** (#1323).
 - **A Debian box received no automatic updates, not even security ones** (#1292). The installer never installed
-  unattended-upgrades; only Ubuntu's image carries it. It is installed now, with Debian's own configuration
-  (security updates and point releases), and the update installs it on an existing box.
+  unattended-upgrades; only Ubuntu's image carries it. It is installed and switched on now, with Debian's own
+  configuration (security updates and point releases), and the update does the same on an existing box. Debian's
+  installer stores the package as off when no update policy was picked, so it is switched on explicitly.
 
 ### Changed
 

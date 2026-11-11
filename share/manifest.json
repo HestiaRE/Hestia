@@ -525,10 +525,6 @@
     }
   },
 
-  "always_installed_packages": [
-    "unattended-upgrades"
-  ],
-
   "fasttrack": {
     "supported": true,
     "syntax": "curl -fsSL <install_url> | bash -s -- <preset>",

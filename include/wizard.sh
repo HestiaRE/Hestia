@@ -125,7 +125,7 @@ fn_manifest_load() {
 	local missing
 	missing=$(jq -r '
         . as $root
-        | [ ({presets:"object",components:"object",tools:"object",pre_questions:"array",always_installed_packages:"array"}
+        | [ ({presets:"object",components:"object",tools:"object",pre_questions:"array"}
             | to_entries[])
           | .key as $k | .value as $t
           | if ($root | has($k) | not) then "\($k): missing"
@@ -1027,11 +1027,6 @@ fn_write_install_conf() {
 		echo ""
 		echo "# Selected utilities (from tools checklist)"
 		echo "TOOLS_SELECTION=\"${TOOLS_SELECTION:-}\""
-		echo ""
-		echo "# Always-installed packages"
-		local pkgs
-		pkgs=$(mq '.always_installed_packages | join(" ")')
-		echo "ALWAYS_INSTALLED_PACKAGES=\"${pkgs}\""
 		echo ""
 		# Stamped here, with the rest of the file, and nowhere else. The installer used to append these two
 		# at the very END of its run, after all eight stage markers were written, and since a marker IS the

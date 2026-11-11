@@ -15,15 +15,21 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	DB='' DBUSER='' DBUSER_SECOND='' DBUSER_SECOND_RO='' HOST='' TYPE='' CHARSET='' U_DISK='' SUSPENDED=''
+	TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep "DB=" $USER_DATA/db.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		# Older records have no slot-2 keys, so the previous record's would carry over.
-		DBUSER_SECOND='' DBUSER_SECOND_RO=''
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		json_escape DB DBUSER DBUSER_SECOND DBUSER_SECOND_RO HOST TYPE CHARSET U_DISK SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$DB"
 		printf '        "DATABASE": "%s",\n' "$DB"
@@ -53,7 +59,8 @@ shell_list() {
 	echo "DATABASE   USER   HOST   TYPE   DISK   SPND   DATE"
 	echo "--------   ----   ----   ----   ----   ----   ----"
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo "$DB $DBUSER $HOST $TYPE $U_DISK $SUSPENDED $DATE"
 	done < <(cat $USER_DATA/db.conf)
 }
@@ -61,7 +68,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo -ne "$DB\t$DBUSER\t$HOST\t$TYPE\t$CHARSET\t$U_DISK\t"
 		echo -e "$SUSPENDED\t$TIME\t$DATE"
 	done < <(cat $USER_DATA/db.conf)

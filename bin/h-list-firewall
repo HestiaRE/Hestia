@@ -14,16 +14,20 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	RULE='' ACTION='' PROTOCOL='' PORT='' IP='' IP_VERSION='' COMMENT='' SUSPENDED='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep RULE $CONF_DIR/firewall/rules.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[[ -z "$str" ]] && continue
-		# Older records carry no IP_VERSION, and the parse would keep the previous rule's.
-		IP_VERSION=''
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		json_escape RULE ACTION PROTOCOL PORT IP IP_VERSION COMMENT SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$RULE"
 		printf '        "ACTION": "%s",\n' "$ACTION"
@@ -51,9 +55,8 @@ shell_list() {
 	echo "RULE^ACTION^PROTO^PORT^IP^VER^SPND^DATE"
 	echo "----^------^-----^----^--^---^----^----"
 	while read str; do
-		[[ -z "$str" ]] && continue
-		IP_VERSION=''
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		ver="${IP_VERSION:--}"
 		case "$IP" in 0.0.0.0/0 | ::/0 | '') ver="${IP_VERSION:-both}" ;; esac
 		echo "$RULE^$ACTION^$PROTOCOL^$PORT^$IP^$ver^$SUSPENDED^$DATE"
@@ -63,9 +66,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[[ -z "$str" ]] && continue
-		IP_VERSION=''
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo -ne "$RULE\t$ACTION\t$PROTOCOL\t$PORT\t$IP\t$COMMENT\t"
 		echo -e "$SUSPENDED\t$TIME\t$DATE\t$IP_VERSION"
 	done < <(cat $CONF_DIR/firewall/rules.conf)

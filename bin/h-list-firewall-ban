@@ -14,13 +14,20 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	IP='' CHAIN='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep IP $CONF_DIR/firewall/banlist.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		json_escape IP CHAIN TIME DATE
 		# One address can sit in several jails, so the key carries the chain or a second ban hides the first.
 		printf '    "%s|%s": {\n' "$IP" "$CHAIN"
@@ -44,7 +51,8 @@ shell_list() {
 	echo "IP   CHAIN   TIME   DATE"
 	echo "--   -----   ----   ----"
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo "$IP $CHAIN $TIME $DATE"
 	done < <(cat $CONF_DIR/firewall/banlist.conf)
 }
@@ -52,7 +60,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo -e "$IP\t$CHAIN\t$TIME\t$DATE"
 	done < <(cat $CONF_DIR/firewall/banlist.conf)
 }

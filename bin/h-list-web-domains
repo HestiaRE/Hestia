@@ -15,14 +15,27 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Rows that carry a DOMAIN key, wherever it stands, each from empty: a blank line repeated the last domain,
+# a missing key inherited its value.
+rows() {
+	grep -E "(^| )DOMAIN='" "$USER_DATA/web.conf"
+}
+
+parse_row() {
+	DOMAIN='' IP='' IP6='' CUSTOM_DOCROOT='' U_DISK='' U_BANDWIDTH='' TPL='' ALIAS='' STATS='' STATS_USER='' SSL=''
+	HTTP3='' DOCKER='' DOCKER_PORT='' DOCKER_OCTET='' LETSENCRYPT='' WP='' FTP_USER='' FTP_PATH='' AUTH_USER=''
+	BACKEND='' PHP_VERSION='' PROXY='' PROXY_EXT='' SUSPENDED='' TIME='' DATE=''
+	object_row_load "$1"
+}
+
 json_list() {
 	IFS=$'\n'
-	parse_object_kv_rows < "$USER_DATA/web.conf"
+	parse_object_kv_rows < <(rows)
 	i=1
-	objects=$(grep DOMAIN $USER_DATA/web.conf | wc -l)
+	objects=$(rows | wc -l)
 	echo "{"
 	for row in "${!OBJECT_ROWS[@]}"; do
-		object_row_load "$row"
+		parse_row "$row"
 		if [ -n "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -69,20 +82,20 @@ json_list() {
 
 shell_list() {
 	IFS=$'\n'
-	parse_object_kv_rows < "$USER_DATA/web.conf"
+	parse_object_kv_rows < <(rows)
 	echo "DOMAIN   IP   TPL   SSL   DISK   BW   SPND   DATE"
 	echo "------   --   ---   ---   ----   --   ----   -----"
 	for row in "${!OBJECT_ROWS[@]}"; do
-		object_row_load "$row"
+		parse_row "$row"
 		echo "$DOMAIN $IP $TPL $SSL $U_DISK $U_BANDWIDTH $SUSPENDED $DATE"
 	done
 }
 
 plain_list() {
 	IFS=$'\n'
-	parse_object_kv_rows < "$USER_DATA/web.conf"
+	parse_object_kv_rows < <(rows)
 	for row in "${!OBJECT_ROWS[@]}"; do
-		object_row_load "$row"
+		parse_row "$row"
 		if [ ! -z "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else

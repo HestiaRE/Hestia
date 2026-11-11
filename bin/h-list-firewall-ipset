@@ -16,14 +16,20 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 is_system_enabled "$FIREWALL_SYSTEM" 'FIREWALL_SYSTEM'
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	LISTNAME='' IP_VERSION='' AUTOUPDATE='' SUSPENDED='' SOURCE='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep LISTNAME $CONF_DIR/firewall/ipset.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[[ -z "$str" ]] && continue
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		json_escape LISTNAME IP_VERSION AUTOUPDATE SUSPENDED SOURCE TIME DATE
 		printf '    "%s": {\n' "$LISTNAME"
 		printf '        "IP_VERSION": "%s",\n' "$IP_VERSION"
@@ -44,8 +50,8 @@ shell_list() {
 	echo "LISTNAME^IP_VERSION^AUTOUPDATE^SUSPENDED^SOURCE^TIME^DATE"
 	echo "----^------^-----^----^--^----^----"
 	while read str; do
-		[[ -z "$str" ]] && continue
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo "$LISTNAME^$IP_VERSION^$AUTOUPDATE^$SUSPENDED^$SOURCE^$TIME^$DATE"
 	done < <(cat $CONF_DIR/firewall/ipset.conf)
 }
@@ -53,8 +59,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[[ -z "$str" ]] && continue
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo -ne "$LISTNAME\t$IP_VERSION\t$AUTOUPDATE\t$SUSPENDED\t$SOURCE\t"
 		echo -e "$TIME\t$DATE"
 	done < <(cat $CONF_DIR/firewall/ipset.conf)

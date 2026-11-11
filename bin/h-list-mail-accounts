@@ -28,7 +28,7 @@ live_autoreply() {
 
 # Account rows only, each from empty: a blank line repeated the last account, a missing key inherited its value.
 rows() {
-	grep "^ACCOUNT='" "$USER_DATA/mail/$domain.conf"
+	grep -E "(^| )ACCOUNT='" "$USER_DATA/mail/$domain.conf"
 }
 
 parse_row() {

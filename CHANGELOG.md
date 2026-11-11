@@ -18,9 +18,15 @@ the releases of the command audit, into another.
 - **A mail account without a hash in its record was written with another account's** (#1323); it is written
   locked now.
 - **The subdomain ownership check could be passed on another customer's domain** (#1323).
+- **A Debian box received no automatic updates, not even security ones** (#1292). The installer never installed
+  unattended-upgrades; only Ubuntu's image carries it. It is installed now, with Debian's own configuration
+  (security updates and point releases), and the update installs it on an existing box.
 
 ### Changed
 
+- **unattended-upgrades patches Sury PHP as well** (#1292, upstream #5876). Its stock configuration allows the
+  distribution's origins only, so customer and panel PHP waited for a hand step. nginx.org (preset `latest`) and
+  MariaDB stay manual.
 - **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** instead of one
   per record (#1317, upstream #5726/#5890). 100 web domains list in about 0.1 s instead of 2.2 s, and the server
   settings page, which lists every customer's domains, loses that share of its load time. A bad record now

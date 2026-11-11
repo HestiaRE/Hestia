@@ -16,6 +16,13 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/db.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each host from empty: a key a record leaves out would carry over from the one before. One without TLS
+# (every mysql one) is TLS-bound.
+host_read() {
+	unset HOST PORT CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL TLS SUSPENDED TIME DATE
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
@@ -32,9 +39,8 @@ json_list() {
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
 			for str in $(cat $HESTIA/conf/$type.conf); do
-				# Keys a record leaves out would otherwise carry over; one without TLS (every mysql one) is TLS-bound.
-				unset TLS PORT TPL
-				parse_object_kv_list "$str"
+				[[ "$str" =~ [^[:space:]] ]] || continue
+				host_read "$str"
 				database_set_default_ports
 				json_escape HOST PORT type CHARSETS MAX_DB U_SYS_USERS U_DB_BASES TPL TLS SUSPENDED TIME DATE
 				echo '    {'
@@ -70,9 +76,8 @@ shell_list() {
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
 			for str in $(cat $HESTIA/conf/$type.conf); do
-				# Keys a record leaves out would otherwise carry over from the one before.
-				unset PORT TPL
-				parse_object_kv_list "$str"
+				[[ "$str" =~ [^[:space:]] ]] || continue
+				host_read "$str"
 				database_set_default_ports
 				echo "$HOST $PORT $type $MAX_DB $U_DB_BASES $SUSPENDED $TIME $DATE"
 			done
@@ -85,9 +90,8 @@ plain_list() {
 	for type in $(echo $DB_SYSTEM | sed -e 's/,/\n/'); do
 		if [ -e "$HESTIA/conf/$type.conf" ]; then
 			for str in $(cat $HESTIA/conf/$type.conf); do
-				# Keys a record leaves out would otherwise carry over from the one before.
-				unset PORT TPL
-				parse_object_kv_list "$str"
+				[[ "$str" =~ [^[:space:]] ]] || continue
+				host_read "$str"
 				database_set_default_ports
 				echo -ne "$HOST\t$PORT\t$type\t$CHARSETS\t$MAX_DB\t$U_SYS_USERS\t"
 				echo -e "$U_DB_BASES\t$TPL\t$SUSPENDED\t$TIME\t$DATE"

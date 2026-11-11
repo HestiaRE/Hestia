@@ -15,12 +15,18 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each address from empty: source_conf sets only the keys a file has, and a missing one would show the one before.
+ip_read() {
+	unset OWNER STATUS NAME NAT
+	source_conf "$CONF_DIR/ips/$1"
+}
+
 json_list() {
 	echo '{'
 	ip_count="$(echo "$ips" | wc -l)"
 	i=1
 	for IP in $ips; do
-		source_conf "$CONF_DIR/ips/$IP"
+		ip_read "$IP"
 		json_escape IP OWNER STATUS NAME NAT
 		printf '    "%s": {\n' "$IP"
 		printf '        "OWNER": "%s",\n' "$OWNER"
@@ -42,7 +48,7 @@ shell_list() {
 	echo "IP  NAT  OWNER   STATUS   NAME"
 	echo "--  ---  -----   ------   ---"
 	for IP in $ips; do
-		source_conf "$CONF_DIR/ips/$IP"
+		ip_read "$IP"
 		if [ -z "$NAT" ]; then
 			NAT='no'
 		fi
@@ -55,7 +61,7 @@ shell_list() {
 
 plain_list() {
 	for IP in $ips; do
-		source_conf "$CONF_DIR/ips/$IP"
+		ip_read "$IP"
 		echo -e "$IP\t$OWNER\t$STATUS\t$NAME\t$NAT"
 	done
 }

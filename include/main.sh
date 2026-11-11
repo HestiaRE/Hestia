@@ -19,7 +19,7 @@ source "$HESTIA/include/help.sh"
 # BACKUP_TEMP are absent on purpose; each is a legitimate key somewhere.
 SOURCE_CONF_PROTECTED="PATH IFS ENV BASH_ENV BASHOPTS SHELLOPTS CDPATH GLOBIGNORE PROMPT_COMMAND
 PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCNAME
-HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
+HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED OBJECT_ROWS"
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
 # one (the archive name). user and crontab: sync_cron_jobs chowns $crontab to $user as root.
@@ -891,6 +891,7 @@ _parse_object_kv_list_php() {
 
 # The records on stdin, validated in one PHP start instead of one per record; object_row_load N then loads
 # row N as parse_object_kv_list would. All or nothing: a bad record aborts before the caller printed a line.
+# One global array: nothing inside a loop over OBJECT_ROWS may call parse_object_kv_rows again.
 parse_object_kv_rows() {
 	local input out check_status
 	OBJECT_ROWS=()

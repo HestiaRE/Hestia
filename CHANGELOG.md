@@ -22,7 +22,7 @@ the releases of the command audit, into another.
 - **A web domain renamed to `www.<name>` could not be reached by any command** (#1318, upstream #4958), not even
   deleted, since every command strips the `www.`. The new name is formatted like an add formats it.
 - **A docroot in another domain of the same user lacked that domain's `private/`** in `open_basedir` (#1318,
-  upstream #5930).
+  upstream #5930). An existing pool gets it at its next rebuild or docroot change.
 - **Database backups left out the events and the localhost grants** (#1318, upstream #5923).
 - Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
 

@@ -219,7 +219,8 @@ upd_cond_file_group_differs() {
 # Same pattern rule; true when one of the files belongs to another owner, which the group alone does not show.
 upd_cond_file_owner_differs() {
 	local f o
-	[ -n "$1" ] && [[ "$2" =~ ^[a-z_][-a-z0-9_]*$ ]] || {
+	# Upper case allowed: Debian-exim is a real owner.
+	[ -n "$1" ] && [[ "$2" =~ ^[A-Za-z_][-A-Za-z0-9_]*$ ]] || {
 		echo "update: file_owner_differs needs a path pattern and a user name" >&2
 		return 2
 	}

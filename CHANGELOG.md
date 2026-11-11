@@ -13,6 +13,13 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Changed
+
+- **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** instead of one
+  per record (#1317, upstream #5726/#5890). 100 web domains list in about 0.1 s instead of 2.2 s, and the server
+  settings page, which lists every customer's domains, loses that share of its load time. A bad record now
+  aborts before the first line instead of in the middle of a half-printed JSON.
+
 ### Fixed
 
 - **proftpd did not start on Ubuntu 26.04 after a Let's Encrypt host certificate** (#1318, upstream #5778). Every
@@ -24,6 +31,8 @@ the releases of the command audit, into another.
 - **A docroot in another domain of the same user lacked that domain's `private/`** in `open_basedir` (#1318,
   upstream #5930). An existing pool gets it at its next rebuild or docroot change.
 - **Database backups left out the events and the localhost grants** (#1318, upstream #5923).
+- **plain and shell output of the web-domain and mail-account lists dropped backslashes** from values and failed on
+  an escaped quote, while json showed them right (#1317).
 - Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
 
 ## v0.31 (2026-11-09)

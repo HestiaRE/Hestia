@@ -17,11 +17,12 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 json_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < "$USER_DATA/web.conf"
 	i=1
 	objects=$(grep DOMAIN $USER_DATA/web.conf | wc -l)
 	echo "{"
-	while read -r str; do
-		parse_object_kv_list "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		object_row_load "$row"
 		if [ -n "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -62,24 +63,26 @@ json_list() {
 			echo
 		fi
 		((i++))
-	done < <(cat $USER_DATA/web.conf)
+	done
 	echo '}'
 }
 
 shell_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < "$USER_DATA/web.conf"
 	echo "DOMAIN   IP   TPL   SSL   DISK   BW   SPND   DATE"
 	echo "------   --   ---   ---   ----   --   ----   -----"
-	while read str; do
-		parse_object_kv_list "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		object_row_load "$row"
 		echo "$DOMAIN $IP $TPL $SSL $U_DISK $U_BANDWIDTH $SUSPENDED $DATE"
-	done < <(cat $USER_DATA/web.conf)
+	done
 }
 
 plain_list() {
 	IFS=$'\n'
-	while read str; do
-		parse_object_kv_list "$str"
+	parse_object_kv_rows < "$USER_DATA/web.conf"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		object_row_load "$row"
 		if [ ! -z "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -89,7 +92,7 @@ plain_list() {
 		echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$LETSENCRYPT\t"
 		echo -ne "$FTP_USER\t$FTP_PATH\t$AUTH_USER\t$BACKEND\t$PROXY\t"
 		echo -e "$PROXY_EXT\t$SUSPENDED\t$TIME\t$DATE"
-	done < <(cat $USER_DATA/web.conf)
+	done
 }
 
 check_args '1' "$#" 'USER [FORMAT]'

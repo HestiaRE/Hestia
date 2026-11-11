@@ -13,6 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Security
+
+- **A mail account without a hash in its record was written with another account's** (#1323); it is written
+  locked now.
+- **The subdomain ownership check could be passed on another customer's domain** (#1323).
+
 ### Changed
 
 - **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** instead of one
@@ -37,6 +43,9 @@ the releases of the command audit, into another.
   document root of the domain above, notifications its priority, databases its charset, IPs their NAT address;
   fourteen listers now clear each record's fields first. A blank line in a record file no longer repeats the
   record above it, and the JSON around both stays valid.
+- **Rebuild, backup and counters wrote the previous record's value for a key a record lacks** (#1323). A backup
+  archived a domain with the previous domain's PHP version, and the user counters summed a disk and SSL figure
+  twice. The shared record readers now clear what the record before them set.
 - Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
 
 ## v0.31 (2026-11-09)

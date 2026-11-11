@@ -1597,7 +1597,7 @@ is_mail_web_pair_free() { # NAME web|mail
 }
 
 get_domain_values() {
-	parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/$1.conf)"
+	record_load "_domain_keys_$1" "$(grep -F "DOMAIN='$domain'" $USER_DATA/$1.conf)"
 }
 
 #----------------------------------------------------------#
@@ -1689,6 +1689,7 @@ is_base_domain_owner() {
 			# Subshell: this is the PARENT's record - parsed in place, its keys (SSL, ...)
 			# leaked into the caller's vhost rendering. Only ALLOW_USERS leaves this line.
 			allow_users=$(
+				ALLOW_USERS=''
 				parse_object_kv_list "$web" 2> /dev/null
 				echo "${ALLOW_USERS:-}"
 			)

@@ -46,8 +46,9 @@ is_ip_key_empty() {
 	key="$1"
 	# source_conf, not `eval $(cat ...)`: the old form executed the whole IP conf as bash, so any content
 	# in it ran (the GHSA-xffx class). Callers pass a single '$VARNAME', so strip the $ and deref safely.
-	[ -f "$CONF_DIR/ips/$ip" ] && source_conf "$CONF_DIR/ips/$ip"
 	local varname="${key#\$}"
+	printf -v "$varname" '%s' ''
+	[ -f "$CONF_DIR/ips/$ip" ] && source_conf "$CONF_DIR/ips/$ip"
 	value="${!varname}"
 	if [ -n "$value" ] && [ "$value" != '0' ]; then
 		key="$(echo $key | sed -e "s/\$U_//")"
@@ -63,9 +64,10 @@ update_ip_value() {
 	local str_number=""
 	conf="$CONF_DIR/ips/$ip"
 	# See is_ip_key_empty: source_conf instead of eval-ing the file content as bash.
+	local varname="${key#\$}"
+	printf -v "$varname" '%s' ''
 	[ -e "$conf" ] && source_conf "$conf"
 	c_key=$(echo "${key//$/}")
-	local varname="${key#\$}"
 	old="${!varname}"
 	old=$(echo "$old" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
 	new=$(echo "$value" | sed -e 's/\\/\\\\/g' -e 's/&/\\&/g' -e 's/\//\\\//g')
@@ -179,8 +181,9 @@ decrease_ip_value() {
 get_ip_value() {
 	key="$1"
 	# See is_ip_key_empty: source_conf instead of eval-ing the file content as bash.
-	[ -f "$CONF_DIR/ips/$ip" ] && source_conf "$CONF_DIR/ips/$ip"
 	local varname="${key#\$}"
+	printf -v "$varname" '%s' ''
+	[ -f "$CONF_DIR/ips/$ip" ] && source_conf "$CONF_DIR/ips/$ip"
 	value="${!varname}"
 	echo "$value"
 }

@@ -516,7 +516,7 @@ is_dbhost_new() {
 get_database_values() {
 	# An older record has no slot-2 keys, so a loop over databases would carry the previous one's over.
 	DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
-	parse_object_kv_list "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
+	record_load _database_keys "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
 }
 
 change_mysql_password() {

@@ -950,9 +950,10 @@ is_object_unsuspended() {
 
 # Check if object value is empty
 is_object_value_empty() {
+	local varname="${4#\$}"
+	printf -v "$varname" '%s' ''
 	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
-	local varname="${4#\$}"
 	value="${!varname}"
 	if [ -n "$value" ] && [ "$value" != 'no' ]; then
 		check_result "$E_EXISTS" "${4//$/}=$value already exists"
@@ -961,9 +962,10 @@ is_object_value_empty() {
 
 # Check if object value is empty
 is_object_value_exist() {
+	local varname="${4#\$}"
+	printf -v "$varname" '%s' ''
 	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
-	local varname="${4#\$}"
 	value="${!varname}"
 	if [ -z "$value" ] || [ "$value" = 'no' ]; then
 		check_result "$E_NOTEXIST" "${4//$/}=$value doesn't exist"
@@ -1044,15 +1046,28 @@ json_escape() {
 
 # Get object value
 get_object_value() {
+	local varname="${4#\$}"
+	printf -v "$varname" '%s' ''
 	object=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$object"
-	local varname="${4#\$}"
 	value="${!varname}"
 	echo "$value"
 }
 
 get_object_values() {
 	parse_object_kv_list "$(_object_lines "$1" "$2='$3'")"
+}
+
+# record_load REG LINE: parse LINE after emptying the keys the record before it under REG set, so a loop that loads
+# record after record never keeps a key one of them lacks at the previous one's value. Name REG with a leading
+# underscore: no record key can, so no record can rewrite the register.
+record_load() {
+	local -n _rl_reg="$1"
+	local _rl_k IFS=$' \t\n'
+	for _rl_k in $_rl_reg; do printf -v "$_rl_k" '%s' ''; done
+	_rl_reg=''
+	parse_object_kv_list "$2"
+	_rl_reg=$(record_keys "$2")
 }
 
 # Update object value
@@ -1149,6 +1164,7 @@ search_objects() {
 	IFS=$'\n'
 	if [ -f "$(_object_conf "$1")" ]; then
 		for line in $(_object_lines "$1" "$pat"); do
+			printf -v "$4" '%s' ''
 			parse_object_kv_list "$line"
 			echo "${!4}"
 		done

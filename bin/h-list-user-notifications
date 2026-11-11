@@ -27,7 +27,7 @@ json_list() {
 	objects=$(grep NID $USER_DATA/notifications.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		if [ "$PRIORITY" = '' ]; then
 			PRIORITY='0'
@@ -57,7 +57,7 @@ json_list() {
 shell_list() {
 	IFS=$'\n'
 	while read str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		record_value_decode "$TOPIC"
 		echo
@@ -72,7 +72,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		TOPIC=$(record_value_decode "$TOPIC")
 		NOTICE=$(record_value_decode "$NOTICE")

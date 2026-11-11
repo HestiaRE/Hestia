@@ -17,7 +17,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # Domain rows only, each from empty: a blank line repeated the last domain, a missing key inherited its value.
 rows() {
-	grep "^DOMAIN='" "$USER_DATA/mail.conf"
+	grep -E "(^| )DOMAIN='" "$USER_DATA/mail.conf"
 }
 
 parse_row() {

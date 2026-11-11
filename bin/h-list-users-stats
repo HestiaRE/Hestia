@@ -26,7 +26,7 @@ json_list() {
 	objects=$(grep DATE "$CONF_DIR/users/$ROOT_USER/overall_stats.log" | wc -l)
 	echo "{"
 	while read -r str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		json_escape DATE TIME PACKAGE IP_OWNED DISK_QUOTA U_DISK U_DISK_DIRS U_DISK_WEB U_DISK_MAIL U_DISK_DB BANDWIDTH U_BANDWIDTH U_WEB_DOMAINS U_WEB_SSL U_WEB_ALIASES U_MAIL_DOMAINS U_MAIL_DKIM U_MAIL_ACCOUNTS U_DATABASES U_CRON_JOBS U_BACKUPS U_USERS
 		printf '    "%s": {\n' "$DATE"
@@ -67,7 +67,7 @@ shell_list() {
 	echo "DATE   USER   WEB   MAIL   DB   BACKUPS   IP   DISK   BW"
 	echo "----   ----   ---   ---   ----   --   -------   --   ----   --"
 	while read str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		if [ -z "$U_USERS" ]; then
 			U_USERS=1
@@ -81,7 +81,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		echo -ne "$DATE\t$TIME\t$PACKAGE\t$IP_OWNED\t$DISK_QUOTA\t$U_DISK\t"
 		echo -ne "$U_DISK_DIRS\t$U_DISK_WEB\t$U_DISK_MAIL\t$U_DISK_DB\t"

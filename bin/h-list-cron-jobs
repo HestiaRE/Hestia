@@ -27,7 +27,7 @@ json_list() {
 	objects=$(grep JOB $USER_DATA/cron.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		# No \" escaping here: json_escape does it, and both together doubled every escape.
 		CMD=$(record_value_decode "$CMD")
@@ -59,7 +59,7 @@ shell_list() {
 	echo "JOB^MIN^HOUR^DAY^MONTH^WDAY^COMMAND"
 	echo "---^---^----^---^-----^----^-------"
 	while read str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		# The \" escaping shell and plain have always printed; JSON leaves it to json_escape.
 		CMD=$(record_value_decode "$CMD")
@@ -71,7 +71,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		CMD=$(record_value_decode "$CMD")
 		CMD=${CMD//\"/\\\"}

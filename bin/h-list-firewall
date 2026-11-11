@@ -26,7 +26,7 @@ json_list() {
 	objects=$(grep RULE $CONF_DIR/firewall/rules.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[[ -z "$str" ]] && continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		json_escape RULE ACTION PROTOCOL PORT IP IP_VERSION COMMENT SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$RULE"
@@ -55,7 +55,7 @@ shell_list() {
 	echo "RULE^ACTION^PROTO^PORT^IP^VER^SPND^DATE"
 	echo "----^------^-----^----^--^---^----^----"
 	while read str; do
-		[[ -z "$str" ]] && continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		ver="${IP_VERSION:--}"
 		case "$IP" in 0.0.0.0/0 | ::/0 | '') ver="${IP_VERSION:-both}" ;; esac
@@ -66,7 +66,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[[ -z "$str" ]] && continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		echo -ne "$RULE\t$ACTION\t$PROTOCOL\t$PORT\t$IP\t$COMMENT\t"
 		echo -e "$SUSPENDED\t$TIME\t$DATE\t$IP_VERSION"

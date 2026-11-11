@@ -15,9 +15,10 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-# Domain rows only, each from empty: a blank line repeated the last domain, a missing key inherited its value.
+# Rows that carry a DOMAIN key, wherever it stands, each from empty: a blank line repeated the last domain,
+# a missing key inherited its value.
 rows() {
-	grep "^DOMAIN='" "$USER_DATA/web.conf"
+	grep -E "(^| )DOMAIN='" "$USER_DATA/web.conf"
 }
 
 parse_row() {

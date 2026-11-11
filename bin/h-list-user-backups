@@ -39,7 +39,7 @@ json_list() {
 	objects=$(grep BACKUP $USER_DATA/backup.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		# LOCAL says what this box knows: a copy is here or not. Whether a remote holds it is not asked.
 		local_of "$BACKUP"
@@ -75,7 +75,7 @@ shell_list() {
 	echo "BACKUP   TYPE   SIZE  LOCAL  TIME  DATE"
 	echo "------   ----   ---   -----  ----  ----"
 	while read -r str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		local_of "$BACKUP"
 		echo "$BACKUP $TYPE $SIZE $LOCAL $RUNTIME $DATE"
@@ -85,7 +85,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read -r str; do
-		[ -n "$str" ] || continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		local_of "$BACKUP"
 		echo -ne "$BACKUP\t$TYPE\t$SIZE\t$WEB\t$MAIL\t$CRON\t$UDIR\t$MAP\t${MODE:-full}\t$BASE\t$LOCAL\t"

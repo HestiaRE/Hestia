@@ -28,7 +28,7 @@ json_list() {
 	objects=$(grep LISTNAME $CONF_DIR/firewall/ipset.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		[[ -z "$str" ]] && continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		json_escape LISTNAME IP_VERSION AUTOUPDATE SUSPENDED SOURCE TIME DATE
 		printf '    "%s": {\n' "$LISTNAME"
@@ -50,7 +50,7 @@ shell_list() {
 	echo "LISTNAME^IP_VERSION^AUTOUPDATE^SUSPENDED^SOURCE^TIME^DATE"
 	echo "----^------^-----^----^--^----^----"
 	while read str; do
-		[[ -z "$str" ]] && continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		echo "$LISTNAME^$IP_VERSION^$AUTOUPDATE^$SUSPENDED^$SOURCE^$TIME^$DATE"
 	done < <(cat $CONF_DIR/firewall/ipset.conf)
@@ -59,7 +59,7 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		[[ -z "$str" ]] && continue
+		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		echo -ne "$LISTNAME\t$IP_VERSION\t$AUTOUPDATE\t$SUSPENDED\t$SOURCE\t"
 		echo -e "$TIME\t$DATE"

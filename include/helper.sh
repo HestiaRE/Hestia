@@ -598,6 +598,19 @@ proftpd_conf_line_add() { # DIRECTIVE LINE
 	rm -f "$bak"
 }
 
+# Debian's installer stores false for the enable question when nobody picked an update policy, so the package would
+# install switched off. Only before the first install: a box that has the package keeps its own answer.
+unattended_upgrades_preseed() {
+	command -v unattended-upgrade > /dev/null 2>&1 && return 0
+	echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean true' | debconf-set-selections
+}
+
+unattended_upgrades_apply() {
+	unattended_upgrades_preseed || return 1
+	dpkg --configure -a > /dev/null 2>&1
+	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install unattended-upgrades > /dev/null 2>&1
+}
+
 # unattended-upgrades allows the distribution's origins only, so Sury PHP is never patched without this. Written
 # with the repo, by add_sury_repo.
 sury_unattended_apply() {

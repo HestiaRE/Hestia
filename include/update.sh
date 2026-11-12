@@ -372,7 +372,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	panel_caddy_accel_apply dovecot_login_alias_apply fail2ban_unban_caller_apply
 	firewall_boot_banlist_apply exim_auth_results_apply exim_helo_checks_apply exim_dkim_selector_apply
 	exim_spam_status_score_apply mariadb_compat_apply host_cert_owner_apply sury_unattended_apply
-	unattended_upgrades_apply)
+	unattended_upgrades_apply keep_conffiles_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

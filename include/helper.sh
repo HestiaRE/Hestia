@@ -619,6 +619,15 @@ unattended_upgrades_apply() {
 	return 0
 }
 
+# unattended-upgrades skips a package whose update changes a conffile we edited, so exactly that one would stay
+# unpatched. Keep the local file as answering N does; the package's own version lands next to it as .dpkg-dist.
+# For every apt run on the box, as our own apt calls already do.
+keep_conffiles_apply() {
+	local f='/etc/apt/apt.conf.d/60hestia-keep-conffiles'
+	printf 'DPkg::Options {\n\t"--force-confdef";\n\t"--force-confold";\n};\n' > "$f" || return 1
+	chmod 644 "$f"
+}
+
 # unattended-upgrades allows the distribution's origins only, so Sury PHP is never patched without this. Written
 # with the repo, by add_sury_repo.
 sury_unattended_apply() {

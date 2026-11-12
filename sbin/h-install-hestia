@@ -164,6 +164,7 @@ install_base() {
 	# for the daily clock step (ntpdate is transitional on 12 and 24.04 and gone on 13 and 26.04), unattended-upgrades
 	# because Debian's image lacks it.
 	unattended_upgrades_preseed
+	keep_conffiles_apply
 	# shellcheck disable=SC2086
 	hestia_apt -y install \
 		acl at b3sum bc bsdmainutils bsdutils ca-certificates \

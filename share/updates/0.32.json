@@ -22,6 +22,16 @@
       "reversible": false
     },
     {
+      "id": "keep-conffiles",
+      "description": "unattended-upgrades skipped every package whose update changes a conffile HestiaRE edits (the exim template, nginx.conf, apache2.conf, php-fpm.conf), so exactly those stayed unpatched; apt keeps the local file now, as answering N does",
+      "conditions": [
+        { "type": "path_absent", "path": "/etc/apt/apt.conf.d/60hestia-keep-conffiles" }
+      ],
+      "action": { "type": "function_call", "function": "keep_conffiles_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
       "id": "sury-unattended",
       "description": "unattended-upgrades patched the distribution's origins only, so Sury PHP got no update without a hand step; the Sury origin is added where the repo is",
       "conditions": [

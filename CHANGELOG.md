@@ -13,88 +13,74 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.32 (2026-11-12)
+
+Automatic updates on Debian and for Sury PHP, record loops that start every record from empty, and the findings
+after HestiaCP 1.10.6.
+
 ### Security
 
-- **A mail account without a hash in its record was written with another account's** (#1323); it is written
-  locked now.
-- **The subdomain ownership check could be passed on another customer's domain** (#1323).
 - **A Debian box received no automatic updates, not even security ones** (#1292). The installer never installed
   unattended-upgrades; only Ubuntu's image carries it. It is installed and switched on now, with Debian's own
-  configuration (security updates and point releases), and the update does the same on an existing box. Debian's
-  installer stores the package as off when no update policy was picked, so it is switched on explicitly. On an
-  existing box the next timer run catches up on everything pending at once, services restart with it; an
-  `apt upgrade` by hand before the update keeps that in view.
+  configuration (security updates and point releases), on an existing box by the update. Its next timer run
+  catches up on everything pending at once, services restart with it; an `apt upgrade` by hand before the update
+  keeps that in view.
+- **The subdomain ownership check could be passed on another customer's domain** (#1323).
+- **A mail account without a hash in its record was written with another account's** (#1323); it is written
+  locked now.
 
 ### Changed
 
-- **unattended-upgrades patches Sury PHP as well** (#1292, upstream #5876). Its stock configuration allows the
-  distribution's origins only, so customer and panel PHP waited for a hand step. The nginx.org repo (preset
-  `latest`) and the MariaDB repo stay manual; nginx and MariaDB from the distribution itself are updated and
-  restarted with its security updates.
-- **apt keeps a conffile HestiaRE edited** instead of asking (#1292), as answering N does; the package's own version
-  lands next to it as `.dpkg-dist`. unattended-upgrades skipped such a package entirely, so an exim, nginx, apache
-  or PHP-FPM update that touched one of these files would have stayed uninstalled without a word. It holds for
-  every apt run on the box, a manual `apt upgrade` included: it no longer asks, the local file always stays, and a
-  new package default is seen only as the `.dpkg-dist` next to it.
-- **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** instead of one
-  per record (#1317, upstream #5726/#5890). 100 web domains list in about 0.1 s instead of 2.2 s, and the server
-  settings page, which lists every customer's domains, loses that share of its load time. A bad record now
-  aborts before the first line instead of in the middle of a half-printed JSON.
+- **unattended-upgrades patches Sury PHP as well** (#1292, upstream #5876). The nginx.org repo (preset `latest`)
+  and the MariaDB repo stay manual; nginx and MariaDB from the distribution update and restart with its security
+  updates.
+- **apt keeps a conffile HestiaRE edited instead of asking**, as answering N does (#1292). unattended-upgrades
+  skipped such a package entirely, so an exim, nginx, apache or PHP-FPM update that touched one stayed
+  uninstalled. It holds for a manual `apt upgrade` too; the package's own version lands as `.dpkg-dist`.
+- **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** (#1317,
+  upstream #5726/#5890): 100 web domains in about 0.1 s instead of 2.2 s, and a bad record aborts before the first
+  line instead of inside a half-printed JSON.
 
 ### Fixed
 
+- **A record read in a loop inherited the previous record's value for a key it lacks** (#1321/#1323). Lists showed
+  the document root of the domain above, a notification's priority or a database's charset; a backup archived a
+  domain with the previous one's PHP version, and the user counters summed disk and SSL twice. Every record starts
+  from empty now, and a blank line no longer repeats the record above it.
 - **proftpd did not start on Ubuntu 26.04 after a Let's Encrypt host certificate** (#1318, upstream #5778). Every
-  issue and renewal handed the panel certificate to exim, and proftpd's AppArmor profile denies root a key it does
-  not own. Replacing the certificate in the panel kept that owner, so it did not help either. The files stay
-  `root:mail` now, as the installer writes them; the update puts them back and starts proftpd again.
-- **A web domain renamed to `www.<name>` could not be reached by any command** (#1318, upstream #4958), not even
-  deleted, since every command strips the `www.`. The new name is formatted like an add formats it.
-- **A docroot in another domain of the same user lacked that domain's `private/`** in `open_basedir` (#1318,
-  upstream #5930). An existing pool gets it at its next rebuild or docroot change.
+  issue and renewal handed the key to exim, and proftpd's AppArmor profile denies root a key it does not own; the
+  files stay `root:mail` now, and the update puts them back.
+- **A web domain renamed to `www.<name>` could not be reached by any command** (#1318, upstream #4958).
 - **Database backups left out the events and the localhost grants** (#1318, upstream #5923).
-- **plain and shell output of the web-domain and mail-account lists dropped backslashes** from values and failed on
-  an escaped quote, while json showed them right (#1317).
-- **A list showed the previous record's value for a key a record lacks** (#1321). Web domains inherited the
-  document root of the domain above, notifications its priority, databases its charset, IPs their NAT address;
-  fourteen listers now clear each record's fields first. A blank line in a record file no longer repeats the
-  record above it, and the JSON around both stays valid.
-- **Rebuild, backup and counters wrote the previous record's value for a key a record lacks** (#1323). A backup
-  archived a domain with the previous domain's PHP version, and the user counters summed a disk and SSL figure
-  twice. The shared record readers now clear what the record before them set.
-- Smaller: `robots.txt` no longer gets `expires max` from a new domain's static list (#1318, upstream #5850).
+- Smaller ones: backslashes in plain and shell list output (#1317), a docroot in another domain of the same user
+  without that domain's `private/` in `open_basedir` (#1318, upstream #5930), and `expires max` on `robots.txt`
+  (#1318, upstream #5850).
 
 ## v0.31 (2026-11-09)
 
-The DNS records HestiaRE needs, per zone and without a provider yet, the MariaDB client under its own names, and
-record writes that fail loudly.
+The DNS records HestiaRE needs, the MariaDB client under its own names, and record writes that fail loudly.
 
 ### Added
 
-- **A DNS tab that lists the records HestiaRE needs, per zone** (#1307/#1308, part of #863). It is no DNS server:
-  the zone comes from public DNS, each zone shows its sections and owners (web domains and aliases, mail, sub
-  domains of other users, the hostname), and its page gives the records as rows and as zone file lines to copy.
-  Admin only, also while switched into a customer. `h-list-dns-zones` and `h-list-dns-zone` give the same from the
-  command line, and the mail domain's "DNS records" page reads the same derivation.
+- **A DNS tab that lists the records HestiaRE needs, per zone** (#1307/#1308, part of #863). No DNS server: the zone
+  comes from public DNS, and each section gives its records as rows and zone file lines. Admin only;
+  `h-list-dns-zones` and `h-list-dns-zone` give the same on the command line.
 
 ### Changed
 
-- **Debian 13 and Ubuntu 26.04 LTS are the primary targets** (#1300). Debian 12 and Ubuntu 24.04 LTS stay tested,
-  as best effort: a feature that needs old packages may leave them behind, and says so here.
-- **HestiaRE calls the MariaDB client by its own names** (`mariadb`, `mariadb-dump`, `mariadb-admin`) (#1302), and
-  `mariadb-client-compat` comes with every 11.x client, so `mysql` and friends stay for whoever types them. A
-  package that cannot be installed is a warning, never a stopped install or update.
-- **The restore's consent questions take `a` for all following sections** (#1305). Moving domains onto another
-  PHP version is still asked, first, with each domain's old and new version.
+- **Debian 13 and Ubuntu 26.04 LTS are the primary targets** (#1300); Debian 12 and Ubuntu 24.04 LTS are best effort.
+- **HestiaRE calls the MariaDB client by its own names** (#1302), and `mariadb-client-compat` keeps `mysql` and
+  friends for whoever types them.
+- **The restore's consent questions take `a` for all following sections** (#1305).
 
 ### Fixed
 
-- **A record that could not be updated passed with rc 0** (#1312). A read-only `/etc` or a full disk left service
-  files changed and the record behind, reported as success; the command now stops with E_UPDATE.
-- **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305). The version
-  derived from `BACKEND` stayed set for the next domain; `HTTP3` leaked the same way.
-- **The server backup silently left the webmail databases out on MariaDB 11.x without Recommends** (#1302), and
-  the nightly table check before the user backups did nothing there: both called old client names the box did
-  not have.
+- **A record that could not be updated passed with rc 0** (#1312); the command stops with E_UPDATE now.
+- **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305).
+- **The server backup left the webmail databases out on MariaDB 11.x without Recommends** (#1302), and the nightly
+  table check did nothing there.
 - **`h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked** (#1311).
 
 ## v0.30 (2026-11-06)
@@ -104,10 +90,8 @@ selector per mail domain.
 
 ### Added
 
-- **New certificates get an ECDSA P-256 key** (#1247, upstream #5629), with HestiaCP 1.10.6's key type argument
-  and `SSL_KEY_ALGO` in the record. A renewal keeps the type a domain has, so existing certificates stay RSA.
-- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760), kept by a restore on both sides;
-  the edit page marks DKIM orange when DNS does not carry the key.
+- **New certificates get an ECDSA P-256 key** (#1247, upstream #5629); a renewal keeps the type a domain has.
+- **A mail domain can sign under its own DKIM selector** (#1248, upstream #5760), kept by a restore on both sides.
 - **`h-nft` changes the live firewall by hand** (#1273); a render, restart or reboot restores the configured state.
 - **Webmail shows the spam score of every scanned mail** (#1295).
 
@@ -120,8 +104,7 @@ selector per mail domain.
 
 ### Fixed
 
-- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862); it refuses one that is not the
-  forward-confirmed PTR now.
+- **exim's check for an IP-like HELO never fired** (#1291, upstream #5862).
 - **The panel could not issue a Let's Encrypt certificate for a mail domain** (#1284).
 - Smaller ones: edit buttons for a suspended customer (#1290, upstream #5835), quotes in a cron command (#1290,
   upstream #5892), and a Unicode SAN for an IDN self-signed certificate (#1247, upstream #5814).

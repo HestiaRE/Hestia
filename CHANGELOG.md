@@ -21,13 +21,16 @@ the releases of the command audit, into another.
 - **A Debian box received no automatic updates, not even security ones** (#1292). The installer never installed
   unattended-upgrades; only Ubuntu's image carries it. It is installed and switched on now, with Debian's own
   configuration (security updates and point releases), and the update does the same on an existing box. Debian's
-  installer stores the package as off when no update policy was picked, so it is switched on explicitly.
+  installer stores the package as off when no update policy was picked, so it is switched on explicitly. On an
+  existing box the next timer run catches up on everything pending at once, services restart with it; an
+  `apt upgrade` by hand before the update keeps that in view.
 
 ### Changed
 
 - **unattended-upgrades patches Sury PHP as well** (#1292, upstream #5876). Its stock configuration allows the
-  distribution's origins only, so customer and panel PHP waited for a hand step. nginx.org (preset `latest`) and
-  MariaDB stay manual.
+  distribution's origins only, so customer and panel PHP waited for a hand step. The nginx.org repo (preset
+  `latest`) and the MariaDB repo stay manual; nginx and MariaDB from the distribution itself are updated and
+  restarted with its security updates.
 - **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** instead of one
   per record (#1317, upstream #5726/#5890). 100 web domains list in about 0.1 s instead of 2.2 s, and the server
   settings page, which lists every customer's domains, loses that share of its load time. A bad record now

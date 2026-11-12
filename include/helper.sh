@@ -605,10 +605,18 @@ unattended_upgrades_preseed() {
 	echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean true' | debconf-set-selections
 }
 
+# A failure is a warning and never stops an update: the condition stays true, so the entry comes back with the next
+# one, and the smoke names it as pending until then.
 unattended_upgrades_apply() {
-	unattended_upgrades_preseed || return 1
+	local out
 	dpkg --configure -a > /dev/null 2>&1
-	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install unattended-upgrades > /dev/null 2>&1
+	if ! out=$(unattended_upgrades_preseed 2>&1) \
+		|| ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -qq -o DPkg::Lock::Timeout=300 update 2>&1) \
+		|| ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
+			-o Dpkg::Options::="--force-confold" install unattended-upgrades 2>&1); then
+		echo "[ ! ] unattended-upgrades could not be installed, this box gets no automatic updates yet: ${out##*$'\n'}"
+	fi
+	return 0
 }
 
 # unattended-upgrades allows the distribution's origins only, so Sury PHP is never patched without this. Written

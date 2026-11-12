@@ -31,6 +31,9 @@ the releases of the command audit, into another.
   distribution's origins only, so customer and panel PHP waited for a hand step. The nginx.org repo (preset
   `latest`) and the MariaDB repo stay manual; nginx and MariaDB from the distribution itself are updated and
   restarted with its security updates.
+- **apt keeps a conffile HestiaRE edited** instead of asking (#1292), as answering N does; the package's own version
+  lands next to it as `.dpkg-dist`. unattended-upgrades skipped such a package entirely, so an exim, nginx, apache
+  or PHP-FPM update that touched one of these files would have stayed uninstalled without a word.
 - **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** instead of one
   per record (#1317, upstream #5726/#5890). 100 web domains list in about 0.1 s instead of 2.2 s, and the server
   settings page, which lists every customer's domains, loses that share of its load time. A bad record now

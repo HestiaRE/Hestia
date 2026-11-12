@@ -283,7 +283,8 @@ add_sury_repo() {
 		return 1
 	}
 	printf 'deb [arch=%s signed-by=%s] https://packages.sury.org/php/ %s main\n' \
-		"$arch" "$keyring" "$codename" > "$list"
+		"$arch" "$keyring" "$codename" > "$list" || return 1
+	sury_unattended_apply
 }
 
 # nginx.org mainline for preset latest: the key by pinned fingerprint, and a pin so a distribution update never
@@ -595,6 +596,44 @@ proftpd_conf_line_add() { # DIRECTIVE LINE
 		return 1
 	fi
 	rm -f "$bak"
+}
+
+# Debian's installer stores false for the enable question when nobody picked an update policy, so the package would
+# install switched off. Only before the first install: a box that has the package keeps its own answer.
+unattended_upgrades_preseed() {
+	command -v unattended-upgrade > /dev/null 2>&1 && return 0
+	echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean true' | debconf-set-selections
+}
+
+# A failure is a warning and never stops an update: the condition stays true, so the entry comes back with the next
+# one, and the smoke names it as pending until then.
+unattended_upgrades_apply() {
+	local out
+	dpkg --configure -a > /dev/null 2>&1
+	if ! out=$(unattended_upgrades_preseed 2>&1) \
+		|| ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -qq -o DPkg::Lock::Timeout=300 update 2>&1) \
+		|| ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
+			-o Dpkg::Options::="--force-confold" install unattended-upgrades 2>&1); then
+		echo "[ ! ] unattended-upgrades could not be installed, this box gets no automatic updates yet: ${out##*$'\n'}"
+	fi
+	return 0
+}
+
+# unattended-upgrades skips a package whose update changes a conffile we edited, so exactly that one would stay
+# unpatched. Keep the local file as answering N does; the package's own version lands next to it as .dpkg-dist.
+# For every apt run on the box, as our own apt calls already do.
+keep_conffiles_apply() {
+	local f='/etc/apt/apt.conf.d/60hestia-keep-conffiles'
+	printf 'DPkg::Options {\n\t"--force-confdef";\n\t"--force-confold";\n};\n' > "$f" || return 1
+	chmod 644 "$f"
+}
+
+# unattended-upgrades allows the distribution's origins only, so Sury PHP is never patched without this. Written
+# with the repo, by add_sury_repo.
+sury_unattended_apply() {
+	local f='/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php'
+	printf 'Unattended-Upgrade::Origins-Pattern {\n\t"origin=deb.sury.org";\n};\n' > "$f" || return 1
+	chmod 644 "$f"
 }
 
 proftpd_chroot_symlinks_apply() {

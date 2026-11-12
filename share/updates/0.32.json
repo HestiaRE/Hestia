@@ -10,6 +10,37 @@
       "action": { "type": "function_call", "function": "host_cert_owner_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "unattended-upgrades",
+      "description": "A Debian box received no automatic updates at all: the installer never installed unattended-upgrades, and only Ubuntu's image carries it. Debian's own configuration comes with it, security updates and point releases, switched on even where the Debian installer stored it as off",
+      "conditions": [
+        { "type": "path_absent", "path": "/usr/bin/unattended-upgrade" }
+      ],
+      "action": { "type": "function_call", "function": "unattended_upgrades_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "keep-conffiles",
+      "description": "unattended-upgrades skipped every package whose update changes a conffile HestiaRE edits (the exim template, nginx.conf, apache2.conf, php-fpm.conf), so exactly those stayed unpatched; apt keeps the local file now, as answering N does",
+      "conditions": [
+        { "type": "path_absent", "path": "/etc/apt/apt.conf.d/60hestia-keep-conffiles" }
+      ],
+      "action": { "type": "function_call", "function": "keep_conffiles_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "sury-unattended",
+      "description": "unattended-upgrades patched the distribution's origins only, so Sury PHP got no update without a hand step; the Sury origin is added where the repo is",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/apt/sources.list.d/php.list" },
+        { "type": "path_absent", "path": "/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php" }
+      ],
+      "action": { "type": "function_call", "function": "sury_unattended_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

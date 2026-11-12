@@ -15,13 +15,20 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	JOB='' MIN='' HOUR='' DAY='' MONTH='' WDAY='' CMD='' SUSPENDED='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep JOB $USER_DATA/cron.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		# No \" escaping here: json_escape does it, and both together doubled every escape.
 		CMD=$(record_value_decode "$CMD")
 		json_escape JOB MIN HOUR DAY MONTH WDAY CMD SUSPENDED TIME DATE
@@ -52,7 +59,8 @@ shell_list() {
 	echo "JOB^MIN^HOUR^DAY^MONTH^WDAY^COMMAND"
 	echo "---^---^----^---^-----^----^-------"
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		# The \" escaping shell and plain have always printed; JSON leaves it to json_escape.
 		CMD=$(record_value_decode "$CMD")
 		CMD=${CMD//\"/\\\"}
@@ -63,7 +71,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		CMD=$(record_value_decode "$CMD")
 		CMD=${CMD//\"/\\\"}
 		# printf, not echo -e: a command may carry a backslash.

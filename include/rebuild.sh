@@ -768,9 +768,10 @@ rebuild_mail_domain_conf() {
 	for account in $accounts; do
 		((++accs))
 		object=$(grep -F "ACCOUNT='$account'" $USER_DATA/mail/$domain.conf)
-		ALIAS='' FWD='' FWD_ONLY='no' RATE_LIMIT='' SUSPENDED='no'
+		ALIAS='' FWD='' FWD_ONLY='no' RATE_LIMIT='' SUSPENDED='no' MD5='' QUOTA=''
 		parse_object_kv_list "$object"
-		if [ "$SUSPENDED" = 'yes' ]; then
+		# A record without a hash locks the account rather than writing an empty passwd field.
+		if [ "$SUSPENDED" = 'yes' ] || [ -z "$MD5" ]; then
 			MD5='SUSPENDED'
 		fi
 

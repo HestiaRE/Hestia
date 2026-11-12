@@ -39,6 +39,9 @@ fi
 
 cp -f $ssl_dir/certificate.crt $HESTIA_SSL/certificate.crt
 cp -f $ssl_dir/certificate.key $HESTIA_SSL/certificate.key
+# Set, not inherited from the old file; keep in step with h-update-host-certificate.
+chown root:mail "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key"
+chmod 660 "$HESTIA_SSL/certificate.crt" "$HESTIA_SSL/certificate.key"
 
 # Caddy runs with admin off, so a restart, not a reload. Deferred: the panel request asking for it runs
 # through this Caddy and would be cut before its answer.

@@ -188,7 +188,16 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 
 | Item | Path |
 |------|------|
-| Zone lookup cache | `/var/cache/hestia/dns-zones` (root 600, one line per name: zone and lookup time; a day, an hour for no answer; never backed up) |
+| Zone lookup cache | `/var/cache/hestia/dns-zones` (root 644, one line per name: zone and lookup time; a day, an hour for no answer; never backed up) |
+
+### apt (#191, #1292)
+
+| Item | Path |
+|------|------|
+| Sury repo | `/etc/apt/sources.list.d/php.list`, key `/usr/share/keyrings/sury-keyring.gpg` (`add_sury_repo`) |
+| Sury origin for unattended-upgrades | `/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php` (written with the repo) |
+| Kept conffiles | `/etc/apt/apt.conf.d/60hestia-keep-conffiles` (`--force-confdef --force-confold` for every apt run) |
+| Panel PHP refresh hook | `/etc/apt/apt.conf.d/95hestia-php-refresh` (`DPkg::Post-Invoke`, restarts `hestia-php.service`) |
 
 ### Cron (hestia crontab)
 

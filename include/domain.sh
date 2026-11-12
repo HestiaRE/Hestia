@@ -842,8 +842,8 @@ default_proxy_ext() {
 	ext="$ext,3gp,av1,avi,m4v,mkv,mov,mpg,mpeg,mp4,mp4v,webm"
 	# Fonts
 	ext="$ext,otf,ttf,woff,woff2"
-	# Productivity
-	ext="$ext,doc,docx,odf,odp,ods,odt,pdf,ppt,pptx,rtf,txt,xls,xlsx"
+	# Productivity, without txt: robots.txt must not get expires max
+	ext="$ext,doc,docx,odf,odp,ods,odt,pdf,ppt,pptx,rtf,xls,xlsx"
 	# Archive
 	ext="$ext,7z,bz2,gz,rar,tar,tgz,zip"
 	# Binaries
@@ -1597,7 +1597,7 @@ is_mail_web_pair_free() { # NAME web|mail
 }
 
 get_domain_values() {
-	parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/$1.conf)"
+	record_load "_domain_keys_$1" "$(grep -F "DOMAIN='$domain'" $USER_DATA/$1.conf)"
 }
 
 #----------------------------------------------------------#
@@ -1689,6 +1689,7 @@ is_base_domain_owner() {
 			# Subshell: this is the PARENT's record - parsed in place, its keys (SSL, ...)
 			# leaked into the caller's vhost rendering. Only ALLOW_USERS leaves this line.
 			allow_users=$(
+				ALLOW_USERS=''
 				parse_object_kv_list "$web" 2> /dev/null
 				echo "${ALLOW_USERS:-}"
 			)

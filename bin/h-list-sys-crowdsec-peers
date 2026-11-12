@@ -33,14 +33,20 @@ if command -v cscli > /dev/null 2>&1 && command -v jq > /dev/null 2>&1; then
 			| select(startswith("hestia-mesh:"))' 2> /dev/null | sort | uniq -c)
 fi
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	PEER='' HOST='' PORT='' IP='' PIN='' SUSPENDED='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep -c "PEER=" "$MESH_PEERS_CONF")
 	echo "{"
 	while read -r str; do
-		[ -z "$str" ] && continue
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		# BANS first: $PEER is the array key, and escaping it before the lookup would miss the entry.
 		bans="${MESH_SEEN[$PEER]:-0}"
 		json_escape PEER HOST PORT IP PIN bans SUSPENDED TIME DATE
@@ -65,8 +71,8 @@ shell_list() {
 	echo "PEER^HOST^PORT^IP^BANS^SUSPENDED^TIME^DATE"
 	echo "----^----^----^--^----^---------^----^----"
 	while read -r str; do
-		[ -z "$str" ] && continue
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo "$PEER^$HOST^$PORT^$IP^${MESH_SEEN[$PEER]:-0}^$SUSPENDED^$TIME^$DATE"
 	done < "$MESH_PEERS_CONF"
 }
@@ -74,8 +80,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read -r str; do
-		[ -z "$str" ] && continue
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		echo -e "$PEER\t$HOST\t$PORT\t$IP\t${MESH_SEEN[$PEER]:-0}\t$SUSPENDED\t$TIME\t$DATE"
 	done < "$MESH_PEERS_CONF"
 }

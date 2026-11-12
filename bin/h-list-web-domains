@@ -15,13 +15,27 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Rows that carry a DOMAIN key, wherever it stands, each from empty: a blank line repeated the last domain,
+# a missing key inherited its value.
+rows() {
+	grep -E "(^| )DOMAIN='" "$USER_DATA/web.conf"
+}
+
+parse_row() {
+	DOMAIN='' IP='' IP6='' CUSTOM_DOCROOT='' U_DISK='' U_BANDWIDTH='' TPL='' ALIAS='' STATS='' STATS_USER='' SSL=''
+	HTTP3='' DOCKER='' DOCKER_PORT='' DOCKER_OCTET='' LETSENCRYPT='' WP='' FTP_USER='' FTP_PATH='' AUTH_USER=''
+	BACKEND='' PHP_VERSION='' PROXY='' PROXY_EXT='' SUSPENDED='' TIME='' DATE=''
+	object_row_load "$1"
+}
+
 json_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < <(rows)
 	i=1
-	objects=$(grep DOMAIN $USER_DATA/web.conf | wc -l)
+	objects=$(rows | wc -l)
 	echo "{"
-	while read -r str; do
-		parse_object_kv_list "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		if [ -n "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -62,24 +76,26 @@ json_list() {
 			echo
 		fi
 		((i++))
-	done < <(cat $USER_DATA/web.conf)
+	done
 	echo '}'
 }
 
 shell_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < <(rows)
 	echo "DOMAIN   IP   TPL   SSL   DISK   BW   SPND   DATE"
 	echo "------   --   ---   ---   ----   --   ----   -----"
-	while read str; do
-		parse_object_kv_list "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		echo "$DOMAIN $IP $TPL $SSL $U_DISK $U_BANDWIDTH $SUSPENDED $DATE"
-	done < <(cat $USER_DATA/web.conf)
+	done
 }
 
 plain_list() {
 	IFS=$'\n'
-	while read str; do
-		parse_object_kv_list "$str"
+	parse_object_kv_rows < <(rows)
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		if [ ! -z "$CUSTOM_DOCROOT" ]; then
 			DOCROOT="$CUSTOM_DOCROOT"
 		else
@@ -89,7 +105,7 @@ plain_list() {
 		echo -ne "$ALIAS\t$STATS\t$STATS_USER\t$SSL\t$LETSENCRYPT\t"
 		echo -ne "$FTP_USER\t$FTP_PATH\t$AUTH_USER\t$BACKEND\t$PROXY\t"
 		echo -e "$PROXY_EXT\t$SUSPENDED\t$TIME\t$DATE"
-	done < <(cat $USER_DATA/web.conf)
+	done
 }
 
 check_args '1' "$#" 'USER [FORMAT]'

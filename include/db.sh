@@ -101,9 +101,9 @@ mysql_query() {
 mysql_dump() {
 	local err
 	err=$(mktemp)
-	mariadb-dump --defaults-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
+	mariadb-dump --defaults-file=$mycnf --single-transaction --routines --events -r $1 $2 2> $err
 	if [ '0' -ne "$?" ]; then
-		mariadb-dump --defaults-extra-file=$mycnf --single-transaction --routines -r $1 $2 2> $err
+		mariadb-dump --defaults-extra-file=$mycnf --single-transaction --routines --events -r $1 $2 2> $err
 		if [ '0' -ne "$?" ]; then
 			rm -rf $tmpdir
 			if [ "$notify" != 'no' ]; then
@@ -516,7 +516,7 @@ is_dbhost_new() {
 get_database_values() {
 	# An older record has no slot-2 keys, so a loop over databases would carry the previous one's over.
 	DBUSER_SECOND='' MD5_SECOND='' DBUSER_SECOND_RO=''
-	parse_object_kv_list "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
+	record_load _database_keys "$(grep -F "DB='$database'" $USER_DATA/db.conf)"
 }
 
 change_mysql_password() {
@@ -880,7 +880,7 @@ dump_mysql_database() {
 	mysql_query "$query" | grep -v "Grants for" > $grants
 
 	query="SHOW GRANTS FOR '$DBUSER'@'%'"
-	mysql_query "$query" | grep -v "Grants for" > $grants
+	mysql_query "$query" | grep -v "Grants for" >> $grants
 }
 
 dump_pgsql_database() {

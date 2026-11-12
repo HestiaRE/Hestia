@@ -27,13 +27,20 @@ source_conf "$HESTIA/conf/hestia.conf"
 # Taken after source_conf: main.sh only seeds a constant, which is wrong where the operator configured another.
 backup_root="$BACKUP"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	BACKUP='' TYPE='' SIZE='' WEB='' MAIL='' DB='' CRON='' UDIR='' MAP='' MODE='' BASE='' RUNTIME='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep BACKUP $USER_DATA/backup.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		# LOCAL says what this box knows: a copy is here or not. Whether a remote holds it is not asked.
 		local_of "$BACKUP"
 		json_escape BACKUP TYPE SIZE WEB MAIL DB CRON UDIR MAP MODE BASE LOCAL RUNTIME TIME DATE
@@ -68,7 +75,8 @@ shell_list() {
 	echo "BACKUP   TYPE   SIZE  LOCAL  TIME  DATE"
 	echo "------   ----   ---   -----  ----  ----"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		local_of "$BACKUP"
 		echo "$BACKUP $TYPE $SIZE $LOCAL $RUNTIME $DATE"
 	done < <(cat $USER_DATA/backup.conf)
@@ -77,7 +85,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		local_of "$BACKUP"
 		echo -ne "$BACKUP\t$TYPE\t$SIZE\t$WEB\t$MAIL\t$CRON\t$UDIR\t$MAP\t${MODE:-full}\t$BASE\t$LOCAL\t"
 		echo -e "$RUNTIME\t$TIME\t$DATE"

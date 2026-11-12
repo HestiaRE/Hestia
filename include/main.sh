@@ -19,7 +19,7 @@ source "$HESTIA/include/help.sh"
 # BACKUP_TEMP are absent on purpose; each is a legitimate key somewhere.
 SOURCE_CONF_PROTECTED="PATH IFS ENV BASH_ENV BASHOPTS SHELLOPTS CDPATH GLOBIGNORE PROMPT_COMMAND
 PS1 PS2 PS3 PS4 LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT HISTFILE BASH_XTRACEFD FUNCNAME
-HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED"
+HESTIA HESTIA_PHP BIN SBIN CONF_DIR HOMEDIR USER_DATA SENDMAIL SOURCE_CONF_PROTECTED OBJECT_ROWS"
 
 # The second floor: honest keys in a CONFIG, not fields in a RECORD. BACKUP is absent because it is
 # one (the archive name). user and crontab: sync_cron_jobs chowns $crontab to $user as root.
@@ -882,164 +882,38 @@ _parse_object_kv_list_php() {
 	local IFS=$'\n'
 
 	str=${@//$'\n'/ }
-	validated_output=$(
-		SOURCE_CONF_PROTECTED="$SOURCE_CONF_PROTECTED $RECORD_ONLY_PROTECTED" "$HESTIA_PHP" -- "$str" << 'EOPHP'
-<?php
-declare(strict_types=1);
-
-// Supported syntax:
-//   KEY1='value1' KEY2='value with spaces' KEY3=''
-//   KEY=value
-//   KEY=value\ with\ spaces
-//   KEY=ab\ c'de f'ghi
-//   KEY=
-//   KEY= KEY2=value
-//   KEY='abc'def
-//   KEY=abc''
-//   KEY=\'
-//   KEY=\\
-//
-// Notes:
-// - Key names must match: [a-zA-Z][a-zA-Z0-9_]*
-// - Inside single quotes, every character is literal except the closing single quote.
-// - Outside single quotes, backslash escapes the next character.
-// php://stderr, not the STDERR constant: the CLI defines STDERR only for a script given as a file,
-// and this body arrives on stdin, so the constant is undefined and the intended message turned into
-// an "Undefined constant STDERR" fatal instead. It still failed closed, but said the wrong thing.
-function fail(string $message): never
-{
-    fwrite(fopen('php://stderr', 'w'), $message . PHP_EOL);
-    exit(2);
-}
-
-if ($argc < 2) {
-    fail('Usage: php '.$argv[0].' "KEY=\'value\' KEY2=value"');
-}
-
-$unparsed = ($argv[1]);
-$result = [];
-
-while ($unparsed !== '') {
-    $unparsed = ltrim($unparsed);
-    if ($unparsed === '') {
-        break;
-    }
-
-    $key_name_extracted = preg_match('/^([a-zA-Z][a-zA-Z0-9_]*)=/', $unparsed, $m);
-
-    if ($key_name_extracted !== 1) {
-		// example: `eval(code)=123`
-        fail('Invalid key value format. Could not extract key name from: ' . $unparsed);
-    }
-
-    $key_name = $m[1];
-
-    // Same protection as source_conf: the form of the key was checked, the NAME was not, so a
-    // record could bind PATH or BIN in the calling shell (#807). Hard failure - our own records
-    // never carry these, so one that does is an attack, not a version skew.
-    $protected = getenv('SOURCE_CONF_PROTECTED') ?: '';
-    $protected = preg_split('/\s+/', trim($protected), -1, PREG_SPLIT_NO_EMPTY);
-    if ($protected === []) {
-        // An empty list would silently protect nothing.
-        fail('Protected name list is empty - refusing to parse.');
-    }
-    if (in_array($key_name, $protected, true)) {
-        fail('Refused key name: ' . $key_name . ' is a protected shell or path name.');
-    }
-
-    $unparsed = substr($unparsed, strlen($m[0]));
-
-    $key_value = '';
-    $is_in_quote = false;
-
-    while (true) {
-        if ($is_in_quote) {
-            // Inside single quotes, only a single quote is special.
-            $pos = strpos($unparsed, "'");
-
-            if ($pos === false) {
-				// example: `KEY='value` (missing closing quote)
-                fail('Invalid key value format. No closing quote for key: ' . $key_name . ' in: ' . $unparsed);
-            }
-
-            $key_value .= substr($unparsed, 0, $pos);
-            $unparsed = substr($unparsed, $pos + 1);
-            $is_in_quote = false;
-
-            if ($unparsed === '') {
-				// parsing complete
-                break;
-            }
-            continue;
-        }
-
-        // Outside single quotes, whitespace, single quote, and backslash are special.
-        $match = preg_match('/\s|\'|\\\\/u', $unparsed, $m, PREG_OFFSET_CAPTURE);
-        if ($match !== 1) {
-            // No more special chars; rest of string is the value.
-            $key_value .= $unparsed;
-            $unparsed = '';
-            break;
-        }
-
-        $matched_char = $m[0][0];
-        $pos = $m[0][1];
-
-        // Add everything before the matched special character.
-        $key_value .= substr($unparsed, 0, $pos);
-		$unparsed = substr($unparsed, $pos + strlen($matched_char));
-
-        if ($matched_char === "'") {
-            if ($unparsed === '') {
-				// example: `KEY='` - missing closing quote. nearest legal alternative is `KEY=''`
-                fail('Invalid key value format. No closing quote for key: ' . $key_name);
-            }
-            $is_in_quote = true;
-            continue;
-        }
-        if ($matched_char === '\\') {
-			if($unparsed === '') {
-				// example: `KEY=foo\`
-                fail('Invalid key value format. Escape character cannot be the last character in value for key: ' . $key_name . ' in: ' . $unparsed);
-            }
-
-            // Backslash escapes the next character verbatim
-			$next_char = mb_substr($unparsed, 0, 1, 'UTF-8'); // remember multi-byte unicode support, æøåÆØÅ
-			$key_value .= $next_char;
-			$unparsed = substr($unparsed, strlen($next_char));
-            continue;
-        }
-
-        // Matched whitespace: end of this key-value pair.
-        $unparsed = ltrim($unparsed);
-        break;
-    }
-    if (array_key_exists($key_name, $result)) {
-        $msg = 'Warning: Duplicate key name: ' . $key_name . '. ';
-
-        if ($result[$key_name] === $key_value) {
-            $msg .= 'value is identical.';
-        } else {
-            $msg .= var_export([
-                'old_value' => $result[$key_name],
-                'new_value' => $key_value,
-            ], true);
-        }
-        fwrite(fopen('php://stderr', 'w'), $msg . PHP_EOL);
-    }
-    $result[$key_name] = $key_value;
-}
-$assignments = [];
-foreach ($result as $k => $v) {
-    $v_quoted = "'" . strtr($v, ["'" => "'\\''"]) . "'";
-    $assignments[] = "$k=$v_quoted";
-}
-echo implode(' ', $assignments);
-EOPHP
-	)
+	validated_output=$(SOURCE_CONF_PROTECTED="$SOURCE_CONF_PROTECTED $RECORD_ONLY_PROTECTED" \
+		"$HESTIA_PHP" "$HESTIA/include/object-parser.php" row "$str")
 	check_status=$?
 	check_result "$check_status" "Invalid object format: ${str}" "$E_INVALID"
 	eval "$validated_output"
+}
+
+# The records on stdin, validated in one PHP start instead of one per record; object_row_load N then loads
+# row N as parse_object_kv_list would. All or nothing: a bad record aborts before the caller printed a line.
+# One global array: nothing inside a loop over OBJECT_ROWS may call parse_object_kv_rows again.
+parse_object_kv_rows() {
+	local input out check_status
+	OBJECT_ROWS=()
+	input=$(cat)
+	[ -n "$input" ] || return 0
+	out=$(SOURCE_CONF_PROTECTED="$SOURCE_CONF_PROTECTED $RECORD_ONLY_PROTECTED" \
+		"$HESTIA_PHP" "$HESTIA/include/object-parser.php" rows <<< "$input")
+	check_status=$?
+	if [ "$check_status" -ne 0 ]; then
+		if [[ "$out" =~ ^[0-9]+$ ]]; then
+			out=$(sed -n "${out}p" <<< "$input")
+		else
+			out=''
+		fi
+		check_result "$check_status" "Invalid object format: ${out}" "$E_INVALID"
+	fi
+	mapfile -t OBJECT_ROWS <<< "$out"
+	OBJECT_ROWS=("${OBJECT_ROWS[@]#:}")
+}
+
+object_row_load() {
+	eval "${OBJECT_ROWS[$1]}"
 }
 
 # QUOTE THE ARGUMENT. Both parsers are safe on what they receive, but an unquoted `$(grep...)` is
@@ -1076,9 +950,10 @@ is_object_unsuspended() {
 
 # Check if object value is empty
 is_object_value_empty() {
+	local varname="${4#\$}"
+	_record_key_clear "$varname"
 	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
-	local varname="${4#\$}"
 	value="${!varname}"
 	if [ -n "$value" ] && [ "$value" != 'no' ]; then
 		check_result "$E_EXISTS" "${4//$/}=$value already exists"
@@ -1087,9 +962,10 @@ is_object_value_empty() {
 
 # Check if object value is empty
 is_object_value_exist() {
+	local varname="${4#\$}"
+	_record_key_clear "$varname"
 	str=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$str"
-	local varname="${4#\$}"
 	value="${!varname}"
 	if [ -z "$value" ] || [ "$value" = 'no' ]; then
 		check_result "$E_NOTEXIST" "${4//$/}=$value doesn't exist"
@@ -1168,17 +1044,38 @@ json_escape() {
 	done
 }
 
+# _record_key_clear NAME: empty NAME before a single-key read, so a record without the key answers empty instead of
+# with what the caller held. A protected name stays: no record can set it, and the caller still needs its PATH.
+_record_key_clear() {
+	[[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 0
+	case " ${SOURCE_CONF_PROTECTED//$'\n'/ } $RECORD_ONLY_PROTECTED " in *" $1 "*) return 0 ;; esac
+	printf -v "$1" '%s' ''
+}
+
 # Get object value
 get_object_value() {
+	local varname="${4#\$}"
+	_record_key_clear "$varname"
 	object=$(_object_lines "$1" "$2='$3'")
 	parse_object_kv_list "$object"
-	local varname="${4#\$}"
 	value="${!varname}"
 	echo "$value"
 }
 
 get_object_values() {
 	parse_object_kv_list "$(_object_lines "$1" "$2='$3'")"
+}
+
+# record_load REG LINE: parse LINE after emptying the keys the record before it under REG set, so a loop that loads
+# record after record never keeps a key one of them lacks at the previous one's value. What the command set itself
+# before the first load stays. Name REG with a leading underscore: no record key can, so no record can rewrite it.
+record_load() {
+	local -n _rl_reg="$1"
+	local _rl_k IFS=$' \t\n'
+	for _rl_k in $_rl_reg; do printf -v "$_rl_k" '%s' ''; done
+	_rl_reg=''
+	parse_object_kv_list "$2"
+	_rl_reg=$(record_keys "$2")
 }
 
 # Update object value
@@ -1275,6 +1172,7 @@ search_objects() {
 	IFS=$'\n'
 	if [ -f "$(_object_conf "$1")" ]; then
 		for line in $(_object_lines "$1" "$pat"); do
+			_record_key_clear "$4"
 			parse_object_kv_list "$line"
 			echo "${!4}"
 		done

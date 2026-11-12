@@ -15,13 +15,20 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each record from empty: a key an older record lacks would show the value of the row before.
+parse_row() {
+	NID='' TOPIC='' NOTICE='' TYPE='' ACK='' PRIORITY='' TIME='' DATE=''
+	parse_object_kv_list "$1"
+}
+
 json_list() {
 	IFS=$'\n'
 	i=1
 	objects=$(grep NID $USER_DATA/notifications.conf | wc -l)
 	echo "{"
 	while read -r str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		if [ "$PRIORITY" = '' ]; then
 			PRIORITY='0'
 		fi
@@ -50,7 +57,8 @@ json_list() {
 shell_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		record_value_decode "$TOPIC"
 		echo
 		record_value_decode "$NOTICE"
@@ -64,7 +72,8 @@ shell_list() {
 plain_list() {
 	IFS=$'\n'
 	while read str; do
-		parse_object_kv_list "$str"
+		[[ "$str" =~ [^[:space:]] ]] || continue
+		parse_row "$str"
 		TOPIC=$(record_value_decode "$TOPIC")
 		NOTICE=$(record_value_decode "$NOTICE")
 		printf '%s\t%s\t%s\t%s\t%s\n' "$NID" "$TOPIC" "$NOTICE" "$TIME" "$DATE"

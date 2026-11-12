@@ -17,22 +17,23 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # Domain rows only, each from empty: a blank line repeated the last domain, a missing key inherited its value.
 rows() {
-	grep "^DOMAIN='" "$USER_DATA/mail.conf"
+	grep -E "(^| )DOMAIN='" "$USER_DATA/mail.conf"
 }
 
 parse_row() {
 	ANTIVIRUS='' ANTISPAM='' REJECT='' RATE_LIMIT='' DKIM='' DKIM_SELECTOR='' CATCHALL='' ACCOUNTS='' U_DISK='' SSL='' SUSPENDED='' TIME='' DATE=''
 	WEBMAIL_ALIAS='' WEBMAIL=''
-	parse_object_kv_list "$1"
+	object_row_load "$1"
 }
 
 json_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < <(rows)
 	i=1
 	objects=$(rows | wc -l)
 	echo "{"
-	while read -r str; do
-		parse_row "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		json_escape DOMAIN ANTIVIRUS ANTISPAM REJECT RATE_LIMIT DKIM DKIM_SELECTOR CATCHALL ACCOUNTS U_DISK SSL SUSPENDED TIME DATE WEBMAIL_ALIAS WEBMAIL
 		printf '    "%s": {\n' "$DOMAIN"
 		printf '        "ANTIVIRUS": "%s",\n' "$ANTIVIRUS"
@@ -57,28 +58,30 @@ json_list() {
 			echo
 		fi
 		((i++))
-	done < <(rows)
+	done
 	echo '}'
 }
 
 shell_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < <(rows)
 	echo "DOMAIN   ANTIVIRUS   ANTISPAM   DKIM  SSL   ACC   DISK   SPND   DATE"
 	echo "------   ---------   --------   ----  ---   ---   ----   ---   ----"
-	while read -r str; do
-		parse_row "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		echo -n "$DOMAIN $ANTIVIRUS $ANTISPAM $DKIM $SSL $ACCOUNTS $U_DISK "
 		echo "$SUSPENDED $DATE"
-	done < <(rows)
+	done
 }
 
 plain_list() {
 	IFS=$'\n'
-	while read -r str; do
-		parse_row "$str"
+	parse_object_kv_rows < <(rows)
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$DOMAIN" "$ANTIVIRUS" "$ANTISPAM" "$DKIM" "$SSL" \
 			"$CATCHALL" "$ACCOUNTS" "$U_DISK" "$SUSPENDED" "$TIME" "$DATE" "$WEBMAIL_ALIAS" "$WEBMAIL"
-	done < <(rows)
+	done
 }
 
 check_args '1' "$#" 'USER [FORMAT]'

@@ -28,21 +28,22 @@ live_autoreply() {
 
 # Account rows only, each from empty: a blank line repeated the last account, a missing key inherited its value.
 rows() {
-	grep "^ACCOUNT='" "$USER_DATA/mail/$domain.conf"
+	grep -E "(^| )ACCOUNT='" "$USER_DATA/mail/$domain.conf"
 }
 
 parse_row() {
 	ALIAS='' FWD='' FWD_ONLY='' AUTOREPLY='' QUOTA='' U_DISK='' SUSPENDED='' TIME='' DATE=''
-	parse_object_kv_list "$1"
+	object_row_load "$1"
 }
 
 json_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < <(rows)
 	i=1
 	objects=$(rows | wc -l)
 	echo "{"
-	while read -r str; do
-		parse_row "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		live_autoreply
 		json_escape ACCOUNT ALIAS FWD FWD_ONLY AUTOREPLY QUOTA U_DISK SUSPENDED TIME DATE
 		printf '    "%s": {\n' "$ACCOUNT"
@@ -62,16 +63,17 @@ json_list() {
 			echo
 		fi
 		((i++))
-	done < <(rows)
+	done
 	echo '}'
 }
 
 shell_list() {
 	IFS=$'\n'
+	parse_object_kv_rows < <(rows)
 	echo "ACCOUNT   ALIAS   FWD   DISK  DATE"
 	echo "-------   -----   ---   ----  ----"
-	while read str; do
-		parse_row "$str"
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		if [ -z "$ALIAS" ]; then
 			ALIAS='no'
 		else
@@ -87,17 +89,18 @@ shell_list() {
 			fi
 		fi
 		echo "$ACCOUNT $ALIAS $FWD $U_DISK $DATE"
-	done < <(rows)
+	done
 }
 
 plain_list() {
 	IFS=$'\n'
-	while read str; do
-		parse_row "$str"
+	parse_object_kv_rows < <(rows)
+	for row in "${!OBJECT_ROWS[@]}"; do
+		parse_row "$row"
 		live_autoreply
 		echo -ne "$ACCOUNT\t$ALIAS\t$FWD\t$FWD_ONLY\t$AUTOREPLY\t"
 		echo -e "$QUOTA\t$U_DISK\t$SUSPENDED\t$TIME\t$DATE"
-	done < <(rows)
+	done
 }
 
 check_args '2' "$#" 'USER DOMAIN [FORMAT]'

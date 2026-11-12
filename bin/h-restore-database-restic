@@ -62,6 +62,7 @@ requested=",$(
 
 for db in "${databases[@]}"; do
 	if [[ "$database" = '*' || "$requested" == *",${db},"* ]]; then
+		restore_forget_record prev_db_keys
 		check_config=$(grep -F "DB='$db'" $USER_DATA/db.conf)
 		if [ -z "$check_config" ]; then
 			restic_meta_cat "$meta_pkg" "db/$db/hestia/db.conf" > "$tmpdir/db.conf"
@@ -93,7 +94,7 @@ for db in "${databases[@]}"; do
 			echo "$str" >> $USER_DATA/db.conf
 			dbhost_count_record "$TYPE" "$HOST"
 		else
-			parse_object_kv_list "$(grep -F "DB='$db'" $USER_DATA/db.conf)"
+			restore_parse_record prev_db_keys "$(grep -F "DB='$db'" $USER_DATA/db.conf)"
 		fi
 
 		restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" dump "$snapshot" \

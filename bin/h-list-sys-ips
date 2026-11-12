@@ -16,12 +16,18 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/ip.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Each address from empty: source_conf sets only the keys a file has, and a missing one would show the one before.
+ip_read() {
+	unset OWNER STATUS NAME U_SYS_USERS U_WEB_DOMAINS INTERFACE NETMASK NAT TIME DATE
+	source_conf "$CONF_DIR/ips/$1"
+}
+
 json_list() {
 	echo '{'
 	ip_count="$(ls $CONF_DIR/ips/ | wc -l)"
 	i=1
 	while read -r IP; do
-		source_conf "$CONF_DIR/ips/$IP"
+		ip_read "$IP"
 		json_escape IP OWNER STATUS NAME U_SYS_USERS U_WEB_DOMAINS INTERFACE NETMASK NAT TIME DATE
 		printf '    "%s": {\n' "$IP"
 		printf '        "OWNER": "%s",\n' "$OWNER"
@@ -49,7 +55,7 @@ shell_list() {
 	echo "IP   MASK   NAT    STATUS   WEB  DATE"
 	echo "--   ----   ---    ------   ---  ----"
 	while read IP; do
-		source_conf "$CONF_DIR/ips/$IP"
+		ip_read "$IP"
 		if [ -z "$NAT" ]; then
 			NAT='no'
 		fi
@@ -59,7 +65,7 @@ shell_list() {
 
 plain_list() {
 	while read IP; do
-		source_conf "$CONF_DIR/ips/$IP"
+		ip_read "$IP"
 		echo -ne "$IP\t$OWNER\t$STATUS\t$NAME\t$U_SYS_USERS\t$U_WEB_DOMAINS\t"
 		echo -e "$INTERFACE\t$NETMASK\t$NAT\t$TIME\t$DATE"
 	done < <(ls $CONF_DIR/ips/)

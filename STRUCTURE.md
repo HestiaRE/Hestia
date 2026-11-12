@@ -797,6 +797,21 @@ web name exists.
 
 ---
 
+## 22. Package updates of the box: whatever the image ships -> unattended-upgrades, always on (#1292)
+
+**Upstream.** The installer relies on the base image for unattended-upgrades, so a Debian box without it gets no
+automatic updates at all, and since 1.10.6 it adds origin files for every external repo it uses (hosted PHP,
+nginx.org, MariaDB, Node.js, PostgreSQL, Sury's Apache). A package whose update changes an edited conffile is
+skipped by unattended-upgrades in silence.
+
+**HestiaRE.** The installer installs unattended-upgrades and switches it on, because Debian's installer stores it as
+off when no update policy was picked (`unattended_upgrades_preseed`, `include/helper.sh`). The distribution's own
+origins stay as shipped; the one external origin is Sury PHP (`60unattended-upgrades-hestia-php`, written by
+`add_sury_repo` with the repo). The nginx.org and MariaDB repos stay manual. `60hestia-keep-conffiles` passes
+`--force-confdef --force-confold` to every apt run, so an edited conffile stays and the package's version lands as
+`.dpkg-dist`, the answer N, instead of the package staying behind. An update brings all three to an existing box
+(`share/updates/0.32.json`).
+
 ## Known inconsistencies (flagged, not yet resolved)
 
 - Per-domain backup special-cases per-domain backend tpls (`h-backup-user`), but the FM

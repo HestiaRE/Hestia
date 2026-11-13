@@ -27,9 +27,19 @@ the releases of the command audit, into another.
   page at most a few seconds, and public DNS gets ten seconds per check. An account is saved only once its key may
   list zones. Nothing is written to a provider yet. New commands: `h-add-dns-provider`,
   `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`, `h-check-dns-zone`, `h-check-dns-zones`.
+- **DNS sections written to the provider** (#1333, stage 2 of #863). Each section of a zone with differences gets
+  "Sync to provider": a preview of the writes, then one click. Missing records are added, differing ones replaced,
+  the apex address set as the InterNetX main IP; www follows it under the www flag. SPF is merged (the missing
+  addresses go in front of its `all`, includes and the qualifier stay), DMARC is only added when there is none, DKIM
+  is replaced. A CNAME at the name, a second SPF record or a www that has to differ from the apex under the flag is
+  left alone and says why. Records no row of the section derives are never touched. The zone is read again before
+  the write and nothing goes out if it changed since the preview; afterwards it is read once more and only a zone in
+  line counts as done. New command: `h-sync-dns-zone`.
 
 ### Fixed
 
+- **The webmail records were derived for a mail domain without webmail** (#1333). The DNS pages listed
+  `webmail.<domain>` whenever a webmail client was installed; they now follow the domain's own webmail setting.
 - **A resolver failure held a DNS zone "unknown" for an hour** (#1332). A SERVFAIL or a timeout was cached like an
   answer that the name has no zone. It is now not cached, and the next listing asks again.
 

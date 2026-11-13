@@ -191,7 +191,8 @@ msgstr "Por favor ingrese un correo electrónico válido."
 #: web/templates/pages/list_backup_detail_incremental.php
 #: web/templates/pages/list_backup_exclusions.php
 #: web/templates/pages/list_backup_incremental.php
-#: web/templates/pages/list_db.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_db.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_mail_dns.php web/templates/pages/list_search.php
 msgid "Type"
@@ -241,7 +242,7 @@ msgstr "La dirección IP se añadió a la lista blanca."
 
 #: web/add/firewall/index.php web/edit/firewall/index.php
 #: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
-#: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_firewall.php
 msgid "Action"
 msgstr "Acción"
 
@@ -873,6 +874,11 @@ msgstr "Desconocido"
 
 #: web/list/dns/index.php
 #, php-format
+msgid "%s %s has been written to the provider and read back."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
 msgid "Account %s has been added."
 msgstr ""
 
@@ -1334,7 +1340,7 @@ msgstr "Ago"
 #: web/templates/pages/list_backup_detail_incremental.php
 #: web/templates/pages/list_backup_exclusions.php
 #: web/templates/pages/list_dns_providers.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_banlist.php
@@ -3412,7 +3418,8 @@ msgid_plural "%d differences"
 msgstr[0] ""
 msgstr[1] ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Alias"
 msgstr ""
 
@@ -3428,7 +3435,8 @@ msgstr ""
 msgid "DNS Zones"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
 msgid "Mail"
 msgstr "Correo"
@@ -3454,15 +3462,18 @@ msgstr ""
 msgid "Sections"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Server"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Subdomain"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
 msgid "Web"
 msgstr "Web"
@@ -3557,6 +3568,61 @@ msgstr ""
 msgid "ok"
 msgstr ""
 
+#: web/templates/pages/list_dns_sync.php
+#, php-format
+msgid "%d change goes to the provider. Records no row of this section derives are never touched."
+msgid_plural "%d changes go to the provider. Records no row of this section derives are never touched."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_mail_dns.php
+msgid "IP or Value"
+msgstr "IP o Valor"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Nothing to write: the provider holds what HestiaRE derives, or every difference is left alone below."
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_mail_dns.php
+msgid "Priority"
+msgstr "Prioridad"
+
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_mail_dns.php
+msgid "Record"
+msgstr "Registro"
+
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_mail_dns.php
+msgid "TTL"
+msgstr "TTL"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "The zone is read again before the write: if it changed since this preview, nothing is written. Afterwards it is read once more and compared."
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Write to provider"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "add"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "left alone"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "remove"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "set main IP"
+msgstr ""
+
 #: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "%d record elsewhere in the zone, outside the names of this server."
@@ -3593,8 +3659,8 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format
-msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Nothing is changed at the provider."
-msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Nothing is changed at the provider."
+msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Sync shows a section's writes before anything changes."
+msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Sync shows a section's writes before anything changes."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -3602,10 +3668,6 @@ msgstr[1] ""
 #, php-format
 msgid "Compared with account %s just now: every record HestiaRE derives is in place."
 msgstr ""
-
-#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
-msgid "IP or Value"
-msgstr "IP o Valor"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "No provider account holds this zone. Enter the records at the provider by hand."
@@ -3623,10 +3685,6 @@ msgstr ""
 msgid "Other records at the provider"
 msgstr ""
 
-#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
-msgid "Priority"
-msgstr "Prioridad"
-
 #: web/templates/pages/list_dns_zone.php
 msgid "Public DNS"
 msgstr ""
@@ -3635,13 +3693,9 @@ msgstr ""
 msgid "Public DNS did not answer for the name servers of this zone: whether anyone reads it at the provider is not known."
 msgstr ""
 
-#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
-msgid "Record"
-msgstr "Registro"
-
-#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
-msgid "TTL"
-msgstr "TTL"
+#: web/templates/pages/list_dns_zone.php
+msgid "Sync to provider"
+msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format

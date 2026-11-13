@@ -1727,6 +1727,14 @@ public_ipv4() {
 	printf '%s\n' "$a"
 }
 
+# Field $2 (prefsrc|dev) of the route the kernel picks towards the internet for family $1 (4|6): the address the
+# box speaks from and its NIC, so what a new object defaults to. Empty without such a route.
+sys_main_route() {
+	local dst=8.8.8.8
+	[ "$1" = 6 ] && dst=2606:4700:4700::1111
+	ip -"$1" -j route get "$dst" 2> /dev/null | jq -r --arg f "$2" '.[0][$f] // empty' 2> /dev/null || true
+}
+
 # NAT of every v4 record, probed with that record as source: one probe along the default route only speaks for
 # the address it left from. Answer = own address clears, another public one not on the box sets, no answer keeps.
 # Clears run first, so a stale NAT cannot block the record it belongs to; a NAT another record holds stays there.

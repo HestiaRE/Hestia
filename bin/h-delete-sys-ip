@@ -40,8 +40,8 @@ else
 	cidr="$(convert_netmask "$NETMASK")"
 fi
 
-default_nic="$(ip -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end' | head -n1)"
-[ -z "$default_nic" ] && default_nic="$(ip -6 -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end' | head -n1)"
+default_nic=$(sys_main_route 4 dev)
+[ -n "$default_nic" ] || default_nic=$(sys_main_route 6 dev)
 
 # v6 has no positional primary: the lockout case is the last global v6 while no v4 route exists.
 interface="$(ip -d -j addr show | jq --arg IP "$ip" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"

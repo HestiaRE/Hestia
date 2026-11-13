@@ -251,8 +251,8 @@ get_user_ips() {
 	# get_user_ip takes head -n1, and glob order would hand a shared address to a customer
 	# who owns a dedicated one. Within a pass the box's main address leads, else glob order decides.
 	local family="$1" pass f addr f_owner f_status list main4 main6
-	main4=$(sys_main_ip 4)
-	main6=$(sys_main_ip 6)
+	main4=$(sys_main_route 4 prefsrc)
+	main6=$(sys_main_route 6 prefsrc)
 	for pass in own shared; do
 		list=''
 		for f in "$CONF_DIR"/ips/*; do
@@ -280,14 +280,6 @@ get_user_ips() {
 		done
 	done
 	return 0
-}
-
-# Source address of the route towards the internet for family $1 (4|6): the address the box speaks from, so the one
-# a new object should default to. Empty without such a route.
-sys_main_ip() {
-	local dst=8.8.8.8
-	[ "$1" = 6 ] && dst=2606:4700:4700::1111
-	ip -"$1" -j route get "$dst" 2> /dev/null | jq -r '.[0].prefsrc // empty' 2> /dev/null || true
 }
 
 # The v4 slot: every caller writes this into an IP field or a %ip% listen line, both v4-shaped.

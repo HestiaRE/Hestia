@@ -42,8 +42,52 @@ function dns_zone_line(array $r): string
 	return implode("\t", array_filter($fields, fn ($v) => $v !== ""));
 }
 
+// Provider accounts are the box's, not the shown user's: each action takes the account name only.
 if (isset($_GET["providers"])) {
+	if (!empty($_POST["v_account"])) {
+		verify_csrf($_POST);
+		$key_file = secret_tmpfile((string) ($_POST["v_key"] ?? ""));
+		if ($key_file !== false) {
+			exec(
+				HESTIA_CMD . "h-add-dns-provider " . quoteshellarg((string) $_POST["v_account"]) . " " .
+					quoteshellarg((string) ($_POST["v_provider"] ?? "")) . " " . quoteshellarg($key_file) . " " .
+					quoteshellarg((string) ($_POST["v_context"] ?? "4")),
+				$output,
+				$return_var,
+			);
+			@unlink($key_file);
+			check_return_code($return_var, $output);
+			unset($output);
+			if (empty($_SESSION["error_msg"])) {
+				$_SESSION["ok_msg"] = sprintf(_("Account %s has been added."), (string) $_POST["v_account"]);
+			}
+		}
+		header("Location: /list/dns/?providers=1");
+		exit();
+	}
+	foreach (["check" => "h-check-dns-provider", "delete" => "h-delete-dns-provider"] as $action => $command) {
+		if (isset($_GET[$action])) {
+			verify_csrf($_GET);
+			exec(HESTIA_CMD . $command . " " . quoteshellarg((string) $_GET[$action]), $output, $return_var);
+			check_return_code($return_var, $output);
+			unset($output);
+			header("Location: /list/dns/?providers=1");
+			exit();
+		}
+	}
+	$providers = cli_json("h-list-dns-providers json");
+	$accounts = $providers["ACCOUNTS"] ?? [];
+	$drivers = array_filter(explode(",", (string) ($providers["DRIVERS"] ?? "")));
+	dns_provider_count($accounts);
 	render_page($user, $TAB, "list_dns_providers");
+} elseif (isset($_GET["check"])) {
+	// Every zone of the shown user an account holds, one request each at the provider's pace.
+	verify_csrf($_GET);
+	exec(HESTIA_CMD . "h-check-dns-zones " . $user . " json", $output, $return_var);
+	check_return_code($return_var, $output);
+	unset($output);
+	header("Location: /list/dns/");
+	exit();
 } elseif (isset($_GET["domain"])) {
 	// The jump from a web or mail domain lands in the section of that domain.
 	$domain = (string) $_GET["domain"];
@@ -69,7 +113,36 @@ if (isset($_GET["providers"])) {
 		exit();
 	}
 	$v_state = $zones[$v_zone]["STATE"] ?? "";
-	$records = cli_json("h-list-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json");
+	$v_account = $zones[$v_zone]["ACCOUNT"] ?? "";
+	// A zone an account holds is compared on every visit; the list shows the result of the last one.
+	$v_checked = false;
+	$v_check_error = "";
+	$foreign = [];
+	$hidden = [];
+	if ($v_account !== "") {
+		exec(HESTIA_CMD . "h-check-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json", $output, $return_var);
+		$checked = json_decode(implode("", $output), true);
+		if ($return_var === 0 && is_array($checked)) {
+			$v_checked = true;
+			$records = [];
+			foreach ($checked as $r) {
+				if ($r["SECTION"] === "foreign") {
+					$foreign[] = $r;
+				} elseif ($r["SECTION"] === "hidden") {
+					$hidden[] = $r;
+				} else {
+					$records[] = $r;
+				}
+			}
+		} else {
+			$v_check_error = trim(preg_replace("/^Error:\s*/", "", implode(" ", $output)));
+		}
+		unset($output);
+	}
+	if (!$v_checked) {
+		$records = cli_json("h-list-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json");
+	}
+	$v_differences = count(array_filter($records, fn ($r) => ($r["STATUS"] ?? "ok") !== "ok"));
 
 	// Sections in the order the lister gives, one per kind, object and owner.
 	$sections = [];

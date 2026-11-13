@@ -442,6 +442,16 @@ function dns_zone_count(?array $zones = null): ?int
 	return is_int($kept) ? $kept : null;
 }
 
+// The accounts the providers page last listed, kept like the zone count: no other page asks the CLI.
+function dns_provider_count(?array $accounts = null): ?int
+{
+	if ($accounts !== null) {
+		$_SESSION["DNS_PROVIDER_COUNT"] = count($accounts);
+	}
+	$kept = $_SESSION["DNS_PROVIDER_COUNT"] ?? null;
+	return is_int($kept) ? $kept : null;
+}
+
 function top_panel($user, $TAB)
 {
 	$command = HESTIA_CMD . "h-list-user " . $user . " 'json'";
@@ -509,6 +519,7 @@ function top_panel($user, $TAB)
 	$_SESSION["USER_FILE_MANAGER"] = (($panel[$user]["FILE_MANAGER"] ?? "") === "yes") ? "yes" : "";
 
 	$dns_zones = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_zone_count() : null;
+	$dns_providers = ($_SESSION["adminContext"] ?? "") === "admin" ? dns_provider_count() : null;
 
 	include dirname(__FILE__) . "/../templates/includes/panel.php";
 	return $panel;

@@ -86,9 +86,9 @@
           "pattern": "bin/h-*-mail*"
         },
         "dns": {
-          "count": 8,
+          "count": 14,
           "pattern": "bin/h-*-dns*",
-          "note": "No DNS server since #58 (bind9 removed). h-list-dns-zones and h-list-dns-zone list the zones at external providers (#863), the rest are mail DNS records and the DNSBL list."
+          "note": "No DNS server since #58 (bind9 removed). h-list-dns-zones and h-list-dns-zone list the zones at external providers (#863), h-check-dns-zone(s) compare them with the provider, h-add/delete/check/list-dns-provider(s) manage the accounts; the rest are mail DNS records and the DNSBL list."
         },
         "database": {
           "count": 31,
@@ -165,7 +165,10 @@
         "include/sieve.sh",
         "include/vacation.sh",
         "include/vacation.php",
-        "include/dns.sh"
+        "include/dns.sh",
+        "include/dns-provider.sh",
+        "include/dns-compare.php",
+        "include/dns-providers/autodns.sh"
       ],
       "language": "bash",
       "file_roles": {
@@ -1059,11 +1062,20 @@
       ]
     },
     "external_dns": {
-      "description": "External DNS (#863), stage 1 without a provider: include/dns.sh derives the target records of every object on the box (web domains and aliases A/AAAA on the NAT address, mail MX/SPF/DMARC/DKIM and mail./webmail., the hostname) and owns each name and type by the most specific object. The zone of a name comes from public DNS: the SOA owned by the name itself, a CNAME means no apex, otherwise the authority section; a public suffix is never a zone. One lookup per anchor (the longest object name a row lies under), cached a day in /var/cache/hestia/dns-zones, never backed up. h-list-dns-zones lists a user's zones, h-list-dns-zone every section of one zone with its owner, other users' included; h-list-mail-domain-dns is the mail section of one domain for the mail domain's DNS page, without a lookup. Read-only: nothing talks to a provider yet. The panel's DNS tab (/list/dns/) is the real admin's (adminContext, so it also shows while switched into a customer, whose zones it lists): the zone list, one page per zone with its sections and zone file lines to copy, a provider page that stays empty until the first driver, and a jump from each web and mail domain row. The tab sits between DB and CRON; its zone count is what the DNS pages last listed for that user, kept in the session (dns_zone_count in web/inc/main.php), '?' before. No other page derives zones: that waits on public DNS, seconds per zone when it does not answer. /list/dns/ is a CSRF entry route like the other tabs. Plan: dns-provider-plan.md on docs.",
+      "description": "External DNS (#863). Stage 0 without a provider: include/dns.sh derives the target records of every object on the box (web domains and aliases A/AAAA on the NAT address, mail MX/SPF/DMARC/DKIM and mail./webmail., the hostname) and owns each name and type by the most specific object. The zone of a name comes from public DNS: the SOA owned by the name itself, a CNAME means no apex, otherwise the authority section; a public suffix is never a zone. One lookup per anchor (the longest object name a row lies under), cached a day in /var/cache/hestia/dns-zones, never backed up. h-list-dns-zones lists a user's zones, h-list-dns-zone every section of one zone with its owner, other users' included; h-list-mail-domain-dns is the mail section of one domain for the mail domain's DNS page, without a lookup. Stage 1 (#1332) reads from provider accounts: include/dns-provider.sh keeps the accounts (one root-only file each under $CONF_DIR/dns, never backed up; h-add-dns-provider takes the key from a file, the panel passes a secret_tmpfile) and what they answered under /var/cache/hestia/dns-provider (zone lists refreshed after a day, account state, the status of the last check per zone). A driver is include/dns-providers/<name>.sh with dnsp_<name>_hello/zones/records; autodns sends the key as X-Domainrobot-Api-Key through curl -K - so it never reaches the argument list, keeps 0.4 s between requests, and renders the zone's main IP as @ A (flag main) and wwwInclude as the apex mirrored at www (flag include). Driver calls run with stdout redirected, never in $(): their error text is a global. The accounts' zones rank before public DNS (STATE account). h-check-dns-zone compares one zone: include/dns-compare.php takes the desired rows and the driver rows, A/AAAA as an address, MX as priority and target, SPF by whether its mechanisms authorise the desired addresses (a/mx/include followed, ten lookups), DMARC on existence, DKIM exactly; a name without own record is checked through a CNAME or the covering wildcard; records no desired row consumes are foreign, or hidden outside the box's names when the apex lies elsewhere. Nothing is written to a provider. The panel's DNS tab (/list/dns/) is the real admin's (adminContext, so it also shows while switched into a customer, whose zones it lists): the zone list, one page per zone with its sections and zone file lines to copy, the provider page (add with the key as a password field, check, delete), and a jump from each web and mail domain row. The tab sits between DB and CRON; its zone count is what the DNS pages last listed for that user, kept in the session (dns_zone_count in web/inc/main.php), '?' before. No other page derives zones: that waits on public DNS, seconds per zone when it does not answer. /list/dns/ is a CSRF entry route like the other tabs. Plan: dns-provider-plan.md on docs.",
       "entry_points": [
         "include/dns.sh",
+        "include/dns-provider.sh",
+        "include/dns-compare.php",
+        "include/dns-providers/autodns.sh",
         "bin/h-list-dns-zones",
         "bin/h-list-dns-zone",
+        "bin/h-check-dns-zone",
+        "bin/h-check-dns-zones",
+        "bin/h-add-dns-provider",
+        "bin/h-delete-dns-provider",
+        "bin/h-check-dns-provider",
+        "bin/h-list-dns-providers",
         "bin/h-list-mail-domain-dns"
       ],
       "related_files": [

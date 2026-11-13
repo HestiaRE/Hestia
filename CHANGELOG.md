@@ -13,7 +13,22 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **DNS provider accounts, read only** (#1332, stage 1 of #863). The DNS tab's provider page adds an account at
+  InterNetX AutoDNS (an API key with the rights DNS zone query, 0202002 and DNS zone update bulk; the zone update
+  itself stays off), checks and deletes it. The key is stored for root only under `/etc/hestia/dns` and is no part of
+  any backup. A zone an account holds is compared with what HestiaRE derives every time its page opens: per record
+  ok, missing, different, or answered by a CNAME or wildcard, with SPF judged by whether it authorises the box's
+  addresses. The provider's other records are listed apart and never touched; in a zone whose apex lies elsewhere
+  only the box's own names are shown. The zone list shows the account and the result of the last check, and "Check
+  Zones" checks all of them. Nothing is written to a provider yet. New commands: `h-add-dns-provider`,
+  `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`, `h-check-dns-zone`, `h-check-dns-zones`.
+
 ### Fixed
+
+- **A resolver failure held a DNS zone "unknown" for an hour** (#1332). A SERVFAIL or a timeout was cached like an
+  answer that the name has no zone. It is now not cached, and the next listing asks again.
 
 - **A box with a second public IP next to an internal NAT address got its NAT on the wrong record** (#1330). One
   probe along the default route decided the NAT, and it was hung on the newest IP record, which on a tunneled

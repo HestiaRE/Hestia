@@ -60,6 +60,7 @@ $dns_provider_rows = function (array $rows): void {
 <div class="container">
 
 	<h1 class="u-mt20 u-mb20"><?= tohtml($v_zone) ?></h1>
+	<?php show_alert_message($_SESSION); ?>
 
 	<?php if ($v_account === "") { ?>
 		<div class="alert alert-info u-mb20" role="alert">
@@ -89,7 +90,7 @@ $dns_provider_rows = function (array $rows): void {
 	<?php } else { ?>
 		<div class="alert alert-info u-mb20" role="alert">
 			<i class="fas fa-exclamation"></i>
-			<p><?= tohtml(sprintf(ngettext("Compared with account %2\$s just now: %1\$d record differs from what HestiaRE derives. Nothing is changed at the provider.", "Compared with account %2\$s just now: %1\$d records differ from what HestiaRE derives. Nothing is changed at the provider.", $v_differences), $v_differences, $v_account)) ?></p>
+			<p><?= tohtml(sprintf(ngettext("Compared with account %2\$s just now: %1\$d record differs from what HestiaRE derives. Sync shows a section's writes before anything changes.", "Compared with account %2\$s just now: %1\$d records differ from what HestiaRE derives. Sync shows a section's writes before anything changes.", $v_differences), $v_differences, $v_account)) ?></p>
 		</div>
 	<?php } ?>
 	<?php if ($v_delegation !== null && $v_delegation["STATUS"] !== "ok") { ?>
@@ -125,6 +126,13 @@ foreach ($sections as $s) {
 				<?php } ?>
 			</span>
 		</h2>
+		<?php if ($v_checked && array_filter($s["rows"], fn ($r) => ($r["STATUS"] ?? "ok") !== "ok")) { ?>
+			<p class="u-mb10">
+				<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => $s["kind"], "object" => $s["object"], "owner" => $s["owner"]])) ?>">
+					<i class="fas fa-arrows-rotate icon-blue"></i><?= tohtml(_("Sync to provider")) ?>
+				</a>
+			</p>
+		<?php } ?>
 		<?php if ($s["kind"] === "alias") { ?>
 			<p class="u-mb10">
 				<?= tohtml(_("Alias of")) ?>

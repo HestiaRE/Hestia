@@ -107,6 +107,41 @@ if (isset($_GET["providers"])) {
 	$anchor = (isset($_GET["mail"]) ? "obj-mail-" : "obj-") . $domain;
 	header("Location: /list/dns/?" . http_build_query(["zone" => $zone]) . "#" . rawurlencode($anchor));
 	exit();
+} elseif (isset($_GET["zone"], $_GET["sync"])) {
+	// One section written to the provider: a preview with its plan id, then the write of exactly that plan. The
+	// owner is the section's, which may be a customer the real admin is looking at.
+	$v_zone = strtolower((string) $_GET["zone"]);
+	$v_section = (string) $_GET["sync"];
+	$v_object = (string) ($_GET["object"] ?? "");
+	$v_owner = (string) ($_GET["owner"] ?? "");
+	$args = implode(" ", array_map(fn ($a) => quoteshellarg($a), [$v_owner, $v_zone, $v_section, $v_object]));
+	$back = "/list/dns/?" . http_build_query(["zone" => $v_zone]) . "#" .
+		rawurlencode(($v_section === "mail" ? "obj-mail-" : "obj-") . $v_object);
+	if (!empty($_POST["v_plan"])) {
+		verify_csrf($_POST);
+		exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " " . quoteshellarg((string) $_POST["v_plan"]), $output, $return_var);
+		check_return_code($return_var, $output);
+		if (empty($_SESSION["error_msg"])) {
+			// ok_msg is shown as HTML.
+			$_SESSION["ok_msg"] = tohtml(sprintf(_("%s %s has been written to the provider and read back."), $v_section, $v_object));
+		}
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " preview json", $output, $return_var);
+	$preview = json_decode(implode("", $output), true);
+	if ($return_var !== 0 || !is_array($preview)) {
+		check_return_code($return_var ?: 1, $output);
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	unset($output);
+	$v_plan = (string) ($preview["PLAN"] ?? "");
+	$ops = $preview["OPS"] ?? [];
+	$v_writes = count(array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip"));
+	render_page($user, $TAB, "list_dns_sync");
 } elseif (isset($_GET["zone"])) {
 	$v_zone = strtolower((string) $_GET["zone"]);
 	$zones = cli_json("h-list-dns-zones " . $user . " json");

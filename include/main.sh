@@ -1716,14 +1716,47 @@ looks_like_ip46() {
 	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
 }
 
-# The box's IPv4 as the outside sees it; nothing and rc 1 when the responder fails or answers anything but a
-# public address. One source for h-update-sys-ip and the installer, keep tools/ip-responder on docs in step.
+# The box's IPv4 as the outside sees it, for traffic from source address $1 when given; nothing and rc 1 when
+# the responder fails or answers anything but a public address. Keep tools/ip-responder on docs in step.
 public_ipv4() {
-	local a
-	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 https://ip.hestiare.com/ 2> /dev/null) || return 1
+	local a src=()
+	[ -n "${1-}" ] && src=(--interface "$1")
+	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 "${src[@]}" https://ip.hestiare.com/ 2> /dev/null) || return 1
 	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP,
 		FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? 0 : 1;' -- "$a")" = 0 ] || return 1
 	printf '%s\n' "$a"
+}
+
+# NAT of every v4 record, probed with that record as source: one probe along the default route only speaks for
+# the address it left from. Answer = own address clears, another public one not on the box sets, no answer keeps.
+# A NAT already held by another record stays there. rc 0 with a NAT on the box afterwards, 1 without, 2 when no
+# probe answered at all.
+nat_detect() {
+	local f g addr cur pub answered=1 any=1
+	for f in "$CONF_DIR"/ips/*; do
+		[ -f "$f" ] || continue
+		addr=${f##*/}
+		case "$addr" in *:*) continue ;; esac
+		cur=$(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$f" | head -n1)
+		pub=$(public_ipv4 "$addr") || continue
+		answered=0
+		if [ "$pub" = "$addr" ]; then
+			pub=''
+		elif [ -e "$CONF_DIR/ips/$pub" ]; then
+			pub="$cur"
+		else
+			for g in "$CONF_DIR"/ips/*; do
+				[ -f "$g" ] || continue
+				[ "$g" != "$f" ] && grep -qxF "NAT='$pub'" "$g" && pub="$cur" && break
+			done
+		fi
+		if [ "$pub" != "$cur" ] && "$BIN/h-change-sys-ip-nat" "$addr" "$pub" > /dev/null 2>&1; then
+			cur="$pub"
+		fi
+		[ -n "$cur" ] && any=0
+	done
+	[ "$answered" = 0 ] || return 2
+	return "$any"
 }
 
 # A NAT address goes stale without the boot run. Added once, so a re-run keeps the admin's lines; only a bare

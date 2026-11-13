@@ -19,13 +19,18 @@ the releases of the command audit, into another.
   probe along the default route decided the NAT, and it was hung on the newest IP record, which on a tunneled
   public IP was that IP itself. Each v4 record is now probed with itself as the source: its own address back clears
   the NAT, another public address sets it, no answer leaves it as it was. The boot run repairs a wrong NAT this way.
+  Of several records behind one public address the main one gets it. A NAT set by hand that differs from what the
+  probe sees (inbound through one address, outbound through another) is still overwritten at boot, as before.
 - **New domains defaulted to the alphabetically first IP** (#1330), on the CLI without an IP argument and as the
   first option in the panel. The address the box reaches the internet from now comes first; owned before shared
-  stays.
+  stays. A mail domain without a web domain keeps the address it sends from on a rebuild instead of following the
+  user's first one; before, adding an IP that sorted first moved such domains at their next rebuild. A relay
+  domain has no such pin, so its webmail listener still follows the first address.
 - **The firewall opened only the `Port` of sshd** (#1330). A port given in a `ListenAddress` stayed closed, and
   `Port 226` with `ListenAddress 10.5.5.26:22` would have closed 22. The SSH ports come from every listen address.
 - **With a fallback default route `h-delete-sys-ip` no longer protected the primary IP** (#1330). Two default
   routes made the NIC lookup two lines, so the guard compared against nothing. `h-add-sys-ip` had the same lookup.
+  Both now take the NIC of the route the kernel picks.
 
 ## v0.32 (2026-11-12)
 

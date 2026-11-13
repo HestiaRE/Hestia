@@ -1372,7 +1372,7 @@ add_webmail_config() {
 	if [ -z "${local_ip6+x}" ]; then
 		_derived_ip6=1
 		local_ip6=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP6')
-		if [ -z "$local_ip6" ] && get_user_ip6; then
+		if [ -z "$local_ip6" ] && get_mail_domain_ip6 "$domain"; then
 			local_ip6="$ip6"
 		fi
 		if [ -n "$local_ip6" ] && [ ! -e "$CONF_DIR/ips/$local_ip6" ]; then

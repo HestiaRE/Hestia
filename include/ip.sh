@@ -304,6 +304,32 @@ get_user_ip6() {
 	[ -n "$ip6" ]
 }
 
+# get_user_ip for mail domain $1 without a web domain: it keeps the address exim sends from while the user may use
+# it, so a change of the user's first address does not move its sender, webmail listener and SPF on a rebuild.
+get_mail_domain_ip() {
+	local f="$HOMEDIR/$user/conf/mail/$1/ip" pin=''
+	[ -L "$f" ] || { read -r pin < "$f"; } 2> /dev/null
+	if [ -n "$pin" ] && grep -qxF -- "$pin" <<< "$(get_user_ips 4)"; then
+		ip="$pin"
+		local_ip="$pin"
+		nat=$(grep "^NAT" "$CONF_DIR/ips/$pin" | cut -f 2 -d \')
+		[ -n "$nat" ] && ip="$nat"
+		return 0
+	fi
+	get_user_ip
+}
+
+# get_user_ip6 for mail domain $1 without a web domain, keeping its v6 pin the same way.
+get_mail_domain_ip6() {
+	local f="$HOMEDIR/$user/conf/mail/$1/ipv6" pin=''
+	[ -L "$f" ] || { read -r pin < "$f"; } 2> /dev/null
+	if [ -n "$pin" ] && grep -qxF -- "$pin" <<< "$(get_user_ips 6)"; then
+		ip6="$pin"
+		return 0
+	fi
+	get_user_ip6
+}
+
 # Validate ip address
 is_ip_valid() {
 	local_ip="$1"

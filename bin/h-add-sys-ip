@@ -12,17 +12,6 @@ ip46="${1// /}"
 ip="$ip46"
 netmask="$2"
 
-iface="$(ip -d -j addr show | jq --arg IP "$ip46" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"
-# Else the default route of either family: a v6-only box has no v4 route. Same twin in h-delete-sys-ip.
-if [ -z "$iface" ]; then
-	iface="$(ip -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end')"
-fi
-if [ -z "$iface" ]; then
-	iface="$(ip -6 -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end')"
-fi
-
-# :- not -: an EMPTY third argument (h-update-sys-ip passes jq output) must fall back
-iface="${3:-$iface}"
 ip_status="${5-shared}"
 ip_name="$6"
 nat_ip="$7"
@@ -38,6 +27,13 @@ source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/web-model.sh
 source $HESTIA/include/web-model.sh
 source_conf "$HESTIA/conf/hestia.conf"
+
+iface="$(ip -d -j addr show | jq --arg IP "$ip46" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"
+# Else the NIC of the main route of either family: a v6-only box has no v4 route. Same twin in h-delete-sys-ip.
+[ -n "$iface" ] || iface=$(sys_main_route 4 dev)
+[ -n "$iface" ] || iface=$(sys_main_route 6 dev)
+# :- not -: an EMPTY third argument (h-update-sys-ip passes jq output) must fall back
+iface="${3:-$iface}"
 
 # Bound after the includes: main.sh refuses a $user that is set but empty, and USER is optional here.
 user="${4:-$ROOT_USER}"

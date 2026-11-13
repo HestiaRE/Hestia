@@ -13,6 +13,8 @@ format="${2-shell}"
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source $HESTIA/include/ip.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 # Each address from empty: source_conf sets only the keys a file has, and a missing one would show the one before.
@@ -70,14 +72,8 @@ check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
-owner="$ROOT_USER"
-# The path prefix is stripped, not cut at a field number: the data/ depth differs from upstream.
-owner_ips="$(grep -F -A 1 -H "OWNER='$owner'" $CONF_DIR/ips/*)"
-owner_ips="$(echo "$owner_ips" | grep "STATUS='shared'")"
-owner_ips="$(echo "$owner_ips" | sed "s|-STATUS=.*||; s|^$CONF_DIR/ips/||")"
-user_ips="$(grep -F -H "OWNER='$user'" $CONF_DIR/ips/*)"
-user_ips="$(echo "$user_ips" | sed "s|:OWNER=.*||; s|^$CONF_DIR/ips/||")"
-ips="$(echo -e "$user_ips\n$owner_ips" | sort -u | sed "/^$/d")"
+# The order get_user_ip picks from, so the panel's first option is the CLI default.
+ips="$(get_user_ips)"
 fields='$IP $OWNER $STATUS $NAME $NAT'
 
 case $format in

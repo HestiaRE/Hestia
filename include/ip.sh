@@ -249,9 +249,12 @@ get_broadcast() {
 get_user_ips() {
 	# Per-file, per-key reads (key order is not a contract). Two passes, dedicated first:
 	# get_user_ip takes head -n1, and glob order would hand a shared address to a customer
-	# who owns a dedicated one.
-	local family="$1" pass f addr f_owner f_status
+	# who owns a dedicated one. Within a pass the box's main address leads, else glob order decides.
+	local family="$1" pass f addr f_owner f_status list main4 main6
+	main4=$(sys_main_route 4 prefsrc)
+	main6=$(sys_main_route 6 prefsrc)
 	for pass in own shared; do
+		list=''
 		for f in "$CONF_DIR"/ips/*; do
 			[ -f "$f" ] || continue
 			addr=${f##*/}
@@ -260,14 +263,20 @@ get_user_ips() {
 			fi
 			f_owner=$(grep -m1 "^OWNER=" "$f" | cut -f 2 -d \')
 			if [ "$pass" = 'own' ]; then
-				[ "$f_owner" = "$user" ] && echo "$addr"
+				[ "$f_owner" = "$user" ] && list="$list $addr"
 			else
 				[ "$user" = "$ROOT_USER" ] && continue
 				if [ "$f_owner" = "$ROOT_USER" ]; then
 					f_status=$(grep -m1 "^STATUS=" "$f" | cut -f 2 -d \')
-					[ "$f_status" = 'shared' ] && echo "$addr"
+					[ "$f_status" = 'shared' ] && list="$list $addr"
 				fi
 			fi
+		done
+		for addr in $list; do
+			[ "$addr" = "$main4" ] || [ "$addr" = "$main6" ] && echo "$addr"
+		done
+		for addr in $list; do
+			[ "$addr" = "$main4" ] || [ "$addr" = "$main6" ] || echo "$addr"
 		done
 	done
 	return 0
@@ -293,6 +302,32 @@ get_user_ip() {
 get_user_ip6() {
 	ip6=$(get_user_ips 6 | head -n1)
 	[ -n "$ip6" ]
+}
+
+# get_user_ip for mail domain $1 without a web domain: it keeps the address exim sends from while the user may use
+# it, so a change of the user's first address does not move its sender, webmail listener and SPF on a rebuild.
+get_mail_domain_ip() {
+	local f="$HOMEDIR/$user/conf/mail/$1/ip" pin=''
+	[ -L "$f" ] || { read -r pin < "$f"; } 2> /dev/null
+	if [ -n "$pin" ] && grep -qxF -- "$pin" <<< "$(get_user_ips 4)"; then
+		ip="$pin"
+		local_ip="$pin"
+		nat=$(grep "^NAT" "$CONF_DIR/ips/$pin" | cut -f 2 -d \')
+		[ -n "$nat" ] && ip="$nat"
+		return 0
+	fi
+	get_user_ip
+}
+
+# get_user_ip6 for mail domain $1 without a web domain, keeping its v6 pin the same way.
+get_mail_domain_ip6() {
+	local f="$HOMEDIR/$user/conf/mail/$1/ipv6" pin=''
+	[ -L "$f" ] || { read -r pin < "$f"; } 2> /dev/null
+	if [ -n "$pin" ] && grep -qxF -- "$pin" <<< "$(get_user_ips 6)"; then
+		ip6="$pin"
+		return 0
+	fi
+	get_user_ip6
 }
 
 # Validate ip address

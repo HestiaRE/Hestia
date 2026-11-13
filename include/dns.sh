@@ -166,7 +166,8 @@ dns_soa_lookup() {
 	local q="$1" out zone
 	while [[ "$q" == *.* ]]; do
 		out=$(timeout 5 dig +nosearch +time=2 +tries=1 +noall +comments +answer +authority SOA "$q" 2> /dev/null)
-		[[ "$out" == *"status: NOERROR"* || "$out" == *"status: NXDOMAIN"* ]] || return 0
+		# rc 2: the resolver failed (SERVFAIL, timeout), which says nothing about the zone.
+		[[ "$out" == *"status: NOERROR"* || "$out" == *"status: NXDOMAIN"* ]] || return 2
 		zone=$(awk -v q="$q." '
 			/^;; ANSWER SECTION/ { s = "a"; next } /^;; AUTHORITY SECTION/ { s = "u"; next } /^;/ || NF < 4 { next }
 			s == "a" && $4 == "SOA" && tolower($1) == q { print "self"; exit }
@@ -190,9 +191,9 @@ dns_soa_lookup() {
 }
 
 # dns_zone NAME: dns_soa_lookup behind a box-local cache (a day, an hour for an unknown). Public data only,
-# recomputable, and never part of a backup.
+# recomputable, and never part of a backup. A resolver failure is not cached: it would hold every zone unknown.
 dns_zone() {
-	local n now line zone
+	local n now line zone rc
 	n=$(dns_ascii "${1#\*.}")
 	[ -n "$n" ] || return 0
 	now=$(date +%s)
@@ -205,6 +206,8 @@ dns_zone() {
 		fi
 	fi
 	zone=$(dns_soa_lookup "$n")
+	rc=$?
+	[ "$rc" = 2 ] && return 0
 	dns_zone_remember "$n" "${zone:--}" "$now"
 	echo "$zone"
 }

@@ -1738,10 +1738,12 @@ sys_main_route() {
 # NAT of every v4 record, probed with that record as source: one probe along the default route only speaks for
 # the address it left from. Answer = own address clears, another public one not on the box sets, no answer keeps.
 # Clears run first, so a stale NAT cannot block the record it belongs to; a NAT another record holds stays there.
+# The main address goes first: of several records behind one public address it takes the NAT, as new domains do.
 # rc 0 with a NAT on the box afterwards, 1 without, 2 when no probe answered at all.
 nat_detect() {
-	local f g addr pub held order='' answered=1
+	local f g addr pub held main order='' answered=1
 	local -A ans=()
+	main=$(sys_main_route 4 prefsrc)
 	for f in "$CONF_DIR"/ips/*; do
 		[ -f "$f" ] || continue
 		addr=${f##*/}
@@ -1749,7 +1751,11 @@ nat_detect() {
 		pub=$(public_ipv4 "$addr") || continue
 		answered=0
 		ans[$addr]=$pub
-		order="$order $addr"
+		if [ "$addr" = "$main" ]; then
+			order="$addr $order"
+		else
+			order="$order $addr"
+		fi
 	done
 	for addr in $order; do
 		[ "${ans[$addr]}" = "$addr" ] && nat_set "$addr" ''

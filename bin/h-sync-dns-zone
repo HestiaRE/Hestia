@@ -1,0 +1,134 @@
+#!/bin/bash
+# info: write one section of a DNS zone to its provider
+# options: USER ZONE SECTION OBJECT [PLAN] [FORMAT]
+#
+# example: h-sync-dns-zone admin example.com web example.com
+# example: h-sync-dns-zone admin example.com web example.com 3f2a9c0e1b7d4a65
+#
+# Without PLAN (or with "preview") the writes that bring the section's rows in line with what HestiaRE derives,
+# and their PLAN id. With that id the writes go out, provided the zone still yields the same plan, and the zone is
+# read again: only an empty plan afterwards counts as done. Records no row of the section consumed are never named.
+
+user=$1
+zone=$2
+section=$3
+object=$4
+plan=${5:-preview}
+format=${6-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+json_list() {
+	jq -R -n --arg plan "$id" '{PLAN: $plan, OPS: [inputs | select(length > 0) | split("\t")
+		| {OP: .[0], NAME: .[1], TYPE: .[2], PRIORITY: .[3], TTL: .[4], VALUE: .[5], NOTE: (.[6] // "")}]}' <<< "$DNSP_PLAN"
+}
+
+shell_list() {
+	printf 'OP\tNAME\tTYPE\tPRIORITY\tVALUE\tNOTE\n'
+	printf -- '--\t----\t----\t--------\t-----\t----\n'
+	# A DKIM key is longer than any terminal line.
+	awk -F '\t' 'BEGIN { OFS = FS } { if (length($6) > 64) $6 = substr($6, 1, 61) "..."; print $1, $2, $3, $4, $6, $7 }' \
+		<<< "$DNSP_PLAN"
+}
+
+# check_failed RC: dnsp_check_zone's failure as the command's.
+check_failed() {
+	case $1 in
+		3) check_result "$E_NOTEXIST" "no provider account holds zone $zone" ;;
+		1) check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR" ;;
+		*) check_result "$E_CONNECT" "zone $zone could not be read from account $DNSP_ACCOUNT: ${DNSP_ERROR:-compare failed}" ;;
+	esac
+}
+
+check_args '4' "$#" 'USER ZONE SECTION OBJECT [PLAN] [FORMAT]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+case $section in
+	web | sub | alias | mail | server) ;;
+	*) check_result "$E_INVALID" "invalid section: $section" ;;
+esac
+[[ "$plan" =~ ^(preview|[0123456789abcdef]{16})$ ]] || check_result "$E_INVALID" "invalid plan: $plan"
+case $format in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+zone=$(dns_ascii "$zone")
+object=${object,,}
+dnsp_zones_fresh
+dns_load
+dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" -v s="$section" -v o="$object" \
+	'$5 == u && $3 == s && tolower($4) == o { f = 1 } END { exit !f }' \
+	|| check_result "$E_NOTEXIST" "$user has no $section section $object in zone $zone"
+
+dnsp_check_zone "$zone" "$section" "$object" || check_failed $?
+id=$(sha256sum <<< "$DNSP_PLAN" | cut -c 1-16)
+
+if [ "$plan" = 'preview' ]; then
+	case $format in
+		json) json_list ;;
+		plain) echo "$DNSP_PLAN" ;;
+		shell)
+			[ -n "$DNSP_PLAN" ] && shell_list | column -t -s $'\t'
+			echo "PLAN: $id"
+			;;
+	esac
+	exit
+fi
+
+[ "$plan" = "$id" ] || check_result "$E_EXISTS" "zone $zone changed since the preview, nothing written: preview again"
+writes=$(awk -F '\t' '$1 == "add" || $1 == "rem"' <<< "$DNSP_PLAN")
+main=$(awk -F '\t' '$1 == "main" { print $6 "\t" $5; exit }' <<< "$DNSP_PLAN")
+n=$(awk -F '\t' '$1 == "add" || $1 == "rem" || $1 == "main" { n++ } END { print n + 0 }' <<< "$DNSP_PLAN")
+[ -n "$writes$main" ] || {
+	echo "nothing to write"
+	exit
+}
+
+tmp=$(mktemp) || check_result "$E_DISK" "cannot create a temp file"
+printf '%s\n' "$writes" > "$tmp"
+if [ -n "$writes" ]; then
+	dnsp_call change "$zone" "$DNSP_REF" "$tmp" > /dev/null
+	rc=$?
+	if [ "$rc" != 0 ]; then
+		rm -f "$tmp"
+		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
+		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR"
+		check_result "$E_CONNECT" "the provider did not take the records of zone $zone: $DNSP_ERROR"
+	fi
+fi
+rm -f "$tmp"
+if [ -n "$main" ]; then
+	IFS=$'\t' read -r addr ttl <<< "$main"
+	dnsp_call main "$zone" "$DNSP_REF" "$addr" "$ttl" > /dev/null
+	rc=$?
+	if [ "$rc" != 0 ]; then
+		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
+		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR"
+		check_result "$E_CONNECT" "the provider did not take the main IP of zone $zone${writes:+ (the records went out)}: $DNSP_ERROR"
+	fi
+fi
+
+dnsp_check_zone "$zone" "$section" "$object" || check_failed $?
+left=$(awk -F '\t' '$1 != "skip"' <<< "$DNSP_PLAN")
+if [ -n "$left" ]; then
+	"$BIN/h-log-action" "system" "Error" "DNS" "DNS zone write not in line (Zone: $zone, Section: $section $object)."
+	check_result "$E_CONNECT" "zone $zone is not in line after the write, still to do: $(awk -F '\t' '{ printf "%s%s %s %s %s", NR > 1 ? "; " : "", $1, $2, $3, $6 }' <<< "$left")"
+fi
+
+echo "zone $zone: $section $object in line, $n change(s) written"
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS zone written (Zone: $zone, Section: $section $object, Changes: $n)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

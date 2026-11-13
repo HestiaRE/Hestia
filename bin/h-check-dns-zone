@@ -1,0 +1,66 @@
+#!/bin/bash
+# info: compare a DNS zone with its provider
+# options: USER ZONE [FORMAT]
+#
+# example: h-check-dns-zone admin example.com json
+#
+# Every row HestiaRE derives for the zone against the records its provider account holds, with a STATUS per row
+# (ok, missing, different, cname, wildcard) and the provider's other records (SECTION foreign, or hidden outside
+# the box's names in a zone whose apex lies elsewhere). Read-only at the provider; the result becomes the zone's
+# status in h-list-dns-zones.
+
+user=$1
+zone=$2
+format=${3-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+json_list() {
+	jq -R -n '[inputs | select(length > 0) | split("\t") | {SECTION: .[0], OBJECT: .[1], OWNER: .[2], NAME: .[3],
+		TYPE: .[4], PRIORITY: .[5], TTL: .[6], VALUE: .[7], STATUS: .[8], ACTUAL: .[9], NOTE: (.[10] // "")}]' <<< "$DNSP_CHECK"
+}
+
+shell_list() {
+	printf 'SECTION\tOBJECT\tNAME\tTYPE\tVALUE\tSTATUS\tACTUAL\n'
+	printf -- '-------\t------\t----\t----\t-----\t------\t------\n'
+	cut -f 1,2,4,5,8,9,10 <<< "$DNSP_CHECK"
+}
+
+check_args '2' "$#" 'USER ZONE [FORMAT]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+
+zone=$(dns_ascii "$zone")
+dnsp_zones_fresh
+dns_load
+if ! dns_zone_rows "$zone" | awk -F '\t' -v u="$user" '$5 == u { f = 1 } END { exit !f }'; then
+	check_result "$E_NOTEXIST" "$user has no records in zone $zone"
+fi
+
+dnsp_check_zone "$zone"
+case $? in
+	0) ;;
+	3) check_result "$E_NOTEXIST" "no provider account holds zone $zone" ;;
+	1) check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR" ;;
+	*) check_result "$E_CONNECT" "zone $zone could not be read from account $DNSP_ACCOUNT: ${DNSP_ERROR:-compare failed}" ;;
+esac
+
+case $format in
+	json) json_list ;;
+	plain) echo "$DNSP_CHECK" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

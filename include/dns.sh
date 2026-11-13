@@ -1,8 +1,9 @@
 #!/bin/bash
-# DNS target records of the objects on this box, and the zone each name lives in. Read-only: nothing
-# here talks to a provider. h-list-dns-zones, h-list-dns-zone and h-list-mail-domain-dns read it.
+# DNS target records of the objects on this box, and the zone each name lives in. Nothing here talks to a
+# provider: the zone lists of the accounts are read from the cache include/dns-provider.sh keeps.
 
 DNS_ZONE_CACHE=/var/cache/hestia/dns-zones
+DNS_ACCOUNT_CACHE=/var/cache/hestia/dns-provider
 DNS_TTL=14400
 
 # dns_kv KEY LINE: one value of a record line. Values carry no single quote, so no parser is needed.
@@ -241,10 +242,27 @@ dns_sections() {
 		| awk -F '\t' 'BEGIN { OFS = FS } { print $1, $8, $9, $3, $10, $6, $11, $12, $13, $14 }'
 }
 
-# dns_zone_of NAME: "ZONE STATE". A name public DNS cannot place falls to the shortest name on the box it is or
-# lies under (DNS_NAMES), marked unknown: sub and www land with their parent, never guessed from the last labels.
+# dns_account_zone NAME: the longest zone of a provider account NAME is or lies under, from DNS_ACCOUNT_ZONES.
+dns_account_zone() {
+	awk -F '\t' -v n="${1#\*.}" 'NF && (n == $1 || substr(n, length(n) - length($1)) == "." $1) && length($1) > length(b) {
+		b = $1 } END { print b }' <<< "$DNS_ACCOUNT_ZONES"
+}
+
+# dns_zone_account ZONE: "ACCOUNT REF" of a zone some account holds, empty otherwise.
+dns_zone_account() {
+	awk -F '\t' -v z="$1" '$1 == z { print $2, $3; exit }' <<< "$DNS_ACCOUNT_ZONES"
+}
+
+# dns_zone_of NAME: "ZONE STATE". The accounts' zones come first (STATE account), then public DNS. A name neither
+# can place falls to the shortest name on the box it is or lies under (DNS_NAMES), marked unknown: sub and www land
+# with their parent, never guessed from the last labels.
 dns_zone_of() {
 	local z
+	z=$(dns_account_zone "$1")
+	if [ -n "$z" ]; then
+		echo "$z account"
+		return 0
+	fi
 	z=$(dns_zone "$1")
 	if [ -n "$z" ]; then
 		echo "$z resolved"
@@ -287,8 +305,23 @@ declare -A DNS_ZONE_MEMO
 # the costly part, and a $() started afterwards inherits both.
 dns_load() {
 	[ -n "${DNS_ANCHORED+set}" ] && return 0
+	dns_account_zones_load
 	DNS_ANCHORED=$(dns_anchored)
 	DNS_NAMES=$(cut -f 5 <<< "$DNS_ANCHORED")
+}
+
+# dns_account_zones_load: "ZONE ACCOUNT REF" of every account that still exists into DNS_ACCOUNT_ZONES. The first
+# account listing a zone holds it.
+dns_account_zones_load() {
+	local f a out=''
+	for f in "$DNS_ACCOUNT_CACHE"/*.zones; do
+		[ -f "$f" ] || continue
+		a=${f##*/}
+		a=${a%.zones}
+		[ -f "$CONF_DIR/dns/$a.conf" ] || continue
+		out+=$(awk -F '\t' -v a="$a" 'NF { print $1 "\t" a "\t" $2 }' "$f")$'\n'
+	done
+	DNS_ACCOUNT_ZONES=$(awk -F '\t' 'NF && !($1 in s) { s[$1] = 1; print }' <<< "$out")
 }
 
 # dns_anchor_zone ANCHOR: dns_zone_of into DNS_ZONE_STATE, once per anchor and run. A global, not stdout: in a

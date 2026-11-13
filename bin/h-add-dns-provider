@@ -1,0 +1,66 @@
+#!/bin/bash
+# info: add a DNS provider account
+# options: ACCOUNT PROVIDER KEY_FILE [CONTEXT]
+#
+# example: h-add-dns-provider internetx autodns /root/autodns.key
+#
+# Adds an account at an external DNS provider. The key is read from the first line of KEY_FILE, never taken as an
+# argument, so it stays out of the process list and the logs; the panel passes a private temp file. The account is
+# checked against the provider before it is saved, and its zone list is fetched.
+
+account=$1
+provider=$2
+key_file=$3
+context=${4-4}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '3' "$#" 'ACCOUNT PROVIDER KEY_FILE [CONTEXT]'
+dnsp_account_format_valid "$account"
+dnsp_driver_exists "$provider" || check_result "$E_INVALID" "unknown provider: $provider (drivers: $(dnsp_drivers | tr '\n' ' '))"
+[[ "$context" =~ ^[0123456789]{1,9}$ ]] || check_result "$E_INVALID" "invalid context: $context"
+[ -f "$key_file" ] && [ ! -L "$key_file" ] || check_result "$E_NOTEXIST" "key file $key_file does not exist"
+[ -e "$DNSP_CONF_DIR/$account.conf" ] && check_result "$E_EXISTS" "account $account already exists"
+
+key=$(head -n1 "$key_file" | tr -d '\r')
+# The key is stored between single quotes and sent in a header: a quote, a blank or a control character breaks both.
+[[ "$key" =~ ^[[:graph:]]{8,512}$ ]] && [[ "$key" != *\'* ]] && [[ "$key" != *\"* ]] \
+	|| check_result "$E_INVALID" "the key file holds no usable key"
+
+DNSP_ACCOUNT=$account
+DNSP_PROVIDER=$provider
+DNSP_KEY=$key
+DNSP_CONTEXT=$context
+# shellcheck source=/usr/local/hestia/include/dns-providers/autodns.sh
+source "$DNSP_DRIVERS/$provider.sh"
+dnsp_call hello
+rc=$?
+if [ "$rc" != 0 ]; then
+	rm -f "$DNSP_CACHE/$account.last"
+	check_result "$E_CONNECT" "$provider did not accept the account: $DNSP_ERROR"
+fi
+
+[ -d "$DNSP_CONF_DIR" ] || { mkdir -p "$DNSP_CONF_DIR" && chmod 700 "$DNSP_CONF_DIR"; }
+time_n_date=$(date +'%T %F')
+(
+	umask 077
+	printf "PROVIDER='%s' CONTEXT='%s' KEY='%s' TIME='%s' DATE='%s'\n" \
+		"$provider" "$context" "$key" "${time_n_date% *}" "${time_n_date#* }" > "$DNSP_CONF_DIR/$account.conf"
+) || check_result "$E_DISK" "cannot write the account $account"
+chmod 600 "$DNSP_CONF_DIR/$account.conf"
+
+dnsp_zones_refresh "$account"
+zones=$(wc -l < "$DNSP_CACHE/$account.zones" 2> /dev/null)
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS provider account added (Account: $account, Provider: $provider, Zones: ${zones:-0})."
+log_event "$OK" "$ARGUMENTS"
+
+exit

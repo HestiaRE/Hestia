@@ -1,0 +1,56 @@
+#!/bin/bash
+# info: compare every DNS zone of a user with its provider
+# options: USER [FORMAT]
+#
+# example: h-check-dns-zones admin
+#
+# h-check-dns-zone for each of the user's zones a provider account holds, one request per zone at the provider's
+# pace. Lists ZONE ACCOUNT DIFFERENCES, "error" where a zone could not be read; zones without an account are left out.
+
+user=$1
+format=${2-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '1' "$#" 'USER [FORMAT]'
+is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
+
+dnsp_zones_fresh
+dns_user_zones "$user"
+list=''
+while read -r zone state; do
+	[ "$state" = 'account' ] || continue
+	dnsp_check_zone "$zone"
+	rc=$?
+	[ "$rc" = 3 ] && continue
+	diffs=$DNSP_DIFFS
+	[ "$rc" = 0 ] || diffs=error
+	list+="$zone"$'\t'"$DNSP_ACCOUNT"$'\t'"$diffs"$'\n'
+done <<< "$DNS_USER_ZONES"
+list=${list%$'\n'}
+
+case $format in
+	json)
+		jq -R -n '[inputs | select(length > 0) | split("\t") | {(.[0]): {ACCOUNT: .[1], DIFFERENCES: .[2]}}] | add // {}' \
+			<<< "$list"
+		;;
+	plain) [ -z "$list" ] || echo "$list" ;;
+	shell) {
+		printf 'ZONE\tACCOUNT\tDIFFERENCES\n----\t-------\t-----------\n'
+		[ -z "$list" ] || echo "$list"
+	} | column -t -s $'\t' ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

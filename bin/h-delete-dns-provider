@@ -1,0 +1,34 @@
+#!/bin/bash
+# info: delete a DNS provider account
+# options: ACCOUNT
+#
+# example: h-delete-dns-provider internetx
+#
+# Deletes the account and what was cached from it. Nothing changes at the provider: its zones fall back to public
+# DNS here.
+
+account=$1
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '1' "$#" 'ACCOUNT'
+dnsp_account_format_valid "$account"
+[ -f "$DNSP_CONF_DIR/$account.conf" ] || check_result "$E_NOTEXIST" "account $account does not exist"
+
+rm -f "$DNSP_CONF_DIR/$account.conf" "$DNSP_CACHE/$account".{zones,state,last}
+if [ -f "$DNSP_CACHE/status" ]; then
+	awk -F '\t' -v a="$account" '$2 != a' "$DNSP_CACHE/status" | dnsp_write "$DNSP_CACHE/status"
+fi
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS provider account deleted (Account: $account)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

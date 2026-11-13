@@ -1729,34 +1729,46 @@ public_ipv4() {
 
 # NAT of every v4 record, probed with that record as source: one probe along the default route only speaks for
 # the address it left from. Answer = own address clears, another public one not on the box sets, no answer keeps.
-# A NAT already held by another record stays there. rc 0 with a NAT on the box afterwards, 1 without, 2 when no
-# probe answered at all.
+# Clears run first, so a stale NAT cannot block the record it belongs to; a NAT another record holds stays there.
+# rc 0 with a NAT on the box afterwards, 1 without, 2 when no probe answered at all.
 nat_detect() {
-	local f g addr cur pub answered=1 any=1
+	local f g addr pub held order='' answered=1
+	local -A ans=()
 	for f in "$CONF_DIR"/ips/*; do
 		[ -f "$f" ] || continue
 		addr=${f##*/}
 		case "$addr" in *:*) continue ;; esac
-		cur=$(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$f" | head -n1)
 		pub=$(public_ipv4 "$addr") || continue
 		answered=0
-		if [ "$pub" = "$addr" ]; then
-			pub=''
-		elif [ -e "$CONF_DIR/ips/$pub" ]; then
-			pub="$cur"
-		else
-			for g in "$CONF_DIR"/ips/*; do
-				[ -f "$g" ] || continue
-				[ "$g" != "$f" ] && grep -qxF "NAT='$pub'" "$g" && pub="$cur" && break
-			done
-		fi
-		if [ "$pub" != "$cur" ] && "$BIN/h-change-sys-ip-nat" "$addr" "$pub" > /dev/null 2>&1; then
-			cur="$pub"
-		fi
-		[ -n "$cur" ] && any=0
+		ans[$addr]=$pub
+		order="$order $addr"
+	done
+	for addr in $order; do
+		[ "${ans[$addr]}" = "$addr" ] && nat_set "$addr" ''
+	done
+	for addr in $order; do
+		pub=${ans[$addr]}
+		[ "$pub" = "$addr" ] || [ -e "$CONF_DIR/ips/$pub" ] && continue
+		held=''
+		for g in "$CONF_DIR"/ips/*; do
+			[ -f "$g" ] || continue
+			[ "${g##*/}" != "$addr" ] && grep -qxF "NAT='$pub'" "$g" && held=1 && break
+		done
+		[ -n "$held" ] || nat_set "$addr" "$pub"
 	done
 	[ "$answered" = 0 ] || return 2
-	return "$any"
+	for f in "$CONF_DIR"/ips/*; do
+		[ -f "$f" ] || continue
+		grep -q "^NAT='[^']" "$f" && return 0
+	done
+	return 1
+}
+
+# NAT of IP record $1 to $2 (empty clears), only when it differs: the change command rewrites the records naming it.
+nat_set() {
+	local cur
+	cur=$(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$CONF_DIR/ips/$1" | head -n1)
+	[ "$cur" = "$2" ] || "$BIN/h-change-sys-ip-nat" "$1" "$2" > /dev/null 2>&1
 }
 
 # A NAT address goes stale without the boot run. Added once, so a re-run keeps the admin's lines; only a bare

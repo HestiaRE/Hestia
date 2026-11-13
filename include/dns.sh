@@ -84,7 +84,7 @@ dns_mail_addrs() {
 
 # dns_mail_rows USER [DOMAIN]: what a mail domain needs, the values the mail "DNS records" page has shown.
 dns_mail_rows() {
-	local u="$1" line d v4 v6 sel pub spf n
+	local u="$1" line d v4 v6 sel pub spf n wm
 	[ -f "$CONF_DIR/users/$u/mail.conf" ] || return 0
 	while IFS= read -r line; do
 		d=$(dns_kv DOMAIN "$line")
@@ -93,7 +93,9 @@ dns_mail_rows() {
 		read -r v4 v6 <<< "$(dns_mail_addrs "$u" "$d")"
 		[ "$v4" = '-' ] && v4=''
 		[ "$v6" = '-' ] && v6=''
-		for n in mail ${WEBMAIL_SYSTEM:+"${WEBMAIL_ALIAS:-webmail}"}; do
+		wm=$(dns_kv WEBMAIL "$line")
+		[ "$wm" = 'disabled' ] && wm=''
+		for n in mail ${WEBMAIL_SYSTEM:+${wm:+"${WEBMAIL_ALIAS:-webmail}"}}; do
 			[ -n "$v4" ] && dns_row mail "$d" "$u" "$n.$d" A '' "$DNS_TTL" "$v4"
 			[ -n "$v6" ] && dns_row mail "$d" "$u" "$n.$d" AAAA '' "$DNS_TTL" "$v6"
 		done

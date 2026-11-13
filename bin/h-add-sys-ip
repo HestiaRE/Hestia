@@ -15,10 +15,10 @@ netmask="$2"
 iface="$(ip -d -j addr show | jq --arg IP "$ip46" -r '.[] | if .addr_info[].local == $IP then .ifname else empty end')"
 # Else the default route of either family: a v6-only box has no v4 route. Same twin in h-delete-sys-ip.
 if [ -z "$iface" ]; then
-	iface="$(ip -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end')"
+	iface="$(ip -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end' | head -n1)"
 fi
 if [ -z "$iface" ]; then
-	iface="$(ip -6 -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end')"
+	iface="$(ip -6 -d -j route show | jq -r '.[] | if .dst == "default" then .dev else empty end' | head -n1)"
 fi
 
 # :- not -: an EMPTY third argument (h-update-sys-ip passes jq output) must fall back

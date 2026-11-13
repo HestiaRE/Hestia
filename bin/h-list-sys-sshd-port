@@ -43,7 +43,10 @@ plain_list() {
 	done
 }
 
-ports=$(sshd -T | grep '^port' | cut -d ' ' -f2)
+# A port inside a ListenAddress overrides Port for that address, and sshd -T prints every listenaddress with its port.
+sshd_t=$(sshd -T)
+ports=$(echo "$sshd_t" | awk '$1 == "listenaddress" { sub(/.*:/, "", $2); print $2 }' | sort -nu)
+[ -n "$ports" ] || ports=$(echo "$sshd_t" | awk '$1 == "port" { print $2 }')
 
 case $format in
 	json) json_list ;;

@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 9,
-      "eigenbau_files": 22,
+      "eigenbau_files": 25,
       "weighted_pct": 59,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 31,
+      "files_total": 34,
       "files_mapped": 9
     },
     "scope": "include",
@@ -88,6 +88,33 @@
         "measured_at": "2026-11-09"
       },
       "note": ""
+    },
+    {
+      "path": "dns-compare.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-14",
+      "divergence": null,
+      "note": "Desired against actual records of one zone: SPF evaluation, wildcards, delegation, the zone's name servers (#1332)."
+    },
+    {
+      "path": "dns-provider.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-14",
+      "divergence": null,
+      "note": "DNS provider accounts, their cache, throttle and the zone check (#1332)."
+    },
+    {
+      "path": "dns-providers/autodns.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-14",
+      "divergence": null,
+      "note": "Driver for InterNetX AutoDNS, JSON API, key on stdin only (#1332)."
     },
     {
       "path": "dns.sh",

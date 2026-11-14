@@ -103,7 +103,7 @@ dns_mail_rows() {
 		# Both families in one record: exim sends from whichever family the receiving MX offers.
 		spf="v=spf1 a mx${v4:+ ip4:$v4}${v6:+ ip6:$v6} -all"
 		dns_row mail "$d" "$u" "$d" TXT '' "$DNS_TTL" "$spf"
-		dns_row mail "$d" "$u" "_dmarc.$d" TXT '' "$DNS_TTL" 'v=DMARC1; p=quarantine; pct=100'
+		dns_row mail "$d" "$u" "_dmarc.$d" TXT '' "$DNS_TTL" 'v=DMARC1; p=none'
 		[ -e "$CONF_DIR/users/$u/mail/$d.pub" ] || continue
 		# What exim signs with: the rebuild falls back to mail for a selector that is no DNS label.
 		sel=$(dns_kv DKIM_SELECTOR "$line")

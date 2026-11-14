@@ -336,20 +336,14 @@ function out(array $f): void
 	echo implode("\t", array_map(fn ($v) => str_replace(["\t", "\n"], " ", (string) $v), $f)), "\n";
 }
 
-// SPF record REC with the addresses MISSED added in front of its all, so they pass before anything rejects.
+// SPF record REC with the addresses MISSED right behind v=spf1: the first matching mechanism decides, so anything
+// later, a "-ip4" or "~a" as well as the all, could still reject them.
 /** @param list<string> $missed */
 function spf_merge(string $rec, array $missed): string
 {
 	$terms = preg_split('/\s+/', trim($rec)) ?: [];
 	$add = array_map(fn ($ip) => (str_contains($ip, ":") ? "ip6:" : "ip4:") . $ip, $missed);
-	$at = count($terms);
-	foreach ($terms as $i => $t) {
-		if ($i > 0 && (preg_match('/^[+\-~?]?all$/i', $t) || str_contains($t, "="))) {
-			$at = $i;
-			break;
-		}
-	}
-	array_splice($terms, $at, 0, $add);
+	array_splice($terms, 1, 0, $add);
 	return implode(" ", $terms);
 }
 
@@ -360,125 +354,148 @@ function plan(array $results, string $section, string $object, string $delegatio
 	global $actual;
 	$skip = [
 		"delegated" => "a delegated name, the zone does not answer for it",
-		"unchecked" => "public DNS did not answer in time, check again",
+		"unchecked" => "public DNS did not answer, check again",
 	];
 	$include = false;
 	foreach ($actual as $r) {
 		$include = $include || $r[5] === "include";
 	}
-	// The desired apex per type, and whether it will be in line once this plan ran.
+	$mainV6 = false;
+	foreach ($actual as $r) {
+		$mainV6 = $mainV6 || ($r[0] === "@" && $r[1] === "AAAA" && $r[5] === "main");
+	}
+	// The desired apex per type, and whether it will be in line once this plan ran: ok already, or planned here
+	// without a skip. The apex rows are planned first so www can ask; the ops come out in the rows' order.
 	$apexWant = [];
 	$apexDone = [];
 	foreach ($results as $x) {
-		[, , $s, $o, , $rel, $type, , , $value] = $x["d"];
+		[, , , , , $rel, $type, , , $value] = $x["d"];
 		if ($rel === "@") {
 			$apexWant[$type] = addr($value);
-			$apexDone[$type] = $x["status"] === "ok" || ($s === $section && strtolower($o) === $object);
+			$apexDone[$type] = $x["status"] === "ok";
 		}
 	}
-	foreach ($results as $x) {
-		[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
-		if ($s !== $section || strtolower($o) !== $object || $x["status"] === "ok") {
-			continue;
-		}
-		$status = $x["status"];
-		$hits = $x["hits"];
-		$note = $delegation !== "" ? $delegation : ($skip[$status] ?? "");
-		if ($status === "cname") {
-			$note = "a CNAME or ALIAS holds the name";
-		}
-		foreach ($hits as $i) {
-			if ($actual[$i][5] === "ctl") {
-				$note = "a record here holds a control character, correct it at the provider";
-			}
-		}
-		if ($note !== "") {
-			out(["skip", $rel, $type, "", $ttl, $value, $note]);
-			continue;
-		}
-		if ($type === "A" || $type === "AAAA") {
-			$want = addr($value);
-			$own = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
-			if ($rel === "www" && $include) {
-				if (($apexWant[$type] ?? null) === $want && ($apexDone[$type] ?? false)) {
-					foreach ($own as $i) {
-						if (addr($actual[$i][4]) !== $want) {
-							out(["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""]);
-						}
-					}
-					continue;
-				}
-				if (isset($apexWant[$type]) || at("@", $type)) {
-					out(["skip", $rel, $type, "", $ttl, $value, "www follows the apex (www include), which differs"]);
-					continue;
+	$ops = [];
+	foreach ([true, false] as $apexPass) {
+		if (!$apexPass) {
+			foreach ($results as $k => $x) {
+				[, , $s, $o, , $rel, $type] = $x["d"];
+				if ($rel === "@" && $s === $section && strtolower($o) === $object && $x["status"] !== "ok") {
+					$apexDone[$type] = !in_array("skip", array_column($ops[$k] ?? [], 0), true);
 				}
 			}
-			$main = null;
-			foreach ($hits as $i) {
-				if ($actual[$i][5] === "main") {
-					$main = $i;
-				}
-			}
-			if ($rel === "@" && $type === "AAAA" && $main !== null) {
-				out(["skip", $rel, $type, "", $ttl, $value, "the main IP holds an IPv6 address"]);
+		}
+		foreach ($results as $k => $x) {
+			[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
+			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object || $x["status"] === "ok") {
 				continue;
 			}
-			$have = false;
-			foreach ($own as $i) {
-				if (addr($actual[$i][4]) === $want) {
-					$have = true;
-				} else {
-					out(["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""]);
-				}
+			$status = $x["status"];
+			$hits = $x["hits"];
+			$note = $delegation !== "" ? $delegation : ($skip[$status] ?? "");
+			if ($status === "cname") {
+				$note = "a CNAME or ALIAS holds the name";
 			}
-			$useMain = $rel === "@" && $type === "A" && ($main !== null || !$own);
-			if ($useMain) {
-				if ($main === null || addr($actual[$main][4]) !== $want) {
-					out(["main", $rel, $type, "", $ttl, $want, ""]);
-				}
-			} elseif (!$have) {
-				out(["add", $rel, $type, "", $ttl, $value, $status === "wildcard" ? "a record of its own beats the wildcard" : ""]);
-			}
-		} elseif ($type === "MX") {
-			$want = (int) $prio . " " . host($value);
-			$have = false;
 			foreach ($hits as $i) {
-				if ((int) $actual[$i][2] . " " . host($actual[$i][4]) === $want) {
-					$have = true;
-				} else {
-					out(["rem", $rel, $type, $actual[$i][2], $actual[$i][3], $actual[$i][6], ""]);
+				if ($actual[$i][5] === "ctl") {
+					$note = "a record here holds a control character, correct it at the provider";
 				}
 			}
-			if (!$have) {
-				out(["add", $rel, $type, $prio, $ttl, host($value), ""]);
+			if ($note !== "") {
+				$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, $note];
+				continue;
 			}
-		} elseif ($type === "TXT") {
-			$want = txt($value);
-			$kind = preg_match('/^v=(spf1|dmarc1|dkim1)\b/i', $want, $m) ? strtolower($m[1]) : "";
-			if (!$hits) {
-				out(["add", $rel, $type, "", $ttl, $want, ""]);
-			} elseif ($kind === "spf1") {
-				if (count($hits) > 1) {
-					out(["skip", $rel, $type, "", $ttl, $value, "more than one SPF record, merge them by hand"]);
-					continue;
-				}
-				$i = $hits[0];
-				$old = txt($actual[$i][4]);
-				$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
-				out(["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""]);
-				out(["add", $rel, $type, "", $t, spf_merge($old, $x["missed"]), "merged into the existing record"]);
-			} elseif ($kind === "dkim1") {
-				foreach ($hits as $i) {
-					if (preg_match('/^v=dkim1\b/i', txt($actual[$i][4]))) {
-						out(["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""]);
+			if ($type === "A" || $type === "AAAA") {
+				$want = addr($value);
+				$own = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
+				if ($rel === "www" && $include) {
+					if (($apexWant[$type] ?? null) === $want && ($apexDone[$type] ?? false)) {
+						foreach ($own as $i) {
+							if (addr($actual[$i][4]) !== $want) {
+								$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+							}
+						}
+						continue;
+					}
+					if (isset($apexWant[$type]) || at("@", $type)) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "www follows the apex (www include), which differs"];
+						continue;
 					}
 				}
-				out(["add", $rel, $type, "", $ttl, $want, ""]);
-			} elseif ($kind === "dmarc1") {
-				out(["skip", $rel, $type, "", $ttl, $value, "more than one DMARC record, remove one by hand"]);
-			} else {
-				out(["skip", $rel, $type, "", $ttl, $value, "a different record of its own holds the name"]);
+				$main = null;
+				foreach ($hits as $i) {
+					if ($actual[$i][5] === "main") {
+						$main = $i;
+					}
+				}
+				if ($rel === "@" && $type === "AAAA" && $main !== null) {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the main IP holds an IPv6 address"];
+					continue;
+				}
+				$have = false;
+				foreach ($own as $i) {
+					if (addr($actual[$i][4]) === $want) {
+						$have = true;
+					} else {
+						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+					}
+				}
+				$useMain = $rel === "@" && $type === "A" && ($main !== null || (!$own && !$mainV6));
+				if ($useMain) {
+					if ($main === null || addr($actual[$main][4]) !== $want) {
+						$ops[$k][] = ["main", $rel, $type, "", $ttl, $want, ""];
+					}
+				} elseif (!$have) {
+					$why = $status === "wildcard" ? "a record of its own beats the wildcard" : "";
+					$ops[$k][] = ["add", $rel, $type, "", $ttl, $value, $why];
+				}
+			} elseif ($type === "MX") {
+				$want = (int) $prio . " " . host($value);
+				$have = false;
+				foreach ($hits as $i) {
+					if ((int) $actual[$i][2] . " " . host($actual[$i][4]) === $want) {
+						$have = true;
+					} else {
+						$ops[$k][] = ["rem", $rel, $type, $actual[$i][2], $actual[$i][3], $actual[$i][6], ""];
+					}
+				}
+				if (!$have) {
+					$ops[$k][] = ["add", $rel, $type, $prio, $ttl, host($value), ""];
+				}
+			} elseif ($type === "TXT") {
+				$want = txt($value);
+				$kind = preg_match('/^v=(spf1|dmarc1|dkim1)\b/i', $want, $m) ? strtolower($m[1]) : "";
+				if (!$hits) {
+					$ops[$k][] = ["add", $rel, $type, "", $ttl, $want, ""];
+				} elseif ($kind === "spf1") {
+					if (count($hits) > 1) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "more than one SPF record, merge them by hand"];
+						continue;
+					}
+					$i = $hits[0];
+					$old = txt($actual[$i][4]);
+					$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
+					$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+					$ops[$k][] = ["add", $rel, $type, "", $t, spf_merge($old, $x["missed"]), "merged into the existing record"];
+				} elseif ($kind === "dkim1") {
+					foreach ($hits as $i) {
+						if (preg_match('/^v=dkim1\b/i', txt($actual[$i][4]))) {
+							$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+						}
+					}
+					$ops[$k][] = ["add", $rel, $type, "", $ttl, $want, ""];
+				} elseif ($kind === "dmarc1") {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "more than one DMARC record, remove one by hand"];
+				} else {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "a different record of its own holds the name"];
+				}
 			}
+		}
+	}
+	ksort($ops);
+	foreach ($ops as $list) {
+		foreach ($list as $op) {
+			out($op);
 		}
 	}
 }

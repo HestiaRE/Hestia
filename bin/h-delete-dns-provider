@@ -23,10 +23,8 @@ check_args '1' "$#" 'ACCOUNT'
 dnsp_account_format_valid "$account"
 [ -f "$DNSP_CONF_DIR/$account.conf" ] || check_result "$E_NOTEXIST" "account $account does not exist"
 
-rm -f "$DNSP_CONF_DIR/$account.conf" "$DNSP_CACHE/$account".{zones,state,last}
-if [ -f "$DNSP_CACHE/status" ]; then
-	awk -F '\t' -v a="$account" '$2 != a' "$DNSP_CACHE/status" | dnsp_write "$DNSP_CACHE/status"
-fi
+rm -f "$DNSP_CONF_DIR/$account.conf" "$DNSP_CACHE/$account".{zones,state,last,last.lock}
+dnsp_locked status dnsp_status_drop "$account"
 
 "$BIN/h-log-action" "system" "Info" "DNS" "DNS provider account deleted (Account: $account)."
 log_event "$OK" "$ARGUMENTS"

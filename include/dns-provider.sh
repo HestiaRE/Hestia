@@ -60,10 +60,13 @@ dnsp_call() {
 	"dnsp_${DNSP_PROVIDER}_$1" "${@:2}"
 }
 
-# dnsp_throttle SECONDS: at least that long between two requests of one account, across processes.
+# dnsp_throttle SECONDS: at least that long between two requests of one account, across processes. The lock is
+# held through the wait, so the next process measures from this request.
 dnsp_throttle() {
-	local f="$DNSP_CACHE/$DNSP_ACCOUNT.last" last now wait
+	local f="$DNSP_CACHE/$DNSP_ACCOUNT.last" last now wait fd
 	dnsp_cache_dir
+	exec {fd}>> "$f.lock"
+	flock "$fd"
 	now=$(date +%s%N)
 	last=$(cat "$f" 2> /dev/null)
 	if [[ "$last" =~ ^[0-9]+$ ]]; then
@@ -71,6 +74,7 @@ dnsp_throttle() {
 		[ -n "$wait" ] && sleep "$wait"
 	fi
 	date +%s%N > "$f"
+	exec {fd}>&-
 }
 
 dnsp_cache_dir() {
@@ -116,13 +120,17 @@ dnsp_zones_refresh() {
 }
 
 # dnsp_zones_fresh: every account's zone list, refreshed when older than a day. Listing a zone never waits on it
-# more than once a day per account.
+# more than once a day per account, and after a failed request not again for ten minutes: every page of the DNS
+# tab lists zones.
 dnsp_zones_fresh() {
-	local a f
+	local a f now state since
+	now=$(date +%s)
 	while IFS= read -r a; do
 		[ -n "$a" ] || continue
 		f="$DNSP_CACHE/$a.zones"
-		[ -f "$f" ] && [ $(($(date +%s) - $(stat -c %Y "$f"))) -lt 86400 ] && continue
+		[ -f "$f" ] && [ $((now - $(stat -c %Y "$f"))) -lt 86400 ] && continue
+		IFS=$'\t' read -r state since _ < "$DNSP_CACHE/$a.state" 2> /dev/null
+		[ "$state" != 'ok' ] && [[ "$since" =~ ^[0-9]+$ ]] && [ $((now - since)) -lt 600 ] && continue
 		dnsp_zones_refresh "$a" > /dev/null 2>&1
 	done <<< "$(dnsp_accounts)"
 	return 0
@@ -130,11 +138,34 @@ dnsp_zones_fresh() {
 
 # dnsp_status_set ZONE ACCOUNT DIFFERENCES: what the last check of a zone found, "error" when it could not run.
 dnsp_status_set() {
+	dnsp_locked status dnsp_status_put "$@"
+}
+
+dnsp_status_put() {
 	local f="$DNSP_CACHE/status"
 	{
 		[ -f "$f" ] && awk -F '\t' -v z="$1" '$1 != z' "$f"
 		printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$(date +%s)"
 	} | dnsp_write "$f"
+}
+
+# dnsp_status_drop ACCOUNT: the status of the account's zones forgotten. Under dnsp_locked status.
+dnsp_status_drop() {
+	local f="$DNSP_CACHE/status"
+	[ -f "$f" ] || return 0
+	awk -F '\t' -v a="$1" '$2 != a' "$f" | dnsp_write "$f"
+}
+
+# dnsp_locked NAME COMMAND...: COMMAND under the lock NAME, against a second process rewriting the same file.
+dnsp_locked() {
+	local fd rc
+	dnsp_cache_dir
+	exec {fd}>> "$DNSP_CACHE/$1.lock"
+	flock "$fd"
+	"${@:2}"
+	rc=$?
+	exec {fd}>&-
+	return "$rc"
 }
 
 # dnsp_mask KEY: enough of a key to tell two apart, never enough to use one.
@@ -143,7 +174,7 @@ dnsp_mask() {
 	if [ "${#k}" -le 12 ]; then
 		echo '****'
 	else
-		echo "${k:0:5}...${k: -4}"
+		echo "...${k: -4}"
 	fi
 }
 

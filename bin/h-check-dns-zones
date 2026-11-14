@@ -3,9 +3,11 @@
 # options: USER [FORMAT]
 #
 # example: h-check-dns-zones admin
+# example: h-check-dns-zones admin background
 #
 # h-check-dns-zone for each of the user's zones a provider account holds, one request per zone at the provider's
 # pace. Lists ZONE ACCOUNT DIFFERENCES, "error" where a zone could not be read; zones without an account are left out.
+# FORMAT background starts the run as a unit of its own and returns: the zone list shows each result as it lands.
 
 user=$1
 format=${2-shell}
@@ -25,6 +27,15 @@ source_conf "$HESTIA/conf/hestia.conf"
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
+
+if [ "$format" = 'background' ]; then
+	# The unit name is the lock: a second start while one runs fails.
+	unit="hestia-dns-check-$(systemd-escape -- "$user")"
+	systemctl is-active --quiet "$unit" && check_result "$E_EXISTS" "a check of the zones of $user is already running"
+	systemd-run --quiet --collect --unit="$unit" "$BIN/h-check-dns-zones" "$user" plain > /dev/null 2>&1 \
+		|| check_result "$E_RESTART" "the check of the zones of $user could not be started"
+	exit
+fi
 
 dnsp_zones_fresh
 dns_user_zones "$user"

@@ -6,7 +6,7 @@
 #
 # Adds an account at an external DNS provider. The key is read from the first line of KEY_FILE, never taken as an
 # argument, so it stays out of the process list and the logs; the panel passes a private temp file. The account is
-# checked against the provider before it is saved, and its zone list is fetched.
+# saved only once the provider took the key and gave its zone list.
 
 account=$1
 provider=$2
@@ -31,8 +31,9 @@ dnsp_driver_exists "$provider" || check_result "$E_INVALID" "unknown provider: $
 [ -e "$DNSP_CONF_DIR/$account.conf" ] && check_result "$E_EXISTS" "account $account already exists"
 
 key=$(head -n1 "$key_file" | tr -d '\r')
-# The key is stored between single quotes and sent in a header: a quote, a blank or a control character breaks both.
-[[ "$key" =~ ^[[:graph:]]{8,512}$ ]] && [[ "$key" != *\'* ]] && [[ "$key" != *\"* ]] \
+# The key is stored between single quotes and sent in a curl config string: a quote, a backslash, a blank or a
+# control character breaks one of them.
+[[ "$key" =~ ^[[:graph:]]{8,512}$ ]] && [[ "$key" != *[\'\"\\]* ]] \
 	|| check_result "$E_INVALID" "the key file holds no usable key"
 
 DNSP_ACCOUNT=$account
@@ -41,10 +42,12 @@ DNSP_KEY=$key
 DNSP_CONTEXT=$context
 # shellcheck source=/usr/local/hestia/include/dns-providers/autodns.sh
 source "$DNSP_DRIVERS/$provider.sh"
-dnsp_call hello
+tmp=$(mktemp) || check_result "$E_DISK" "cannot create a temp file"
+trap 'rm -f "$tmp"' EXIT
+dnsp_call hello && dnsp_call zones > "$tmp"
 rc=$?
 if [ "$rc" != 0 ]; then
-	rm -f "$DNSP_CACHE/$account.last"
+	rm -f "$DNSP_CACHE/$account".{last,last.lock}
 	check_result "$E_CONNECT" "$provider did not accept the account: $DNSP_ERROR"
 fi
 
@@ -57,7 +60,8 @@ time_n_date=$(date +'%T %F')
 ) || check_result "$E_DISK" "cannot write the account $account"
 chmod 600 "$DNSP_CONF_DIR/$account.conf"
 
-dnsp_zones_refresh "$account"
+sed '/^$/d' "$tmp" | dnsp_write "$DNSP_CACHE/$account.zones"
+dnsp_state_set "$account" ok
 zones=$(wc -l < "$DNSP_CACHE/$account.zones" 2> /dev/null)
 
 "$BIN/h-log-action" "system" "Info" "DNS" "DNS provider account added (Account: $account, Provider: $provider, Zones: ${zones:-0})."

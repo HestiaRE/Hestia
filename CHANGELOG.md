@@ -32,9 +32,10 @@ the releases of the command audit, into another.
   the apex address set as the InterNetX main IP; www follows it under the www flag. SPF is merged (the missing
   addresses go in front of its `all`, includes and the qualifier stay), DMARC is only added when there is none, DKIM
   is replaced. A CNAME at the name, a second SPF record or a www that has to differ from the apex under the flag is
-  left alone and says why. Records no row of the section derives are never touched. The zone is read again before
-  the write and nothing goes out if it changed since the preview; afterwards it is read once more and only a zone in
-  line counts as done. New command: `h-sync-dns-zone`.
+  left alone and says why, as is a delegated name or a record holding a control character. Records no row of the
+  section derives are never touched, and nothing is written to a zone the public name servers do not point at. The
+  zone is read again before the write and nothing goes out if it changed since the preview; afterwards it is read
+  once more and only a zone in line counts as done. New command: `h-sync-dns-zone`.
 
 ### Fixed
 

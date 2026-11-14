@@ -7,7 +7,8 @@
 #
 # Without PLAN (or with "preview") the writes that bring the section's rows in line with what HestiaRE derives,
 # and their PLAN id. With that id the writes go out, provided the zone still yields the same plan, and the zone is
-# read again: only an empty plan afterwards counts as done. Records no row of the section consumed are never named.
+# read again: only an empty plan afterwards counts as done. Records no row of the section consumed are never named,
+# and nothing is written to a zone the public name servers do not point at.
 
 user=$1
 zone=$2
@@ -88,6 +89,16 @@ if [ "$plan" = 'preview' ]; then
 fi
 
 [ "$plan" = "$id" ] || check_result "$E_EXISTS" "zone $zone changed since the preview, nothing written: preview again"
+IFS=$'\t' read -r dstate dns_provider dns_public <<< "$(awk -F '\t' '$1 == "delegation" { print $9 "\t" $8 "\t" $10 }' \
+	<<< "$DNSP_CHECK")"
+case $dstate in
+	ok) ;;
+	unchecked) check_result "$E_CONNECT" "public DNS did not answer for the name servers of zone $zone, nothing written" ;;
+	*)
+		msg="zone $zone: the public name servers (${dns_public:-none}) are not those of account $DNSP_ACCOUNT"
+		check_result "$E_FORBIDEN" "$msg (${dns_provider:-none}), nothing written"
+		;;
+esac
 writes=$(awk -F '\t' '$1 == "add" || $1 == "rem"' <<< "$DNSP_PLAN")
 main=$(awk -F '\t' '$1 == "main" { print $6 "\t" $5; exit }' <<< "$DNSP_PLAN")
 n=$(awk -F '\t' '$1 == "add" || $1 == "rem" || $1 == "main" { n++ } END { print n + 0 }' <<< "$DNSP_PLAN")

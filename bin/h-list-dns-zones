@@ -5,7 +5,8 @@
 # example: h-list-dns-zones admin json
 #
 # One entry per zone, never per domain: the sections in it, whether one of them holds the apex, and the users
-# owning them. The zone comes from public DNS until provider accounts exist.
+# owning them. A zone a provider account holds names the account and the result of its last check
+# (h-check-dns-zone); any other zone comes from public DNS.
 
 user=$1
 format=${2-shell}
@@ -18,10 +19,12 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/ip.sh
 # shellcheck source=/usr/local/hestia/include/dns.sh
 source $HESTIA/include/dns.sh
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source $HESTIA/include/dns-provider.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-# ZONE STATE SECTIONS APEX USERS ROWS ALIAS_OF; sections, users and the objects whose aliases the zone carries
-# are comma separated.
+# ZONE STATE SECTIONS APEX USERS ROWS ALIAS_OF ACCOUNT DIFFERENCES CHECKED; sections, users and the objects whose
+# aliases the zone carries are comma separated. DIFFERENCES is a count or "error", empty before the first check.
 zone_list() {
 	dns_sections <<< "$rows" | awk -F '\t' 'BEGIN { OFS = FS }
 		function add(a, t, k, v) { if (!((t, k, v) in seen)) { seen[t, k, v] = 1; a[k] = a[k] (a[k] ? "," : "") v } }
@@ -34,24 +37,32 @@ zone_list() {
 				z = order[i]
 				print z, st[z], s[z], (apex[z] ? "yes" : "no"), u[z], c[z], al[z]
 			}
-		}'
+		}' | awk -F '\t' -v accounts="$DNS_ACCOUNT_ZONES" -v status="$DNSP_CACHE/status" 'BEGIN {
+			OFS = FS
+			n = split(accounts, l, "\n")
+			for (i = 1; i <= n; i++) if (split(l[i], f, "\t") >= 2) acc[f[1]] = f[2]
+			while ((getline line < status) > 0) if (split(line, f, "\t") >= 4) { d[f[1], f[2]] = f[3]; t[f[1], f[2]] = f[4] }
+		}
+		{ a = acc[$1]; print $1, $2, $3, $4, $5, $6, $7, a, (a != "" ? d[$1, a] : ""), (a != "" ? t[$1, a] : "") }'
 }
 
 json_list() {
 	jq -R -n '[inputs | select(length > 0) | split("\t") | {ZONE: .[0], STATE: .[1], SECTIONS: .[2], APEX: .[3],
-		USERS: .[4], ROWS: .[5], ALIAS_OF: (.[6] // "")}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
+		USERS: .[4], ROWS: .[5], ALIAS_OF: (.[6] // ""), ACCOUNT: (.[7] // ""), DIFFERENCES: (.[8] // ""),
+		CHECKED: (.[9] // "")}] | map({(.ZONE): del(.ZONE)}) | add // {}' <<< "$list"
 }
 
 shell_list() {
-	printf 'ZONE\tSTATE\tSECTIONS\tAPEX\tUSERS\tROWS\tALIAS_OF\n'
-	printf -- '----\t-----\t--------\t----\t-----\t----\t--------\n'
-	[ -z "$list" ] || echo "$list"
+	printf 'ZONE\tSTATE\tSECTIONS\tAPEX\tUSERS\tROWS\tALIAS_OF\tACCOUNT\tDIFFERENCES\n'
+	printf -- '----\t-----\t--------\t----\t-----\t----\t--------\t-------\t-----------\n'
+	[ -z "$list" ] || cut -f 1-9 <<< "$list"
 }
 
 check_args '1' "$#" 'USER [FORMAT]'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
+dnsp_zones_fresh
 dns_user_zones "$user"
 zones=$(cut -d ' ' -f 1 <<< "$DNS_USER_ZONES" | tr '\n' ' ')
 rows=$(dns_zone_rows "$zones")

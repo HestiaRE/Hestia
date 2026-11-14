@@ -368,6 +368,7 @@ msgstr "A Chave SSH foi criada com sucesso."
 
 #: web/add/mail/index.php web/templates/pages/add_mail_acc.php
 #: web/templates/pages/edit_mail_acc.php
+#: web/templates/pages/list_dns_providers.php
 msgid "Account"
 msgstr "Conta"
 
@@ -872,7 +873,16 @@ msgstr "Desconhecido"
 
 #: web/list/dns/index.php
 #, php-format
+msgid "Account %s has been added."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
 msgid "No DNS zone found for %s."
+msgstr ""
+
+#: web/list/dns/index.php
+msgid "The zones are being compared in the background. Each result shows up here as it lands."
 msgstr ""
 
 #: web/login/index.php
@@ -1262,7 +1272,7 @@ msgstr "Utilizadores"
 msgid "WEB"
 msgstr "WEB"
 
-#: web/templates/includes/panel.php
+#: web/templates/includes/panel.php web/templates/pages/list_dns_providers.php
 msgid "Zones"
 msgstr ""
 
@@ -2831,6 +2841,7 @@ msgstr "Raiz do documento personalizado"
 #: web/templates/pages/edit_web.php web/templates/pages/list_backup.php
 #: web/templates/pages/list_backup_incremental.php
 #: web/templates/pages/list_cron.php web/templates/pages/list_db.php
+#: web/templates/pages/list_dns_providers.php
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_banlist.php
 #: web/templates/pages/list_firewall_exclude.php
@@ -3394,8 +3405,19 @@ msgstr "Cancelar suspensão de todos"
 msgid "read-only"
 msgstr "apenas leitura"
 
+#: web/templates/pages/list_dns.php
+#, php-format
+msgid "%d difference"
+msgid_plural "%d differences"
+msgstr[0] ""
+msgstr[1] ""
+
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_zone.php
 msgid "Alias"
+msgstr ""
+
+#: web/templates/pages/list_dns.php
+msgid "Check Zones"
 msgstr ""
 
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
@@ -3415,7 +3437,8 @@ msgstr "Email"
 msgid "No web or mail domain of this user lies in a DNS zone."
 msgstr ""
 
-#: web/templates/pages/list_dns.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Provider"
 msgstr ""
 
@@ -3449,7 +3472,19 @@ msgid "Zone"
 msgstr ""
 
 #: web/templates/pages/list_dns.php
+msgid "in sync"
+msgstr ""
+
+#: web/templates/pages/list_dns.php
 msgid "no account"
+msgstr ""
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
+msgid "not checked yet"
+msgstr ""
+
+#: web/templates/pages/list_dns.php
+msgid "not readable"
 msgstr ""
 
 #: web/templates/pages/list_dns.php
@@ -3457,8 +3492,84 @@ msgid "only subdomains"
 msgstr ""
 
 #: web/templates/pages/list_dns_providers.php
-msgid "No provider account yet. Accounts come with the first provider driver; until then every zone lists its records to enter by hand."
+msgid "API Key"
 msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "Add Account"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+#, php-format
+msgid "Are you sure you want to delete the account %s? Nothing changes at the provider."
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "Check"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "Context"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "InterNetX: a key from User management > API with the rights DNS zone query, 0202002 (zone stream) and DNS zone update (bulk). Leave DNS zone update itself off."
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "Key"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "Lower case letters, digits, - and _, up to 32 characters."
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "No provider account yet. Without one every zone lists its records to enter by hand."
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
+#: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
+#: web/templates/pages/list_server_preview.php
+msgid "Status"
+msgstr "Estado"
+
+#: web/templates/pages/list_dns_providers.php
+msgid "The key is checked with the provider before the account is saved. It is stored for root only and is not part of any backup."
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+#, php-format
+msgid "context %s"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "key refused"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+msgid "not reachable"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_dns_zone.php
+msgid "ok"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "%d record elsewhere in the zone, outside the names of this server."
+msgid_plural "%d records elsewhere in the zone, outside the names of this server."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "%d record no object on this server derives. HestiaRE never changes it."
+msgid_plural "%d records no object on this server derives. HestiaRE never changes them."
+msgstr[0] ""
+msgstr[1] ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Alias of"
@@ -3472,6 +3583,26 @@ msgstr ""
 msgid "As zone file lines"
 msgstr ""
 
+#: web/templates/pages/list_dns_zone.php
+msgid "At the provider"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "CNAME"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Nothing is changed at the provider."
+msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Nothing is changed at the provider."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "Compared with account %s just now: every record HestiaRE derives is in place."
+msgstr ""
+
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "IP or Value"
 msgstr "IP ou Valor"
@@ -3480,9 +3611,29 @@ msgstr "IP ou Valor"
 msgid "No provider account holds this zone. Enter the records at the provider by hand."
 msgstr ""
 
+#: web/templates/pages/list_dns_zone.php
+msgid "Nobody reads this zone at the provider: the public name servers of the domain are not those of the account. After a move the zone is often left behind there."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "None."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Other records at the provider"
+msgstr ""
+
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "Priority"
 msgstr "Prioridade"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Public DNS"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Public DNS did not answer for the name servers of this zone: whether anyone reads it at the provider is not known."
+msgstr ""
 
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "Record"
@@ -3493,12 +3644,37 @@ msgid "TTL"
 msgstr "TTL"
 
 #: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "The zone could not be read from account %s. Only the records HestiaRE derives are shown."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Whole zone"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "delegated"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "different"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "missing"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "unchecked"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "user %s"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "wildcard"
 msgstr ""
 
 #: web/templates/pages/list_files_incremental.php
@@ -3710,12 +3886,6 @@ msgstr "Jail"
 #: web/templates/pages/list_firewall_jail.php
 msgid "Log File"
 msgstr "Ficheiro de registo"
-
-#: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
-#: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
-#: web/templates/pages/list_server_preview.php
-msgid "Status"
-msgstr "Estado"
 
 #: web/templates/pages/list_firewall_jail.php
 msgid "There are currently no jails configured."

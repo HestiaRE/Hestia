@@ -1,0 +1,59 @@
+#!/bin/bash
+# info: list DNS provider accounts
+# options: [FORMAT]
+#
+# example: h-list-dns-providers json
+#
+# The accounts with their provider, a masked key, the state of the last contact and the number of zones they hold.
+# DRIVERS in the json head names the providers an account can be added for.
+
+format=${1-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+# ACCOUNT PROVIDER CONTEXT KEY STATE CHECKED ZONES MESSAGE DATE TIME, tab separated.
+rows() {
+	local a line state checked msg zones
+	while IFS= read -r a; do
+		[ -n "$a" ] || continue
+		line=$(tr '\n' ' ' < "$DNSP_CONF_DIR/$a.conf")
+		state='' checked='' msg=''
+		[ -f "$DNSP_CACHE/$a.state" ] && IFS=$'\t' read -r state checked msg < "$DNSP_CACHE/$a.state"
+		zones=0
+		[ -f "$DNSP_CACHE/$a.zones" ] && zones=$(grep -c . "$DNSP_CACHE/$a.zones")
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$a" "$(dns_kv PROVIDER "$line")" "$(dns_kv CONTEXT "$line")" \
+			"$(dnsp_mask "$(dns_kv KEY "$line")")" "${state:-unchecked}" "$checked" "$zones" "$msg" \
+			"$(dns_kv DATE "$line")" "$(dns_kv TIME "$line")"
+	done <<< "$(dnsp_accounts)"
+}
+
+json_list() {
+	jq -R -n --arg drivers "$(dnsp_drivers | paste -sd, -)" '{DRIVERS: $drivers, ACCOUNTS: ([inputs | select(length > 0)
+		| split("\t") | {(.[0]): {PROVIDER: .[1], CONTEXT: .[2], KEY: .[3], STATE: .[4], CHECKED: .[5], ZONES: .[6],
+		MESSAGE: .[7], DATE: .[8], TIME: .[9]}}] | add // {})}' <<< "$list"
+}
+
+shell_list() {
+	printf 'ACCOUNT\tPROVIDER\tCONTEXT\tKEY\tSTATE\tZONES\tDATE\n'
+	printf -- '-------\t--------\t-------\t---\t-----\t-----\t----\n'
+	[ -z "$list" ] || cut -f 1-5,7,9 <<< "$list"
+}
+
+list=$(rows)
+
+case $format in
+	json) json_list ;;
+	plain) [ -z "$list" ] || echo "$list" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+exit

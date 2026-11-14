@@ -6,6 +6,43 @@ $dns_section_labels = [
 	"alias" => _("Alias"),
 	"server" => _("Server"),
 ];
+$dns_status_labels = [
+	"ok" => ["fa-circle-check icon-green", _("ok")],
+	"missing" => ["fa-circle-plus icon-orange", _("missing")],
+	"different" => ["fa-triangle-exclamation icon-orange", _("different")],
+	"cname" => ["fa-triangle-exclamation icon-orange", _("CNAME")],
+	"wildcard" => ["fa-triangle-exclamation icon-orange", _("wildcard")],
+	"delegated" => ["fa-circle-pause icon-dim", _("delegated")],
+	"unchecked" => ["fa-circle-question icon-dim", _("unchecked")],
+];
+// The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them.
+$dns_provider_rows = function (array $rows): void {
+	?>
+	<div class="units-table js-units-container u-mb10">
+		<div class="units-table-header">
+			<div class="units-table-cell"><?= tohtml(_("Record")) ?></div>
+			<div class="units-table-cell u-text-center"><?= tohtml(_("Type")) ?></div>
+			<div class="units-table-cell u-text-center"><?= tohtml(_("Priority")) ?></div>
+			<div class="units-table-cell u-text-center"><?= tohtml(_("TTL")) ?></div>
+			<div class="units-table-cell"><?= tohtml(_("IP or Value")) ?></div>
+		</div>
+		<?php foreach ($rows as $r) { ?>
+			<div class="units-table-row js-unit">
+				<div class="units-table-cell u-text-break"><?= tohtml($r["NAME"]) ?></div>
+				<div class="units-table-cell u-text-bold u-text-center-desktop"><?= tohtml($r["TYPE"]) ?></div>
+				<div class="units-table-cell u-text-center-desktop"><?= tohtml($r["PRIORITY"]) ?></div>
+				<div class="units-table-cell u-text-center-desktop"><?= tohtml($r["TTL"]) ?></div>
+				<div class="units-table-cell u-text-break">
+					<?= tohtml($r["VALUE"]) ?>
+					<?php if (($r["NOTE"] ?? "") !== "") { ?>
+						<br><span class="u-text-muted u-text-small"><?= tohtml($r["NOTE"]) ?></span>
+					<?php } ?>
+				</div>
+			</div>
+		<?php } ?>
+	</div>
+	<?php
+};
 ?>
 <!-- Begin toolbar -->
 <div class="toolbar">
@@ -24,15 +61,53 @@ $dns_section_labels = [
 
 	<h1 class="u-mt20 u-mb20"><?= tohtml($v_zone) ?></h1>
 
-	<div class="alert alert-info u-mb20" role="alert">
-		<i class="fas fa-exclamation"></i>
-		<div>
-			<p><?= tohtml(_("No provider account holds this zone. Enter the records at the provider by hand.")) ?></p>
-			<?php if ($v_state === "unknown") { ?>
-				<p><?= tohtml(_("Public DNS does not know this zone. Its sections are grouped under the shortest domain on this server.")) ?></p>
-			<?php } ?>
+	<?php if ($v_account === "") { ?>
+		<div class="alert alert-info u-mb20" role="alert">
+			<i class="fas fa-exclamation"></i>
+			<div>
+				<p><?= tohtml(_("No provider account holds this zone. Enter the records at the provider by hand.")) ?></p>
+				<?php if ($v_state === "unknown") { ?>
+					<p><?= tohtml(_("Public DNS does not know this zone. Its sections are grouped under the shortest domain on this server.")) ?></p>
+				<?php } ?>
+			</div>
 		</div>
-	</div>
+	<?php } elseif (!$v_checked) { ?>
+		<div class="alert alert-danger u-mb20" role="alert">
+			<i class="fas fa-exclamation"></i>
+			<div>
+				<p><?= tohtml(sprintf(_("The zone could not be read from account %s. Only the records HestiaRE derives are shown."), $v_account)) ?></p>
+				<?php if ($v_check_error !== "") { ?>
+					<p><?= tohtml($v_check_error) ?></p>
+				<?php } ?>
+			</div>
+		</div>
+	<?php } elseif ($v_differences === 0) { ?>
+		<div class="alert alert-success u-mb20" role="alert">
+			<i class="fas fa-check"></i>
+			<p><?= tohtml(sprintf(_("Compared with account %s just now: every record HestiaRE derives is in place."), $v_account)) ?></p>
+		</div>
+	<?php } else { ?>
+		<div class="alert alert-info u-mb20" role="alert">
+			<i class="fas fa-exclamation"></i>
+			<p><?= tohtml(sprintf(ngettext("Compared with account %2\$s just now: %1\$d record differs from what HestiaRE derives. Nothing is changed at the provider.", "Compared with account %2\$s just now: %1\$d records differ from what HestiaRE derives. Nothing is changed at the provider.", $v_differences), $v_differences, $v_account)) ?></p>
+		</div>
+	<?php } ?>
+	<?php if ($v_delegation !== null && $v_delegation["STATUS"] !== "ok") { ?>
+		<div class="alert alert-danger u-mb20" role="alert">
+			<i class="fas fa-triangle-exclamation"></i>
+			<div>
+				<?php if ($v_delegation["STATUS"] === "unchecked") { ?>
+					<p><?= tohtml(_("Public DNS did not answer for the name servers of this zone: whether anyone reads it at the provider is not known.")) ?></p>
+				<?php } else { ?>
+					<p><?= tohtml(_("Nobody reads this zone at the provider: the public name servers of the domain are not those of the account. After a move the zone is often left behind there.")) ?></p>
+				<?php } ?>
+				<p class="u-text-small">
+					<?= tohtml(_("Provider")) ?>: <?= tohtml($v_delegation["VALUE"] !== "" ? $v_delegation["VALUE"] : "-") ?><br>
+					<?= tohtml(_("Public DNS")) ?>: <?= tohtml($v_delegation["ACTUAL"] !== "" ? $v_delegation["ACTUAL"] : "-") ?>
+				</p>
+			</div>
+		</div>
+	<?php } ?>
 
 	<?php
 	$anchored = [];
@@ -74,6 +149,9 @@ foreach ($sections as $s) {
 				<div class="units-table-cell u-text-center"><?= tohtml(_("Priority")) ?></div>
 				<div class="units-table-cell u-text-center"><?= tohtml(_("TTL")) ?></div>
 				<div class="units-table-cell"><?= tohtml(_("IP or Value")) ?></div>
+				<?php if ($v_checked) { ?>
+					<div class="units-table-cell"><?= tohtml(_("At the provider")) ?></div>
+				<?php } ?>
 			</div>
 			<?php foreach ($s["rows"] as $r) { ?>
 				<div class="units-table-row js-unit">
@@ -97,6 +175,20 @@ foreach ($sections as $s) {
 						<label class="u-hide-desktop u-text-bold"><?= tohtml(_("IP or Value")) ?>:</label>
 						<input type="text" class="form-control" readonly value="<?= tohtml($r["VALUE"]) ?>">
 					</div>
+					<?php if ($v_checked) {
+						[$icon, $label] = $dns_status_labels[$r["STATUS"]] ?? ["fa-circle-question icon-dim", $r["STATUS"]];
+						?>
+						<div class="units-table-cell u-text-break">
+							<span class="u-hide-desktop u-text-bold"><?= tohtml(_("At the provider")) ?>:</span>
+							<i class="fas <?= tohtml($icon) ?> u-mr5" title="<?= tohtml($label) ?>"></i><span class="u-text-bold"><?= tohtml($label) ?></span>
+							<?php if ($r["ACTUAL"] !== "" && $r["STATUS"] !== "ok") { ?>
+								<br><?= tohtml($r["ACTUAL"]) ?>
+							<?php } ?>
+							<?php if (($r["NOTE"] ?? "") !== "") { ?>
+								<br><span class="u-text-muted u-text-small"><?= tohtml($r["NOTE"]) ?></span>
+							<?php } ?>
+						</div>
+					<?php } ?>
 				</div>
 			<?php } ?>
 		</div>
@@ -104,6 +196,24 @@ foreach ($sections as $s) {
 			<summary><?= tohtml(_("As zone file lines")) ?></summary>
 			<textarea class="form-control u-console" readonly rows="<?= count($s["rows"]) + 1 ?>"><?= tohtml($s["text"]) ?></textarea>
 		</details>
+	<?php } ?>
+
+	<?php if ($v_checked) { ?>
+		<h2 class="u-mt20 u-mb10"><?= tohtml(_("Other records at the provider")) ?></h2>
+		<?php if ($foreign) { ?>
+			<details class="u-mb20">
+				<summary><?= tohtml(sprintf(ngettext("%d record no object on this server derives. HestiaRE never changes it.", "%d records no object on this server derives. HestiaRE never changes them.", count($foreign)), count($foreign))) ?></summary>
+				<?php $dns_provider_rows($foreign); ?>
+			</details>
+		<?php } else { ?>
+			<p class="u-mb20"><?= tohtml(_("None.")) ?></p>
+		<?php } ?>
+		<?php if ($hidden) { ?>
+			<details class="u-mb20">
+				<summary><?= tohtml(sprintf(ngettext("%d record elsewhere in the zone, outside the names of this server.", "%d records elsewhere in the zone, outside the names of this server.", count($hidden)), count($hidden))) ?></summary>
+				<?php $dns_provider_rows($hidden); ?>
+			</details>
+		<?php } ?>
 	<?php } ?>
 
 	<?php if (count($sections) > 1) { ?>

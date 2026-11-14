@@ -15,9 +15,14 @@ the releases of the command audit, into another.
 
 ### Fixed
 
-- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With ifupdown, as on Debian,
-  the address is still tentative (duplicate address detection) when the web servers start, and both bind it by name.
-  The kernel now lets them bind it (`net.ipv6.ip_nonlocal_bind`); an update entry sets it on existing boxes.
+- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the
+  Debian installer's default, the address is still tentative (duplicate address detection) when the web servers start,
+  and both bind it by name. The kernel now lets them bind it (`net.ipv6.ip_nonlocal_bind`); an update entry sets it on
+  existing boxes and starts a web server the race took down.
+- **A Let's Encrypt rate limit held the installer for hours** (#1346). curl slept out the `Retry-After` of the 429,
+  in the installer, the panel's SSL switch and the renewal. The waits are bounded now, the error names the limit and
+  when to retry, and the nightly renewal no longer counts it towards the 30 failures after which a domain is dropped.
+  The installer shows the actual reason.
 
 ## v0.33 (2026-11-14)
 

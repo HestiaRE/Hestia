@@ -131,13 +131,26 @@ function dig(string $name, string $type): array
 		return [];
 	}
 	$out = [];
-	$cmd = "timeout " . min(5, $left) . " dig +short +time=2 +tries=1 " . escapeshellarg($name) . " "
-		. escapeshellarg($type);
+	$cmd = "timeout " . min(5, $left) . " dig +noall +answer +comments +time=2 +tries=1 " . escapeshellarg($name)
+		. " " . escapeshellarg($type);
 	exec("$cmd 2>/dev/null", $out, $rc);
-	if ($rc !== 0) {
+	// rc is 0 on SERVFAIL as well, only the header tells; the answer also carries the CNAMEs on the way.
+	$status = "";
+	$vals = [];
+	foreach ($out as $l) {
+		if (preg_match('/status: ([A-Z]+)/', $l, $m)) {
+			$status = $m[1];
+		} elseif ($l !== "" && $l[0] !== ";") {
+			$f = preg_split('/\s+/', $l, 5) ?: [];
+			if (count($f) === 5 && strtoupper($f[3]) === $type) {
+				$vals[] = $f[4];
+			}
+		}
+	}
+	if ($rc !== 0 || ($status !== "NOERROR" && $status !== "NXDOMAIN")) {
 		Dig::$failed = true;
 	}
-	return array_values(array_filter($out, fn ($l) => $l !== "" && !str_starts_with($l, ";")));
+	return $vals;
 }
 
 function in_cidr(string $ip, string $net, ?int $len): bool
@@ -447,7 +460,7 @@ foreach ($desired as $d) {
 						}
 					}
 					$status = $missed ? (Dig::failed() ? "unchecked" : "different") : "ok";
-					$why = Dig::failed() ? "public DNS did not answer in time" : "does not authorise " . implode(", ", $missed);
+					$why = Dig::failed() ? "public DNS did not answer" : "does not authorise " . implode(", ", $missed);
 					$note = $missed ? $why : "";
 				}
 			} elseif ($kind === "dmarc1") {

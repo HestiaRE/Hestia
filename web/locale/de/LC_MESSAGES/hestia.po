@@ -3661,8 +3661,8 @@ msgstr "CNAME"
 #, php-format
 msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Sync shows a section's writes before anything changes."
 msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Sync shows a section's writes before anything changes."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eben mit Konto %2$s verglichen: %1$d Record weicht von dem ab, was HestiaRE ableitet. Abgleichen zeigt die Schreibvorgänge eines Abschnitts, bevor sich etwas ändert."
+msgstr[1] "Eben mit Konto %2$s verglichen: %1$d Records weichen von dem ab, was HestiaRE ableitet. Abgleichen zeigt die Schreibvorgänge eines Abschnitts, bevor sich etwas ändert."
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format

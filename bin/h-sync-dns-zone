@@ -8,7 +8,8 @@
 # Without PLAN (or with "preview") the writes that bring the section's rows in line with what HestiaRE derives,
 # and their PLAN id. With that id the writes go out, provided the zone still yields the same plan, and the zone is
 # read again: only an empty plan afterwards counts as done. Records no row of the section consumed are never named,
-# and nothing is written to a zone the public name servers do not point at.
+# and nothing is written to a zone the public name servers do not point at. Every write is logged before it goes
+# out, with the stored value of each record it removes, in /var/log/hestia/dns-sync.log.
 
 user=$1
 zone=$2
@@ -43,6 +44,18 @@ shell_list() {
 }
 
 # check_failed RC: dnsp_check_zone's failure as the command's.
+# sync_log OP...: one line of what went to the provider, before it went, with each rem's stored value: the removed
+# records exist nowhere else afterwards.
+sync_log() {
+	(
+		umask 077
+		IFS=$'\t'
+		line="$*"
+		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%F %T')" "$zone" "$section" "$object" "$DNSP_ACCOUNT" "$id" \
+			"${line//$'\n'/ }" >> "$SYNC_LOG"
+	)
+}
+
 check_failed() {
 	case $1 in
 		3) check_result "$E_NOTEXIST" "no provider account holds zone $zone" ;;
@@ -67,6 +80,14 @@ esac
 
 zone=$(dns_ascii "$zone")
 object=${object,,}
+SYNC_LOG=/var/log/hestia/dns-sync.log
+if [ "$plan" != 'preview' ]; then
+	# One write per zone at a time: a second click with the same id waits, reads the written zone and no longer
+	# matches its plan.
+	dnsp_cache_dir
+	exec {lockfd}>> "$DNSP_CACHE/sync-$zone.lock"
+	flock "$lockfd"
+fi
 dnsp_zones_fresh
 dns_load
 dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" -v s="$section" -v o="$object" \
@@ -107,6 +128,11 @@ n=$(awk -F '\t' '$1 == "add" || $1 == "rem" || $1 == "main" { n++ } END { print 
 	exit
 }
 
+skips=$(awk -F '\t' '$1 == "skip" { print $2 "\t" $3 }' <<< "$DNSP_PLAN" | sort -u)
+while IFS= read -r line; do
+	[ -n "$line" ] && sync_log "$line"
+done <<< "$(awk -F '\t' 'BEGIN { OFS = FS } $1 != "skip" { print $1, $2, $3, $4, $5, $6 }' <<< "$DNSP_PLAN")"
+
 tmp=$(mktemp) || check_result "$E_DISK" "cannot create a temp file"
 printf '%s\n' "$writes" > "$tmp"
 if [ -n "$writes" ]; then
@@ -115,6 +141,7 @@ if [ -n "$writes" ]; then
 	if [ "$rc" != 0 ]; then
 		rm -f "$tmp"
 		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
+		sync_log "result" "records refused: $DNSP_ERROR"
 		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR"
 		check_result "$E_CONNECT" "the provider did not take the records of zone $zone: $DNSP_ERROR"
 	fi
@@ -126,18 +153,35 @@ if [ -n "$main" ]; then
 	rc=$?
 	if [ "$rc" != 0 ]; then
 		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
+		sync_log "result" "main IP refused${writes:+ (the records went out)}: $DNSP_ERROR"
 		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR"
 		check_result "$E_CONNECT" "the provider did not take the main IP of zone $zone${writes:+ (the records went out)}: $DNSP_ERROR"
 	fi
 fi
 
-dnsp_check_zone "$zone" "$section" "$object" || check_failed $?
-left=$(awk -F '\t' '$1 != "skip"' <<< "$DNSP_PLAN")
+dnsp_check_zone "$zone" "$section" "$object" || {
+	rc=$?
+	sync_log "result" "written, but the zone could not be read back"
+	check_failed "$rc"
+}
+# A skip is no proof of a write: a lookup that did not answer turns rows into skips. So the delegation has to be
+# ok again, and only the rows that were skips before the write may be skips now.
+dstate=$(awk -F '\t' '$1 == "delegation" { print $9 }' <<< "$DNSP_CHECK")
+if [ "$dstate" != 'ok' ]; then
+	sync_log "result" "written, read back not verified: delegation ${dstate:-missing}"
+	"$BIN/h-log-action" "system" "Error" "DNS" "DNS zone write not verified (Zone: $zone, Section: $section $object)."
+	check_result "$E_CONNECT" "zone $zone written, the read-back is not verified: delegation ${dstate:-missing}"
+fi
+left=$(awk -F '\t' -v s="$skips" 'BEGIN { n = split(s, l, "\n"); for (i = 1; i <= n; i++) if (l[i] != "") k[l[i]] = 1 }
+	$1 != "skip" || !(($2 "\t" $3) in k)' <<< "$DNSP_PLAN")
 if [ -n "$left" ]; then
+	sync_log "result" "not in line after the write"
 	"$BIN/h-log-action" "system" "Error" "DNS" "DNS zone write not in line (Zone: $zone, Section: $section $object)."
-	check_result "$E_CONNECT" "zone $zone is not in line after the write, still to do: $(awk -F '\t' '{ printf "%s%s %s %s %s", NR > 1 ? "; " : "", $1, $2, $3, $6 }' <<< "$left")"
+	todo=$(awk -F '\t' '{ printf "%s%s %s %s %s", (NR > 1 ? "; " : ""), $1, $2, $3, $6 }' <<< "$left")
+	check_result "$E_CONNECT" "zone $zone is not in line after the write, still to do: $todo"
 fi
 
+sync_log "result" "in line, $n change(s)"
 echo "zone $zone: $section $object in line, $n change(s) written"
 "$BIN/h-log-action" "system" "Info" "DNS" "DNS zone written (Zone: $zone, Section: $section $object, Changes: $n)."
 log_event "$OK" "$ARGUMENTS"

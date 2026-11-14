@@ -180,16 +180,18 @@ dnsp_mask() {
 	fi
 }
 
-# dnsp_check_zone ZONE: the zone's desired rows (dns_zone_rows) against what its account holds, into DNSP_CHECK as
-# dns-compare.php prints it, and the number of differing rows into DNSP_DIFFS and the status cache. rc 3 when no
-# account holds the zone, else as dnsp_call. Needs dns.sh.
+# dnsp_check_zone ZONE [SECTION OBJECT]: the zone's desired rows (dns_zone_rows) against what its account holds,
+# into DNSP_CHECK as dns-compare.php prints it, and the number of differing rows into DNSP_DIFFS and the status
+# cache; with SECTION and OBJECT the writes for that section from the same read into DNSP_PLAN. DNSP_REF names the
+# zone at the provider. rc 3 when no account holds the zone, else as dnsp_call. Needs dns.sh.
 dnsp_check_zone() {
 	local zone="$1" account ref desired rc tmp apex=no
-	DNSP_CHECK='' DNSP_DIFFS=''
+	DNSP_CHECK='' DNSP_DIFFS='' DNSP_PLAN='' DNSP_REF=''
 	dns_load
 	read -r account ref <<< "$(dns_zone_account "$zone")"
 	[ -n "$account" ] || return 3
 	dnsp_load "$account" || return 3
+	DNSP_REF=$ref
 	desired=$(dns_zone_rows "$zone" | dns_sections)
 	tmp=$(mktemp -d) || return 2
 	dnsp_call records "$zone" "$ref" > "$tmp/actual"
@@ -204,6 +206,11 @@ dnsp_check_zone() {
 	printf '%s\n' "$desired" > "$tmp/desired"
 	DNSP_CHECK=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" < /dev/null)
 	rc=$?
+	if [ "$rc" = 0 ] && [ -n "${3-}" ]; then
+		DNSP_PLAN=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" "$2" "$3" \
+			< /dev/null)
+		rc=$?
+	fi
 	rm -rf "$tmp"
 	[ "$rc" = 0 ] || return 2
 	DNSP_DIFFS=$(awk -F '\t' '$1 != "foreign" && $1 != "hidden" && $9 != "ok" { n++ } END { print n + 0 }' <<< "$DNSP_CHECK")

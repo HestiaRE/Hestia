@@ -4333,6 +4333,15 @@
       "note": "The DNS tab's provider page (#1308)."
     },
     {
+      "path": "templates/pages/list_dns_sync.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-13",
+      "divergence": null,
+      "note": "The DNS tab's sync preview of one zone section (#1333)."
+    },
+    {
       "path": "templates/pages/list_dns_zone.php",
       "source_type": "eigenbau",
       "upstream_path": null,

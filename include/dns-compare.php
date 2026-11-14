@@ -1,21 +1,26 @@
 <?php
 
-// Desired against actual records of one zone, for h-check-dns-zone.
-//   dns-compare.php ZONE DESIRED ACTUAL APEX
+// Desired against actual records of one zone, for h-check-dns-zone and h-sync-dns-zone.
+//   dns-compare.php ZONE DESIRED ACTUAL APEX [SECTION OBJECT]
 // DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE); ACTUAL: driver rows
-// (REL TYPE PRIORITY TTL VALUE FLAG); APEX yes when an object on the box holds the zone apex.
+// (REL TYPE PRIORITY TTL VALUE FLAG RAW); APEX yes when an object on the box holds the zone apex.
 // Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE: the zone's delegation (SECTION
 // delegation: public name servers against the provider's), the desired rows, then every record no desired row
 // consumed (SECTION foreign, or hidden outside the box's names in a zone without apex).
 // Per type: A/AAAA as an address, MX as priority and target, SPF by whether it authorises the desired addresses,
 // DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
 // a check it cut short is "unchecked", never "different".
+// With SECTION and OBJECT the writes that bring that section in line instead, "OP REL TYPE PRIORITY TTL VALUE
+// NOTE": add, rem (VALUE as stored), main (the apex address), skip (left alone, NOTE says why). A rem only ever
+// names a record a desired row of the section consumed, so no foreign record is touched, and nothing is written
+// to a zone the public name servers do not point at.
 
-if (PHP_SAPI !== "cli" || $argc < 5) {
-	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX\n");
+if (PHP_SAPI !== "cli" || ($argc !== 5 && $argc !== 7)) {
+	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX [SECTION OBJECT]\n");
 	exit(1);
 }
 [, $zone, $desiredFile, $actualFile, $apex] = $argv;
+$planFor = $argc === 7 ? [$argv[5], strtolower($argv[6])] : null;
 $zone = strtolower(rtrim($zone, "."));
 
 /** @return list<list<string>> */
@@ -57,7 +62,7 @@ function txt(string $v): string
 }
 
 $desired = tsv($desiredFile, 10);
-$actual = tsv($actualFile, 6);
+$actual = tsv($actualFile, 7);
 $used = [];
 // The time public DNS has left in this run, and whether a lookup since the last reset went unanswered.
 final class Dig
@@ -331,6 +336,170 @@ function out(array $f): void
 	echo implode("\t", array_map(fn ($v) => str_replace(["\t", "\n"], " ", (string) $v), $f)), "\n";
 }
 
+// SPF record REC with the addresses MISSED right behind v=spf1: the first matching mechanism decides, so anything
+// later, a "-ip4" or "~a" as well as the all, could still reject them.
+/** @param list<string> $missed */
+function spf_merge(string $rec, array $missed): string
+{
+	$terms = preg_split('/\s+/', trim($rec)) ?: [];
+	$add = array_map(fn ($ip) => (str_contains($ip, ":") ? "ip6:" : "ip4:") . $ip, $missed);
+	array_splice($terms, 1, 0, $add);
+	return implode(" ", $terms);
+}
+
+// The writes for one section, as the header describes. $results as the compare loop collects them.
+/** @param list<array{d: list<string>, status: string, hits: list<int>, missed: list<string>}> $results */
+function plan(array $results, string $section, string $object, string $delegation): void
+{
+	global $actual;
+	$skip = [
+		"delegated" => "a delegated name, the zone does not answer for it",
+		"unchecked" => "public DNS did not answer, check again",
+	];
+	$include = false;
+	foreach ($actual as $r) {
+		$include = $include || $r[5] === "include";
+	}
+	$mainV6 = false;
+	foreach ($actual as $r) {
+		$mainV6 = $mainV6 || ($r[0] === "@" && $r[1] === "AAAA" && $r[5] === "main");
+	}
+	// The desired apex per type, and whether it will be in line once this plan ran: ok already, or planned here
+	// without a skip. The apex rows are planned first so www can ask; the ops come out in the rows' order.
+	$apexWant = [];
+	$apexDone = [];
+	foreach ($results as $x) {
+		[, , , , , $rel, $type, , , $value] = $x["d"];
+		if ($rel === "@") {
+			$apexWant[$type] = addr($value);
+			$apexDone[$type] = $x["status"] === "ok";
+		}
+	}
+	$ops = [];
+	foreach ([true, false] as $apexPass) {
+		if (!$apexPass) {
+			foreach ($results as $k => $x) {
+				[, , $s, $o, , $rel, $type] = $x["d"];
+				if ($rel === "@" && $s === $section && strtolower($o) === $object && $x["status"] !== "ok") {
+					$apexDone[$type] = !in_array("skip", array_column($ops[$k] ?? [], 0), true);
+				}
+			}
+		}
+		foreach ($results as $k => $x) {
+			[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
+			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object || $x["status"] === "ok") {
+				continue;
+			}
+			$status = $x["status"];
+			$hits = $x["hits"];
+			$note = $delegation !== "" ? $delegation : ($skip[$status] ?? "");
+			if ($status === "cname") {
+				$note = "a CNAME or ALIAS holds the name";
+			}
+			foreach ($hits as $i) {
+				if ($actual[$i][5] === "ctl") {
+					$note = "a record here holds a control character, correct it at the provider";
+				}
+			}
+			if ($note !== "") {
+				$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, $note];
+				continue;
+			}
+			if ($type === "A" || $type === "AAAA") {
+				$want = addr($value);
+				$own = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
+				if ($rel === "www" && $include) {
+					if (($apexWant[$type] ?? null) === $want && ($apexDone[$type] ?? false)) {
+						foreach ($own as $i) {
+							if (addr($actual[$i][4]) !== $want) {
+								$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+							}
+						}
+						continue;
+					}
+					if (isset($apexWant[$type]) || at("@", $type)) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "www follows the apex (www include), which differs"];
+						continue;
+					}
+				}
+				$main = null;
+				foreach ($hits as $i) {
+					if ($actual[$i][5] === "main") {
+						$main = $i;
+					}
+				}
+				if ($rel === "@" && $type === "AAAA" && $main !== null) {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the main IP holds an IPv6 address"];
+					continue;
+				}
+				$have = false;
+				foreach ($own as $i) {
+					if (addr($actual[$i][4]) === $want) {
+						$have = true;
+					} else {
+						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+					}
+				}
+				$useMain = $rel === "@" && $type === "A" && ($main !== null || (!$own && !$mainV6));
+				if ($useMain) {
+					if ($main === null || addr($actual[$main][4]) !== $want) {
+						$ops[$k][] = ["main", $rel, $type, "", $ttl, $want, ""];
+					}
+				} elseif (!$have) {
+					$why = $status === "wildcard" ? "a record of its own beats the wildcard" : "";
+					$ops[$k][] = ["add", $rel, $type, "", $ttl, $value, $why];
+				}
+			} elseif ($type === "MX") {
+				$want = (int) $prio . " " . host($value);
+				$have = false;
+				foreach ($hits as $i) {
+					if ((int) $actual[$i][2] . " " . host($actual[$i][4]) === $want) {
+						$have = true;
+					} else {
+						$ops[$k][] = ["rem", $rel, $type, $actual[$i][2], $actual[$i][3], $actual[$i][6], ""];
+					}
+				}
+				if (!$have) {
+					$ops[$k][] = ["add", $rel, $type, $prio, $ttl, host($value), ""];
+				}
+			} elseif ($type === "TXT") {
+				$want = txt($value);
+				$kind = preg_match('/^v=(spf1|dmarc1|dkim1)\b/i', $want, $m) ? strtolower($m[1]) : "";
+				if (!$hits) {
+					$ops[$k][] = ["add", $rel, $type, "", $ttl, $want, ""];
+				} elseif ($kind === "spf1") {
+					if (count($hits) > 1) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "more than one SPF record, merge them by hand"];
+						continue;
+					}
+					$i = $hits[0];
+					$old = txt($actual[$i][4]);
+					$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
+					$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+					$ops[$k][] = ["add", $rel, $type, "", $t, spf_merge($old, $x["missed"]), "merged into the existing record"];
+				} elseif ($kind === "dkim1") {
+					foreach ($hits as $i) {
+						if (preg_match('/^v=dkim1\b/i', txt($actual[$i][4]))) {
+							$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+						}
+					}
+					$ops[$k][] = ["add", $rel, $type, "", $ttl, $want, ""];
+				} elseif ($kind === "dmarc1") {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "more than one DMARC record, remove one by hand"];
+				} else {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "a different record of its own holds the name"];
+				}
+			}
+		}
+	}
+	ksort($ops);
+	foreach ($ops as $list) {
+		foreach ($list as $op) {
+			out($op);
+		}
+	}
+}
+
 // A zone the public name servers do not point at is no zone anyone reads, however well it matches.
 $ns = [];
 foreach (at("@", "NS") as $i) {
@@ -353,13 +522,23 @@ if (Dig::failed()) {
 	$status = array_diff($public, $ns) ? "different" : "ok";
 	$note = $status === "ok" ? "" : "the public name servers are not the provider's";
 }
-out(["delegation", $zone, "", "@", "NS", "", "", implode(" ", $ns), $status, implode(" ", $public), $note]);
+$delegation = match ($status) {
+	"ok" => "",
+	"unchecked" => "public DNS did not answer for the zone's name servers",
+	default => "the public name servers are not the provider's, nothing is written",
+};
+if ($planFor === null) {
+	out(["delegation", $zone, "", "@", "NS", "", "", implode(" ", $ns), $status, implode(" ", $public), $note]);
+}
 
+/** @var list<array{d: list<string>, status: string, hits: list<int>, missed: list<string>}> $results */
+$results = [];
 foreach ($desired as $d) {
 	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value] = $d;
 	$status = "missing";
 	$shown = [];
 	$hits = [];
+	$missed = [];
 	$note = "";
 	$cut = delegated($rel);
 	Dig::$failed = false;
@@ -483,7 +662,15 @@ foreach ($desired as $d) {
 		$status = $status === "ok" ? "different" : $status;
 		$note = trim("$note; $ctl", "; ");
 	}
-	out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note]);
+	$results[] = ["d" => $d, "status" => $status, "hits" => $hits, "missed" => $missed];
+	if ($planFor === null) {
+		out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note]);
+	}
+}
+
+if ($planFor !== null) {
+	plan($results, $planFor[0], $planFor[1], $delegation);
+	exit(0);
 }
 
 // The names the box derives in this zone (ASCII, unlike OBJECT): in a zone without apex only records at or below

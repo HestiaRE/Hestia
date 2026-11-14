@@ -4,10 +4,12 @@
 //   dns-compare.php ZONE DESIRED ACTUAL APEX
 // DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE); ACTUAL: driver rows
 // (REL TYPE PRIORITY TTL VALUE FLAG); APEX yes when an object on the box holds the zone apex.
-// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE, the desired rows first, then every
-// record no desired row consumed (SECTION foreign, or hidden outside the box's names in a zone without apex).
+// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE: the zone's delegation (SECTION
+// delegation: public name servers against the provider's), the desired rows, then every record no desired row
+// consumed (SECTION foreign, or hidden outside the box's names in a zone without apex).
 // Per type: A/AAAA as an address, MX as priority and target, SPF by whether it authorises the desired addresses,
-// DMARC on existence, DKIM and other TXT exactly after joining; TTL never.
+// DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
+// a check it cut short is "unchecked", never "different".
 
 if (PHP_SAPI !== "cli" || $argc < 5) {
 	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX\n");
@@ -57,6 +59,19 @@ function txt(string $v): string
 $desired = tsv($desiredFile, 10);
 $actual = tsv($actualFile, 6);
 $used = [];
+// The time public DNS has left in this run, and whether a lookup since the last reset went unanswered.
+final class Dig
+{
+	public static float $deadline = 0;
+	public static bool $failed = false;
+
+	/** @phpstan-impure */
+	public static function failed(): bool
+	{
+		return self::$failed;
+	}
+}
+Dig::$deadline = microtime(true) + 10;
 
 // Indexes of actual rows at REL, optionally of one type.
 /** @return list<int> */
@@ -105,7 +120,20 @@ function resolve(string $name, string $type): array
 /** @return list<string> */
 function dig(string $name, string $type): array
 {
-	exec("timeout 5 dig +short +time=2 +tries=1 " . escapeshellarg($name) . " " . escapeshellarg($type) . " 2>/dev/null", $out);
+	// The names come from records of third parties: dig would read "@host" as a server and "-x" as an option.
+	if (strlen($name) > 253 || str_contains($name, "..") || !preg_match('/^[a-z0-9_]([a-z0-9_.-]*[a-z0-9_])?\.?$/i', $name)) {
+		return [];
+	}
+	$left = (int) ceil(Dig::$deadline - microtime(true));
+	if ($left <= 0) {
+		Dig::$failed = true;
+		return [];
+	}
+	$out = [];
+	exec("timeout " . min(5, $left) . " dig +short +time=2 +tries=1 " . escapeshellarg($name) . " " . escapeshellarg($type) . " 2>/dev/null", $out, $rc);
+	if ($rc !== 0) {
+		Dig::$failed = true;
+	}
 	return array_values(array_filter($out, fn ($l) => $l !== "" && !str_starts_with($l, ";")));
 }
 
@@ -226,14 +254,59 @@ function spf_record(string $name): ?string
 	return null;
 }
 
-// The wildcard that would answer REL if REL had no record at all.
+// Whether REL is a node of the zone: a record at it or below it (an empty non-terminal answers too).
+function node(string $rel): bool
+{
+	global $actual;
+	if ($rel === "@") {
+		return true;
+	}
+	foreach ($actual as $r) {
+		if ($r[0] === $rel || str_ends_with($r[0], ".$rel")) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The wildcard that answers REL, "" when REL is a node itself: the one below the closest node above it.
 function wildcard_for(string $rel): string
 {
-	if ($rel === "@") {
+	if (node($rel)) {
 		return "";
 	}
-	$p = strpos($rel, ".");
-	return $p === false ? "*" : "*." . substr($rel, $p + 1);
+	for ($p = $rel; ($i = strpos($p, ".")) !== false;) {
+		$p = substr($p, $i + 1);
+		if (node($p)) {
+			return "*.$p";
+		}
+	}
+	return "*";
+}
+
+// The delegated name REL is at or below, "" when the zone answers for it.
+function delegated(string $rel): string
+{
+	global $actual;
+	foreach ($actual as $r) {
+		if ($r[1] === "NS" && $r[0] !== "@" && ($rel === $r[0] || str_ends_with($rel, "." . $r[0]))) {
+			return $r[0];
+		}
+	}
+	return "";
+}
+
+// A note for provider rows the driver blanked control characters in.
+/** @param list<int> $rows */
+function ctl_note(array $rows): string
+{
+	global $actual;
+	foreach ($rows as $i) {
+		if ($actual[$i][5] === "ctl") {
+			return "holds a control character, shown as a blank";
+		}
+	}
+	return "";
 }
 
 /** @param list<string|int> $f */
@@ -242,12 +315,42 @@ function out(array $f): void
 	echo implode("\t", array_map(fn ($v) => str_replace(["\t", "\n"], " ", (string) $v), $f)), "\n";
 }
 
+// A zone the public name servers do not point at is no zone anyone reads, however well it matches.
+$ns = [];
+foreach (at("@", "NS") as $i) {
+	if ($actual[$i][5] === "ns") {
+		$used[$i] = true;
+		$ns[] = host($actual[$i][4]);
+	}
+}
+$ns = array_values(array_unique($ns));
+sort($ns);
+$public = array_values(array_unique(array_map("host", dig($zone, "NS"))));
+sort($public);
+if (Dig::failed()) {
+	$status = "unchecked";
+	$note = "public DNS did not answer";
+} elseif (!$public) {
+	$status = "different";
+	$note = "public DNS names no name servers for the zone";
+} else {
+	$status = array_diff($public, $ns) ? "different" : "ok";
+	$note = $status === "ok" ? "" : "the public name servers are not the provider's";
+}
+out(["delegation", $zone, "", "@", "NS", "", "", implode(" ", $ns), $status, implode(" ", $public), $note]);
+
 foreach ($desired as $d) {
 	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value] = $d;
 	$status = "missing";
 	$shown = [];
+	$hits = [];
 	$note = "";
-	if ($type === "A" || $type === "AAAA") {
+	$cut = delegated($rel);
+	Dig::$failed = false;
+	if ($cut !== "") {
+		$status = "delegated";
+		$note = "delegated to " . implode(", ", array_map(fn ($i) => $actual[$i][4], at($cut, "NS"))) . ": not answered by this zone";
+	} elseif ($type === "A" || $type === "AAAA") {
 		$want = addr($value);
 		$hits = at($rel, $type);
 		if ($hits) {
@@ -266,15 +369,15 @@ foreach ($desired as $d) {
 		} else {
 			$via = "";
 			$vals = [];
-			$cn = at($rel, "CNAME");
+			$cn = at($rel, "CNAME") ?: at($rel, "ALIAS");
 			$wc = wildcard_for($rel);
 			if ($cn) {
 				$used[$cn[0]] = true;
-				$via = "CNAME";
+				$via = $actual[$cn[0]][1];
 				$target = $actual[$cn[0]][4];
-				$shown[] = "CNAME $target";
+				$shown[] = "$via $target";
 				$vals = resolve($target, $type);
-			} elseif (!at($rel) && $wc !== "" && (at($wc, $type) || at($wc, "CNAME"))) {
+			} elseif ($wc !== "" && (at($wc, $type) || at($wc, "CNAME"))) {
 				$via = "wildcard $wc";
 				$w = at($wc, $type);
 				if ($w) {
@@ -288,10 +391,17 @@ foreach ($desired as $d) {
 			}
 			if ($via !== "") {
 				$match = array_values(array_unique($vals)) === [$want];
-				$status = $match ? "ok" : ($via === "CNAME" ? "cname" : "wildcard");
+				$status = $match ? "ok" : (str_starts_with($via, "wildcard") ? "wildcard" : "cname");
 				$note = "via $via" . ($vals ? " -> " . implode(", ", $vals) : "");
 			}
 		}
+	} elseif (at($rel, "CNAME")) {
+		// Beside a CNAME no other record can stand, so this one cannot be added there.
+		$cn = at($rel, "CNAME");
+		$used[$cn[0]] = true;
+		$shown[] = "CNAME " . $actual[$cn[0]][4];
+		$status = "cname";
+		$note = "a CNAME holds the name, no $type can stand beside it";
 	} elseif ($type === "MX") {
 		$want = (int) $prio . " " . host($value);
 		$hits = at($rel, "MX");
@@ -332,11 +442,12 @@ foreach ($desired as $d) {
 							$missed[] = $ip;
 						}
 					}
-					$status = $missed ? "different" : "ok";
-					$note = $missed ? "does not authorise " . implode(", ", $missed) : "";
+					$status = $missed ? (Dig::failed() ? "unchecked" : "different") : "ok";
+					$note = !$missed ? "" : (Dig::failed() ? "public DNS did not answer in time" : "does not authorise " . implode(", ", $missed));
 				}
 			} elseif ($kind === "dmarc1") {
-				$status = "ok";
+				$status = count($hits) > 1 ? "different" : "ok";
+				$note = count($hits) > 1 ? "more than one DMARC record (receivers ignore all of them)" : "";
 			} else {
 				$norm = fn ($s) => preg_replace('/\s+/', "", $s);
 				$status = "different";
@@ -348,13 +459,20 @@ foreach ($desired as $d) {
 			}
 		}
 	}
+	// A blanked value is not the stored one, so it never counts as in place.
+	$ctl = ctl_note($hits);
+	if ($ctl !== "") {
+		$status = $status === "ok" ? "different" : $status;
+		$note = trim("$note; $ctl", "; ");
+	}
 	out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note]);
 }
 
-// The names of the box's objects in this zone: in a zone without apex only records at or below them are shown.
+// The names the box derives in this zone (ASCII, unlike OBJECT): in a zone without apex only records at or below
+// them are shown.
 $own = [];
 foreach ($desired as $d) {
-	$own[strtolower($d[3])] = true;
+	$own[fqdn($d[5], $zone)] = true;
 }
 foreach ($actual as $i => $r) {
 	if (isset($used[$i])) {
@@ -365,6 +483,6 @@ foreach ($actual as $i => $r) {
 	foreach (array_keys($own) as $o) {
 		$mine = $mine || $name === $o || str_ends_with($name, ".$o");
 	}
-	$note = $r[5] === "main" ? "main IP" : ($r[5] === "include" ? "follows the apex (www include)" : "");
+	$note = $r[5] === "main" ? "main IP" : ($r[5] === "include" ? "follows the apex (www include)" : ctl_note([$i]));
 	out([$mine ? "foreign" : "hidden", "", "", $r[0], $r[1], $r[2], $r[3], $r[4], "foreign", "", $note]);
 }

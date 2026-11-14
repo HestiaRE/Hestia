@@ -12,6 +12,8 @@ $dns_status_labels = [
 	"different" => ["fa-triangle-exclamation icon-orange", _("different")],
 	"cname" => ["fa-triangle-exclamation icon-orange", _("CNAME")],
 	"wildcard" => ["fa-triangle-exclamation icon-orange", _("wildcard")],
+	"delegated" => ["fa-circle-pause icon-dim", _("delegated")],
+	"unchecked" => ["fa-circle-question icon-dim", _("unchecked")],
 ];
 // The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them.
 $dns_provider_rows = function (array $rows): void {
@@ -88,6 +90,22 @@ $dns_provider_rows = function (array $rows): void {
 		<div class="alert alert-info u-mb20" role="alert">
 			<i class="fas fa-exclamation"></i>
 			<p><?= tohtml(sprintf(ngettext("Compared with account %2\$s just now: %1\$d record differs from what HestiaRE derives. Nothing is changed at the provider.", "Compared with account %2\$s just now: %1\$d records differ from what HestiaRE derives. Nothing is changed at the provider.", $v_differences), $v_differences, $v_account)) ?></p>
+		</div>
+	<?php } ?>
+	<?php if ($v_delegation !== null && $v_delegation["STATUS"] !== "ok") { ?>
+		<div class="alert alert-danger u-mb20" role="alert">
+			<i class="fas fa-triangle-exclamation"></i>
+			<div>
+				<?php if ($v_delegation["STATUS"] === "unchecked") { ?>
+					<p><?= tohtml(_("Public DNS did not answer for the name servers of this zone: whether anyone reads it at the provider is not known.")) ?></p>
+				<?php } else { ?>
+					<p><?= tohtml(_("Nobody reads this zone at the provider: the public name servers of the domain are not those of the account. After a move the zone is often left behind there.")) ?></p>
+				<?php } ?>
+				<p class="u-text-small">
+					<?= tohtml(_("Provider")) ?>: <?= tohtml($v_delegation["VALUE"] !== "" ? $v_delegation["VALUE"] : "-") ?><br>
+					<?= tohtml(_("Public DNS")) ?>: <?= tohtml($v_delegation["ACTUAL"] !== "" ? $v_delegation["ACTUAL"] : "-") ?>
+				</p>
+			</div>
 		</div>
 	<?php } ?>
 

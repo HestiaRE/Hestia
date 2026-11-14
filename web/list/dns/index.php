@@ -81,11 +81,15 @@ if (isset($_GET["providers"])) {
 	dns_provider_count($accounts);
 	render_page($user, $TAB, "list_dns_providers");
 } elseif (isset($_GET["check"])) {
-	// Every zone of the shown user an account holds, one request each at the provider's pace.
+	// Every zone of the shown user an account holds, one request each at the provider's pace: in the background,
+	// thirty zones take most of a minute.
 	verify_csrf($_GET);
-	exec(HESTIA_CMD . "h-check-dns-zones " . $user . " json", $output, $return_var);
+	exec(HESTIA_CMD . "h-check-dns-zones " . $user . " background", $output, $return_var);
 	check_return_code($return_var, $output);
 	unset($output);
+	if (empty($_SESSION["error_msg"])) {
+		$_SESSION["ok_msg"] = tohtml(_("The zones are being compared in the background. Each result shows up here as it lands."));
+	}
 	header("Location: /list/dns/");
 	exit();
 } elseif (isset($_GET["domain"])) {
@@ -119,6 +123,7 @@ if (isset($_GET["providers"])) {
 	$v_check_error = "";
 	$foreign = [];
 	$hidden = [];
+	$v_delegation = null;
 	if ($v_account !== "") {
 		exec(HESTIA_CMD . "h-check-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json", $output, $return_var);
 		$checked = json_decode(implode("", $output), true);
@@ -126,7 +131,9 @@ if (isset($_GET["providers"])) {
 			$v_checked = true;
 			$records = [];
 			foreach ($checked as $r) {
-				if ($r["SECTION"] === "foreign") {
+				if ($r["SECTION"] === "delegation") {
+					$v_delegation = $r;
+				} elseif ($r["SECTION"] === "foreign") {
 					$foreign[] = $r;
 				} elseif ($r["SECTION"] === "hidden") {
 					$hidden[] = $r;

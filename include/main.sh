@@ -1716,14 +1716,73 @@ looks_like_ip46() {
 	[ "$($HESTIA_PHP -r '$ip=$argv[1]; echo (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_IPV6) ? 0 : 1);' "$1")" = 0 ]
 }
 
-# The box's IPv4 as the outside sees it; nothing and rc 1 when the responder fails or answers anything but a
-# public address. One source for h-update-sys-ip and the installer, keep tools/ip-responder on docs in step.
+# The box's IPv4 as the outside sees it, for traffic from source address $1 when given; nothing and rc 1 when
+# the responder fails or answers anything but a public address. Keep tools/ip-responder on docs in step.
 public_ipv4() {
-	local a
-	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 https://ip.hestiare.com/ 2> /dev/null) || return 1
+	local a src=()
+	[ -n "${1-}" ] && src=(--interface "$1")
+	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 "${src[@]}" https://ip.hestiare.com/ 2> /dev/null) || return 1
 	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP,
 		FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? 0 : 1;' -- "$a")" = 0 ] || return 1
 	printf '%s\n' "$a"
+}
+
+# Field $2 (prefsrc|dev) of the route the kernel picks towards the internet for family $1 (4|6): the address the
+# box speaks from and its NIC, so what a new object defaults to. Empty without such a route.
+sys_main_route() {
+	local dst=8.8.8.8
+	[ "$1" = 6 ] && dst=2606:4700:4700::1111
+	ip -"$1" -j route get "$dst" 2> /dev/null | jq -r --arg f "$2" '.[0][$f] // empty' 2> /dev/null || true
+}
+
+# NAT of every v4 record, probed with that record as source: one probe along the default route only speaks for
+# the address it left from. Answer = own address clears, another public one not on the box sets, no answer keeps.
+# Clears run first, so a stale NAT cannot block the record it belongs to; a NAT another record holds stays there.
+# The main address goes first: of several records behind one public address it takes the NAT, as new domains do.
+# rc 0 with a NAT on the box afterwards, 1 without, 2 when no probe answered at all.
+nat_detect() {
+	local f g addr pub held main order='' answered=1
+	local -A ans=()
+	main=$(sys_main_route 4 prefsrc)
+	for f in "$CONF_DIR"/ips/*; do
+		[ -f "$f" ] || continue
+		addr=${f##*/}
+		case "$addr" in *:*) continue ;; esac
+		pub=$(public_ipv4 "$addr") || continue
+		answered=0
+		ans[$addr]=$pub
+		if [ "$addr" = "$main" ]; then
+			order="$addr $order"
+		else
+			order="$order $addr"
+		fi
+	done
+	for addr in $order; do
+		[ "${ans[$addr]}" = "$addr" ] && nat_set "$addr" ''
+	done
+	for addr in $order; do
+		pub=${ans[$addr]}
+		[ "$pub" = "$addr" ] || [ -e "$CONF_DIR/ips/$pub" ] && continue
+		held=''
+		for g in "$CONF_DIR"/ips/*; do
+			[ -f "$g" ] || continue
+			[ "${g##*/}" != "$addr" ] && grep -qxF "NAT='$pub'" "$g" && held=1 && break
+		done
+		[ -n "$held" ] || nat_set "$addr" "$pub"
+	done
+	[ "$answered" = 0 ] || return 2
+	for f in "$CONF_DIR"/ips/*; do
+		[ -f "$f" ] || continue
+		grep -q "^NAT='[^']" "$f" && return 0
+	done
+	return 1
+}
+
+# NAT of IP record $1 to $2 (empty clears), only when it differs: the change command rewrites the records naming it.
+nat_set() {
+	local cur
+	cur=$(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$CONF_DIR/ips/$1" | head -n1)
+	[ "$cur" = "$2" ] || "$BIN/h-change-sys-ip-nat" "$1" "$2" > /dev/null 2>&1
 }
 
 # A NAT address goes stale without the boot run. Added once, so a re-run keeps the admin's lines; only a bare

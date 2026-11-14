@@ -394,12 +394,6 @@ web_model_sentinel_check() {
 	return 1
 }
 
-# The snapshots hold every customer's TLS and DKIM keys.
-web_model_snap_dir_apply() {
-	[ -d "$WEB_MODEL_SNAP_DIR" ] || return 0
-	chmod 700 "$WEB_MODEL_SNAP_DIR"
-}
-
 web_model_snapshot() {
 	local snap="$1" u
 	mkdir -p "$WEB_MODEL_SNAP_DIR" && chmod 700 "$WEB_MODEL_SNAP_DIR" && mkdir -p "$snap" || return 1

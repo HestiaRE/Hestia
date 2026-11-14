@@ -1,0 +1,51 @@
+--- exim4.conf.template
++++ exim4.conf.template
+@@ -373,6 +373,14 @@
+ ######################################################################
+ begin routers
+ 
++# The one place a failed forward bounces to: never the sender of what was forwarded, who is forged often enough,
++# and never an address that forwards again, which loops. .invalid is reserved and never a real domain.
++forward_errors:
++  driver = accept
++  domains = forward-errors.invalid
++  local_parts = bounce
++  transport = devnull
++
+ # The box addresses its own mail - cron, the panel's notifications - to root@<hostname> or to the
+ # admin contact at <hostname>. That is not a HestiaRE mail domain, so it fell through to dnslookup
+ # and was handed to whatever host answers for the hostname: measured "454 relay access denied" and
+@@ -512,12 +520,18 @@
+     allow_fail
+     data = :fail: Invalid SRS recipient address
+ 
++ALIAS_TARGETS = ${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
++CATCHALL_TARGETS = ${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
++
+ aliases:
+   driver = redirect
++  # Only with an external target: on a local copy errors_to becomes the Return-Path, which a vacation answers.
++  # A list with both still gives its local copies this one.
++  errors_to = ${if forany{<, ALIAS_TARGETS}{!match_domain{${domain:$item}}{+local_domains}}{bounce@forward-errors.invalid}fail}
+   local_part_suffix = +*
+   local_part_suffix_optional
+   headers_add = X-redirected: yes
+-  data = ${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
++  data = ALIAS_TARGETS
+   require_files = /etc/exim4/domains/$domain/aliases
+   redirect_router = dnslookup
+   pipe_transport = address_pipe
+@@ -553,11 +567,12 @@
+ 
+ catchall:
+   driver = redirect
++  errors_to = ${if forany{<, CATCHALL_TARGETS}{!match_domain{${domain:$item}}{+local_domains}}{bounce@forward-errors.invalid}fail}
+   local_part_suffix = +*
+   local_part_suffix_optional
+   headers_add = X-redirected: yes
+   require_files = /etc/exim4/domains/$domain/aliases
+-  data = ${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
++  data = CATCHALL_TARGETS
+   file_transport = local_delivery
+   redirect_router = dnslookup
+   condition = ${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}{false}{true}}

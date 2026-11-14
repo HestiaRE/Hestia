@@ -584,20 +584,6 @@ login_defs_guard() {
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
 # The overlay copies the tree and nothing else: what sits outside it, or came from apt, stays old.
 
-# proftpd.conf is operator surface, so a line goes in rather than the whole file over it. A failed test puts the
-# file back, so it still lacks the line and the next update retries.
-proftpd_conf_line_add() { # DIRECTIVE LINE
-	local f='/etc/proftpd/proftpd.conf' bak
-	grep -q "^$1[[:space:]]" "$f" && return 0
-	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
-	if ! sed -i "/^DefaultRoot[[:space:]]/a $2" "$f" || ! proftpd -t > /dev/null 2>&1; then
-		cp -p "$bak" "$f"
-		rm -f "$bak"
-		return 1
-	fi
-	rm -f "$bak"
-}
-
 # Debian's installer stores false for the enable question when nobody picked an update policy, so the package would
 # install switched off. Only before the first install: a box that has the package keeps its own answer.
 unattended_upgrades_preseed() {
@@ -636,16 +622,6 @@ sury_unattended_apply() {
 	chmod 644 "$f"
 }
 
-proftpd_chroot_symlinks_apply() {
-	local f='/etc/proftpd/proftpd.conf'
-	grep -q '^DefaultRoot[[:space:]]' "$f" 2> /dev/null || return 0
-	proftpd_conf_line_add AllowChrootSymlinks 'AllowChrootSymlinks          off' || return 1
-	grep -q '^AllowChrootSymlinks[[:space:]]*off' "$f" || return 1
-	proftpd -t > /dev/null 2>&1 || return 1
-	systemctl -q is-active proftpd 2> /dev/null || return 0
-	systemctl restart proftpd
-}
-
 # The host certificate back to what the installer writes. Only a failed proftpd is started again (a key exim owned
 # kept it from starting under AppArmor on Ubuntu 26.04); one stopped on purpose stays stopped. The files are the
 # entry's job: a proftpd that fails for another reason is a hint, never a halted update.
@@ -656,29 +632,6 @@ host_cert_owner_apply() {
 	systemctl restart proftpd > /dev/null 2>&1 \
 		|| echo "[ ! ] proftpd still does not start, and the certificate is no longer the reason: journalctl -u proftpd"
 	return 0
-}
-
-proftpd_systemlog_apply() {
-	grep -q '^DefaultRoot[[:space:]]' /etc/proftpd/proftpd.conf 2> /dev/null || return 0
-	proftpd_conf_line_add SystemLog 'SystemLog                       /var/log/proftpd/proftpd.log' || return 1
-	systemctl -q is-active proftpd 2> /dev/null || return 0
-	systemctl restart proftpd
-}
-
-# An nginx alias location without its slash took every customer path starting with the alias. A failed test puts
-# the old file back, so the reload never meets a broken include.
-pma_proxy_nginx_apply() {
-	local f='/etc/nginx/conf.d/phpmyadmin.inc' bak
-	[ -f "$f" ] || return 0
-	bak=$(mktemp) && cp -p "$f" "$bak" || return 1
-	if ! pma_proxy_include_write nginx || ! nginx -t > /dev/null 2>&1; then
-		cp -p "$bak" "$f"
-		rm -f "$bak"
-		return 1
-	fi
-	rm -f "$bak"
-	systemctl -q is-active nginx 2> /dev/null || return 0
-	systemctl reload nginx
 }
 
 # panel_caddy_site_edit SED CHECK: in place, never a copy, since the site carries the panel port. An edit that
@@ -730,46 +683,8 @@ panel_session_cleanup_apply() {
 	chmod 755 "$_dst"
 }
 
-# DB_SYSTEM is empty until the db stage, so an older install stripped both drivers and customer PHP
-# reached no database. Only the two packages: a full h-add-web-php re-run rewrites live pool configs.
-php_db_drivers_apply() {
-	local v d want=""
-	while read -r v; do
-		[ -n "$v" ] || continue
-		for d in mysql pgsql; do
-			[ "$(dpkg-query -W -f='${db:Status-Status}' "php$v-$d" 2> /dev/null)" = installed ] || want="$want php$v-$d"
-		done
-	done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
-	[ -n "$want" ] || return 0
-	# A halfway-killed apt makes the next one refuse, for a reason two runs old.
-	dpkg --configure -a > /dev/null 2>&1
-	# shellcheck disable=SC2086 # the list is built from validated version numbers, one package per word
-	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install $want > /dev/null 2>&1
-	# apt's rc covers the whole run, so ask dpkg per package.
-	for v in $want; do
-		[ "$(dpkg-query -W -f='${db:Status-Status}' "$v" 2> /dev/null)" = installed ] || return 1
-	done
-}
-
-# os_single installs never ran h-add-web-php (#1069): distro php.ini with exec() open to customers, the www pool
-# live. bcmath is what only that command installs, so a version without it was never configured by us.
-php_versions_configure_apply() {
-	local v rc=0
-	while read -r v; do
-		[ -n "$v" ] || continue
-		[ "$(dpkg-query -W -f='${db:Status-Status}' "php$v-bcmath" 2> /dev/null)" = installed ] && continue
-		"$BIN/h-add-web-php" "$v" > /dev/null 2>&1 || {
-			rc=1
-			continue
-		}
-		# php.ini and the dropped www pool take effect only on a reload.
-		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || rc=1
-	done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
-	return "$rc"
-}
-
-# redis, igbinary and mcrypt joined the set (#1069). Packages only, like php_db_drivers_apply; whatever else of the
-# set a version lacks comes along.
+# redis, igbinary and mcrypt joined the set (#1069). Packages only; whatever else of the set a version
+# lacks comes along.
 php_modules_apply() {
 	local v p miss want="" touched=""
 	while read -r v; do
@@ -797,16 +712,6 @@ php_modules_apply() {
 	done
 }
 
-# The CLI carried FPM's 21 pcntl_* entries, so occ and the Magento indexers could not fork (#1069). Only the exact
-# line h-add-web-php wrote: an edited one belongs to whoever edited it. Same string as the 0.23 manifest entry.
-php_cli_pcntl_apply() {
-	local f old='disable_functions = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority'
-	for f in /etc/php/*/cli/php.ini; do
-		[ -e "$f" ] || continue
-		sed -i "s/^${old}\$/disable_functions =/" "$f" || return 1
-	done
-}
-
 # Same for the ionCube loader.
 ioncube_pin_apply() {
 	"$BIN/h-add-sys-ioncube" > /dev/null 2>&1
@@ -815,73 +720,6 @@ ioncube_pin_apply() {
 # The update path calls no h-add-sys-* of its own, so a moved pin reaches an installed box only here.
 tachyon_pin_apply() {
 	"$BIN/h-add-sys-tachyon" > /dev/null 2>&1
-}
-
-# LMTP delivery for the sieve addon (#596), the part an update has to reach: the package and the
-# config live outside the install tree, so the overlay never sees them.
-sieve_lmtp_apply() {
-	local dcdir ver
-	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2) || return 1
-	[ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = "2.4" ] && dcdir="$HESTIA/share/dovecot/2.4" || dcdir="$HESTIA/share/dovecot/2.3"
-	dpkg --configure -a > /dev/null 2>&1
-	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install dovecot-lmtpd > /dev/null 2>&1
-	[ "$(dpkg-query -W -f='${db:Status-Status}' dovecot-lmtpd 2> /dev/null)" = installed ] || return 1
-	cp -f "$dcdir/sieve/25-lmtp.conf" /etc/dovecot/conf.d/ || return 1
-	systemctl restart dovecot || return 1
-	# Two checks, because neither alone is worth much. systemctl returns when systemd calls the
-	# unit started, not when the listener is bound; and the socket FILE outlives a dovecot that
-	# cannot serve lmtp at all, so its presence proves nothing on its own (measured: it was still
-	# there after purging dovecot-lmtpd). The protocol list says the config took, the socket says
-	# exim has something to connect to.
-	local _t
-	for _t in $(seq 1 25); do
-		if [ -S /run/dovecot/lmtp ] && doveconf -h protocols 2> /dev/null | grep -qw lmtp; then
-			return 0
-		fi
-		sleep 0.2
-	done
-	echo "ERROR: dovecot restarted but lmtp is not being served within 5s"
-	return 1
-}
-
-# 90-sieve.conf is not panel surface and no addon writes it, so the tree copy replaces it whole.
-sieve_conf_copy() {
-	local dcdir ver
-	ver=$(dovecot --version 2> /dev/null | cut -d. -f1,2) || return 1
-	[ "$(printf '%s\n2.4' "$ver" | sort -V | head -1)" = "2.4" ] && dcdir="$HESTIA/share/dovecot/2.4" || dcdir="$HESTIA/share/dovecot/2.3"
-	cp -f "$dcdir/sieve/90-sieve.conf" /etc/dovecot/conf.d/ || return 1
-	systemctl restart dovecot
-}
-
-# Sieve redirects keep an SPF-safe envelope sender (#1095).
-sieve_redirect_apply() {
-	sieve_conf_copy || return 1
-	doveconf -n 2> /dev/null | grep -q '^ *sieve_redirect_envelope_from = orig_recipient'
-}
-
-# The vacation answers alias and catch-all mail like exim's autoreply (#784). The setting's name and polarity differ
-# between pigeonhole for 2.3 and 2.4.
-sieve_vacation_apply() {
-	sieve_conf_copy || return 1
-	doveconf -n 2> /dev/null | grep -qE '^ *sieve_vacation_(dont_check_recipient = yes|check_recipient = no)$'
-}
-
-# Compiled here because the imap process runs as the customer and cannot write the .svbin next to it.
-sieve_learn_ham_apply() {
-	install -m 644 "$HESTIA/share/dovecot/sieve-learn/report-ham.sieve" /etc/dovecot/sieve/report-ham.sieve || return 1
-	sievec /etc/dovecot/sieve/report-ham.sieve
-}
-
-# ManageSieve on loopback only, the webmails reach it there. Taken back when dovecot does not start with it.
-sieve_managesieve_local_apply() {
-	local f=/etc/dovecot/conf.d/20-managesieve.conf
-	# shellcheck source=/usr/local/hestia/include/sieve.sh
-	source "$HESTIA/include/sieve.sh" || return 1
-	sieve_managesieve_bind_local "$f" || return 1
-	systemctl restart dovecot && systemctl is-active --quiet dovecot && return 0
-	sed -i -E '/^[[:space:]]*(address|listen) = 127\.0\.0\.1/d' "$f"
-	systemctl restart dovecot
-	return 1
 }
 
 # The login alias content is the admin's once the file exists, owner and mode stay ours: the installer's
@@ -911,42 +749,6 @@ dovecot_login_alias_apply() {
 	return 1
 }
 
-# The exim side of #596. Patched rather than copied, because the operator may have edited this file
-# and the addons set their macros in it. exim reads config.autogenerated, which only
-# update-exim4.conf writes, so a restart alone would change nothing.
-exim_lmtp_apply() {
-	exim_template_patch 0.21/exim-lmtp-subaddressing.patch
-}
-
-# RFC 3834 guards and once-a-week for the exim autoreply (#784), same way in.
-exim_autoreply_apply() {
-	exim_template_patch 0.22/exim-autoreply-rfc3834.patch
-}
-
-# Incoming X-Spam-* headers are dropped before our scan writes its own (#1121), same way in.
-exim_spam_header_apply() {
-	exim_template_patch 0.22/exim-spam-header-strip.patch
-}
-
-# One local domain per inbound transaction, so the per-domain virus and spam flags hold for every recipient.
-exim_one_domain_apply() {
-	exim_template_patch 0.24/exim-one-domain-per-transaction.patch
-}
-
-# A domain's reject_spam no longer outlives its antispam scan.
-exim_reject_antispam_apply() {
-	exim_template_patch 0.24/exim-reject-needs-antispam.patch
-}
-
-# The per-domain sender and relay lists are read as plain patterns, never string-expanded.
-exim_lists_unexpanded_apply() {
-	exim_template_patch 0.24/exim-lists-unexpanded.patch
-}
-
-exim_relay_dkim_apply() {
-	exim_template_patch 0.24/exim-relay-dkim.patch
-}
-
 # Only our own Authentication-Results reaches a mailbox, so webmail cannot show a sender's own verdict.
 exim_auth_results_apply() {
 	exim_template_patch 0.30/exim-auth-results.patch
@@ -967,6 +769,13 @@ exim_spam_status_score_apply() {
 	exim_template_patch 0.30/exim-spam-status-score.patch
 }
 
+# A failed external forward bounces into devnull, never to the sender of what was forwarded.
+exim_forward_errors_apply() {
+	exim_template_patch 0.33/exim-forward-errors.patch
+}
+
+# Patched, not copied: the operator may have edited the template and the addons set their macros in it. exim reads
+# config.autogenerated, which only update-exim4.conf writes, so a restart alone would change nothing.
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"
@@ -1002,60 +811,6 @@ mariadb_compat_apply() {
 	return 0
 }
 
-# The hestia crontab is operator surface (#972), so this replaces ONE line and leaves everything
-# else standing. Rename and not truncate, for the same reason system_crontab_write does it: the
-# crontabs directory is sticky and group-writable, where opening the file is EACCES even for root.
-cron_update_check_apply() {
-	local ct='/var/spool/cron/crontabs/hestia' tmp before after
-	[ -s "$ct" ] || return 1
-	before=$(grep -c '' "$ct")
-	tmp="/var/spool/cron/crontabs/.hestia.$$"
-	sed "s#sudo bash $HESTIA/update\.sh --check[[:space:]]*\$#sudo $HESTIA/bin/h-check-sys-update#" "$ct" > "$tmp" || {
-		rm -f "$tmp"
-		return 1
-	}
-	after=$(grep -c '' "$tmp")
-	# A line count that moved means the edit hit more than the one line it was written for.
-	if [ "$before" != "$after" ] || grep -q 'update\.sh --check' "$tmp"; then
-		rm -f "$tmp"
-		return 1
-	fi
-	chmod 600 "$tmp" && chown hestia:hestia "$tmp" || {
-		rm -f "$tmp"
-		return 1
-	}
-	mv -f "$tmp" "$ct"
-}
-
-# Report only, never edits a customer's file: lines the reader skips, and jobs outside the grammar,
-# which keep running but cannot be saved again until rewritten.
-cron_record_review_apply() {
-	local marker='/etc/hestia/.cron-record-review-1176' conf user line key skipped legacy
-	for conf in "$CONF_DIR"/users/*/cron.conf; do
-		[ -f "$conf" ] || continue
-		user=$(basename "$(dirname "$conf")")
-		skipped=0 legacy=0
-		while IFS= read -r line; do
-			[ -n "$line" ] || continue
-			if ! cron_record_safe "$line"; then
-				skipped=$((skipped + 1))
-				continue
-			fi
-			for key in MIN HOUR DAY MONTH WDAY; do
-				if ! [[ " $line" =~ \ $key=\'([^\']*)\' ]] || ! cron_field_valid "${BASH_REMATCH[1]}" "${key,,}"; then
-					legacy=$((legacy + 1))
-					break
-				fi
-			done
-		done < "$conf"
-		[ "$skipped" -eq 0 ] || echo "[ ! ] $user: $skipped cron job(s) the reader skips as unreadable, review $conf" >&2
-		[ "$legacy" -eq 0 ] || echo "[ ! ] $user: $legacy cron job(s) outside the schedule grammar keep running, saving them is refused until rewritten" >&2
-	done
-	# The marker is the path_absent gate of cron-record-review in share/updates/0.24.json; keep the paths in step.
-	: > "$marker" 2> /dev/null || true
-	return 0
-}
-
 # The panel translates only under a locale that is not C: glibc 2.39+ ignores LANGUAGE under C.UTF-8 (#1157),
 # and web/inc/i18n.php asks for en_US.UTF-8 first. Ubuntu's image lacks the locales package. The line goes into
 # /etc/locale.gen because a locales upgrade regenerates from there, and Debian's locale-gen ignores an argument
@@ -1084,33 +839,4 @@ panel_language_follow_system() {
 	else
 		echo "[ ! ] Panel language could not be set to $lang, it stays en" >&2
 	fi
-}
-
-# Pins every nightly job to one language, so a word match against a program's output cannot depend
-# on the box. An extra, not the general fix; operator surface, so only the one line is added.
-cron_locale_apply() {
-	local ct='/var/spool/cron/crontabs/hestia' tmp before after
-	[ -s "$ct" ] || return 1
-	# The same substring question the condition asks, so the two cannot disagree; C.UTF-8 counts.
-	grep -qF 'LC_ALL=C' "$ct" && return 0
-	before=$(grep -c '' "$ct")
-	tmp="/var/spool/cron/crontabs/.hestia.$$"
-	{
-		echo "LC_ALL=C"
-		cat "$ct"
-	} > "$tmp" || {
-		rm -f "$tmp"
-		return 1
-	}
-	after=$(grep -c '' "$tmp")
-	# One line more and exactly one of it: a check on the edit, not on the question above.
-	if [ "$after" != "$((before + 1))" ] || [ "$(grep -c '^LC_ALL=C$' "$tmp")" != 1 ]; then
-		rm -f "$tmp"
-		return 1
-	fi
-	chmod 600 "$tmp" && chown hestia:hestia "$tmp" || {
-		rm -f "$tmp"
-		return 1
-	}
-	mv -f "$tmp" "$ct"
 }

@@ -60,7 +60,7 @@ fw_sec() {
 # $1=boot renders the boot copy: the same document without the ban elements.
 fw_batch_render() {
 	local f
-	# share/updates/0.24.json looks for this line. A fixed string: callers run with IFS=newline, which splits a list.
+	# A fixed string: callers run with IFS=newline, which splits a list.
 	echo "# keep-private"
 	echo "table $FW_FAMILY $FW_TABLE {}"
 	echo "delete table $FW_FAMILY $FW_TABLE"
@@ -787,11 +787,6 @@ fw_blocklist_interval_apply() {
 	[[ "$1" =~ ^[0-9]+(s|m|min|h|d|w)$ ]] || return 1
 	sed -i "s|^OnUnitActiveSec=.*|OnUnitActiveSec=${1}|" "$unit"
 	return 0
-}
-
-# Update entry firewall-keep-private (share/updates/0.24.json): existing rules only get the backstop with a new render.
-firewall_keep_private_apply() {
-	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
 }
 
 # Without this render the first reboot after the update still boots the bans and caches of the last one.

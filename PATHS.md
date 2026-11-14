@@ -189,6 +189,9 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Item | Path |
 |------|------|
 | Zone lookup cache | `/var/cache/hestia/dns-zones` (root 644, one line per name: zone and lookup time; a day, an hour for no answer; never backed up) |
+| Provider accounts | `/etc/hestia/dns/<account>.conf` (dir root 700, file 600: provider, context and API key; never backed up, set up again after a restore, #1332) |
+| Provider cache | `/var/cache/hestia/dns-provider/` (root 700, files 600: `<account>.zones`, `<account>.state`, `<account>.last`, the zone `status`, flock files; recomputable, never backed up) |
+| Sync log | `/var/log/hestia/dns-sync.log` (root 600: every write to a provider before it goes out, with the stored value of each removed record, #1333) |
 
 ### apt (#191, #1292)
 

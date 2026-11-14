@@ -15,6 +15,59 @@ the releases of the command audit, into another.
 
 _Nothing yet._
 
+## v0.33 (2026-11-14)
+
+DNS provider accounts that compare and write a zone, forwards that no longer send backscatter, and boxes with
+several public addresses.
+
+### Added
+
+- **DNS provider accounts** (#1332/#1333, part of #863). The DNS tab adds an InterNetX AutoDNS account; the key is
+  stored for root only under `/etc/hestia/dns` and is no part of any backup. Each zone the account holds is compared
+  with what HestiaRE derives, record by record (ok, missing, different, delegated, or answered by a CNAME, ALIAS or
+  wildcard; SPF by whether it authorises the box's addresses), with a warning when the public name servers are not
+  the account's. "Sync to provider" writes one section after a preview: missing records added, differing ones
+  replaced, SPF merged behind `v=spf1`, DMARC only where there is none. Records HestiaRE does not derive are never
+  touched, nothing is written to a zone the public name servers do not point at, a zone that changed since the
+  preview is left alone, and every write is logged first in `/var/log/hestia/dns-sync.log`. Commands:
+  `h-add-dns-provider`, `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`,
+  `h-check-dns-zone`, `h-check-dns-zones`, `h-sync-dns-zone`.
+
+### Security
+
+- **Tachyon 4.6.0** (#1341). A folder name, which on a shared folder another user chooses, was rendered as HTML in
+  two confirm dialogs, and `javascript:`, `data:`, `vbscript:` and `file:` links in a message body kept their href.
+  Existing boxes get it with the update.
+
+### Changed
+
+- **The derived DMARC record is `v=DMARC1; p=none`** (#1333), was `p=quarantine; pct=100`. An existing DMARC record
+  counts as in place whatever its policy.
+- **New domains default to the IP the box reaches the internet from** (#1330), on the CLI without an IP and first in
+  the panel, instead of the alphabetically first; owned before shared stays. A mail domain without a web domain
+  keeps its sending address on a rebuild.
+
+### Removed
+
+- **The update manifests at or below the lower bound** (#1339): `0.20.0.json` to `0.25.json`, their patches and the
+  update functions only they named. Nothing read them since v0.25; a box that has them keeps them, unread.
+
+### Fixed
+
+- **A refused forward bounced to the original sender** (#1336). In spam that sender is forged, so this was
+  backscatter, and it got a production box listed at Spamhaus CSS. A failed forward or catch-all delivery to an
+  external address now bounces into devnull, the refusal stays in the exim log, and a forwarded bounce no longer
+  freezes and is delivered twice. Aliases to local mailboxes keep the sender, so a vacation still answers. Existing
+  boxes get it as a patch of the exim template; forwarding moves to Sieve later (#1337).
+- **A second public IP next to an internal NAT address got the NAT on the wrong record** (#1330). Each v4 record is
+  now probed with itself as the source, and the boot run repairs a wrong NAT. A NAT set by hand that differs from
+  what the probe sees is still overwritten at boot.
+- **The firewall opened only the `Port` of sshd** (#1330); a port in a `ListenAddress` stayed closed. The SSH ports
+  come from every listen address now.
+- Smaller ones: `h-delete-sys-ip` lost its guard for the primary IP with a fallback default route (#1330), the DNS
+  pages listed `webmail.<domain>` for a mail domain without webmail (#1333), and a resolver failure held a zone
+  "unknown" for an hour (#1332).
+
 ## v0.32 (2026-11-12)
 
 Automatic updates on Debian and for Sury PHP, record loops that start every record from empty, and the findings
@@ -22,14 +75,10 @@ after HestiaCP 1.10.6.
 
 ### Security
 
-- **A Debian box received no automatic updates, not even security ones** (#1292). The installer never installed
-  unattended-upgrades; only Ubuntu's image carries it. It is installed and switched on now, with Debian's own
-  configuration (security updates and point releases), on an existing box by the update. Its next timer run
-  catches up on everything pending at once, services restart with it; an `apt upgrade` by hand before the update
-  keeps that in view.
-- **The subdomain ownership check could be passed on another customer's domain** (#1323).
-- **A mail account without a hash in its record was written with another account's** (#1323); it is written
-  locked now.
+- **A Debian box received no automatic updates, not even security ones** (#1292). unattended-upgrades is installed
+  and switched on now with Debian's own configuration, on an existing box by the update.
+- **Two record-loop leaks** (#1323): the subdomain ownership check could be passed on another customer's domain,
+  and a mail account without a hash was written with another account's (locked now).
 
 ### Changed
 
@@ -39,9 +88,8 @@ after HestiaCP 1.10.6.
 - **apt keeps a conffile HestiaRE edited instead of asking**, as answering N does (#1292). unattended-upgrades
   skipped such a package entirely, so an exim, nginx, apache or PHP-FPM update that touched one stayed
   uninstalled. It holds for a manual `apt upgrade` too; the package's own version lands as `.dpkg-dist`.
-- **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** (#1317,
-  upstream #5726/#5890): 100 web domains in about 0.1 s instead of 2.2 s, and a bad record aborts before the first
-  line instead of inside a half-printed JSON.
+- **The domain and mail account lists validate a user's records in one PHP start** (#1317, upstream #5726/#5890),
+  about twenty times faster.
 
 ### Fixed
 
@@ -79,9 +127,8 @@ The DNS records HestiaRE needs, the MariaDB client under its own names, and reco
 
 - **A record that could not be updated passed with rc 0** (#1312); the command stops with E_UPDATE now.
 - **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305).
-- **The server backup left the webmail databases out on MariaDB 11.x without Recommends** (#1302), and the nightly
-  table check did nothing there.
-- **`h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked** (#1311).
+- Smaller ones: the server backup left the webmail databases out on MariaDB 11.x without Recommends (#1302), and
+  `h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked (#1311).
 
 ## v0.30 (2026-11-06)
 

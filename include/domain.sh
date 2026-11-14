@@ -439,24 +439,6 @@ web_htpasswd_drop() { # FILE NAME
 	printf '%s\n' "$rest" | sed '/^$/d' > "$1"
 }
 
-# Update entry: a vhost rendered before the fragment moved still includes it from the customer's folder.
-stats_auth_fragment_apply() {
-	local f rest seen=" " rc=0
-	for f in "$HOMEDIR"/*/conf/web/*/nginx*.conf; do
-		[ -e "$f" ] || continue
-		grep -qF '/stats/auth.conf' "$f" || continue
-		rest=${f#"$HOMEDIR"/}
-		rest=${rest%/*}
-		case $seen in *" $rest "*) continue ;; esac
-		seen="$seen$rest "
-		"$BIN/h-rebuild-web-domain" "${rest%%/*}" "${rest##*/}" no || rc=1
-	done
-	[ "$seen" = " " ] && return $rc
-	"$BIN/h-restart-web" || rc=1
-	"$BIN/h-restart-proxy" || rc=1
-	return $rc
-}
-
 # The ONE substitution engine (#890): stdin template in, rendered text out. Divergent
 # values arrive in _r_* (webmail renders %domain% as the alias, %web_system% as the
 # front). Removing or renaming a token breaks every custom template that uses it.
@@ -1151,30 +1133,6 @@ mail_outgoing_ip_write() { # USER DOMAIN
 	return 0
 }
 
-# Update 0.23: the relay files already on the box.
-smtp_relay_modes_apply() {
-	local f
-	if [ -e /etc/exim4/smtp_relay.conf ]; then
-		chown "root:${MAIL_USER:-Debian-exim}" /etc/exim4/smtp_relay.conf && chmod 640 /etc/exim4/smtp_relay.conf || return 1
-	fi
-	for f in "$HOMEDIR"/*/conf/mail/*/smtp_relay.conf; do
-		[ -e "$f" ] || continue
-		chown "${MAIL_USER:-Debian-exim}:mail" "$f" && chmod 660 "$f" || return 1
-	done
-	return 0
-}
-
-# Update 0.23: every mail certificate on the box, once, since each domain operation used to reset them all to 644.
-mail_ssl_modes_apply() {
-	local d rest
-	for d in "$HOMEDIR"/*/conf/mail/*/ssl; do
-		[ -e "$d" ] || continue
-		rest=${d#"$HOMEDIR"/}
-		rest=${rest%/ssl}
-		mail_ssl_modes "${rest%%/*}" "${rest##*/}" || return 1
-	done
-}
-
 # The name a client sends as SNI and dovecot's local_name: punycode for an IDN domain, while files keep the record's name.
 mail_sni_name() { # DOMAIN
 	name_idn "$1"
@@ -1372,7 +1330,7 @@ add_webmail_config() {
 	if [ -z "${local_ip6+x}" ]; then
 		_derived_ip6=1
 		local_ip6=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP6')
-		if [ -z "$local_ip6" ] && get_user_ip6; then
+		if [ -z "$local_ip6" ] && get_mail_domain_ip6 "$domain"; then
 			local_ip6="$ip6"
 		fi
 		if [ -n "$local_ip6" ] && [ ! -e "$CONF_DIR/ips/$local_ip6" ]; then

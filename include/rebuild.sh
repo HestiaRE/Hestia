@@ -597,11 +597,11 @@ rebuild_mail_domain_conf() {
 		local local_ip=$(get_real_ip "$domain_ip")
 		is_ip_valid "$local_ip" "$user"
 	else
-		get_user_ip
+		get_mail_domain_ip "$domain"
 	fi
 	# v6 mirror: web domain's IP6, else default v6, else none
 	local local_ip6=$(get_object_value 'web' 'DOMAIN' "$domain" '$IP6')
-	if [ -z "$local_ip6" ] && get_user_ip6; then
+	if [ -z "$local_ip6" ] && get_mail_domain_ip6 "$domain"; then
 		local_ip6="$ip6"
 	fi
 	if [ -n "$local_ip6" ] && [ ! -e "$CONF_DIR/ips/$local_ip6" ]; then

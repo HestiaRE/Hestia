@@ -1,0 +1,34 @@
+#!/bin/bash
+# info: check a DNS provider account
+# options: ACCOUNT
+#
+# example: h-check-dns-provider internetx
+#
+# Asks the provider whether it accepts the key and fetches the account's zone list again. The result is the
+# account's state in h-list-dns-providers: ok, refused (the key: wrong, expired, missing rights) or error.
+
+account=$1
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '1' "$#" 'ACCOUNT'
+dnsp_account_format_valid "$account"
+dnsp_load "$account" || check_result "$E_NOTEXIST" "account $account does not exist or its driver is gone"
+
+dnsp_zones_refresh "$account"
+rc=$?
+case "$rc" in
+	0) ;;
+	1) check_result "$E_FORBIDEN" "$DNSP_PROVIDER refused the key of $account: $DNSP_ERROR" ;;
+	*) check_result "$E_CONNECT" "$DNSP_PROVIDER did not answer for $account: $DNSP_ERROR" ;;
+esac
+
+exit

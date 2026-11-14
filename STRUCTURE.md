@@ -474,7 +474,7 @@ These are settled decisions (`README.md:53-59`, registry `CODEMAP.json` `removed
 
 | Removed | Was | Gap to respect |
 |---|---|---|
-| **bind9 / DNS** (#58/#283) | ~50 `*-dns-*` commands, `templates/dns`, `edit_dns` page | No DNS zone-management code path. DNS is external/managed. Only `h-list-mail-domain-dkim-dns` kept - it formats mail-stack data for somebody else's DNS. Since #1307/#1308 the DNS tab and `h-list-dns-zones`/`h-list-dns-zone` list the records HestiaRE needs per zone at an external provider, read-only; `templates/dns` and the zone files stay gone. The last leftovers went in #619: `DNSTPL`, the package fields (`DNS_TEMPLATE`/`DNS_DOMAINS`/`DNS_RECORDS`/`NS`), the `U_DNS_*` counters and `h-list-user-ns`. The firewall seed keeps the original rule ids, so **6 and 7 are absent** where upstream opens port 53 - a gap, not a missing rule. Renumbering would move every later rule, and a firewall rule id is its precedence. |
+| **bind9 / DNS** (#58/#283) | ~50 `*-dns-*` commands, `templates/dns`, `edit_dns` page | No DNS zone-management code path. DNS is external/managed. Only `h-list-mail-domain-dkim-dns` kept - it formats mail-stack data for somebody else's DNS. Since #1307/#1308 the DNS tab and `h-list-dns-zones`/`h-list-dns-zone` list the records HestiaRE needs per zone at an external provider; since #1332/#1333 an InterNetX AutoDNS account compares a zone against them and writes one section after a preview (`include/dns-provider.sh`, drivers in `include/dns-providers/`), still without a zone server of our own; `templates/dns` and the zone files stay gone. The last leftovers went in #619: `DNSTPL`, the package fields (`DNS_TEMPLATE`/`DNS_DOMAINS`/`DNS_RECORDS`/`NS`), the `U_DNS_*` counters and `h-list-user-ns`. The firewall seed keeps the original rule ids, so **6 and 7 are absent** where upstream opens port 53 - a gap, not a missing rule. Renumbering would move every later rule, and a firewall rule id is its precedence. |
 | **REST API** (#146) | `v-*-api-*`, web API endpoint, key auth | No programmatic surface. Entry points are the panel UI and `h-*` CLI only; integrations shell out to `h-*`. |
 | **Web Terminal** (#59) | node sidecar service, `list_terminal` page, `/_shell/` | No browser->shell bridge; `/_shell/` absent by design. Operators use SSH. Closed GHSA-gh6f. |
 | **`v-*` command names** (#22/#1176) | the HestiaCP CLI, kept as 421 symlinks to `h-*` | Every command is `h-*` only, with HestiaCP's arguments. Scripts written against HestiaCP call `h-*` or bring their own aliases. A HestiaCP archive from before 1.9 can carry the old system cron jobs (`sudo /usr/local/hestia/bin/v-...`); the restore names them in its log and leaves them failing rather than rewriting them into a second set of system jobs. |
@@ -674,7 +674,9 @@ Three properties carry the whole design:
 "is there a newer updater" is answered by the same query as "is there a newer release", and the
 handover happens once, before anything on the box changes. Retention is unlimited on purpose; a
 cleaner with write access to the install tree would be the opposite of what the artefact guards are
-for.
+for. For the same reason the manifests at or below the floor left the tree once (#1339) without an entry
+that deletes them on a box: they stay there, unread, and check-tree keeps watching what they shipped by reading
+them from the history.
 
 ## 16. Local mail delivery: a `dovecot-lda` pipe -> dovecot LMTP (#596)
 
@@ -811,6 +813,16 @@ origins stay as shipped; the one external origin is Sury PHP (`60unattended-upgr
 `--force-confdef --force-confold` to every apt run, so an edited conffile stays and the package's version lands as
 `.dpkg-dist`, the answer N, instead of the package staying behind. An update brings all three to an existing box
 (`share/updates/0.32.json`).
+
+## 23. Failed forwards: a bounce to the sender -> a bounce into devnull (#1336)
+
+**Upstream.** A forward or catch-all to an external address is an exim redirect, and when the target refuses, the
+bounce goes to the envelope sender. In spam that sender is forged, so a forwarding box sends backscatter.
+
+**HestiaRE.** A first router `forward_errors` accepts `bounce@forward-errors.invalid` into devnull, and the
+`aliases` and `catchall` routers set `errors_to` to it when their target list holds an external address. Local
+targets keep the real sender, which a vacation answers. An interim and later fallback: forwarding is to move into
+the mailbox's Sieve script (#1337), and exim then forwards nothing to the outside.
 
 ## Known inconsistencies (flagged, not yet resolved)
 

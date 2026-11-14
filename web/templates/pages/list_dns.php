@@ -14,6 +14,11 @@ $dns_section_labels = [
 			<a href="/list/dns/?providers=1" class="button button-secondary">
 				<i class="fas fa-key icon-blue"></i><?= tohtml(_("DNS Providers")) ?>
 			</a>
+			<?php if (array_filter($data, fn ($z) => ($z["ACCOUNT"] ?? "") !== "")) { ?>
+				<a href="/list/dns/?<?= tohtml(http_build_query(["check" => 1, "token" => $_SESSION["token"]])) ?>" class="button button-secondary">
+					<i class="fas fa-arrows-rotate icon-blue"></i><?= tohtml(_("Check Zones")) ?>
+				</a>
+			<?php } ?>
 		</div>
 		<div class="toolbar-right"></div>
 	</div>
@@ -23,6 +28,7 @@ $dns_section_labels = [
 <div class="container">
 
 	<h1 class="u-text-center u-hide-desktop u-mt20 u-pr30 u-mb20 u-pl30"><?= tohtml(_("DNS Zones")) ?></h1>
+	<?php show_alert_message($_SESSION); ?>
 
 	<div class="units-table js-units-container">
 		<div class="units-table-header">
@@ -40,7 +46,7 @@ $dns_section_labels = [
 				<div class="units-table-cell units-table-heading-cell u-text-bold">
 					<span class="u-hide-desktop"><?= tohtml(_("Zone")) ?>:</span>
 					<a href="/list/dns/?<?= tohtml(http_build_query(["zone" => $zone])) ?>"><?= tohtml($zone) ?></a>
-					<?php if (($z["STATE"] ?? "") === "unknown") { ?>
+					<?php if (($z["STATE"] ?? "") === "unknown" && ($z["ACCOUNT"] ?? "") === "") { ?>
 						<i class="fas fa-circle-question icon-dim u-ml5" title="<?= tohtml(_("Public DNS does not know this zone. Its sections are grouped under the shortest domain on this server.")) ?>"></i>
 					<?php } ?>
 				</div>
@@ -61,7 +67,24 @@ $dns_section_labels = [
 				</div>
 				<div class="units-table-cell u-text-center-desktop">
 					<span class="u-hide-desktop u-text-bold"><?= tohtml(_("Provider")) ?>:</span>
-					<span class="u-text-muted"><?= tohtml(_("no account")) ?></span>
+					<?php if (($z["ACCOUNT"] ?? "") === "") { ?>
+						<span class="u-text-muted"><?= tohtml(_("no account")) ?></span>
+					<?php } else { ?>
+						<?= tohtml($z["ACCOUNT"]) ?><br>
+						<?php $diffs = $z["DIFFERENCES"] ?? ""; ?>
+						<?php if ($diffs === "") { ?>
+							<span class="u-text-muted u-text-small"><?= tohtml(_("not checked yet")) ?></span>
+						<?php } elseif ($diffs === "error") { ?>
+							<span class="u-text-small"><i class="fas fa-triangle-exclamation icon-orange"></i> <?= tohtml(_("not readable")) ?></span>
+						<?php } elseif ($diffs === "0") { ?>
+							<span class="u-text-small"><i class="fas fa-circle-check icon-green"></i> <?= tohtml(_("in sync")) ?></span>
+						<?php } else { ?>
+							<span class="u-text-small"><i class="fas fa-triangle-exclamation icon-orange"></i> <?= tohtml(sprintf(ngettext("%d difference", "%d differences", (int) $diffs), (int) $diffs)) ?></span>
+						<?php } ?>
+						<?php if (($z["CHECKED"] ?? "") !== "") { ?>
+							<br><span class="u-text-muted u-text-small"><?= tohtml(date("Y-m-d H:i", (int) $z["CHECKED"])) ?></span>
+						<?php } ?>
+					<?php } ?>
 				</div>
 			</div>
 		<?php } ?>

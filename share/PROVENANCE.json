@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "a8d564b0",
     "upstream_ref_date": "2026-11-10",
-    "last_updated": "2026-11-12",
+    "last_updated": "2026-11-14",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 72,
-      "eigenbau_files": 151,
+      "eigenbau_files": 153,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 223,
+      "files_total": 225,
       "files_mapped": 72
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -946,14 +946,14 @@
       "source_type": "derived",
       "upstream_path": "install/deb/exim/exim4.conf.template",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 506,
-        "our_lines": 760,
-        "added": 361,
+        "our_lines": 775,
+        "added": 376,
         "removed": 107,
-        "pct": 36,
-        "measured_at": "2026-11-06"
+        "pct": 37,
+        "measured_at": "2026-11-14"
       },
       "note": "exact install/deb path"
     },
@@ -2286,6 +2286,15 @@
       "note": "HestiaRE-native: the v0.32 update manifest. Upstream has no update path of this shape."
     },
     {
+      "path": "updates/0.33.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-14",
+      "divergence": null,
+      "note": "HestiaRE-native: the v0.33 update manifest. Upstream has no update path of this shape."
+    },
+    {
       "path": "updates/README.md",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -2338,6 +2347,15 @@
       "last_reconciled": "2026-11-06",
       "divergence": null,
       "note": "HestiaRE-native (#1295): patch an update applies to a box's exim template, which the operator may have edited."
+    },
+    {
+      "path": "updates/patches/0.33/exim-forward-errors.patch",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-14",
+      "divergence": null,
+      "note": "HestiaRE-native (#1336): patch an update applies to a box's exim template, which the operator may have edited."
     },
     {
       "path": "upstream/sync-upstream.sh",

@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "a8d564b0",
     "upstream_ref_date": "2026-11-10",
-    "last_updated": "2026-11-12",
+    "last_updated": "2026-11-14",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from `git diff --numstat` between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -593,14 +593,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-ssl",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 149,
         "our_lines": 85,
-        "added": 19,
-        "removed": 83,
-        "pct": 43,
-        "measured_at": "2026-11-06"
+        "added": 20,
+        "removed": 84,
+        "pct": 44,
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -609,14 +609,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-webmail",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 186,
         "our_lines": 159,
-        "added": 68,
-        "removed": 95,
+        "added": 69,
+        "removed": 96,
         "pct": 47,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -747,14 +747,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-ip",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 258,
-        "our_lines": 199,
+        "our_lines": 195,
         "added": 89,
-        "removed": 148,
-        "pct": 51,
-        "measured_at": "2026-11-06"
+        "removed": 152,
+        "pct": 53,
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -3271,14 +3271,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-ip",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 165,
         "our_lines": 175,
-        "added": 104,
-        "removed": 94,
+        "added": 105,
+        "removed": 95,
         "pct": 58,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -5158,14 +5158,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-sshd-port",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 85,
-        "our_lines": 55,
-        "added": 11,
+        "our_lines": 58,
+        "added": 14,
         "removed": 41,
-        "pct": 37,
-        "measured_at": "2026-11-06"
+        "pct": 38,
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -5384,14 +5384,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-ips",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 115,
-        "our_lines": 90,
-        "added": 28,
-        "removed": 53,
-        "pct": 39,
-        "measured_at": "2026-11-12"
+        "our_lines": 86,
+        "added": 27,
+        "removed": 56,
+        "pct": 41,
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -7179,14 +7179,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-ip",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 185,
-        "our_lines": 131,
-        "added": 54,
+        "our_lines": 124,
+        "added": 47,
         "removed": 108,
-        "pct": 51,
-        "measured_at": "2026-11-06"
+        "pct": 50,
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },

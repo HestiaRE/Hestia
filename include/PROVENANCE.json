@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "a8d564b0",
     "upstream_ref_date": "2026-11-10",
-    "last_updated": "2026-11-12",
+    "last_updated": "2026-11-14",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from a line diff between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR, func/->include/), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 9,
-      "eigenbau_files": 25,
+      "eigenbau_files": 26,
       "weighted_pct": 59,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 34,
+      "files_total": 35,
       "files_mapped": 9
     },
     "scope": "include",
@@ -139,14 +139,14 @@
       "source_type": "derived",
       "upstream_path": "func/domain.sh",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 1216,
-        "our_lines": 1744,
-        "added": 1184,
+        "our_lines": 1702,
+        "added": 1142,
         "removed": 656,
-        "pct": 62,
-        "measured_at": "2026-11-12"
+        "pct": 61,
+        "measured_at": "2026-11-14"
       },
       "note": "No DNS half (bind9 excluded); web/mail template handling reworked for the Caddy/nginx/apache model."
     },
@@ -173,14 +173,14 @@
       "source_type": "derived",
       "upstream_path": "func/firewall.sh",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 25,
-        "our_lines": 831,
-        "added": 819,
+        "our_lines": 826,
+        "added": 814,
         "removed": 13,
         "pct": 97,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-14"
       },
       "note": "Effectively eigenbau: upstream ships 25 lines, this is the 685-line nftables renderer (#495). Kept mapped rather than relabelled so the upstream path stays findable."
     },
@@ -225,14 +225,14 @@
       "source_type": "derived",
       "upstream_path": "func/ip.sh",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 282,
-        "our_lines": 375,
-        "added": 167,
-        "removed": 74,
-        "pct": 36,
-        "measured_at": "2026-11-12"
+        "our_lines": 410,
+        "added": 201,
+        "removed": 73,
+        "pct": 39,
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },
@@ -250,14 +250,14 @@
       "source_type": "derived",
       "upstream_path": "func/main.sh",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 2151,
-        "our_lines": 3135,
-        "added": 1841,
+        "our_lines": 3194,
+        "added": 1900,
         "removed": 857,
         "pct": 51,
-        "measured_at": "2026-11-12"
+        "measured_at": "2026-11-14"
       },
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },
@@ -293,14 +293,14 @@
       "source_type": "derived",
       "upstream_path": "func/rebuild.sh",
       "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 950,
         "our_lines": 1086,
-        "added": 547,
-        "removed": 411,
+        "added": 548,
+        "removed": 412,
         "pct": 47,
-        "measured_at": "2026-11-12"
+        "measured_at": "2026-11-14"
       },
       "note": ""
     },

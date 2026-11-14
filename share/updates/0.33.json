@@ -2,6 +2,16 @@
   "version": "0.33",
   "entries": [
     {
+      "id": "tachyon-pin",
+      "description": "Tachyon 4.6.0: a folder name no longer reaches a confirm dialog as HTML, and links in a message body keep only allowed schemes",
+      "conditions": [
+        { "type": "pin_differs", "name": "tachyon", "path": "/var/lib/tachyon/data/VERSION" }
+      ],
+      "action": { "type": "function_call", "function": "tachyon_pin_apply" },
+      "paths": ["/var/lib/tachyon"],
+      "reversible": false
+    },
+    {
       "id": "exim-forward-errors",
       "description": "A forward the target refuses no longer bounces to the original sender, who is forged in most spam (backscatter that listed a box at Spamhaus CSS); the bounce goes to devnull, and a forwarded bounce no longer freezes and is delivered twice. Aliases to local mailboxes keep the sender. Patched into a file the operator may have edited",
       "conditions": [

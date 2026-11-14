@@ -19,10 +19,13 @@ the releases of the command audit, into another.
   InterNetX AutoDNS (an API key with the rights DNS zone query, 0202002 and DNS zone update bulk; the zone update
   itself stays off), checks and deletes it. The key is stored for root only under `/etc/hestia/dns` and is no part of
   any backup. A zone an account holds is compared with what HestiaRE derives every time its page opens: per record
-  ok, missing, different, or answered by a CNAME or wildcard, with SPF judged by whether it authorises the box's
-  addresses. The provider's other records are listed apart and never touched; in a zone whose apex lies elsewhere
-  only the box's own names are shown. The zone list shows the account and the result of the last check, and "Check
-  Zones" checks all of them. Nothing is written to a provider yet. New commands: `h-add-dns-provider`,
+  ok, missing, different, delegated (a subzone with name servers of its own), or answered by a CNAME, ALIAS or
+  wildcard, with SPF judged by whether it authorises the box's addresses. The zone page warns when the public name
+  servers are not the account's, as after a move. The provider's other records are listed apart and never touched;
+  in a zone whose apex lies elsewhere only the box's own names are shown. The zone list shows the account and the
+  result of the last check, and "Check Zones" checks all of them in the background. An unreachable provider costs a
+  page at most a few seconds, and public DNS gets ten seconds per check. An account is saved only once its key may
+  list zones. Nothing is written to a provider yet. New commands: `h-add-dns-provider`,
   `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`, `h-check-dns-zone`, `h-check-dns-zones`.
 
 ### Fixed

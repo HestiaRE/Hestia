@@ -129,7 +129,9 @@ dnsp_zones_fresh() {
 		[ -n "$a" ] || continue
 		f="$DNSP_CACHE/$a.zones"
 		[ -f "$f" ] && [ $((now - $(stat -c %Y "$f"))) -lt 86400 ] && continue
-		IFS=$'\t' read -r state since _ < "$DNSP_CACHE/$a.state" 2> /dev/null
+		# Emptied per account: a failed read keeps the previous account's values.
+		state='' since=''
+		[ -f "$DNSP_CACHE/$a.state" ] && IFS=$'\t' read -r state since _ < "$DNSP_CACHE/$a.state"
 		[ "$state" != 'ok' ] && [[ "$since" =~ ^[0-9]+$ ]] && [ $((now - since)) -lt 600 ] && continue
 		dnsp_zones_refresh "$a" > /dev/null 2>&1
 	done <<< "$(dnsp_accounts)"

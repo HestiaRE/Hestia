@@ -881,6 +881,10 @@ msgstr "Das Konto %s wurde angelegt."
 msgid "No DNS zone found for %s."
 msgstr "Keine DNS-Zone für %s gefunden."
 
+#: web/list/dns/index.php
+msgid "The zones are being compared in the background. Each result shows up here as it lands."
+msgstr "Die Zonen werden im Hintergrund abgeglichen. Jedes Ergebnis erscheint hier, sobald es vorliegt."
+
 #: web/login/index.php
 msgid "Account has been suspended"
 msgstr "Konto wurde gesperrt"
@@ -3434,6 +3438,7 @@ msgid "No web or mail domain of this user lies in a DNS zone."
 msgstr "Keine Web- oder Mail-Domain dieses Benutzers liegt in einer DNS-Zone."
 
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Provider"
 msgstr "Provider"
 
@@ -3607,6 +3612,10 @@ msgid "No provider account holds this zone. Enter the records at the provider by
 msgstr "Kein Provider-Konto führt diese Zone. Tragen Sie die Einträge beim Provider von Hand ein."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Nobody reads this zone at the provider: the public name servers of the domain are not those of the account. After a move the zone is often left behind there."
+msgstr "Diese Zone beim Provider liest niemand: Die öffentlichen Nameserver der Domain sind nicht die des Kontos. Nach einem Umzug bleibt die Zone dort oft zurück."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "None."
 msgstr "Keine."
 
@@ -3617,6 +3626,14 @@ msgstr "Weitere Einträge beim Provider"
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "Priority"
 msgstr "Priorität"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Public DNS"
+msgstr "Öffentliches DNS"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Public DNS did not answer for the name servers of this zone: whether anyone reads it at the provider is not known."
+msgstr "Das öffentliche DNS hat zu den Nameservern dieser Zone nicht geantwortet: Ob jemand sie beim Provider liest, ist unbekannt."
 
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "Record"
@@ -3636,12 +3653,20 @@ msgid "Whole zone"
 msgstr "Ganze Zone"
 
 #: web/templates/pages/list_dns_zone.php
+msgid "delegated"
+msgstr "delegiert"
+
+#: web/templates/pages/list_dns_zone.php
 msgid "different"
 msgstr "abweichend"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "missing"
 msgstr "fehlt"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "unchecked"
+msgstr "nicht geprüft"
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format

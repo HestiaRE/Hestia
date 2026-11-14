@@ -887,6 +887,10 @@ msgstr ""
 msgid "No DNS zone found for %s."
 msgstr ""
 
+#: web/list/dns/index.php
+msgid "The zones are being compared in the background. Each result shows up here as it lands."
+msgstr ""
+
 #: web/login/index.php
 msgid "Account has been suspended"
 msgstr "Аккаунт отключён"
@@ -3460,6 +3464,7 @@ msgid "No web or mail domain of this user lies in a DNS zone."
 msgstr ""
 
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Provider"
 msgstr ""
 
@@ -3639,6 +3644,10 @@ msgid "No provider account holds this zone. Enter the records at the provider by
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Nobody reads this zone at the provider: the public name servers of the domain are not those of the account. After a move the zone is often left behind there."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "None."
 msgstr ""
 
@@ -3649,6 +3658,14 @@ msgstr ""
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "Priority"
 msgstr "Приоритет"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Public DNS"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Public DNS did not answer for the name servers of this zone: whether anyone reads it at the provider is not known."
+msgstr ""
 
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
 msgid "Record"
@@ -3668,11 +3685,19 @@ msgid "Whole zone"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "delegated"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "different"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "missing"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "unchecked"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

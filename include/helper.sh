@@ -624,13 +624,18 @@ sury_unattended_apply() {
 
 # A static v6 address is still tentative (DAD) when apache2 and nginx start at boot, and both bind it by name: without
 # this they stay down. Set at once too, for an address h-add-sys-ip has just added. The `-` keeps systemd-sysctl quiet
-# on a box without IPv6.
+# on a box without IPv6. A web server the race already took down is started again; one stopped on purpose stays stopped.
 ipv6_nonlocal_bind_apply() {
-	local f='/etc/sysctl.d/60-hestia-ipv6.conf'
+	local f='/etc/sysctl.d/60-hestia-ipv6.conf' s
 	printf -- '-net.ipv6.ip_nonlocal_bind = 1\n' > "$f" || return 1
 	chmod 644 "$f"
 	[ -e /proc/sys/net/ipv6/ip_nonlocal_bind ] || return 0
-	sysctl -q -w net.ipv6.ip_nonlocal_bind=1 > /dev/null
+	sysctl -q -w net.ipv6.ip_nonlocal_bind=1 > /dev/null || return 1
+	for s in apache2 nginx; do
+		systemctl -q is-failed "$s" 2> /dev/null || continue
+		systemctl restart "$s" > /dev/null 2>&1 || echo "[ ! ] $s still does not start: journalctl -u $s"
+	done
+	return 0
 }
 
 # The host certificate back to what the installer writes. Only a failed proftpd is started again (a key exim owned

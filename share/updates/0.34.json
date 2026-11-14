@@ -3,7 +3,7 @@
   "entries": [
     {
       "id": "ipv6-nonlocal-bind",
-      "description": "apache2 and nginx no longer stay down after a reboot on a static IPv6 address that is still tentative (duplicate address detection) when they start, as with ifupdown on Debian; the kernel lets them bind it",
+      "description": "apache2 and nginx no longer stay down after a reboot on a static IPv6 address that is still tentative (duplicate address detection) when they start, as with ifupdown on Debian; the kernel lets them bind it, and one the race already took down is started again",
       "conditions": [
         { "type": "path_absent", "path": "/etc/sysctl.d/60-hestia-ipv6.conf" }
       ],

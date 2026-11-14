@@ -121,7 +121,8 @@ function resolve(string $name, string $type): array
 function dig(string $name, string $type): array
 {
 	// The names come from records of third parties: dig would read "@host" as a server and "-x" as an option.
-	if (strlen($name) > 253 || str_contains($name, "..") || !preg_match('/^[a-z0-9_]([a-z0-9_.-]*[a-z0-9_])?\.?$/i', $name)) {
+	$host = '/^[a-z0-9_]([a-z0-9_.-]*[a-z0-9_])?\.?$/i';
+	if (strlen($name) > 253 || str_contains($name, "..") || !preg_match($host, $name)) {
 		return [];
 	}
 	$left = (int) ceil(Dig::$deadline - microtime(true));
@@ -130,7 +131,9 @@ function dig(string $name, string $type): array
 		return [];
 	}
 	$out = [];
-	exec("timeout " . min(5, $left) . " dig +short +time=2 +tries=1 " . escapeshellarg($name) . " " . escapeshellarg($type) . " 2>/dev/null", $out, $rc);
+	$cmd = "timeout " . min(5, $left) . " dig +short +time=2 +tries=1 " . escapeshellarg($name) . " "
+		. escapeshellarg($type);
+	exec("$cmd 2>/dev/null", $out, $rc);
 	if ($rc !== 0) {
 		Dig::$failed = true;
 	}
@@ -349,7 +352,8 @@ foreach ($desired as $d) {
 	Dig::$failed = false;
 	if ($cut !== "") {
 		$status = "delegated";
-		$note = "delegated to " . implode(", ", array_map(fn ($i) => $actual[$i][4], at($cut, "NS"))) . ": not answered by this zone";
+		$to = implode(", ", array_map(fn ($i) => $actual[$i][4], at($cut, "NS")));
+		$note = "delegated to $to: not answered by this zone";
 	} elseif ($type === "A" || $type === "AAAA") {
 		$want = addr($value);
 		$hits = at($rel, $type);
@@ -443,7 +447,8 @@ foreach ($desired as $d) {
 						}
 					}
 					$status = $missed ? (Dig::failed() ? "unchecked" : "different") : "ok";
-					$note = !$missed ? "" : (Dig::failed() ? "public DNS did not answer in time" : "does not authorise " . implode(", ", $missed));
+					$why = Dig::failed() ? "public DNS did not answer in time" : "does not authorise " . implode(", ", $missed);
+					$note = $missed ? $why : "";
 				}
 			} elseif ($kind === "dmarc1") {
 				$status = count($hits) > 1 ? "different" : "ok";

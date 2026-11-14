@@ -59,7 +59,7 @@ if (isset($_GET["providers"])) {
 			check_return_code($return_var, $output);
 			unset($output);
 			if (empty($_SESSION["error_msg"])) {
-				$_SESSION["ok_msg"] = sprintf(_("Account %s has been added."), (string) $_POST["v_account"]);
+				$_SESSION["ok_msg"] = tohtml(sprintf(_("Account %s has been added."), (string) $_POST["v_account"]));
 			}
 		}
 		header("Location: /list/dns/?providers=1");
@@ -149,7 +149,9 @@ if (isset($_GET["providers"])) {
 	if (!$v_checked) {
 		$records = cli_json("h-list-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json");
 	}
-	$v_differences = count(array_filter($records, fn ($r) => ($r["STATUS"] ?? "ok") !== "ok"));
+	// Counted as DNSP_DIFFS counts, so the page and the zone list agree.
+	$v_differences = count(array_filter($records, fn ($r) => ($r["STATUS"] ?? "ok") !== "ok"))
+		+ ($v_delegation !== null && $v_delegation["STATUS"] !== "ok" ? 1 : 0);
 
 	// Sections in the order the lister gives, one per kind, object and owner.
 	$sections = [];

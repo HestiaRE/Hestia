@@ -13,7 +13,11 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With ifupdown, as on Debian,
+  the address is still tentative (duplicate address detection) when the web servers start, and both bind it by name.
+  The kernel now lets them bind it (`net.ipv6.ip_nonlocal_bind`); an update entry sets it on existing boxes.
 
 ## v0.33 (2026-11-14)
 

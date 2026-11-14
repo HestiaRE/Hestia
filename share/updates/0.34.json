@@ -8,7 +8,7 @@
         { "type": "path_absent", "path": "/etc/sysctl.d/60-hestia-ipv6.conf" }
       ],
       "action": { "type": "function_call", "function": "ipv6_nonlocal_bind_apply" },
-      "paths": [],
+      "paths": ["/etc/sysctl.d/60-hestia-ipv6.conf"],
       "reversible": false
     }
   ]

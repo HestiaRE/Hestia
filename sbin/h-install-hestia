@@ -1022,13 +1022,18 @@ finalize_install() {
 	mkdir -p /backup && chmod 711 /backup
 	# Now, with the cron only as fallback: a box that is never rebooted would never get a certificate.
 	echo "[ * ] Requesting Let's Encrypt host certificate..."
-	if "$BIN/h-add-letsencrypt-host" >> "$LOG" 2>&1; then
+	local le_out le_ok=no
+	le_out=$("$BIN/h-add-letsencrypt-host" 2>&1) && le_ok=yes
+	printf '%s\n' "$le_out" >> "$LOG"
+	if [ "$le_ok" = yes ]; then
 		echo "[ OK ] Panel certificate issued for $HESTIA_HOSTNAME"
 		rm -f /etc/cron.d/hestia-ssl
 	else
-		echo "[ !! ] Let's Encrypt could not issue yet (public DNS for $HESTIA_HOSTNAME and port 80"
-		echo "       have to be reachable). The panel keeps its self-signed certificate; the request"
-		echo "       is retried once after the next reboot, or run h-add-letsencrypt-host by hand."
+		le_out=$(grep -m1 '^Error: ' <<< "$le_out" || true)
+		echo "[ !! ] Let's Encrypt could not issue yet: ${le_out#Error: }"
+		echo "       Public DNS for $HESTIA_HOSTNAME and port 80 have to be reachable. The panel keeps its"
+		echo "       self-signed certificate; the request is retried once after the next reboot, or run"
+		echo "       h-add-letsencrypt-host by hand."
 		echo "@reboot root sleep 10 && rm /etc/cron.d/hestia-ssl && PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:' && $HESTIA/bin/h-add-letsencrypt-host" \
 			> /etc/cron.d/hestia-ssl
 		# cron refuses a group- or world-writable file in /etc/cron.d and says so only in its log.

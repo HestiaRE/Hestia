@@ -61,10 +61,22 @@ query_le_v2() {
 	post_data=$post_data'"payload":"'"$payload_"'",'
 	post_data=$post_data'"signature":"'"$signature_"'"}'
 
-	# Response headers always go to stdout, the body to $4 when given.
+	# Response headers always go to stdout, the body to $4 when given. Without --retry-max-time curl sleeps out the
+	# Retry-After of a rate limit, which is hours.
 	local save_to_file=${4:-"/dev/stdout"}
-	curl --location --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 --retry 5 --retry-connrefused --silent --dump-header /dev/stdout --data "$post_data" "$1" --header "$content" --output "$save_to_file"
+	curl --location --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 --retry 5 --retry-max-time 120 --retry-connrefused --silent --dump-header /dev/stdout --data "$post_data" "$1" --header "$content" --output "$save_to_file"
 	debug_log "API call" "exit status: $?"
+}
+
+# A rate limit is the one failure no retry within the run cures, so it says how long to wait and which limit.
+le_status_fail() {
+	local msg="$1" after detail
+	if [ "$status" = 429 ]; then
+		after=$(grep -i -m1 '^retry-after:' <<< "$answer" | tr -dc '0-9')
+		detail=$(sed '1,/^\r*$/d' <<< "$answer" | jq -r '.detail // empty' 2> /dev/null)
+		msg="Let's Encrypt rate limit ($domain)${after:+, retry in $((after / 3600))h $((after % 3600 / 60))m}${detail:+: $detail}"
+	fi
+	check_result "$E_CONNECT" "$msg"
 }
 
 # A failed renewal must not leave the domain without the redirect and force-ssl it had.
@@ -224,7 +236,7 @@ status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
 debug_log "Step 1" "- status: ${status}\n- nonce: ${nonce}\n- answer: ${answer}"
 
 if [[ "$status" -ne 200 ]]; then
-	check_result "$E_CONNECT" "Let's Encrypt nonce request status $status ($domain)"
+	le_status_fail "Let's Encrypt nonce request status $status ($domain)"
 fi
 
 # Step 2: new order
@@ -248,7 +260,7 @@ order=$(echo -e "$answer" | grep -i location | cut -f2 -d \  | tr -d '\r\n')
 debug_log "Step 2" "- status: ${status}\n- nonce: ${nonce}\n- authz: ${authz}\n- finalize: ${finalize}\n- payload: ${payload}\n- answer: ${answer}\n order: ${order}"
 
 if [[ "$status" -ne 201 ]]; then
-	check_result $E_CONNECT "Let's Encrypt new auth status $status ($domain)"
+	le_status_fail "Let's Encrypt new auth status $status ($domain)"
 fi
 
 # Step 3: authorizations
@@ -263,7 +275,7 @@ for auth in $authz; do
 	debug_log "Step 3" "- status: ${status}\n- nonce: ${nonce}\n- url: ${url}\n- token: ${token}\n- answer: ${answer}"
 
 	if [[ "$status" -ne 200 ]]; then
-		check_result "$E_CONNECT" "Let's Encrypt acme/authz bad status $status ($domain)"
+		le_status_fail "Let's Encrypt acme/authz bad status $status ($domain)"
 	fi
 
 	# A name LE validated recently has no pending challenge and needs none.
@@ -401,7 +413,7 @@ debug_log "Step 6" "- status: ${status}\n- nonce: ${nonce}\n- payload: ${payload
 
 if [[ "$status" -ne 200 ]]; then
 	[ -d "$ssl_dir" ] && rm -rf "$ssl_dir"
-	check_result "$E_CONNECT" "Let's Encrypt finalize bad status $status ($domain)"
+	le_status_fail "Let's Encrypt finalize bad status $status ($domain)"
 fi
 
 if [ -z "$certificate" ]; then
@@ -443,7 +455,7 @@ done
 
 # Fallback: the deprecated unauthenticated GET.
 if [[ $status != 200 ]]; then
-	answer=$(curl --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 --retry 5 --retry-connrefused --silent --dump-header /dev/stdout "$certificate" --output "$ssl_dir/$domain.pem")
+	answer=$(curl --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 --retry 5 --retry-max-time 120 --retry-connrefused --silent --dump-header /dev/stdout "$certificate" --output "$ssl_dir/$domain.pem")
 	status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
 
 	debug_log "Step 8 - Fallback" "- status: ${status}\n- answer: ${answer}"

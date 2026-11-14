@@ -165,7 +165,7 @@ configure_nginx() {
 
 	echo "[ * ] Updating Cloudflare IP ranges..."
 	local cf_ips
-	cf_ips=$(curl -fsLm5 --retry 2 https://api.cloudflare.com/client/v4/ips 2> /dev/null || echo "")
+	cf_ips=$(curl -fsLm5 --retry 2 --retry-max-time 15 https://api.cloudflare.com/client/v4/ips 2> /dev/null || echo "")
 	if [ -n "$cf_ips" ] && [ "$(echo "$cf_ips" | jq -r '.success//""')" = "true" ]; then
 		{
 			echo "# Cloudflare IP Ranges"

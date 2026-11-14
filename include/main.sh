@@ -1721,7 +1721,7 @@ looks_like_ip46() {
 public_ipv4() {
 	local a src=()
 	[ -n "${1-}" ] && src=(--interface "$1")
-	a=$(curl -fsLm5 --retry 2 --retry-all-errors --ipv4 "${src[@]}" https://ip.hestiare.com/ 2> /dev/null) || return 1
+	a=$(curl -fsLm5 --retry 2 --retry-max-time 15 --retry-all-errors --ipv4 "${src[@]}" https://ip.hestiare.com/ 2> /dev/null) || return 1
 	[ "$($HESTIA_PHP -r 'echo filter_var($argv[1], FILTER_VALIDATE_IP,
 		FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) ? 0 : 1;' -- "$a")" = 0 ] || return 1
 	printf '%s\n' "$a"

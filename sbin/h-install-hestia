@@ -214,6 +214,7 @@ EOF
 	grep -q 'LS_COLORS="$LS_COLORS:di=00;33"' /etc/profile \
 		|| echo 'LS_COLORS="$LS_COLORS:di=00;33"' >> /etc/profile
 	proc_hardening_apply
+	ipv6_nonlocal_bind_apply
 
 	# quota is base: armed before any customer exists (separate-/home paths umount); never aborts
 	echo "[ * ] Arming project quota (when the filesystem supports it)..."

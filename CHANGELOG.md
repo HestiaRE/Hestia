@@ -43,10 +43,10 @@ the releases of the command audit, into another.
 
 - **A refused forward bounced to the original sender** (#1336). When the target of a forward refused a mail, exim
   sent the bounce to the envelope sender, which in spam is forged: backscatter, and it got a production box listed
-  at Spamhaus CSS. A failed forward or catch-all delivery now bounces into devnull, and the target's refusal stays in
-  the exim log. Mail without a sender (a bounce, a DSN) is delivered to local targets only, so it is never forwarded
-  and never delivered twice; an account that only forwards drops it, and a catch-all to an external address refuses
-  it at RCPT. Existing boxes get it as a patch of the exim template. This is the interim: forwarding moves to Sieve.
+  at Spamhaus CSS. A failed forward or catch-all delivery to an external address now bounces into devnull, and the
+  target's refusal stays in the exim log. A forwarded bounce no longer freezes and is never delivered twice. Aliases
+  to local mailboxes keep the sender, so a vacation still answers it. Existing boxes get it as a patch of the exim
+  template. This is the interim: forwarding moves to Sieve (#1337).
 - **The webmail records were derived for a mail domain without webmail** (#1333). The DNS pages listed
   `webmail.<domain>` whenever a webmail client was installed; they now follow the domain's own webmail setting.
 - **A resolver failure held a DNS zone "unknown" for an hour** (#1332). A SERVFAIL or a timeout was cached like an

@@ -15,33 +15,37 @@
  # The box addresses its own mail - cron, the panel's notifications - to root@<hostname> or to the
  # admin contact at <hostname>. That is not a HestiaRE mail domain, so it fell through to dnslookup
  # and was handed to whatever host answers for the hostname: measured "454 relay access denied" and
-@@ -514,10 +522,13 @@
+@@ -512,12 +520,18 @@
+     allow_fail
+     data = :fail: Invalid SRS recipient address
  
++ALIAS_TARGETS = ${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
++CATCHALL_TARGETS = ${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
++
  aliases:
    driver = redirect
-+  errors_to = bounce@forward-errors.invalid
++  # Only with an external target: on a local copy errors_to becomes the Return-Path, which a vacation answers.
++  # A list with both still gives its local copies this one.
++  errors_to = ${if forany{<, ALIAS_TARGETS}{!match_domain{${domain:$item}}{+local_domains}}{bounce@forward-errors.invalid}fail}
    local_part_suffix = +*
    local_part_suffix_optional
    headers_add = X-redirected: yes
 -  data = ${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
-+  # Mail without a sender, a bounce or DSN, goes to local targets only: forwarded it is backscatter at the target,
-+  # and a refused copy has nowhere to bounce, so it freezes and is tried again.
-+  data = ${if def:sender_address {${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}}{${filter{<, ${extract{1}{:}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}}{match_domain{${domain:$item}}{+local_domains}}}}}
++  data = ALIAS_TARGETS
    require_files = /etc/exim4/domains/$domain/aliases
    redirect_router = dnslookup
    pipe_transport = address_pipe
-@@ -553,11 +564,13 @@
+@@ -553,11 +567,12 @@
  
  catchall:
    driver = redirect
-+  errors_to = bounce@forward-errors.invalid
++  errors_to = ${if forany{<, CATCHALL_TARGETS}{!match_domain{${domain:$item}}{+local_domains}}{bounce@forward-errors.invalid}fail}
    local_part_suffix = +*
    local_part_suffix_optional
    headers_add = X-redirected: yes
    require_files = /etc/exim4/domains/$domain/aliases
 -  data = ${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}
-+  # As in aliases; with no local target left the address is unrouteable and refused at RCPT.
-+  data = ${if def:sender_address {${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}}{${filter{<, ${extract{1}{:}{${lookup{*@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}}}}}{match_domain{${domain:$item}}{+local_domains}}}}}
++  data = CATCHALL_TARGETS
    file_transport = local_delivery
    redirect_router = dnslookup
    condition = ${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}{false}{true}}

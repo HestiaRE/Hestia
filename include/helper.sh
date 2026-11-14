@@ -967,7 +967,7 @@ exim_spam_status_score_apply() {
 	exim_template_patch 0.30/exim-spam-status-score.patch
 }
 
-# A failed forward bounces into devnull and not to the sender; mail without a sender is forwarded to nowhere.
+# A failed external forward bounces into devnull, never to the sender of what was forwarded.
 exim_forward_errors_apply() {
 	exim_template_patch 0.33/exim-forward-errors.patch
 }

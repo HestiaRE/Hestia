@@ -71,6 +71,10 @@ the releases of the command audit, into another.
 
 ### Changed
 
+- **The update manifests at or below the lower bound are gone** (#1339). Since #1093 nothing reads a manifest at or
+  below `UPDATE_MIN_VERSION` (v0.25), so `0.20.0.json` to `0.25.json`, their patches and 28 update functions only they
+  named were dead code. The pin channels and the repeatable refreshes (ioncube, PHP modules, language fallback, file
+  manager) stay callable. A box that already has the old files keeps them, and they stay unread there too.
 - **The DMARC record HestiaRE derives for a mail domain is `v=DMARC1; p=none`** (#1333), was
   `p=quarantine; pct=100`. It is what the mail DNS page shows and what a sync adds where a domain has none; an
   existing DMARC record counts as in place whatever its policy.

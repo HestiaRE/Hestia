@@ -780,9 +780,6 @@ configure_hestia() {
 	deploy_hestia_sudoers
 	cp -f "$HESTIA/share/hestia/logrotate" /etc/logrotate.d/hestia 2> /dev/null || true
 
-	# Sets the marker of the update entry with the same name, which otherwise stays pending on every fresh box.
-	cron_record_review_apply
-
 	echo "[ * ] Installing firewall data; seeding hosting packages..."
 	# Per file and only when absent: configure re-runs with every changed install.conf, and an admin's package stays.
 	for _pkg in "$HESTIA/share/hestia/packages/"*.pkg; do

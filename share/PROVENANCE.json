@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 72,
-      "eigenbau_files": 164,
+      "eigenbau_files": 151,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 236,
+      "files_total": 223,
       "files_mapped": 72
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -2232,60 +2232,6 @@
       "note": ""
     },
     {
-      "path": "updates/0.20.0.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-17",
-      "divergence": null,
-      "note": "HestiaRE-native (#1076): the first update manifest. Upstream has no update path of this shape."
-    },
-    {
-      "path": "updates/0.21.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-22",
-      "divergence": null,
-      "note": "HestiaRE-native (#596/#1083): the v0.21 update manifest. Upstream has no update path and nothing to compare against."
-    },
-    {
-      "path": "updates/0.22.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-26",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.22 update manifest. Upstream has no update path of this shape."
-    },
-    {
-      "path": "updates/0.23.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-26",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.23 update manifest. Upstream has no update path of this shape."
-    },
-    {
-      "path": "updates/0.24.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-06",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.24 update manifest. Upstream has no update path of this shape."
-    },
-    {
-      "path": "updates/0.25.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-09",
-      "divergence": null,
-      "note": ""
-    },
-    {
       "path": "updates/0.26.json",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -2347,69 +2293,6 @@
       "last_reconciled": "2026-09-13",
       "divergence": null,
       "note": ""
-    },
-    {
-      "path": "updates/patches/0.21/exim-lmtp-subaddressing.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-22",
-      "divergence": null,
-      "note": "HestiaRE-native (#1083): the patch an update applies to a box's exim template, which the operator may have edited. Upstream ships no such mechanism."
-    },
-    {
-      "path": "updates/patches/0.22/exim-autoreply-rfc3834.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-26",
-      "divergence": null,
-      "note": "HestiaRE-native (#784): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.22/exim-spam-header-strip.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-09-26",
-      "divergence": null,
-      "note": "HestiaRE-native (#1121): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.24/exim-lists-unexpanded.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1176): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.24/exim-one-domain-per-transaction.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1176): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.24/exim-reject-needs-antispam.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1176): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.24/exim-relay-dkim.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1176): patch an update applies to a box's exim template, which the operator may have edited."
     },
     {
       "path": "updates/patches/0.28/dovecot-login-alias.patch",

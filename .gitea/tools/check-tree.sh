@@ -207,10 +207,11 @@ check_manifest_status_link() {
 
 # A shipped file or pin reaches an installed box only through an entry in a manifest above the last public release:
 # the entries at or below the update bound are not read. Watched is every pin_differs name and file_differs or
-# file_copy source any manifest has named. Not covered: a file no manifest has named yet, and a change that ships
-# by a rebuild instead of an entry.
+# file_copy source any manifest has named, including one since removed from the tree: dropping it must not drop what
+# it shipped from the watch. Not covered: a file no manifest has named yet, and a change that ships by a rebuild
+# instead of an entry.
 check_update_entries_follow_changes() {
-	local tag m v pin s now was old n=0 changed=0 miss=''
+	local tag m v pin s now was old all c f n=0 changed=0 miss=''
 	local pin_q='.. | objects | select(.type == "pin_differs") | .name // empty'
 	local src_q='.. | objects | select(.type == "file_differs" or .type == "file_copy") | .source // empty'
 	# The version and its companions (tachyon_sha256, tachyon_plugins) without their $comment keys: pin_differs
@@ -223,6 +224,16 @@ check_update_entries_follow_changes() {
 		no "update entries: no public release tag in this checkout" "nothing to compare, the clone needs the tags"
 		return
 	fi
+	if [ "$(git rev-parse --is-shallow-repository 2> /dev/null)" != false ]; then
+		no "update entries: no full history in this checkout" "a removed manifest can only be read from the history"
+		return
+	fi
+	all=$(cat share/updates/*.json 2> /dev/null)
+	# A removed manifest read at the commit before its removal. --no-renames: a rename is a removal as well.
+	while read -r c f; do
+		all+=$'\n'$(git show "$c^:$f" 2> /dev/null)
+	done < <(git log --no-renames --diff-filter=D --format='%H' --name-only -- 'share/updates/*.json' 2> /dev/null \
+		| awk '/^[0-9a-f]{40}$/ { c = $0; next } NF { print c, $0 }')
 	old=$(git show "$tag:share/manifest.json" 2> /dev/null)
 	for m in share/updates/*.json; do
 		[ -e "$m" ] || continue
@@ -243,7 +254,7 @@ check_update_entries_follow_changes() {
 		elif [ "${#later[@]}" -eq 0 ] || ! jq -r "$pin_q" "${later[@]}" | grep -qxF -- "$pin"; then
 			miss="$miss $pin"
 		fi
-	done < <(jq -r "$pin_q" share/updates/*.json | sort -u)
+	done < <(jq -r "$pin_q" <<< "$all" | sort -u)
 	while IFS= read -r s; do
 		[ -n "$s" ] || continue
 		n=$((n + 1))
@@ -252,7 +263,7 @@ check_update_entries_follow_changes() {
 		if [ "${#later[@]}" -eq 0 ] || ! jq -r "$src_q" "${later[@]}" | grep -qxF -- "$s"; then
 			miss="$miss $s"
 		fi
-	done < <(jq -r "$src_q" share/updates/*.json | sort -u)
+	done < <(jq -r "$src_q" <<< "$all" | sort -u)
 	if [ "$n" -eq 0 ]; then
 		no "update entries: no pin or file is watched" "the manifests name none, so nothing was compared"
 	elif [ -n "$miss" ]; then

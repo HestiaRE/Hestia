@@ -49,39 +49,6 @@ fail2ban_install_config() {
 	chmod 644 "$F2B_OURS" 2> /dev/null
 }
 
-# The panel jail bans on 80/443 as well, where a panel-proxy domain takes the same login. Update path: the action
-# file comes from the tree, the jail line is ours to swap.
-fail2ban_panel_action_apply() {
-	[ -f "$F2B_OURS" ] || return 1
-	cp -f "$HESTIA/share/fail2ban/action.d/hestia-panel.conf" "$F2B_DIR/action.d/" || return 1
-	sed -i 's/^action[[:space:]]*=[[:space:]]*hestia\[name=HESTIA\][[:space:]]*$/action   = hestia-panel/' "$F2B_OURS" || return 1
-	grep -q '^action   = hestia-panel$' "$F2B_OURS" || return 1
-	systemctl -q is-active fail2ban 2> /dev/null || return 0
-	# Restart, not reload: a reload drops the old action and never loads the new one.
-	fail2ban_restart
-}
-
-# Update path of the dovecot filter and the mail password grace: hestia.local is only copied on a box without one,
-# so the two mail jails are edited in place. Substitutions and appends only, never a delete in a range.
-fail2ban_mail_grace_apply() {
-	local grace="/usr/local/hestia/sbin/hestia-mail-grace"
-	[ -f "$F2B_OURS" ] || return 1
-	cp -f "$HESTIA/share/fail2ban/filter.d/hestia-dovecot.conf" "$F2B_DIR/filter.d/" || return 1
-	sed -i '/^\[dovecot-iptables\]/,/^\[/s/^filter[[:space:]]*=[[:space:]]*dovecot[[:space:]]*$/filter   = hestia-dovecot/' "$F2B_OURS" || return 1
-	if ! grep -q "^ignorecommand = $grace mailbox " "$F2B_OURS"; then
-		sed -i "/^\[dovecot-iptables\]/,/^\[/{/^logpath[[:space:]]*=/a ignorecommand = $grace mailbox <ip> <F-USER>
-}" "$F2B_OURS" || return 1
-	fi
-	if ! grep -q "^ignorecommand = $grace ip " "$F2B_OURS"; then
-		sed -i "/^\[exim-iptables\]/,/^\[/{/^logpath[[:space:]]*=/a ignorecommand = $grace ip <ip>
-}" "$F2B_OURS" || return 1
-	fi
-	[ "$(sed -n '/^\[dovecot-iptables\]/,/^\[/p' "$F2B_OURS" | grep -c "^filter   = hestia-dovecot$\|^ignorecommand = $grace mailbox ")" = 2 ] || return 1
-	[ "$(sed -n '/^\[exim-iptables\]/,/^\[/p' "$F2B_OURS" | grep -c "^ignorecommand = $grace ip ")" = 1 ] || return 1
-	systemctl -q is-active fail2ban 2> /dev/null || return 0
-	fail2ban_restart
-}
-
 # Update path of the two hestia actions. A reload loads a changed action of the same name and keeps the bans; a
 # restart would stop every jail through the old actionunban, the one that waits out fail2ban's timeout per ban.
 fail2ban_unban_caller_apply() {

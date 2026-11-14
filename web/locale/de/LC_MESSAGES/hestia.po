@@ -1693,6 +1693,12 @@ msgid "IP List Name"
 msgstr "Bezeichnung der IP-Liste"
 
 #: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#: web/templates/pages/edit_server.php
+msgid "More info"
+msgstr "Weitere Informationen"
+
+#: web/templates/pages/add_firewall_ipset.php
 #: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
 msgid "No"
 msgstr "Nein"
@@ -2514,10 +2520,6 @@ msgstr "Mail ist installiert: Ohne Fail2Ban bleiben Brute-Force Angriffe auf Mai
 #: web/templates/pages/edit_server.php
 msgid "Maximum Number of Databases"
 msgstr "Maximale Anzahl der Datenbanken"
-
-#: web/templates/pages/edit_server.php
-msgid "More info"
-msgstr "Weitere Informationen"
 
 #: web/templates/pages/edit_server.php
 msgid "MySQL Support"

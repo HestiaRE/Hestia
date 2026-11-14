@@ -13,71 +13,60 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.33 (2026-11-14)
+
+DNS provider accounts that compare and write a zone, forwards that no longer send backscatter, and boxes with
+several public addresses.
+
 ### Added
 
-- **DNS provider accounts, read only** (#1332, stage 1 of #863). The DNS tab's provider page adds an account at
-  InterNetX AutoDNS (an API key with the rights DNS zone query, 0202002 and DNS zone update bulk; the zone update
-  itself stays off), checks and deletes it. The key is stored for root only under `/etc/hestia/dns` and is no part of
-  any backup. A zone an account holds is compared with what HestiaRE derives every time its page opens: per record
-  ok, missing, different, delegated (a subzone with name servers of its own), or answered by a CNAME, ALIAS or
-  wildcard, with SPF judged by whether it authorises the box's addresses. The zone page warns when the public name
-  servers are not the account's, as after a move. The provider's other records are listed apart and never touched;
-  in a zone whose apex lies elsewhere only the box's own names are shown. The zone list shows the account and the
-  result of the last check, and "Check Zones" checks all of them in the background. An unreachable provider costs a
-  page at most a few seconds, and public DNS gets ten seconds per check. An account is saved only once its key may
-  list zones. Nothing is written to a provider yet. New commands: `h-add-dns-provider`,
-  `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`, `h-check-dns-zone`, `h-check-dns-zones`.
-- **DNS sections written to the provider** (#1333, stage 2 of #863). Each section of a zone with differences gets
-  "Sync to provider": a preview of the writes, then one click. Missing records are added, differing ones replaced,
-  the apex address set as the InterNetX main IP (an IPv6 main IP stays, the A goes next to it); www follows it under
-  the www flag. SPF is merged (the missing addresses go right behind `v=spf1`, so nothing later can reject them;
-  includes and the qualifier stay), DMARC is only added when there is none, DKIM is replaced. A CNAME at the name, a second SPF record or a www that has to differ from the apex under the flag is
-  left alone and says why, as is a delegated name or a record holding a control character. Records no row of the
-  section derives are never touched, and nothing is written to a zone the public name servers do not point at. The
-  zone is read again before the write and nothing goes out if it changed since the preview; afterwards it is read
-  once more and only a zone in line counts as done, with the delegation confirmed again. One write per zone at a
-  time, so a second click finds the zone changed. Every write is logged first, with the stored value of each
-  removed record, in `/var/log/hestia/dns-sync.log`. New command: `h-sync-dns-zone`.
+- **DNS provider accounts** (#1332/#1333, part of #863). The DNS tab adds an InterNetX AutoDNS account; the key is
+  stored for root only under `/etc/hestia/dns` and is no part of any backup. Each zone the account holds is compared
+  with what HestiaRE derives, record by record (ok, missing, different, delegated, or answered by a CNAME, ALIAS or
+  wildcard; SPF by whether it authorises the box's addresses), with a warning when the public name servers are not
+  the account's. "Sync to provider" writes one section after a preview: missing records added, differing ones
+  replaced, SPF merged behind `v=spf1`, DMARC only where there is none. Records HestiaRE does not derive are never
+  touched, nothing is written to a zone the public name servers do not point at, a zone that changed since the
+  preview is left alone, and every write is logged first in `/var/log/hestia/dns-sync.log`. Commands:
+  `h-add-dns-provider`, `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`,
+  `h-check-dns-zone`, `h-check-dns-zones`, `h-sync-dns-zone`.
 
-### Fixed
+### Security
 
-- **A refused forward bounced to the original sender** (#1336). When the target of a forward refused a mail, exim
-  sent the bounce to the envelope sender, which in spam is forged: backscatter, and it got a production box listed
-  at Spamhaus CSS. A failed forward or catch-all delivery to an external address now bounces into devnull, and the
-  target's refusal stays in the exim log. A forwarded bounce no longer freezes and is never delivered twice. Aliases
-  to local mailboxes keep the sender, so a vacation still answers it. Existing boxes get it as a patch of the exim
-  template. This is the interim: forwarding moves to Sieve (#1337).
-- **The webmail records were derived for a mail domain without webmail** (#1333). The DNS pages listed
-  `webmail.<domain>` whenever a webmail client was installed; they now follow the domain's own webmail setting.
-- **A resolver failure held a DNS zone "unknown" for an hour** (#1332). A SERVFAIL or a timeout was cached like an
-  answer that the name has no zone. It is now not cached, and the next listing asks again.
-
-- **A box with a second public IP next to an internal NAT address got its NAT on the wrong record** (#1330). One
-  probe along the default route decided the NAT, and it was hung on the newest IP record, which on a tunneled
-  public IP was that IP itself. Each v4 record is now probed with itself as the source: its own address back clears
-  the NAT, another public address sets it, no answer leaves it as it was. The boot run repairs a wrong NAT this way.
-  Of several records behind one public address the main one gets it. A NAT set by hand that differs from what the
-  probe sees (inbound through one address, outbound through another) is still overwritten at boot, as before.
-- **New domains defaulted to the alphabetically first IP** (#1330), on the CLI without an IP argument and as the
-  first option in the panel. The address the box reaches the internet from now comes first; owned before shared
-  stays. A mail domain without a web domain keeps the address it sends from on a rebuild instead of following the
-  user's first one; before, adding an IP that sorted first moved such domains at their next rebuild. A relay
-  domain has no such pin, so its webmail listener still follows the first address.
-- **The firewall opened only the `Port` of sshd** (#1330). A port given in a `ListenAddress` stayed closed, and
-  `Port 226` with `ListenAddress 10.5.5.26:22` would have closed 22. The SSH ports come from every listen address.
-- **With a fallback default route `h-delete-sys-ip` no longer protected the primary IP** (#1330). Two default
-  routes made the NIC lookup two lines, so the guard compared against nothing. `h-add-sys-ip` had the same lookup.
-  Both now take the NIC of the route the kernel picks.
+- **Tachyon 4.6.0** (#1341). A folder name, which on a shared folder another user chooses, was rendered as HTML in
+  two confirm dialogs, and `javascript:`, `data:`, `vbscript:` and `file:` links in a message body kept their href.
+  Existing boxes get it with the update.
 
 ### Changed
 
-- **The update manifests at or below the lower bound are gone** (#1339). Since #1093 nothing reads a manifest at or
-  below `UPDATE_MIN_VERSION` (v0.25), so `0.20.0.json` to `0.25.json`, their patches and 28 update functions only they
-  named were dead code. The pin channels and the repeatable refreshes (ioncube, PHP modules, language fallback, file
-  manager) stay callable. A box that already has the old files keeps them, and they stay unread there too.
-- **The DMARC record HestiaRE derives for a mail domain is `v=DMARC1; p=none`** (#1333), was
-  `p=quarantine; pct=100`. It is what the mail DNS page shows and what a sync adds where a domain has none; an
-  existing DMARC record counts as in place whatever its policy.
+- **The derived DMARC record is `v=DMARC1; p=none`** (#1333), was `p=quarantine; pct=100`. An existing DMARC record
+  counts as in place whatever its policy.
+- **New domains default to the IP the box reaches the internet from** (#1330), on the CLI without an IP and first in
+  the panel, instead of the alphabetically first; owned before shared stays. A mail domain without a web domain
+  keeps its sending address on a rebuild.
+
+### Removed
+
+- **The update manifests at or below the lower bound** (#1339): `0.20.0.json` to `0.25.json`, their patches and the
+  update functions only they named. Nothing read them since v0.25; a box that has them keeps them, unread.
+
+### Fixed
+
+- **A refused forward bounced to the original sender** (#1336). In spam that sender is forged, so this was
+  backscatter, and it got a production box listed at Spamhaus CSS. A failed forward or catch-all delivery to an
+  external address now bounces into devnull, the refusal stays in the exim log, and a forwarded bounce no longer
+  freezes and is delivered twice. Aliases to local mailboxes keep the sender, so a vacation still answers. Existing
+  boxes get it as a patch of the exim template; forwarding moves to Sieve later (#1337).
+- **A second public IP next to an internal NAT address got the NAT on the wrong record** (#1330). Each v4 record is
+  now probed with itself as the source, and the boot run repairs a wrong NAT. A NAT set by hand that differs from
+  what the probe sees is still overwritten at boot.
+- **The firewall opened only the `Port` of sshd** (#1330); a port in a `ListenAddress` stayed closed. The SSH ports
+  come from every listen address now.
+- Smaller ones: `h-delete-sys-ip` lost its guard for the primary IP with a fallback default route (#1330), the DNS
+  pages listed `webmail.<domain>` for a mail domain without webmail (#1333), and a resolver failure held a zone
+  "unknown" for an hour (#1332).
 
 ## v0.32 (2026-11-12)
 
@@ -86,14 +75,10 @@ after HestiaCP 1.10.6.
 
 ### Security
 
-- **A Debian box received no automatic updates, not even security ones** (#1292). The installer never installed
-  unattended-upgrades; only Ubuntu's image carries it. It is installed and switched on now, with Debian's own
-  configuration (security updates and point releases), on an existing box by the update. Its next timer run
-  catches up on everything pending at once, services restart with it; an `apt upgrade` by hand before the update
-  keeps that in view.
-- **The subdomain ownership check could be passed on another customer's domain** (#1323).
-- **A mail account without a hash in its record was written with another account's** (#1323); it is written
-  locked now.
+- **A Debian box received no automatic updates, not even security ones** (#1292). unattended-upgrades is installed
+  and switched on now with Debian's own configuration, on an existing box by the update.
+- **Two record-loop leaks** (#1323): the subdomain ownership check could be passed on another customer's domain,
+  and a mail account without a hash was written with another account's (locked now).
 
 ### Changed
 
@@ -103,9 +88,8 @@ after HestiaCP 1.10.6.
 - **apt keeps a conffile HestiaRE edited instead of asking**, as answering N does (#1292). unattended-upgrades
   skipped such a package entirely, so an exim, nginx, apache or PHP-FPM update that touched one stayed
   uninstalled. It holds for a manual `apt upgrade` too; the package's own version lands as `.dpkg-dist`.
-- **The web-domain, mail-domain and mail-account lists validate a user's records in one PHP start** (#1317,
-  upstream #5726/#5890): 100 web domains in about 0.1 s instead of 2.2 s, and a bad record aborts before the first
-  line instead of inside a half-printed JSON.
+- **The domain and mail account lists validate a user's records in one PHP start** (#1317, upstream #5726/#5890),
+  about twenty times faster.
 
 ### Fixed
 
@@ -143,9 +127,8 @@ The DNS records HestiaRE needs, the MariaDB client under its own names, and reco
 
 - **A record that could not be updated passed with rc 0** (#1312); the command stops with E_UPDATE now.
 - **A restore from HestiaCP put every web domain on the PHP version of the first one** (#1305).
-- **The server backup left the webmail databases out on MariaDB 11.x without Recommends** (#1302), and the nightly
-  table check did nothing there.
-- **`h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked** (#1311).
+- Smaller ones: the server backup left the webmail databases out on MariaDB 11.x without Recommends (#1302), and
+  `h-restart-system` and `h-add-backup-host` took DELAY and PATH unchecked (#1311).
 
 ## v0.30 (2026-11-06)
 

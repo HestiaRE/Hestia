@@ -68,15 +68,19 @@ query_le_v2() {
 	debug_log "API call" "exit status: $?"
 }
 
-# A rate limit is the one failure no retry within the run cures, so it says how long to wait and which limit.
+# A rate limit is the one failure no retry within the run cures, so it says how long to wait and which limit, and
+# exits E_LIMIT, which the renewal does not count as a failed attempt. Retry-After may be a date; only seconds are used.
 le_status_fail() {
-	local msg="$1" after detail
+	local msg="$1" code="${2:-$E_CONNECT}" after detail
 	if [ "$status" = 429 ]; then
-		after=$(grep -i -m1 '^retry-after:' <<< "$answer" | tr -dc '0-9')
-		detail=$(sed '1,/^\r*$/d' <<< "$answer" | jq -r '.detail // empty' 2> /dev/null)
+		after=$(grep -i -m1 '^retry-after:' <<< "$answer" | cut -d: -f2- | tr -d ' \r')
+		[[ "$after" =~ ^[0-9]+$ ]] || after=''
+		# The problem document is the JSON object; header blocks before it (a redirect, 100 Continue) do not matter.
+		detail=$(sed -n '/^{/,$p' <<< "$answer" | jq -r '.detail // empty' 2> /dev/null)
 		msg="Let's Encrypt rate limit ($domain)${after:+, retry in $((after / 3600))h $((after % 3600 / 60))m}${detail:+: $detail}"
+		code=$E_LIMIT
 	fi
-	check_result "$E_CONNECT" "$msg"
+	check_result "$code" "$msg"
 }
 
 # A failed renewal must not leave the domain without the redirect and force-ssl it had.
@@ -188,10 +192,12 @@ user: ${user}
 domain: ${domain}
 " >> "$log_file"
 
-$BIN/h-add-letsencrypt-user $user
-if [ "$?" -ne 0 ]; then
+le_acc=$($BIN/h-add-letsencrypt-user $user)
+le_acc_rc=$?
+if [ "$le_acc_rc" -ne 0 ]; then
 	send_notice "LETSENCRYPT" "Account registration failed ($user)"
-	check_result "$E_CONNECT" "LE account registration ($user)" > /dev/null
+	[ "$le_acc_rc" -eq "$E_LIMIT" ] || le_acc_rc=$E_CONNECT
+	check_result "$le_acc_rc" "LE account registration ($user): ${le_acc#Error: }"
 fi
 
 le_conf_load "$USER_DATA/ssl/le.conf"
@@ -377,6 +383,7 @@ for auth in $authz; do
 		debug_log "Step 5" "- status: ${status}\n- url: ${url}\n- nonce: ${nonce}\n- validation: ${validation}\n- details: ${details}\n- answer: ${answer}"
 
 		if [[ "$status" -ne 200 ]]; then
+			[ "$status" != 429 ] || le_status_fail "Let's Encrypt validation status $status ($domain)"
 			result=$(wget -qO- --timeout=15 --tries=2 "$url")
 			debug_log "Debug information Step 5" "$result"
 			details=$(echo $result | jq '.error.detail')
@@ -427,6 +434,7 @@ if [ -z "$certificate" ]; then
 		status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
 		validation=$(echo "$answer" | grep 'status":' | cut -f4 -d '"')
 		certificate=$(echo "$answer" | grep 'certificate":' | cut -f4 -d '"')
+		[ "$status" != 429 ] || le_status_fail "Let's Encrypt order status $status ($domain)"
 		sleep $((i * 2)) # Sleep for 2s, 4s, 6s, 8s
 		if [ $i -gt 10 ]; then
 			check_result "$E_CONNECT" "Certificate processing timeout ($domain)"
@@ -466,7 +474,7 @@ debug_log "CERT PEM" "$(cat "$ssl_dir/$domain.pem")"
 
 if [[ "$status" -ne 200 ]]; then
 	[ -d "$ssl_dir" ] && rm -rf "$ssl_dir"
-	check_result "$E_NOTEXIST" "Let's Encrypt downloading signed cert failed status:$status ($domain)"
+	le_status_fail "Let's Encrypt downloading signed cert failed status:$status ($domain)" "$E_NOTEXIST"
 fi
 
 crt_end=$(grep -n 'END CERTIFICATE' $ssl_dir/$domain.pem | head -n1 | cut -f1 -d:)

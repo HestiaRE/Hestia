@@ -1030,10 +1030,14 @@ finalize_install() {
 		rm -f /etc/cron.d/hestia-ssl
 	else
 		le_out=$(grep -m1 '^Error: ' <<< "$le_out" || true)
-		echo "[ !! ] Let's Encrypt could not issue yet: ${le_out#Error: }"
-		echo "       Public DNS for $HESTIA_HOSTNAME and port 80 have to be reachable. The panel keeps its"
-		echo "       self-signed certificate; the request is retried once after the next reboot, or run"
-		echo "       h-add-letsencrypt-host by hand."
+		le_out=${le_out#Error: }
+		echo "[ !! ] Let's Encrypt could not issue yet: ${le_out:-see $LOG}"
+		case "$le_out" in
+			*"rate limit"*) ;;
+			*) echo "       Public DNS for $HESTIA_HOSTNAME and port 80 have to be reachable." ;;
+		esac
+		echo "       The panel keeps its self-signed certificate; the request is retried once after the next"
+		echo "       reboot, or run h-add-letsencrypt-host by hand."
 		echo "@reboot root sleep 10 && rm /etc/cron.d/hestia-ssl && PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:' && $HESTIA/bin/h-add-letsencrypt-host" \
 			> /etc/cron.d/hestia-ssl
 		# cron refuses a group- or world-writable file in /etc/cron.d and says so only in its log.

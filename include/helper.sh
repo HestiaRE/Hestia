@@ -967,6 +967,11 @@ exim_spam_status_score_apply() {
 	exim_template_patch 0.30/exim-spam-status-score.patch
 }
 
+# A failed forward bounces into devnull and not to the sender; mail without a sender is forwarded to nowhere.
+exim_forward_errors_apply() {
+	exim_template_patch 0.33/exim-forward-errors.patch
+}
+
 exim_template_patch() { # PATCH below share/updates/patches
 	local tpl=/etc/exim4/exim4.conf.template
 	local pf="$HESTIA/share/updates/patches/$1"

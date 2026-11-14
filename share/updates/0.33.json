@@ -1,0 +1,16 @@
+{
+  "version": "0.33",
+  "entries": [
+    {
+      "id": "exim-forward-errors",
+      "description": "A forward the target refuses no longer bounces to the original sender, who is forged in most spam (backscatter that listed a box at Spamhaus CSS); the bounce goes to devnull. Mail without a sender is delivered to local targets only, so a bounce is never forwarded and an external catch-all refuses it. Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "file_patch_pending", "source": "share/updates/patches/0.33/exim-forward-errors.patch", "target": "/etc/exim4/exim4.conf.template" }
+      ],
+      "action": { "type": "function_call", "function": "exim_forward_errors_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
+    }
+  ]
+}

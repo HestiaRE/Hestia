@@ -120,7 +120,7 @@ if [ "$SSL" = 'yes' ]; then
 fi
 
 # The move most likely to fail goes first, while a refusal still leaves everything as it was.
-home_run "$user" web root -- mv -- "$domain" "$new_domain" \
+home_run "$user" web root -- mv -T -- "$domain" "$new_domain" \
 	|| check_result "$E_UPDATE" "$HOMEDIR/$user/web/$domain could not be moved, nothing is renamed"
 
 rename_warn=''

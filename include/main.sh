@@ -2806,10 +2806,11 @@ docker_ip_valid() {
 
 # home_cd USER REL [root]: enter ~USER/REL as root without following a link the customer planted on the way. A swap
 # during the walk shows in the physical cwd. With root the directory must be root's and closed to g/o writes, so a name
-# in it stays what it was; in a directory of the customer's act on `.` only.
+# in it stays what it was; in a directory of the customer's act on `.` only. It moves the caller: call it in a subshell.
 home_cd() {
 	local want part m
 	local -a parts
+	[[ "$2" != *$'\n'* ]] || return 1
 	[ -n "$1" ] && [ ! -L "$HOMEDIR/$1" ] && cd -P -- "$HOMEDIR/$1" 2> /dev/null || return 1
 	want=$(readlink /proc/self/cwd)
 	IFS=/ read -ra parts <<< "$2"

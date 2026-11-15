@@ -1730,8 +1730,14 @@ if [ "$ANTISPAM_SYSTEM" = 'rspamd' ]; then
 	check_socket /run/rspamd/controller.sock "rspamd controller"
 	check_rspamd_ctrl_isolation
 fi
-# localhost-only (webmail managesieve plugin), not opened in the firewall
-[ "$SIEVE_SYSTEM" = 'yes' ] && check_port 4190 "managesieve"
+# Sieve belongs to the mail block (#1337). ManageSieve is localhost-only (the webmails), not opened in the firewall.
+if [ "$IMAP_SYSTEM" = 'dovecot' ]; then
+	if [ "$SIEVE_SYSTEM" = 'yes' ]; then
+		check_port 4190 "managesieve"
+	else
+		no "sieve is off on a mail box" "h-add-sys-sieve switches it on"
+	fi
+fi
 
 echo "-- logs --"
 check_log_clean "/var/log/hestia-php-fpm.log" "PHP (Fatal|Parse) error|\[emergency\]|\[alert\]" "panel FPM"

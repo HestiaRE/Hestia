@@ -638,6 +638,20 @@ ipv6_nonlocal_bind_apply() {
 	return 0
 }
 
+# Sieve belongs to the mail block (#1337). h-add-sys-sieve switches the delivery to LMTP and moves the exim vacations;
+# it also fails for a half (learning, a vacation left in exim), so the switch is judged by SIEVE_SYSTEM and a half is
+# reported, not retried: the condition is false from here on.
+sieve_mandatory_apply() {
+	local out rc=0
+	out=$("$HESTIA/bin/h-add-sys-sieve" 2>&1) || rc=$?
+	if ! grep -q "^SIEVE_SYSTEM='yes'" "$HESTIA/conf/hestia.conf"; then
+		printf '%s\n' "$out"
+		return 1
+	fi
+	[ "$rc" -eq 0 ] || printf '[ ! ] sieve is on, with a gap: %s\n' "$out"
+	return 0
+}
+
 # The host certificate back to what the installer writes. Only a failed proftpd is started again (a key exim owned
 # kept it from starting under AppArmor on Ubuntu 26.04); one stopped on purpose stays stopped. The files are the
 # entry's job: a proftpd that fails for another reason is a hint, never a halted update.

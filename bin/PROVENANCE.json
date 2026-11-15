@@ -3412,15 +3412,6 @@
       "note": ""
     },
     {
-      "path": "h-delete-sys-sieve",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-08-12",
-      "divergence": null,
-      "note": ""
-    },
-    {
       "path": "h-delete-sys-smtp",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-smtp",

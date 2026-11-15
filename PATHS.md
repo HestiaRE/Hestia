@@ -129,8 +129,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 |------|------|
 | Config | `/etc/exim4/exim4.conf.template` |
 | Filter | `/etc/exim4/system.filter` |
-| Autoreply text (no Sieve) | `/home/$user/conf/mail/$domain/autoreply.$account.msg` |
-| Autoreply once-DB | `/var/spool/exim4/db/autoreply.$account@$domain_idn` (cleared with account, domain and autoreply, #1127) |
+| Autoreply text from a restore | `/home/$user/conf/mail/$domain/autoreply.$account.msg`, HestiaCP's form; the rebuild moves it into Sieve and deletes it (#1337) |
 | Supplemental | `/etc/exim4/dnsbl.conf`, `spam-blocks.conf`, `limit.conf` |
 
 ### Mail — Dovecot

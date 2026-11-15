@@ -13,7 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **exim hands every clean mail to Sieve and no longer answers autoreplies itself** (#1337). The vacation rules
+  in Sieve answer, which the webmail edits too; an autoreply still left in exim is moved there by the update first,
+  and the panel refuses one on a box without Sieve. A receiving rspamd gave the exim answer 4 points for its format
+  alone (no MIME-Version, an over-encoded subject); the Sieve answer has neither.
 
 ## v0.34 (2026-11-15)
 

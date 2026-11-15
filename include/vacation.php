@@ -19,8 +19,8 @@
 
 const RULE_NAME = "Autoreply";
 const DAYS = 7;
-// Sieve's vacation answers spam as readily as mail. Same test as exim's autoreply router, which skips X-Spam-Status
-// beginning with Yes; change both together. :is rather than :matches "Yes*", because Tachyon has no :matches.
+// Sieve's vacation answers spam as readily as mail, so it skips X-Spam-Status beginning with Yes. :is rather than
+// :matches "Yes*", because Tachyon has no :matches.
 const SPAM_HEADER = "X-Spam-Status";
 
 function fail(int $rc, string $msg): never

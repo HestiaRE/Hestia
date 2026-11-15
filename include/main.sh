@@ -976,11 +976,12 @@ is_object_value_exist() {
 # path space overlap, so a password shaped like an existing /tmp path is read as that file. Only a
 # plain file root or the sudo caller wrote is read, anything else there is refused rather than taken
 # as the secret itself: /tmp is everyone's, and the first line of another's file is not a password.
+# Directly in /tmp only: a directory on the way could be anyone's link, and the checks see the last part.
 secret_file_read() {
 	local -n _secret=$1
 	[[ "$_secret" == /tmp/* ]] || return 0
 	[ -e "$_secret" ] || [ -L "$_secret" ] || return 0
-	if [[ "$_secret" == *../* ]] || [ -L "$_secret" ] || [ ! -f "$_secret" ] \
+	if [[ "${_secret#/tmp/}" == */* ]] || [ -L "$_secret" ] || [ ! -f "$_secret" ] \
 		|| ! [[ "$(stat -c %u -- "$_secret")" =~ ^(0|${SUDO_UID:--1})$ ]]; then
 		check_result "$E_INVALID" "invalid $1 file :: not a plain file of root or the caller"
 	fi

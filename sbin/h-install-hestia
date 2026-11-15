@@ -512,7 +512,7 @@ install_mail() {
 		return 0
 	}
 	echo "[ * ] Installing mail packages (exim4, dovecot)..."
-	# sieve packages are not here: the sieve addon installs them when selected
+	# The sieve packages come with h-add-sys-sieve below, which also switches the delivery over.
 	hestia_apt -y install \
 		exim4 exim4-daemon-heavy \
 		dovecot-imapd dovecot-pop3d
@@ -579,14 +579,21 @@ install_mail() {
 
 	wcv "MAIL_SYSTEM" "exim4"
 	wcv "IMAP_SYSTEM" "dovecot"
-	# rspamd and sieve are addons whose commands write ANTISPAM_SYSTEM/SIEVE_SYSTEM; soft, like every addon.
+	# rspamd is an addon whose command writes ANTISPAM_SYSTEM; soft, like every addon. Before sieve, which wires
+	# the learning when rspamd is there.
 	if is_on "${COMPONENT_ADDON_RSPAMD:-}"; then
 		echo "[ * ] Installing & configuring rspamd (with Bayes Redis)..."
 		addon_install rspamd
 	fi
-	if is_on "${COMPONENT_ADDON_SIEVE:-}"; then
-		echo "[ * ] Installing & configuring sieve..."
-		addon_install sieve
+	# Sieve belongs to the mail block: delivery, vacation and the webmail filters run through it. A missing half
+	# (the spam learning) is a warning, no sieve at all is a failed mail stage.
+	echo "[ * ] Installing & configuring sieve..."
+	if ! "$BIN/h-add-sys-sieve" >> "$LOG" 2>&1; then
+		if [ "$(sed -n "s/^SIEVE_SYSTEM='\([^']*\)'.*/\1/p" "$HESTIA/conf/hestia.conf")" != 'yes' ]; then
+			echo "ERROR: sieve did not install - see $LOG" >&2
+			exit 1
+		fi
+		HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}sieve: active, with a gap - see $LOG"$'\n'
 	fi
 	if is_on "${COMPONENT_ADDON_CLAMAV:-}"; then
 		echo "[ * ] Installing & configuring ClamAV (mail antivirus)..."

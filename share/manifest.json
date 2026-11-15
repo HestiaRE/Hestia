@@ -440,18 +440,6 @@
       "note": "Hidden on nomail (no mail block). Pure spam-filter component, NOT responsible for DKIM (see the PANEL_EXIM note). ALWAYS brings a Redis as the Bayes backend: without DB_REDIS hard-limited to 64 MB (share/rspamd/redis-rspamd-limit.conf), with DB_REDIS the general-purpose instance is shared unlimited. h-add-sys-redis must remove the limit (promote), h-delete-sys-redis must restore it instead of uninstalling (demote)."
     },
 
-    "ADDON_SIEVE": {
-      "group": "addons",
-      "type": "checkbox",
-      "status_key": "SIEVE_SYSTEM",
-      "status_artefact": { "file": "/usr/lib/dovecot/managesieve" },
-      "label": "Sieve",
-      "description": "Server-side mail filters (mail block only)",
-      "visible_if": "MAIL_BLOCK_PRESENT == true",
-      "default": { "standard": true, "compact": false, "latest": false, "singlephp": false, "mailonly": true },
-      "note": "Hidden on nomail (no mail block). Preselected on mailonly: a box that exists for mail should filter mail."
-    },
-
     "ADDON_CLAMAV": {
       "group": "addons",
       "type": "checkbox",

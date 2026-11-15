@@ -6,6 +6,7 @@
 #
 # ManageSieve on loopback for the webmails, delivery through LMTP so the scripts run, autoreplies moved
 # into Sieve. Mail exim files as spam goes to .Spam directly, so customer rules never see it.
+# Part of the mail block: the installer and the update run it, by hand it is the repair.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env

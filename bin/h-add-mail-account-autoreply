@@ -58,7 +58,7 @@ elif [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	vacation_exim_write "$user" "$domain" "$account" "$msg"
 fi
 
-# Kept with Sieve too: the backup carries it to HestiaCP, and h-delete-sys-sieve falls back to exim.
+# Kept with Sieve too: the backup carries it to HestiaCP.
 mv -f "$msg" "$USER_DATA/mail/$account@$domain.msg"
 chmod 660 "$USER_DATA/mail/$account@$domain.msg"
 update_object_value "mail/$domain" 'ACCOUNT' "$account" '$AUTOREPLY' 'yes'

@@ -46,8 +46,9 @@ if (isset($_SESSION["user"])) {
 				unset($_SESSION["_sf2_meta"]);
 				if (!empty($_GET["edit_link"])) {
 					$edit_link = urldecode($_GET["edit_link"]);
-					// A path on this panel only: a browser reads //host and /\host as another host.
-					if (preg_match('#^/[^/\\\\]#', $edit_link)) {
+					// A path on this panel only: a browser reads //host and /\host as another host and drops tabs and line
+					// breaks first, so no control character, space or backslash anywhere; no # either, the token goes last.
+					if (preg_match('~^/(?![/\\\\])[^\x00-\x20\x7f\\\\#]*\z~', $edit_link)) {
 						header("Location: " . $edit_link . (str_contains($edit_link, "?") ? "&" : "?") . "token=" . $_SESSION["token"]);
 						die();
 					}

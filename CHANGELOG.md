@@ -38,6 +38,10 @@ the releases of the command audit, into another.
 - **A login with a sha-512 hash carrying `rounds=` always failed** (#1350, upstream #5956). Such a hash, taken over
   from another system or set with explicit rounds, was checked with 5000 rounds and never matched. New accounts use
   yescrypt and were not affected.
+- **An http auth password counted only its first 8 characters, and some never worked** (#1350). The hash was DES with
+  the start of the password as its salt: a password like `c€…` gave the hash `*0` and could never log in, and the
+  password file showed the password's first character. New and changed passwords are sha-512 with a random salt and
+  1000 rounds, which nginx checks on every request; existing entries keep working until their next change.
 - **Adding a mail domain that already exists switched spam rejection on for the existing one** (#1350, upstream
   #5950). The reject step ran even after the add had failed.
 - **Logging in as a customer from the search results checks the target** (#1350, upstream #5957). Only a path on this

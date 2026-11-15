@@ -92,6 +92,11 @@ fi
 
 chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
 rm -rf $HOMEDIR/$user
+# What an aborted restic restore left (restic_restore_home names its stage so, keep in step).
+for stage in "$HOMEDIR/.hestia-restore.$user".??????; do
+	[ -e "$stage" ] || continue
+	rm -rf -- "$stage"
+done
 rm -f /var/spool/mail/$user
 rm -f /var/spool/cron/$user
 rm -f /var/spool/cron/crontabs/$user

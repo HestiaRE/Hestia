@@ -67,7 +67,7 @@ else
 fi
 
 # Session and upload dir, the same the customer's web pool uses.
-home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
+home_dir_own "$user" tmp "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
 
 # A pool php-fpm refuses would take every site of that version down at its next start.
 mkdir -p "$(dirname "$pool")"

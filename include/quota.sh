@@ -268,6 +268,8 @@ quota_project_assign() {
 	# the home would stamp the file at its real location. +P is directory-only
 	# (on files chattr fails AND skips the -p), so files get the bare id; symlink
 	# and immutable-file refusals are not worth failing a rebuild over.
+	# Not -execdir on purpose: a swap can only put the id on a foreign file, which grants nothing, and -execdir costs a
+	# process per directory.
 	find "$home" -xdev -mindepth 1 -type d -exec chattr -p "$uid" +P {} + 2> /dev/null
 	find "$home" -xdev -mindepth 1 ! -type d -exec chattr -p "$uid" {} + 2> /dev/null
 	chattr -p "$uid" +P "$home" 2> /dev/null

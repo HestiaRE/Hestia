@@ -19,6 +19,14 @@ the releases of the command audit, into another.
   seen attacking NetAPI's own sensors in the last 48 hours, IPv4, offered at level 2 next to FireHOL and Blocklist.de.
   Each list in the picker and on the FireHOL page now links to its own page, which NetAPI's CC BY 4.0 licence requires.
 
+### Security
+
+- **A customer could take over files outside their home** (#1348, upstream GHSA-hc82-cqjf-hcpg,
+  GHSA-pfj7-fhx8-q4qx). Swapping a directory of their own home for a link at the right moment redirected root's work
+  during a rebuild, a mail or web change, a domain move or a restore to any file on the box. root now checks where it
+  is before it acts, `~/conf` stays immutable through a rebuild, and a restore no longer unpacks as root into the home;
+  a restic restore is staged beside the homes and hardlinked into place, so the data is not stored twice.
+
 ### Fixed
 
 - **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the

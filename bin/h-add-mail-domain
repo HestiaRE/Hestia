@@ -99,7 +99,6 @@ chmod 660 $USER_DATA/mail.conf
 
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	mkdir $HOMEDIR/$user/conf/mail/$domain
-	mkdir $HOMEDIR/$user/mail/$domain_idn
 	touch $HOMEDIR/$user/conf/mail/$domain/aliases
 	touch $HOMEDIR/$user/conf/mail/$domain/passwd
 	touch $HOMEDIR/$user/conf/mail/$domain/fwd_only
@@ -147,14 +146,13 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 
 	chmod 771 $HOMEDIR/$user/conf/mail/$domain
 	chmod 660 $HOMEDIR/$user/conf/mail/$domain/*
-	chmod 770 $HOMEDIR/$user/mail/$domain_idn
 
 	chown -R $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain
 	if [ "$IMAP_SYSTEM" = 'dovecot' ]; then
 		chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
 	fi
 	chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/accounts
-	chown $user:mail $HOMEDIR/$user/mail/$domain_idn
+	home_dir_own "$user" "mail/$domain_idn" "$user:mail" 770
 fi
 
 # Keyed on the front, not WEB_SYSTEM: a mailfront box has no WEB_SYSTEM but nginx as WEBMAIL_FRONT.

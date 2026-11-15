@@ -120,7 +120,7 @@ if [ "$SSL" = 'yes' ]; then
 fi
 
 # The move most likely to fail goes first, while a refusal still leaves everything as it was.
-mv "$HOMEDIR/$user/web/$domain" "$HOMEDIR/$user/web/$new_domain" \
+home_run "$user" web root -- mv -T -- "$domain" "$new_domain" \
 	|| check_result "$E_UPDATE" "$HOMEDIR/$user/web/$domain could not be moved, nothing is renamed"
 
 rename_warn=''
@@ -157,7 +157,7 @@ done < "$USER_DATA/web.conf"
 web_domain_logs "$domain" | while IFS= read -r f; do
 	mv "$f" "${f%/*}/$new_domain${f#"${f%/*}/$domain"}"
 done
-rm -f "$HOMEDIR/$user/web/$new_domain/logs/$domain.log" "$HOMEDIR/$user/web/$new_domain/logs/$domain.error.log"
+home_run "$user" "web/$new_domain/logs" -- rm -f -- "$domain.log" "$domain.error.log"
 
 # awstats names its data files by the config, the IDN name; renamed, the history stays. The rebuild writes the
 # new config, link and queue line.

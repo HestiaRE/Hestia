@@ -715,9 +715,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
 				-exec rm -rf {} +)
 		fi
-		chmod u+w "$HOMEDIR/$user/web/$domain"
-		[ -d "$HOMEDIR/$user/web/$domain/stats" ] && [ ! -L "$HOMEDIR/$user/web/$domain/stats" ] \
-			&& chmod u+w "$HOMEDIR/$user/web/$domain/stats"
+		home_run "$user" "web/$domain" -- chmod u+w .
+		home_run "$user" "web/$domain/stats" -- chmod u+w .
 
 		# Two passes for a difference: the base filtered to what both maps agree on, then the diff over it. No
 		# --unlink-first (fails on non-empty dirs): tar already unlinks and recreates, only --overwrite writes through a
@@ -779,8 +778,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		fi
 
 		if [ "$old_uid" -ne "$new_uid" ]; then
-			find "$HOMEDIR/$user/web/$domain" -user "$old_uid" \
-				-exec chown -h "$user:$user" {} \;
+			home_run "$user" "web/$domain" -- find . -user "$old_uid" -execdir chown -h "$user:$user" {} +
 		fi
 
 		# Second rebuild so ftp users keep working.
@@ -975,7 +973,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 		format_domain_idn
 
 		mdir="$HOMEDIR/$user/mail/$domain_idn"
-		[ -e "$mdir" ] || [ -L "$mdir" ] || ! mail_dir_trusted "$user" || mkdir "$mdir"
+		home_run "$user" mail root -- mkdir -p -- "$domain_idn" 2> /dev/null
 		if ! mail_dir_trusted "$user" "$domain_idn"; then
 			rm -rf $tmpdir
 			error="$mdir: a link, or ~/mail is not root's; $domain is not restored"
@@ -984,8 +982,8 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			check_result "$E_FORBIDEN" "$error"
 		fi
 
-		chmod u+w "$HOMEDIR/$user/mail/$domain_idn"
-		chown $user:$user "$HOMEDIR/$user/mail/$domain_idn"
+		home_run "$user" "mail/$domain_idn" -- chmod u+w .
+		home_run "$user" "mail/$domain_idn" -- chown -h "$user:$user" .
 
 		# Same two passes as web, through the extractor that drops privileges. Mail has no equivalent of the public_html
 		# wipe, so a deletion does not take effect: the restore adds to the mailbox, as from a full archive.
@@ -1025,8 +1023,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 			fi
 
 			# The owner has to be user:mail, not user:user.
-			find $HOMEDIR/$user/mail/$domain_idn -user $user \
-				-exec chown -h $user:mail {} \;
+			home_run "$user" "mail/$domain_idn" -- find . -user "$user" -execdir chown -h "$user:mail" {} +
 		fi
 		if [ -d "$HOMEDIR/$user/conf/mail/$domain" ]; then
 			find $HOMEDIR/$user/conf/mail/$domain -user root \
@@ -1335,10 +1332,14 @@ if [ "$udir" != 'no' ]; then
 					queue_drop_job "$CONF_DIR/queue/backup.pipe"
 					check_result "$E_PARSING" "$error"
 				fi
+				# Unpacked from inside: a ~/.companion swapped during the run would take root's tar along.
+				if [ ! -e "$HOMEDIR/$user/.companion" ] && [ ! -L "$HOMEDIR/$user/.companion" ]; then
+					home_dir_own "$user" .companion root:root 0700
+				fi
 				if [ $backup_mode = 'zstd' ]; then
-					tar -I pzstd -xpf "$udir_container" -C "$HOMEDIR/$user"
+					home_run "$user" .companion -- tar -I pzstd -xpf "$udir_container" --strip-components=1
 				else
-					tar -xpzf "$udir_container" -C "$HOMEDIR/$user"
+					home_run "$user" .companion -- tar -xpzf "$udir_container" --strip-components=1
 				fi
 				# Failing can mean tar stopped part way, so the entry is neither reliably restored nor untouched.
 				# Nothing is removed (over an existing home that deletes data the archive only meant to add to), and
@@ -1365,17 +1366,16 @@ if [ "$udir" != 'no' ]; then
 
 			# Quoted: $user_dir comes out of the archive, and unquoted a name with a space split into two paths.
 			if [ "$old_uid" -ne "$new_uid" ]; then
-				find "$HOMEDIR/$user/$user_dir" -user "$old_uid" \
-					-exec chown -h "$user:$user" {} \;
+				home_run "$user" "$user_dir" -- find . -user "$old_uid" -execdir chown -h "$user:$user" {} +
 			fi
 		done 3< <(printf '%s\n' "$user_dirs")
 	fi
 fi
 
-home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 \
+home_dir_own "$user" tmp "$user:$user" 700 \
 	|| echo "Warning: $HOMEDIR/$user/tmp is not a directory, left as it is" | tee -a $tmpdir/restore.log
 
-rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key
+home_run "$user" .ssh -- rm -f -- hst-filemanager-key
 
 # Re-enable Docker if the archive carried a companion home. The companion account is not in the archive and its uid
 # follows the customer's, which was just reallocated, so it is recreated with fresh subordinate ranges; images are
@@ -1388,8 +1388,7 @@ if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ]
 	old_companion=$((old_uid - 1000))
 	new_companion=$((new_uid - 1000))
 	if [ "$old_companion" -ne "$new_companion" ]; then
-		find "$HOMEDIR/$user/.companion" -uid "$old_companion" \
-			-exec chown -h "$new_companion" {} \;
+		home_run "$user" .companion -- find . -uid "$old_companion" -execdir chown -h "$new_companion" {} +
 	fi
 
 	# The archived /24 is kept when free, else h-add-user-docker allocates a new one: that has to be said, or an

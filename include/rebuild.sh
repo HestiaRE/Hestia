@@ -103,13 +103,41 @@ rebuild_user_conf() {
 		/usr/sbin/usermod --expiredate '' "$user"
 	fi
 
-	# The customer owns the home and can put a link where conf was: refused before root touches it.
-	if [ -L "$HOMEDIR/$user/conf" ]; then
-		echo "Error: $HOMEDIR/$user/conf is a link" >&2
+	# conf is immutable, so neither it nor an entry in it can be renamed. It is lifted only when conf, conf/web or
+	# conf/mail has to be made or set right, and none is ever taken over; a swap in that window shows as another inode.
+	local cdir="$HOMEDIR/$user/conf" cino='' cok=yes cflags='' csub
+	local -a csubs=()
+	if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
+		csubs+=(web)
+	fi
+	if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
+		csubs+=(mail)
+	fi
+	if [ -L "$cdir" ] || { [ -e "$cdir" ] && [ "$(stat -c %u "$cdir")" != 0 ]; }; then
+		echo "Error: $cdir is a link or not root's, nothing rebuilt" >&2
 		return 1
 	fi
-	if [ -e "$HOMEDIR/$user/conf" ]; then
-		chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
+	read -r cflags _ < <(lsattr -d "$cdir" 2> /dev/null)
+	if [[ "$cflags" != *i* ]] || ! (home_cd "$user" conf root); then
+		cok=repair
+	fi
+	for csub in "${csubs[@]}"; do
+		[ "$cok" = repair ] || (home_cd "$user" "conf/$csub" root) || cok=repair
+	done
+	if [ "$cok" = repair ]; then
+		cok=yes
+		[ ! -e "$cdir" ] || cino=$(stat -c %i "$cdir")
+		chattr -i "$cdir" > /dev/null 2>&1
+		home_dir_root "$user" conf 755 || cok=no
+		[ -n "$cino" ] || cino=$(stat -c %i "$cdir" 2> /dev/null)
+		for csub in "${csubs[@]}"; do
+			home_dir_root "$user" "conf/$csub" 751 || cok=no
+		done
+		chattr +i "$cdir" > /dev/null 2>&1
+		if [ "$cok" != yes ] || [ -L "$cdir" ] || [ "$(stat -c %u:%i "$cdir" 2> /dev/null)" != "0:$cino" ]; then
+			echo "Error: $cdir could not be set up or changed meanwhile, nothing rebuilt" >&2
+			return 1
+		fi
 	fi
 
 	# Create default writeable folders
@@ -123,7 +151,6 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
 	chmod a+x $HOMEDIR/$user
-	home_dir_own "$HOMEDIR/$user/conf" root:root 755 || return 1
 	chown --no-dereference $user:$user \
 		$HOMEDIR/$user \
 		$HOMEDIR/$user/.config \
@@ -170,11 +197,10 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/web" ]]; then
 			rm $HOMEDIR/$user/web
 		fi
-		home_dir_own "$HOMEDIR/$user/conf/web" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/web/$domain
-		home_dir_own "$HOMEDIR/$user/web" "root:$user" 751 || return 1
+		home_dir_own "$user" web "root:$user" 751 || return 1
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
-		home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || return 1
+		home_dir_own "$user" tmp "$user:$user" 700 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
 		fi
@@ -191,9 +217,8 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/mail" ]]; then
 			rm $HOMEDIR/$user/mail
 		fi
-		home_dir_own "$HOMEDIR/$user/conf/mail" root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
-		home_dir_own "$HOMEDIR/$user/mail" root:root 751 || return 1
+		home_dir_own "$user" mail root:root 751 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-mail-domains $user
 		fi
@@ -217,9 +242,6 @@ rebuild_user_conf() {
 			$BIN/h-rebuild-cron-jobs $user $restart
 		fi
 	fi
-
-	# Set immutable flag
-	chattr +i $HOMEDIR/$user/conf > /dev/null 2>&1
 }
 
 # WEB domain rebuild
@@ -268,7 +290,7 @@ rebuild_web_domain_conf() {
 	fi
 
 	# Temporary allow write permissions to owner
-	[ -d "$HOMEDIR/$user/web/$domain" ] && chmod 751 "$HOMEDIR/$user/web/$domain"
+	home_dir_own "$user" "web/$domain" "$user:$user" 751 || return 1
 
 	# Rebuilding domain directories
 	if [ -d "$HOMEDIR/$user/web/$domain/document_errors" ]; then
@@ -277,10 +299,6 @@ rebuild_web_domain_conf() {
 		fi
 	fi
 
-	if [ ! -d $HOMEDIR/$user/web/$domain ]; then
-		mkdir $HOMEDIR/$user/web/$domain
-	fi
-	chown --no-dereference $user:$user $HOMEDIR/$user/web/$domain
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/public_html"
 	if [ ! -d "$HOMEDIR/$user/web/$domain/document_errors" ]; then
 		$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/document_errors"
@@ -301,12 +319,9 @@ rebuild_web_domain_conf() {
 		/var/log/$WEB_SYSTEM/domains/$domain.log \
 		/var/log/$WEB_SYSTEM/domains/$domain.error.log
 
-	# root writes into a customer-owned directory here, so never through a link.
-	if [ -L "$HOMEDIR/$user/web/$domain/logs" ]; then
-		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a symlink, log links not created" >&2
-	else
-		ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
-			"$HOMEDIR/$user/web/$domain/logs/"
+	if ! home_run "$user" "web/$domain/logs" -- ln -f -s "/var/log/$WEB_SYSTEM/domains/$domain.log" \
+		"/var/log/$WEB_SYSTEM/domains/$domain.error.log" .; then
+		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a link or not a directory, log links not created" >&2
 	fi
 
 	# A restore or rebuild recreates the log, and fail2ban only globs at jail start. Idempotent.
@@ -317,12 +332,8 @@ rebuild_web_domain_conf() {
 	fi
 
 	# Set ownership
-	chown --no-dereference $user:$user \
-		$HOMEDIR/$user/web/$domain \
-		$HOMEDIR/$user/web/$domain/private \
-		$HOMEDIR/$user/web/$domain/cgi-bin \
-		$HOMEDIR/$user/web/$domain/public_*html
-	chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
+	home_run "$user" "web/$domain" -- chown -h "$user:$user" . private cgi-bin public_html
+	home_run "$user" "web/$domain/document_errors" -- chown -R "$user:$user" .
 	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
 	# Adding vhost configuration
@@ -564,16 +575,13 @@ auth_basic_user_file    $htpasswd;"
 	fi
 
 	# Set folder permissions
-	no_symlink_chmod 751 $HOMEDIR/$user/web/$domain \
-		$HOMEDIR/$user/web/$domain/stats \
-		$HOMEDIR/$user/web/$domain/logs
-	no_symlink_chmod 751 $HOMEDIR/$user/web/$domain/private \
-		$HOMEDIR/$user/web/$domain/cgi-bin \
-		$HOMEDIR/$user/web/$domain/public_*html \
-		$HOMEDIR/$user/web/$domain/document_errors
+	local sub
+	for sub in . stats logs private cgi-bin public_html document_errors; do
+		home_run "$user" "web/$domain/$sub" -- chmod 751 .
+	done
 	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done
 
-	chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
+	home_run "$user" "web/$domain" -- chown -h "$user:www-data" public_html
 }
 # MAIL domain rebuild
 rebuild_mail_domain_conf() {
@@ -739,9 +747,7 @@ rebuild_mail_domain_conf() {
 		fi
 
 		# Adding mail directory
-		if mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ] && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ]; then
-			mkdir "$HOMEDIR/$user/mail/$domain_idn"
-		fi
+		home_run "$user" mail root -- mkdir -p -- "$domain_idn" 2> /dev/null
 
 		# pass '' so the default-picker uses the last installed client (or 'disabled'),
 		# not a hardcoded roundcube that fails when roundcube is absent
@@ -822,10 +828,7 @@ rebuild_mail_domain_conf() {
 			chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
 		fi
 		chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/accounts
-		if mail_dir_trusted "$user" "$domain_idn"; then
-			chmod 770 $HOMEDIR/$user/mail/$domain_idn
-			chown $user:mail $HOMEDIR/$user/mail/$domain_idn
-		fi
+		home_run "$user" "mail/$domain_idn" -- chmod 770 . && home_run "$user" "mail/$domain_idn" -- chown -h "$user:mail" .
 	fi
 
 	# Add missing SSL configuration flags to existing domains

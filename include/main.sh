@@ -2804,14 +2804,77 @@ docker_ip_valid() {
 	[[ "$1" =~ ^127\.20\.(0|[1-9][0-9]{0,2})\.1$ ]] && [ "${BASH_REMATCH[1]}" -le 254 ]
 }
 
-# home_dir_own PATH OWNER MODE: root sets up a directory inside a customer's home, which the customer can rename.
-# A link is refused and chown never follows one; a swap between the test and chmod is not covered.
-home_dir_own() {
-	if [ -L "$1" ]; then
-		echo "Error: $1 is a link" >&2
+# home_cd USER REL [root]: enter ~USER/REL as root without following a link the customer planted on the way. A swap
+# during the walk shows in the physical cwd. With root the directory must be root's and closed to g/o writes, so a name
+# in it stays what it was; in a directory of the customer's act on `.` only. It moves the caller: call it in a subshell.
+home_cd() {
+	local want part m
+	local -a parts
+	[[ "$2" != *$'\n'* ]] || return 1
+	[ -n "$1" ] && [ ! -L "$HOMEDIR/$1" ] && cd -P -- "$HOMEDIR/$1" 2> /dev/null || return 1
+	want=$(readlink /proc/self/cwd)
+	IFS=/ read -ra parts <<< "$2"
+	for part in "${parts[@]}"; do
+		case "$part" in '' | .) continue ;; ..) return 1 ;; esac
+		# ./ keeps CDPATH out
+		[ ! -L "$part" ] && cd -P -- "./$part" 2> /dev/null || return 1
+		want="$want/$part"
+	done
+	# Not pwd -P: bash resolves $PWD as text, which a swap can win; the kernel's cwd is the directory we are in.
+	[ "$(readlink /proc/self/cwd)" = "$want" ] || return 1
+	[ "${3-}" = root ] || return 0
+	m=$(stat -c '%u %a' .) || return 1
+	[ "${m% *}" = 0 ] && (((8#${m#* } & 8#022) == 0))
+}
+
+# home_run USER REL [root] -- CMD...: CMD in a subshell inside ~USER/REL as home_cd entered it, with relative paths.
+home_run() {
+	local u=$1 rel=$2 root=
+	shift 2
+	if [ "$1" = root ]; then
+		root=root
+		shift
+	fi
+	[ "$1" != -- ] || shift
+	(home_cd "$u" "$rel" "$root" && "$@")
+}
+
+# home_dir_root USER REL MODE: a directory root trusts by what is in it (~/conf): made when missing, never taken over.
+# One that is not root's is refused; a wrong mode is set right.
+home_dir_root() {
+	local parent=. name=$2 proot=''
+	if [[ "$2" == */* ]]; then
+		parent=${2%/*}
+		name=${2##*/}
+		proot=root
+	fi
+	if ! (home_cd "$1" "$parent" "$proot" && { [ -L "$name" ] || [ -d "$name" ] || mkdir -m "$3" -- "$name"; } \
+		&& home_cd "$1" "$2" && [ "$(stat -c %u .)" = 0 ] && chmod -- "$3" .); then
+		echo "Error: $HOMEDIR/$1/$2 is a link, not a directory, or not root's" >&2
 		return 1
 	fi
-	mkdir -p "$1" && chown -h "$2" "$1" && chmod "$3" "$1"
+}
+
+# home_move OLD NEW SUB NAME: move ~OLD/SUB/NAME to ~NEW/SUB/NAME, refused when it is there already. Both SUBs have
+# to be root's, and the target is reached through a held descriptor, so neither end can be swapped.
+home_move() {
+	(home_cd "$2" "$3" root && exec 3< . && home_cd "$1" "$3" root \
+		&& [ ! -e "/proc/self/fd/3/$4" ] && [ ! -L "/proc/self/fd/3/$4" ] && mv -T -- "$4" "/proc/self/fd/3/$4")
+}
+
+# home_dir_own USER REL OWNER MODE: root creates or claims the directory ~USER/REL. chown and chmod act on the entered
+# directory, never on a name the customer can swap.
+home_dir_own() {
+	local parent=. name=$2
+	if [[ "$2" == */* ]]; then
+		parent=${2%/*}
+		name=${2##*/}
+	fi
+	if ! (home_cd "$1" "$parent" && { [ -L "$name" ] || [ -d "$name" ] || mkdir -- "$name"; } \
+		&& home_cd "$1" "$2" && chown -h -- "$3" . && chmod -- "$4" .); then
+		echo "Error: $HOMEDIR/$1/$2 is a link or not a directory" >&2
+		return 1
+	fi
 }
 
 # path_within PATH BASE...: PATH, resolved, is one of the BASEs or lies below one. A prefix match would let
@@ -2848,18 +2911,6 @@ authkey_ids() {
 	[[ -n "$1" && "$1" != \#* ]] || return 1
 	out=$(ssh-keygen -l -f - <<< "$1" 2> /dev/null) || return 1
 	awk '{print $2, $(NF-1)}' <<< "$out"
-}
-
-# Simple chmod wrapper that skips symlink files after glob expand
-no_symlink_chmod() {
-	local filemode=$1
-	shift
-
-	for i in "$@"; do
-		[[ -L ${i} ]] && continue
-
-		chmod "${filemode}" "${i}"
-	done
 }
 
 format_no_quotes() {

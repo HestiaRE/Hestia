@@ -89,7 +89,7 @@ if [ -n "$FIREWALL_EXTENSION" ]; then
 fi
 web_domain_logs "$domain" | while IFS= read -r f; do rm -f "$f"; done
 
-rm -rf $HOMEDIR/$user/web/$domain
+home_run "$user" web root -- rm -rf -- "./$domain"
 rm -rf $HOMEDIR/$user/conf/web/$domain
 
 if [ -n "$local_ip" ] && [ -e "$CONF_DIR/ips/$local_ip" ]; then

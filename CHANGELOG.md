@@ -19,6 +19,15 @@ the releases of the command audit, into another.
   seen attacking NetAPI's own sensors in the last 48 hours, IPv4, offered at level 2 next to FireHOL and Blocklist.de.
   Each list in the picker and on the FireHOL page now links to its own page, which NetAPI's CC BY 4.0 licence requires.
 
+### Security
+
+- **root no longer follows a path the customer swaps inside their own home** (#1348, upstream GHSA-hc82-cqjf-hcpg,
+  GHSA-pfj7-fhx8-q4qx). The customer owns `~` and every domain directory, so a link put in place between a check and
+  the action took root's chmod, chown, mkdir, rm or move to any file on the box. Every such step below `~/mail`,
+  `~/web`, `~/tmp`, `~/.ssh` and `~/.companion` now enters the directory first and checks where it ended up, and the
+  uid, quota and owner passes after a restore run from inside the home. Moving a domain to another customer leaves the
+  data in place with a warning when either side is not root's.
+
 ### Fixed
 
 - **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the

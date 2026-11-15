@@ -3,9 +3,9 @@
     "folder": "bin/",
     "description": "Per-file provenance vs HestiaCP. A file with no upstream_path is HestiaRE-native. Recompute is a manual, occasional job (when we reimplement against upstream or re-measure a snapshot); numbers are a snapshot at each file's upstream_ref + measured_at, not live. HestiaRE does not cherry-pick: every adoption is a reimplementation, compared per function against the upstream diff, so these numbers are orientation for that comparison - not a merge plan.",
     "upstream_branch": "upstream/hestiacp",
-    "upstream_ref": "a8d564b0",
-    "upstream_ref_date": "2026-11-10",
-    "last_updated": "2026-11-14",
+    "upstream_ref": "b3b53f2f",
+    "upstream_ref_date": "2026-11-14",
+    "last_updated": "2026-11-15",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from `git diff --numstat` between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 400,
-      "eigenbau_files": 132,
+      "eigenbau_files": 131,
       "weighted_pct": 48,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 532,
+      "files_total": 531,
       "files_mapped": 400
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -33,7 +33,7 @@
       "path": "h-acknowledge-user-notification",
       "source_type": "derived",
       "upstream_path": "bin/v-acknowledge-user-notification",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 81,
@@ -49,7 +49,7 @@
       "path": "h-add-backup-host",
       "source_type": "derived",
       "upstream_path": "bin/v-add-backup-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 243,
@@ -65,7 +65,7 @@
       "path": "h-add-backup-host-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-add-backup-host-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 105,
@@ -81,7 +81,7 @@
       "path": "h-add-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-add-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 93,
@@ -97,7 +97,7 @@
       "path": "h-add-cron-reports",
       "source_type": "derived",
       "upstream_path": "bin/v-add-cron-reports",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 60,
@@ -113,7 +113,7 @@
       "path": "h-add-database",
       "source_type": "derived",
       "upstream_path": "bin/v-add-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 113,
@@ -129,7 +129,7 @@
       "path": "h-add-database-host",
       "source_type": "derived",
       "upstream_path": "bin/v-add-database-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 169,
@@ -154,7 +154,7 @@
       "path": "h-add-database-temp-user",
       "source_type": "derived",
       "upstream_path": "bin/v-add-database-temp-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 87,
@@ -179,7 +179,7 @@
       "path": "h-add-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-add-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 100,
@@ -195,7 +195,7 @@
       "path": "h-add-fastcgi-cache",
       "source_type": "derived",
       "upstream_path": "bin/v-add-fastcgi-cache",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 120,
@@ -211,7 +211,7 @@
       "path": "h-add-firewall-ban",
       "source_type": "derived",
       "upstream_path": "bin/v-add-firewall-ban",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 91,
@@ -227,7 +227,7 @@
       "path": "h-add-firewall-chain",
       "source_type": "derived",
       "upstream_path": "bin/v-add-firewall-chain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 132,
@@ -252,7 +252,7 @@
       "path": "h-add-firewall-ipset",
       "source_type": "derived",
       "upstream_path": "bin/v-add-firewall-ipset",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 227,
@@ -268,7 +268,7 @@
       "path": "h-add-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-add-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 109,
@@ -284,7 +284,7 @@
       "path": "h-add-fs-directory",
       "source_type": "derived",
       "upstream_path": "bin/v-add-fs-directory",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 55,
@@ -300,7 +300,7 @@
       "path": "h-add-fs-file",
       "source_type": "derived",
       "upstream_path": "bin/v-add-fs-file",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 55,
@@ -316,15 +316,15 @@
       "path": "h-add-letsencrypt-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-add-letsencrypt-domain",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 693,
-        "our_lines": 566,
-        "added": 182,
-        "removed": 309,
-        "pct": 38,
-        "measured_at": "2026-11-06"
+        "our_lines": 586,
+        "added": 214,
+        "removed": 321,
+        "pct": 41,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -332,7 +332,7 @@
       "path": "h-add-letsencrypt-host",
       "source_type": "derived",
       "upstream_path": "bin/v-add-letsencrypt-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 98,
@@ -348,15 +348,15 @@
       "path": "h-add-letsencrypt-user",
       "source_type": "derived",
       "upstream_path": "bin/v-add-letsencrypt-user",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 164,
-        "our_lines": 124,
-        "added": 19,
+        "our_lines": 129,
+        "added": 24,
         "removed": 59,
-        "pct": 27,
-        "measured_at": "2026-11-06"
+        "pct": 28,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -364,15 +364,15 @@
       "path": "h-add-mail-account",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 147,
+        "upstream_lines": 172,
         "our_lines": 98,
         "added": 24,
-        "removed": 73,
-        "pct": 39,
-        "measured_at": "2026-11-06"
+        "removed": 98,
+        "pct": 45,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -380,7 +380,7 @@
       "path": "h-add-mail-account-alias",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-alias",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 80,
@@ -396,7 +396,7 @@
       "path": "h-add-mail-account-autoreply",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-autoreply",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 85,
@@ -412,7 +412,7 @@
       "path": "h-add-mail-account-forward",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-forward",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -428,7 +428,7 @@
       "path": "h-add-mail-account-fwd-only",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-fwd-only",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 86,
@@ -453,15 +453,15 @@
       "path": "h-add-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 228,
-        "our_lines": 186,
-        "added": 53,
-        "removed": 95,
-        "pct": 35,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 259,
+        "our_lines": 184,
+        "added": 52,
+        "removed": 127,
+        "pct": 40,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -469,7 +469,7 @@
       "path": "h-add-mail-domain-antispam",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-antispam",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -485,7 +485,7 @@
       "path": "h-add-mail-domain-antivirus",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-antivirus",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -501,7 +501,7 @@
       "path": "h-add-mail-domain-catchall",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-catchall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 70,
@@ -517,7 +517,7 @@
       "path": "h-add-mail-domain-dkim",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-dkim",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 100,
@@ -533,7 +533,7 @@
       "path": "h-add-mail-domain-reject",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-reject",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 71,
@@ -558,7 +558,7 @@
       "path": "h-add-mail-domain-smtp-relay",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-smtp-relay",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 83,
@@ -592,7 +592,7 @@
       "path": "h-add-mail-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 149,
@@ -608,7 +608,7 @@
       "path": "h-add-mail-domain-webmail",
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-webmail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 186,
@@ -705,7 +705,7 @@
       "path": "h-add-sys-filemanager",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-filemanager",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 171,
@@ -721,7 +721,7 @@
       "path": "h-add-sys-firewall",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-firewall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -746,7 +746,7 @@
       "path": "h-add-sys-ip",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-ip",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 258,
@@ -762,7 +762,7 @@
       "path": "h-add-sys-mail-dnsbl",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-mail-dnsbl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 77,
@@ -805,7 +805,7 @@
       "path": "h-add-sys-pma-sso",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-pma-sso",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 117,
@@ -857,7 +857,7 @@
       "path": "h-add-sys-roundcube",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-roundcube",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 362,
@@ -882,7 +882,7 @@
       "path": "h-add-sys-sftp-jail",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-sftp-jail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 101,
@@ -907,7 +907,7 @@
       "path": "h-add-sys-smtp",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-smtp",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 64,
@@ -923,15 +923,15 @@
       "path": "h-add-sys-smtp-relay",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-smtp-relay",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 66,
         "our_lines": 50,
-        "added": 25,
-        "removed": 41,
-        "pct": 56,
-        "measured_at": "2026-11-06"
+        "added": 24,
+        "removed": 40,
+        "pct": 55,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -939,7 +939,7 @@
       "path": "h-add-sys-ssh-jail",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-ssh-jail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -955,15 +955,15 @@
       "path": "h-add-sys-tachyon",
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-snappymail",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 175,
+        "upstream_lines": 237,
         "our_lines": 298,
-        "added": 243,
-        "removed": 120,
-        "pct": 76,
-        "measured_at": "2026-11-06"
+        "added": 238,
+        "removed": 177,
+        "pct": 77,
+        "measured_at": "2026-11-15"
       },
       "note": "renamed from h-add-sys-snappymail (#584, Tachyon fork adoption); lineage still upstream v-add-sys-snappymail"
     },
@@ -971,15 +971,15 @@
       "path": "h-add-user",
       "source_type": "derived",
       "upstream_path": "bin/v-add-user",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 305,
         "our_lines": 251,
-        "added": 57,
-        "removed": 111,
-        "pct": 30,
-        "measured_at": "2026-11-06"
+        "added": 61,
+        "removed": 115,
+        "pct": 31,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -987,7 +987,7 @@
       "path": "h-add-user-2fa",
       "source_type": "derived",
       "upstream_path": "bin/v-add-user-2fa",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 64,
@@ -1030,7 +1030,7 @@
       "path": "h-add-user-notification",
       "source_type": "derived",
       "upstream_path": "bin/v-add-user-notification",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 84,
@@ -1046,7 +1046,7 @@
       "path": "h-add-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-add-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 172,
@@ -1062,7 +1062,7 @@
       "path": "h-add-user-sftp-jail",
       "source_type": "derived",
       "upstream_path": "bin/v-add-user-sftp-jail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 100,
@@ -1078,15 +1078,15 @@
       "path": "h-add-user-ssh-key",
       "source_type": "derived",
       "upstream_path": "bin/v-add-user-ssh-key",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 73,
+        "upstream_lines": 76,
         "our_lines": 48,
         "added": 27,
-        "removed": 52,
-        "pct": 65,
-        "measured_at": "2026-11-06"
+        "removed": 55,
+        "pct": 66,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -1094,15 +1094,15 @@
       "path": "h-add-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 261,
-        "our_lines": 251,
-        "added": 113,
-        "removed": 123,
-        "pct": 46,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 298,
+        "our_lines": 249,
+        "added": 120,
+        "removed": 169,
+        "pct": 52,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -1110,7 +1110,7 @@
       "path": "h-add-web-domain-alias",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-alias",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 114,
@@ -1126,7 +1126,7 @@
       "path": "h-add-web-domain-allow-users",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-allow-users",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 71,
@@ -1142,7 +1142,7 @@
       "path": "h-add-web-domain-backend",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-backend",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 101,
@@ -1185,15 +1185,15 @@
       "path": "h-add-web-domain-ftp",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-ftp",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 141,
-        "our_lines": 92,
-        "added": 18,
-        "removed": 67,
-        "pct": 36,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 144,
+        "our_lines": 90,
+        "added": 19,
+        "removed": 73,
+        "pct": 39,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -1210,7 +1210,7 @@
       "path": "h-add-web-domain-httpauth",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-httpauth",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 125,
@@ -1235,7 +1235,7 @@
       "path": "h-add-web-domain-proxy",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-proxy",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -1251,7 +1251,7 @@
       "path": "h-add-web-domain-redirect",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-redirect",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 162,
@@ -1267,7 +1267,7 @@
       "path": "h-add-web-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 147,
@@ -1283,7 +1283,7 @@
       "path": "h-add-web-domain-ssl-force",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-ssl-force",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 97,
@@ -1299,7 +1299,7 @@
       "path": "h-add-web-domain-ssl-hsts",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-ssl-hsts",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -1315,7 +1315,7 @@
       "path": "h-add-web-domain-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-stats",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 109,
@@ -1331,7 +1331,7 @@
       "path": "h-add-web-domain-stats-user",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-domain-stats-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -1356,7 +1356,7 @@
       "path": "h-add-web-php",
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-php",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 164,
@@ -1381,15 +1381,15 @@
       "path": "h-backup-user",
       "source_type": "derived",
       "upstream_path": "bin/v-backup-user",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-09",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 800,
+        "upstream_lines": 818,
         "our_lines": 966,
-        "added": 487,
-        "removed": 321,
-        "pct": 45,
-        "measured_at": "2026-11-09"
+        "added": 488,
+        "removed": 340,
+        "pct": 46,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -1397,7 +1397,7 @@
       "path": "h-backup-user-config",
       "source_type": "derived",
       "upstream_path": "bin/v-backup-user-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 462,
@@ -1413,7 +1413,7 @@
       "path": "h-backup-user-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-backup-user-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 117,
@@ -1429,7 +1429,7 @@
       "path": "h-backup-users",
       "source_type": "derived",
       "upstream_path": "bin/v-backup-users",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 56,
@@ -1445,7 +1445,7 @@
       "path": "h-change-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-change-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 85,
@@ -1461,7 +1461,7 @@
       "path": "h-change-database-host-password",
       "source_type": "derived",
       "upstream_path": "bin/v-change-database-host-password",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 120,
@@ -1477,7 +1477,7 @@
       "path": "h-change-database-owner",
       "source_type": "derived",
       "upstream_path": "bin/v-change-database-owner",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 133,
@@ -1493,7 +1493,7 @@
       "path": "h-change-database-password",
       "source_type": "derived",
       "upstream_path": "bin/v-change-database-password",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -1518,7 +1518,7 @@
       "path": "h-change-database-user",
       "source_type": "derived",
       "upstream_path": "bin/v-change-database-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 109,
@@ -1534,15 +1534,15 @@
       "path": "h-change-domain-owner",
       "source_type": "derived",
       "upstream_path": "bin/v-change-domain-owner",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 334,
-        "our_lines": 301,
-        "added": 133,
-        "removed": 166,
-        "pct": 47,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 373,
+        "our_lines": 299,
+        "added": 139,
+        "removed": 213,
+        "pct": 52,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -1559,7 +1559,7 @@
       "path": "h-change-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-change-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 95,
@@ -1575,7 +1575,7 @@
       "path": "h-change-mail-account-password",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-account-password",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 100,
@@ -1591,7 +1591,7 @@
       "path": "h-change-mail-account-quota",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-account-quota",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 90,
@@ -1607,7 +1607,7 @@
       "path": "h-change-mail-account-rate-limit",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-account-rate-limit",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 96,
@@ -1623,7 +1623,7 @@
       "path": "h-change-mail-domain-catchall",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-domain-catchall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -1648,7 +1648,7 @@
       "path": "h-change-mail-domain-rate-limit",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-domain-rate-limit",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 72,
@@ -1691,7 +1691,7 @@
       "path": "h-change-mail-domain-sslcert",
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-domain-sslcert",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 74,
@@ -1725,7 +1725,7 @@
       "path": "h-change-sys-config-value",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-config-value",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -1750,7 +1750,7 @@
       "path": "h-change-sys-db-alias",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-db-alias",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 113,
@@ -1775,7 +1775,7 @@
       "path": "h-change-sys-hestia-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-hestia-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 76,
@@ -1791,7 +1791,7 @@
       "path": "h-change-sys-hostname",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-hostname",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 93,
@@ -1807,7 +1807,7 @@
       "path": "h-change-sys-ip-name",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-ip-name",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 54,
@@ -1823,7 +1823,7 @@
       "path": "h-change-sys-ip-nat",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-ip-nat",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 120,
@@ -1839,7 +1839,7 @@
       "path": "h-change-sys-ip-owner",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-ip-owner",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 94,
@@ -1855,7 +1855,7 @@
       "path": "h-change-sys-ip-status",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-ip-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 65,
@@ -1871,7 +1871,7 @@
       "path": "h-change-sys-language",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-language",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -1905,7 +1905,7 @@
       "path": "h-change-sys-php",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-php",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 67,
@@ -1921,7 +1921,7 @@
       "path": "h-change-sys-port",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-port",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 107,
@@ -1937,7 +1937,7 @@
       "path": "h-change-sys-release",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-release",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 71,
@@ -1953,7 +1953,7 @@
       "path": "h-change-sys-service-config",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-service-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 133,
@@ -1969,7 +1969,7 @@
       "path": "h-change-sys-timezone",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-timezone",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -1985,7 +1985,7 @@
       "path": "h-change-sys-webmail",
       "source_type": "derived",
       "upstream_path": "bin/v-change-sys-webmail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 74,
@@ -2001,7 +2001,7 @@
       "path": "h-change-user-config-value",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-config-value",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 54,
@@ -2017,7 +2017,7 @@
       "path": "h-change-user-contact",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-contact",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 59,
@@ -2033,7 +2033,7 @@
       "path": "h-change-user-language",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-language",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 73,
@@ -2049,7 +2049,7 @@
       "path": "h-change-user-name",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-name",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 61,
@@ -2065,7 +2065,7 @@
       "path": "h-change-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 204,
@@ -2081,7 +2081,7 @@
       "path": "h-change-user-password",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-password",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 72,
@@ -2097,7 +2097,7 @@
       "path": "h-change-user-php-cli",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-php-cli",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 81,
@@ -2113,7 +2113,7 @@
       "path": "h-change-user-rkey",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-rkey",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 67,
@@ -2129,7 +2129,7 @@
       "path": "h-change-user-role",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-role",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 49,
@@ -2145,7 +2145,7 @@
       "path": "h-change-user-shell",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-shell",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -2161,7 +2161,7 @@
       "path": "h-change-user-sort-order",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-sort-order",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 51,
@@ -2177,7 +2177,7 @@
       "path": "h-change-user-template",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-template",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 72,
@@ -2193,7 +2193,7 @@
       "path": "h-change-user-theme",
       "source_type": "derived",
       "upstream_path": "bin/v-change-user-theme",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -2209,7 +2209,7 @@
       "path": "h-change-web-domain-backend-tpl",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-backend-tpl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 199,
@@ -2234,7 +2234,7 @@
       "path": "h-change-web-domain-dirlist",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-dirlist",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -2250,7 +2250,7 @@
       "path": "h-change-web-domain-docroot",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-docroot",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 149,
@@ -2266,7 +2266,7 @@
       "path": "h-change-web-domain-ftp-password",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-ftp-password",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 90,
@@ -2282,15 +2282,15 @@
       "path": "h-change-web-domain-ftp-path",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-ftp-path",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 152,
-        "our_lines": 69,
-        "added": 33,
-        "removed": 116,
+        "upstream_lines": 156,
+        "our_lines": 67,
+        "added": 31,
+        "removed": 120,
         "pct": 67,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2298,7 +2298,7 @@
       "path": "h-change-web-domain-httpauth",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-httpauth",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 84,
@@ -2314,7 +2314,7 @@
       "path": "h-change-web-domain-ip",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-ip",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 103,
@@ -2346,15 +2346,15 @@
       "path": "h-change-web-domain-name",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-name",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 142,
+        "upstream_lines": 165,
         "our_lines": 328,
-        "added": 283,
-        "removed": 97,
+        "added": 281,
+        "removed": 118,
         "pct": 80,
-        "measured_at": "2026-11-12"
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2371,7 +2371,7 @@
       "path": "h-change-web-domain-proxy-tpl",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-proxy-tpl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 97,
@@ -2387,7 +2387,7 @@
       "path": "h-change-web-domain-sslcert",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-sslcert",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 98,
@@ -2403,7 +2403,7 @@
       "path": "h-change-web-domain-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-stats",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 104,
@@ -2419,7 +2419,7 @@
       "path": "h-change-web-domain-tpl",
       "source_type": "derived",
       "upstream_path": "bin/v-change-web-domain-tpl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 91,
@@ -2498,7 +2498,7 @@
       "path": "h-check-user-2fa",
       "source_type": "derived",
       "upstream_path": "bin/v-check-user-2fa",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 57,
@@ -2514,15 +2514,15 @@
       "path": "h-check-user-hash",
       "source_type": "derived",
       "upstream_path": "bin/v-check-user-hash",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 102,
+        "upstream_lines": 109,
         "our_lines": 89,
         "added": 23,
-        "removed": 36,
-        "pct": 30,
-        "measured_at": "2026-11-06"
+        "removed": 43,
+        "pct": 33,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2530,15 +2530,15 @@
       "path": "h-check-user-password",
       "source_type": "derived",
       "upstream_path": "bin/v-check-user-password",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 130,
-        "our_lines": 119,
-        "added": 30,
-        "removed": 41,
-        "pct": 28,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 136,
+        "our_lines": 121,
+        "added": 32,
+        "removed": 47,
+        "pct": 30,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2546,7 +2546,7 @@
       "path": "h-copy-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-copy-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 68,
@@ -2562,7 +2562,7 @@
       "path": "h-delete-backup-host",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-backup-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -2578,7 +2578,7 @@
       "path": "h-delete-backup-host-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-backup-host-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 47,
@@ -2594,7 +2594,7 @@
       "path": "h-delete-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 73,
@@ -2610,7 +2610,7 @@
       "path": "h-delete-cron-reports",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-cron-reports",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 60,
@@ -2626,7 +2626,7 @@
       "path": "h-delete-database",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -2642,7 +2642,7 @@
       "path": "h-delete-database-host",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-database-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 60,
@@ -2667,7 +2667,7 @@
       "path": "h-delete-database-temp-user",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-database-temp-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -2683,7 +2683,7 @@
       "path": "h-delete-databases",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-databases",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -2708,7 +2708,7 @@
       "path": "h-delete-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 90,
@@ -2724,7 +2724,7 @@
       "path": "h-delete-fastcgi-cache",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-fastcgi-cache",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 90,
@@ -2740,7 +2740,7 @@
       "path": "h-delete-firewall-ban",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-firewall-ban",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 108,
@@ -2756,15 +2756,15 @@
       "path": "h-delete-firewall-chain",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-firewall-chain",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 72,
+        "upstream_lines": 77,
         "our_lines": 46,
-        "added": 23,
-        "removed": 49,
-        "pct": 61,
-        "measured_at": "2026-11-06"
+        "added": 22,
+        "removed": 53,
+        "pct": 60,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2790,7 +2790,7 @@
       "path": "h-delete-firewall-ipset",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-firewall-ipset",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 76,
@@ -2806,7 +2806,7 @@
       "path": "h-delete-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 77,
@@ -2822,7 +2822,7 @@
       "path": "h-delete-fs-directory",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-fs-directory",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 57,
@@ -2838,7 +2838,7 @@
       "path": "h-delete-letsencrypt-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-letsencrypt-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 117,
@@ -2854,15 +2854,15 @@
       "path": "h-delete-mail-account",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 82,
+        "upstream_lines": 89,
         "our_lines": 67,
         "added": 30,
-        "removed": 45,
-        "pct": 50,
-        "measured_at": "2026-11-06"
+        "removed": 52,
+        "pct": 52,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2870,7 +2870,7 @@
       "path": "h-delete-mail-account-alias",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-alias",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 80,
@@ -2886,7 +2886,7 @@
       "path": "h-delete-mail-account-autoreply",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-autoreply",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 73,
@@ -2902,7 +2902,7 @@
       "path": "h-delete-mail-account-forward",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-forward",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 83,
@@ -2918,7 +2918,7 @@
       "path": "h-delete-mail-account-fwd-only",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-fwd-only",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 68,
@@ -2934,15 +2934,15 @@
       "path": "h-delete-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 118,
+        "upstream_lines": 122,
         "our_lines": 92,
         "added": 38,
-        "removed": 64,
-        "pct": 48,
-        "measured_at": "2026-11-06"
+        "removed": 68,
+        "pct": 49,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -2950,7 +2950,7 @@
       "path": "h-delete-mail-domain-antispam",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-antispam",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 68,
@@ -2966,7 +2966,7 @@
       "path": "h-delete-mail-domain-antivirus",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-antivirus",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -2982,7 +2982,7 @@
       "path": "h-delete-mail-domain-catchall",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-catchall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -2998,7 +2998,7 @@
       "path": "h-delete-mail-domain-dkim",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-dkim",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 81,
@@ -3014,7 +3014,7 @@
       "path": "h-delete-mail-domain-reject",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-reject",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 70,
@@ -3039,7 +3039,7 @@
       "path": "h-delete-mail-domain-smtp-relay",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-smtp-relay",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 65,
@@ -3100,7 +3100,7 @@
       "path": "h-delete-mail-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 72,
@@ -3116,7 +3116,7 @@
       "path": "h-delete-mail-domain-webmail",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain-webmail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 113,
@@ -3132,7 +3132,7 @@
       "path": "h-delete-mail-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -3229,7 +3229,7 @@
       "path": "h-delete-sys-filemanager",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-filemanager",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 76,
@@ -3245,7 +3245,7 @@
       "path": "h-delete-sys-firewall",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-firewall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 50,
@@ -3270,7 +3270,7 @@
       "path": "h-delete-sys-ip",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-ip",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 165,
@@ -3286,7 +3286,7 @@
       "path": "h-delete-sys-mail-dnsbl",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-mail-dnsbl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 83,
@@ -3302,7 +3302,7 @@
       "path": "h-delete-sys-mail-queue",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-mail-queue",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 45,
@@ -3345,7 +3345,7 @@
       "path": "h-delete-sys-pma-sso",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-pma-sso",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -3415,7 +3415,7 @@
       "path": "h-delete-sys-smtp",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-smtp",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 49,
@@ -3431,7 +3431,7 @@
       "path": "h-delete-sys-smtp-relay",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-smtp-relay",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 47,
@@ -3447,7 +3447,7 @@
       "path": "h-delete-sys-tachyon",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-sys-snappymail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 71,
@@ -3463,15 +3463,15 @@
       "path": "h-delete-user",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 132,
-        "our_lines": 119,
-        "added": 59,
+        "our_lines": 124,
+        "added": 64,
         "removed": 72,
-        "pct": 52,
-        "measured_at": "2026-11-12"
+        "pct": 53,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -3479,7 +3479,7 @@
       "path": "h-delete-user-2fa",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-2fa",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 61,
@@ -3495,7 +3495,7 @@
       "path": "h-delete-user-auth-log",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-auth-log",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 44,
@@ -3511,7 +3511,7 @@
       "path": "h-delete-user-backup",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-backup",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 82,
@@ -3527,7 +3527,7 @@
       "path": "h-delete-user-backup-exclusions",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-backup-exclusions",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 82,
@@ -3543,7 +3543,7 @@
       "path": "h-delete-user-backup-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-backup-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 73,
@@ -3586,7 +3586,7 @@
       "path": "h-delete-user-ips",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-ips",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -3602,7 +3602,7 @@
       "path": "h-delete-user-log",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-log",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 61,
@@ -3618,7 +3618,7 @@
       "path": "h-delete-user-notification",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-notification",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 79,
@@ -3634,7 +3634,7 @@
       "path": "h-delete-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 63,
@@ -3659,7 +3659,7 @@
       "path": "h-delete-user-sftp-jail",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-sftp-jail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -3675,15 +3675,15 @@
       "path": "h-delete-user-ssh-key",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-ssh-key",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 76,
+        "upstream_lines": 83,
         "our_lines": 58,
-        "added": 34,
-        "removed": 52,
+        "added": 33,
+        "removed": 58,
         "pct": 64,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -3691,7 +3691,7 @@
       "path": "h-delete-user-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-user-stats",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 60,
@@ -3707,15 +3707,15 @@
       "path": "h-delete-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 163,
+        "upstream_lines": 167,
         "our_lines": 135,
-        "added": 58,
-        "removed": 86,
-        "pct": 48,
-        "measured_at": "2026-11-06"
+        "added": 60,
+        "removed": 92,
+        "pct": 50,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -3723,7 +3723,7 @@
       "path": "h-delete-web-domain-alias",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-alias",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 99,
@@ -3739,7 +3739,7 @@
       "path": "h-delete-web-domain-allow-users",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-allow-users",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -3755,7 +3755,7 @@
       "path": "h-delete-web-domain-backend",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-backend",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 95,
@@ -3798,7 +3798,7 @@
       "path": "h-delete-web-domain-ftp",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-ftp",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -3823,7 +3823,7 @@
       "path": "h-delete-web-domain-httpauth",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-httpauth",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 98,
@@ -3848,7 +3848,7 @@
       "path": "h-delete-web-domain-proxy",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-proxy",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 77,
@@ -3864,7 +3864,7 @@
       "path": "h-delete-web-domain-redirect",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-redirect",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 72,
@@ -3880,7 +3880,7 @@
       "path": "h-delete-web-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 97,
@@ -3896,7 +3896,7 @@
       "path": "h-delete-web-domain-ssl-force",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-ssl-force",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 80,
@@ -3912,7 +3912,7 @@
       "path": "h-delete-web-domain-ssl-hsts",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-ssl-hsts",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -3928,15 +3928,15 @@
       "path": "h-delete-web-domain-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-stats",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 75,
+        "upstream_lines": 82,
         "our_lines": 49,
-        "added": 15,
-        "removed": 41,
-        "pct": 45,
-        "measured_at": "2026-11-06"
+        "added": 16,
+        "removed": 49,
+        "pct": 49,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -3944,7 +3944,7 @@
       "path": "h-delete-web-domain-stats-user",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domain-stats-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 73,
@@ -3969,7 +3969,7 @@
       "path": "h-delete-web-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -3985,7 +3985,7 @@
       "path": "h-delete-web-php",
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-php",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 117,
@@ -4001,7 +4001,7 @@
       "path": "h-download-backup",
       "source_type": "derived",
       "upstream_path": "bin/v-download-backup",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 119,
@@ -4017,7 +4017,7 @@
       "path": "h-dump-database",
       "source_type": "derived",
       "upstream_path": "bin/v-dump-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 101,
@@ -4033,7 +4033,7 @@
       "path": "h-dump-site",
       "source_type": "derived",
       "upstream_path": "bin/v-dump-site",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -4058,15 +4058,15 @@
       "path": "h-extract-fs-archive",
       "source_type": "derived",
       "upstream_path": "bin/v-extract-fs-archive",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 171,
+        "upstream_lines": 214,
         "our_lines": 95,
-        "added": 46,
-        "removed": 122,
-        "pct": 63,
-        "measured_at": "2026-11-06"
+        "added": 45,
+        "removed": 164,
+        "pct": 67,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -4074,15 +4074,15 @@
       "path": "h-generate-password-hash",
       "source_type": "derived",
       "upstream_path": "bin/v-generate-password-hash",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 44,
-        "our_lines": 41,
-        "added": 37,
-        "removed": 40,
-        "pct": 90,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 52,
+        "our_lines": 43,
+        "added": 38,
+        "removed": 47,
+        "pct": 89,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -4090,7 +4090,7 @@
       "path": "h-generate-ssl-cert",
       "source_type": "derived",
       "upstream_path": "bin/v-generate-ssl-cert",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 234,
@@ -4115,7 +4115,7 @@
       "path": "h-get-mail-account-value",
       "source_type": "derived",
       "upstream_path": "bin/v-get-mail-account-value",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 59,
@@ -4131,7 +4131,7 @@
       "path": "h-get-mail-domain-value",
       "source_type": "derived",
       "upstream_path": "bin/v-get-mail-domain-value",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 57,
@@ -4147,7 +4147,7 @@
       "path": "h-get-sys-timezone",
       "source_type": "derived",
       "upstream_path": "bin/v-get-sys-timezone",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 47,
@@ -4163,7 +4163,7 @@
       "path": "h-get-sys-timezones",
       "source_type": "derived",
       "upstream_path": "bin/v-get-sys-timezones",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 61,
@@ -4179,15 +4179,15 @@
       "path": "h-get-user-salt",
       "source_type": "derived",
       "upstream_path": "bin/v-get-user-salt",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 124,
-        "our_lines": 92,
-        "added": 20,
-        "removed": 52,
-        "pct": 33,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 131,
+        "our_lines": 94,
+        "added": 22,
+        "removed": 59,
+        "pct": 36,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -4195,7 +4195,7 @@
       "path": "h-get-user-value",
       "source_type": "derived",
       "upstream_path": "bin/v-get-user-value",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 47,
@@ -4211,7 +4211,7 @@
       "path": "h-import-database",
       "source_type": "derived",
       "upstream_path": "bin/v-import-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -4245,7 +4245,7 @@
       "path": "h-list-backup-host",
       "source_type": "derived",
       "upstream_path": "bin/v-list-backup-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 142,
@@ -4261,7 +4261,7 @@
       "path": "h-list-backup-host-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-list-backup-host-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 80,
@@ -4277,7 +4277,7 @@
       "path": "h-list-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-list-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 109,
@@ -4293,7 +4293,7 @@
       "path": "h-list-cron-jobs",
       "source_type": "derived",
       "upstream_path": "bin/v-list-cron-jobs",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 115,
@@ -4309,7 +4309,7 @@
       "path": "h-list-database",
       "source_type": "derived",
       "upstream_path": "bin/v-list-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 96,
@@ -4325,7 +4325,7 @@
       "path": "h-list-database-host",
       "source_type": "derived",
       "upstream_path": "bin/v-list-database-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 115,
@@ -4341,7 +4341,7 @@
       "path": "h-list-database-hosts",
       "source_type": "derived",
       "upstream_path": "bin/v-list-database-hosts",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 145,
@@ -4357,7 +4357,7 @@
       "path": "h-list-database-types",
       "source_type": "derived",
       "upstream_path": "bin/v-list-database-types",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -4373,7 +4373,7 @@
       "path": "h-list-databases",
       "source_type": "derived",
       "upstream_path": "bin/v-list-databases",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 109,
@@ -4389,7 +4389,7 @@
       "path": "h-list-default-php",
       "source_type": "derived",
       "upstream_path": "bin/v-list-default-php",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 87,
@@ -4432,7 +4432,7 @@
       "path": "h-list-firewall",
       "source_type": "derived",
       "upstream_path": "bin/v-list-firewall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 104,
@@ -4448,7 +4448,7 @@
       "path": "h-list-firewall-ban",
       "source_type": "derived",
       "upstream_path": "bin/v-list-firewall-ban",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 94,
@@ -4482,7 +4482,7 @@
       "path": "h-list-firewall-ipset",
       "source_type": "derived",
       "upstream_path": "bin/v-list-firewall-ipset",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 108,
@@ -4507,7 +4507,7 @@
       "path": "h-list-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-list-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 91,
@@ -4523,7 +4523,7 @@
       "path": "h-list-letsencrypt-user",
       "source_type": "derived",
       "upstream_path": "bin/v-list-letsencrypt-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -4539,7 +4539,7 @@
       "path": "h-list-mail-account",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-account",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 104,
@@ -4555,7 +4555,7 @@
       "path": "h-list-mail-account-autoreply",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-account-autoreply",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 86,
@@ -4571,7 +4571,7 @@
       "path": "h-list-mail-accounts",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-accounts",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 152,
@@ -4587,7 +4587,7 @@
       "path": "h-list-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 144,
@@ -4603,7 +4603,7 @@
       "path": "h-list-mail-domain-dkim",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-domain-dkim",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 86,
@@ -4619,7 +4619,7 @@
       "path": "h-list-mail-domain-dkim-dns",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-domain-dkim-dns",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -4671,7 +4671,7 @@
       "path": "h-list-mail-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 160,
@@ -4687,7 +4687,7 @@
       "path": "h-list-mail-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 118,
@@ -4730,7 +4730,7 @@
       "path": "h-list-sys-clamd-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-clamd-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 77,
@@ -4746,7 +4746,7 @@
       "path": "h-list-sys-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 311,
@@ -4762,7 +4762,7 @@
       "path": "h-list-sys-cpu-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-cpu-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 32,
@@ -4787,7 +4787,7 @@
       "path": "h-list-sys-db-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-db-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-09",
       "divergence": {
         "upstream_lines": 94,
@@ -4803,7 +4803,7 @@
       "path": "h-list-sys-disk-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-disk-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 35,
@@ -4819,7 +4819,7 @@
       "path": "h-list-sys-dovecot-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-dovecot-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 107,
@@ -4835,7 +4835,7 @@
       "path": "h-list-sys-hestia-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-hestia-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 137,
@@ -4851,7 +4851,7 @@
       "path": "h-list-sys-info",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-info",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 116,
@@ -4876,7 +4876,7 @@
       "path": "h-list-sys-interfaces",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-interfaces",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 85,
@@ -4892,7 +4892,7 @@
       "path": "h-list-sys-ip",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-ip",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 103,
@@ -4908,7 +4908,7 @@
       "path": "h-list-sys-ips",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-ips",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 104,
@@ -4924,7 +4924,7 @@
       "path": "h-list-sys-languages",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-languages",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -4940,7 +4940,7 @@
       "path": "h-list-sys-mail-dnsbl",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-mail-dnsbl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 90,
@@ -4956,7 +4956,7 @@
       "path": "h-list-sys-mail-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-mail-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 57,
@@ -4972,7 +4972,7 @@
       "path": "h-list-sys-memory-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-memory-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 30,
@@ -4988,7 +4988,7 @@
       "path": "h-list-sys-mysql-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-mysql-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 86,
@@ -5004,7 +5004,7 @@
       "path": "h-list-sys-network-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-network-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 30,
@@ -5020,7 +5020,7 @@
       "path": "h-list-sys-nginx-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-nginx-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 91,
@@ -5036,7 +5036,7 @@
       "path": "h-list-sys-pgsql-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-pgsql-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 73,
@@ -5052,7 +5052,7 @@
       "path": "h-list-sys-php",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-php",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 94,
@@ -5068,7 +5068,7 @@
       "path": "h-list-sys-php-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-php-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 97,
@@ -5084,7 +5084,7 @@
       "path": "h-list-sys-proftpd-config",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-proftpd-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 68,
@@ -5100,7 +5100,7 @@
       "path": "h-list-sys-rrd",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-rrd",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 163,
@@ -5116,7 +5116,7 @@
       "path": "h-list-sys-services",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-services",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 366,
@@ -5132,7 +5132,7 @@
       "path": "h-list-sys-shells",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-shells",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 83,
@@ -5148,7 +5148,7 @@
       "path": "h-list-sys-sshd-port",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-sshd-port",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 85,
@@ -5164,7 +5164,7 @@
       "path": "h-list-sys-themes",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-themes",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 111,
@@ -5189,7 +5189,7 @@
       "path": "h-list-sys-users",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-users",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 81,
@@ -5205,7 +5205,7 @@
       "path": "h-list-sys-web-status",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-web-status",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 53,
@@ -5221,7 +5221,7 @@
       "path": "h-list-sys-webmail",
       "source_type": "derived",
       "upstream_path": "bin/v-list-sys-webmail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 81,
@@ -5237,7 +5237,7 @@
       "path": "h-list-user",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 198,
@@ -5253,7 +5253,7 @@
       "path": "h-list-user-auth-log",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-auth-log",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 137,
@@ -5269,7 +5269,7 @@
       "path": "h-list-user-backup",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backup",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 106,
@@ -5285,7 +5285,7 @@
       "path": "h-list-user-backup-exclusions",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backup-exclusions",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 241,
@@ -5310,15 +5310,15 @@
       "path": "h-list-user-backup-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backup-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 108,
+        "upstream_lines": 109,
         "our_lines": 87,
         "added": 43,
-        "removed": 64,
-        "pct": 54,
-        "measured_at": "2026-11-06"
+        "removed": 65,
+        "pct": 55,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -5326,7 +5326,7 @@
       "path": "h-list-user-backups",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backups",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 118,
@@ -5342,7 +5342,7 @@
       "path": "h-list-user-backups-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backups-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 67,
@@ -5358,7 +5358,7 @@
       "path": "h-list-user-files-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-files-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -5374,7 +5374,7 @@
       "path": "h-list-user-ips",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-ips",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 115,
@@ -5390,7 +5390,7 @@
       "path": "h-list-user-log",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-log",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 133,
@@ -5406,7 +5406,7 @@
       "path": "h-list-user-notifications",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-notifications",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 118,
@@ -5422,7 +5422,7 @@
       "path": "h-list-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 134,
@@ -5438,7 +5438,7 @@
       "path": "h-list-user-packages",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-packages",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 129,
@@ -5454,15 +5454,15 @@
       "path": "h-list-user-ssh-key",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-ssh-key",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 123,
+        "upstream_lines": 125,
         "our_lines": 86,
         "added": 25,
-        "removed": 62,
-        "pct": 41,
-        "measured_at": "2026-11-06"
+        "removed": 64,
+        "pct": 42,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -5470,7 +5470,7 @@
       "path": "h-list-user-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-stats",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 151,
@@ -5486,7 +5486,7 @@
       "path": "h-list-users",
       "source_type": "derived",
       "upstream_path": "bin/v-list-users",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 203,
@@ -5502,7 +5502,7 @@
       "path": "h-list-users-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-list-users-stats",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 147,
@@ -5518,7 +5518,7 @@
       "path": "h-list-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 200,
@@ -5534,7 +5534,7 @@
       "path": "h-list-web-domain-accesslog",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-domain-accesslog",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 95,
@@ -5550,7 +5550,7 @@
       "path": "h-list-web-domain-errorlog",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-domain-errorlog",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 95,
@@ -5566,7 +5566,7 @@
       "path": "h-list-web-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 161,
@@ -5582,7 +5582,7 @@
       "path": "h-list-web-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 182,
@@ -5598,7 +5598,7 @@
       "path": "h-list-web-templates",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-templates",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 84,
@@ -5614,7 +5614,7 @@
       "path": "h-list-web-templates-backend",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-templates-backend",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -5639,7 +5639,7 @@
       "path": "h-list-web-templates-proxy",
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-templates-proxy",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -5655,15 +5655,15 @@
       "path": "h-log-action",
       "source_type": "derived",
       "upstream_path": "bin/v-log-action",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 62,
         "our_lines": 37,
-        "added": 9,
-        "removed": 34,
-        "pct": 43,
-        "measured_at": "2026-11-06"
+        "added": 7,
+        "removed": 32,
+        "pct": 39,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -5671,7 +5671,7 @@
       "path": "h-log-user-login",
       "source_type": "derived",
       "upstream_path": "bin/v-log-user-login",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 67,
@@ -5687,7 +5687,7 @@
       "path": "h-log-user-logout",
       "source_type": "derived",
       "upstream_path": "bin/v-log-user-logout",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 44,
@@ -5703,7 +5703,7 @@
       "path": "h-move-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-move-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 138,
@@ -5728,7 +5728,7 @@
       "path": "h-open-fs-config",
       "source_type": "derived",
       "upstream_path": "bin/v-open-fs-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 63,
@@ -5744,7 +5744,7 @@
       "path": "h-purge-nginx-cache",
       "source_type": "derived",
       "upstream_path": "bin/v-purge-nginx-cache",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 78,
@@ -5760,7 +5760,7 @@
       "path": "h-rebuild-all",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-all",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 68,
@@ -5776,7 +5776,7 @@
       "path": "h-rebuild-cron-jobs",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-cron-jobs",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -5792,7 +5792,7 @@
       "path": "h-rebuild-database",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 75,
@@ -5808,7 +5808,7 @@
       "path": "h-rebuild-databases",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-databases",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 82,
@@ -5824,7 +5824,7 @@
       "path": "h-rebuild-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-mail-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 92,
@@ -5840,7 +5840,7 @@
       "path": "h-rebuild-mail-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-mail-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 75,
@@ -5856,7 +5856,7 @@
       "path": "h-rebuild-user",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 79,
@@ -5872,7 +5872,7 @@
       "path": "h-rebuild-users",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-users",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -5888,7 +5888,7 @@
       "path": "h-rebuild-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-web-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 118,
@@ -5904,7 +5904,7 @@
       "path": "h-rebuild-web-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-web-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 142,
@@ -5920,7 +5920,7 @@
       "path": "h-rename-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-rename-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 89,
@@ -5936,7 +5936,7 @@
       "path": "h-repair-sys-config",
       "source_type": "derived",
       "upstream_path": "bin/v-repair-sys-config",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 36,
@@ -5952,7 +5952,7 @@
       "path": "h-restart-cron",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-cron",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 74,
@@ -5968,7 +5968,7 @@
       "path": "h-restart-ftp",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-ftp",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 74,
@@ -5984,7 +5984,7 @@
       "path": "h-restart-mail",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-mail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 84,
@@ -6000,7 +6000,7 @@
       "path": "h-restart-proxy",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-proxy",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 139,
@@ -6016,7 +6016,7 @@
       "path": "h-restart-service",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-service",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 117,
@@ -6032,7 +6032,7 @@
       "path": "h-restart-system",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-system",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 55,
@@ -6048,7 +6048,7 @@
       "path": "h-restart-web",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-web",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 121,
@@ -6064,7 +6064,7 @@
       "path": "h-restart-web-backend",
       "source_type": "derived",
       "upstream_path": "bin/v-restart-web-backend",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 102,
@@ -6080,7 +6080,7 @@
       "path": "h-restore-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 51,
@@ -6096,7 +6096,7 @@
       "path": "h-restore-cron-job-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-cron-job-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 83,
@@ -6112,7 +6112,7 @@
       "path": "h-restore-database",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 51,
@@ -6128,15 +6128,15 @@
       "path": "h-restore-database-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-database-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 131,
+        "upstream_lines": 147,
         "our_lines": 140,
-        "added": 91,
-        "removed": 82,
-        "pct": 63,
-        "measured_at": "2026-11-12"
+        "added": 90,
+        "removed": 97,
+        "pct": 65,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6144,15 +6144,15 @@
       "path": "h-restore-file-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-file-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 95,
-        "our_lines": 70,
-        "added": 48,
-        "removed": 73,
+        "upstream_lines": 96,
+        "our_lines": 67,
+        "added": 45,
+        "removed": 74,
         "pct": 73,
-        "measured_at": "2026-11-12"
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6160,7 +6160,7 @@
       "path": "h-restore-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-mail-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 51,
@@ -6176,15 +6176,15 @@
       "path": "h-restore-mail-domain-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-mail-domain-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 246,
-        "our_lines": 253,
-        "added": 151,
-        "removed": 144,
-        "pct": 59,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 264,
+        "our_lines": 252,
+        "added": 156,
+        "removed": 168,
+        "pct": 62,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6201,15 +6201,15 @@
       "path": "h-restore-user",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-user",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-09",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 972,
-        "our_lines": 1452,
-        "added": 1050,
-        "removed": 570,
-        "pct": 66,
-        "measured_at": "2026-11-09"
+        "upstream_lines": 1048,
+        "our_lines": 1451,
+        "added": 1053,
+        "removed": 650,
+        "pct": 68,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6217,15 +6217,15 @@
       "path": "h-restore-user-full-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-user-full-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 132,
-        "our_lines": 154,
-        "added": 102,
-        "removed": 80,
-        "pct": 63,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 158,
+        "our_lines": 147,
+        "added": 99,
+        "removed": 110,
+        "pct": 68,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6233,15 +6233,15 @@
       "path": "h-restore-user-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-user-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 112,
-        "our_lines": 104,
-        "added": 70,
-        "removed": 78,
-        "pct": 68,
-        "measured_at": "2026-11-06"
+        "upstream_lines": 114,
+        "our_lines": 100,
+        "added": 69,
+        "removed": 83,
+        "pct": 71,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6249,7 +6249,7 @@
       "path": "h-restore-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-web-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 51,
@@ -6265,15 +6265,15 @@
       "path": "h-restore-web-domain-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-restore-web-domain-restic",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-12",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 266,
-        "our_lines": 344,
-        "added": 240,
-        "removed": 162,
-        "pct": 65,
-        "measured_at": "2026-11-12"
+        "upstream_lines": 306,
+        "our_lines": 332,
+        "added": 230,
+        "removed": 204,
+        "pct": 68,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -6281,7 +6281,7 @@
       "path": "h-schedule-user-backup",
       "source_type": "derived",
       "upstream_path": "bin/v-schedule-user-backup",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 53,
@@ -6297,7 +6297,7 @@
       "path": "h-schedule-user-backup-download",
       "source_type": "derived",
       "upstream_path": "bin/v-schedule-user-backup-download",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 53,
@@ -6313,7 +6313,7 @@
       "path": "h-schedule-user-backup-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-schedule-user-backup-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 54,
@@ -6329,7 +6329,7 @@
       "path": "h-schedule-user-restore",
       "source_type": "derived",
       "upstream_path": "bin/v-schedule-user-restore",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 74,
@@ -6345,7 +6345,7 @@
       "path": "h-schedule-user-restore-restic",
       "source_type": "derived",
       "upstream_path": "bin/v-schedule-user-restore-restic",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 100,
@@ -6361,7 +6361,7 @@
       "path": "h-search-command",
       "source_type": "derived",
       "upstream_path": "bin/v-search-command",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 58,
@@ -6377,7 +6377,7 @@
       "path": "h-search-domain-owner",
       "source_type": "derived",
       "upstream_path": "bin/v-search-domain-owner",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -6393,7 +6393,7 @@
       "path": "h-search-object",
       "source_type": "derived",
       "upstream_path": "bin/v-search-object",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 309,
@@ -6409,7 +6409,7 @@
       "path": "h-search-user-object",
       "source_type": "derived",
       "upstream_path": "bin/v-search-user-object",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 311,
@@ -6425,7 +6425,7 @@
       "path": "h-start-service",
       "source_type": "derived",
       "upstream_path": "bin/v-start-service",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 65,
@@ -6441,7 +6441,7 @@
       "path": "h-stop-firewall",
       "source_type": "derived",
       "upstream_path": "bin/v-stop-firewall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 104,
@@ -6457,7 +6457,7 @@
       "path": "h-stop-service",
       "source_type": "derived",
       "upstream_path": "bin/v-stop-service",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -6473,7 +6473,7 @@
       "path": "h-suspend-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -6489,7 +6489,7 @@
       "path": "h-suspend-cron-jobs",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-cron-jobs",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -6505,7 +6505,7 @@
       "path": "h-suspend-database",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 66,
@@ -6521,7 +6521,7 @@
       "path": "h-suspend-database-host",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-database-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -6537,7 +6537,7 @@
       "path": "h-suspend-databases",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-databases",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -6553,7 +6553,7 @@
       "path": "h-suspend-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 92,
@@ -6569,7 +6569,7 @@
       "path": "h-suspend-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 55,
@@ -6585,7 +6585,7 @@
       "path": "h-suspend-mail-account",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-mail-account",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 75,
@@ -6601,7 +6601,7 @@
       "path": "h-suspend-mail-accounts",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-mail-accounts",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 58,
@@ -6617,7 +6617,7 @@
       "path": "h-suspend-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-mail-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 72,
@@ -6633,7 +6633,7 @@
       "path": "h-suspend-mail-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-mail-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 54,
@@ -6649,7 +6649,7 @@
       "path": "h-suspend-user",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 105,
@@ -6665,7 +6665,7 @@
       "path": "h-suspend-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-web-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 104,
@@ -6681,7 +6681,7 @@
       "path": "h-suspend-web-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-suspend-web-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -6706,7 +6706,7 @@
       "path": "h-unsuspend-cron-job",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-cron-job",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -6722,7 +6722,7 @@
       "path": "h-unsuspend-cron-jobs",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-cron-jobs",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -6738,7 +6738,7 @@
       "path": "h-unsuspend-database",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-database",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -6754,7 +6754,7 @@
       "path": "h-unsuspend-database-host",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-database-host",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -6770,7 +6770,7 @@
       "path": "h-unsuspend-databases",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-databases",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -6786,7 +6786,7 @@
       "path": "h-unsuspend-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 92,
@@ -6802,7 +6802,7 @@
       "path": "h-unsuspend-firewall-rule",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-firewall-rule",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 55,
@@ -6818,7 +6818,7 @@
       "path": "h-unsuspend-mail-account",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-mail-account",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 82,
@@ -6834,7 +6834,7 @@
       "path": "h-unsuspend-mail-accounts",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-mail-accounts",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 58,
@@ -6850,7 +6850,7 @@
       "path": "h-unsuspend-mail-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-mail-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 79,
@@ -6866,7 +6866,7 @@
       "path": "h-unsuspend-mail-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-mail-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 54,
@@ -6882,7 +6882,7 @@
       "path": "h-unsuspend-user",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-user",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 104,
@@ -6898,7 +6898,7 @@
       "path": "h-unsuspend-web-domain",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-web-domain",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 110,
@@ -6914,7 +6914,7 @@
       "path": "h-unsuspend-web-domains",
       "source_type": "derived",
       "upstream_path": "bin/v-unsuspend-web-domains",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -6939,7 +6939,7 @@
       "path": "h-update-database-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-database-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 61,
@@ -6955,7 +6955,7 @@
       "path": "h-update-databases-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-databases-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 49,
@@ -6971,7 +6971,7 @@
       "path": "h-update-firewall",
       "source_type": "derived",
       "upstream_path": "bin/v-update-firewall",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 233,
@@ -7014,7 +7014,7 @@
       "path": "h-update-firewall-ipset",
       "source_type": "derived",
       "upstream_path": "bin/v-update-firewall-ipset",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 69,
@@ -7039,7 +7039,7 @@
       "path": "h-update-host-certificate",
       "source_type": "derived",
       "upstream_path": "bin/v-update-host-certificate",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 89,
@@ -7055,15 +7055,15 @@
       "path": "h-update-letsencrypt-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-update-letsencrypt-ssl",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 210,
-        "our_lines": 158,
-        "added": 46,
-        "removed": 98,
-        "pct": 39,
-        "measured_at": "2026-11-06"
+        "our_lines": 167,
+        "added": 57,
+        "removed": 100,
+        "pct": 41,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -7071,7 +7071,7 @@
       "path": "h-update-mail-domain-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-mail-domain-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 71,
@@ -7087,7 +7087,7 @@
       "path": "h-update-mail-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-update-mail-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 104,
@@ -7103,7 +7103,7 @@
       "path": "h-update-mail-domains-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-mail-domains-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 65,
@@ -7119,7 +7119,7 @@
       "path": "h-update-mail-templates",
       "source_type": "derived",
       "upstream_path": "bin/v-update-mail-templates",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -7153,7 +7153,7 @@
       "path": "h-update-sys-defaults",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-defaults",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 44,
@@ -7169,7 +7169,7 @@
       "path": "h-update-sys-ip",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-ip",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 185,
@@ -7185,7 +7185,7 @@
       "path": "h-update-sys-ip-counters",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-ip-counters",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 70,
@@ -7201,7 +7201,7 @@
       "path": "h-update-sys-queue",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-queue",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 62,
@@ -7217,7 +7217,7 @@
       "path": "h-update-sys-rrd",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 134,
@@ -7233,7 +7233,7 @@
       "path": "h-update-sys-rrd-apache2",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-apache2",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 122,
@@ -7249,7 +7249,7 @@
       "path": "h-update-sys-rrd-ftp",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-ftp",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 120,
@@ -7265,7 +7265,7 @@
       "path": "h-update-sys-rrd-la",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-la",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 123,
@@ -7281,7 +7281,7 @@
       "path": "h-update-sys-rrd-mail",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-mail",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 116,
@@ -7297,7 +7297,7 @@
       "path": "h-update-sys-rrd-mem",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-mem",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 140,
@@ -7313,7 +7313,7 @@
       "path": "h-update-sys-rrd-mysql",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-mysql",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 147,
@@ -7329,7 +7329,7 @@
       "path": "h-update-sys-rrd-net",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-net",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 140,
@@ -7345,7 +7345,7 @@
       "path": "h-update-sys-rrd-nginx",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-nginx",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 115,
@@ -7361,7 +7361,7 @@
       "path": "h-update-sys-rrd-pgsql",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-pgsql",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 164,
@@ -7377,7 +7377,7 @@
       "path": "h-update-sys-rrd-ssh",
       "source_type": "derived",
       "upstream_path": "bin/v-update-sys-rrd-ssh",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 116,
@@ -7393,7 +7393,7 @@
       "path": "h-update-user-backup-exclusions",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-backup-exclusions",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 170,
@@ -7409,7 +7409,7 @@
       "path": "h-update-user-counters",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-counters",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-12",
       "divergence": {
         "upstream_lines": 232,
@@ -7425,7 +7425,7 @@
       "path": "h-update-user-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 60,
@@ -7441,7 +7441,7 @@
       "path": "h-update-user-package",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-package",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 51,
@@ -7457,7 +7457,7 @@
       "path": "h-update-user-quota",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-quota",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 59,
@@ -7473,7 +7473,7 @@
       "path": "h-update-user-stats",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-stats",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 172,
@@ -7489,7 +7489,7 @@
       "path": "h-update-web-domain-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-web-domain-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -7505,7 +7505,7 @@
       "path": "h-update-web-domain-ssl",
       "source_type": "derived",
       "upstream_path": "bin/v-update-web-domain-ssl",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 97,
@@ -7521,15 +7521,15 @@
       "path": "h-update-web-domain-stat",
       "source_type": "derived",
       "upstream_path": "bin/v-update-web-domain-stat",
-      "upstream_ref": "a8d564b0",
-      "last_reconciled": "2026-11-06",
+      "upstream_ref": "b3b53f2f",
+      "last_reconciled": "2026-11-15",
       "divergence": {
-        "upstream_lines": 147,
-        "our_lines": 113,
+        "upstream_lines": 163,
+        "our_lines": 112,
         "added": 29,
-        "removed": 63,
-        "pct": 35,
-        "measured_at": "2026-11-06"
+        "removed": 80,
+        "pct": 39,
+        "measured_at": "2026-11-15"
       },
       "note": ""
     },
@@ -7546,7 +7546,7 @@
       "path": "h-update-web-domains-disk",
       "source_type": "derived",
       "upstream_path": "bin/v-update-web-domains-disk",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 56,
@@ -7562,7 +7562,7 @@
       "path": "h-update-web-domains-stat",
       "source_type": "derived",
       "upstream_path": "bin/v-update-web-domains-stat",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 55,
@@ -7578,7 +7578,7 @@
       "path": "h-update-web-domains-traff",
       "source_type": "derived",
       "upstream_path": "bin/v-update-web-domains-traff",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 79,
@@ -7594,7 +7594,7 @@
       "path": "h-update-white-label-logo",
       "source_type": "derived",
       "upstream_path": "bin/v-update-white-label-logo",
-      "upstream_ref": "a8d564b0",
+      "upstream_ref": "b3b53f2f",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 67,

@@ -246,6 +246,10 @@ User home structure — unchanged from HestiaCP, bidirectional backup compatibil
                           login name for exactly this reason
 ```
 
+A restic restore stages beside the homes in `/home/.hestia-restore.$user.XXXXXX` (root, 0700) and hardlinks from
+there into the home, so the data is not stored twice and root never unpacks into a tree the customer owns (#1348).
+A leftover stage is swept by the next restore and by `h-delete-user`.
+
 Variables set in `include/main.sh`:
 
 | Variable | Value |

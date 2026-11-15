@@ -103,27 +103,41 @@ rebuild_user_conf() {
 		/usr/sbin/usermod --expiredate '' "$user"
 	fi
 
-	# conf is immutable, so the customer cannot rename it; it is lifted only while conf's own entries are made. One that
-	# is a link or not root's is refused, never taken over, and a swap inside that window shows as another inode.
-	local cdir="$HOMEDIR/$user/conf" cino='' cok=yes
+	# conf is immutable, so neither it nor an entry in it can be renamed. It is lifted only when conf, conf/web or
+	# conf/mail has to be made or set right, and none is ever taken over; a swap in that window shows as another inode.
+	local cdir="$HOMEDIR/$user/conf" cino='' cok=yes cflags='' csub
+	local -a csubs=()
+	if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
+		csubs+=(web)
+	fi
+	if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
+		csubs+=(mail)
+	fi
 	if [ -L "$cdir" ] || { [ -e "$cdir" ] && [ "$(stat -c %u "$cdir")" != 0 ]; }; then
 		echo "Error: $cdir is a link or not root's, nothing rebuilt" >&2
 		return 1
 	fi
-	[ ! -e "$cdir" ] || cino=$(stat -c %i "$cdir")
-	chattr -i "$cdir" > /dev/null 2>&1
-	home_dir_own "$user" conf root:root 755 || cok=no
-	[ -n "$cino" ] || cino=$(stat -c %i "$cdir" 2> /dev/null)
-	if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
-		home_dir_own "$user" conf/web root:root 751 || cok=no
+	read -r cflags _ < <(lsattr -d "$cdir" 2> /dev/null)
+	if [[ "$cflags" != *i* ]] || ! (home_cd "$user" conf root); then
+		cok=repair
 	fi
-	if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
-		home_dir_own "$user" conf/mail root:root 751 || cok=no
-	fi
-	chattr +i "$cdir" > /dev/null 2>&1
-	if [ "$cok" != yes ] || [ -L "$cdir" ] || [ "$(stat -c %u:%i "$cdir" 2> /dev/null)" != "0:$cino" ]; then
-		echo "Error: $cdir could not be set up or changed meanwhile, nothing rebuilt" >&2
-		return 1
+	for csub in "${csubs[@]}"; do
+		[ "$cok" = repair ] || (home_cd "$user" "conf/$csub" root) || cok=repair
+	done
+	if [ "$cok" = repair ]; then
+		cok=yes
+		[ ! -e "$cdir" ] || cino=$(stat -c %i "$cdir")
+		chattr -i "$cdir" > /dev/null 2>&1
+		home_dir_root "$user" conf 755 || cok=no
+		[ -n "$cino" ] || cino=$(stat -c %i "$cdir" 2> /dev/null)
+		for csub in "${csubs[@]}"; do
+			home_dir_root "$user" "conf/$csub" 751 || cok=no
+		done
+		chattr +i "$cdir" > /dev/null 2>&1
+		if [ "$cok" != yes ] || [ -L "$cdir" ] || [ "$(stat -c %u:%i "$cdir" 2> /dev/null)" != "0:$cino" ]; then
+			echo "Error: $cdir could not be set up or changed meanwhile, nothing rebuilt" >&2
+			return 1
+		fi
 	fi
 
 	# Create default writeable folders

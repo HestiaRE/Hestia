@@ -2839,6 +2839,22 @@ home_run() {
 	(home_cd "$u" "$rel" "$root" && "$@")
 }
 
+# home_dir_root USER REL MODE: a directory root trusts by what is in it (~/conf): made when missing, never taken over.
+# One that is not root's is refused; a wrong mode is set right.
+home_dir_root() {
+	local parent=. name=$2 proot=''
+	if [[ "$2" == */* ]]; then
+		parent=${2%/*}
+		name=${2##*/}
+		proot=root
+	fi
+	if ! (home_cd "$1" "$parent" "$proot" && { [ -L "$name" ] || [ -d "$name" ] || mkdir -m "$3" -- "$name"; } \
+		&& home_cd "$1" "$2" && [ "$(stat -c %u .)" = 0 ] && chmod -- "$3" .); then
+		echo "Error: $HOMEDIR/$1/$2 is a link, not a directory, or not root's" >&2
+		return 1
+	fi
+}
+
 # home_move OLD NEW SUB NAME: move ~OLD/SUB/NAME to ~NEW/SUB/NAME, refused when it is there already. Both SUBs have
 # to be root's, and the target is reached through a held descriptor, so neither end can be swapped.
 home_move() {

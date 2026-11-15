@@ -1561,8 +1561,9 @@ restic_restore_home() {
 			find "$stage" -mindepth 1 -type d -exec chattr -p "$pid" +P {} + 2> /dev/null
 			find "$stage" -mindepth 1 ! -type d -exec chattr -p "$pid" {} + 2> /dev/null
 		fi
+		# The customer's group only: /home is listable, and the snapshot's modes let others read below.
 		for p in "${above[@]}"; do
-			chown -h root:root "$p" && chmod 711 "$p"
+			chown -h "root:$(id -g "$user")" "$p" && chmod 710 "$p"
 		done
 		if [ -d "$src" ] && [ ! -L "$src" ]; then
 			(cd / && user_exec mkdir -p -- "$dest") || rc=$E_FORBIDEN

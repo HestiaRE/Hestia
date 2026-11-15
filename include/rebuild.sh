@@ -103,13 +103,27 @@ rebuild_user_conf() {
 		/usr/sbin/usermod --expiredate '' "$user"
 	fi
 
-	# The customer owns the home and can put a link where conf was: refused before root touches it.
-	if [ -L "$HOMEDIR/$user/conf" ]; then
-		echo "Error: $HOMEDIR/$user/conf is a link" >&2
+	# conf is immutable, so the customer cannot rename it; it is lifted only while conf's own entries are made. One that
+	# is a link or not root's is refused, never taken over, and a swap inside that window shows as another inode.
+	local cdir="$HOMEDIR/$user/conf" cino='' cok=yes
+	if [ -L "$cdir" ] || { [ -e "$cdir" ] && [ "$(stat -c %u "$cdir")" != 0 ]; }; then
+		echo "Error: $cdir is a link or not root's, nothing rebuilt" >&2
 		return 1
 	fi
-	if [ -e "$HOMEDIR/$user/conf" ]; then
-		chattr -i $HOMEDIR/$user/conf > /dev/null 2>&1
+	[ ! -e "$cdir" ] || cino=$(stat -c %i "$cdir")
+	chattr -i "$cdir" > /dev/null 2>&1
+	home_dir_own "$user" conf root:root 755 || cok=no
+	[ -n "$cino" ] || cino=$(stat -c %i "$cdir" 2> /dev/null)
+	if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
+		home_dir_own "$user" conf/web root:root 751 || cok=no
+	fi
+	if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL_SYSTEM" != 'no' ]; then
+		home_dir_own "$user" conf/mail root:root 751 || cok=no
+	fi
+	chattr +i "$cdir" > /dev/null 2>&1
+	if [ "$cok" != yes ] || [ -L "$cdir" ] || [ "$(stat -c %u:%i "$cdir" 2> /dev/null)" != "0:$cino" ]; then
+		echo "Error: $cdir could not be set up or changed meanwhile, nothing rebuilt" >&2
+		return 1
 	fi
 
 	# Create default writeable folders
@@ -123,7 +137,6 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
 	chmod a+x $HOMEDIR/$user
-	home_dir_own "$user" conf root:root 755 || return 1
 	chown --no-dereference $user:$user \
 		$HOMEDIR/$user \
 		$HOMEDIR/$user/.config \
@@ -170,7 +183,6 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/web" ]]; then
 			rm $HOMEDIR/$user/web
 		fi
-		home_dir_own "$user" conf/web root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/web/$domain
 		home_dir_own "$user" web "root:$user" 751 || return 1
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
@@ -191,7 +203,6 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/mail" ]]; then
 			rm $HOMEDIR/$user/mail
 		fi
-		home_dir_own "$user" conf/mail root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
 		home_dir_own "$user" mail root:root 751 || return 1
 		if [ "$create_user" = "yes" ]; then
@@ -217,9 +228,6 @@ rebuild_user_conf() {
 			$BIN/h-rebuild-cron-jobs $user $restart
 		fi
 	fi
-
-	# Set immutable flag
-	chattr +i $HOMEDIR/$user/conf > /dev/null 2>&1
 }
 
 # WEB domain rebuild
@@ -553,6 +561,7 @@ auth_basic_user_file    $htpasswd;"
 	fi
 
 	# Set folder permissions
+	local sub
 	for sub in . stats logs private cgi-bin public_html document_errors; do
 		home_run "$user" "web/$domain/$sub" -- chmod 751 .
 	done

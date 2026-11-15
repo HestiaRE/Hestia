@@ -63,8 +63,8 @@
 
 				<!-- Notifications -->
 				<?php
-	$impersonatingAdmin = $_SESSION["adminContext"] === "admin" && ($_SESSION["look"] !== "" && $user == "admin");
-// Do not show notifications panel when impersonating 'admin' user
+	$impersonatingAdmin = $_SESSION["adminContext"] === "admin" && ($_SESSION["look"] !== "" && is_root_user($user));
+// Do not show notifications panel when impersonating the root user
 if (!$impersonatingAdmin) { ?>
 					<div x-data="notifications" class="top-bar-notifications">
 						<button
@@ -173,7 +173,7 @@ if (!$impersonatingAdmin) { ?>
 							     saved per-user flags, so gate on the port too or the menu would
 							     point at a torn-down listener). -->
 							<?php if ((($_SESSION["USER_FILE_MANAGER"] ?? "") === "yes") && !empty($_SESSION["FILE_MANAGER_PORT"])) { ?>
-								<?php if ($_SESSION["adminContext"] === "admin" && $_SESSION["look"] === "admin" && $_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] == "yes") { ?>
+								<?php if ($_SESSION["adminContext"] === "admin" && is_root_user($_SESSION["look"]) && $_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] == "yes") { ?>
 									<!-- Hide file manager when impersonating admin-->
 								<?php } else { ?>
 									<li class="top-bar-menu-item">
@@ -189,9 +189,9 @@ if (!$impersonatingAdmin) { ?>
 
 
 							<!-- Server Settings -->
-							<?php if (($_SESSION["userContext"] === "admin" && $_SESSION["POLICY_SYSTEM_HIDE_SERVICES"] !== "yes") || $_SESSION["user"] === "admin") { ?>
+							<?php if (($_SESSION["userContext"] === "admin" && $_SESSION["POLICY_SYSTEM_HIDE_SERVICES"] !== "yes") || is_root_user($_SESSION["user"])) { ?>
 								<?php if ($_SESSION["adminContext"] === "admin" && $_SESSION["look"] !== "") { ?>
-									<!-- Hide 'Server Settings' button when impersonating 'admin' or other users -->
+									<!-- Hide 'Server Settings' button when impersonating the root user or other users -->
 								<?php } else { ?>
 									<li class="top-bar-menu-item">
 										<a title="<?= _("Server settings") ?>" class="top-bar-menu-link <?php if (in_array($TAB, ["SERVER", "IP", "RRD", "FIREWALL"])) {
@@ -205,8 +205,8 @@ if (!$impersonatingAdmin) { ?>
 							<?php } ?>
 
 							<!-- Edit User -->
-							<?php if ($_SESSION["adminContext"] === "admin" && ($_SESSION["look"] !== "" && $user == "admin")) { ?>
-								<!-- Hide 'edit user' entry point from other administrators for default 'admin' account-->
+							<?php if ($_SESSION["adminContext"] === "admin" && ($_SESSION["look"] !== "" && is_root_user($user))) { ?>
+								<!-- Hide 'edit user' entry point from other administrators for the root account-->
 								<li class="top-bar-menu-item">
 									<a title="<?= _("Logs") ?>" class="top-bar-menu-link <?php if ($TAB == "LOG") {
 										echo "active";
@@ -285,7 +285,7 @@ if (!$impersonatingAdmin) { ?>
 
 				<!-- Users tab -->
 				<?php if ($_SESSION["userContext"] == "admin" && $_SESSION["look"] === "") { ?>
-					<?php if ($_SESSION["user"] !== "admin" && $_SESSION["POLICY_SYSTEM_HIDE_ADMIN"] === "yes") {
+					<?php if (!is_root_user($_SESSION["user"]) && $_SESSION["POLICY_SYSTEM_HIDE_ADMIN"] === "yes") {
 						$user_count = $panel[$user]["U_USERS"] - 1;
 					} else {
 						$user_count = $panel[$user]["U_USERS"];

@@ -92,7 +92,7 @@
 				data-sort-type="<?= tohtml(_($object)) ?>"
 				data-sort-owner="<?= tohtml($value["USER"]) ?>"
 				data-sort-status="<?= tohtml($status) ?>"
-				style="<?php if (($_SESSION['POLICY_SYSTEM_HIDE_ADMIN'] === 'yes') && ($value['USER']) === 'admin') {
+				style="<?php if (($_SESSION['POLICY_SYSTEM_HIDE_ADMIN'] === 'yes') && is_root_user($value['USER'])) {
 					echo 'display: none;';
 				} ?>">
 				<div class="units-table-cell u-text-center-desktop">
@@ -154,7 +154,7 @@
 				$edit_lnk = "/edit/" . rawurlencode($value["TYPE"]) . "/?" . http_build_query($edit_query);
 				?>
 					<?php
-					if (($_SESSION['userContext'] === 'admin') && ($_SESSION['user'] !== 'admin') && ($value['USER'] === 'admin') && ($_SESSION['POLICY_SYSTEM_PROTECTED_ADMIN'] === 'yes')) {
+					if (($_SESSION['userContext'] === 'admin') && !is_root_user($_SESSION['user']) && is_root_user($value['USER']) && ($_SESSION['POLICY_SYSTEM_PROTECTED_ADMIN'] === 'yes')) {
 						echo tohtml($value["RESULT"]);
 					} else {
 						if ($value["USER"] == $_SESSION["user"]) {
@@ -181,7 +181,7 @@
 					<a href="/search/?<?= tohtml(http_build_query(["q" => $_GET["q"], "u" => $value["USER"], "token" => $_SESSION["token"]])) ?>">
 						<?= tohtml($value["USER"]) ?>
 					</a>
-					<?php if (!($_SESSION["POLICY_SYSTEM_HIDE_ADMIN"] === "yes" && $value["USER"] !== "admin") && $_SESSION["userContext"] === "admin") { ?>
+					<?php if (!($_SESSION["POLICY_SYSTEM_HIDE_ADMIN"] === "yes" && is_root_user($value["USER"])) && $_SESSION["userContext"] === "admin") { ?>
 						<a href="/login/?<?= tohtml(http_build_query(["loginas" => $value["USER"], "token" => $_SESSION["token"]])) ?>" title="<?= tohtml(_("Log in as")) ?> <?= tohtml($value["USER"]) ?>" class="u-ml5">
 							<i class="fas fa-right-to-bracket icon-green icon-dim"></i>
 							<span class="u-hidden-visually"><?= tohtml(_("Log in as")) ?> <?= tohtml($value["USER"]) ?></span>

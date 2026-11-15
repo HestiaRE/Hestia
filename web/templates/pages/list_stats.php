@@ -14,8 +14,8 @@
 						<option value=""><?= tohtml(_("Show Per User")) ?></option>
 						<?php
 							foreach ($users as $key => $value) {
-								if (($_SESSION['POLICY_SYSTEM_HIDE_ADMIN'] === 'yes') && ($value === 'admin')) {
-									// Hide admin user from statistics list
+								if (($_SESSION['POLICY_SYSTEM_HIDE_ADMIN'] === 'yes') && is_root_user($value)) {
+									// Hide the root user from statistics list
 								} else {
 									echo "\t\t\t\t<option value=\"".$value."\"";
 									if ((!empty($v_user)) && ($value == $_GET['user'])) {

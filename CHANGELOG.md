@@ -35,6 +35,10 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **On a box whose admin is not called `admin`, the panel's rules for that account did not apply** (#1349, upstream
+  GHSA-p4vq-6v6h-cc74). Protected admin, hidden admin, the log and SSH key pages and the role switch compared against
+  the name `admin` instead of the configured `ROOT_USER`; they now follow the configured name. Nothing changes on a box
+  whose admin is `admin`. With the admin hidden, the search results offered "log in as" for no customer; they do again.
 - **A login with a sha-512 hash carrying `rounds=` always failed** (#1350, upstream #5956). Such a hash, taken over
   from another system or set with explicit rounds, was checked with 5000 rounds and never matched. New accounts use
   yescrypt and were not affected.

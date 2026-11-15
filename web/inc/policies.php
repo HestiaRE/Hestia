@@ -6,7 +6,7 @@ if (
 		($panel[$user_plain]["SUSPENDED"] ?? "") === "yes" &&
 		($_SESSION["POLICY_USER_VIEW_SUSPENDED"] ?? "") === "yes") ||
 	($_SESSION["adminContext"] === "admin" &&
-		$_SESSION["look"] === "admin" &&
+		is_root_user($_SESSION["look"]) &&
 		$_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] === "yes")
 ) {
 	$read_only = "true";

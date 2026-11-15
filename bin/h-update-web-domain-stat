@@ -38,8 +38,7 @@ fi
 
 dir="$HOMEDIR/$user/web/$domain/stats"
 if [ ! -e "$dir" ] && [ ! -L "$dir" ]; then
-	mkdir "$dir"
-	chown -h "$user:$user" "$dir"
+	user_exec mkdir -- "$dir"
 fi
 
 build_awstats() {
@@ -73,7 +72,7 @@ build_awstats() {
 
 	sed "s/%month%/$month/g" < $SHARETPL/awstats/index.tpl | user_exec tee "$dir/index.html" > /dev/null
 
-	months=$(find $dir -type d | sed -e "s%$dir/%%g" -e "s%$dir%%g" \
+	months=$(cd / && user_exec find "$dir" -type d | sed -e "s%$dir/%%g" -e "s%$dir%%g" \
 		| grep -v icon | sort -r)
 	for link in $months; do
 		year=$(echo $link | cut -f 1 -d \-)

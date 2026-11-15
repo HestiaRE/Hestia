@@ -1,0 +1,37 @@
+{
+  "version": "0.34",
+  "entries": [
+    {
+      "id": "ipv6-nonlocal-bind",
+      "description": "apache2 and nginx no longer stay down after a reboot on a static IPv6 address that is still tentative (duplicate address detection) when they start, as with ifupdown on Debian; the kernel lets them bind it, and one the race already took down is started again",
+      "conditions": [
+        { "type": "path_absent", "path": "/etc/sysctl.d/60-hestia-ipv6.conf" }
+      ],
+      "action": { "type": "function_call", "function": "ipv6_nonlocal_bind_apply" },
+      "paths": ["/etc/sysctl.d/60-hestia-ipv6.conf"],
+      "reversible": false
+    },
+    {
+      "id": "sieve-mandatory",
+      "description": "Sieve belongs to the mail block: a mail box without it gets it, delivery goes through LMTP, and its exim autoreplies become Sieve vacation rules that the webmail can edit too",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "key_empty", "name": "SIEVE_SYSTEM" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_mandatory_apply" },
+      "paths": ["/etc/dovecot/conf.d", "/etc/exim4/exim4.conf.template", "/usr/local/hestia/conf/hestia.conf"],
+      "reversible": false
+    },
+    {
+      "id": "remove-h-delete-sys-sieve",
+      "description": "h-delete-sys-sieve is gone: Sieve belongs to the mail block and is no longer removed on its own",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/bin/h-delete-sys-sieve" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/bin/h-delete-sys-sieve" },
+      "paths": ["/usr/local/hestia/bin/h-delete-sys-sieve"],
+      "reversible": false
+    }
+  ]
+}

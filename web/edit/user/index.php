@@ -114,7 +114,7 @@ $php_versions = cli_json("h-list-sys-php json");
 // One gate per conditionally rendered control: rendered on it, read on it.
 // Docker gates on the real identity because it grants privilege, the rest on the effective one.
 $offer_admin_fields = $_SESSION["userContext"] === "admin";
-$offer_role = $offer_admin_fields && $v_username != "admin" && $_SESSION["user"] != $v_username;
+$offer_role = $offer_admin_fields && !is_root_user($v_username) && $_SESSION["user"] != $v_username;
 $offer_theme = ($_SESSION["POLICY_USER_CHANGE_THEME"] ?? "") !== "no";
 $offer_file_manager = $offer_admin_fields && !empty($_SESSION["FILE_MANAGER_PORT"]);
 $offer_docker =

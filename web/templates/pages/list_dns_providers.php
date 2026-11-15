@@ -123,7 +123,12 @@ $dns_state_labels = [
 		</div>
 		<div class="u-mb10">
 			<label for="v_key" class="form-label"><?= tohtml(_("API Key")) ?></label>
-			<input type="password" class="form-control" name="v_key" id="v_key" required autocomplete="off">
+			<div class="u-pos-relative">
+				<input type="password" class="form-control password-reveal-input" name="v_key" id="v_key" required autocomplete="off">
+				<button type="button" class="password-reveal js-password-reveal" title="<?= tohtml(_("Show password")) ?>" aria-label="<?= tohtml(_("Show password")) ?>" aria-pressed="false">
+					<i class="fas fa-eye"></i>
+				</button>
+			</div>
 			<small class="hint"><?= tohtml(_("InterNetX: a key from User management > API with the rights DNS zone query, 0202002 (zone stream) and DNS zone update (bulk). Leave DNS zone update itself off.")) ?></small>
 		</div>
 		<div class="u-mb20">

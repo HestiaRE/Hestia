@@ -622,6 +622,37 @@ sury_unattended_apply() {
 	chmod 644 "$f"
 }
 
+# A static v6 address is still tentative (DAD) when apache2 and nginx start at boot, and both bind it by name: without
+# this they stay down. Set at once too, for an address h-add-sys-ip has just added. The `-` keeps systemd-sysctl quiet
+# on a box without IPv6. A web server the race already took down is started again; one stopped on purpose stays stopped.
+ipv6_nonlocal_bind_apply() {
+	local f='/etc/sysctl.d/60-hestia-ipv6.conf' s
+	printf -- '-net.ipv6.ip_nonlocal_bind = 1\n' > "$f" || return 1
+	chmod 644 "$f"
+	[ -e /proc/sys/net/ipv6/ip_nonlocal_bind ] || return 0
+	sysctl -q -w net.ipv6.ip_nonlocal_bind=1 > /dev/null || return 1
+	for s in apache2 nginx; do
+		systemctl -q is-failed "$s" 2> /dev/null || continue
+		systemctl restart "$s" > /dev/null 2>&1 || echo "[ ! ] $s still does not start: journalctl -u $s"
+	done
+	return 0
+}
+
+# Sieve belongs to the mail block (#1337). h-add-sys-sieve switches the delivery to LMTP and moves the exim vacations;
+# it also fails for a half (learning, a vacation left in exim), so the switch is judged by SIEVE_SYSTEM and a half is
+# reported, not retried: the condition is false from here on. Never rc 1: a stopped run pins VERSION, while mail keeps
+# the old path, the condition keeps the entry pending and the smoke reports it.
+sieve_mandatory_apply() {
+	local out rc=0
+	out=$("$HESTIA/bin/h-add-sys-sieve" 2>&1) || rc=$?
+	if ! grep -q "^SIEVE_SYSTEM='yes'" "$HESTIA/conf/hestia.conf"; then
+		printf '[ ! ] sieve did not switch on, mail keeps the old path and the next update retries: %s\n' "$out"
+		return 0
+	fi
+	[ "$rc" -eq 0 ] || printf '[ ! ] sieve is on, with a gap: %s\n' "$out"
+	return 0
+}
+
 # The host certificate back to what the installer writes. Only a failed proftpd is started again (a key exim owned
 # kept it from starting under AppArmor on Ubuntu 26.04); one stopped on purpose stays stopped. The files are the
 # entry's job: a proftpd that fails for another reason is a hint, never a halted update.

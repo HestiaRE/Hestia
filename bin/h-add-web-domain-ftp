@@ -48,9 +48,7 @@ else
 	is_record_path_valid "$ftp_path_a" "$HOMEDIR/$user/web/$domain" 'ftp path'
 
 	if [ ! -e "$ftp_path_a" ]; then
-		mkdir -p "$ftp_path_a"
-		chown --no-dereference $user:$user "$ftp_path_a"
-		chmod 751 "$ftp_path_a"
+		user_exec mkdir -p -m 751 -- "$ftp_path_a"
 	fi
 fi
 

@@ -88,7 +88,7 @@ if (!empty($_POST["ok"])) {
 		unset($output);
 	}
 
-	if (post_checkbox("v_reject", $offer_antispam, "no", "yes", "no") == "yes" && $v_antispam == "yes") {
+	if (empty($_SESSION["error_msg"]) && post_checkbox("v_reject", $offer_antispam, "no", "yes", "no") == "yes" && $v_antispam == "yes") {
 		exec(
 			HESTIA_CMD . "h-add-mail-domain-reject " . $user . " " . $v_domain . " yes",
 			$output,

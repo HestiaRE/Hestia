@@ -139,7 +139,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 |------|------|
 | Config | `/etc/dovecot/dovecot.conf` |
 | Login aliases (2.4 only) | `/etc/dovecot/login-aliases`, root:dovecot 0640, kept by hand, not in any backup (#1238) |
-| Active Sieve script (addon) | `/home/$user/mail/$domain/$account/dovecot.sieve` (symlink); holds the panel's vacation rule (#784) |
+| Active Sieve script | `/home/$user/mail/$domain/$account/dovecot.sieve` (symlink); holds the panel's vacation rule (#784) |
 | Note | Dovecot 2.4 has breaking changes vs 2.3 — check upstream/hestiacp for Debian 13 handling |
 
 ### Mail — Rspamd
@@ -200,6 +200,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Sury repo | `/etc/apt/sources.list.d/php.list`, key `/usr/share/keyrings/sury-keyring.gpg` (`add_sury_repo`) |
 | Sury origin for unattended-upgrades | `/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php` (written with the repo) |
 | Kept conffiles | `/etc/apt/apt.conf.d/60hestia-keep-conffiles` (`--force-confdef --force-confold` for every apt run) |
+| IPv6 bind before DAD | `/etc/sysctl.d/60-hestia-ipv6.conf` (`net.ipv6.ip_nonlocal_bind = 1`, `ipv6_nonlocal_bind_apply`) |
 | Panel PHP refresh hook | `/etc/apt/apt.conf.d/95hestia-php-refresh` (`DPkg::Post-Invoke`, restarts `hestia-php.service`) |
 
 ### Cron (hestia crontab)
@@ -244,6 +245,10 @@ User home structure — unchanged from HestiaCP, bidirectional backup compatibil
 └── server.<stamp>.tar    box-state backups (h-backup-server); `server` is a reserved
                           login name for exactly this reason
 ```
+
+A restic restore stages beside the homes in `/home/.hestia-restore.$user.XXXXXX` (root, 0700) and hardlinks from
+there into the home, so the data is not stored twice and root never unpacks into a tree the customer owns (#1348).
+A leftover stage is swept by the next restore and by `h-delete-user`.
 
 Variables set in `include/main.sh`:
 

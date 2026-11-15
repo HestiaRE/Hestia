@@ -127,12 +127,11 @@ if [ -n "$web_data" ]; then
 	sed -i "/DOMAIN='${domain//./\\.}'/d" $CONF_DIR/users/$owner/web.conf
 	echo "$web_data" >> $CONF_DIR/users/$user/web.conf
 
-	# Move data
-	mv $HOMEDIR/$owner/web/$domain $HOMEDIR/$user/web/
-
-	# Change ownership
-	find "$HOMEDIR/$user/web/$domain" -user "$owner" \
-		-exec chown -h $user:$user {} \;
+	if home_move "$owner" "$user" web "$domain"; then
+		home_run "$user" "web/$domain" -- find . -user "$owner" -execdir chown -h "$user:$user" {} +
+	elif [ -e "$HOMEDIR/$owner/web/$domain" ]; then
+		echo "Warning: the web data stays in $HOMEDIR/$owner/web/$domain, move it by hand"
+	fi
 
 	if [ "$SSL" = 'yes' ]; then
 		sleep 10
@@ -228,9 +227,8 @@ if [ -n "$mail_data" ]; then
 		mail_ssl_modes "$user" "$domain"
 	fi
 
-	if mail_dir_trusted "$owner" "$domain_idn" && mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ]; then
-		mv "$HOMEDIR/$owner/mail/$domain_idn" "$HOMEDIR/$user/mail/"
-		find "$HOMEDIR/$user/mail/$domain_idn" -user "$owner" -exec chown -h "$user" {} \;
+	if mail_dir_trusted "$owner" "$domain_idn" && home_move "$owner" "$user" mail "$domain_idn"; then
+		home_run "$user" "mail/$domain_idn" -- find . -user "$owner" -execdir chown -h "$user" {} +
 	elif [ -e "$HOMEDIR/$owner/mail/$domain_idn" ]; then
 		echo "Warning: the mailboxes stay in $HOMEDIR/$owner/mail/$domain_idn, move them by hand"
 	fi

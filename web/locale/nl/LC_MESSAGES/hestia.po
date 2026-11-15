@@ -1693,6 +1693,12 @@ msgid "IP List Name"
 msgstr "IP List Naam"
 
 #: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#: web/templates/pages/edit_server.php
+msgid "More info"
+msgstr "Meer informatie"
+
+#: web/templates/pages/add_firewall_ipset.php
 #: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
 msgid "No"
 msgstr "Nee"
@@ -2514,10 +2520,6 @@ msgstr "Mail is geïnstalleerd: zonder Fail2Ban blijven brute-force-aanvallen op
 #: web/templates/pages/edit_server.php
 msgid "Maximum Number of Databases"
 msgstr "Maximale aantal Databases"
-
-#: web/templates/pages/edit_server.php
-msgid "More info"
-msgstr "Meer informatie"
 
 #: web/templates/pages/edit_server.php
 msgid "MySQL Support"
@@ -3537,6 +3539,12 @@ msgstr ""
 
 #: web/templates/pages/list_dns_providers.php
 msgid "No provider account yet. Without one every zone lists its records to enter by hand."
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/login/login_1.php web/templates/pages/login/login_a.php
+#: web/templates/pages/login/reset_3.php
+msgid "Show password"
 msgstr ""
 
 #: web/templates/pages/list_dns_providers.php

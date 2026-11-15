@@ -15,6 +15,16 @@ export default function handleIpListDataSource() {
 	// Add IP lists to the "Data Source" select
 	addIPListsToSelect(dataSourceSelect, Alpine.store('globals').BLACKLIST, blacklistIpLists);
 	addIPListsToSelect(dataSourceSelect, Alpine.store('globals').IPVERSE, countryIpLists);
+
+	// The chosen list's own page; some licences require the link wherever the data is shown
+	const info = document.querySelector('.js-datasource-info');
+	if (info) {
+		dataSourceSelect.addEventListener('change', () => {
+			const url = dataSourceSelect.selectedOptions[0]?.dataset.info || '';
+			info.querySelector('a').href = url;
+			info.hidden = url === '';
+		});
+	}
 }
 
 function addIPListsToSelect(dataSourceSelect, label, ipLists) {
@@ -26,6 +36,9 @@ function addIPListsToSelect(dataSourceSelect, label, ipLists) {
 		const option = addOption(dataSourceSelect, ipList.name, ipList.source, false);
 		if (ipList.family) {
 			option.dataset.family = ipList.family;
+		}
+		if (ipList.info) {
+			option.dataset.info = ipList.info;
 		}
 	});
 }

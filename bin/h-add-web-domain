@@ -85,7 +85,7 @@ source_conf "$USER_DATA/user.conf"
 
 # Until the record exists, an abort takes back what was created, or the folder check above refuses every retry.
 web_add_undo() {
-	rm -rf "${HOMEDIR:?}/$user/web/$domain"
+	home_run "$user" web root -- rm -rf -- "./$domain"
 	web_domain_logs "$domain" | while IFS= read -r f; do rm -f "$f"; done
 	if [ -n "$FIREWALL_EXTENSION" ] && declare -F fail2ban_watch_domain > /dev/null; then
 		fail2ban_watch_domain del "$domain"
@@ -93,8 +93,7 @@ web_add_undo() {
 }
 trap web_add_undo EXIT
 
-mkdir $HOMEDIR/$user/web/$domain
-chown $user:$user $HOMEDIR/$user/web/$domain
+home_dir_own "$user" "web/$domain" "$user:$user" 751 || check_result "$E_FORBIDEN" "cannot create $HOMEDIR/$user/web/$domain"
 # A tree the user cannot write into must abort here, not end as a 403 site.
 for sub in public_html document_errors cgi-bin private stats logs; do
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/$sub" > /dev/null || {
@@ -105,9 +104,9 @@ done
 touch /var/log/$WEB_SYSTEM/domains/$domain.bytes \
 	/var/log/$WEB_SYSTEM/domains/$domain.log \
 	/var/log/$WEB_SYSTEM/domains/$domain.error.log
-[ -L "$HOMEDIR/$user/web/$domain/logs" ] && check_result "$E_FORBIDEN" "$HOMEDIR/$user/web/$domain/logs is a symlink"
-ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
-	$HOMEDIR/$user/web/$domain/logs/
+home_run "$user" "web/$domain/logs" -- ln -f -s "/var/log/$WEB_SYSTEM/domains/$domain.log" \
+	"/var/log/$WEB_SYSTEM/domains/$domain.error.log" . \
+	|| check_result "$E_FORBIDEN" "$HOMEDIR/$user/web/$domain/logs is a link or not a directory"
 
 # fail2ban resolves its logpath glob at jail start, so a domain added later needs its file handed over.
 if [ -n "$FIREWALL_EXTENSION" ]; then
@@ -117,20 +116,19 @@ if [ -n "$FIREWALL_EXTENSION" ]; then
 fi
 
 user_exec cp -r $SHARETPL/skel/* "$HOMEDIR/$user/web/$domain/" > /dev/null 2>&1
-for file in $(find "$HOMEDIR/$user/web/$domain/" -type f); do
-	sed -i "s/%domain%/$domain/g" $file
-done
+# As the customer, from /: find returns to its start directory, and the customer cannot enter root's.
+(cd / && user_exec find "$HOMEDIR/$user/web/$domain/" -type f -exec sed -i "s/%domain%/$domain/g" {} +)
 
-chown -R $user:$user $HOMEDIR/$user/web/$domain
+home_run "$user" "web/$domain" -- chown -R "$user:$user" .
 web_domain_logs "$domain" | while IFS= read -r f; do
 	chown root:"$user" "$f"
 	chmod 640 "$f"
 done
 user_exec chmod 751 $HOMEDIR/$user/web/$domain $HOMEDIR/$user/web/$domain/*
 # public_html itself stays 751 as the rebuild leaves it; only what is below it opens up.
-find $HOMEDIR/$user/web/$domain/public_html -mindepth 1 -type d -exec chmod 755 {} +
-find $HOMEDIR/$user/web/$domain/public_html -type f -exec chmod 644 {} +
-chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
+(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -type d -exec chmod 755 {} +)
+(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -type f -exec chmod 644 {} +)
+home_run "$user" "web/$domain" -- chown -h "$user:www-data" public_html
 
 if [ -n "$WEB_BACKEND" ]; then
 	if [ -z "$BACKEND_TEMPLATE" ]; then

@@ -19,7 +19,12 @@
 					</a>
 				<?php } ?>
 			</label>
-			<input type="password" class="form-control" name="password" id="password" autocomplete="current-password" required autofocus>
+			<div class="u-pos-relative">
+				<input type="password" class="form-control password-reveal-input" name="password" id="password" autocomplete="current-password" required autofocus>
+				<button type="button" class="password-reveal js-password-reveal" title="<?= tohtml(_("Show password")) ?>" aria-label="<?= tohtml(_("Show password")) ?>" aria-pressed="false">
+					<i class="fas fa-eye"></i>
+				</button>
+			</div>
 		</div>
 		<div class="u-side-by-side">
 			<button type="submit" class="button">

@@ -44,9 +44,7 @@ ftp_hash_usable "$hash" || hash=$(ftp_list_get "$FTP_MD5" "$position")
 ftp_hash_usable "$hash" || check_result "$E_INVALID" "$ftp_user has no usable password hash, set a new password first"
 
 if [ ! -e "$ftp_path_a" ]; then
-	mkdir -p "$ftp_path_a"
-	chown --no-dereference $user:$user "$ftp_path_a"
-	chmod 751 "$ftp_path_a"
+	user_exec mkdir -p -m 751 -- "$ftp_path_a"
 fi
 
 ftp_path_r=$(echo $ftp_path_a | sed "s%$HOMEDIR/$user/web/$domain%%")

@@ -51,11 +51,8 @@ if [ -z "$(restic_pkg_for_snapshot "$user" "$snapshot")" ]; then
 	check_result "$E_NOTEXIST" "no metadata package for snapshot $snapshot of $user - look for $BACKUP/$user/*.meta.tgz"
 fi
 
-restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" \
-	--include "$file" --target /
-if [ "$?" -ne 0 ]; then
-	check_result "$E_NOTEXIST" "$file is not in snapshot $snapshot"
-fi
+rel=${file#"$HOMEDIR/$user"}
+restic_restore_home "$user" "$snapshot" "${rel#/}" || check_result "$?" "$file could not be restored from snapshot $snapshot"
 
 $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"

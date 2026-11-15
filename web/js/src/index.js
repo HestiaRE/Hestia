@@ -21,6 +21,7 @@ import handleIpListDataSource from './ipListDataSource.js';
 import handleListSorting from './listSorting.js';
 import handleListUnitSelect from './listUnitSelect.js';
 import handlePasswordInput from './passwordInput.js';
+import handlePasswordReveal from './passwordReveal.js';
 import handleShortcuts from './shortcuts.js';
 import handleStickyToolbar from './stickyToolbar.js';
 import handleSyncEmailValues from './syncEmailValues.js';
@@ -49,6 +50,7 @@ function initListeners() {
 	handleListSorting();
 	handleListUnitSelect();
 	handlePasswordInput();
+	handlePasswordReveal();
 	handleStickyToolbar();
 	handleSyncEmailValues();
 	handleTabPanels();

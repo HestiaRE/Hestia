@@ -7,7 +7,7 @@
 			</a>
 		</div>
 		<div class="toolbar-buttons">
-			<?php if (($_SESSION["userContext"] == "admin" && $accept === "true") || $user_plain !== "admin") { ?>
+			<?php if (($_SESSION["userContext"] == "admin" && $accept === "true") || !is_root_user($user_plain)) { ?>
 				<button type="submit" class="button" form="main-form">
 					<i class="fas fa-floppy-disk icon-purple"></i><?= tohtml(_("Save")) ?>
 				</button>

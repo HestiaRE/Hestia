@@ -13,58 +13,57 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.34 (2026-11-15)
+
+Sieve on every mail box, root work in a customer's home that a swapped link can no longer redirect, and the findings
+after HestiaCP 1.10.7.
+
 ### Added
 
-- **NetAPI honeypot list in the blocklist picker, and a source link for every list** (#1351, upstream #5974). Addresses
-  seen attacking NetAPI's own sensors in the last 48 hours, IPv4, offered at level 2 next to FireHOL and Blocklist.de.
-  Each list in the picker and on the FireHOL page now links to its own page, which NetAPI's CC BY 4.0 licence requires.
-- **Show button on masked password fields** (#1350, upstream #5959). The login, the password reset and the DNS provider
-  key get an eye button that shows what was typed; the field is masked again before it is sent. The add and edit forms
-  show their passwords in plain text already and keep that.
+- **NetAPI honeypot list in the blocklist picker, and a source link for every list** (#1351, upstream #5974). Level 2,
+  IPv4: addresses that attacked NetAPI's sensors in the last 48 hours. Each list links to its own page, as NetAPI's
+  CC BY 4.0 licence requires.
+- **Show button on masked password fields** (#1350, upstream #5959): the login, the password reset and the DNS
+  provider key. The field is masked again before it is sent.
 
 ### Security
 
 - **A customer could take over files outside their home** (#1348, upstream GHSA-hc82-cqjf-hcpg,
   GHSA-pfj7-fhx8-q4qx). Swapping a directory of their own home for a link at the right moment redirected root's work
-  during a rebuild, a mail or web change, a domain move or a restore to any file on the box. root now checks where it
-  is before it acts, `~/conf` stays immutable through a rebuild, and a restore no longer unpacks as root into the home;
-  a restic restore is staged beside the homes and hardlinked into place, so the data is not stored twice.
+  during a rebuild, a mail or web change, a domain move or a restore. root now checks where it is before it acts,
+  `~/conf` stays immutable through a rebuild, and a restore no longer unpacks as root into the home; a restic restore
+  is staged beside the homes and hardlinked into place, so the data is not stored twice.
+- **On a box whose admin is not called `admin`, the panel's rules for that account did not apply** (#1349, upstream
+  GHSA-p4vq-6v6h-cc74). Protected and hidden admin, the log and SSH key pages and the role switch now follow the
+  configured `ROOT_USER`. With the admin hidden, the search results offer "log in as" for customers again.
 - **A secret handed over as a /tmp file is read only from root or the caller** (#1350, upstream GHSA-vxpc-8vm2-8rv3).
-  A command took the first line of any plain file under `/tmp` as the password; a file of another user, a link or a
-  directory there is now refused instead of read or taken as the password itself.
+  A file of another user, a link or a directory there is refused instead of read or taken as the password itself.
 
 ### Changed
 
 - **Sieve comes with mail** (#1337). Every box with mail gets Sieve: delivery through LMTP, vacation rules the webmail
-  can edit too, the webmail filters and the spam learning. It is no longer an option in the wizard, the update adds it
-  where it is missing and moves the exim autoreplies into Sieve, and `h-delete-sys-sieve` is gone. It costs 2-6 MB of
-  packages and a short-lived delivery process; mail is not slower.
+  can edit too, the webmail filters and the spam learning. It is no longer an option in the wizard, and the update adds
+  it where it is missing and moves the exim autoreplies into Sieve; a box where it cannot be installed keeps the old
+  delivery and the next update retries. `h-delete-sys-sieve` is gone. It costs 2-6 MB of packages and a short-lived
+  delivery process; mail is not slower.
 
 ### Fixed
 
-- **On a box whose admin is not called `admin`, the panel's rules for that account did not apply** (#1349, upstream
-  GHSA-p4vq-6v6h-cc74). Protected admin, hidden admin, the log and SSH key pages and the role switch compared against
-  the name `admin` instead of the configured `ROOT_USER`; they now follow the configured name. Nothing changes on a box
-  whose admin is `admin`. With the admin hidden, the search results offered "log in as" for no customer; they do again.
-- **A login with a sha-512 hash carrying `rounds=` always failed** (#1350, upstream #5956). Such a hash, taken over
-  from another system or set with explicit rounds, was checked with 5000 rounds and never matched. New accounts use
-  yescrypt and were not affected.
+- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the Debian
+  installer's default, the address is still tentative when the web servers bind it. The kernel now lets them
+  (`net.ipv6.ip_nonlocal_bind`), and the update starts a web server the race took down.
+- **A Let's Encrypt rate limit held the installer for hours** (#1346). curl slept out the `Retry-After` of the 429 in
+  the installer, the panel's SSL switch and the renewal. The waits are bounded, the error names the limit and when to
+  retry, and the nightly renewal no longer counts it towards the 30 failures that drop a domain.
 - **An http auth password counted only its first 8 characters, and some never worked** (#1350). The hash was DES with
-  the start of the password as its salt: a password like `c€…` gave the hash `*0` and could never log in, and the
-  password file showed the password's first character. New and changed passwords are sha-512 with a random salt and
-  1000 rounds, which nginx checks on every request; existing entries keep working until their next change.
-- **Adding a mail domain that already exists switched spam rejection on for the existing one** (#1350, upstream
-  #5950). The reject step ran even after the add had failed.
-- **Logging in as a customer from the search results checks the target** (#1350, upstream #5957). Only a path on this
-  panel is followed, and the token is appended with `?` or `&` as the link needs.
-- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the
-  Debian installer's default, the address is still tentative (duplicate address detection) when the web servers start,
-  and both bind it by name. The kernel now lets them bind it (`net.ipv6.ip_nonlocal_bind`); an update entry sets it on
-  existing boxes and starts a web server the race took down.
-- **A Let's Encrypt rate limit held the installer for hours** (#1346). curl slept out the `Retry-After` of the 429,
-  in the installer, the panel's SSL switch and the renewal. The waits are bounded now, the error names the limit and
-  when to retry, and the nightly renewal no longer counts it towards the 30 failures after which a domain is dropped.
-  The installer shows the actual reason.
+  the start of the password as its salt. New and changed passwords are sha-512 with a random salt and 1000 rounds;
+  existing entries keep working until their next change.
+- **A login with a sha-512 hash carrying `rounds=` always failed** (#1350, upstream #5956), such as one taken over from
+  another system. New accounts use yescrypt and were not affected.
+- Smaller ones: adding a mail domain that already exists switched spam rejection on for the existing one (#1350,
+  upstream #5950), and "log in as" from the search results follows only a path on this panel (#1350, upstream #5957).
 
 ## v0.33 (2026-11-14)
 
@@ -73,51 +72,34 @@ several public addresses.
 
 ### Added
 
-- **DNS provider accounts** (#1332/#1333, part of #863). The DNS tab adds an InterNetX AutoDNS account; the key is
-  stored for root only under `/etc/hestia/dns` and is no part of any backup. Each zone the account holds is compared
-  with what HestiaRE derives, record by record (ok, missing, different, delegated, or answered by a CNAME, ALIAS or
-  wildcard; SPF by whether it authorises the box's addresses), with a warning when the public name servers are not
-  the account's. "Sync to provider" writes one section after a preview: missing records added, differing ones
-  replaced, SPF merged behind `v=spf1`, DMARC only where there is none. Records HestiaRE does not derive are never
-  touched, nothing is written to a zone the public name servers do not point at, a zone that changed since the
-  preview is left alone, and every write is logged first in `/var/log/hestia/dns-sync.log`. Commands:
-  `h-add-dns-provider`, `h-delete-dns-provider`, `h-check-dns-provider`, `h-list-dns-providers`,
-  `h-check-dns-zone`, `h-check-dns-zones`, `h-sync-dns-zone`.
+- **DNS provider accounts** (#1332/#1333, part of #863). An InterNetX AutoDNS account in the DNS tab, its key stored
+  for root only and in no backup. Each zone is compared with what HestiaRE derives, record by record; "Sync to
+  provider" writes one section after a preview and never touches a record HestiaRE does not derive or a zone the
+  public name servers do not point at. Every write is logged in `/var/log/hestia/dns-sync.log`.
 
 ### Security
 
-- **Tachyon 4.6.0** (#1341). A folder name, which on a shared folder another user chooses, was rendered as HTML in
-  two confirm dialogs, and `javascript:`, `data:`, `vbscript:` and `file:` links in a message body kept their href.
-  Existing boxes get it with the update.
+- **Tachyon 4.6.0** (#1341): a folder name rendered as HTML in two confirm dialogs, and `javascript:` and similar
+  links in a message body kept their href.
 
 ### Changed
 
-- **The derived DMARC record is `v=DMARC1; p=none`** (#1333), was `p=quarantine; pct=100`. An existing DMARC record
-  counts as in place whatever its policy.
-- **New domains default to the IP the box reaches the internet from** (#1330), on the CLI without an IP and first in
-  the panel, instead of the alphabetically first; owned before shared stays. A mail domain without a web domain
-  keeps its sending address on a rebuild.
+- **The derived DMARC record is `p=none`** (#1333), was `p=quarantine`. **New domains default to the IP the box reaches
+  the internet from** (#1330), instead of the alphabetically first.
 
 ### Removed
 
-- **The update manifests at or below the lower bound** (#1339): `0.20.0.json` to `0.25.json`, their patches and the
-  update functions only they named. Nothing read them since v0.25; a box that has them keeps them, unread.
+- **The update manifests at or below the lower bound** (#1339), `0.20.0.json` to `0.25.json`.
 
 ### Fixed
 
-- **A refused forward bounced to the original sender** (#1336). In spam that sender is forged, so this was
-  backscatter, and it got a production box listed at Spamhaus CSS. A failed forward or catch-all delivery to an
-  external address now bounces into devnull, the refusal stays in the exim log, and a forwarded bounce no longer
-  freezes and is delivered twice. Aliases to local mailboxes keep the sender, so a vacation still answers. Existing
-  boxes get it as a patch of the exim template; forwarding moves to Sieve later (#1337).
-- **A second public IP next to an internal NAT address got the NAT on the wrong record** (#1330). Each v4 record is
-  now probed with itself as the source, and the boot run repairs a wrong NAT. A NAT set by hand that differs from
-  what the probe sees is still overwritten at boot.
-- **The firewall opened only the `Port` of sshd** (#1330); a port in a `ListenAddress` stayed closed. The SSH ports
-  come from every listen address now.
-- Smaller ones: `h-delete-sys-ip` lost its guard for the primary IP with a fallback default route (#1330), the DNS
-  pages listed `webmail.<domain>` for a mail domain without webmail (#1333), and a resolver failure held a zone
-  "unknown" for an hour (#1332).
+- **A refused forward bounced to the original sender** (#1336). In spam that sender is forged, and the backscatter
+  got a production box listed at Spamhaus CSS. A failed forward or external catch-all delivery now bounces into
+  devnull, and a forwarded bounce no longer freezes and is delivered twice.
+- **A second public IP next to an internal NAT address got the NAT on the wrong record** (#1330), and the firewall
+  opened only sshd's `Port`, not a port in a `ListenAddress` (#1330).
+- Smaller ones: the primary-IP guard of `h-delete-sys-ip` (#1330), `webmail.<domain>` listed without webmail (#1333),
+  and a resolver failure that held a zone "unknown" for an hour (#1332).
 
 ## v0.32 (2026-11-12)
 
@@ -126,36 +108,25 @@ after HestiaCP 1.10.6.
 
 ### Security
 
-- **A Debian box received no automatic updates, not even security ones** (#1292). unattended-upgrades is installed
-  and switched on now with Debian's own configuration, on an existing box by the update.
-- **Two record-loop leaks** (#1323): the subdomain ownership check could be passed on another customer's domain,
-  and a mail account without a hash was written with another account's (locked now).
+- **A Debian box received no automatic updates, not even security ones** (#1292). unattended-upgrades runs now with
+  Debian's own configuration, and patches Sury PHP as well (upstream #5876); nginx.org and MariaDB repos stay manual.
+- **Two record-loop leaks** (#1323): the subdomain ownership check, and a mail account written with another one's
+  hash.
 
 ### Changed
 
-- **unattended-upgrades patches Sury PHP as well** (#1292, upstream #5876). The nginx.org repo (preset `latest`)
-  and the MariaDB repo stay manual; nginx and MariaDB from the distribution update and restart with its security
-  updates.
-- **apt keeps a conffile HestiaRE edited instead of asking**, as answering N does (#1292). unattended-upgrades
-  skipped such a package entirely, so an exim, nginx, apache or PHP-FPM update that touched one stayed
-  uninstalled. It holds for a manual `apt upgrade` too; the package's own version lands as `.dpkg-dist`.
-- **The domain and mail account lists validate a user's records in one PHP start** (#1317, upstream #5726/#5890),
-  about twenty times faster.
+- **apt keeps a conffile HestiaRE edited instead of asking** (#1292), so unattended-upgrades no longer skips such a
+  package; the package's version lands as `.dpkg-dist`.
+- **The domain and mail account lists validate a user's records in one PHP start** (#1317, upstream #5726/#5890).
 
 ### Fixed
 
-- **A record read in a loop inherited the previous record's value for a key it lacks** (#1321/#1323). Lists showed
-  the document root of the domain above, a notification's priority or a database's charset; a backup archived a
-  domain with the previous one's PHP version, and the user counters summed disk and SSL twice. Every record starts
-  from empty now, and a blank line no longer repeats the record above it.
-- **proftpd did not start on Ubuntu 26.04 after a Let's Encrypt host certificate** (#1318, upstream #5778). Every
-  issue and renewal handed the key to exim, and proftpd's AppArmor profile denies root a key it does not own; the
-  files stay `root:mail` now, and the update puts them back.
-- **A web domain renamed to `www.<name>` could not be reached by any command** (#1318, upstream #4958).
-- **Database backups left out the events and the localhost grants** (#1318, upstream #5923).
-- Smaller ones: backslashes in plain and shell list output (#1317), a docroot in another domain of the same user
-  without that domain's `private/` in `open_basedir` (#1318, upstream #5930), and `expires max` on `robots.txt`
-  (#1318, upstream #5850).
+- **A record read in a loop inherited the previous record's value for a key it lacks** (#1321/#1323): wrong document
+  roots and PHP versions in lists and backups, doubled user counters.
+- **proftpd did not start on Ubuntu 26.04 after a Let's Encrypt host certificate** (#1318, upstream #5778); the key
+  files stay `root:mail` now.
+- Smaller ones: a `www.<name>` rename no command could reach (#1318, upstream #4958), database backups without events
+  and localhost grants (#1318, upstream #5923), and three inherited papercuts (#1317, #1318).
 
 ## v0.31 (2026-11-09)
 

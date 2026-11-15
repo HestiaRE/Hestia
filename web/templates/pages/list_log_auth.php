@@ -2,7 +2,7 @@
 <div class="toolbar">
 	<div class="toolbar-inner">
 		<div class="toolbar-buttons">
-			<?php if ($_SESSION["userContext"] === "admin" && isset($_GET["user"]) && htmlentities($_GET["user"]) !== "admin") { ?>
+			<?php if ($_SESSION["userContext"] === "admin" && isset($_GET["user"]) && !is_root_user($_GET["user"])) { ?>
 				<a href="/list/log/?<?= tohtml(http_build_query(["user" => $_GET["user"], "token" => $_SESSION["token"]])) ?>" class="button button-secondary button-back js-button-back">
 					<i class="fas fa-arrow-left icon-blue"></i><?= tohtml(_("Back")) ?>
 				</a>

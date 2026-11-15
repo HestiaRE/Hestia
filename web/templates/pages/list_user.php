@@ -142,7 +142,7 @@
 				?>
 			<div class="units-table-row <?php if ($status == 'suspended') {
 				echo 'disabled';
-			} ?> js-unit <?php if (($_SESSION['POLICY_SYSTEM_HIDE_ADMIN'] === 'yes') && ($_SESSION['user'] !== $_SESSION['ROOT_USER']) && ($key === 'admin')) {
+			} ?> js-unit <?php if (($_SESSION['POLICY_SYSTEM_HIDE_ADMIN'] === 'yes') && ($_SESSION['user'] !== $_SESSION['ROOT_USER']) && is_root_user($key)) {
 				echo 'u-hidden';
 			} ?>"
 				data-sort-date="<?= tohtml(strtotime($data[$key]['DATE'].' '.$data[$key]['TIME'])) ?>"

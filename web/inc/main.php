@@ -204,6 +204,12 @@ $is_real_root_user = !empty($_SESSION["ROOT_USER"]) && ($_SESSION["user"] ?? "")
 
 require_once dirname(__FILE__) . "/i18n.php";
 
+// The root account by its configured name; an empty ROOT_USER matches nobody, not an empty look or user.
+function is_root_user(?string $name): bool
+{
+	return !empty($_SESSION["ROOT_USER"]) && $name === $_SESSION["ROOT_USER"];
+}
+
 function check_error($return_var)
 {
 	if ($return_var > 0) {
@@ -324,7 +330,7 @@ function can_delete_logs(): bool
 {
 	if (
 		($_SESSION["adminContext"] ?? "") === "admin" &&
-		($_SESSION["look"] ?? "") === "admin" &&
+		is_root_user($_SESSION["look"] ?? "") &&
 		($_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] ?? "") === "yes"
 	) {
 		return false;

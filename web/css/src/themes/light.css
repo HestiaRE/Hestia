@@ -1598,6 +1598,26 @@
 	}
 }
 
+.password-reveal {
+	position: absolute;
+	top: 0;
+	right: 0;
+	height: 100%;
+	padding: 0 12px;
+	border: 0;
+	background: transparent;
+	color: var(--color-text);
+	cursor: pointer;
+
+	&:hover {
+		color: var(--color-text-link);
+	}
+}
+
+.password-reveal-input {
+	padding-right: 40px;
+}
+
 .password-meter {
 	height: 3px;
 	overflow: hidden;

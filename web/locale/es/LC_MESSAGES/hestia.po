@@ -3542,6 +3542,12 @@ msgid "No provider account yet. Without one every zone lists its records to ente
 msgstr ""
 
 #: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/login/login_1.php web/templates/pages/login/login_a.php
+#: web/templates/pages/login/reset_3.php
+msgid "Show password"
+msgstr ""
+
+#: web/templates/pages/list_dns_providers.php
 #: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
 #: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
 #: web/templates/pages/list_server_preview.php

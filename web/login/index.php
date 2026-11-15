@@ -46,9 +46,12 @@ if (isset($_SESSION["user"])) {
 				unset($_SESSION["_sf2_meta"]);
 				if (!empty($_GET["edit_link"])) {
 					$edit_link = urldecode($_GET["edit_link"]);
-					$url = $edit_link . "&token=" . $_SESSION["token"];
-					header("Location: " . $url);
-					die();
+					// A path on this panel only: a browser reads //host and /\host as another host and drops tabs and line
+					// breaks first, so no control character, space or backslash anywhere; no # either, the token goes last.
+					if (preg_match('~^/(?![/\\\\])[^\x00-\x20\x7f\\\\#]*\z~', $edit_link)) {
+						header("Location: " . $edit_link . (str_contains($edit_link, "?") ? "&" : "?") . "token=" . $_SESSION["token"]);
+						die();
+					}
 				}
 				header("Location: /login/");
 			} else {
@@ -147,8 +150,13 @@ function authenticate_user($user, $password, $twofa = "")
 				$hash = crypt($password, '$1$' . $salt . '$');
 			}
 			if ($method == "sha-512") {
-				$hash = crypt($password, '$6$rounds=5000$' . $salt . '$');
-				$hash = str_replace('$rounds=5000', "", $hash);
+				if (str_starts_with($salt, "rounds=")) {
+					// h-get-user-salt hands rounds=N$salt over whole, crypt() writes it back into the hash.
+					$hash = crypt($password, '$6$' . $salt . '$');
+				} else {
+					$hash = crypt($password, '$6$rounds=5000$' . $salt . '$');
+					$hash = str_replace('$rounds=5000', "", $hash);
+				}
 			}
 			if ($method == "yescrypt") {
 				$fp = tmpfile();

@@ -284,11 +284,10 @@ for domain in "${domains[@]}"; do
 				-exec rm -rf {} +)
 		fi
 
-		[ -d "$HOMEDIR/$user/web/$domain/stats" ] && [ ! -L "$HOMEDIR/$user/web/$domain/stats" ] \
-			&& chmod u+w "$HOMEDIR/$user/web/$domain/stats"
+		home_run "$user" "web/$domain/stats" -- chmod u+w .
 
 		# restic will not write over an existing symlink, and the rebuild just created the log links.
-		find "$HOMEDIR/$user/web/$domain/logs" -maxdepth 1 -type l -delete 2> /dev/null
+		home_run "$user" "web/$domain/logs" -- find . -maxdepth 1 -type l -delete
 		restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" \
 			--include "/home/$user/web/$domain" --target /
 		if [ "$?" -ne 0 ]; then
@@ -301,17 +300,10 @@ for domain in "${domains[@]}"; do
 		fi
 		if [ "$new_user" = "yes" ]; then
 			echo "[ * ] Fix permissions"
-			chown --no-dereference $user:$user \
-				$HOMEDIR/$user/ \
-				$HOMEDIR/$user/web/ \
-				$HOMEDIR/$user/web/$domain \
-				$HOMEDIR/$user/web/$domain/private \
-				$HOMEDIR/$user/web/$domain/cgi-bin \
-				$HOMEDIR/$user/web/$domain/public_*html \
-				$HOMEDIR/$user/web/$domain/logs \
-				$HOMEDIR/$user/web/$domain/stats
-
-			chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
+			# ~/web stays root's, rebuild_user_conf sets it.
+			chown --no-dereference "$user:$user" "$HOMEDIR/$user/"
+			home_run "$user" "web/$domain" -- chown -h "$user:$user" . private cgi-bin public_html logs stats
+			home_run "$user" "web/$domain/document_errors" -- chown -R "$user:$user" .
 			web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 		fi
 		# Second rebuild so ftp users keep working; it also reconciles the http3 quic fragment from the HTTP3 field.

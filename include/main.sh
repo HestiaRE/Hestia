@@ -2889,18 +2889,6 @@ authkey_ids() {
 	awk '{print $2, $(NF-1)}' <<< "$out"
 }
 
-# Simple chmod wrapper that skips symlink files after glob expand
-no_symlink_chmod() {
-	local filemode=$1
-	shift
-
-	for i in "$@"; do
-		[[ -L ${i} ]] && continue
-
-		chmod "${filemode}" "${i}"
-	done
-}
-
 format_no_quotes() {
 	# Deny list: the `|` are literal members, not separators. Dropping them drops | too.
 	exclude="['|\"]"

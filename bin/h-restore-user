@@ -715,9 +715,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			(cd / && user_exec find "$HOMEDIR/$user/web/$domain/public_html" -mindepth 1 -maxdepth 1 ! -name '.*' \
 				-exec rm -rf {} +)
 		fi
-		chmod u+w "$HOMEDIR/$user/web/$domain"
-		[ -d "$HOMEDIR/$user/web/$domain/stats" ] && [ ! -L "$HOMEDIR/$user/web/$domain/stats" ] \
-			&& chmod u+w "$HOMEDIR/$user/web/$domain/stats"
+		home_run "$user" "web/$domain" -- chmod u+w .
+		home_run "$user" "web/$domain/stats" -- chmod u+w .
 
 		# Two passes for a difference: the base filtered to what both maps agree on, then the diff over it. No
 		# --unlink-first (fails on non-empty dirs): tar already unlinks and recreates, only --overwrite writes through a
@@ -779,8 +778,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 		fi
 
 		if [ "$old_uid" -ne "$new_uid" ]; then
-			find "$HOMEDIR/$user/web/$domain" -user "$old_uid" \
-				-exec chown -h "$user:$user" {} \;
+			home_run "$user" "web/$domain" -- find . -user "$old_uid" -execdir chown -h "$user:$user" {} +
 		fi
 
 		# Second rebuild so ftp users keep working.

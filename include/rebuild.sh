@@ -268,7 +268,7 @@ rebuild_web_domain_conf() {
 	fi
 
 	# Temporary allow write permissions to owner
-	[ -d "$HOMEDIR/$user/web/$domain" ] && chmod 751 "$HOMEDIR/$user/web/$domain"
+	home_dir_own "$user" "web/$domain" "$user:$user" 751 || return 1
 
 	# Rebuilding domain directories
 	if [ -d "$HOMEDIR/$user/web/$domain/document_errors" ]; then
@@ -277,10 +277,6 @@ rebuild_web_domain_conf() {
 		fi
 	fi
 
-	if [ ! -d $HOMEDIR/$user/web/$domain ]; then
-		mkdir $HOMEDIR/$user/web/$domain
-	fi
-	chown --no-dereference $user:$user $HOMEDIR/$user/web/$domain
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/public_html"
 	if [ ! -d "$HOMEDIR/$user/web/$domain/document_errors" ]; then
 		$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/document_errors"
@@ -301,12 +297,9 @@ rebuild_web_domain_conf() {
 		/var/log/$WEB_SYSTEM/domains/$domain.log \
 		/var/log/$WEB_SYSTEM/domains/$domain.error.log
 
-	# root writes into a customer-owned directory here, so never through a link.
-	if [ -L "$HOMEDIR/$user/web/$domain/logs" ]; then
-		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a symlink, log links not created" >&2
-	else
-		ln -f -s /var/log/$WEB_SYSTEM/domains/$domain.log /var/log/$WEB_SYSTEM/domains/$domain.error.log \
-			"$HOMEDIR/$user/web/$domain/logs/"
+	if ! home_run "$user" "web/$domain/logs" -- ln -f -s "/var/log/$WEB_SYSTEM/domains/$domain.log" \
+		"/var/log/$WEB_SYSTEM/domains/$domain.error.log" .; then
+		echo "Warning: $HOMEDIR/$user/web/$domain/logs is a link or not a directory, log links not created" >&2
 	fi
 
 	# A restore or rebuild recreates the log, and fail2ban only globs at jail start. Idempotent.
@@ -317,12 +310,8 @@ rebuild_web_domain_conf() {
 	fi
 
 	# Set ownership
-	chown --no-dereference $user:$user \
-		$HOMEDIR/$user/web/$domain \
-		$HOMEDIR/$user/web/$domain/private \
-		$HOMEDIR/$user/web/$domain/cgi-bin \
-		$HOMEDIR/$user/web/$domain/public_*html
-	chown -R $user:$user $HOMEDIR/$user/web/$domain/document_errors
+	home_run "$user" "web/$domain" -- chown -h "$user:$user" . private cgi-bin public_html
+	home_run "$user" "web/$domain/document_errors" -- chown -R "$user:$user" .
 	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
 	# Adding vhost configuration
@@ -564,16 +553,12 @@ auth_basic_user_file    $htpasswd;"
 	fi
 
 	# Set folder permissions
-	no_symlink_chmod 751 $HOMEDIR/$user/web/$domain \
-		$HOMEDIR/$user/web/$domain/stats \
-		$HOMEDIR/$user/web/$domain/logs
-	no_symlink_chmod 751 $HOMEDIR/$user/web/$domain/private \
-		$HOMEDIR/$user/web/$domain/cgi-bin \
-		$HOMEDIR/$user/web/$domain/public_*html \
-		$HOMEDIR/$user/web/$domain/document_errors
+	for sub in . stats logs private cgi-bin public_html document_errors; do
+		home_run "$user" "web/$domain/$sub" -- chmod 751 .
+	done
 	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done
 
-	chown --no-dereference $user:www-data $HOMEDIR/$user/web/$domain/public_*html
+	home_run "$user" "web/$domain" -- chown -h "$user:www-data" public_html
 }
 # MAIL domain rebuild
 rebuild_mail_domain_conf() {

@@ -973,33 +973,30 @@ is_object_value_exist() {
 }
 
 # Panel convention: a secret arrives as the PATH of a /tmp file so it never enters argv. Value and
-# path space overlap, so a password shaped like an existing /tmp path is read as that file; safe
-# because the caller is already root-equivalent via sudoers, and the symlink guard keeps the
-# root-side read honest should the pattern ever move somewhere that is not.
-is_password_valid() {
-	if [[ "$password" =~ ^/tmp/ ]]; then
-		if ! [[ "$password" == *../* ]] && [ ! -L "$password" ]; then
-			if [ -f "$password" ]; then
-				password="$(head -n1 $password)"
-			fi
-		fi
+# path space overlap, so a password shaped like an existing /tmp path is read as that file. Only a
+# plain file root or the sudo caller wrote is read, anything else there is refused rather than taken
+# as the secret itself: /tmp is everyone's, and the first line of another's file is not a password.
+secret_file_read() {
+	local -n _secret=$1
+	[[ "$_secret" == /tmp/* ]] || return 0
+	[ -e "$_secret" ] || [ -L "$_secret" ] || return 0
+	if [[ "$_secret" == *../* ]] || [ -L "$_secret" ] || [ ! -f "$_secret" ] \
+		|| ! [[ "$(stat -c %u -- "$_secret")" =~ ^(0|${SUDO_UID:--1})$ ]]; then
+		check_result "$E_INVALID" "invalid $1 file :: not a plain file of root or the caller"
 	fi
+	_secret=$(head -n1 -- "$_secret")
+}
+
+is_password_valid() {
+	secret_file_read password
 	# chpasswd reads one account per line: a line break would set a second account's password.
 	if [[ "$password" == *$'\n'* ]]; then
 		check_result "$E_INVALID" "invalid password format :: it contains a line break"
 	fi
 }
 
-# Check if hash is transmitted via file
 is_hash_valid() {
-	if [[ "$hash" =~ ^/tmp/ ]]; then
-		# symlink guard as in is_password_valid
-		if ! [[ "$hash" == *../* ]] && [ ! -L "$hash" ]; then
-			if [ -f "$hash" ]; then
-				hash="$(head -n1 $hash)"
-			fi
-		fi
-	fi
+	secret_file_read hash
 }
 
 # Check if directory is a symlink

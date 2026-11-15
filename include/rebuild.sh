@@ -123,7 +123,7 @@ rebuild_user_conf() {
 		$HOMEDIR/$user/.npm \
 		$HOMEDIR/$user/.wp-cli
 	chmod a+x $HOMEDIR/$user
-	home_dir_own "$HOMEDIR/$user/conf" root:root 755 || return 1
+	home_dir_own "$user" conf root:root 755 || return 1
 	chown --no-dereference $user:$user \
 		$HOMEDIR/$user \
 		$HOMEDIR/$user/.config \
@@ -170,11 +170,11 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/web" ]]; then
 			rm $HOMEDIR/$user/web
 		fi
-		home_dir_own "$HOMEDIR/$user/conf/web" root:root 751 || return 1
+		home_dir_own "$user" conf/web root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/web/$domain
-		home_dir_own "$HOMEDIR/$user/web" "root:$user" 751 || return 1
+		home_dir_own "$user" web "root:$user" 751 || return 1
 		# As h-add-user: only the user's own FPM pools use it, and 771 let every local user through (#1137).
-		home_dir_own "$HOMEDIR/$user/tmp" "$user:$user" 700 || return 1
+		home_dir_own "$user" tmp "$user:$user" 700 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-web-domains $user $restart
 		fi
@@ -191,9 +191,9 @@ rebuild_user_conf() {
 		if [[ -L "$HOMEDIR/$user/mail" ]]; then
 			rm $HOMEDIR/$user/mail
 		fi
-		home_dir_own "$HOMEDIR/$user/conf/mail" root:root 751 || return 1
+		home_dir_own "$user" conf/mail root:root 751 || return 1
 		mkdir -p $HOMEDIR/$user/conf/mail/$domain
-		home_dir_own "$HOMEDIR/$user/mail" root:root 751 || return 1
+		home_dir_own "$user" mail root:root 751 || return 1
 		if [ "$create_user" = "yes" ]; then
 			$BIN/h-rebuild-mail-domains $user
 		fi
@@ -739,9 +739,7 @@ rebuild_mail_domain_conf() {
 		fi
 
 		# Adding mail directory
-		if mail_dir_trusted "$user" && [ ! -e "$HOMEDIR/$user/mail/$domain_idn" ] && [ ! -L "$HOMEDIR/$user/mail/$domain_idn" ]; then
-			mkdir "$HOMEDIR/$user/mail/$domain_idn"
-		fi
+		home_run "$user" mail root -- mkdir -p -- "$domain_idn" 2> /dev/null
 
 		# pass '' so the default-picker uses the last installed client (or 'disabled'),
 		# not a hardcoded roundcube that fails when roundcube is absent
@@ -822,10 +820,7 @@ rebuild_mail_domain_conf() {
 			chown -R dovecot:mail $HOMEDIR/$user/conf/mail/$domain/passwd
 		fi
 		chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/accounts
-		if mail_dir_trusted "$user" "$domain_idn"; then
-			chmod 770 $HOMEDIR/$user/mail/$domain_idn
-			chown $user:mail $HOMEDIR/$user/mail/$domain_idn
-		fi
+		home_run "$user" "mail/$domain_idn" -- chmod 770 . && home_run "$user" "mail/$domain_idn" -- chown -h "$user:mail" .
 	fi
 
 	# Add missing SSL configuration flags to existing domains

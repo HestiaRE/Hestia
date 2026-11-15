@@ -183,7 +183,7 @@ if ! getent passwd "$companion" > /dev/null 2>&1; then
 fi
 
 # The DIRECTORY carries the customer's group at 0710: traverse to the socket, no listing.
-home_dir_own "$companion_home" "$companion:$gid" 0710 || check_result "$E_FORBIDEN" "$companion_home is not a directory"
+home_dir_own "$user" .companion "$companion:$gid" 0710 || check_result "$E_FORBIDEN" "$companion_home is not a directory"
 
 # Order matters: newuidmap maps container 1-999, 1000 = the customer, 1001-65536 in file order.
 echo "Writing subordinate id ranges..."

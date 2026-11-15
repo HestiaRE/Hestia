@@ -44,7 +44,7 @@ fi
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 	rm -rf $HOMEDIR/$user/conf/mail/$domain
-	mail_dir_trusted "$user" && rm -rf "$HOMEDIR/$user/mail/$domain_idn"
+	home_run "$user" mail root -- rm -rf -- "./$domain_idn"
 	mail_autoreply_once_clear "$domain_idn"
 fi
 

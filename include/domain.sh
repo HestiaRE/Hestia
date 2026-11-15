@@ -1462,30 +1462,26 @@ mail_passwd_line() { # USER ACCOUNT HASH QUOTA
 # exim writes maildirsize through the mailbox's tmp/, which only the first INBOX delivery created: a mailbox whose
 # first mail was spam had its Spam delivery deferred until then, and bounced if nothing else arrived.
 mail_account_maildir_ensure() { # USER DOMAIN_IDN ACCOUNT
-	local d="$HOMEDIR/$1/mail/$2/$3" sub
-	mail_dir_trusted "$1" "$2" && [ ! -L "$d" ] || return 1
-	[ -d "$d" ] || install -d -o "$1" -g mail -m 700 "$d" || return 1
-	for sub in cur new tmp; do
-		[ ! -L "$d/$sub" ] || return 1
-		[ -d "$d/$sub" ] || install -d -o "$1" -g mail -m 770 "$d/$sub" || return 1
+	local sub rel mode
+	mail_dir_trusted "$1" "$2" || return 1
+	for sub in '' /cur /new /tmp; do
+		rel="mail/$2/$3$sub"
+		home_run "$1" "$rel" -- true && continue
+		mode=770
+		[ -n "$sub" ] || mode=700
+		home_dir_own "$1" "$rel" "$1:mail" "$mode" || return 1
 	done
 }
 
-# mail_dir_trusted USER [DOMAIN_IDN]: root may work below ~/mail. The customer owns /home/USER and the domain dir, so a
-# link there, or a ~/mail of their own after renaming root's away, would hand root's chown to any target.
-# Does not cover a swap between this check and the action that follows it.
+# mail_dir_trusted USER [DOMAIN_IDN]: ~/mail is root's own and DOMAIN_IDN in it a directory, not a link. A predicate
+# for a clear refusal; the work below ~/mail goes through home_run all the same.
 mail_dir_trusted() {
-	local m="$HOMEDIR/$1/mail"
-	[ ! -L "$m" ] && [ -d "$m" ] && [ "$(stat -c %u "$m")" = 0 ] || return 1
-	[ -z "$2" ] || { [ ! -L "$m/$2" ] && [ -d "$m/$2" ]; }
+	(home_cd "$1" mail root && { [ -z "$2" ] || home_cd "$1" "mail/$2"; })
 }
 
-# web_dir_trusted USER DOMAIN: root may chmod and chown below ~/web/DOMAIN, the same question as mail_dir_trusted.
-# The domain directory may be missing, it is created after this. Does not cover a swap after the check.
+# web_dir_trusted USER DOMAIN: the same for ~/web. The domain directory may be missing, it is created after this.
 web_dir_trusted() {
-	local w="$HOMEDIR/$1/web"
-	[ ! -L "$w" ] && [ -d "$w" ] && [ "$(stat -c %u "$w")" = 0 ] || return 1
-	[ ! -L "$w/$2" ]
+	(home_cd "$1" web root && [ ! -L "$2" ])
 }
 
 # exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.

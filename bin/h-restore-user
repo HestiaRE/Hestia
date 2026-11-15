@@ -1362,8 +1362,7 @@ if [ "$udir" != 'no' ]; then
 
 			# Quoted: $user_dir comes out of the archive, and unquoted a name with a space split into two paths.
 			if [ "$old_uid" -ne "$new_uid" ]; then
-				find "$HOMEDIR/$user/$user_dir" -user "$old_uid" \
-					-exec chown -h "$user:$user" {} \;
+				home_run "$user" "$user_dir" -- find . -user "$old_uid" -execdir chown -h "$user:$user" {} +
 			fi
 		done 3< <(printf '%s\n' "$user_dirs")
 	fi
@@ -1372,7 +1371,7 @@ fi
 home_dir_own "$user" tmp "$user:$user" 700 \
 	|| echo "Warning: $HOMEDIR/$user/tmp is not a directory, left as it is" | tee -a $tmpdir/restore.log
 
-rm -f $HOMEDIR/$user/.ssh/hst-filemanager-key
+home_run "$user" .ssh -- rm -f -- hst-filemanager-key
 
 # Re-enable Docker if the archive carried a companion home. The companion account is not in the archive and its uid
 # follows the customer's, which was just reallocated, so it is recreated with fresh subordinate ranges; images are
@@ -1385,8 +1384,7 @@ if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ]
 	old_companion=$((old_uid - 1000))
 	new_companion=$((new_uid - 1000))
 	if [ "$old_companion" -ne "$new_companion" ]; then
-		find "$HOMEDIR/$user/.companion" -uid "$old_companion" \
-			-exec chown -h "$new_companion" {} \;
+		home_run "$user" .companion -- find . -uid "$old_companion" -execdir chown -h "$new_companion" {} +
 	fi
 
 	# The archived /24 is kept when free, else h-add-user-docker allocates a new one: that has to be said, or an

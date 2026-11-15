@@ -252,7 +252,7 @@ printf '%s\n' "$override_want" | companion_write "$override_dir/hestia.conf" \
 # The daemon reads it at start; the restart below picks up an address change
 printf '%s\n' "$daemon_json_want" | companion_write "$daemon_json" \
 	|| check_result "$E_FORBIDEN" "cannot write $daemon_json as $companion"
-chown -R "$companion":"$gid" "$companion_home/.config"
+home_run "$user" .companion/.config -- chown -R "$companion:$gid" .
 
 install -m 644 "$HESTIA/share/docker/profile.d-hestia-docker.sh" /etc/profile.d/hestia-docker.sh
 

@@ -33,6 +33,13 @@ the releases of the command audit, into another.
   A command took the first line of any plain file under `/tmp` as the password; a file of another user, a link or a
   directory there is now refused instead of read or taken as the password itself.
 
+### Changed
+
+- **Sieve comes with mail** (#1337). Every box with mail gets Sieve: delivery through LMTP, vacation rules the webmail
+  can edit too, the webmail filters and the spam learning. It is no longer an option in the wizard, the update adds it
+  where it is missing and moves the exim autoreplies into Sieve, and `h-delete-sys-sieve` is gone. It costs 2-6 MB of
+  packages and a short-lived delivery process; mail is not slower.
+
 ### Fixed
 
 - **On a box whose admin is not called `admin`, the panel's rules for that account did not apply** (#1349, upstream

@@ -181,7 +181,7 @@
 					<a href="/search/?<?= tohtml(http_build_query(["q" => $_GET["q"], "u" => $value["USER"], "token" => $_SESSION["token"]])) ?>">
 						<?= tohtml($value["USER"]) ?>
 					</a>
-					<?php if (!($_SESSION["POLICY_SYSTEM_HIDE_ADMIN"] === "yes" && !is_root_user($value["USER"])) && $_SESSION["userContext"] === "admin") { ?>
+					<?php if (!($_SESSION["POLICY_SYSTEM_HIDE_ADMIN"] === "yes" && is_root_user($value["USER"])) && $_SESSION["userContext"] === "admin") { ?>
 						<a href="/login/?<?= tohtml(http_build_query(["loginas" => $value["USER"], "token" => $_SESSION["token"]])) ?>" title="<?= tohtml(_("Log in as")) ?> <?= tohtml($value["USER"]) ?>" class="u-ml5">
 							<i class="fas fa-right-to-bracket icon-green icon-dim"></i>
 							<span class="u-hidden-visually"><?= tohtml(_("Log in as")) ?> <?= tohtml($value["USER"]) ?></span>

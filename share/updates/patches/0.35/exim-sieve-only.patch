@@ -1,0 +1,95 @@
+--- a/exim4.conf.template
++++ b/exim4.conf.template
+@@ -481,28 +481,6 @@
+   transport = procmail
+   no_verify
+ 
+-autoreplay:
+-  driver = accept
+-  local_part_suffix = +*
+-  local_part_suffix_optional
+-  require_files = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${local_part}.msg
+-  condition = ${if exists{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${local_part}.msg}{yes}{no}}
+-  retry_use_local_part
+-  transport = userautoreply
+-  unseen
+-  # RFC 3834: never answer a bounce, a system or list sender, automated or list mail, or spam. A second
+-  # condition, ANDed with the first, so the line the 0.21 update patch matches stays as it was.
+-  # The spam test is also the Sieve vacation's (include/vacation.php); change both together.
+-  condition = ${if and{\
+-    {def:sender_address}\
+-    {!match{$sender_address_local_part}{\N(?i)^(mailer-daemon|postmaster|owner-.*|.*-request)$\N}}\
+-    {or{{!def:h_Auto-Submitted:}{match{$h_Auto-Submitted:}{\N(?i)^no\b\N}}}}\
+-    {!def:h_List-Id:}\
+-    {!def:h_List-Post:}\
+-    {!match{$h_Precedence:}{\N(?i)^(bulk|junk|list)\b\N}}\
+-    {!match{$h_X-Spam-Status:}{\N^Yes\N}}\
+-    }{yes}{no}}
+-
+ inbound_srs:
+     driver = redirect
+     senders = :
+@@ -555,14 +533,8 @@
+   driver = accept
+   local_part_suffix = +*
+   local_part_suffix_optional
+-# With the sieve addon (h-add-sys-sieve) clean local mail is handed to
+-# dovecot-lda so the account's sieve scripts run at delivery. Spam keeps the
+-# direct .Spam appendfile path (localuser_spam above) — its verdict is final.
+-.ifdef SIEVE
++  # Clean mail goes through Sieve (vacation, filters, forwards). Spam keeps the direct .Spam path above.
+   transport = dovecot_virtual_delivery
+-.else
+-  transport = local_delivery
+-.endif
+   condition = ${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}{true}{false}}
+ 
+ catchall:
+@@ -650,6 +622,7 @@
+   initgroups
+   return_output
+ 
++# No router delivers here any more; the catch-all names it as file_transport, which the 0.33 update patch reads.
+ local_delivery:
+   driver = appendfile
+   maildir_format
+@@ -705,10 +678,8 @@
+   quota_directory = "${extract{5}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}}}}/mail/${lookup{$domain}dsearch{/etc/exim4/domains/}}/${lookup{$local_part}dsearch{${extract{5}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}}}}/mail/${lookup{$domain}dsearch{/etc/exim4/domains/}}}}"
+   quota_warn_threshold = 75%
+ 
+-.ifdef SIEVE
+-# Sieve addon delivery agent, LMTP over a unix socket rather than the lda pipe it was (#596):
+-# a command line cannot carry the tainted $local_part, the protocol can, and only that lets
+-# sieve see a +suffix. Same maildir layout and quota plugin as local_delivery.
++# LMTP, not the lda pipe (#596): a command line cannot carry the tainted $local_part, the protocol can, and only
++# that lets sieve see a +suffix.
+ dovecot_virtual_delivery:
+   driver = lmtp
+   socket = /run/dovecot/lmtp
+@@ -721,7 +692,6 @@
+   delivery_date_add
+   envelope_to_add
+   # Over quota answers 452 and exim defers on it, so no exit code needs translating.
+-.endif
+ 
+ address_pipe:
+   driver = pipe
+@@ -736,18 +706,6 @@
+ address_reply:
+   driver = autoreply
+ 
+-userautoreply:
+-  driver = autoreply
+-  file = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/autoreply.${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}.msg
+-  from = "${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}"
+-  headers = Content-Type: text/plain; charset=utf-8;\nContent-Transfer-Encoding: 8bit\nAuto-Submitted: auto-replied
+-  subject = "${if def:h_Subject: {Autoreply: \"${rfc2047:$h_Subject:}\"} {Autoreply Message}}"
+-  to = "${sender_address}"
+-  # One answer per sender and account a week, as Sieve's vacation :days 7 does. Built from lookups like
+-  # file above: exim refuses a once path spelled with the message's own $local_part/$domain (tainted).
+-  once = /var/spool/exim4/db/autoreply.${extract{1}{:}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/accounts}}}}@${lookup{$domain}dsearch{/etc/exim4/domains/}}
+-  once_repeat = 7d
+-
+ devnull:
+   driver = appendfile
+   file = /dev/null

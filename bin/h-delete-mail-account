@@ -43,8 +43,7 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
 	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/limits "$account@$domain_idn:"
 	home_run "$user" "mail/$domain_idn" -- rm -rf -- "./$account"
-	mail_autoreply_once_clear "$domain_idn" "$account"
-	# exim answers as long as this file exists, a new account of the same name would inherit the text.
+	# A rebuild would move the text into a new account of the same name.
 	rm -f "$HOMEDIR/$user/conf/mail/$domain/autoreply.$account.msg"
 fi
 rm -f "$USER_DATA/mail/$account@$domain.msg"

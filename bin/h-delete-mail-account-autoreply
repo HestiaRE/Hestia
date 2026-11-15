@@ -41,10 +41,7 @@ if vacation_sieve_on; then
 	[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain keeps its autoreply in a Sieve script the panel does not manage (own script or several vacation rules), change it in the webmail"
 	check_result "$rc" "the Sieve script of $account@$domain was not changed"
 fi
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	rm -f "$(vacation_exim_file "$user" "$domain" "$account")"
-	mail_autoreply_once_clear "$domain_idn" "$account"
-fi
+rm -f "$(vacation_exim_file "$user" "$domain" "$account")"
 
 # Same path h-add-mail-account-autoreply writes; a copy left behind travels in a backup and comes back on restore.
 rm -f $USER_DATA/mail/$account@$domain.msg

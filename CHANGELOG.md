@@ -21,14 +21,11 @@ the releases of the command audit, into another.
 
 ### Security
 
-- **root no longer follows a path the customer swaps inside their own home** (#1348, upstream GHSA-hc82-cqjf-hcpg,
-  GHSA-pfj7-fhx8-q4qx). The customer owns `~` and every domain directory, so a link put in place between a check and
-  the action took root's chmod, chown, mkdir, rm or move to any file on the box. Every such step below `~/mail`,
-  `~/web`, `~/tmp`, `~/.ssh` and `~/.companion` now enters the directory first and checks where it ended up, and the
-  uid, quota and owner passes after a restore run from inside the home. Moving a domain to another customer leaves the
-  data in place with a warning when either side is not root's. A restore no longer unpacks as root into the home: root
-  unpacks `~/.companion` from inside it, and restic restores into a stage beside the homes that the customer then
-  hardlinks into place, so the data is not stored twice (a copy only where a link is refused).
+- **A customer could take over files outside their home** (#1348, upstream GHSA-hc82-cqjf-hcpg,
+  GHSA-pfj7-fhx8-q4qx). Swapping a directory of their own home for a link at the right moment redirected root's work
+  during a rebuild, a mail or web change, a domain move or a restore to any file on the box. root now checks where it
+  is before it acts, `~/conf` stays immutable through a rebuild, and a restore no longer unpacks as root into the home;
+  a restic restore is staged beside the homes and hardlinked into place, so the data is not stored twice.
 
 ### Fixed
 

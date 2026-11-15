@@ -205,9 +205,10 @@ $is_real_root_user = !empty($_SESSION["ROOT_USER"]) && ($_SESSION["user"] ?? "")
 require_once dirname(__FILE__) . "/i18n.php";
 
 // The root account by its configured name; an empty ROOT_USER matches nobody, not an empty look or user.
-function is_root_user(?string $name): bool
+// mixed, not string: callers pass $_GET["user"], and ?user[]=x would otherwise be a TypeError.
+function is_root_user(mixed $name): bool
 {
-	return !empty($_SESSION["ROOT_USER"]) && $name === $_SESSION["ROOT_USER"];
+	return !empty($_SESSION["ROOT_USER"]) && is_string($name) && $name === $_SESSION["ROOT_USER"];
 }
 
 function check_error($return_var)

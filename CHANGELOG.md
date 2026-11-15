@@ -13,6 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **NetAPI honeypot list in the blocklist picker, and a source link for every list** (#1351, upstream #5974). Addresses
+  seen attacking NetAPI's own sensors in the last 48 hours, IPv4, offered at level 2 next to FireHOL and Blocklist.de.
+  Each list in the picker and on the FireHOL page now links to its own page, which NetAPI's CC BY 4.0 licence requires.
+
 ### Fixed
 
 - **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the

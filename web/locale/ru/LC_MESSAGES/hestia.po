@@ -1699,6 +1699,12 @@ msgid "IP List Name"
 msgstr "Имя списка IP-адресов"
 
 #: web/templates/pages/add_firewall_ipset.php
+#: web/templates/pages/add_firewall_ipset_firehol.php
+#: web/templates/pages/edit_server.php
+msgid "More info"
+msgstr "Подробнее"
+
+#: web/templates/pages/add_firewall_ipset.php
 #: web/templates/pages/edit_server.php web/templates/pages/edit_whitelabel.php
 msgid "No"
 msgstr "Нет"
@@ -2528,10 +2534,6 @@ msgstr "Почта установлена: без Fail2Ban перебор пар
 #: web/templates/pages/edit_server.php
 msgid "Maximum Number of Databases"
 msgstr "Максимальное количество баз данных"
-
-#: web/templates/pages/edit_server.php
-msgid "More info"
-msgstr "Подробнее"
 
 #: web/templates/pages/edit_server.php
 msgid "MySQL Support"

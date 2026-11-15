@@ -31,6 +31,9 @@ $firehol_rows = function (array $lists) use ($v_selected, $firehol_age): void {
 					<?= tohtml(sprintf(ngettext("%d entry", "%d entries", $l["entries"]), $l["entries"])) ?> &middot;
 					<?= tohtml($firehol_age($l["updated"])) ?>
 				</small>
+				<small class="hint">
+					&middot; <a href="https://iplists.firehol.org/?ipset=<?= tohtml(rawurlencode($name)) ?>" target="_blank" rel="noopener noreferrer"><?= tohtml(_("More info")) ?></a>
+				</small>
 				<?php if (!empty($l["includes"])) { ?>
 					<br><small class="hint"><?= tohtml(sprintf(_("Contains %s"), implode(", ", $l["includes"]))) ?></small>
 				<?php } elseif (!empty($l["info"])) { ?>

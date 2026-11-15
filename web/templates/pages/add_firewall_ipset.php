@@ -64,13 +64,14 @@
 					if ($line === "" || $line[0] === "#") {
 						continue;
 					}
-					if (preg_match("/NAME='([^']*)'.*LEVEL='([^']*)'.*FAMILY='([^']*)'.*SOURCE='([^']*)'/", $line, $m)) {
+					if (preg_match("/NAME='([^']*)'.*LEVEL='([^']*)'.*FAMILY='([^']*)'.*SOURCE='([^']*)'(?:.*INFO='(https:\/\/[^']*)')?/", $line, $m)) {
 						$blacklist_iplists[] = [
 							// Raw here: the array is escaped once as a whole at the data- attribute below, exactly as
 							// generate_iplist's names are. Escaping the name too rendered "Blocklist&period;de".
 							"name" => "[" . strtoupper($m[3]) . "] " . $m[1] . " (" . _("level") . " " . $m[2] . ")",
 							"source" => $m[4],
 							"family" => strtolower($m[3]),
+							"info" => $m[5] ?? "",
 						];
 					}
 				}
@@ -99,6 +100,9 @@
 					</select>
 					<input type="text" class="form-control list-editor" name="v_datasource" id="v_datasource" maxlength="255" value="<?= tohtml(trim($v_datasource, "'")) ?>">
 				</div>
+				<small class="hint js-datasource-info" hidden>
+					<a href="" target="_blank" rel="noopener noreferrer"><?= tohtml(_("More info")) ?></a>
+				</small>
 			</div>
 			<div class="u-mb10">
 				<label for="v_ipver" class="form-label"><?= tohtml(_("IP Version")) ?></label>

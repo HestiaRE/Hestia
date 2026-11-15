@@ -1518,7 +1518,7 @@ restic_dump_dir() { echo "$HOMEDIR/$1/.dumps"; }
 # restic writes as root into a stage beside the homes, where the customer swaps nothing; the customer then hardlinks it
 # into place, so nothing is stored twice. A copy only where a link is refused. ~/.companion is the companion's: root
 # merges it from inside, where the customer has no write bit. The stage takes the home's project id: ext4 refuses a link
-# across two.
+# across two. The stage carries the customer's name, so their next restore clears what an abort left behind.
 restic_restore_home() {
 	local user=$1 snapshot=$2 rel=$3 stage src dest p part pid flags rc=0
 	local -a opts=() parts=() above=()
@@ -1528,7 +1528,12 @@ restic_restore_home() {
 	else
 		opts=("$@")
 	fi
-	stage=$(mktemp -d "$HOMEDIR/.hestia-restore.XXXXXX") || return "$E_NOTEXIST"
+	# Six characters without a dot: user a never matches the stage of user a.b.
+	for p in "$HOMEDIR/.hestia-restore.$user".??????; do
+		[ -e "$p" ] || continue
+		rm -rf -- "$p"
+	done
+	stage=$(mktemp -d "$HOMEDIR/.hestia-restore.$user.XXXXXX") || return "$E_NOTEXIST"
 	restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" "${opts[@]}" \
 		--target "$stage" || rc=$E_NOTEXIST
 

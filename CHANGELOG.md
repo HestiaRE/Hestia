@@ -26,7 +26,9 @@ the releases of the command audit, into another.
   the action took root's chmod, chown, mkdir, rm or move to any file on the box. Every such step below `~/mail`,
   `~/web`, `~/tmp`, `~/.ssh` and `~/.companion` now enters the directory first and checks where it ended up, and the
   uid, quota and owner passes after a restore run from inside the home. Moving a domain to another customer leaves the
-  data in place with a warning when either side is not root's.
+  data in place with a warning when either side is not root's. A restore no longer unpacks as root into the home: root
+  unpacks `~/.companion` from inside it, and restic restores into a stage beside the homes that the customer then
+  hardlinks into place, so the data is not stored twice (a copy only where a link is refused).
 
 ### Fixed
 

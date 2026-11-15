@@ -1581,6 +1581,8 @@ restic_restore_home() {
 		(cd / && user_exec cp -al --remove-destination -- "$src" "$dest" 2> /dev/null) \
 			|| (cd / && user_exec cp -a --remove-destination -- "$src" "$dest") || rc=$E_FORBIDEN
 	fi
+	# Not covered: the companion keeps running, so a container can swap an entry below. Stop it first once a box runs
+	# docker and restic together; the author left it out, a docker restart carries its own risk.
 	if [ "$rc" -eq 0 ] && [ -d "$stage/companion" ]; then
 		if [ ! -e "$HOMEDIR/$user/.companion" ] && [ ! -L "$HOMEDIR/$user/.companion" ]; then
 			home_dir_own "$user" .companion root:root 0700 || rc=$E_FORBIDEN

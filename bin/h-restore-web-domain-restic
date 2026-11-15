@@ -286,13 +286,9 @@ for domain in "${domains[@]}"; do
 
 		home_run "$user" "web/$domain/stats" -- chmod u+w .
 
-		# restic will not write over an existing symlink, and the rebuild just created the log links.
+		# The rebuild just created the log links; they come back below only if the snapshot carries them.
 		home_run "$user" "web/$domain/logs" -- find . -maxdepth 1 -type l -delete
-		restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" \
-			--include "/home/$user/web/$domain" --target /
-		if [ "$?" -ne 0 ]; then
-			check_result "$E_NOTEXIST" "Unable to download user data"
-		fi
+		restic_restore_home "$user" "$snapshot" "web/$domain" || check_result "$?" "Unable to restore $domain web data"
 		# The links return only if the snapshot carries them; the rebuild is the one owner of recreating them.
 		if [ ! -L "$HOMEDIR/$user/web/$domain/logs/$domain.log" ] \
 			|| [ ! -L "$HOMEDIR/$user/web/$domain/logs/$domain.error.log" ]; then

@@ -1514,6 +1514,80 @@ restic_meta_unpack() {
 restic_meta_dir() { echo "${BACKUP_TEMP:-$BACKUP}/restic-meta.$1"; }
 restic_dump_dir() { echo "$HOMEDIR/$1/.dumps"; }
 
+# restic_restore_home USER SNAPSHOT REL [--exclude PATH]...: /home/USER/REL from SNAPSHOT, REL empty for the whole home.
+# restic writes as root into a stage beside the homes, where the customer swaps nothing; the customer then hardlinks it
+# into place, so nothing is stored twice. A copy only where a link is refused. ~/.companion is the companion's: root
+# merges it from inside, where the customer has no write bit. The stage takes the home's project id: ext4 refuses a link
+# across two.
+restic_restore_home() {
+	local user=$1 snapshot=$2 rel=$3 stage src dest p part pid flags rc=0
+	local -a opts=() parts=() above=()
+	shift 3
+	if [ -n "$rel" ]; then
+		opts=(--include "/home/$user/$rel")
+	else
+		opts=("$@")
+	fi
+	stage=$(mktemp -d "$HOMEDIR/.hestia-restore.XXXXXX") || return "$E_NOTEXIST"
+	restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" "${opts[@]}" \
+		--target "$stage" || rc=$E_NOTEXIST
+
+	# A link on the way in the snapshot would take root's chown out of the stage; the restored path itself may be one.
+	IFS=/ read -ra parts <<< "home/$user${rel:+/$rel}"
+	p=$stage
+	for part in "${parts[@]}"; do
+		[ "$rc" -eq 0 ] || break
+		[ -n "$part" ] || continue
+		above+=("$p")
+		p="$p/$part"
+		if [ ! -e "$p" ] && [ ! -L "$p" ]; then
+			echo "Error: /home/$user/$rel is not in snapshot $snapshot" >&2
+			rc=$E_NOTEXIST
+		elif [ -L "$p" ] && [ "$p" != "$stage/home/$user${rel:+/$rel}" ]; then
+			echo "Error: ${p#"$stage"} is a link in snapshot $snapshot, not restored" >&2
+			rc=$E_FORBIDEN
+		fi
+	done
+	src=$p
+	dest="$HOMEDIR/$user${rel:+/$rel}"
+
+	if [ "$rc" -eq 0 ]; then
+		if [ -z "$rel" ] && [ -d "$src/.companion" ] && [ ! -L "$src/.companion" ]; then
+			mv -- "$src/.companion" "$stage/companion"
+		fi
+		chown -R -h "$user:$user" -- "$src"
+		read -r pid flags _ < <(lsattr -pd "$HOMEDIR/$user" 2> /dev/null)
+		if [[ "$flags" == *P* ]]; then
+			find "$stage" -mindepth 1 -type d -exec chattr -p "$pid" +P {} + 2> /dev/null
+			find "$stage" -mindepth 1 ! -type d -exec chattr -p "$pid" {} + 2> /dev/null
+		fi
+		for p in "${above[@]}"; do
+			chown -h root:root "$p" && chmod 711 "$p"
+		done
+		if [ -d "$src" ] && [ ! -L "$src" ]; then
+			(cd / && user_exec mkdir -p -- "$dest") || rc=$E_FORBIDEN
+			src="$src/." dest="$dest/"
+		else
+			(cd / && user_exec mkdir -p -- "${dest%/*}") || rc=$E_FORBIDEN
+		fi
+	fi
+	if [ "$rc" -eq 0 ]; then
+		(cd / && user_exec cp -al --remove-destination -- "$src" "$dest" 2> /dev/null) \
+			|| (cd / && user_exec cp -a --remove-destination -- "$src" "$dest") || rc=$E_FORBIDEN
+	fi
+	if [ "$rc" -eq 0 ] && [ -d "$stage/companion" ]; then
+		if [ ! -e "$HOMEDIR/$user/.companion" ] && [ ! -L "$HOMEDIR/$user/.companion" ]; then
+			home_dir_own "$user" .companion root:root 0700 || rc=$E_FORBIDEN
+		fi
+		if [ "$rc" -eq 0 ]; then
+			home_run "$user" .companion -- cp -al --remove-destination -- "$stage/companion/." . 2> /dev/null \
+				|| home_run "$user" .companion -- cp -a --remove-destination -- "$stage/companion/." . || rc=$E_FORBIDEN
+		fi
+	fi
+	rm -rf -- "$stage"
+	return "$rc"
+}
+
 # The rc fallback belongs at the END: eof also arrives after the regular exit.
 sftpc() {
 	# sftp reads host:path, so a v6 needs brackets, ESCAPED: the script below is Tcl and a

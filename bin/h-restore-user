@@ -1332,10 +1332,14 @@ if [ "$udir" != 'no' ]; then
 					queue_drop_job "$CONF_DIR/queue/backup.pipe"
 					check_result "$E_PARSING" "$error"
 				fi
+				# Unpacked from inside: a ~/.companion swapped during the run would take root's tar along.
+				if [ ! -e "$HOMEDIR/$user/.companion" ] && [ ! -L "$HOMEDIR/$user/.companion" ]; then
+					home_dir_own "$user" .companion root:root 0700
+				fi
 				if [ $backup_mode = 'zstd' ]; then
-					tar -I pzstd -xpf "$udir_container" -C "$HOMEDIR/$user"
+					home_run "$user" .companion -- tar -I pzstd -xpf "$udir_container" --strip-components=1
 				else
-					tar -xpzf "$udir_container" -C "$HOMEDIR/$user"
+					home_run "$user" .companion -- tar -xpzf "$udir_container" --strip-components=1
 				fi
 				# Failing can mean tar stopped part way, so the entry is neither reliably restored nor untouched.
 				# Nothing is removed (over an existing home that deletes data the archive only meant to add to), and

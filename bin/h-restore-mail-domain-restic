@@ -223,10 +223,9 @@ for domain in "${domains[@]}"; do
 		home_run "$user" "mail/$domain_idn" -- chmod u+w .
 		home_run "$user" "mail/$domain_idn" -- chown -h "$user:$user" .
 
-		restic --repo "$REPO$user" --password-file "$USER_DATA/restic.conf" restore "$snapshot" --include /home/$user/mail/$domain_idn --target /
-		if [ "$?" -ne 0 ]; then
-			check_result "$E_NOTEXIST" "Unable to download user data"
-		fi
+		restic_restore_home "$user" "$snapshot" "mail/$domain_idn" || check_result "$?" "Unable to restore $domain mail"
+		# The owner has to be user:mail, not user:user.
+		home_run "$user" "mail/$domain_idn" -- find . -user "$user" -execdir chown -h "$user:mail" {} +
 
 		if [ -d "$HOMEDIR/$user/conf/mail/$domain" ]; then
 			find $HOMEDIR/$user/conf/mail/$domain -user root \

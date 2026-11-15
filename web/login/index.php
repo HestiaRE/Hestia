@@ -149,8 +149,13 @@ function authenticate_user($user, $password, $twofa = "")
 				$hash = crypt($password, '$1$' . $salt . '$');
 			}
 			if ($method == "sha-512") {
-				$hash = crypt($password, '$6$rounds=5000$' . $salt . '$');
-				$hash = str_replace('$rounds=5000', "", $hash);
+				if (str_starts_with($salt, "rounds=")) {
+					// h-get-user-salt hands rounds=N$salt over whole, crypt() writes it back into the hash.
+					$hash = crypt($password, '$6$' . $salt . '$');
+				} else {
+					$hash = crypt($password, '$6$rounds=5000$' . $salt . '$');
+					$hash = str_replace('$rounds=5000', "", $hash);
+				}
 			}
 			if ($method == "yescrypt") {
 				$fp = tmpfile();

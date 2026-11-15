@@ -18,6 +18,9 @@ the releases of the command audit, into another.
 - **NetAPI honeypot list in the blocklist picker, and a source link for every list** (#1351, upstream #5974). Addresses
   seen attacking NetAPI's own sensors in the last 48 hours, IPv4, offered at level 2 next to FireHOL and Blocklist.de.
   Each list in the picker and on the FireHOL page now links to its own page, which NetAPI's CC BY 4.0 licence requires.
+- **Show button on masked password fields** (#1350, upstream #5959). The login, the password reset and the DNS provider
+  key get an eye button that shows what was typed; the field is masked again before it is sent. The add and edit forms
+  show their passwords in plain text already and keep that.
 
 ### Security
 
@@ -26,9 +29,19 @@ the releases of the command audit, into another.
   during a rebuild, a mail or web change, a domain move or a restore to any file on the box. root now checks where it
   is before it acts, `~/conf` stays immutable through a rebuild, and a restore no longer unpacks as root into the home;
   a restic restore is staged beside the homes and hardlinked into place, so the data is not stored twice.
+- **A secret handed over as a /tmp file is read only from root or the caller** (#1350, upstream GHSA-vxpc-8vm2-8rv3).
+  A command took the first line of any plain file under `/tmp` as the password; a file of another user, a link or a
+  directory there is now refused instead of read or taken as the password itself.
 
 ### Fixed
 
+- **A login with a sha-512 hash carrying `rounds=` always failed** (#1350, upstream #5956). Such a hash, taken over
+  from another system or set with explicit rounds, was checked with 5000 rounds and never matched. New accounts use
+  yescrypt and were not affected.
+- **Adding a mail domain that already exists switched spam rejection on for the existing one** (#1350, upstream
+  #5950). The reject step ran even after the add had failed.
+- **Logging in as a customer from the search results checks the target** (#1350, upstream #5957). Only a path on this
+  panel is followed, and the token is appended with `?` or `&` as the link needs.
 - **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the
   Debian installer's default, the address is still tentative (duplicate address detection) when the web servers start,
   and both bind it by name. The kernel now lets them bind it (`net.ipv6.ip_nonlocal_bind`); an update entry sets it on

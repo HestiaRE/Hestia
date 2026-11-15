@@ -2838,6 +2838,13 @@ home_run() {
 	(home_cd "$u" "$rel" "$root" && "$@")
 }
 
+# home_move OLD NEW SUB NAME: move ~OLD/SUB/NAME to ~NEW/SUB/NAME, refused when it is there already. Both SUBs have
+# to be root's, and the target is reached through a held descriptor, so neither end can be swapped.
+home_move() {
+	(home_cd "$2" "$3" root && exec 3< . && home_cd "$1" "$3" root \
+		&& [ ! -e "/proc/self/fd/3/$4" ] && [ ! -L "/proc/self/fd/3/$4" ] && mv -T -- "$4" "/proc/self/fd/3/$4")
+}
+
 # home_dir_own USER REL OWNER MODE: root creates or claims the directory ~USER/REL. chown and chmod act on the entered
 # directory, never on a name the customer can swap.
 home_dir_own() {

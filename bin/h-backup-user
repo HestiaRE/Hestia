@@ -5,6 +5,7 @@
 # example: h-backup-user admin yes
 #
 # Archive a user with its web, mail, databases, cron jobs and data directory into $BACKUP.
+# Not read-only: each mail account's forward and vacation record is first set after its Sieve script.
 
 user=$1
 notify=${2-no}

@@ -43,8 +43,11 @@ vacation_new_format() { # USER DOMAIN
 	[ "$w" = 'tachyon' ] && echo 'tachyon' || echo 'roundcube'
 }
 
-# Through doveadm: it refuses a script that does not compile and writes as the mailbox owner.
+# Through doveadm: it refuses a script that does not compile and writes as the mailbox owner. dovecot reads the
+# passwd file again at most once a second, so a mailbox a rebuild has just written back is unknown until the next.
 vacation_put() { # DOMAIN_IDN ACCOUNT NAME FILE
+	doveadm sieve put -u "$2@$1" -a "$3" < "$4" 2> /dev/null && return 0
+	sleep 1
 	doveadm sieve put -u "$2@$1" -a "$3" < "$4"
 }
 

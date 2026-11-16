@@ -41,7 +41,8 @@ the releases of the command audit, into another.
   patched. Mail from Sieve, redirects and vacation answers, is no longer held to the websites' send limit on dovecot
   2.4 (Debian 13, Ubuntu 26.04): it shared one 200/h bucket for the whole box, and past it a delivery was deferred
   or its later redirects never went out. On dovecot 2.3 it comes as the mailbox owner and gets a 200/h bucket of
-  its own per customer. A forward set before moves into Sieve with the next rebuild of its mail domain.
+  its own per customer. The update moves the forwards set before into Sieve and names once the accounts whose
+  forward stays in exim.
 
 ### Fixed
 

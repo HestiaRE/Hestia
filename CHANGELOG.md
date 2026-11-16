@@ -13,7 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **A catch-all goes to an account of its own domain** (#1337). exim forwarded an external one, and every refusal
+  at the target bounced to the sender, forged in most spam. The panel and the CLI refuse any other address; a
+  restore (a HestiaCP migration included) drops one and says so at the end of its output. A catch-all already set
+  on a box stays as it is.
 
 ## v0.34 (2026-11-15)
 

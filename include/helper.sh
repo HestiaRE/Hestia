@@ -874,6 +874,23 @@ exim_sieve_forward_apply() {
 	exim_template_patch 0.35/exim-sieve-forward.patch
 }
 
+# Room for the customer's own redirects beside the panel's four; a line set by hand is never matched.
+sieve_max_redirects_apply() {
+	local f=/etc/dovecot/conf.d/90-sieve.conf keep
+	local c="# Twice the panel's forward targets (FORWARD_MAX in include/forward.sh): room for the customer's own."
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	sed -i -E "s|^([[:space:]]*)#sieve_max_redirects = 4\$|\\1$c\\n\\1sieve_max_redirects = 8|" "$f"
+	if doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl restart dovecot
+	echo '[ ! ] dovecot did not take sieve_max_redirects = 8, a mail still runs at most 4 redirects.'
+	return 0
+}
+
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.

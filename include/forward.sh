@@ -9,7 +9,7 @@
 source "$HESTIA/include/vacation.sh"
 
 FORWARD_PHP="$HESTIA/include/forward.php"
-# Pigeonhole's sieve_max_redirects: with one more it runs none of them.
+# Half of sieve_max_redirects (share/dovecot/*/sieve/90-sieve.conf): the rest is room for the customer's own.
 FORWARD_MAX=4
 
 # FORMAT|RULE|TARGETS|KEEP, TARGETS comma-separated, KEEP yes|no. Not tabs: read collapses empty fields between them.

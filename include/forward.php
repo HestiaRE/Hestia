@@ -7,7 +7,7 @@
 // forwarded again it is refused once more and freezes, and a forward-only mailbox would never see it.
 //
 //   state FILE                        -> JSON {format, rule, targets, keep}; FILE may be empty or absent
-//   set   FORMAT FILE KEEP TARGET...  -> the new script on stdout; KEEP yes|no; FORMAT only decides an absent/empty FILE
+//   set   FORMAT FILE KEEP TARGET...  -> the new script on stdout; KEEP yes|no; FORMAT is for an absent/empty FILE
 //   clear FILE                        -> the new script on stdout, without the forward
 // Exit 3, silent: the script is not one this file can write (an own script, or a "Forward" rule or filter changed
 // beyond its targets and keep), so it is left to the webmail. Exit 1: anything else, nothing printed.
@@ -19,7 +19,8 @@ require __DIR__ . '/sieve-rules.php';
 
 const RULE_NAME = 'Forward';
 const FAILED_HEADER = 'X-Failed-Recipients';
-// Pigeonhole's sieve_max_redirects on both dovecot versions: one more and it runs none of them.
+// Half of sieve_max_redirects (share/dovecot/*/sieve/90-sieve.conf), the rest is room for the customer's own.
+// Keep in step with FORWARD_MAX in include/forward.sh.
 const MAX_TARGETS = 4;
 
 function is_word(string $s, array $tok, string $w): bool

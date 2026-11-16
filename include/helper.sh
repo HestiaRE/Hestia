@@ -895,6 +895,7 @@ sieve_max_redirects_apply() {
 # as there: the crontabs directory is sticky, where opening the file is EACCES even for root.
 forward_bounces_cron_apply() {
 	local ct='/var/spool/cron/crontabs/hestia' tmp="/var/spool/cron/crontabs/.hestia.$$"
+	# Empty counts as missing: the daily repair writes it whole, with this line.
 	[ -s "$ct" ] || return 0
 	grep -q 'h-delete-mail-forward-bounces' "$ct" && return 0
 	if { sed -e '$a\' "$ct" && echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"; } > "$tmp" \

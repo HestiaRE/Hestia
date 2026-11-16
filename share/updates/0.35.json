@@ -16,6 +16,32 @@
       "action": { "type": "function_call", "function": "exim_sieve_only_apply" },
       "paths": ["/etc/exim4/exim4.conf.template", "/var/spool/exim4/db"],
       "reversible": false
+    },
+    {
+      "id": "dovecot-quota-status",
+      "description": "dovecot answers exim at RCPT whether a mailbox is full",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "path_absent", "path": "/etc/dovecot/conf.d/11-quota-status.conf" }
+      ],
+      "action": { "type": "function_call", "function": "dovecot_quota_status_apply" },
+      "paths": ["/etc/dovecot/conf.d"],
+      "reversible": false
+    },
+    {
+      "id": "exim-quota-status",
+      "description": "A full mailbox is refused in the SMTP session instead of bounced to the sender days later; forward-only accounts are left out. Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.35/exim-quota-status.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": { "type": "function_call", "function": "exim_quota_status_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
     }
   ]
 }

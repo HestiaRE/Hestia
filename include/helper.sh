@@ -843,6 +843,23 @@ exim_sieve_only_apply() {
 	rm -f /var/spool/exim4/db/autoreply.*
 }
 
+# The service exim asks at RCPT whether a mailbox is full.
+dovecot_quota_status_apply() {
+	local f=/etc/dovecot/conf.d/11-quota-status.conf dir=2.3
+	[ "$(printf '%s\n2.4' "$(dovecot --version 2> /dev/null | cut -d. -f1,2)" | sort -V | head -1)" = '2.4' ] && dir=2.4
+	install -m 644 -o root -g root "$HESTIA/share/dovecot/$dir/conf.d/11-quota-status.conf" "$f" || return 1
+	doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot \
+		&& [ -S /run/dovecot/quota-status ] && return 0
+	rm -f "$f"
+	systemctl restart dovecot
+	return 1
+}
+
+# A full mailbox is refused at RCPT. Without the dovecot service exim gets no answer and accepts, as before.
+exim_quota_status_apply() {
+	exim_template_patch 0.35/exim-quota-status.patch
+}
+
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.

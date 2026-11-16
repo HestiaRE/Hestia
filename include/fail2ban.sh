@@ -49,6 +49,22 @@ fail2ban_install_config() {
 	chmod 644 "$F2B_OURS" 2> /dev/null
 }
 
+# A box whose image skips Recommends runs fail2ban without pyinotify, so backend auto polls, and a polling jail drops
+# for good a log that logrotate's nocreate leaves missing for a while (exim's mainlog, #1362). Not ready warns and
+# stays pending.
+fail2ban_pyinotify_apply() {
+	local out
+	if ! out=$(DEBIAN_FRONTEND=noninteractive apt-get -y -qq -o DPkg::Lock::Timeout=300 \
+		install python3-pyinotify 2>&1); then
+		echo "[ ! ] python3-pyinotify could not be installed, fail2ban keeps polling: ${out##*$'\n'}"
+		return 0
+	fi
+	systemctl -q is-active fail2ban 2> /dev/null || return 0
+	# A reload keeps each jail's backend, so the jails would go on polling.
+	fail2ban_restart || echo '[ ! ] fail2ban did not come back after the restart, check: systemctl status fail2ban'
+	return 0
+}
+
 # Update path of the two hestia actions. A reload loads a changed action of the same name and keeps the bans; a
 # restart would stop every jail through the old actionunban, the one that waits out fail2ban's timeout per ban.
 fail2ban_unban_caller_apply() {

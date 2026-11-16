@@ -842,6 +842,26 @@ exim_sieve_only_apply() {
 	exim_template_patch 0.35/exim-sieve-only.patch || return 1
 	sed -i '/^SIEVE = yes$/d' "$tpl"
 	rm -f /var/spool/exim4/db/autoreply.*
+	return 0
+}
+
+# The service exim asks at RCPT whether a mailbox is full.
+dovecot_quota_status_apply() {
+	local f=/etc/dovecot/conf.d/11-quota-status.conf dir=2.3
+	[ "$(printf '%s\n2.4' "$(dovecot --version 2> /dev/null | cut -d. -f1,2)" | sort -V | head -1)" = '2.4' ] && dir=2.4
+	install -m 644 -o root -g root "$HESTIA/share/dovecot/$dir/conf.d/11-quota-status.conf" "$f" \
+		&& doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot \
+		&& [ -S /run/dovecot/quota-status ] && return 0
+	rm -f "$f"
+	systemctl restart dovecot
+	# exim accepts without an answer, as before; the entry stays pending.
+	echo '[ ! ] dovecot did not take the quota-status service, a full mailbox is still accepted at RCPT.'
+	return 0
+}
+
+# A full mailbox is refused at RCPT. Without the dovecot service exim gets no answer and accepts, as before.
+exim_quota_status_apply() {
+	exim_template_patch 0.35/exim-quota-status.patch
 }
 
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which

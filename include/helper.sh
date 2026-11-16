@@ -864,6 +864,11 @@ exim_quota_status_apply() {
 	exim_template_patch 0.35/exim-quota-status.patch
 }
 
+# Inbound mail is no longer counted against the per-account send limit, keyed on its host and refused with 550.
+exim_ratelimit_inbound_apply() {
+	exim_template_patch 0.35/exim-ratelimit-inbound.patch
+}
+
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.

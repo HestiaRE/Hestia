@@ -17,6 +17,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 format_domain
@@ -28,7 +30,11 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
+# The webmail may have changed the forward since; this command changes what the script holds.
+forward_sync "$user" "$domain" "$domain_idn" "$account"
+forward_result $? "$account@$domain" "the Sieve script of $account@$domain could not be read"
 fwd=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD')
+only=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY')
 # Literal, so whatever the record holds can be removed and nothing else goes with it.
 IFS=, read -ra fwd_list <<< "$fwd"
 found='' fwd=''
@@ -41,15 +47,12 @@ for f in "${fwd_list[@]}"; do
 done
 [ -n "$found" ] || check_result "$E_NOTEXIST" "forward $forward doesn't exist"
 
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$account@$domain_idn:"
-	[ -z "$fwd" ] || echo "$account@$domain_idn:$fwd" >> $HOMEDIR/$user/conf/mail/$domain/aliases
-	# Forward-only without a forward sends everything to devnull.
-	[ -n "$fwd" ] || remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
-fi
+# Forward-only without a forward would keep nothing.
+[ -n "$fwd" ] || only=''
 
-update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD' "$fwd"
-[ -n "$fwd" ] || update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' ''
+forward_apply "$user" "$domain" "$domain_idn" "$account" "$fwd" "$only"
+forward_result $? "$account@$domain" "the forward of $account@$domain was not changed"
+forward_record "$domain" "$account" "$fwd" "$only"
 
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account forwarding address removed (User: $account@$domain, Send To: $forward)."
 log_event "$OK" "$ARGUMENTS"

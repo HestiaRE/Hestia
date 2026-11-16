@@ -1234,13 +1234,13 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$wfwd = trim($wfwd);
 		$fwd = explode(" ", $wfwd);
 		$v_fwd = str_replace(" ", "\n", $wfwd);
-		// New ones first, for the same reason as above.
-		$result = array_diff($fwd, $vfwd);
+		// Removed ones first: a mailbox forwards to four addresses at most, so a full list is only replaced this way.
+		$result = array_diff($vfwd, $fwd);
 		foreach ($result as $forward) {
 			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
 				exec(
 					HESTIA_CMD .
-						"h-add-mail-account-forward " .
+						"h-delete-mail-account-forward " .
 						$v_username .
 						" " .
 						quoteshellarg($v_domain) .
@@ -1255,12 +1255,16 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				unset($output);
 			}
 		}
-		$result = array_diff($vfwd, $fwd);
+		// No old one left ends forward-only (h-delete-mail-account-forward); the switch below sets it again.
+		if (!array_filter(array_intersect($vfwd, $fwd))) {
+			$v_fwd_only = "";
+		}
+		$result = array_diff($fwd, $vfwd);
 		foreach ($result as $forward) {
 			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
 				exec(
 					HESTIA_CMD .
-						"h-delete-mail-account-forward " .
+						"h-add-mail-account-forward " .
 						$v_username .
 						" " .
 						quoteshellarg($v_domain) .

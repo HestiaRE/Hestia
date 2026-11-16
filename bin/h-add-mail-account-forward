@@ -4,7 +4,7 @@
 #
 # example: h-add-mail-account-forward admin acme.com alice bob@example.org
 #
-# Adds a forward address; :blackhole: discards the account's mail instead.
+# Adds a forward address, a redirect in the mailbox's Sieve script; :blackhole: discards the account's mail instead.
 
 user=$1
 domain=$2
@@ -17,6 +17,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 format_domain
@@ -34,33 +36,28 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
+# The webmail may have changed the forward since; this command changes what the script holds.
+forward_sync "$user" "$domain" "$domain_idn" "$account"
+forward_result $? "$account@$domain" "the Sieve script of $account@$domain could not be read"
 fwd=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD')
+only=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY')
 IFS=, read -ra fwd_list <<< "$fwd"
 for f in "${fwd_list[@]}"; do
-	[ "$f" != "$email_forward" ] || check_result "$E_EXISTS" "forward $email_forward exists"
+	[ "${f,,}" != "${email_forward,,}" ] || check_result "$E_EXISTS" "forward $email_forward exists"
 done
 
-if [ -z "$fwd" ]; then
-	fwd="$email_forward"
-else
-	fwd="$fwd,$email_forward"
-fi
+fwd="${fwd:+$fwd,}$email_forward"
+n=0
+for f in "${fwd_list[@]}" "$email_forward"; do
+	[ "$f" = ':blackhole:' ] || n=$((n + 1))
+done
+[ "$n" -le "$FORWARD_MAX" ] || check_result "$E_LIMIT" "$account@$domain forwards to $FORWARD_MAX addresses at most"
+# exim's alias router reads nothing out of :blackhole:, the discard is forward-only's devnull.
+[ "$email_forward" != ':blackhole:' ] || only='yes'
 
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	remove_line_by_prefix $HOMEDIR/$user/conf/mail/$domain/aliases "$account@$domain_idn:"
-	echo "$account@$domain_idn:$fwd" >> $HOMEDIR/$user/conf/mail/$domain/aliases
-	# exim's alias router reads nothing out of :blackhole:, the discard is forward-only's devnull.
-	if [ "$email_forward" = ':blackhole:' ]; then
-		remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
-		echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
-	fi
-fi
-
-update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD' "$fwd"
-if [ "$email_forward" = ':blackhole:' ]; then
-	add_object_key "mail/$domain" 'ACCOUNT' "$account" 'FWD_ONLY' 'MD5'
-	update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' 'yes'
-fi
+forward_apply "$user" "$domain" "$domain_idn" "$account" "$fwd" "$only"
+forward_result $? "$account@$domain" "the forward of $account@$domain was not changed"
+forward_record "$domain" "$account" "$fwd" "$only"
 
 $BIN/h-log-action "$user" "Warning" "Mail" "Mail forwarding on mail account $account@$domain enabled (send to: $email_forward)."
 log_event "$OK" "$ARGUMENTS"

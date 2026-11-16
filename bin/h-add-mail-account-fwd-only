@@ -16,15 +16,12 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-if [ "$MAIL_SYSTEM" = 'exim4' ]; then
-	MAIL_USER=Debian-exim
-else
-	MAIL_USER=exim
-fi
-
 format_domain
+format_domain_idn
 
 check_args '3' "$#" 'USER DOMAIN ACCOUNT'
 is_format_valid 'user' 'domain' 'account'
@@ -35,6 +32,9 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
+# The webmail may have changed the forward since; this command changes what the script holds.
+forward_sync "$user" "$domain" "$domain_idn" "$account"
+forward_result $? "$account@$domain" "the Sieve script of $account@$domain could not be read"
 fwd=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD')
 if [ -z "$fwd" ]; then
 	echo "Error: forward doesn't exist"
@@ -42,14 +42,10 @@ if [ -z "$fwd" ]; then
 	exit "$E_NOTEXIST"
 fi
 
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
-	echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
-	chown $MAIL_USER:mail $HOMEDIR/$user/conf/mail/$domain/fwd_only
-fi
-
-add_object_key "mail/$domain" 'ACCOUNT' "$account" 'FWD_ONLY' 'MD5'
-update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' "yes"
+only='yes'
+forward_apply "$user" "$domain" "$domain_idn" "$account" "$fwd" "$only"
+forward_result $? "$account@$domain" "the forward of $account@$domain was not changed"
+forward_record "$domain" "$account" "$fwd" "$only"
 
 $BIN/h-log-action "$user" "Warning" "Mail" "Forward-only flag enabled on mail account $account@$domain."
 log_event "$OK" "$ARGUMENTS"

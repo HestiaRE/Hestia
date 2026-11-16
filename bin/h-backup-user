@@ -23,6 +23,8 @@ source $HESTIA/include/db.sh
 source $HESTIA/include/backup.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 # This run's own queue line, for the abort paths (see queue_drop_job).
@@ -538,6 +540,7 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			# A Sieve box has no exim file; HestiaCP and a restore here both read the autoreply from one.
 			if vacation_sieve_on; then
 				vacation_domain_sync "$user" "$domain" conf > /dev/null
+				forward_domain_sync "$user" "$domain"
 			fi
 		fi
 

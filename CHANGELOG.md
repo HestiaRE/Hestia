@@ -42,13 +42,16 @@ the releases of the command audit, into another.
   2.4 (Debian 13, Ubuntu 26.04): it shared one 200/h bucket for the whole box, and past it a delivery was deferred
   or its later redirects never went out. On dovecot 2.3 it comes as the mailbox owner and gets a 200/h bucket of
   its own per customer. The update moves the forwards set before into Sieve and names once the accounts whose
-  forward stays in exim.
+  forward stays in exim. Panel and `h-list-mail-account(s)` show the forward as the script holds it, also when
+  changed in the webmail, and `FWD_SOURCE` says where it is; the panel's list marks one still in exim or in the
+  webmail's own filters, and the form shows the latter read-only. More than four addresses set in the webmail can
+  be saved unchanged.
 
 ### Fixed
 
 - **Switching the autoreply on in the panel wiped a filter set switched off in the webmail** (#1337). With no
   active Sieve script the panel wrote its own under Roundcube's set name and activated it, over the customer's
-  rules. It now refuses and points to the webmail.
+  rules. It now refuses, and the panel shows the switch read-only with a pointer to the webmail.
 - **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362). On an image that skips
   Recommends, fail2ban ran without python3-pyinotify and polled; exim's log is rotated with `nocreate`, and a
   polling jail drops a file that is missing for a few minutes for good. The installer, `h-add-sys-fail2ban` and

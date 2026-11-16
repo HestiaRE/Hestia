@@ -20,6 +20,18 @@ vacation_script() { # USER DOMAIN_IDN ACCOUNT
 	return 0
 }
 
+# Scripts, but none active that root may read: a filter set switched off in the webmail. A script of ours, written
+# and activated under the webmail's set name, would replace the customer's rules in it.
+vacation_set_off() { # USER DOMAIN_IDN ACCOUNT
+	local f
+	[ -z "$(vacation_script "$1" "$2" "$3")" ] || return 1
+	for f in "$HOMEDIR/$1/mail/$2/$3/sieve"/*.sieve; do
+		[ -e "$f" ] || continue
+		return 0
+	done
+	return 1
+}
+
 vacation_state() { # USER DOMAIN_IDN ACCOUNT -> JSON
 	"$HESTIA_PHP" "$VACATION_PHP" state "$(vacation_script "$1" "$2" "$3")"
 }
@@ -39,6 +51,7 @@ vacation_put() { # DOMAIN_IDN ACCOUNT NAME FILE
 vacation_enable() { # USER DOMAIN DOMAIN_IDN ACCOUNT MSGFILE
 	local file name fmt out rc
 	file=$(vacation_script "$1" "$3" "$4")
+	[ -n "$file" ] || ! vacation_set_off "$1" "$3" "$4" || return 3
 	fmt=$(vacation_new_format "$1" "$2")
 	out=$(mktemp) || return 1
 	"$HESTIA_PHP" "$VACATION_PHP" enable "$fmt" "$file" "$5" > "$out"

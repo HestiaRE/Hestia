@@ -45,7 +45,7 @@ vacation_enable "$user" "$domain" "$domain_idn" "$account" "$msg"
 rc=$?
 if [ "$rc" -ne 0 ]; then
 	rm -f "$msg"
-	[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain keeps its autoreply in a Sieve script the panel does not manage (own script or several vacation rules), change it in the webmail"
+	[ "$rc" -eq 3 ] && check_result "$E_FORBIDEN" "$account@$domain keeps its autoreply in a Sieve script the panel does not manage (own script, several vacation rules or a filter set switched off), change it in the webmail"
 	check_result "$E_UPDATE" "the Sieve script of $account@$domain was not changed"
 fi
 # A file a restore left would be moved into Sieve by the next rebuild, over this text.

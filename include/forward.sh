@@ -13,8 +13,13 @@ FORWARD_PHP="$HESTIA/include/forward.php"
 FORWARD_MAX=4
 
 # FORMAT|RULE|TARGETS|KEEP, TARGETS comma-separated, KEEP yes|no. Not tabs: read collapses empty fields between them.
+# A filter set switched off reads as an own script.
 forward_read() { # USER DOMAIN_IDN ACCOUNT
 	local js
+	if vacation_set_off "$1" "$2" "$3"; then
+		echo 'custom|none||yes'
+		return 0
+	fi
 	js=$("$HESTIA_PHP" "$FORWARD_PHP" state "$(vacation_script "$1" "$2" "$3")") || return 1
 	jq -r '[.format, .rule, (.targets | join(",")), (if .keep then "yes" else "no" end)] | join("|")' <<< "$js"
 }
@@ -74,20 +79,20 @@ forward_record() { # DOMAIN ACCOUNT FWD FWD_ONLY
 	update_object_value "mail/$1" 'ACCOUNT' "$2" '$FWD_ONLY' "$4"
 }
 
-# The record after the script, before a command changes the forward: a rule there is the forward, also one the
-# webmail changed. A script without one while exim holds none means the customer took it out there, also by switching
-# to an own script. Returns 3 for a script the panel does not write.
+# The record after the script, before a command changes the forward: a rule there is the forward. A script without
+# one while exim holds none means the customer took it out there, also by switching to an own script, which a rule
+# named Forward beyond what the panel writes counts as. Returns 3 for a script the panel does not write.
 forward_sync() { # USER DOMAIN DOMAIN_IDN ACCOUNT
 	local user=$1 domain=$2 domain_idn=$3 account=$4 st fmt rule targets keep only=''
 	st=$(forward_read "$user" "$domain_idn" "$account") || return 1
 	IFS='|' read -r fmt rule targets keep <<< "$st"
-	[ "$rule" != 'changed' ] || return 3
+	[ "$rule" != 'changed' ] || fmt=custom rule=none targets=''
 	if [ "$rule" = 'none' ]; then
 		if forward_has_exim_line "$user" "$domain" "$domain_idn" "$account"; then
 			[ "$fmt" != 'custom' ] || return 3
 			return 0
 		fi
-		[ -n "$(vacation_script "$user" "$domain_idn" "$account")" ] || return 0
+		[ "$fmt" = 'custom' ] || [ -n "$(vacation_script "$user" "$domain_idn" "$account")" ] || return 0
 	fi
 	[ -n "$targets" ] && [ "$keep" = 'no' ] && only='yes'
 	forward_record "$domain" "$account" "$targets" "$only"
@@ -108,7 +113,7 @@ forward_domain_sync() { # USER DOMAIN
 
 # The commands' answer to what forward_sync or forward_apply returned.
 forward_result() { # RC ACCOUNT@DOMAIN MESSAGE
-	[ "$1" -ne 3 ] || check_result "$E_FORBIDEN" "$2 keeps its forward in a Sieve script the panel does not manage, change it there"
+	[ "$1" -ne 3 ] || check_result "$E_FORBIDEN" "$2 has Sieve filters the panel does not manage (an own script, an own rule named Forward or a filter set switched off); once the webmail manages them again, the forward can be changed here"
 	[ "$1" -eq 0 ] || check_result "$E_UPDATE" "$3"
 }
 
@@ -143,13 +148,15 @@ forward_apply() { # USER DOMAIN DOMAIN_IDN ACCOUNT FWD FWD_ONLY
 # The rebuild's half for one account, appended to its fresh aliases and fwd_only files. The script is the truth where
 # it holds a rule. Without one the record writes it only where nothing can have been taken out in the webmail: no
 # script, or RECORD set because exim held this forward before or the domain arrives by a restore. Else the customer
-# took it out there, also by switching to an own script, and the record follows; an own script keeps exim's line only
-# under RECORD. A rule that cannot be written leaves the forward in exim, never nowhere.
+# took it out there, also by switching to an own script, and the record follows; an own script (also a rule named
+# Forward beyond what the panel writes) keeps exim's line only under RECORD. A rule that cannot be written leaves the
+# forward in exim, never nowhere.
 forward_rebuild() { # USER DOMAIN DOMAIN_IDN ACCOUNT FWD FWD_ONLY RECORD
 	local user=$1 domain=$2 domain_idn=$3 account=$4 fwd=$5 only=$6 st fmt='' rule='none' targets keep exim=''
 	local dir="$HOMEDIR/$1/conf/mail/$2" w=yes
 	local -a list
 	st=$(forward_read "$user" "$domain_idn" "$account") && IFS='|' read -r fmt rule targets keep <<< "$st"
+	[ "$rule" != 'changed' ] || fmt=custom rule=none
 	if [ "$rule" = 'ours' ]; then
 		fwd=$targets only=''
 		[ -n "$fwd" ] && [ "$keep" = 'no' ] && only='yes'
@@ -160,7 +167,7 @@ forward_rebuild() { # USER DOMAIN DOMAIN_IDN ACCOUNT FWD FWD_ONLY RECORD
 			# Unreadable: the record stays, exim keeps only a line it held.
 			[ "$7" = 'yes' ] || exim=''
 		elif [ "$fmt" = 'custom' ] || forward_sieve_fits "$fwd"; then
-			if [ "$7" != 'yes' ] && [ -n "$(vacation_script "$user" "$domain_idn" "$account")" ]; then
+			if [ "$7" != 'yes' ] && { [ "$fmt" = 'custom' ] || [ -n "$(vacation_script "$user" "$domain_idn" "$account")" ]; }; then
 				fwd='' only='' exim=''
 				forward_record "$domain" "$account" '' ''
 			elif [ "$fmt" != 'custom' ]; then

@@ -59,6 +59,21 @@
       "reversible": false
     },
     {
+      "id": "exim-sieve-forward",
+      "description": "Forwards move into the mailbox's Sieve script: exim hands a forward-only account's clean mail to Sieve and drops only its spam, and Sieve mail gets its own send limit per mailbox instead of one shared by the whole box. Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.35/exim-sieve-forward.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": { "type": "function_call", "function": "exim_sieve_forward_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
+    },
+    {
       "id": "fail2ban-pyinotify",
       "description": "fail2ban watches its logs through inotify: polling dropped exim's log for good after a rotation on a quiet box, and with it the exim jail",
       "conditions": [

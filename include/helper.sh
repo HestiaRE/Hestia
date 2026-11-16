@@ -891,6 +891,21 @@ sieve_max_redirects_apply() {
 	return 0
 }
 
+# The line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in,
+# as there: the crontabs directory is sticky, where opening the file is EACCES even for root.
+forward_bounces_cron_apply() {
+	local ct='/var/spool/cron/crontabs/hestia' tmp="/var/spool/cron/crontabs/.hestia.$$"
+	[ -s "$ct" ] || return 0
+	grep -q 'h-delete-mail-forward-bounces' "$ct" && return 0
+	if { sed -e '$a\' "$ct" && echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"; } > "$tmp" \
+		&& chmod 600 "$tmp" && chown hestia:hestia "$tmp" && mv -f "$tmp" "$ct"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	echo '[ ! ] The hestia crontab did not take the daily cleanup of old bounces in forward-only mailboxes.'
+	return 0
+}
+
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.

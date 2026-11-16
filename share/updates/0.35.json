@@ -85,6 +85,17 @@
       "reversible": false
     },
     {
+      "id": "forward-bounces-cron",
+      "description": "A daily job deletes the bounces a forward-only mailbox keeps of its failed forwards once they are 7 days old; nobody reads such a mailbox. One line added to the hestia crontab, the rest stays as it is",
+      "conditions": [
+        { "type": "path_exists", "path": "/var/spool/cron/crontabs/hestia" },
+        { "type": "file_lacks", "path": "/var/spool/cron/crontabs/hestia", "value": "h-delete-mail-forward-bounces" }
+      ],
+      "action": { "type": "function_call", "function": "forward_bounces_cron_apply" },
+      "paths": ["/var/spool/cron/crontabs/hestia"],
+      "reversible": false
+    },
+    {
       "id": "fail2ban-pyinotify",
       "description": "fail2ban watches its logs through inotify: polling dropped exim's log for good after a rotation on a quiet box, and with it the exim jail",
       "conditions": [

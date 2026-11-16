@@ -1484,6 +1484,8 @@ system_crontab_write() {
 		# Sets UPDATE_AVAILABLE for the panel once a day; downloads nothing. Through bin/, because
 		# the sudo grant ends there and a line pointing at update.sh itself is refused (#1091).
 		echo "$_min 04 * * * sudo $HESTIA/bin/h-check-sys-update"
+		# Keep in step with forward_bounces_cron_apply in include/helper.sh, which adds it on an update.
+		echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"
 	} > "$_tmp" || return 1
 	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
 		rm -f "$_tmp"

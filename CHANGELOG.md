@@ -37,14 +37,17 @@ the releases of the command audit, into another.
   redirects per mail, so the customer's own redirect filters fit beside them (one over the limit stops them all).
   **Spam is no longer forwarded**: it stays in the mailbox's spam folder, or is dropped for forward-only, where
   exim forwarded it before. A forward stays in exim where Sieve cannot hold it: `:blackhole:`, a script the webmail
-  does not manage, or a template not yet patched. Mail from Sieve, redirects and vacation answers, is no longer held
-  to the websites' send limit on dovecot 2.4 (Debian 13, Ubuntu 26.04): it shared one 200/h bucket for the whole
-  box, and past it a delivery was deferred or its later redirects never went out. On dovecot 2.3 it comes as the
-  mailbox owner and gets a 200/h bucket of its own per customer. A forward set before moves into Sieve with the
-  next rebuild of its mail domain.
+  does not manage (an own script, an own rule named Forward, a filter set switched off), or a template not yet
+  patched. Mail from Sieve, redirects and vacation answers, is no longer held to the websites' send limit on dovecot
+  2.4 (Debian 13, Ubuntu 26.04): it shared one 200/h bucket for the whole box, and past it a delivery was deferred
+  or its later redirects never went out. On dovecot 2.3 it comes as the mailbox owner and gets a 200/h bucket of
+  its own per customer. A forward set before moves into Sieve with the next rebuild of its mail domain.
 
 ### Fixed
 
+- **Switching the autoreply on in the panel wiped a filter set switched off in the webmail** (#1337). With no
+  active Sieve script the panel wrote its own under Roundcube's set name and activated it, over the customer's
+  rules. It now refuses and points to the webmail.
 - **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362). On an image that skips
   Recommends, fail2ban ran without python3-pyinotify and polled; exim's log is rotated with `nocreate`, and a
   polling jail drops a file that is missing for a few minutes for good. The installer, `h-add-sys-fail2ban` and

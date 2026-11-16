@@ -1023,6 +1023,11 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 			$_SESSION["error_msg"] = _("Please enter a valid email address.");
 		}
 	}
+	// FORWARD_MAX in include/forward.sh. The CLI refuses a fifth address only after the first four went in.
+	if (empty($_POST["v_blackhole"]) && empty($_SESSION["error_msg"])
+		&& count(preg_split("/[\s,]+/", trim($_POST["v_fwd"] ?? ""), -1, PREG_SPLIT_NO_EMPTY)) > 4) {
+		$_SESSION["error_msg"] = sprintf(_("A mailbox forwards to %d addresses at most."), 4);
+	}
 
 	$v_account = $_POST["v_account"];
 	$v_send_email = $_POST["v_send_email"];

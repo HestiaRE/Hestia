@@ -367,6 +367,11 @@ msgstr "Ключ SSH уже существует."
 msgid "SSH Key has been created successfully."
 msgstr "Ключ SSH успешно создан."
 
+#: web/add/mail/index.php web/edit/mail/index.php
+#, php-format
+msgid "A mailbox forwards to %d addresses at most."
+msgstr ""
+
 #: web/add/mail/index.php web/templates/pages/add_mail_acc.php
 #: web/templates/pages/edit_mail_acc.php
 #: web/templates/pages/list_dns_providers.php

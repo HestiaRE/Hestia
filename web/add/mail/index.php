@@ -233,6 +233,11 @@ if (!empty($_POST["ok_acc"])) {
 			$_SESSION["error_msg"] = _("Password does not match the minimum requirements.");
 		}
 	}
+	// FORWARD_MAX in include/forward.sh. The CLI refuses a fifth address only after the account and the first four exist.
+	if (empty($_POST["v_blackhole"]) && empty($_SESSION["error_msg"])
+		&& count(preg_split("/[\s,]+/", trim($_POST["v_fwd"] ?? ""), -1, PREG_SPLIT_NO_EMPTY)) > 4) {
+		$_SESSION["error_msg"] = sprintf(_("A mailbox forwards to %d addresses at most."), 4);
+	}
 
 	$v_domain = quoteshellarg($_POST["v_domain"]);
 	$v_domain = strtolower($v_domain);

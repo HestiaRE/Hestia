@@ -30,7 +30,8 @@ if [ "$FIREWALL_EXTENSION" = 'fail2ban' ] && systemctl is-active --quiet fail2ba
 fi
 
 echo "[ * ] Installing fail2ban..."
-DEBIAN_FRONTEND=noninteractive apt-get -y -qq install fail2ban > /dev/null 2>&1
+# pyinotify, a Recommends some images skip: polling drops a log that logrotate's nocreate left missing (#1362).
+DEBIAN_FRONTEND=noninteractive apt-get -y -qq install fail2ban python3-pyinotify > /dev/null 2>&1
 if ! dpkg -l fail2ban 2> /dev/null | grep -q '^ii'; then
 	echo "ERROR: the fail2ban package failed to install."
 	exit "$E_INVALID"

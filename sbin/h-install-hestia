@@ -646,7 +646,8 @@ install_security() {
 		echo "[ * ] Installing & configuring fail2ban..."
 		local mail_block='no'
 		is_on "${COMPONENT_MAIL_BLOCK_PRESENT:-}" && mail_block='yes'
-		hestia_apt -y install fail2ban
+		# pyinotify, a Recommends some images skip: polling drops a log that logrotate's nocreate left missing (#1362).
+		hestia_apt -y install fail2ban python3-pyinotify
 		wcv "FIREWALL_EXTENSION" "fail2ban"
 		# One implementation shared with the addon commands; it copies the whole share/fail2ban tree, not a file list.
 		fail2ban_apply "$mail_block" "${COMPONENT_ADDON_PROFTPD:-no}" \

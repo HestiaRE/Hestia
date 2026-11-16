@@ -19,6 +19,18 @@ the releases of the command audit, into another.
   in Sieve answer, which the webmail edits too; an autoreply still left in exim is moved there by the update first,
   and the panel refuses one on a box without Sieve. A receiving rspamd gave the exim answer 4 points for its format
   alone (no MIME-Version, an over-encoded subject); the Sieve answer has neither.
+- **A full mailbox is refused in the SMTP session** (#1337). exim asks dovecot's quota-status at RCPT and answers
+  552, so the sender learns it at once; before, exim accepted the mail and bounced it after four days of retries, to
+  a sender that may be forged. An alias with one target in its domain counts as that account; forward-only accounts
+  are left out. A message that does not fit into a nearly full mailbox is still deferred as before: dovecot 2.3
+  ignores the size, 2.4 checks it only beyond its 10 MB grace.
+
+### Fixed
+
+- **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362). On an image that skips
+  Recommends, fail2ban ran without python3-pyinotify and polled; exim's log is rotated with `nocreate`, and a
+  polling jail drops a file that is missing for a few minutes for good. The installer, `h-add-sys-fail2ban` and
+  the update install the package.
 
 ## v0.34 (2026-11-15)
 

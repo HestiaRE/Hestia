@@ -20,9 +20,10 @@ the releases of the command audit, into another.
   and the panel refuses one on a box without Sieve. A receiving rspamd gave the exim answer 4 points for its format
   alone (no MIME-Version, an over-encoded subject); the Sieve answer has neither.
 - **A full mailbox is refused in the SMTP session** (#1337). exim asks dovecot's quota-status at RCPT and answers
-  552, so the sender learns it at once; before, exim accepted the mail and bounced it after four days of retries,
-  to a sender that may be forged. Forward-only accounts are left out. A message that does not fit into a nearly
-  full mailbox is still deferred as before: dovecot 2.3 ignores the size, 2.4 checks it only beyond its 10 MB grace.
+  552, so the sender learns it at once; before, exim accepted the mail and bounced it after four days of retries, to
+  a sender that may be forged. An alias with one target in its domain counts as that account; forward-only accounts
+  are left out. A message that does not fit into a nearly full mailbox is still deferred as before: dovecot 2.3
+  ignores the size, 2.4 checks it only beyond its 10 MB grace.
 
 ### Fixed
 

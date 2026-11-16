@@ -699,7 +699,8 @@ because exim reads that file and not the template. This is what `file_patch_pend
 (delta 15).
 
 A full mailbox no longer gets that far (#1337 stage 3): `acl_check_rcpt` asks dovecot's quota-status and refuses it
-with `552` in the session, where upstream accepts and bounces after the retry time. The LMTP `452` stays for a message
+with `552` in the session, where upstream accepts and bounces after the retry time. An alias with one target in its
+own domain is asked for that account; a list and the catch-all are not. The LMTP `452` stays for a message
 that does not fit into a nearly full mailbox, and for a forward-only account, which the check leaves out.
 
 ## 17. Out-of-office notice: an exim file -> the mailbox's Sieve script (#784)

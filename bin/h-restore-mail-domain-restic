@@ -233,7 +233,7 @@ for domain in "${domains[@]}"; do
 				-exec chown $exim_user {} \;
 		fi
 
-		restore_notes="$restore_notes$(mail_catchall_restore_check "$domain")"
+		mail_catchall_restore_check "$domain"
 		$BIN/h-rebuild-mail-domain "$user" "$domain"
 	fi
 done

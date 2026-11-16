@@ -1081,8 +1081,8 @@ is_mail_new() {
 # A catch-all is an account of its own domain: exim forwarded an external one, and a refusal there bounced to the
 # sender, forged in most spam (#1337).
 mail_catchall_local() { # DOMAIN EMAIL
-	local dom="${2##*@}" acc="${2%@*}" idn="$1" line
-	[[ "$1" = *[![:ascii:]]* ]] && idn=$(idn2 --quiet "$1")
+	local dom="${2##*@}" acc="${2%@*}" idn line
+	idn=$(name_idn "$1")
 	dom=${dom,,}
 	[ "$dom" = "${1,,}" ] || [ "$dom" = "${idn,,}" ] || return 1
 	[ -f "$USER_DATA/mail/$1.conf" ] || return 1
@@ -1092,13 +1092,26 @@ mail_catchall_local() { # DOMAIN EMAIL
 	return 1
 }
 
-# A restore takes a catch-all only on those terms; prints what it dropped.
+# Stored as the account in lower case at the domain's ASCII name: exim's aliases line takes the value as it is, and
+# h-delete-mail-account recognises its own account in it.
+mail_catchall_norm() { # DOMAIN EMAIL
+	local acc="${2%@*}" idn
+	idn=$(name_idn "$1")
+	printf '%s@%s\n' "${acc,,}" "${idn,,}"
+}
+# A restore takes a catch-all only on those terms. Not in $(): a failed write must end the restore, not the subshell.
+# What it dropped goes to restore_notes, which both restore commands print at the end.
 mail_catchall_restore_check() { # DOMAIN
-	local c
+	local c n
 	c=$(get_object_value 'mail' 'DOMAIN' "$1" '$CATCHALL')
-	[ -z "$c" ] || mail_catchall_local "$1" "$c" && return 0
+	[ -n "$c" ] || return 0
+	if mail_catchall_local "$1" "$c"; then
+		n=$(mail_catchall_norm "$1" "$c")
+		[ "$n" = "$c" ] || update_object_value 'mail' 'DOMAIN' "$1" '$CATCHALL' "$n"
+		return 0
+	fi
 	update_object_value 'mail' 'DOMAIN' "$1" '$CATCHALL' ''
-	printf '\n  mail domain %s: catch-all %s dropped, only an account of the domain can be one' "$1" "$c"
+	restore_notes+=$'\n'"  mail domain $1: catch-all $c dropped, only an account of the domain can be one"
 }
 
 # Modes of a mail domain's certificate files: exim reads them through the mail group, dovecot as root, nobody else.

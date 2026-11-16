@@ -1031,7 +1031,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 				-exec chown $exim_user {} \;
 		fi
 
-		restore_notes="$restore_notes$(mail_catchall_restore_check "$domain")"
+		mail_catchall_restore_check "$domain"
 		# Collected, not aborted: the other domains are still worth restoring, but the run is not a success.
 		$BIN/h-rebuild-mail-domain "$user" "$domain" 2>&1 | tee -a "$tmpdir/restore.log"
 		if [ "${PIPESTATUS[0]}" -ne 0 ]; then

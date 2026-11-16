@@ -848,12 +848,14 @@ exim_sieve_only_apply() {
 dovecot_quota_status_apply() {
 	local f=/etc/dovecot/conf.d/11-quota-status.conf dir=2.3
 	[ "$(printf '%s\n2.4' "$(dovecot --version 2> /dev/null | cut -d. -f1,2)" | sort -V | head -1)" = '2.4' ] && dir=2.4
-	install -m 644 -o root -g root "$HESTIA/share/dovecot/$dir/conf.d/11-quota-status.conf" "$f" || return 1
-	doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot \
+	install -m 644 -o root -g root "$HESTIA/share/dovecot/$dir/conf.d/11-quota-status.conf" "$f" \
+		&& doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot \
 		&& [ -S /run/dovecot/quota-status ] && return 0
 	rm -f "$f"
 	systemctl restart dovecot
-	return 1
+	# exim accepts without an answer, as before; the entry stays pending.
+	echo '[ ! ] dovecot did not take the quota-status service, a full mailbox is still accepted at RCPT.'
+	return 0
 }
 
 # A full mailbox is refused at RCPT. Without the dovecot service exim gets no answer and accepts, as before.

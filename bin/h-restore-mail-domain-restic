@@ -44,6 +44,7 @@ is_restic_repo_configured
 
 tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
 mail_dropped=''
+restore_notes=''
 trap 'rm -rf "$tmpdir"' EXIT
 
 # The metadata is the package beside the repository, not part of the snapshot.
@@ -232,6 +233,7 @@ for domain in "${domains[@]}"; do
 				-exec chown $exim_user {} \;
 		fi
 
+		mail_catchall_restore_check "$domain"
 		$BIN/h-rebuild-mail-domain "$user" "$domain"
 	fi
 done
@@ -243,6 +245,7 @@ $BIN/h-update-sys-ip-counters
 
 queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
+[ -z "$restore_notes" ] || echo "Changed on the way in:$restore_notes"
 if [ -n "$mail_dropped" ]; then
 	check_result "$E_PARSING" "mail of $user restored from $snapshot, except:${mail_dropped%;}"
 fi

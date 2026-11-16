@@ -24,6 +24,11 @@ the releases of the command audit, into another.
   a sender that may be forged. An alias with one target in its domain counts as that account; forward-only accounts
   are left out. A message that does not fit into a nearly full mailbox is still deferred as before: dovecot 2.3
   ignores the size, 2.4 checks it only beyond its 10 MB grace.
+- **A catch-all goes to an account of its own domain** (#1337). exim forwarded an external one, and every refusal
+  at the target bounced to the sender, forged in most spam. The panel and the CLI refuse any other address; a
+  restore (a HestiaCP migration included) drops one and says so at the end of its output. It is stored in lower
+  case at the domain's ASCII name, so deleting the account takes the catch-all along. A catch-all already set on a
+  box stays as it is.
 
 ### Fixed
 

@@ -842,6 +842,7 @@ exim_sieve_only_apply() {
 	exim_template_patch 0.35/exim-sieve-only.patch || return 1
 	sed -i '/^SIEVE = yes$/d' "$tpl"
 	rm -f /var/spool/exim4/db/autoreply.*
+	return 0
 }
 
 # The service exim asks at RCPT whether a mailbox is full.

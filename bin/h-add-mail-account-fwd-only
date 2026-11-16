@@ -32,6 +32,8 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 is_object_unsuspended "mail/$domain" 'ACCOUNT' "$account"
+# The mail rebuild holds it while it refills aliases, where forward_sync would read an exim forward as taken out.
+web_lock_acquire || exit 1
 # The webmail may have changed the forward since; this command changes what the script holds.
 forward_sync "$user" "$domain" "$domain_idn" "$account"
 forward_result $? "$account@$domain" "the Sieve script of $account@$domain could not be read"

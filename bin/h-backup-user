@@ -541,7 +541,12 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			# A Sieve box has no exim file; HestiaCP and a restore here both read the autoreply from one.
 			if vacation_sieve_on; then
 				vacation_domain_sync "$user" "$domain" conf > /dev/null
-				forward_domain_sync "$user" "$domain"
+				# Not while a mail rebuild refills aliases, where an exim forward reads as taken out. Only around the
+				# sync: held for the whole backup, it would stall every rebuild for hours.
+				if web_lock_acquire; then
+					forward_domain_sync "$user" "$domain"
+					web_lock_release
+				fi
 			fi
 		fi
 

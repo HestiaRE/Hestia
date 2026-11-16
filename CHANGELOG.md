@@ -24,6 +24,13 @@ the releases of the command audit, into another.
   to a sender that may be forged. Forward-only accounts are left out. A message that does not fit into a nearly
   full mailbox is still deferred as before: dovecot 2.3 ignores the size, 2.4 checks it only beyond its 10 MB grace.
 
+### Fixed
+
+- **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362). On an image that skips
+  Recommends, fail2ban ran without python3-pyinotify and polled; exim's log is rotated with `nocreate`, and a
+  polling jail drops a file that is missing for a few minutes for good. The installer, `h-add-sys-fail2ban` and
+  the update install the package.
+
 ## v0.34 (2026-11-15)
 
 Sieve on every mail box, root work in a customer's home that a swapped link can no longer redirect, and the findings

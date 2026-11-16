@@ -61,7 +61,8 @@ fail2ban_pyinotify_apply() {
 	fi
 	systemctl -q is-active fail2ban 2> /dev/null || return 0
 	# A reload keeps each jail's backend, so the jails would go on polling.
-	fail2ban_restart
+	fail2ban_restart || echo '[ ! ] fail2ban did not come back after the restart, check: systemctl status fail2ban'
+	return 0
 }
 
 # Update path of the two hestia actions. A reload loads a changed action of the same name and keeps the bans; a

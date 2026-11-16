@@ -26,6 +26,8 @@ for udir in "$CONF_DIR"/users/*; do
 	for conf in "$udir"/mail/*.conf; do
 		[ -e "$conf" ] || continue
 		domain=$(basename "$conf" .conf)
+		# A suspended domain is out of dovecot's userdb, so doveadm would warn about it every night.
+		[[ "$(grep -F "DOMAIN='$domain' " "$udir/mail.conf")" != *"SUSPENDED='yes'"* ]] || continue
 		format_domain_idn
 		while read -r account; do
 			[ -n "$account" ] || continue

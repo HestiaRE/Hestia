@@ -5,6 +5,7 @@
 # example: h-backup-user admin yes
 #
 # Archive a user with its web, mail, databases, cron jobs and data directory into $BACKUP.
+# Not read-only: each mail account's forward and vacation record is first set after its Sieve script.
 
 user=$1
 notify=${2-no}
@@ -23,6 +24,8 @@ source $HESTIA/include/db.sh
 source $HESTIA/include/backup.sh
 # shellcheck source=/usr/local/hestia/include/vacation.sh
 source $HESTIA/include/vacation.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 # This run's own queue line, for the abort paths (see queue_drop_job).
@@ -523,6 +526,7 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 	mail_list=$(echo "$mail_list" | sed -e "s/  */\ /g" -e "s/^ //")
 
 	i=0
+	fwd_sync_off=''
 	for domain in $mail_list; do
 		check_backup_conditions
 		((i++))
@@ -538,6 +542,16 @@ if [ -n "$MAIL_SYSTEM" ] && [ "$MAIL" != '*' ]; then
 			# A Sieve box has no exim file; HestiaCP and a restore here both read the autoreply from one.
 			if vacation_sieve_on; then
 				vacation_domain_sync "$user" "$domain" conf > /dev/null
+				# Not while a mail rebuild refills aliases, where an exim forward reads as taken out. Only around the
+				# sync: held for the whole backup, it would stall every rebuild for hours. Waited for once per run.
+				if [ -z "$fwd_sync_off" ] && web_lock_acquire 2> /dev/null; then
+					forward_domain_sync "$user" "$domain"
+					web_lock_release
+				else
+					fwd_sync_off=yes
+					echo "$(date "+%F %T") Warning: forwards of $domain not read back from Sieve, the mail rebuild lock stayed busy" \
+						| tee -a $BACKUP/$user/$user.log
+				fi
 			fi
 		fi
 

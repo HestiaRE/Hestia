@@ -632,6 +632,11 @@ rebuild_mail_domain_conf() {
 		ln -s $HOMEDIR/$user/conf/mail/$domain \
 			/etc/$MAIL_SYSTEM/domains/$domain_idn
 		rm -f $HOMEDIR/$user/conf/mail/$domain/accounts
+		# Which record may still write its forward's Sieve rule (forward_rebuild): one exim held, or all of a domain
+		# that arrives without this file, by a restore.
+		local fwd_record='' fwd_prior fwd_wins
+		[ -e $HOMEDIR/$user/conf/mail/$domain/aliases ] || fwd_record=yes
+		fwd_prior=$(cat $HOMEDIR/$user/conf/mail/$domain/aliases 2> /dev/null)
 		rm -f $HOMEDIR/$user/conf/mail/$domain/aliases
 		rm -f $HOMEDIR/$user/conf/mail/$domain/antispam
 		rm -f $HOMEDIR/$user/conf/mail/$domain/reject_spam
@@ -794,12 +799,9 @@ rebuild_mail_domain_conf() {
 				[ -n "$malias" ] || continue
 				echo "$malias@$domain_idn:$account@$domain_idn" >> $dom_aliases
 			done
-			if [ -n "$FWD" ]; then
-				echo "$account@$domain_idn:$FWD" >> $dom_aliases
-			fi
-			if [ "$FWD_ONLY" = 'yes' ] && [ -n "$FWD" ]; then
-				echo "$account" >> $HOMEDIR/$user/conf/mail/$domain/fwd_only
-			fi
+			fwd_wins=$fwd_record
+			[[ $'\n'$fwd_prior == *$'\n'"$account@$domain_idn:"* ]] && fwd_wins=yes
+			forward_rebuild "$user" "$domain" "$domain_idn" "$account" "$FWD" "$FWD_ONLY" "$fwd_wins"
 			user_rate_limit=$(get_object_value 'mail' 'DOMAIN' "$domain" '$RATE_LIMIT')
 			if [ -n "$RATE_LIMIT" ]; then
 				#user value

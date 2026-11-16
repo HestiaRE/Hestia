@@ -59,6 +59,43 @@
       "reversible": false
     },
     {
+      "id": "exim-sieve-forward",
+      "description": "Forwards move into the mailbox's Sieve script: exim hands a forward-only account's clean mail to Sieve and drops only its spam, and Sieve mail no longer counts against the websites' send limit on dovecot 2.4 (on 2.3, where it comes as the mailbox owner, it gets a bucket of its own per customer). Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.35/exim-sieve-forward.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": { "type": "function_call", "function": "exim_sieve_forward_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
+    },
+    {
+      "id": "sieve-max-redirects",
+      "description": "A mail may run 8 Sieve redirects instead of 4: the panel's 4 forward targets plus the customer's own filters, since one redirect over the limit stops all of them. Skipped where the line was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "#sieve_max_redirects = 4" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_max_redirects_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false
+    },
+    {
+      "id": "forward-bounces-cron",
+      "description": "A daily job deletes the bounces a forward-only mailbox keeps of its failed forwards once they are 7 days old; nobody reads such a mailbox. One line added to the hestia crontab, the rest stays as it is",
+      "conditions": [
+        { "type": "path_exists", "path": "/var/spool/cron/crontabs/hestia" },
+        { "type": "file_lacks", "path": "/var/spool/cron/crontabs/hestia", "value": "h-delete-mail-forward-bounces" }
+      ],
+      "action": { "type": "function_call", "function": "forward_bounces_cron_apply" },
+      "paths": ["/var/spool/cron/crontabs/hestia"],
+      "reversible": false
+    },
+    {
       "id": "fail2ban-pyinotify",
       "description": "fail2ban watches its logs through inotify: polling dropped exim's log for good after a rotation on a quiet box, and with it the exim jail",
       "conditions": [

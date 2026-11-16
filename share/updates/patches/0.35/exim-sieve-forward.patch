@@ -1,0 +1,32 @@
+--- a/exim4.conf.template
++++ b/exim4.conf.template
+@@ -117,11 +117,18 @@ acl_not_smtp = acl_not_smtp
+ begin acl
+ 
+ # Limit per user for PHP scripts
++# dovecot 2.3 sends Sieve mail as the mailbox owner, so it gets a bucket of its own per customer.
++# A faked X-Sieve only gets a second one.
++NOT_SMTP_KEY = ${if def:h_X-Sieve:{sieve/}}$authenticated_id
++
+ acl_not_smtp:
++  # dovecot 2.4 sends Sieve mail as root, which no website runs as. Over a limit a forward lost its later targets.
++  accept  condition     = ${if and{{def:h_X-Sieve:}{eq{$originator_uid}{0}}}}
++
+   deny    message       = Website of user $authenticated_id is sending too many emails - rate overlimit = $sender_rate / $sender_rate_period
+-  ratelimit             = 200 / 1h / $authenticated_id
++  ratelimit             = 200 / 1h / NOT_SMTP_KEY
+ 
+-  warn    ratelimit     = 100 / 1h / strict / $authenticated_id
++  warn    ratelimit     = 100 / 1h / strict / NOT_SMTP_KEY
+   log_message           = Sender rate [limitlog]: log / account / $authenticated_id / $sender_rate / $sender_rate_period
+ 
+   accept
+@@ -534,6 +541,8 @@ localuser_fwd_only:
+   local_part_suffix_optional
+   transport = devnull
+   condition = ${if exists{/etc/exim4/domains/$domain/fwd_only}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/fwd_only}{true}{false}}}}
++  # A forward in Sieve needs the clean mail delivered to run, so only its spam goes; one exim still holds drops all.
++  condition = ${if match{$h_X-Spam-Status:}{\N^Yes\N}{true}{${if exists{/etc/exim4/domains/$domain/aliases}{${lookup{$local_part@$domain}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/aliases}{true}{false}}}{false}}}}
+ 
+ localuser_spam:
+   driver = accept

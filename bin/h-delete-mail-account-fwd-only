@@ -16,9 +16,12 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 format_domain
+format_domain_idn
 
 check_args '3' "$#" 'USER DOMAIN ACCOUNT'
 is_format_valid 'user' 'domain' 'account'
@@ -26,12 +29,16 @@ is_system_enabled "$MAIL_SYSTEM" 'MAIL_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
-
-if [[ "$MAIL_SYSTEM" =~ exim ]]; then
-	remove_exact_line $HOMEDIR/$user/conf/mail/$domain/fwd_only "$account"
-fi
-
-update_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD_ONLY' ''
+# The mail rebuild holds it while it refills aliases, where forward_sync would read an exim forward as taken out.
+web_lock_acquire || exit 1
+# The webmail may have changed the forward since; this command changes what the script holds.
+forward_sync "$user" "$domain" "$domain_idn" "$account"
+forward_result $? "$account@$domain" "the Sieve script of $account@$domain could not be read"
+fwd=$(get_object_value "mail/$domain" 'ACCOUNT' "$account" '$FWD')
+only=''
+forward_apply "$user" "$domain" "$domain_idn" "$account" "$fwd" "$only"
+forward_result $? "$account@$domain" "the forward of $account@$domain was not changed"
+forward_record "$domain" "$account" "$fwd" "$only"
 
 $BIN/h-log-action "$user" "Info" "Mail" "Mail account forwarding disabled (User: $account@$domain)."
 log_event "$OK" "$ARGUMENTS"

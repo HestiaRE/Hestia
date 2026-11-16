@@ -1,0 +1,38 @@
+#!/bin/bash
+# info: delete old forward bounces from forward-only mailboxes
+# options: [DAYS]
+# labels: internal
+# caller: cron
+#
+# example: h-delete-mail-forward-bounces
+#
+# A forward-only mailbox keeps the bounces of its failed forwards and nobody reads it. Only mail carrying
+# X-Failed-Recipients goes, once it is DAYS (7) in the INBOX; anything else stays.
+
+days=${1-7}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '0' "$#" '[DAYS]'
+is_int_format_valid "$days" 'days'
+[ "$IMAP_SYSTEM" = 'dovecot' ] || exit 0
+
+for udir in "$CONF_DIR"/users/*; do
+	[ -e "$udir" ] || continue
+	for conf in "$udir"/mail/*.conf; do
+		[ -e "$conf" ] || continue
+		domain=$(basename "$conf" .conf)
+		# A suspended domain is out of dovecot's userdb, so doveadm would warn about it every night.
+		[[ "$(grep -F "DOMAIN='$domain' " "$udir/mail.conf")" != *"SUSPENDED='yes'"* ]] || continue
+		format_domain_idn
+		while read -r account; do
+			[ -n "$account" ] || continue
+			doveadm expunge -u "$account@$domain_idn" mailbox INBOX savedbefore "${days}d" header X-Failed-Recipients '' \
+				|| echo "Warning!: the old bounces of $account@$domain could not be deleted" >&2
+		done < <(sed -n "/ FWD_ONLY='yes'/s/^ACCOUNT='\([^']*\)'.*/\1/p" "$conf")
+	done
+done

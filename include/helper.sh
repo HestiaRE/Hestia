@@ -878,21 +878,35 @@ forward_exim_lines() { # CONF_MAIL_DOMAIN_DIR
 
 # A forward-only account's clean mail reaches Sieve, and root's Sieve mail is not held to the websites' limit. Then
 # the forwards exim holds move to Sieve with a rebuild of their domain, one at a time so the lock is free between.
-# What stays in exim is named here, once: the entry is done with the patch.
+# What stays in exim is named here, once: the entry is done with the patch. Without Sieve the patch waits.
 exim_sieve_forward_apply() {
 	local f d u left=''
+	local -a failed=()
+	if ! grep -q "^SIEVE_SYSTEM='yes'" "$HESTIA/conf/hestia.conf"; then
+		echo '[ ! ] sieve is not on here yet, so the forwards stay in exim: h-add-sys-sieve, then the next update moves them'
+		return 0
+	fi
 	exim_template_patch 0.35/exim-sieve-forward.patch || return 1
 	for f in "$HOMEDIR"/*/conf/mail/*/aliases; do
 		[ -e "$f" ] || continue
 		d=${f%/aliases}
 		[ -n "$(forward_exim_lines "$d")" ] || continue
 		u=${d#"$HOMEDIR"/}
-		"$HESTIA/bin/h-rebuild-mail-domain" "${u%%/*}" "${d##*/}" no > /dev/null 2>&1
+		"$HESTIA/bin/h-rebuild-mail-domain" "${u%%/*}" "${d##*/}" no > /dev/null 2>&1 || failed+=("$d")
 	done
 	for f in "$HOMEDIR"/*/conf/mail/*/aliases; do
 		[ -e "$f" ] || continue
-		left="$left$(forward_exim_lines "${f%/aliases}" | cut -d: -f1 | sed 's/^/      /')"$'\n'
+		d=${f%/aliases}
+		[[ " ${failed[*]} " != *" $d "* ]] || continue
+		left="$left$(forward_exim_lines "$d" | cut -d: -f1 | sed 's/^/      /')"$'\n'
 	done
+	if [ "${#failed[@]}" -gt 0 ]; then
+		echo '[ ! ] The rebuild failed for these mail domains (USER DOMAIN), their forwards stay in exim until it runs again:'
+		for d in "${failed[@]}"; do
+			u=${d#"$HOMEDIR"/}
+			echo "      ${u%%/*} ${d##*/}"
+		done
+	fi
 	[ -n "${left//$'\n'/}" ] || return 0
 	echo '[ ! ] These forwards stay in exim: the mailbox has its own Sieve script (also an own rule named Forward or a'
 	echo '      filter set switched off), the domain or customer is suspended, or the rule could not be written. Once the'

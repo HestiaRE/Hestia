@@ -32,13 +32,16 @@ the releases of the command audit, into another.
 - **A forward is a redirect in the mailbox's Sieve script** (#1337). exim forwarded after the SMTP session, and a
   target that refused bounced to the sender, forged in most spam (the backscatter that listed a box). The redirect
   now leaves from the mailbox, so a refusal comes back there; the bounce is not forwarded again and stays in the
-  mailbox, also for forward-only. The panel writes the rule in the webmail's format and the webmail can change it;
-  four addresses at most, since dovecot runs none of five. **Spam is no longer forwarded**: it stays in the
-  mailbox's spam folder, or is dropped for forward-only, where exim forwarded it before. A forward stays in exim
-  where Sieve cannot hold it: `:blackhole:`, a script the webmail does not manage, or a template not yet patched.
-  Mail from Sieve, redirects and vacation answers, gets its own send limit per mailbox; on dovecot 2.4 it shared one
-  200/h bucket for the whole box, and past it every delivery to a forwarding mailbox was deferred. A forward set
-  before moves into Sieve with the next rebuild of its mail domain.
+  mailbox, also for forward-only, where a daily job deletes such bounces after 7 days. The panel writes the rule in
+  the webmail's format and the webmail can change it; four addresses at most, and dovecot now runs up to 8
+  redirects per mail, so the customer's own redirect filters fit beside them (one over the limit stops them all).
+  **Spam is no longer forwarded**: it stays in the mailbox's spam folder, or is dropped for forward-only, where
+  exim forwarded it before. A forward stays in exim where Sieve cannot hold it: `:blackhole:`, a script the webmail
+  does not manage, or a template not yet patched. Mail from Sieve, redirects and vacation answers, is no longer held
+  to the websites' send limit on dovecot 2.4 (Debian 13, Ubuntu 26.04): it shared one 200/h bucket for the whole
+  box, and past it a delivery was deferred or its later redirects never went out. On dovecot 2.3 it comes as the
+  mailbox owner and gets a 200/h bucket of its own per customer. A forward set before moves into Sieve with the
+  next rebuild of its mail domain.
 
 ### Fixed
 

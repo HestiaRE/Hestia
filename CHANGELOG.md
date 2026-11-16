@@ -36,6 +36,10 @@ the releases of the command audit, into another.
   Recommends, fail2ban ran without python3-pyinotify and polled; exim's log is rotated with `nocreate`, and a
   polling jail drops a file that is missing for a few minutes for good. The installer, `h-add-sys-fail2ban` and
   the update install the package.
+- **A busy sending host was refused with 550 for every mail to the box** (#1366). exim's per-account send limit
+  counted inbound mail as well: without an account the rate was keyed on the sending host, and past 200 messages an
+  hour (`limit.conf`) every RCPT got a permanent 550, retries included. Inbound mail is no longer counted;
+  authenticated senders and the unauthenticated local relay keep their limit. Inherited from upstream.
 
 ## v0.34 (2026-11-15)
 

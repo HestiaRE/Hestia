@@ -144,6 +144,7 @@ trap restore_cleanup EXIT
 
 # Collected and reported at the end: one broken object must not abandon the rest nor pass as a success.
 restore_failures=''
+restore_notes=''
 
 # Fixed text: a queued BACKUP for the same customer must not go with this line.
 QUEUE_JOB="h-restore-user '$user' '$backup'"
@@ -1030,6 +1031,7 @@ if [ "$mail" != 'no' ] && [ -n "$MAIL_SYSTEM" ]; then
 				-exec chown $exim_user {} \;
 		fi
 
+		restore_notes="$restore_notes$(mail_catchall_restore_check "$domain")"
 		# Collected, not aborted: the other domains are still worth restoring, but the run is not a success.
 		$BIN/h-rebuild-mail-domain "$user" "$domain" 2>&1 | tee -a "$tmpdir/restore.log"
 		if [ "${PIPESTATUS[0]}" -ne 0 ]; then
@@ -1409,6 +1411,9 @@ if [ -d "$HOMEDIR/$user/.companion" ] && [ -n "$(get_user_value '$DOCKER_IP')" ]
 	fi
 fi
 
+if [ -n "$restore_notes" ]; then
+	echo "Changed on the way in:$restore_notes" | tee -a $tmpdir/restore.log
+fi
 if [ -n "$restore_failures" ]; then
 	subj="$user → restore finished with failures"
 	echo "The following parts did not come back:$restore_failures" | tee -a $tmpdir/restore.log

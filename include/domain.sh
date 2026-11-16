@@ -1078,6 +1078,29 @@ is_mail_new() {
 	done < "$USER_DATA/mail/$domain.conf"
 }
 
+# A catch-all is an account of its own domain: exim forwarded an external one, and a refusal there bounced to the
+# sender, forged in most spam (#1337).
+mail_catchall_local() { # DOMAIN EMAIL
+	local dom="${2##*@}" acc="${2%@*}" idn="$1" line
+	[[ "$1" = *[![:ascii:]]* ]] && idn=$(idn2 --quiet "$1")
+	dom=${dom,,}
+	[ "$dom" = "${1,,}" ] || [ "$dom" = "${idn,,}" ] || return 1
+	[ -f "$USER_DATA/mail/$1.conf" ] || return 1
+	while IFS= read -r line; do
+		[ "$(record_field "$line" ACCOUNT)" = "${acc,,}" ] && return 0
+	done < "$USER_DATA/mail/$1.conf"
+	return 1
+}
+
+# A restore takes a catch-all only on those terms; prints what it dropped.
+mail_catchall_restore_check() { # DOMAIN
+	local c
+	c=$(get_object_value 'mail' 'DOMAIN' "$1" '$CATCHALL')
+	[ -z "$c" ] || mail_catchall_local "$1" "$c" && return 0
+	update_object_value 'mail' 'DOMAIN' "$1" '$CATCHALL' ''
+	printf '\n  mail domain %s: catch-all %s dropped, only an account of the domain can be one' "$1" "$c"
+}
+
 # Modes of a mail domain's certificate files: exim reads them through the mail group, dovecot as root, nobody else.
 # Only this domain's SNI links: chmod on a glob over $MAIL_SNI_DIR followed every link and set the keys of every
 # domain on the box to 644, and chown -h handed all links to the current user (#1135).

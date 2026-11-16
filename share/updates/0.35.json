@@ -1,0 +1,21 @@
+{
+  "version": "0.35",
+  "entries": [
+    {
+      "id": "exim-sieve-only",
+      "description": "exim hands every clean mail to Sieve and no longer answers autoreplies itself: the vacation rules in Sieve answer, and an autoreply still in exim is moved there first. Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        { "type": "key_is", "name": "SIEVE_SYSTEM", "value": "yes" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.35/exim-sieve-only.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": { "type": "function_call", "function": "exim_sieve_only_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template", "/var/spool/exim4/db"],
+      "reversible": false
+    }
+  ]
+}

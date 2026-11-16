@@ -15,6 +15,10 @@ the releases of the command audit, into another.
 
 ### Changed
 
+- **exim hands every clean mail to Sieve and no longer answers autoreplies itself** (#1337). The vacation rules
+  in Sieve answer, which the webmail edits too; an autoreply still left in exim is moved there by the update first,
+  and the panel refuses one on a box without Sieve. A receiving rspamd gave the exim answer 4 points for its format
+  alone (no MIME-Version, an over-encoded subject); the Sieve answer has neither.
 - **A catch-all goes to an account of its own domain** (#1337). exim forwarded an external one, and every refusal
   at the target bounced to the sender, forged in most spam. The panel and the CLI refuse any other address; a
   restore (a HestiaCP migration included) drops one and says so at the end of its output. A catch-all already set

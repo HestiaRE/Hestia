@@ -1507,18 +1507,6 @@ web_dir_trusted() {
 	(home_cd "$1" web root && [ ! -L "$2" ])
 }
 
-# exim's autoreply once-DB outlives the mailbox, so a recreated one stayed silent to earlier senders for 7 days.
-# Without ACCOUNT it clears every mailbox of the domain. The names are exim's, see the userautoreply transport.
-mail_autoreply_once_clear() { # DOMAIN_IDN [ACCOUNT]
-	local db=/var/spool/exim4/db
-	[ -n "$1" ] || return 0
-	if [ -n "${2:-}" ]; then
-		rm -f "$db/autoreply.$2@$1" "$db/autoreply.$2@$1.lockfile"
-	else
-		rm -f "$db/autoreply."*"@$1" "$db/autoreply."*"@$1.lockfile"
-	fi
-}
-
 #----------------------------------------------------------#
 #                        CMN                               #
 #----------------------------------------------------------#

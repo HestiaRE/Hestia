@@ -818,6 +818,32 @@ exim_template_patch() { # PATCH below share/updates/patches
 	systemctl is-active --quiet exim4
 }
 
+# #1337 stage 2: exim delivers through LMTP only and no longer answers autoreplies. Only where Sieve carries the
+# delivery already, and a vacation still in exim is moved first: one that stays keeps the template, or it would fall
+# silent. Like sieve_mandatory_apply, a box not ready warns and keeps the entry pending.
+exim_sieve_only_apply() {
+	local tpl=/etc/exim4/exim4.conf.template f d left
+	if ! grep -q '^SIEVE = yes' "$tpl" || [ ! -S /run/dovecot/lmtp ]; then
+		echo "[ ! ] exim does not deliver through Sieve here yet: h-add-sys-sieve, then the next update retries"
+		return 0
+	fi
+	for f in "$HOMEDIR"/*/conf/mail/*/autoreply.*.msg; do
+		[ -e "$f" ] || continue
+		d=${f%/autoreply.*}
+		f=${d#"$HOMEDIR"/}
+		"$HESTIA/bin/h-rebuild-mail-domain" "${f%%/*}" "${d##*/}" no > /dev/null 2>&1
+	done
+	left=$(compgen -G "$HOMEDIR/*/conf/mail/*/autoreply.*.msg")
+	if [ -n "$left" ]; then
+		echo '[ ! ] these autoreplies did not move to Sieve, exim keeps answering them.'
+		printf '      Set each one in the webmail and delete its file, the next update goes on:\n%s\n' "$left"
+		return 0
+	fi
+	exim_template_patch 0.35/exim-sieve-only.patch || return 1
+	sed -i '/^SIEVE = yes$/d' "$tpl"
+	rm -f /var/spool/exim4/db/autoreply.*
+}
+
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.

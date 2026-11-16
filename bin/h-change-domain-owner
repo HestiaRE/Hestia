@@ -189,7 +189,7 @@ if [ -n "$mail_data" ]; then
 			$CONF_DIR/users/$user/mail/
 	fi
 
-	# Autoreplies: the record copy moves along, and an exim-mode text is written again into the new conf dir.
+	# Autoreplies: the record copy moves along, and a text not yet in Sieve too, which the rebuild below moves there.
 	for msg in "$CONF_DIR/users/$owner/mail/"*"@$domain.msg"; do
 		[ -e "$msg" ] || continue
 		account=$(basename "$msg" "@$domain.msg")

@@ -45,7 +45,6 @@ if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	rm -f "/etc/$MAIL_SYSTEM/domains/$domain_idn" "/etc/$MAIL_SYSTEM/domains/$domain"
 	rm -rf $HOMEDIR/$user/conf/mail/$domain
 	home_run "$user" mail root -- rm -rf -- "./$domain_idn"
-	mail_autoreply_once_clear "$domain_idn"
 fi
 
 # Keyed on the front, not WEB_SYSTEM: a mailfront box has none, and a skipped delete leaves a vhost link nginx rejects.

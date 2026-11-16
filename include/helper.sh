@@ -869,9 +869,50 @@ exim_ratelimit_inbound_apply() {
 	exim_template_patch 0.35/exim-ratelimit-inbound.patch
 }
 
-# A forward-only account's clean mail reaches Sieve, and root's Sieve mail is not held to the websites' limit.
+# The aliases lines of a mail domain's accounts, that is its forwards, without those exim keeps for :blackhole:.
+forward_exim_lines() { # CONF_MAIL_DOMAIN_DIR
+	[ -s "$1/passwd" ] && [ -s "$1/aliases" ] || return 0
+	awk -F: 'NR == FNR { a[$1] = 1; next } { split($1, p, "@") } (p[1] in a) && $0 !~ /:blackhole:/' \
+		"$1/passwd" "$1/aliases" 2> /dev/null
+}
+
+# A forward-only account's clean mail reaches Sieve, and root's Sieve mail is not held to the websites' limit. Then
+# the forwards exim holds move to Sieve with a rebuild of their domain, one at a time so the lock is free between.
+# What stays in exim is named here, once: the entry is done with the patch. Without Sieve the patch waits.
 exim_sieve_forward_apply() {
-	exim_template_patch 0.35/exim-sieve-forward.patch
+	local f d u left=''
+	local -a failed=()
+	if ! grep -q "^SIEVE_SYSTEM='yes'" "$HESTIA/conf/hestia.conf"; then
+		echo '[ ! ] sieve is not on here yet, so the forwards stay in exim: h-add-sys-sieve, then the next update moves them'
+		return 0
+	fi
+	exim_template_patch 0.35/exim-sieve-forward.patch || return 1
+	for f in "$HOMEDIR"/*/conf/mail/*/aliases; do
+		[ -e "$f" ] || continue
+		d=${f%/aliases}
+		[ -n "$(forward_exim_lines "$d")" ] || continue
+		u=${d#"$HOMEDIR"/}
+		"$HESTIA/bin/h-rebuild-mail-domain" "${u%%/*}" "${d##*/}" no > /dev/null 2>&1 || failed+=("$d")
+	done
+	for f in "$HOMEDIR"/*/conf/mail/*/aliases; do
+		[ -e "$f" ] || continue
+		d=${f%/aliases}
+		[[ " ${failed[*]} " != *" $d "* ]] || continue
+		left="$left$(forward_exim_lines "$d" | cut -d: -f1 | sed 's/^/      /')"$'\n'
+	done
+	if [ "${#failed[@]}" -gt 0 ]; then
+		echo '[ ! ] The rebuild failed for these mail domains (USER DOMAIN), their forwards stay in exim until it runs again:'
+		for d in "${failed[@]}"; do
+			u=${d#"$HOMEDIR"/}
+			echo "      ${u%%/*} ${d##*/}"
+		done
+	fi
+	[ -n "${left//$'\n'/}" ] || return 0
+	echo '[ ! ] These forwards stay in exim: the mailbox has its own Sieve script (also an own rule named Forward or a'
+	echo '      filter set switched off), the domain or customer is suspended, or the rule could not be written. Once the'
+	echo '      webmail manages the filters again, a rebuild of the domain moves the forward:'
+	printf '%s' "$left" | sed '/^$/d'
+	return 0
 }
 
 # Room for the customer's own redirects beside the panel's four; a line set by hand is never matched.

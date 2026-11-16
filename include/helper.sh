@@ -827,15 +827,16 @@ exim_sieve_only_apply() {
 		echo "[ ! ] exim does not deliver through Sieve here yet: h-add-sys-sieve, then the next update retries"
 		return 0
 	fi
-	for f in /home/*/conf/mail/*/autoreply.*.msg; do
+	for f in "$HOMEDIR"/*/conf/mail/*/autoreply.*.msg; do
 		[ -e "$f" ] || continue
 		d=${f%/autoreply.*}
-		f=${d#/home/}
+		f=${d#"$HOMEDIR"/}
 		"$HESTIA/bin/h-rebuild-mail-domain" "${f%%/*}" "${d##*/}" no > /dev/null 2>&1
 	done
-	left=$(compgen -G '/home/*/conf/mail/*/autoreply.*.msg')
+	left=$(compgen -G "$HOMEDIR/*/conf/mail/*/autoreply.*.msg")
 	if [ -n "$left" ]; then
-		printf '[ ! ] these autoreplies did not move to Sieve, exim keeps answering them until the next update:\n%s\n' "$left"
+		echo '[ ! ] these autoreplies did not move to Sieve, exim keeps answering them.'
+		printf '      Set each one in the webmail and delete its file, the next update goes on:\n%s\n' "$left"
 		return 0
 	fi
 	exim_template_patch 0.35/exim-sieve-only.patch || return 1

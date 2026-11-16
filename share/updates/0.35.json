@@ -60,7 +60,7 @@
     },
     {
       "id": "exim-sieve-forward",
-      "description": "Forwards move into the mailbox's Sieve script: exim hands a forward-only account's clean mail to Sieve and drops only its spam, and Sieve mail gets its own send limit per mailbox instead of one shared by the whole box. Patched into a file the operator may have edited",
+      "description": "Forwards move into the mailbox's Sieve script: exim hands a forward-only account's clean mail to Sieve and drops only its spam, and Sieve mail no longer counts against the websites' send limit on dovecot 2.4 (on 2.3, where it comes as the mailbox owner, it gets a bucket of its own per customer). Patched into a file the operator may have edited",
       "conditions": [
         { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
         {

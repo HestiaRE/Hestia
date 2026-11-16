@@ -869,7 +869,7 @@ exim_ratelimit_inbound_apply() {
 	exim_template_patch 0.35/exim-ratelimit-inbound.patch
 }
 
-# A forward-only account's clean mail reaches Sieve, and Sieve mail is limited per mailbox (include/forward.sh).
+# A forward-only account's clean mail reaches Sieve, and root's Sieve mail is not held to the websites' limit.
 exim_sieve_forward_apply() {
 	exim_template_patch 0.35/exim-sieve-forward.patch
 }

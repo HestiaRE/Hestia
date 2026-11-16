@@ -1,14 +1,17 @@
 --- a/exim4.conf.template
 +++ b/exim4.conf.template
-@@ -117,11 +117,15 @@ acl_not_smtp = acl_not_smtp
+@@ -117,11 +117,18 @@ acl_not_smtp = acl_not_smtp
  begin acl
  
  # Limit per user for PHP scripts
-+# Sieve mail (redirects, vacation answers) counts apart: on dovecot 2.4 it comes from root, which has no login, so
-+# without its own key every mailbox of the box shared one bucket. A faked X-Sieve only gets a second one.
-+NOT_SMTP_KEY = ${if def:h_X-Sieve:{sieve/}}${if def:authenticated_id{$authenticated_id}{$sender_address}}
++# dovecot 2.3 sends Sieve mail as the mailbox owner, so it gets a bucket of its own per customer.
++# A faked X-Sieve only gets a second one.
++NOT_SMTP_KEY = ${if def:h_X-Sieve:{sieve/}}$authenticated_id
 +
  acl_not_smtp:
++  # dovecot 2.4 sends Sieve mail as root, which no website runs as. Over a limit a forward lost its later targets.
++  accept  condition     = ${if and{{def:h_X-Sieve:}{eq{$originator_uid}{0}}}}
++
    deny    message       = Website of user $authenticated_id is sending too many emails - rate overlimit = $sender_rate / $sender_rate_period
 -  ratelimit             = 200 / 1h / $authenticated_id
 +  ratelimit             = 200 / 1h / NOT_SMTP_KEY
@@ -18,7 +21,7 @@
    log_message           = Sender rate [limitlog]: log / account / $authenticated_id / $sender_rate / $sender_rate_period
  
    accept
-@@ -534,6 +538,8 @@ localuser_fwd_only:
+@@ -534,6 +541,8 @@ localuser_fwd_only:
    local_part_suffix_optional
    transport = devnull
    condition = ${if exists{/etc/exim4/domains/$domain/fwd_only}{${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/fwd_only}{true}{false}}}}

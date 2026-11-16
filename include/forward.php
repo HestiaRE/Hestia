@@ -9,6 +9,7 @@
 //   state FILE                        -> JSON {format, rule, targets, keep}; FILE may be empty or absent
 //   set   FORMAT FILE KEEP TARGET...  -> the new script on stdout; KEEP yes|no; FORMAT is for an absent/empty FILE
 //   clear FILE                        -> the new script on stdout, without the forward
+//   states FILE...                    -> FORMAT|RULE|TARGETS|KEEP per FILE, a line each, for the listers' one run
 // Exit 3, silent: the script is not one this file can write (an own script, or a "Forward" rule or filter changed
 // beyond its targets and keep), so it is left to the webmail. Exit 1: anything else, nothing printed.
 //
@@ -431,7 +432,7 @@ function checked(string $want, string $out, array $targets, bool $keep): string
 
 function usage(): never
 {
-	fail(1, 'usage: forward.php state FILE | set roundcube|tachyon FILE yes|no TARGET... | clear FILE');
+	fail(1, 'usage: forward.php state FILE | states FILE... | set roundcube|tachyon FILE yes|no TARGET... | clear FILE');
 }
 
 ini_set('display_errors', 'stderr');
@@ -447,6 +448,17 @@ switch ($op) {
 	case 'state':
 		isset($argv[2]) || usage();
 		echo json_encode(state_of($argv[2]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), "\n";
+		break;
+	case 'states':
+		foreach (array_slice($argv, 2) as $file) {
+			// A line for every FILE, or the lines no longer match the accounts; one php cannot read is not ours to write.
+			try {
+				$st = state_of($file);
+			} catch (Throwable) {
+				$st = ['format' => 'custom', 'rule' => 'none', 'targets' => [], 'keep' => true];
+			}
+			echo $st['format'], '|', $st['rule'], '|', implode(',', $st['targets']), '|', $st['keep'] ? 'yes' : 'no', "\n";
+		}
 		break;
 	case 'set':
 		[, , $want, $file, $keep] = $argv + [null, null, '', '', ''];

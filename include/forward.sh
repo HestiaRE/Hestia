@@ -75,19 +75,23 @@ forward_record() { # DOMAIN ACCOUNT FWD FWD_ONLY
 }
 
 # The record after the script, before a command changes the forward: a rule there is the forward, also one the
-# webmail changed. A script without one while exim holds none means the customer took it out there. Returns 3 for a
-# script the panel does not write, the record left as it is.
+# webmail changed. A script without one while exim holds none means the customer took it out there, also by switching
+# to an own script. Returns 3 for a script the panel does not write.
 forward_sync() { # USER DOMAIN DOMAIN_IDN ACCOUNT
 	local user=$1 domain=$2 domain_idn=$3 account=$4 st fmt rule targets keep only=''
 	st=$(forward_read "$user" "$domain_idn" "$account") || return 1
 	IFS='|' read -r fmt rule targets keep <<< "$st"
-	[ "$fmt" != 'custom' ] && [ "$rule" != 'changed' ] || return 3
+	[ "$rule" != 'changed' ] || return 3
 	if [ "$rule" = 'none' ]; then
-		forward_has_exim_line "$user" "$domain" "$domain_idn" "$account" && return 0
+		if forward_has_exim_line "$user" "$domain" "$domain_idn" "$account"; then
+			[ "$fmt" != 'custom' ] || return 3
+			return 0
+		fi
 		[ -n "$(vacation_script "$user" "$domain_idn" "$account")" ] || return 0
 	fi
 	[ -n "$targets" ] && [ "$keep" = 'no' ] && only='yes'
 	forward_record "$domain" "$account" "$targets" "$only"
+	[ "$fmt" != 'custom' ] || return 3
 }
 
 # Before a backup: every record after its script, so a restore elsewhere writes the forward the customer has now.
@@ -137,11 +141,12 @@ forward_apply() { # USER DOMAIN DOMAIN_IDN ACCOUNT FWD FWD_ONLY
 }
 
 # The rebuild's half for one account, appended to its fresh aliases and fwd_only files. The script is the truth where
-# it holds a rule. Without one the record writes it only where nothing can have been taken out in the webmail - no
-# script, or RECORD set because exim held this forward before or the domain arrives by a restore - else the customer
-# took it out there and the record follows. A rule that cannot be written leaves the forward in exim, never nowhere.
+# it holds a rule. Without one the record writes it only where nothing can have been taken out in the webmail: no
+# script, or RECORD set because exim held this forward before or the domain arrives by a restore. Else the customer
+# took it out there, also by switching to an own script, and the record follows; an own script keeps exim's line only
+# under RECORD. A rule that cannot be written leaves the forward in exim, never nowhere.
 forward_rebuild() { # USER DOMAIN DOMAIN_IDN ACCOUNT FWD FWD_ONLY RECORD
-	local user=$1 domain=$2 domain_idn=$3 account=$4 fwd=$5 only=$6 st fmt='custom' rule='none' targets keep exim=''
+	local user=$1 domain=$2 domain_idn=$3 account=$4 fwd=$5 only=$6 st fmt='' rule='none' targets keep exim=''
 	local dir="$HOMEDIR/$1/conf/mail/$2" w=yes
 	local -a list
 	st=$(forward_read "$user" "$domain_idn" "$account") && IFS='|' read -r fmt rule targets keep <<< "$st"
@@ -151,11 +156,14 @@ forward_rebuild() { # USER DOMAIN DOMAIN_IDN ACCOUNT FWD FWD_ONLY RECORD
 		forward_record "$domain" "$account" "$fwd" "$only"
 	elif [ "$rule" = 'none' ] && [ -n "$fwd" ]; then
 		exim=yes
-		if [ "$fmt" != 'custom' ] && forward_sieve_fits "$fwd"; then
+		if [ -z "$fmt" ]; then
+			# Unreadable: the record stays, exim keeps only a line it held.
+			[ "$7" = 'yes' ] || exim=''
+		elif [ "$fmt" = 'custom' ] || forward_sieve_fits "$fwd"; then
 			if [ "$7" != 'yes' ] && [ -n "$(vacation_script "$user" "$domain_idn" "$account")" ]; then
 				fwd='' only='' exim=''
 				forward_record "$domain" "$account" '' ''
-			else
+			elif [ "$fmt" != 'custom' ]; then
 				IFS=, read -ra list <<< "$fwd"
 				[ "$only" = 'yes' ] && w=no
 				if forward_sieve_write "$user" "$domain" "$domain_idn" "$account" "$w" "${list[@]}"; then

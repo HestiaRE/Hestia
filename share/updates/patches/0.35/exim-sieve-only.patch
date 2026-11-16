@@ -37,7 +37,7 @@
 -# dovecot-lda so the account's sieve scripts run at delivery. Spam keeps the
 -# direct .Spam appendfile path (localuser_spam above) — its verdict is final.
 -.ifdef SIEVE
-+  # Clean mail goes through Sieve (vacation, filters, forwards). Spam keeps the direct .Spam path above.
++  # Clean mail goes through Sieve, where the mailbox's own rules run. Spam keeps the direct .Spam path above.
    transport = dovecot_virtual_delivery
 -.else
 -  transport = local_delivery

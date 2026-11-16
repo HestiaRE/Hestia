@@ -532,7 +532,7 @@ localuser:
   driver = accept
   local_part_suffix = +*
   local_part_suffix_optional
-  # Clean mail goes through Sieve (vacation, filters, forwards). Spam keeps the direct .Spam path above.
+  # Clean mail goes through Sieve, where the mailbox's own rules run. Spam keeps the direct .Spam path above.
   transport = dovecot_virtual_delivery
   condition = ${lookup{$local_part}lsearch{/etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/passwd}{true}{false}}
 

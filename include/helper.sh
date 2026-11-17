@@ -818,6 +818,136 @@ exim_template_patch() { # PATCH below share/updates/patches
 	systemctl is-active --quiet exim4
 }
 
+# #1337 stage 2: exim delivers through LMTP only and no longer answers autoreplies. Only where Sieve carries the
+# delivery already, and a vacation still in exim is moved first: one that stays keeps the template, or it would fall
+# silent. Like sieve_mandatory_apply, a box not ready warns and keeps the entry pending.
+exim_sieve_only_apply() {
+	local tpl=/etc/exim4/exim4.conf.template f d left
+	if ! grep -q '^SIEVE = yes' "$tpl" || [ ! -S /run/dovecot/lmtp ]; then
+		echo "[ ! ] exim does not deliver through Sieve here yet: h-add-sys-sieve, then the next update retries"
+		return 0
+	fi
+	for f in "$HOMEDIR"/*/conf/mail/*/autoreply.*.msg; do
+		[ -e "$f" ] || continue
+		d=${f%/autoreply.*}
+		f=${d#"$HOMEDIR"/}
+		"$HESTIA/bin/h-rebuild-mail-domain" "${f%%/*}" "${d##*/}" no > /dev/null 2>&1
+	done
+	left=$(compgen -G "$HOMEDIR/*/conf/mail/*/autoreply.*.msg")
+	if [ -n "$left" ]; then
+		echo '[ ! ] these autoreplies did not move to Sieve, exim keeps answering them.'
+		printf '      Set each one in the webmail and delete its file, the next update goes on:\n%s\n' "$left"
+		return 0
+	fi
+	exim_template_patch 0.35/exim-sieve-only.patch || return 1
+	sed -i '/^SIEVE = yes$/d' "$tpl"
+	rm -f /var/spool/exim4/db/autoreply.*
+	return 0
+}
+
+# The service exim asks at RCPT whether a mailbox is full.
+dovecot_quota_status_apply() {
+	local f=/etc/dovecot/conf.d/11-quota-status.conf dir=2.3
+	[ "$(printf '%s\n2.4' "$(dovecot --version 2> /dev/null | cut -d. -f1,2)" | sort -V | head -1)" = '2.4' ] && dir=2.4
+	install -m 644 -o root -g root "$HESTIA/share/dovecot/$dir/conf.d/11-quota-status.conf" "$f" \
+		&& doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot \
+		&& [ -S /run/dovecot/quota-status ] && return 0
+	rm -f "$f"
+	systemctl restart dovecot
+	# exim accepts without an answer, as before; the entry stays pending.
+	echo '[ ! ] dovecot did not take the quota-status service, a full mailbox is still accepted at RCPT.'
+	return 0
+}
+
+# A full mailbox is refused at RCPT. Without the dovecot service exim gets no answer and accepts, as before.
+exim_quota_status_apply() {
+	exim_template_patch 0.35/exim-quota-status.patch
+}
+
+# Inbound mail is no longer counted against the per-account send limit, keyed on its host and refused with 550.
+exim_ratelimit_inbound_apply() {
+	exim_template_patch 0.35/exim-ratelimit-inbound.patch
+}
+
+# The aliases lines of a mail domain's accounts, that is its forwards, without those exim keeps for :blackhole:.
+forward_exim_lines() { # CONF_MAIL_DOMAIN_DIR
+	[ -s "$1/passwd" ] && [ -s "$1/aliases" ] || return 0
+	awk -F: 'NR == FNR { a[$1] = 1; next } { split($1, p, "@") } (p[1] in a) && $0 !~ /:blackhole:/' \
+		"$1/passwd" "$1/aliases" 2> /dev/null
+}
+
+# A forward-only account's clean mail reaches Sieve, and root's Sieve mail is not held to the websites' limit. Then
+# the forwards exim holds move to Sieve with a rebuild of their domain, one at a time so the lock is free between.
+# What stays in exim is named here, once: the entry is done with the patch. Without Sieve the patch waits.
+exim_sieve_forward_apply() {
+	local f d u left=''
+	local -a failed=()
+	if ! grep -q "^SIEVE_SYSTEM='yes'" "$HESTIA/conf/hestia.conf"; then
+		echo '[ ! ] sieve is not on here yet, so the forwards stay in exim: h-add-sys-sieve, then the next update moves them'
+		return 0
+	fi
+	exim_template_patch 0.35/exim-sieve-forward.patch || return 1
+	for f in "$HOMEDIR"/*/conf/mail/*/aliases; do
+		[ -e "$f" ] || continue
+		d=${f%/aliases}
+		[ -n "$(forward_exim_lines "$d")" ] || continue
+		u=${d#"$HOMEDIR"/}
+		"$HESTIA/bin/h-rebuild-mail-domain" "${u%%/*}" "${d##*/}" no > /dev/null 2>&1 || failed+=("$d")
+	done
+	for f in "$HOMEDIR"/*/conf/mail/*/aliases; do
+		[ -e "$f" ] || continue
+		d=${f%/aliases}
+		[[ " ${failed[*]} " != *" $d "* ]] || continue
+		left="$left$(forward_exim_lines "$d" | cut -d: -f1 | sed 's/^/      /')"$'\n'
+	done
+	if [ "${#failed[@]}" -gt 0 ]; then
+		echo '[ ! ] The rebuild failed for these mail domains (USER DOMAIN), their forwards stay in exim until it runs again:'
+		for d in "${failed[@]}"; do
+			u=${d#"$HOMEDIR"/}
+			echo "      ${u%%/*} ${d##*/}"
+		done
+	fi
+	[ -n "${left//$'\n'/}" ] || return 0
+	echo '[ ! ] These forwards stay in exim: the mailbox has its own Sieve script (also an own rule named Forward or a'
+	echo '      filter set switched off), the domain or customer is suspended, or the rule could not be written. Once the'
+	echo '      webmail manages the filters again, a rebuild of the domain moves the forward:'
+	printf '%s' "$left" | sed '/^$/d'
+	return 0
+}
+
+# Room for the customer's own redirects beside the panel's four; a line set by hand is never matched.
+sieve_max_redirects_apply() {
+	local f=/etc/dovecot/conf.d/90-sieve.conf keep
+	local c="# Twice the panel's forward targets (FORWARD_MAX in include/forward.sh): room for the customer's own."
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	sed -i -E "s|^([[:space:]]*)#sieve_max_redirects = 4\$|\\1$c\\n\\1sieve_max_redirects = 8|" "$f"
+	if doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl restart dovecot
+	echo '[ ! ] dovecot did not take sieve_max_redirects = 8, a mail still runs at most 4 redirects.'
+	return 0
+}
+
+# The line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in,
+# as there: the crontabs directory is sticky, where opening the file is EACCES even for root.
+forward_bounces_cron_apply() {
+	local ct='/var/spool/cron/crontabs/hestia' tmp="/var/spool/cron/crontabs/.hestia.$$"
+	# Empty counts as missing: the daily repair writes it whole, with this line.
+	[ -s "$ct" ] || return 0
+	grep -q 'h-delete-mail-forward-bounces' "$ct" && return 0
+	if { sed -e '$a\' "$ct" && echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"; } > "$tmp" \
+		&& chmod 600 "$tmp" && chown hestia:hestia "$tmp" && mv -f "$tmp" "$ct"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	echo '[ ! ] The hestia crontab did not take the daily cleanup of old bounces in forward-only mailboxes.'
+	return 0
+}
+
 # The mysql/mysqldump names for whoever still types them: from 11.x they sit in mariadb-client-compat, which
 # mariadb-client only recommends; 10.11 ships them itself and has no such package. Pinned to the client's
 # version, so this never upgrades the client and with it the server.

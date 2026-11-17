@@ -87,10 +87,11 @@
 						</label>
 						<textarea class="form-control" name="v_aliases" id="v_aliases"><?= tohtml(trim($v_aliases, "'")) ?></textarea>
 					</div>
+					<?php $forward_readonly = ($v_fwd_source ?? "exim") == "custom"; ?>
 					<div class="form-check">
 						<input class="form-check-input js-discard-all-mail" type="checkbox" name="v_blackhole" id="v_blackhole" <?php if ($v_blackhole == 'yes') {
 							echo 'checked';
-						} ?>>
+						} ?> <?= $forward_readonly ? "disabled" : "" ?>>
 						<label for="v_blackhole">
 							<?= tohtml(_("Discard all mail")) ?>
 						</label>
@@ -100,7 +101,7 @@
 					} ?>">
 						<input class="form-check-input js-do-not-store-checkbox" type="checkbox" name="v_fwd_only" id="v_fwd_for" <?php if ($v_fwd_only == 'yes') {
 							echo 'checked';
-						} ?>>
+						} ?> <?= $forward_readonly ? "disabled" : "" ?>>
 						<label for="v_fwd_for">
 							<?= tohtml(_("Do not store forwarded mail")) ?>
 						</label>
@@ -109,10 +110,20 @@
 						<label for="v_fwd" class="form-label">
 							<?= tohtml(_("Forward to")) ?> <span class="optional">(<?= tohtml(_("one or more email addresses")) ?>)</span>
 						</label>
-						<textarea class="form-control js-forward-to-textarea" name="v_fwd" id="v_fwd" <?php if ($v_blackhole == 'yes') {
+						<textarea class="form-control js-forward-to-textarea" name="v_fwd" id="v_fwd" <?php if ($v_blackhole == 'yes' || $forward_readonly) {
 							echo "disabled";
 						} ?>><?= tohtml(trim($v_fwd, "'")) ?></textarea>
 					</div>
+					<?php if ($forward_readonly) { ?>
+						<p class="hint u-mb10"><?= tohtml(_("This mailbox has Sieve filters the panel does not manage (its own script, its own rule named Forward or a filter set switched off). Once the webmail manages them again, the forward can be changed here.")) ?></p>
+					<?php } else { ?>
+						<?php if (($v_fwd_count ?? 0) > 4) { ?>
+							<p class="hint u-mb10"><?= tohtml(sprintf(_("The webmail forwards to %1\$d addresses. Saved unchanged, they stay; a change here takes %2\$d at most."), $v_fwd_count, 4)) ?></p>
+						<?php } ?>
+						<?php if (in_array($v_fwd_source ?? "", ["roundcube", "tachyon", "none"], true)) { ?>
+							<p class="hint u-mb10"><?= tohtml(_("Shared with the forward filter in the webmail.")) ?></p>
+						<?php } ?>
+					<?php } ?>
 					<?php $autoreply_readonly = ($v_autoreply_source ?? "exim") == "custom"; ?>
 					<div class="form-check u-mb10">
 						<input x-model="hasAutoReply" class="form-check-input" type="checkbox" name="v_autoreply" id="v_autoreply" <?= $autoreply_readonly ? "disabled" : "" ?>>
@@ -121,7 +132,7 @@
 						</label>
 					</div>
 					<?php if ($autoreply_readonly) { ?>
-						<p class="hint u-mb10"><?= tohtml(_("The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, or several vacation rules). Change it in the webmail.")) ?></p>
+						<p class="hint u-mb10"><?= tohtml(_("The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, several vacation rules or a filter set switched off). Change it in the webmail.")) ?></p>
 					<?php } elseif (in_array($v_autoreply_source ?? "", ["roundcube", "tachyon", "none"], true)) { ?>
 						<p class="hint u-mb10"><?= tohtml(_("Shared with the vacation filter in the webmail.")) ?></p>
 					<?php } ?>

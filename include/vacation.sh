@@ -1,7 +1,7 @@
 #!/bin/bash
-# The panel's autoreply: exim's autoreply.<account>.msg without Sieve, otherwise the vacation rule in the mailbox's
-# active script in its webmail's format (include/vacation.php), so panel and webmail edit one entry and one answers.
-# Record AUTOREPLY and $USER_DATA/mail/<account>@<domain>.msg stay either way: both travel in a HestiaCP backup.
+# The panel's autoreply: the vacation rule in the mailbox's active script in its webmail's format
+# (include/vacation.php), so panel and webmail edit one entry. exim's autoreply.<account>.msg is only what a restore
+# brings and a rebuild moves into Sieve. Record AUTOREPLY and $USER_DATA/mail/<account>@<domain>.msg travel in a backup.
 # Needs main.sh.
 
 # shellcheck source=/usr/local/hestia/include/sieve.sh
@@ -20,6 +20,18 @@ vacation_script() { # USER DOMAIN_IDN ACCOUNT
 	return 0
 }
 
+# Scripts, but none active that root may read: a filter set switched off in the webmail. A script of ours, written
+# and activated under the webmail's set name, would replace the customer's rules in it.
+vacation_set_off() { # USER DOMAIN_IDN ACCOUNT
+	local f
+	[ -z "$(vacation_script "$1" "$2" "$3")" ] || return 1
+	for f in "$HOMEDIR/$1/mail/$2/$3/sieve"/*.sieve; do
+		[ -e "$f" ] || continue
+		return 0
+	done
+	return 1
+}
+
 vacation_state() { # USER DOMAIN_IDN ACCOUNT -> JSON
 	"$HESTIA_PHP" "$VACATION_PHP" state "$(vacation_script "$1" "$2" "$3")"
 }
@@ -31,14 +43,25 @@ vacation_new_format() { # USER DOMAIN
 	[ "$w" = 'tachyon' ] && echo 'tachyon' || echo 'roundcube'
 }
 
-# Through doveadm: it refuses a script that does not compile and writes as the mailbox owner.
+# Through doveadm: it refuses a script that does not compile (65) and writes as the mailbox owner. dovecot reads the
+# passwd file again at most once a second, so a mailbox a rebuild has just written back is unknown (67) until then.
 vacation_put() { # DOMAIN_IDN ACCOUNT NAME FILE
-	doveadm sieve put -u "$2@$1" -a "$3" < "$4"
+	local err rc
+	err=$(doveadm sieve put -u "$2@$1" -a "$3" < "$4" 2>&1) && return 0
+	rc=$?
+	if [ "$rc" -eq 67 ]; then
+		sleep 2
+		doveadm sieve put -u "$2@$1" -a "$3" < "$4"
+		return
+	fi
+	printf '%s\n' "$err" >&2
+	return "$rc"
 }
 
 vacation_enable() { # USER DOMAIN DOMAIN_IDN ACCOUNT MSGFILE
 	local file name fmt out rc
 	file=$(vacation_script "$1" "$3" "$4")
+	[ -n "$file" ] || ! vacation_set_off "$1" "$3" "$4" || return 3
 	fmt=$(vacation_new_format "$1" "$2")
 	out=$(mktemp) || return 1
 	"$HESTIA_PHP" "$VACATION_PHP" enable "$fmt" "$file" "$5" > "$out"
@@ -71,7 +94,7 @@ vacation_disable() { # USER DOMAIN_IDN ACCOUNT
 	return "$rc"
 }
 
-# The file exim's autoreply router looks for; keep in step with share/exim/exim4.conf.template.
+# HestiaCP's autoreply file, as a backup carries it.
 vacation_exim_file() { # USER DOMAIN ACCOUNT
 	echo "$HOMEDIR/$1/conf/mail/$2/autoreply.$3.msg"
 }
@@ -104,7 +127,7 @@ vacation_domain_to_sieve() { # USER DOMAIN
 		acc=${f##*/autoreply.}
 		acc=${acc%.msg}
 		if ! vacation_enable "$user" "$domain" "$domain_idn" "$acc" "$f"; then
-			echo "Warning!: autoreply of $acc@$domain not moved to Sieve, exim keeps answering" >&2
+			echo "Warning!: autoreply of $acc@$domain not moved to Sieve, h-rebuild-mail-domain retries" >&2
 			rc=1
 			continue
 		fi
@@ -142,26 +165,12 @@ vacation_domain_sync() { # USER DOMAIN DIR
 	return "$rc"
 }
 
-# Back to exim, and the rule is switched off so a returning Sieve addon does not answer twice: the
-# exim file is what brings it back then.
-vacation_domain_to_exim() { # USER DOMAIN
-	local user="$1" domain="$2" domain_idn acc accs rc=0
-	format_domain_idn
-	accs=$(vacation_domain_sync "$user" "$domain" "$HOMEDIR/$user/conf/mail/$domain") || rc=1
-	# A record error inside the sync lands in $() as well: show it, never take its words for accounts.
-	sed -n '/^Error:/p' <<< "$accs" >&2
-	for acc in $(sed '/^Error:/d' <<< "$accs"); do
-		vacation_disable "$user" "$domain_idn" "$acc" || rc=1
-	done
-	return "$rc"
-}
-
-# Every mail domain on the box, for the Sieve addon arriving (to_sieve) or leaving (to_exim).
-vacation_all() { # sieve|exim
+# Every mail domain on the box, when Sieve arrives.
+vacation_all() {
 	local u d rc=0
 	for u in $("$BIN/h-list-users" list); do
 		for d in $("$BIN/h-list-mail-domains" "$u" plain | cut -f 1); do
-			"vacation_domain_to_$1" "$u" "$d" || rc=1
+			vacation_domain_to_sieve "$u" "$d" || rc=1
 		done
 	done
 	return "$rc"

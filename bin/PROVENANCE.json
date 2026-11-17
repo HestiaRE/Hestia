@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "b3b53f2f",
     "upstream_ref_date": "2026-11-14",
-    "last_updated": "2026-11-15",
+    "last_updated": "2026-11-17",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from `git diff --numstat` between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 400,
-      "eigenbau_files": 131,
+      "eigenbau_files": 132,
       "weighted_pct": 48,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 531,
+      "files_total": 532,
       "files_mapped": 400
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -397,14 +397,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-autoreply",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 85,
-        "our_lines": 69,
-        "added": 29,
-        "removed": 45,
-        "pct": 48,
-        "measured_at": "2026-11-06"
+        "our_lines": 62,
+        "added": 27,
+        "removed": 50,
+        "pct": 52,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -413,14 +413,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-forward",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 88,
-        "our_lines": 68,
-        "added": 23,
-        "removed": 43,
-        "pct": 42,
-        "measured_at": "2026-11-06"
+        "our_lines": 67,
+        "added": 32,
+        "removed": 53,
+        "pct": 54,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -429,14 +429,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-account-fwd-only",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 86,
-        "our_lines": 57,
-        "added": 11,
-        "removed": 40,
-        "pct": 35,
-        "measured_at": "2026-11-06"
+        "our_lines": 55,
+        "added": 20,
+        "removed": 51,
+        "pct": 50,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -502,14 +502,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-mail-domain-catchall",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 70,
-        "our_lines": 43,
-        "added": 9,
+        "our_lines": 45,
+        "added": 11,
         "removed": 36,
-        "pct": 39,
-        "measured_at": "2026-11-06"
+        "pct": 40,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -1382,14 +1382,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-backup-user",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 818,
-        "our_lines": 966,
-        "added": 488,
+        "our_lines": 980,
+        "added": 502,
         "removed": 340,
         "pct": 46,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -1624,14 +1624,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-change-mail-domain-catchall",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 69,
-        "our_lines": 42,
-        "added": 9,
+        "our_lines": 44,
+        "added": 11,
         "removed": 36,
-        "pct": 40,
-        "measured_at": "2026-11-06"
+        "pct": 41,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -2855,14 +2855,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 89,
-        "our_lines": 67,
-        "added": 30,
+        "our_lines": 66,
+        "added": 29,
         "removed": 52,
         "pct": 52,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -2887,14 +2887,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-autoreply",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 73,
-        "our_lines": 57,
-        "added": 27,
-        "removed": 43,
-        "pct": 53,
-        "measured_at": "2026-11-06"
+        "our_lines": 54,
+        "added": 25,
+        "removed": 44,
+        "pct": 54,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -2903,14 +2903,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-forward",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 83,
-        "our_lines": 57,
-        "added": 26,
-        "removed": 52,
-        "pct": 55,
-        "measured_at": "2026-11-06"
+        "our_lines": 62,
+        "added": 37,
+        "removed": 58,
+        "pct": 65,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -2919,14 +2919,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-account-fwd-only",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 68,
-        "our_lines": 39,
-        "added": 10,
-        "removed": 39,
-        "pct": 45,
-        "measured_at": "2026-11-06"
+        "our_lines": 46,
+        "added": 22,
+        "removed": 44,
+        "pct": 57,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -2935,14 +2935,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-mail-domain",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 122,
-        "our_lines": 92,
-        "added": 38,
+        "our_lines": 91,
+        "added": 37,
         "removed": 68,
         "pct": 49,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -3143,6 +3143,15 @@
         "measured_at": "2026-11-06"
       },
       "note": ""
+    },
+    {
+      "path": "h-delete-mail-forward-bounces",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-17",
+      "divergence": null,
+      "note": "HestiaRE-native (#1337): deletes the old bounces a forward-only mailbox keeps of its failed forwards."
     },
     {
       "path": "h-delete-sys-adminer",
@@ -4540,14 +4549,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-account",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 104,
-        "our_lines": 81,
-        "added": 30,
+        "our_lines": 87,
+        "added": 36,
         "removed": 53,
-        "pct": 44,
-        "measured_at": "2026-11-06"
+        "pct": 46,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -4556,14 +4565,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-account-autoreply",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 86,
-        "our_lines": 77,
-        "added": 34,
+        "our_lines": 80,
+        "added": 37,
         "removed": 43,
-        "pct": 47,
-        "measured_at": "2026-11-06"
+        "pct": 48,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -4572,14 +4581,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-mail-accounts",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 152,
-        "our_lines": 126,
-        "added": 68,
+        "our_lines": 136,
+        "added": 78,
         "removed": 94,
-        "pct": 58,
-        "measured_at": "2026-11-12"
+        "pct": 59,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -5825,14 +5834,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-rebuild-mail-domain",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 92,
-        "our_lines": 70,
-        "added": 31,
+        "our_lines": 72,
+        "added": 33,
         "removed": 53,
-        "pct": 51,
-        "measured_at": "2026-11-06"
+        "pct": 52,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -6177,14 +6186,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-restore-mail-domain-restic",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 264,
-        "our_lines": 252,
-        "added": 156,
+        "our_lines": 255,
+        "added": 159,
         "removed": 168,
-        "pct": 62,
-        "measured_at": "2026-11-15"
+        "pct": 63,
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -6202,14 +6211,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-restore-user",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 1048,
-        "our_lines": 1451,
-        "added": 1053,
+        "our_lines": 1456,
+        "added": 1058,
         "removed": 650,
         "pct": 68,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },

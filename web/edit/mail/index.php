@@ -134,6 +134,8 @@ if (!empty($_GET["domain"]) && !empty($_GET["account"])) {
 	}
 	$vfwd = explode(",", $data[$v_account]["FWD"]);
 	$v_fwd_only = $data[$v_account]["FWD_ONLY"];
+	$v_fwd_source = $data[$v_account]["FWD_SOURCE"] ?? "exim";
+	$v_fwd_count = count(array_diff(array_filter($vfwd), [":blackhole:"]));
 	$v_rate = $data[$v_account]["RATE_LIMIT"];
 	$v_quota = $data[$v_account]["QUOTA"];
 	$v_autoreply = $data[$v_account]["AUTOREPLY"];
@@ -1023,6 +1025,17 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 			$_SESSION["error_msg"] = _("Please enter a valid email address.");
 		}
 	}
+	// Filters the panel does not write render the forward read-only and post nothing, which must not read as removal.
+	$forward_editable = $v_fwd_source != "custom";
+	// FORWARD_MAX in include/forward.sh. The CLI refuses a fifth address only after the first four went in. More set
+	// in the webmail stay as they are when saved unchanged.
+	$fwd_posted = preg_split("/[\s,]+/", trim($_POST["v_fwd"] ?? ""), -1, PREG_SPLIT_NO_EMPTY);
+	$fwd_unchanged = !array_diff($fwd_posted, $vfwd) && !array_diff(array_filter($vfwd), $fwd_posted)
+		&& ($v_fwd_only == "yes") == !empty($_POST["v_fwd_only"]);
+	if ($forward_editable && empty($_POST["v_blackhole"]) && empty($_SESSION["error_msg"])
+		&& count($fwd_posted) > 4 && !$fwd_unchanged) {
+		$_SESSION["error_msg"] = sprintf(_("A mailbox forwards to %d addresses at most."), 4);
+	}
 
 	$v_account = $_POST["v_account"];
 	$v_send_email = $_POST["v_send_email"];
@@ -1187,7 +1200,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 			}
 		}
 	}
-	if (empty($_SESSION["error_msg"]) && !empty($_POST["v_blackhole"])) {
+	if ($forward_editable && empty($_SESSION["error_msg"]) && !empty($_POST["v_blackhole"])) {
 		// Added before the old ones go: with no forward left, forward-only ends.
 		if (!in_array(":blackhole:", $vfwd)) {
 			exec(
@@ -1227,34 +1240,14 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$v_fwd = "";
 		$v_blackhole = "yes";
 	}
-	if (empty($_SESSION["error_msg"]) && empty($_POST["v_blackhole"])) {
+	if ($forward_editable && empty($_SESSION["error_msg"]) && empty($_POST["v_blackhole"])) {
 		$wfwd = preg_replace("/\n/", " ", $_POST["v_fwd"]);
 		$wfwd = preg_replace("/,/", " ", $wfwd);
 		$wfwd = preg_replace("/\s+/", " ", $wfwd);
 		$wfwd = trim($wfwd);
 		$fwd = explode(" ", $wfwd);
 		$v_fwd = str_replace(" ", "\n", $wfwd);
-		// New ones first, for the same reason as above.
-		$result = array_diff($fwd, $vfwd);
-		foreach ($result as $forward) {
-			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
-				exec(
-					HESTIA_CMD .
-						"h-add-mail-account-forward " .
-						$v_username .
-						" " .
-						quoteshellarg($v_domain) .
-						" " .
-						quoteshellarg($v_account) .
-						" " .
-						quoteshellarg($forward),
-					$output,
-					$return_var,
-				);
-				check_return_code($return_var, $output);
-				unset($output);
-			}
-		}
+		// Removed ones first: a mailbox forwards to four addresses at most, so a full list is only replaced this way.
 		$result = array_diff($vfwd, $fwd);
 		foreach ($result as $forward) {
 			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
@@ -1275,10 +1268,34 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 				unset($output);
 			}
 		}
+		// No old one left ends forward-only (h-delete-mail-account-forward); the switch below sets it again.
+		if (!array_filter(array_intersect($vfwd, $fwd))) {
+			$v_fwd_only = "";
+		}
+		$result = array_diff($fwd, $vfwd);
+		foreach ($result as $forward) {
+			if (empty($_SESSION["error_msg"]) && !empty($forward)) {
+				exec(
+					HESTIA_CMD .
+						"h-add-mail-account-forward " .
+						$v_username .
+						" " .
+						quoteshellarg($v_domain) .
+						" " .
+						quoteshellarg($v_account) .
+						" " .
+						quoteshellarg($forward),
+					$output,
+					$return_var,
+				);
+				check_return_code($return_var, $output);
+				unset($output);
+			}
+		}
 		$v_blackhole = "no";
 	}
 
-	if ($v_fwd_only == "yes" && empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
+	if ($forward_editable && $v_fwd_only == "yes" && empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
 				"h-delete-mail-account-fwd-only " .
@@ -1295,7 +1312,7 @@ if (!empty($_POST["save"]) && !empty($_GET["domain"]) && !empty($_GET["account"]
 		$v_fwd_only = "";
 	}
 
-	if ($v_fwd_only != "yes" && !empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
+	if ($forward_editable && $v_fwd_only != "yes" && !empty($_POST["v_fwd_only"]) && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
 				"h-add-mail-account-fwd-only " .

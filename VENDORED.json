@@ -34,7 +34,7 @@
       "license_file": "web/js/vendor/LICENSE-alpinejs.md",
       "reason": "Panel UI interactivity framework (x-data bindings, stores, notifications, bulk edit). Prebuilt CDN artifact — the GitHub repo commits no dist files and attaches no release assets; the npm registry tarball is the project's official publish artifact (#248).",
       "transitive_deps": [],
-      "last_verified": "2026-11-15"
+      "last_verified": "2026-11-17"
     },
     {
       "name": "alpinejs-collapse",
@@ -49,7 +49,7 @@
       "license_file": "web/js/vendor/LICENSE-alpinejs.md",
       "reason": "Alpine collapse plugin (x-collapse transitions). Same monorepo and release cadence as alpinejs — updated together (#248).",
       "transitive_deps": [],
-      "last_verified": "2026-11-15"
+      "last_verified": "2026-11-17"
     },
     {
       "name": "normalize.css",
@@ -99,7 +99,7 @@
       "license_file": "share/adminer/LICENSE-adminer.txt",
       "reason": "PostgreSQL web admin UI, offered as an addon (default-on when PostgreSQL is selected, #350). Vendored as the official pre-built single-file (EN, all drivers) rather than the OS `adminer` package: all four target distros ship CVE-affected versions (deb12/noble 4.8.1 with CVE-2023-45195/45196 + CVE-2025-43960; even 5.4.1 on 26.04 carries CVE-2026-25892, fixed only in 5.4.2) and there is no prebuilt pgsql-only asset. phpMyAdmin stays the MySQL default; the full build can also reach MySQL but is positioned as the Postgres UI. Canonical source is vrana/adminer — NOT AdminerEvo (repo closed/dead) or AdminNeo (sidebranch).",
       "transitive_deps": [],
-      "last_verified": "2026-11-15"
+      "last_verified": "2026-11-17"
     },
     {
       "name": "adminer-login-servers",

@@ -160,6 +160,15 @@ if (!empty($_SESSION["WEBMAIL_ALIAS"])) {
 						$autoreply_title = _('Enabled');
 					}
 				}
+				$fwd_source = $data[$key]['FWD_SOURCE'] ?? '';
+				if ($fwd_source == 'custom' && $data[$key]['FWD'] == '') {
+					$fwd_title = _("In the webmail's own filters");
+				} elseif ($fwd_source == 'custom') {
+					$fwd_title = _("In exim, beside the webmail's own filters");
+				} elseif ($fwd_source == 'exim' && $data[$key]['FWD'] != '' && ($_SESSION['SIEVE_SYSTEM'] ?? '') == 'yes'
+					&& !str_contains($data[$key]['FWD'], ':blackhole:')) {
+					$fwd_title = _('Still in exim');
+				}
 				?>
 			<div class="units-table-row <?php if ($status == 'suspended') {
 				echo 'disabled';

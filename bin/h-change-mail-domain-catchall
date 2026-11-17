@@ -28,6 +28,8 @@ is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
 is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_unsuspended 'mail' 'DOMAIN' "$domain"
+mail_catchall_local "$domain" "$email" || check_result "$E_INVALID" "a catch-all has to be an account of $domain"
+email=$(mail_catchall_norm "$domain" "$email")
 
 if [[ "$MAIL_SYSTEM" =~ exim ]]; then
 	sed -i "/*@$domain_idn:/d" "$HOMEDIR/$user/conf/mail/$domain/aliases"

@@ -341,6 +341,54 @@ check_update_dispatcher() {
 	fi
 }
 
+# Any rc but 0 from a callable stops every later update on the box, and three times (#1303, #1357, #1364) a state
+# that was merely not ready did so. A callable named above the last public release may therefore stop only through
+# exim_template_patch, whose failure is meant to halt; anything else returns 0 and ends on `return 0`, a warning
+# says what is missing. Not covered: the callables of released manifests, several of which stop on purpose.
+check_update_callables_soft() {
+	local tag m v fn src body rest n=0 bad=''
+	local -a later=()
+	tag=$(git tag -l 'v*' 2> /dev/null | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
+	if [ -z "$tag" ]; then
+		no "update callables: no public release tag in this checkout" "nothing tells a new callable from a shipped one"
+		return
+	fi
+	for m in share/updates/*.json; do
+		[ -e "$m" ] || continue
+		v=$(basename "$m" .json)
+		[ "$v" != "${tag#v}" ] && [ "$(printf '%s\n%s\n' "${tag#v}" "$v" | sort -V | tail -1)" = "$v" ] && later+=("$m")
+	done
+	if [ "${#later[@]}" -eq 0 ] || ! grep -q '"function_call"' "${later[@]}"; then
+		ok "update callables: no manifest above $tag calls a function, nothing to check"
+		return
+	fi
+	while IFS= read -r fn; do
+		[ -n "$fn" ] || continue
+		n=$((n + 1))
+		src=$(grep -lE "^${fn}\(\) \{" include/*.sh 2> /dev/null | head -1)
+		if [ -z "$src" ]; then
+			bad+=" $fn(undefined)"
+			continue
+		fi
+		body=$(sed -n "/^${fn}() {/,/^}/p" "$src" | sed '1d;$d' | grep -vE '^[[:space:]]*(#|$)')
+		rest=$(grep -vE '^[[:space:]]*exim_template_patch [^[:space:]]+( \|\| return 1)?$' <<< "$body")
+		[ -n "$rest" ] || continue
+		if grep -qwE 'exit' <<< "$rest" \
+			|| grep -oE '(^|[^[:alnum:]_])return\b[^;|&)}]*' <<< "$rest" | grep -vqE '^[^r]?return 0[[:space:]]*$'; then
+			bad+=" $fn(returns non-zero)"
+		elif ! tail -1 <<< "$rest" | grep -qE '^[[:space:]]*return 0[[:space:]]*$'; then
+			bad+=" $fn(does not end on return 0)"
+		fi
+	done < <(jq -r '.. | objects | select(.type == "function_call") | .function // empty' "${later[@]}" | sort -u)
+	if [ "$n" -eq 0 ]; then
+		no "update callables: the manifests above $tag call functions, but none was derived" "the jq path moved"
+	elif [ -n "$bad" ]; then
+		no "update callables: $n named above $tag, these can stop the update" "${bad# }"
+	else
+		ok "update callables: $n named above $tag, each returns 0 or stops only in a template patch"
+	fi
+}
+
 # check_eval_sites: two named files used to be guarded one by one, which is a list nobody measures:
 # a new eval in a third file would have gone unseen. Derived instead - every eval used as a command
 # in bin/h-* and include/*.sh is found, and only the two that have a reason may remain.
@@ -687,6 +735,7 @@ check_manifest_status_link
 check_update_manifests
 check_update_entries_follow_changes
 check_update_dispatcher
+check_update_callables_soft
 check_source_conf_guard
 check_protected_names_effective
 check_panel_catalogs

@@ -35,10 +35,10 @@ else
 fi
 
 # Present already is success, judged by the deployed config and not by the packages alone.
-# The exim macro and 15-lda.conf too: a re-run of the installer's mail stage lays down stock ones.
+# 15-lda.conf and an exim macro too: a re-run of the installer's mail stage lays down stock ones.
 if [ "$SIEVE_SYSTEM" = 'yes' ] && dpkg -l dovecot-managesieved 2> /dev/null | grep -q '^ii' \
 	&& dpkg -l dovecot-lmtpd 2> /dev/null | grep -q '^ii' \
-	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ] && grep -q '^SIEVE = yes' /etc/exim4/exim4.conf.template \
+	&& [ -f /etc/dovecot/conf.d/25-lmtp.conf ] && ! grep -q '^#SIEVE = yes' /etc/exim4/exim4.conf.template \
 	&& cmp -s "$DCDIR/sieve/15-lda.conf" /etc/dovecot/conf.d/15-lda.conf; then
 	echo "INFO: sieve is already installed."
 	exit 0
@@ -79,17 +79,17 @@ fi
 # Only now: the compiler asks the running dovecot (see sieve_learn_compile).
 sieve_learn_compile || learn_failures="$learn_failures$(printf '\n  the learn scripts')"
 
-sed -i 's/^#SIEVE = yes/SIEVE = yes/' /etc/exim4/exim4.conf.template
-if ! grep -q '^SIEVE = yes' /etc/exim4/exim4.conf.template; then
-	echo "ERROR: no SIEVE macro in /etc/exim4/exim4.conf.template, sieve is NOT active."
-	exit "$E_NOTEXIST"
-fi
-systemctl restart exim4
-if ! systemctl is-active --quiet exim4; then
-	sed -i 's/^SIEVE = yes/#SIEVE = yes/' /etc/exim4/exim4.conf.template
+# The current template delivers through LMTP only; one from before #1337 stage 2 switches by this macro, and the
+# update that patches it runs this first.
+if grep -q '^#SIEVE = yes' /etc/exim4/exim4.conf.template; then
+	sed -i 's/^#SIEVE = yes/SIEVE = yes/' /etc/exim4/exim4.conf.template
 	systemctl restart exim4
-	echo "ERROR: exim4 failed to restart with sieve delivery enabled, it runs again without it."
-	exit "$E_RESTART"
+	if ! systemctl is-active --quiet exim4; then
+		sed -i 's/^SIEVE = yes/#SIEVE = yes/' /etc/exim4/exim4.conf.template
+		systemctl restart exim4
+		echo "ERROR: exim4 failed to restart with sieve delivery enabled, it runs again without it."
+		exit "$E_RESTART"
+	fi
 fi
 
 $BIN/h-change-sys-config-value 'SIEVE_SYSTEM' 'yes'
@@ -98,7 +98,7 @@ $BIN/h-change-sys-config-value 'SIEVE_SYSTEM' 'yes'
 webmail_sieve_apply
 
 # From here the vacation rule answers; exim's copy would reply a second time.
-vacation_all sieve
+vacation_all
 vacation_rc=$?
 
 echo "sieve is now active (ManageSieve on 4190, filters and vacation in the webmail)."
@@ -107,7 +107,7 @@ $BIN/h-log-action "system" "Info" "System" "Installed sieve mail filtering."
 
 # Into the exit code, so a caller sees the missing half; logged first, as the install itself happened.
 learn_msg="IMAP-triggered spam learning is NOT wired:$learn_failures"
-vacation_msg="some autoreplies were not moved to Sieve, exim still answers them"
+vacation_msg="some autoreplies were not moved to Sieve, h-rebuild-mail-domain retries"
 if [ "$vacation_rc" -ne 0 ]; then
 	check_result "$E_UPDATE" "$vacation_msg${learn_failures:+; $learn_msg}"
 fi

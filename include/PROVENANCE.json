@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "b3b53f2f",
     "upstream_ref_date": "2026-11-14",
-    "last_updated": "2026-11-15",
+    "last_updated": "2026-11-17",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from a line diff between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR, func/->include/), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 9,
-      "eigenbau_files": 26,
+      "eigenbau_files": 29,
       "weighted_pct": 61,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 35,
+      "files_total": 38,
       "files_mapped": 9
     },
     "scope": "include",
@@ -139,14 +139,14 @@
       "source_type": "derived",
       "upstream_path": "func/domain.sh",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 1217,
-        "our_lines": 1698,
-        "added": 1138,
+        "our_lines": 1722,
+        "added": 1162,
         "removed": 657,
         "pct": 61,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": "No DNS half (bind9 excluded); web/mail template handling reworked for the Caddy/nginx/apache model."
     },
@@ -183,6 +183,24 @@
         "measured_at": "2026-11-14"
       },
       "note": "Effectively eigenbau: upstream ships 25 lines, this is the 685-line nftables renderer (#495). Kept mapped rather than relabelled so the upstream path stays findable."
+    },
+    {
+      "path": "forward.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-17",
+      "divergence": null,
+      "note": "HestiaRE-native (#1337): the panel's forward as one rule in the mailbox's Sieve script, in its webmail's format."
+    },
+    {
+      "path": "forward.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-17",
+      "divergence": null,
+      "note": "HestiaRE-native (#1337): forwards as Sieve redirects, the move between exim and Sieve, and the live view."
     },
     {
       "path": "help.sh",
@@ -250,14 +268,14 @@
       "source_type": "derived",
       "upstream_path": "func/main.sh",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 2609,
-        "our_lines": 3243,
-        "added": 1954,
+        "our_lines": 3245,
+        "added": 1956,
         "removed": 1320,
         "pct": 55,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },
@@ -293,14 +311,14 @@
       "source_type": "derived",
       "upstream_path": "func/rebuild.sh",
       "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 972,
-        "our_lines": 1089,
-        "added": 575,
-        "removed": 458,
+        "our_lines": 1091,
+        "added": 582,
+        "removed": 463,
         "pct": 50,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-17"
       },
       "note": ""
     },
@@ -328,6 +346,15 @@
         "measured_at": "2026-11-06"
       },
       "note": "Own dependency-free DOMDocument allow-list sanitizer (#471); upstream's counterpart is a 19-line wrapper around a bundled library we rejected. Lived in func/internal/ until the subdirectory was dissolved."
+    },
+    {
+      "path": "sieve-rules.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-17",
+      "divergence": null,
+      "note": "HestiaRE-native (#1337): Sieve tokenizer and the two webmail formats, shared by vacation.php and forward.php."
     },
     {
       "path": "sieve.sh",

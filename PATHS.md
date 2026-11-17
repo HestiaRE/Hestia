@@ -129,8 +129,7 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 |------|------|
 | Config | `/etc/exim4/exim4.conf.template` |
 | Filter | `/etc/exim4/system.filter` |
-| Autoreply text (no Sieve) | `/home/$user/conf/mail/$domain/autoreply.$account.msg` |
-| Autoreply once-DB | `/var/spool/exim4/db/autoreply.$account@$domain_idn` (cleared with account, domain and autoreply, #1127) |
+| Autoreply text from a restore | `/home/$user/conf/mail/$domain/autoreply.$account.msg`, HestiaCP's form; the rebuild moves it into Sieve and deletes it (#1337) |
 | Supplemental | `/etc/exim4/dnsbl.conf`, `spam-blocks.conf`, `limit.conf` |
 
 ### Mail — Dovecot
@@ -138,8 +137,9 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Item | Path |
 |------|------|
 | Config | `/etc/dovecot/dovecot.conf` |
+| Quota at RCPT | `/etc/dovecot/conf.d/11-quota-status.conf`, socket `/run/dovecot/quota-status` (Debian-exim 0600), asked by exim's `acl_check_rcpt` (#1337) |
 | Login aliases (2.4 only) | `/etc/dovecot/login-aliases`, root:dovecot 0640, kept by hand, not in any backup (#1238) |
-| Active Sieve script | `/home/$user/mail/$domain/$account/dovecot.sieve` (symlink); holds the panel's vacation rule (#784) |
+| Active Sieve script | `/home/$user/mail/$domain/$account/dovecot.sieve` (symlink); holds the panel's vacation (#784) and forward (#1337) rules |
 | Note | Dovecot 2.4 has breaking changes vs 2.3 — check upstream/hestiacp for Debian 13 handling |
 
 ### Mail — Rspamd

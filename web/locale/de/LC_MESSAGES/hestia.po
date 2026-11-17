@@ -4193,6 +4193,10 @@ msgid "Forwarding"
 msgstr "Weiterleitung"
 
 #: web/templates/pages/list_mail_acc.php
+msgid "In exim, beside the webmail's own filters"
+msgstr "In exim, neben eigenen Filtern im Webmailer"
+
+#: web/templates/pages/list_mail_acc.php
 msgid "In the webmail's own filters"
 msgstr "In eigenen Filtern im Webmailer"
 
@@ -4201,8 +4205,8 @@ msgid "No aliases"
 msgstr "Keine Aliase"
 
 #: web/templates/pages/list_mail_acc.php
-msgid "Still in exim, moves with the next rebuild"
-msgstr "Noch in exim, zieht beim nächsten Neuaufbau um"
+msgid "Still in exim"
+msgstr "Noch in exim"
 
 #: web/templates/pages/list_packages.php
 #, php-format

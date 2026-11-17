@@ -111,6 +111,58 @@ forward_domain_sync() { # USER DOMAIN
 	return 0
 }
 
+# The listers' view, as forward_sync would read it, with nothing written: "ACCOUNT|SOURCE|FWD|FWD_ONLY" per account,
+# one php run. SOURCE is the rule's format, exim, custom (what the panel does not write; FWD then is exim's or empty)
+# or none (no script, the record stands).
+forward_live() { # USER DOMAIN [ACCOUNT...]
+	local user=$1 domain=$2 domain_idn acc fwd only fmt rule targets keep src i=0
+	local conf="$CONF_DIR/users/$1/mail/$2.conf"
+	local -a accs=() files=()
+	local -A rfwd=() ronly=() exim=() off=()
+	format_domain_idn
+	shift 2
+	if [ "$#" -gt 0 ]; then
+		accs=("$@")
+	else
+		mapfile -t accs < <(sed -n "s/^ACCOUNT='\([^']*\)'.*/\1/p" "$conf")
+	fi
+	[ "${#accs[@]}" -gt 0 ] || return 0
+	while IFS='|' read -r acc fwd; do
+		rfwd[$acc]=$fwd
+	done < <(sed -n "s/^ACCOUNT='\([^']*\)'.* FWD='\([^']*\)'.*/\1|\2/p" "$conf")
+	while IFS='|' read -r acc only; do
+		ronly[$acc]=$only
+	done < <(sed -n "s/^ACCOUNT='\([^']*\)'.* FWD_ONLY='\([^']*\)'.*/\1|\2/p" "$conf")
+	while read -r acc; do
+		exim[$acc]=yes
+	done < <(sed -n 's/^\([^@:]*\)@[^:]*:.*/\1/p' "$HOMEDIR/$user/conf/mail/$domain/aliases" 2> /dev/null)
+	for acc in "${accs[@]}"; do
+		files+=("$(vacation_script "$user" "$domain_idn" "$acc")")
+		[ -n "${files[-1]}" ] || ! vacation_set_off "$user" "$domain_idn" "$acc" || off[$acc]=yes
+	done
+	while IFS='|' read -r fmt rule targets keep; do
+		acc=${accs[i]}
+		fwd=${rfwd[$acc]-} only=${ronly[$acc]-}
+		[ -z "${off[$acc]-}" ] || fmt=custom
+		[ "$rule" != 'changed' ] || fmt=custom rule=none
+		if [ "$fmt" = 'custom' ]; then
+			src=custom
+			[ -n "${exim[$acc]-}" ] || fwd='' only=''
+		elif [ "$rule" = 'ours' ]; then
+			src=$fmt fwd=$targets only=''
+			[ -n "$fwd" ] && [ "$keep" = 'no' ] && only='yes'
+		elif [ -n "${exim[$acc]-}" ]; then
+			src=exim
+		elif [ -n "${files[i]}" ]; then
+			src=$fmt fwd='' only=''
+		else
+			src=none
+		fi
+		echo "$acc|$src|$fwd|$only"
+		i=$((i + 1))
+	done < <("$HESTIA_PHP" "$FORWARD_PHP" states "${files[@]}")
+}
+
 # The commands' answer to what forward_sync or forward_apply returned.
 forward_result() { # RC ACCOUNT@DOMAIN MESSAGE
 	[ "$1" -ne 3 ] || check_result "$E_FORBIDEN" "$2 has Sieve filters the panel does not manage (an own script, an own rule named Forward or a filter set switched off); once the webmail manages them again, the forward can be changed here"

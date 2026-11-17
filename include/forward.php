@@ -9,6 +9,7 @@
 //   state FILE                        -> JSON {format, rule, targets, keep}; FILE may be empty or absent
 //   set   FORMAT FILE KEEP TARGET...  -> the new script on stdout; KEEP yes|no; FORMAT is for an absent/empty FILE
 //   clear FILE                        -> the new script on stdout, without the forward
+//   states FILE...                    -> FORMAT|RULE|TARGETS|KEEP per FILE, a line each, for the listers' one run
 // Exit 3, silent: the script is not one this file can write (an own script, or a "Forward" rule or filter changed
 // beyond its targets and keep), so it is left to the webmail. Exit 1: anything else, nothing printed.
 //
@@ -28,6 +29,14 @@ function is_word(string $s, array $tok, string $w): bool
 	return $tok[0] === 'word' && substr($s, $tok[1], $tok[2] - $tok[1]) === $w;
 }
 
+// is_email_format_valid in include/main.sh. A target read from the script goes into the record, the "|" lines and
+// exim's aliases, so one the CLI refuses makes the rule the customer's own; set refuses it too, or a rule written
+// would not read back as ours.
+function is_target(string $a): bool
+{
+	return (bool) preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.([A-Za-z]{2,63}|xn--[A-Za-z0-9]{2,63})$/D', $a);
+}
+
 // ---------------------------------------------------------------- Roundcube
 
 function rc_forward_rules(array $rules): array
@@ -36,7 +45,7 @@ function rc_forward_rules(array $rules): array
 }
 
 // [enabled, targets, keep] of a "Forward" rule, or null when it is more than a forward: a condition other than the
-// bounce test, or an action other than redirect.
+// bounce test, an action other than redirect, or a target is_target refuses.
 function rc_forward(string $rule): ?array
 {
 	$t = array_values(array_filter(sieve_tokens($rule), fn ($x) => $x[0] !== 'comment'));
@@ -112,6 +121,9 @@ function rc_forward(string $rule): ?array
 			return null;
 		}
 		$targets[] = sieve_value($rule, $t[$i++]);
+		if (!is_target(end($targets))) {
+			return null;
+		}
 		$keep = $keep && $copy;
 		if (!$at(';')) {
 			return null;
@@ -222,7 +234,7 @@ function tx_forward_ok(array $j): bool
 			return false;
 		}
 	}
-	return str_contains((string) ($j['ActionValue'] ?? ''), '@');
+	return is_target((string) ($j['ActionValue'] ?? ''));
 }
 
 function tx_forward_state(string $s): array
@@ -431,7 +443,7 @@ function checked(string $want, string $out, array $targets, bool $keep): string
 
 function usage(): never
 {
-	fail(1, 'usage: forward.php state FILE | set roundcube|tachyon FILE yes|no TARGET... | clear FILE');
+	fail(1, 'usage: forward.php state FILE | states FILE... | set roundcube|tachyon FILE yes|no TARGET... | clear FILE');
 }
 
 ini_set('display_errors', 'stderr');
@@ -448,13 +460,24 @@ switch ($op) {
 		isset($argv[2]) || usage();
 		echo json_encode(state_of($argv[2]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE), "\n";
 		break;
+	case 'states':
+		foreach (array_slice($argv, 2) as $file) {
+			// A line for every FILE, or the lines no longer match the accounts; one php cannot read is not ours to write.
+			try {
+				$st = state_of($file);
+			} catch (Throwable) {
+				$st = ['format' => 'custom', 'rule' => 'none', 'targets' => [], 'keep' => true];
+			}
+			echo $st['format'], '|', $st['rule'], '|', implode(',', $st['targets']), '|', $st['keep'] ? 'yes' : 'no', "\n";
+		}
+		break;
 	case 'set':
 		[, , $want, $file, $keep] = $argv + [null, null, '', '', ''];
 		$targets = array_slice($argv, 5);
 		in_array($want, ['roundcube', 'tachyon'], true) && in_array($keep, ['yes', 'no'], true) && $targets || usage();
 		count($targets) <= MAX_TARGETS || fail(1, 'at most ' . MAX_TARGETS . ' forward targets');
 		foreach ($targets as $a) {
-			preg_match('/^[^\s"\\\\@]+@[^\s"\\\\@]+$/', $a) || fail(1, "not an address: $a");
+			is_target($a) || fail(1, "not an address: $a");
 		}
 		count(array_unique(array_map('strtolower', $targets))) === count($targets) || fail(1, 'a forward target is named twice');
 		$s = $file !== '' && is_file($file) ? file_get_contents($file) : '';

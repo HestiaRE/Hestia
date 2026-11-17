@@ -15,18 +15,19 @@ format=${4-shell}
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
-# shellcheck source=/usr/local/hestia/include/vacation.sh
-source $HESTIA/include/vacation.sh
+# shellcheck source=/usr/local/hestia/include/forward.sh
+source $HESTIA/include/forward.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 json_list() {
 	echo '{'
 	webmail_addr="$WEBMAIL_ALIAS.$domain"
-	json_escape webmail_addr account ALIAS FWD FWD_ONLY AUTOREPLY QUOTA RATE_LIMIT U_DISK SUSPENDED TIME DATE
+	json_escape webmail_addr account ALIAS FWD FWD_ONLY FWD_SOURCE AUTOREPLY QUOTA RATE_LIMIT U_DISK SUSPENDED TIME DATE
 	printf '    "%s": {\n' "$account"
 	printf '        "ALIAS": "%s",\n' "$ALIAS"
 	printf '        "FWD": "%s",\n' "$FWD"
 	printf '        "FWD_ONLY": "%s",\n' "$FWD_ONLY"
+	printf '        "FWD_SOURCE": "%s",\n' "$FWD_SOURCE"
 	printf '        "AUTOREPLY": "%s",\n' "$AUTOREPLY"
 	printf '        "QUOTA": "%s",\n' "$QUOTA"
 	printf '        "RATE_LIMIT": "%s",\n' "$RATE_LIMIT"
@@ -44,6 +45,7 @@ shell_list() {
 	echo "ALIAS:          $ALIAS"
 	echo "FORWARD:        $FWD"
 	echo "FORWARD_ONLY:   $FWD_ONLY"
+	echo "FORWARD_SOURCE: $FWD_SOURCE"
 	echo "AUTOREPLY:      $AUTOREPLY"
 	echo "QUOTA:          $QUOTA"
 	echo "DISK:           $U_DISK"
@@ -65,10 +67,14 @@ is_object_valid 'mail' 'DOMAIN' "$domain"
 is_object_valid "mail/$domain" 'ACCOUNT' "$account"
 
 parse_object_kv_list "$(grep -F "ACCOUNT='$account'" $USER_DATA/mail/$domain.conf)"
-# With Sieve the customer can switch it in the webmail, so the script answers, not the record.
+# With Sieve the customer can switch them in the webmail, so the script answers, not the record. Without, exim holds
+# every forward.
+FWD_SOURCE=exim
 if vacation_sieve_on; then
 	format_domain_idn
 	AUTOREPLY=$(vacation_live "$user" "$domain_idn" "$account" | cut -d' ' -f2)
+	st=$(forward_live "$user" "$domain" "$account")
+	[ -z "$st" ] || IFS='|' read -r _ FWD_SOURCE FWD FWD_ONLY <<< "$st"
 fi
 
 case $format in

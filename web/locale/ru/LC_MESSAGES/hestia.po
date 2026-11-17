@@ -2323,12 +2323,25 @@ msgid "Message"
 msgstr "Сообщение"
 
 #: web/templates/pages/edit_mail_acc.php
+msgid "Shared with the forward filter in the webmail."
+msgstr ""
+
+#: web/templates/pages/edit_mail_acc.php
 msgid "Shared with the vacation filter in the webmail."
 msgstr "Общий с фильтром автоответа в веб-почте."
 
 #: web/templates/pages/edit_mail_acc.php
-msgid "The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, or several vacation rules). Change it in the webmail."
-msgstr "Автоответ этого ящика находится в скрипте Sieve, которым панель не управляет (собственный скрипт или несколько правил автоответа). Измените его в веб-почте."
+msgid "The auto reply of this mailbox is in a Sieve script the panel does not manage (its own script, several vacation rules or a filter set switched off). Change it in the webmail."
+msgstr ""
+
+#: web/templates/pages/edit_mail_acc.php
+#, php-format
+msgid "The webmail forwards to %1$d addresses. Saved unchanged, they stay; a change here takes %2$d at most."
+msgstr ""
+
+#: web/templates/pages/edit_mail_acc.php
+msgid "This mailbox has Sieve filters the panel does not manage (its own script, its own rule named Forward or a filter set switched off). Once the webmail manages them again, the forward can be changed here."
+msgstr ""
 
 #: web/templates/pages/edit_mail_acc.php
 msgid "one or more email addresses"
@@ -4236,8 +4249,16 @@ msgid "Forwarding"
 msgstr "Переадресация"
 
 #: web/templates/pages/list_mail_acc.php
+msgid "In the webmail's own filters"
+msgstr ""
+
+#: web/templates/pages/list_mail_acc.php
 msgid "No aliases"
 msgstr "Нет алиасов"
+
+#: web/templates/pages/list_mail_acc.php
+msgid "Still in exim, moves with the next rebuild"
+msgstr ""
 
 #: web/templates/pages/list_packages.php
 #, php-format

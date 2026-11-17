@@ -34,7 +34,7 @@ function is_word(string $s, array $tok, string $w): bool
 // would not read back as ours.
 function is_target(string $a): bool
 {
-	return (bool) preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.([A-Za-z]{2,63}|xn--[A-Za-z0-9]{2,63})$/', $a);
+	return (bool) preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.([A-Za-z]{2,63}|xn--[A-Za-z0-9]{2,63})$/D', $a);
 }
 
 // ---------------------------------------------------------------- Roundcube

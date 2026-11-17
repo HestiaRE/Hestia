@@ -13,53 +13,52 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.35 (2026-11-17)
+
+Forwards and autoreplies live in Sieve and no longer bounce to a forged sender, a full mailbox is refused in the SMTP
+session, and a catch-all stays in its own domain.
+
 ### Changed
 
-- **exim hands every clean mail to Sieve and no longer answers autoreplies itself** (#1337). The vacation rules
-  in Sieve answer, which the webmail edits too; an autoreply still left in exim is moved there by the update first,
-  and the panel refuses one on a box without Sieve. A receiving rspamd gave the exim answer 4 points for its format
-  alone (no MIME-Version, an over-encoded subject); the Sieve answer has neither.
-- **A full mailbox is refused in the SMTP session** (#1337). exim asks dovecot's quota-status at RCPT and answers
-  552, so the sender learns it at once; before, exim accepted the mail and bounced it after four days of retries, to
-  a sender that may be forged. An alias with one target in its domain counts as that account; forward-only accounts
-  are left out. A message that does not fit into a nearly full mailbox is still deferred as before: dovecot 2.3
-  ignores the size, 2.4 checks it only beyond its 10 MB grace.
-- **A catch-all goes to an account of its own domain** (#1337). exim forwarded an external one, and every refusal
-  at the target bounced to the sender, forged in most spam. The panel and the CLI refuse any other address; a
-  restore (a HestiaCP migration included) drops one and says so at the end of its output. It is stored in lower
-  case at the domain's ASCII name, so deleting the account takes the catch-all along. A catch-all already set on a
-  box stays as it is.
 - **A forward is a redirect in the mailbox's Sieve script** (#1337). exim forwarded after the SMTP session, and a
-  target that refused bounced to the sender, forged in most spam (the backscatter that listed a box). The redirect
-  now leaves from the mailbox, so a refusal comes back there; the bounce is not forwarded again and stays in the
-  mailbox, also for forward-only, where a daily job deletes such bounces after 7 days. The panel writes the rule in
-  the webmail's format and the webmail can change it; four addresses at most, and dovecot now runs up to 8
-  redirects per mail, so the customer's own redirect filters fit beside them (one over the limit stops them all).
-  **Spam is no longer forwarded**: it stays in the mailbox's spam folder, or is dropped for forward-only, where
-  exim forwarded it before. A forward stays in exim where Sieve cannot hold it: `:blackhole:`, a script the webmail
-  does not manage (an own script, an own rule named Forward, a filter set switched off), or a template not yet
-  patched. Mail from Sieve, redirects and vacation answers, is no longer held to the websites' send limit on dovecot
-  2.4 (Debian 13, Ubuntu 26.04): it shared one 200/h bucket for the whole box, and past it a delivery was deferred
-  or its later redirects never went out. On dovecot 2.3 it comes as the mailbox owner and gets a 200/h bucket of
-  its own per customer. The update moves the forwards set before into Sieve and names once the accounts whose
-  forward stays in exim. Panel and `h-list-mail-account(s)` show the forward as the script holds it, also when
-  changed in the webmail, and `FWD_SOURCE` says where it is; the panel's list marks one in exim or in the
-  webmail's own filters, and the form shows the latter read-only. More than four addresses set in the webmail can
-  be saved unchanged; one the command line would refuse makes the rule the customer's own.
+  target that refused bounced to the sender, forged in most spam: the backscatter that got a box listed. The redirect
+  leaves from the mailbox, so a refusal comes back there and stays; for forward-only, a daily job deletes such bounces
+  after 7 days. The panel writes the rule in the webmail's format and the webmail can change it, four addresses at most;
+  dovecot runs up to 8 redirects per mail, so the customer's own filters fit beside them. The update moves the
+  existing forwards and names once the accounts whose forward stays in exim: `:blackhole:`, or a Sieve script the
+  webmail does not manage.
+- **Spam is no longer forwarded** (#1337). It stays in the mailbox's spam folder, or is dropped for forward-only, where
+  exim forwarded it before.
+- **A full mailbox is refused in the SMTP session** (#1337). exim asks dovecot's quota-status at RCPT and answers 552,
+  where it accepted the mail and bounced it four days later, to a sender that may be forged. An alias with one target
+  in its domain counts as that account, forward-only accounts are left out, and a message that does not fit into a
+  nearly full mailbox is still deferred.
+- **A catch-all goes to an account of its own domain** (#1337). An external one forwarded every refusal back to the
+  sender. The panel and the CLI refuse any other address, and a restore, a HestiaCP migration included, drops one and
+  says so; a catch-all already set on a box stays.
+- **exim no longer answers autoreplies** (#1337). The vacation rules in Sieve answer, which the webmail edits too, and
+  the update moves an exim autoreply still left there. A receiving rspamd scored the exim answer 4 points for its
+  format alone.
+- **Panel and `h-list-mail-account(s)` show a forward as the Sieve script holds it** (#1337), a change in the webmail
+  included. `FWD_SOURCE` says where it lives; the panel's list marks a forward in exim or in the webmail's own
+  filters, and shows the latter read-only.
 
 ### Fixed
 
-- **Switching the autoreply on in the panel wiped a filter set switched off in the webmail** (#1337). With no
-  active Sieve script the panel wrote its own under Roundcube's set name and activated it, over the customer's
-  rules. It now refuses, and the panel shows the switch read-only with a pointer to the webmail.
-- **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362). On an image that skips
-  Recommends, fail2ban ran without python3-pyinotify and polled; exim's log is rotated with `nocreate`, and a
-  polling jail drops a file that is missing for a few minutes for good. The installer, `h-add-sys-fail2ban` and
-  the update install the package.
 - **A busy sending host was refused with 550 for every mail to the box** (#1366). exim's per-account send limit
-  counted inbound mail as well: without an account the rate was keyed on the sending host, and past 200 messages an
-  hour (`limit.conf`) every RCPT got a permanent 550, retries included. Inbound mail is no longer counted;
-  authenticated senders and the unauthenticated local relay keep their limit. Inherited from upstream.
+  counted inbound mail too, keyed on the sending host, and past 200 an hour every RCPT got a permanent 550. Inbound
+  mail is no longer counted. Inherited from upstream.
+- **Switching the autoreply on in the panel wiped a filter set switched off in the webmail** (#1337). With no active
+  Sieve script the panel wrote its own under Roundcube's set name, over the customer's rules. It now refuses and
+  shows the switch read-only with a pointer to the webmail.
+- **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362). On an image that skips Recommends
+  it ran without python3-pyinotify, polled, and dropped the rotated log for good. The installer, `h-add-sys-fail2ban`
+  and the update install the package.
+- **Vacation answers could be deferred once the box sent 200 an hour** (#1337). On dovecot 2.4 (Debian 13, Ubuntu
+  26.04) mail from Sieve shared the websites' one send bucket for the whole box; it is no longer held to it. On
+  dovecot 2.3 it counts per customer, 200 an hour each.
 
 ## v0.34 (2026-11-15)
 
@@ -68,48 +67,33 @@ after HestiaCP 1.10.7.
 
 ### Added
 
-- **NetAPI honeypot list in the blocklist picker, and a source link for every list** (#1351, upstream #5974). Level 2,
-  IPv4: addresses that attacked NetAPI's sensors in the last 48 hours. Each list links to its own page, as NetAPI's
-  CC BY 4.0 licence requires.
-- **Show button on masked password fields** (#1350, upstream #5959): the login, the password reset and the DNS
-  provider key. The field is masked again before it is sent.
+- **NetAPI honeypot list in the blocklist picker, and a source link for every list** (#1351, upstream #5974).
+- **Show button on masked password fields** (#1350, upstream #5959): login, password reset and the DNS provider key.
 
 ### Security
 
 - **A customer could take over files outside their home** (#1348, upstream GHSA-hc82-cqjf-hcpg,
-  GHSA-pfj7-fhx8-q4qx). Swapping a directory of their own home for a link at the right moment redirected root's work
-  during a rebuild, a mail or web change, a domain move or a restore. root now checks where it is before it acts,
-  `~/conf` stays immutable through a rebuild, and a restore no longer unpacks as root into the home; a restic restore
-  is staged beside the homes and hardlinked into place, so the data is not stored twice.
+  GHSA-pfj7-fhx8-q4qx). Swapping a directory of their home for a link redirected root's work during a rebuild, a mail
+  or web change, a domain move or a restore. root now checks where it is before it acts.
 - **On a box whose admin is not called `admin`, the panel's rules for that account did not apply** (#1349, upstream
-  GHSA-p4vq-6v6h-cc74). Protected and hidden admin, the log and SSH key pages and the role switch now follow the
-  configured `ROOT_USER`. With the admin hidden, the search results offer "log in as" for customers again.
+  GHSA-p4vq-6v6h-cc74). They follow the configured `ROOT_USER` now.
 - **A secret handed over as a /tmp file is read only from root or the caller** (#1350, upstream GHSA-vxpc-8vm2-8rv3).
-  A file of another user, a link or a directory there is refused instead of read or taken as the password itself.
 
 ### Changed
 
-- **Sieve comes with mail** (#1337). Every box with mail gets Sieve: delivery through LMTP, vacation rules the webmail
-  can edit too, the webmail filters and the spam learning. It is no longer an option in the wizard, and the update adds
-  it where it is missing and moves the exim autoreplies into Sieve; a box where it cannot be installed keeps the old
-  delivery and the next update retries. `h-delete-sys-sieve` is gone. It costs 2-6 MB of packages and a short-lived
-  delivery process; mail is not slower.
+- **Sieve comes with mail** (#1337). Every box with mail gets it: delivery through LMTP, vacation rules the webmail can
+  edit too, the webmail filters. The update adds it where it is missing; `h-delete-sys-sieve` is gone.
 
 ### Fixed
 
-- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344). With `allow-hotplug`, the Debian
-  installer's default, the address is still tentative when the web servers bind it. The kernel now lets them
-  (`net.ipv6.ip_nonlocal_bind`), and the update starts a web server the race took down.
-- **A Let's Encrypt rate limit held the installer for hours** (#1346). curl slept out the `Retry-After` of the 429 in
-  the installer, the panel's SSL switch and the renewal. The waits are bounded, the error names the limit and when to
-  retry, and the nightly renewal no longer counts it towards the 30 failures that drop a domain.
-- **An http auth password counted only its first 8 characters, and some never worked** (#1350). The hash was DES with
-  the start of the password as its salt. New and changed passwords are sha-512 with a random salt and 1000 rounds;
-  existing entries keep working until their next change.
-- **A login with a sha-512 hash carrying `rounds=` always failed** (#1350, upstream #5956), such as one taken over from
-  another system. New accounts use yescrypt and were not affected.
-- Smaller ones: adding a mail domain that already exists switched spam rejection on for the existing one (#1350,
-  upstream #5950), and "log in as" from the search results follows only a path on this panel (#1350, upstream #5957).
+- **apache2 and nginx stayed down after a reboot on a static IPv6 address** (#1344): the address was still tentative
+  when they bound it. `net.ipv6.ip_nonlocal_bind` lets them.
+- **A Let's Encrypt rate limit held the installer for hours** (#1346). The waits are bounded, and the renewal no longer
+  counts the limit towards dropping a domain.
+- **An http auth password counted only its first 8 characters** (#1350). New and changed ones are sha-512.
+- Smaller ones: a login with a sha-512 hash carrying `rounds=` always failed (#1350, upstream #5956), adding an
+  existing mail domain switched its spam rejection on (#1350, upstream #5950), and "log in as" from the search results
+  followed a path off the panel (#1350, upstream #5957).
 
 ## v0.33 (2026-11-14)
 
@@ -118,10 +102,8 @@ several public addresses.
 
 ### Added
 
-- **DNS provider accounts** (#1332/#1333, part of #863). An InterNetX AutoDNS account in the DNS tab, its key stored
-  for root only and in no backup. Each zone is compared with what HestiaRE derives, record by record; "Sync to
-  provider" writes one section after a preview and never touches a record HestiaRE does not derive or a zone the
-  public name servers do not point at. Every write is logged in `/var/log/hestia/dns-sync.log`.
+- **DNS provider accounts** (#1332/#1333, part of #863). An InterNetX AutoDNS account compares each zone with what
+  HestiaRE derives and writes a section after a preview, never a record HestiaRE does not derive.
 
 ### Security
 
@@ -130,20 +112,19 @@ several public addresses.
 
 ### Changed
 
-- **The derived DMARC record is `p=none`** (#1333), was `p=quarantine`. **New domains default to the IP the box reaches
-  the internet from** (#1330), instead of the alphabetically first.
+- **The derived DMARC record is `p=none`** (#1333), and **new domains default to the IP the box reaches the internet
+  from** (#1330).
 
 ### Removed
 
-- **The update manifests at or below the lower bound** (#1339), `0.20.0.json` to `0.25.json`.
+- **The update manifests at or below the lower bound** (#1339).
 
 ### Fixed
 
-- **A refused forward bounced to the original sender** (#1336). In spam that sender is forged, and the backscatter
-  got a production box listed at Spamhaus CSS. A failed forward or external catch-all delivery now bounces into
-  devnull, and a forwarded bounce no longer freezes and is delivered twice.
+- **A refused forward bounced to the original sender** (#1336), forged in spam; the backscatter got a box listed at
+  Spamhaus CSS. It bounces into devnull now.
 - **A second public IP next to an internal NAT address got the NAT on the wrong record** (#1330), and the firewall
-  opened only sshd's `Port`, not a port in a `ListenAddress` (#1330).
+  opened only sshd's `Port`, not a port in a `ListenAddress`.
 - Smaller ones: the primary-IP guard of `h-delete-sys-ip` (#1330), `webmail.<domain>` listed without webmail (#1333),
   and a resolver failure that held a zone "unknown" for an hour (#1332).
 

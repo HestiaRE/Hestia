@@ -828,8 +828,30 @@ bounce goes to the envelope sender. In spam that sender is forged, so a forwardi
 
 **HestiaRE.** A first router `forward_errors` accepts `bounce@forward-errors.invalid` into devnull, and the
 `aliases` and `catchall` routers set `errors_to` to it when their target list holds an external address. Local
-targets keep the real sender, which a vacation answers. An interim and later fallback: forwarding is to move into
-the mailbox's Sieve script (#1337), and exim then forwards nothing to the outside.
+targets keep the real sender, which a vacation answers. Since forwards moved into Sieve (delta 24) this is the
+fallback for the forwards exim still holds.
+
+## 24. Forwards: exim's alias router -> a redirect in the mailbox's Sieve script (#1337)
+
+**Upstream.** A forward is a line in the domain's `aliases`, and exim redirects in the routing stage, after the SMTP
+session. A target that refuses bounces to the envelope sender, spam is forwarded like any other mail, and a filter
+the customer sets in the webmail never sees the forward. A catch-all may point anywhere, outside the domain included.
+
+**HestiaRE.** The panel writes the forward as one rule in the mailbox's active Sieve script, in the format of the
+webmail that owns it (`include/forward.sh`, the reader and writer in `include/forward.php`, the parser it shares with
+the vacation in `include/sieve-rules.php`). The redirect leaves from the mailbox, so a refusal comes back there;
+spam stays in `.Spam`, or is dropped for forward-only. exim keeps a forward only where Sieve cannot hold it:
+`:blackhole:`, a script the webmail does not manage, a template without the 0.35 patch. Never both, the target would
+get every mail twice. A catch-all goes to an account of its own domain only.
+
+**Follow-on.**
+- The script is the truth: `FWD` and `FWD_ONLY` in the record follow it before a backup, and the listers read it
+  live (`FWD_SOURCE`), so a change in the webmail shows in the panel.
+- Four targets at most; dovecot's `sieve_max_redirects` is 8, which leaves room for the customer's own filters.
+- A forward-only mailbox keeps the bounces of its failed forwards, and `h-delete-mail-forward-bounces` deletes them
+  daily once they are 7 days old.
+- Mail from Sieve passes exim's `acl_not_smtp`: on dovecot 2.4 it comes as root and skips the websites' limit, on
+  2.3 it comes as the mailbox owner and counts per customer.
 
 ## Known inconsistencies (flagged, not yet resolved)
 

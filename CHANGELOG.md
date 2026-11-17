@@ -45,7 +45,7 @@ the releases of the command audit, into another.
   forward stays in exim. Panel and `h-list-mail-account(s)` show the forward as the script holds it, also when
   changed in the webmail, and `FWD_SOURCE` says where it is; the panel's list marks one in exim or in the
   webmail's own filters, and the form shows the latter read-only. More than four addresses set in the webmail can
-  be saved unchanged.
+  be saved unchanged; one the command line would refuse makes the rule the customer's own.
 
 ### Fixed
 

@@ -43,7 +43,7 @@ the releases of the command audit, into another.
   or its later redirects never went out. On dovecot 2.3 it comes as the mailbox owner and gets a 200/h bucket of
   its own per customer. The update moves the forwards set before into Sieve and names once the accounts whose
   forward stays in exim. Panel and `h-list-mail-account(s)` show the forward as the script holds it, also when
-  changed in the webmail, and `FWD_SOURCE` says where it is; the panel's list marks one still in exim or in the
+  changed in the webmail, and `FWD_SOURCE` says where it is; the panel's list marks one in exim or in the
   webmail's own filters, and the form shows the latter read-only. More than four addresses set in the webmail can
   be saved unchanged.
 

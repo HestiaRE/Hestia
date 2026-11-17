@@ -29,6 +29,14 @@ function is_word(string $s, array $tok, string $w): bool
 	return $tok[0] === 'word' && substr($s, $tok[1], $tok[2] - $tok[1]) === $w;
 }
 
+// is_email_format_valid in include/main.sh. A target read from the script goes into the record, the "|" lines and
+// exim's aliases, so one the CLI refuses makes the rule the customer's own; set refuses it too, or a rule written
+// would not read back as ours.
+function is_target(string $a): bool
+{
+	return (bool) preg_match('/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.([A-Za-z]{2,63}|xn--[A-Za-z0-9]{2,63})$/', $a);
+}
+
 // ---------------------------------------------------------------- Roundcube
 
 function rc_forward_rules(array $rules): array
@@ -37,7 +45,7 @@ function rc_forward_rules(array $rules): array
 }
 
 // [enabled, targets, keep] of a "Forward" rule, or null when it is more than a forward: a condition other than the
-// bounce test, or an action other than redirect.
+// bounce test, an action other than redirect, or a target is_target refuses.
 function rc_forward(string $rule): ?array
 {
 	$t = array_values(array_filter(sieve_tokens($rule), fn ($x) => $x[0] !== 'comment'));
@@ -113,6 +121,9 @@ function rc_forward(string $rule): ?array
 			return null;
 		}
 		$targets[] = sieve_value($rule, $t[$i++]);
+		if (!is_target(end($targets))) {
+			return null;
+		}
 		$keep = $keep && $copy;
 		if (!$at(';')) {
 			return null;
@@ -223,7 +234,7 @@ function tx_forward_ok(array $j): bool
 			return false;
 		}
 	}
-	return str_contains((string) ($j['ActionValue'] ?? ''), '@');
+	return is_target((string) ($j['ActionValue'] ?? ''));
 }
 
 function tx_forward_state(string $s): array
@@ -466,7 +477,7 @@ switch ($op) {
 		in_array($want, ['roundcube', 'tachyon'], true) && in_array($keep, ['yes', 'no'], true) && $targets || usage();
 		count($targets) <= MAX_TARGETS || fail(1, 'at most ' . MAX_TARGETS . ' forward targets');
 		foreach ($targets as $a) {
-			preg_match('/^[^\s"\\\\@]+@[^\s"\\\\@]+$/', $a) || fail(1, "not an address: $a");
+			is_target($a) || fail(1, "not an address: $a");
 		}
 		count(array_unique(array_map('strtolower', $targets))) === count($targets) || fail(1, 'a forward target is named twice');
 		$s = $file !== '' && is_file($file) ? file_get_contents($file) : '';

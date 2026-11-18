@@ -27,7 +27,8 @@ the releases of the command audit, into another.
   the whitelist exempted it in the firewall but not from CrowdSec, whose bouncer kept answering 403. Now CrowdSec counts
   neither a whitelisted address nor the log of a domain switched off, whitelisting an address releases its current
   bans, and the switch works without the L7 bouncer too. Domains from before the default had an empty switch that the
-  panel showed as off while CrowdSec still watched them; the update switches them on.
+  panel showed as off while CrowdSec still watched them; the update switches them on, and a restore does the same
+  for an archived domain without a choice.
 
 ## v0.35 (2026-11-17)
 

@@ -357,7 +357,8 @@ CS_WHITELIST=/etc/crowdsec/parsers/s02-enrich/hestia-whitelist.yaml
 # What CrowdSec must not count: the firewall whitelist, which every other layer already exempts, and the logs of the
 # domains whose switch is off, so no ban arises from them at L7 or L3. The log paths come from our acquisition file,
 # so they are exactly what CrowdSec reads. Loopback always, so the file exists and parses even with nothing else in it.
-# A file the engine refuses goes back to the previous one: an unparsable parser stops all detection.
+# A file the engine refuses goes back to the previous one: an unparsable parser stops all detection. A deleted domain's
+# paths stay until the next sync, harmless: its log is gone, and a domain added under that name syncs on its add.
 crowdsec_whitelist_sync() {
 	local excludes="$CONF_DIR/firewall/excludes.conf" acq=/etc/crowdsec/acquis.d/hestia-nginx.yaml
 	local dir tmp keep a wc d ips=() cidrs=() srcs=()

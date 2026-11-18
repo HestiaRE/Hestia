@@ -536,7 +536,6 @@ backup_report() {
 
 	# Protections a domain asks for that this host cannot render. The setting survives on purpose, so only
 	# the report can say it does nothing here. Asked of the renderers, and only where present.
-	[ -f "$HESTIA/include/crowdsec.sh" ] && { type crowdsec_domain_capable > /dev/null 2>&1 || source "$HESTIA/include/crowdsec.sh"; }
 	[ -f "$HESTIA/include/botpolicy.sh" ] && { type botpolicy_family_enabled > /dev/null 2>&1 || source "$HESTIA/include/botpolicy.sh"; }
 	_prot=''
 	while IFS= read -r _dom; do
@@ -544,8 +543,8 @@ backup_report() {
 		_file=$(backup_record_file web "$_dom")
 		[ -s "$_file" ] || continue
 		_rec=$(head -n1 "$_file")
-		if [ "$(sed -n "s/.*CROWDSEC='\([^']*\)'.*/\1/p" <<< "$_rec")" = 'yes' ] \
-			&& type crowdsec_domain_capable > /dev/null 2>&1 && ! crowdsec_domain_capable; then
+		# The switch decides whether CrowdSec reads the domain's log, so it acts wherever CrowdSec runs, L7 or not.
+		if [ "$(sed -n "s/.*CROWDSEC='\([^']*\)'.*/\1/p" <<< "$_rec")" = 'yes' ] && [ -z "$CROWDSEC_SYSTEM" ]; then
 			_prot="$_prot$_dom: CrowdSec"$'\n'
 		fi
 		_bl=$(sed -n "s/.*BOTLIMIT='\([^']*\)'.*/\1/p" <<< "$_rec")

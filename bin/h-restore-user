@@ -653,6 +653,8 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			# SUSPENDED_WEB is recounted at the end of the run.
 			record_set_field str TIME "$(date +%T)"
 			record_set_field str DATE "$(date +%F)"
+			# No choice in the archive (HestiaCP, or from before the default): the one a new domain gets.
+			[ -n "$(record_field "$str" CROWDSEC)" ] || record_set_field str CROWDSEC 'yes'
 			# PHP_PROFILE exists only inside the archive; live records carry it as BACKEND.
 			record_del_field str PHP_PROFILE
 

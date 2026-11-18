@@ -28,6 +28,11 @@
 			<a class="button button-secondary" href="/list/firewall/ipset/">
 				<i class="fas fa-list icon-blue"></i><?= tohtml(_("IPset IP Lists")) ?>
 			</a>
+			<?php if (!empty($_SESSION["CROWDSEC_SYSTEM"])): ?>
+				<a class="button button-secondary" href="/list/firewall/crowdsec/">
+					<i class="fas fa-shield-halved icon-blue"></i><?= tohtml(_("CrowdSec Scenarios")) ?>
+				</a>
+			<?php endif; ?>
 			<a class="button button-secondary" href="/list/firewall/mesh/">
 				<i class="fas fa-share-nodes icon-blue"></i><?= tohtml(_("Fleet Mesh")) ?>
 			</a>

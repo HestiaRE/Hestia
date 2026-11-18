@@ -1,0 +1,54 @@
+#!/bin/bash
+# info: switch a CrowdSec scenario on or off
+# options: SCENARIO STATE
+#
+# example: h-change-sys-crowdsec-scenario crowdsecurity/http-crawl-non_statics off
+#
+# Off puts the scenario into CrowdSec's simulation: it still detects and its alerts stay visible, but it bans nobody,
+# and the bans it has already set are lifted. On lets it ban again from now on.
+
+scenario=$1
+state=$2
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/crowdsec.sh
+source $HESTIA/include/crowdsec.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '2' "$#" 'SCENARIO STATE'
+is_system_enabled "$CROWDSEC_SYSTEM" 'CROWDSEC_SYSTEM'
+[[ "$scenario" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || check_result "$E_INVALID" "invalid scenario name: $scenario"
+case "$state" in
+	on | off) ;;
+	*) check_result "$E_INVALID" "invalid state: $state (on or off)" ;;
+esac
+
+scenario_state() { crowdsec_scenarios | awk -F'\t' -v n="$scenario" '$1 == n { print $2 }'; }
+
+cur=$(scenario_state)
+[ -n "$cur" ] || check_result "$E_NOTEXIST" "$scenario is not an installed scenario that can be switched here"
+
+if [ "$cur" != "$state" ]; then
+	if [ "$state" = off ]; then
+		cscli simulation enable "$scenario" > /dev/null 2>&1
+	else
+		cscli simulation disable "$scenario" > /dev/null 2>&1
+	fi
+	[ "$(scenario_state)" = "$state" ] || check_result "$E_UPDATE" "CrowdSec did not take $scenario $state"
+	systemctl reload crowdsec > /dev/null 2>&1
+fi
+
+# Also when it was off already: a ban it set before stays one until it expires, whatever the switch says.
+if [ "$state" = off ]; then
+	crowdsec_decisions_clear --scenario "$scenario"
+	# The firewall set lags behind by up to a timer run otherwise.
+	systemctl start --no-block hestia-crowdsec-l3.service > /dev/null 2>&1 || true
+fi
+
+$BIN/h-log-action "system" "Info" "Firewall" "CrowdSec scenario $scenario switched $state."
+log_event "$OK" "$ARGUMENTS"
+
+exit

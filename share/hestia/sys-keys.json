@@ -310,6 +310,12 @@
    "default": "",
    "values": ["nginx", ""]
   },
+  "PTR_WARNING": {
+   "class": "system",
+   "default": "",
+   "values": ["yes", ""],
+   "note": "yes while an IP's reverse DNS does not match exim's HELO; written by h-check-sys-ip-ptr, read by the panel banner (#1372)"
+  },
   "REDIS_SYSTEM": {
    "class": "system",
    "default": "",

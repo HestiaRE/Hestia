@@ -941,6 +941,10 @@ msgid "Add new object"
 msgstr ""
 
 #: web/templates/footer.php
+msgid "Check the IP addresses"
+msgstr ""
+
+#: web/templates/footer.php
 msgid "Display / Hide shortcuts"
 msgstr ""
 
@@ -993,6 +997,14 @@ msgid "Move up through elements list"
 msgstr ""
 
 #: web/templates/footer.php
+msgid "Receiving mail servers may reject mail from this server or mark it as spam."
+msgstr ""
+
+#: web/templates/footer.php
+msgid "Reverse DNS does not match."
+msgstr ""
+
+#: web/templates/footer.php
 msgid "Save form"
 msgstr ""
 
@@ -1002,6 +1014,10 @@ msgstr ""
 
 #: web/templates/footer.php
 msgid "Unsave form"
+msgstr ""
+
+#: web/templates/footer.php
+msgid "hide"
 msgstr ""
 
 #: web/templates/header.php
@@ -3962,8 +3978,39 @@ msgid_plural "%d IP addresses"
 msgstr[0] ""
 msgstr[1] ""
 
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not match the HELO name %s"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not resolve back to %s"
+msgstr ""
+
 #: web/templates/pages/list_ip.php web/templates/pages/list_stats.php
 msgid "IP Addresses"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "Matches the HELO name"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "No DNS server answered, or the HELO name is unknown"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "No PTR record"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "No PTR record for %s"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "Not checked"
 msgstr ""
 
 #: web/templates/pages/list_ip.php web/templates/pages/list_search.php
@@ -3971,7 +4018,15 @@ msgid "Owner"
 msgstr ""
 
 #: web/templates/pages/list_ip.php
+msgid "Private address"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
 msgid "Refresh IP Addresses"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "Reverse DNS"
 msgstr ""
 
 #: web/templates/pages/list_key.php

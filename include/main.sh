@@ -1486,6 +1486,8 @@ system_crontab_write() {
 		echo "$_min 04 * * * sudo $HESTIA/bin/h-check-sys-update"
 		# Keep in step with forward_bounces_cron_apply in include/helper.sh, which adds it on an update.
 		echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"
+		# Keep in step with ptr_check_cron_apply in include/helper.sh, which adds it on an update.
+		echo "50 03 * * * sudo $HESTIA/bin/h-check-sys-ip-ptr"
 	} > "$_tmp" || return 1
 	chmod 600 "$_tmp" && chown hestia:hestia "$_tmp" || {
 		rm -f "$_tmp"

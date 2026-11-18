@@ -1009,6 +1009,10 @@ msgid "Add new object"
 msgstr "Neues Objekt hinzufügen"
 
 #: web/templates/footer.php
+msgid "Check the IP addresses"
+msgstr "IP-Adressen prüfen"
+
+#: web/templates/footer.php
 msgid "Display / Hide shortcuts"
 msgstr "Tastenkürzel ein-/ausblenden"
 
@@ -1061,6 +1065,14 @@ msgid "Move up through elements list"
 msgstr "Aufwärts durch die Liste bewegen"
 
 #: web/templates/footer.php
+msgid "Receiving mail servers may reject mail from this server or mark it as spam."
+msgstr "Empfangende Mailserver können Mails dieses Servers abweisen oder als Spam markieren."
+
+#: web/templates/footer.php
+msgid "Reverse DNS does not match."
+msgstr "Reverse DNS passt nicht."
+
+#: web/templates/footer.php
 msgid "Save form"
 msgstr "Formular speichern"
 
@@ -1071,6 +1083,10 @@ msgstr "Tastenkürzel"
 #: web/templates/footer.php
 msgid "Unsave form"
 msgstr "Formular nicht speichern"
+
+#: web/templates/footer.php
+msgid "hide"
+msgstr "ausblenden"
 
 #: web/templates/header.php
 msgid "Your browser version is not supported. Please update your browser to use the control panel."
@@ -4030,17 +4046,56 @@ msgid_plural "%d IP addresses"
 msgstr[0] "%d IP-Adresse"
 msgstr[1] "%d IP-Adressen"
 
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not match the HELO name %s"
+msgstr "Weicht vom HELO-Namen %s ab"
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not resolve back to %s"
+msgstr "Zeigt nicht zurück auf %s"
+
 #: web/templates/pages/list_ip.php web/templates/pages/list_stats.php
 msgid "IP Addresses"
 msgstr "IP-Adressen"
+
+#: web/templates/pages/list_ip.php
+msgid "Matches the HELO name"
+msgstr "Stimmt mit dem HELO-Namen überein"
+
+#: web/templates/pages/list_ip.php
+msgid "No DNS server answered, or the HELO name is unknown"
+msgstr "Kein DNS-Server hat geantwortet, oder der HELO-Name ist unbekannt"
+
+#: web/templates/pages/list_ip.php
+msgid "No PTR record"
+msgstr "Kein PTR-Eintrag"
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "No PTR record for %s"
+msgstr "Kein PTR-Eintrag für %s"
+
+#: web/templates/pages/list_ip.php
+msgid "Not checked"
+msgstr "Nicht geprüft"
 
 #: web/templates/pages/list_ip.php web/templates/pages/list_search.php
 msgid "Owner"
 msgstr "Besitzer"
 
 #: web/templates/pages/list_ip.php
+msgid "Private address"
+msgstr "Private Adresse"
+
+#: web/templates/pages/list_ip.php
 msgid "Refresh IP Addresses"
 msgstr "IP-Adressen aktualisieren"
+
+#: web/templates/pages/list_ip.php
+msgid "Reverse DNS"
+msgstr "Reverse DNS"
 
 #: web/templates/pages/list_key.php
 #, php-format

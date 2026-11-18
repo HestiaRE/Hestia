@@ -728,11 +728,64 @@ check_login_alias_passdb() {
 	fi
 }
 
+# A patch entry decides by context. A later change to a line it uses as context leaves it neither applied nor
+# reversible: rc 2 on every box that has the newer file, and upd_plan refuses each later update there. So every patch the
+# engine reads reverses onto the tree file named in its +++ line. git apply, not patch(1): the runner is not known to
+# have patch, and on the shipped patches both agree. Not covered: a name shipped twice (dovecot 2.3 and 2.4) passes
+# when the patch reverses onto either copy, and an operator's edit on a box is the smoke's question, not this one.
+check_update_patches_reverse() {
+	local lib="$HESTIA/include/update.sh" m p lvl name f d t hit n=0 bad='' with=0
+	[ -f "$lib" ] || return
+	t=$(mktemp -d) || {
+		no "update patches: no temporary directory" "nothing was checked"
+		return
+	}
+	while IFS= read -r m; do
+		[ -n "$m" ] || continue
+		grep -q '"file_patch_pending"' "$m" && with=$((with + 1))
+		while IFS= read -r p; do
+			[ -n "$p" ] || continue
+			n=$((n + 1))
+			if [ "$(grep -c '^+++ ' "$p" 2> /dev/null)" != 1 ]; then
+				bad+=" $p(not one file)"
+				continue
+			fi
+			lvl=0
+			grep -q '^+++ b/' "$p" && lvl=1
+			name=$(sed -n 's/^+++ \(b\/\)\{0,1\}\([^[:space:]]*\).*/\2/p' "$p")
+			hit=''
+			while IFS= read -r f; do
+				[ -n "$f" ] || continue
+				d=$(mktemp -d -p "$t") && mkdir -p "$(dirname "$d/$name")" && cp "$f" "$d/$name" || continue
+				# Applied for real and compared: a git apply that skipped the path would otherwise pass unseen.
+				(cd "$d" && git apply -R -p"$lvl" "$HESTIA/$p" > /dev/null 2>&1) && ! cmp -s "$f" "$d/$name" && hit=1 && break
+			done < <(find share -type f -name "${name##*/}" ! -path 'share/updates/*')
+			[ -n "$hit" ] || bad+=" $p(${name##*/})"
+		done < <(jq -r '.entries[].conditions[]? | select(.type == "file_patch_pending") | .source' "$m")
+	done < <(
+		# shellcheck source=/usr/local/hestia/include/update.sh
+		source "$lib" > /dev/null 2>&1
+		upd_manifest_files "$UPD_VERSION_MAX" 2> /dev/null
+	)
+	rm -rf "${t:?}"
+	if [ -n "$bad" ]; then
+		no "update patches that no longer reverse onto their tree file:$bad" \
+			"a later change took their context, so their entry reads rc 2 and stops every update after it"
+	elif [ "$n" -eq 0 ] && [ "$with" -gt 0 ]; then
+		no "update patches: $with manifest(s) above the bound name one, but none was read" "nothing was checked"
+	elif [ "$n" -eq 0 ]; then
+		ok "update patches: no manifest above the bound carries one, nothing to check"
+	else
+		ok "update patches: $n above the bound, each reverses onto its tree file"
+	fi
+}
+
 check_share_json
 check_login_alias_passdb
 check_sys_key_registry
 check_manifest_status_link
 check_update_manifests
+check_update_patches_reverse
 check_update_entries_follow_changes
 check_update_dispatcher
 check_update_callables_soft

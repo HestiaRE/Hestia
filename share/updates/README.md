@@ -125,6 +125,11 @@ The condition is deliberately **three-way**, and that is the whole point:
 A two-way condition would report the third case as "nothing to do" and the change would silently
 never arrive. `-F0` throughout: a hunk that only roughly matches is drift, not a hit.
 
+**A later patch must leave an earlier one's context alone.** If it changes a line that an older patch above the bound
+uses as context, that patch neither applies nor reverses on a box that took the newer one. Its condition then returns
+rc 2, and the plan refuses every update after it. `check-tree.sh` reverses every such patch onto its tree file (#1378).
+When that goes red, either keep the line as it is or raise the bound past the older manifest.
+
 **Gate it when the file is not always ours.** On a box without mail the exim template is Debian's stock
 file, and the patch condition reads it as edited. So a key condition goes in front (`key_is` `MAIL_SYSTEM`
 `exim4`): the check stops at the first false condition, as the plan does, and never reaches the patch.

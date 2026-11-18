@@ -957,6 +957,8 @@ forward_bounces_cron_apply() {
 ptr_check_cron_apply() {
 	hestia_crontab_line_add h-check-sys-ip-ptr "50 03 * * * sudo $HESTIA/bin/h-check-sys-ip-ptr" \
 		'the daily reverse DNS check of the system IPs'
+	# Once now, so the banner does not wait for the first night.
+	"$HESTIA/bin/h-check-sys-ip-ptr" > /dev/null 2>&1 || echo '[ ! ] The reverse DNS check did not run, the night will.'
 	return 0
 }
 

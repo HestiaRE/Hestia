@@ -11,6 +11,17 @@
       "action": { "type": "function_call", "function": "ptr_check_cron_apply" },
       "paths": ["/var/spool/cron/crontabs/hestia"],
       "reversible": false
+    },
+    {
+      "id": "crowdsec-whitelist",
+      "description": "CrowdSec honours the firewall whitelist and a domain's CrowdSec switch: a whitelisted address and the log of a domain switched off are no longer counted, so no ban arises from them. A domain without a choice yet, i.e. one created before the default, gets the default and is switched on",
+      "conditions": [
+        { "type": "package_installed", "name": "crowdsec" },
+        { "type": "path_absent", "path": "/etc/crowdsec/parsers/s02-enrich/hestia-whitelist.yaml" }
+      ],
+      "action": { "type": "function_call", "function": "crowdsec_whitelist_apply" },
+      "paths": ["/etc/crowdsec/parsers/s02-enrich", "/etc/hestia/users"],
+      "reversible": false
     }
   ]
 }

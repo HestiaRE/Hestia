@@ -4,7 +4,7 @@
 #
 # example: h-delete-web-domain-crowdsec admin acme.com
 #
-# Disables the CrowdSec ban check on the domain's public nginx vhost.
+# CrowdSec stops reading the domain's log, so no ban arises from it at L7 or L3, and its 403 check goes.
 
 user=$1
 domain=$2

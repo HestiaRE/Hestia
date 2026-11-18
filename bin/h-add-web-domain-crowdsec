@@ -4,8 +4,8 @@
 #
 # example: h-add-web-domain-crowdsec admin acme.com
 #
-# Enables the per-request CrowdSec ban check (Layer A, 403) on the domain's public
-# nginx vhost. CrowdSec is nginx-gated, so nginx must be the public web server.
+# CrowdSec reads the domain's log again, and where nginx carries the L7 bouncer a banned address gets 403 there.
+# CrowdSec is nginx-gated, so nginx must be the public web server.
 
 user=$1
 domain=$2
@@ -34,12 +34,6 @@ if [ "$pub" != "nginx" ]; then
 	echo "Error: CrowdSec requires nginx as the public web server"
 	exit "$E_NOTEXIST"
 fi
-# The per-domain check is the L7 bouncer; without it the switch would be stored and do nothing.
-if ! crowdsec_domain_capable; then
-	echo "Error: CrowdSec has no L7 bouncer on this nginx, so there is no per-domain check to enable"
-	exit "$E_NOTEXIST"
-fi
-
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
 
 if [ -z "$CROWDSEC" ]; then

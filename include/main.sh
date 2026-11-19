@@ -1809,9 +1809,10 @@ is_ip46_format_valid() {
 
 # One parser for all three families, because three copies drifted: only the v4 one got the mask
 # hardened, and that is the one nothing calls. A mask is an unsigned integer in its family's range,
-# so ctype_digit does both bounds at once; "x/" carries no mask but is not the same as "x".
+# so ctype_digit does both bounds at once; "x/" carries no mask but is not the same as "x". No leading zero: nft reads
+# /08 as octal and refuses it, and takes /064 silently as /52.
 # filter_var alone decides the address; an extra pattern rejects nothing it accepts.
-# Callers accept only the literal 0: an error text from php must refuse, not pass.
+# A guard accepts only the literal 0, so an error text from php refuses; a filter drops only on the literal 1.
 _is_cidr_valid() {
 	$HESTIA_PHP -r '$p = explode("/", $argv[1]);
 		if (count($p) > 2) { echo 1; exit; }
@@ -1820,7 +1821,8 @@ _is_cidr_valid() {
 		$fam = $argv[2];
 		if (!($fam === "46" ? ($v4 || $v6) : ($fam === "4" ? $v4 : $v6))) { echo 1; exit; }
 		if (count($p) === 1) { echo 0; exit; }
-		echo (ctype_digit($p[1]) && (int) $p[1] <= ($v4 ? 32 : 128)) ? 0 : 1;' -- "$1" "$2"
+		$m = $p[1];
+		echo (ctype_digit($m) && ($m === "0" || $m[0] !== "0") && (int) $m <= ($v4 ? 32 : 128)) ? 0 : 1;' -- "$1" "$2"
 }
 
 is_ipv4_cidr_format_valid() {

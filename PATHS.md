@@ -22,6 +22,7 @@
 /usr/local/hestia/
 ├── bin/               CLI commands (h-*)
 ├── conf -> /etc/hestia/conf   Symlink — instance config lives in /etc/hestia (§5a)
+├── docs/              Operator docs: backup, update, troubleshooting, docker (#1390)
 ├── share/             Shipped install-time assets: manifest.json, panel-caddy/,
 │                      panel-php/, dovecot/, firewall/ (consumed by the installer)
 ├── templates/         Selectable only: nginx/ vhosts, php/ pool profiles, docker/ (#219)

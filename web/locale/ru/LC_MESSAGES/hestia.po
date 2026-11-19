@@ -1015,6 +1015,10 @@ msgid "Add new object"
 msgstr "Добавить новый объект"
 
 #: web/templates/footer.php
+msgid "Check the IP addresses"
+msgstr ""
+
+#: web/templates/footer.php
 msgid "Display / Hide shortcuts"
 msgstr "Показать / Скрыть ярлыки"
 
@@ -1067,6 +1071,14 @@ msgid "Move up through elements list"
 msgstr "Переместить вверх вдоль списка элементов"
 
 #: web/templates/footer.php
+msgid "Receiving mail servers may reject mail from this server or mark it as spam."
+msgstr ""
+
+#: web/templates/footer.php
+msgid "Reverse DNS does not match."
+msgstr ""
+
+#: web/templates/footer.php
 msgid "Save form"
 msgstr "Сохранить форму"
 
@@ -1077,6 +1089,10 @@ msgstr "Горячие клавиши"
 #: web/templates/footer.php
 msgid "Unsave form"
 msgstr "Удалить форму"
+
+#: web/templates/footer.php
+msgid "hide"
+msgstr ""
 
 #: web/templates/header.php
 msgid "Your browser version is not supported. Please update your browser to use the control panel."
@@ -4078,17 +4094,56 @@ msgstr[1] "%d IP адреса"
 msgstr[2] "%d IP адресов"
 msgstr[3] "%d IP адресов"
 
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not match the HELO name %s"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not resolve back to %s"
+msgstr ""
+
 #: web/templates/pages/list_ip.php web/templates/pages/list_stats.php
 msgid "IP Addresses"
 msgstr "IP-адреса"
+
+#: web/templates/pages/list_ip.php
+msgid "Matches the HELO name"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "No DNS server answered, or the HELO name is unknown"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "No PTR record"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "No PTR record for %s"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "Not checked"
+msgstr ""
 
 #: web/templates/pages/list_ip.php web/templates/pages/list_search.php
 msgid "Owner"
 msgstr "Владелец"
 
 #: web/templates/pages/list_ip.php
+msgid "Private address"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
 msgid "Refresh IP Addresses"
 msgstr "Обновить IP-адреса"
+
+#: web/templates/pages/list_ip.php
+msgid "Reverse DNS"
+msgstr ""
 
 #: web/templates/pages/list_key.php
 #, php-format

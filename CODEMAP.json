@@ -781,6 +781,7 @@
         "bin/h-add-sys-smtp-relay",
         "bin/h-add-sys-tachyon",
         "bin/h-change-sys-webmail",
+        "bin/h-check-sys-ip-ptr",
         "bin/h-delete-sys-clamav",
         "bin/h-delete-sys-mail-dnsbl",
         "bin/h-delete-sys-mail-queue",
@@ -797,6 +798,7 @@
         "bin/h-list-sys-webmail",
         "bin/h-update-mail-templates"
       ],
+      "reverse_dns": "bin/h-check-sys-ip-ptr (#1372): per IP record, its NAT address where set, the PTR asked past systemd-resolved (which answers an own address without a PTR with the hostname), whether that name leads back to the address, and whether it is exim's HELO (helo_data of remote_smtp expanded with the address). Live on the admin IP page (web/list/ip, a column only with mail) and daily from the hestia crontab into PTR_WARNING, which raises a banner in web/templates/footer.php. A hint only, never a smoke failure.",
       "core": "include/sieve.sh: the sieve state shared by the engine and both webmail clients, the IMAP-learning chain (imap_sieve plugin, _rspamd-ctrl in mail_access_groups, compile after the dovecot restart) and sieve_managesieve_bind_local (ManageSieve on loopback, 2.3 address vs 2.4 listen). include/vacation.sh: the autoreply move between exim and Sieve. Login aliases (dovecot 2.4 only): a passwd-file passdb in front of the mailbox one renames a name from /etc/dovecot/login-aliases (kept by hand, created empty from share/dovecot/2.4/login-aliases by dovecot_login_aliases_ensure, never overwritten) to the address, the mailbox passdb checks the password; continue-fail keeps it from passing a login on its own, and exim takes the renamed address from dovecot.",
       "invariants": "An addon reports active only when the exim template carries its armed macro and exim came back; a failed restart disarms and restarts exim. rspamd and sieve wire the learning chain whichever comes second, and removing rspamd takes _rspamd-ctrl out of dovecot before the group goes, or logins and delivery break. Add and delete run on any leftover artefact, so a half install can be repaired by running the add again. h-change-sys-webmail re-renders every unsuspended mail domain with the client its record names.",
       "panel": "web/edit/server (service links, clamav-daemon), web/inc/main.php.",

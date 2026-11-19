@@ -2627,6 +2627,13 @@
 /* Updates banner
    ========================================================================== */
 
+/* One fixed box, so two banners stack instead of covering each other. */
+.updates-banners {
+	position: fixed;
+	bottom: 0;
+	width: 100%;
+}
+
 .updates-banner {
 	width: 100%;
 	text-align: center;
@@ -2636,8 +2643,11 @@
 	color: #fff;
 	font-size: 0.75rem;
 	padding: 10px;
-	position: fixed;
-	bottom: 0;
+
+	& a {
+		color: #fff;
+		text-decoration: underline;
+	}
 
 	& button {
 		border: 0;
@@ -2651,6 +2661,10 @@
 			text-decoration: underline;
 		}
 	}
+}
+
+.updates-banner-warning {
+	background-color: #b45309;
 }
 
 /* Debug panel

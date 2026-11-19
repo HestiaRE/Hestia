@@ -13,7 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Added
+
+- **The IP page shows the reverse DNS of every address** (#1372). Asked as a receiver sees it, for the NAT address
+  where there is one: is there a PTR, does its name lead back to the address, and is it the name exim greets with. A
+  receiver that finds none of that may refuse the mail or score it as spam. The page checks live, so a fixed PTR shows
+  on reload; a daily job raises a banner for the admin while one does not match. Both only on a box with mail.
 
 ## v0.35 (2026-11-17)
 

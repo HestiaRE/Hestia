@@ -932,19 +932,33 @@ sieve_max_redirects_apply() {
 	return 0
 }
 
-# The line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in,
-# as there: the crontabs directory is sticky, where opening the file is EACCES even for root.
-forward_bounces_cron_apply() {
+# A line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in, as
+# there: the crontabs directory is sticky, where opening the file is EACCES even for root.
+hestia_crontab_line_add() { # COMMAND LINE WHAT
 	local ct='/var/spool/cron/crontabs/hestia' tmp="/var/spool/cron/crontabs/.hestia.$$"
 	# Empty counts as missing: the daily repair writes it whole, with this line.
 	[ -s "$ct" ] || return 0
-	grep -q 'h-delete-mail-forward-bounces' "$ct" && return 0
-	if { sed -e '$a\' "$ct" && echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"; } > "$tmp" \
+	grep -qF -- "$1" "$ct" && return 0
+	if { sed -e '$a\' "$ct" && echo "$2"; } > "$tmp" \
 		&& chmod 600 "$tmp" && chown hestia:hestia "$tmp" && mv -f "$tmp" "$ct"; then
 		return 0
 	fi
 	rm -f "$tmp"
-	echo '[ ! ] The hestia crontab did not take the daily cleanup of old bounces in forward-only mailboxes.'
+	echo "[ ! ] The hestia crontab did not take $3."
+	return 0
+}
+
+forward_bounces_cron_apply() {
+	hestia_crontab_line_add h-delete-mail-forward-bounces "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces" \
+		'the daily cleanup of old bounces in forward-only mailboxes'
+	return 0
+}
+
+ptr_check_cron_apply() {
+	hestia_crontab_line_add h-check-sys-ip-ptr "50 03 * * * sudo $HESTIA/bin/h-check-sys-ip-ptr" \
+		'the daily reverse DNS check of the system IPs'
+	# Once now, so the banner does not wait for the first night.
+	"$HESTIA/bin/h-check-sys-ip-ptr" > /dev/null 2>&1 || echo '[ ! ] The reverse DNS check did not run, the night will.'
 	return 0
 }
 

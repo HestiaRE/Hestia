@@ -1,0 +1,16 @@
+{
+  "version": "0.36",
+  "entries": [
+    {
+      "id": "ptr-check-cron",
+      "description": "A daily job checks the reverse DNS of the system IPs against the name exim greets with and raises a banner for the admin when one does not match. One line added to the hestia crontab, the rest stays as it is, and the check runs once right away",
+      "conditions": [
+        { "type": "path_exists", "path": "/var/spool/cron/crontabs/hestia" },
+        { "type": "file_lacks", "path": "/var/spool/cron/crontabs/hestia", "value": "h-check-sys-ip-ptr" }
+      ],
+      "action": { "type": "function_call", "function": "ptr_check_cron_apply" },
+      "paths": ["/var/spool/cron/crontabs/hestia"],
+      "reversible": false
+    }
+  ]
+}

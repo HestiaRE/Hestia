@@ -1,0 +1,196 @@
+#!/bin/bash
+# info: check the reverse DNS of the system IPs against the name exim greets with
+# options: [FORMAT]
+#
+# example: h-check-sys-ip-ptr json
+#
+# Per IP record, its NAT address where it has one: the PTR as a receiver sees it, whether that name leads back to the
+# address, and whether it is exim's HELO. Sets PTR_WARNING for the panel banner; without mail it clears it.
+
+format="${1-shell}"
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '0' "$#" '[FORMAT]'
+case "$format" in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+HOST_RE='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
+
+# systemd-resolved answers an own address without a PTR with the hostname, on both stubs, so behind it only its
+# uplinks are asked; with none known nothing is.
+ptr_resolvers() {
+	local f=/etc/resolv.conf
+	grep -qE '^nameserver[[:space:]]+127\.0\.0\.5[34]([[:space:]]|$)' "$f" 2> /dev/null \
+		&& f=/run/systemd/resolve/resolv.conf
+	awk '$1 == "nameserver" && $2 !~ /^127\.0\.0\.5[34]$/ { print $2 }' "$f" 2> /dev/null
+}
+
+# Sets ANSWER to the records of TYPE, lowercase without the final dot. SERVFAIL, REFUSED or silence are no answer and
+# must not read as a missing record: rc 2 when no resolver gave one. When none even replied, and none answers about
+# the root either, DNS is out and nothing further is asked, so a page load does not wait out the timeout per address.
+dns_ask() { # TYPE DIG_QUESTION...
+	local t=$1 ns out heard=''
+	shift
+	ANSWER=''
+	[ -z "$DNS_SILENT" ] || return 2
+	for ns in $RESOLVERS; do
+		out=$(timeout 4 dig "@$ns" +time=2 +tries=1 +noall +comments +answer "$@" 2> /dev/null) || continue
+		heard=1
+		[[ $out == *'status: NOERROR'* || $out == *'status: NXDOMAIN'* ]] || continue
+		ANSWER=$(awk -v t="$t" '$4 == t { sub(/\.$/, "", $5); print tolower($5) }' <<< "$out")
+		return 0
+	done
+	[ -n "$heard" ] || dns_alive || DNS_SILENT=1
+	return 2
+}
+
+# A silent zone, a badly delegated reverse zone above all, is not an outage.
+dns_alive() {
+	local ns
+	for ns in $RESOLVERS; do
+		timeout 4 dig "@$ns" +time=2 +tries=1 . NS > /dev/null 2>&1 && return 0
+	done
+	return 1
+}
+
+# exim's own expansion with the address in place of $sending_ip_address, so an operator's helo_data counts as it is.
+# exim -be says "Failed:" with rc 0, hence the name check.
+helo_of() {
+	local e=${HELO_DATA:-'$primary_hostname'}
+	e=${e//\$\{sending_ip_address\}/$1}
+	e=${e//\$sending_ip_address/$1}
+	exim -be "$e" 2> /dev/null | tr '[:upper:]' '[:lower:]' | grep -E "$HOST_RE"
+}
+
+# Without a NAT address such an address reaches no receiver.
+ip_private() {
+	local o
+	case "$1" in
+		10.* | 127.* | 192.168.* | 169.254.* | 172.1[6-9].* | 172.2[0-9].* | 172.3[01].* | f[cd]* | fe[89ab]*) return 0 ;;
+		100.*)
+			o=${1#100.}
+			o=${o%%.*}
+			[ "$o" -ge 64 ] && [ "$o" -le 127 ]
+			;;
+		*) return 1 ;;
+	esac
+}
+
+# Sets PUBLIC PTR HELO STATUS for one IP record.
+ptr_check() {
+	local nat names name rc rtype=A
+	PTR='' HELO='' STATUS=unchecked
+	nat=$(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$CONF_DIR/ips/$1" | head -n1)
+	PUBLIC=${nat:-$1}
+	if [ -z "$nat" ] && ip_private "$1"; then
+		STATUS=private
+		return
+	fi
+	case "$PUBLIC" in *:*) rtype=AAAA ;; esac
+	dns_ask PTR -x "$PUBLIC"
+	rc=$?
+	# A PTR lookup in helo_data would wait out the same outage.
+	[ -n "$DNS_SILENT" ] || HELO=$(helo_of "$1")
+	[ "$rc" = 0 ] || return
+	names=$(grep -E "$HOST_RE" <<< "$ANSWER" | sort -u)
+	if [ -z "$names" ]; then
+		STATUS=noptr
+		return
+	fi
+	# The HELO's name first, as the one a receiver can match; of the rest the first that leads back counts.
+	names=$(
+		grep -xF -- "$HELO" <<< "$names"
+		grep -vxF -- "$HELO" <<< "$names"
+	)
+	for name in $names; do
+		dns_ask "$rtype" "$name" "$rtype" || return
+		grep -qxF -- "$PUBLIC" <<< "$ANSWER" && PTR=$name && break
+	done
+	if [ -z "$PTR" ]; then
+		PTR=$(head -n1 <<< "$names")
+		STATUS=unconfirmed
+	elif [ -z "$HELO" ]; then
+		STATUS=unchecked
+	elif [ "$PTR" = "$HELO" ]; then
+		STATUS=ok
+	else
+		STATUS=mismatch
+	fi
+}
+
+declare -a IPS=() ROWS=()
+warn='' open=''
+if [ -n "$MAIL_SYSTEM" ]; then
+	RESOLVERS='' DNS_SILENT=''
+	command -v dig > /dev/null && RESOLVERS=$(ptr_resolvers)
+	HELO_DATA=$(exim -bP transport remote_smtp 2> /dev/null | sed -n 's/^ *helo_data = //p')
+	for f in "$CONF_DIR"/ips/*; do
+		[ -e "$f" ] || continue
+		ptr_check "${f##*/}"
+		IPS+=("${f##*/}")
+		ROWS+=("$PUBLIC|$PTR|$HELO|$STATUS")
+		case "$STATUS" in
+			noptr | unconfirmed | mismatch) warn=yes ;;
+			unchecked) open=1 ;;
+		esac
+	done
+fi
+
+# An address that went unchecked keeps the banner as it was rather than clear it on a DNS outage.
+if [ -n "$warn" ] || [ -z "$open" ]; then
+	[ "$PTR_WARNING" = "$warn" ] || change_sys_value PTR_WARNING "$warn"
+fi
+
+json_list() {
+	local i n=${#IPS[@]} IP PUBLIC PTR HELO STATUS
+	echo '{'
+	for ((i = 0; i < n; i++)); do
+		IP=${IPS[i]}
+		IFS='|' read -r PUBLIC PTR HELO STATUS <<< "${ROWS[i]}"
+		json_escape IP PUBLIC PTR HELO STATUS
+		printf '    "%s": {\n' "$IP"
+		printf '        "PUBLIC": "%s",\n' "$PUBLIC"
+		printf '        "PTR": "%s",\n' "$PTR"
+		printf '        "HELO": "%s",\n' "$HELO"
+		printf '        "STATUS": "%s"\n' "$STATUS"
+		printf '        }'
+		if [ "$i" -lt $((n - 1)) ]; then
+			echo ','
+		else
+			echo
+		fi
+	done
+	echo '}'
+}
+
+shell_list() {
+	local i PUBLIC PTR HELO STATUS
+	echo "IP PUBLIC PTR HELO STATUS"
+	echo "-- ------ --- ---- ------"
+	for i in "${!IPS[@]}"; do
+		IFS='|' read -r PUBLIC PTR HELO STATUS <<< "${ROWS[i]}"
+		echo "${IPS[i]} $PUBLIC ${PTR:--} ${HELO:--} $STATUS"
+	done
+}
+
+plain_list() {
+	local i
+	for i in "${!IPS[@]}"; do
+		echo -e "${IPS[i]}\t${ROWS[i]//|/\\t}"
+	done
+}
+
+case $format in
+	json) json_list ;;
+	plain) plain_list ;;
+	shell) shell_list | column -t ;;
+esac
+
+exit

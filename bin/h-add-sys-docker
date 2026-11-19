@@ -67,7 +67,15 @@ arch="$(dpkg --print-architecture 2> /dev/null || uname -m | sed 's/x86_64/amd64
 printf 'deb [arch=%s signed-by=%s] https://download.docker.com/linux/%s %s stable\n' \
 	"$arch" "$DOCKER_KEYRING" "$os_id" "$os_codename" > "$DOCKER_LIST"
 
-DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update > /dev/null 2>&1
+apt_log="$(mktemp -t hestia-docker-apt.XXXXXX)"
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -qq update > "$apt_log" 2>&1
+# Asked here: without the repository the install below only reports packages it has no candidate for.
+madison="$(apt-cache madison docker-ce 2> /dev/null)"
+if [[ "$madison" != *download.docker.com* ]]; then
+	echo "ERROR: apt-get update did not load the Docker repository, so docker-ce cannot be installed."
+	echo "       apt output: $apt_log; re-run once https://download.docker.com answers."
+	exit "$E_CONNECT"
+fi
 
 # Named explicitly: as mere Recommends, --no-install-recommends would leave a Docker that cannot network or build.
 docker_req="docker-ce docker-ce-cli containerd.io docker-ce-rootless-extras docker-compose-plugin"
@@ -75,10 +83,9 @@ host_req="uidmap slirp4netns dbus-user-session systemd-container"
 # Degradations, not blockers.
 optional_pkgs="fuse-overlayfs docker-buildx-plugin"
 
-apt_log="$(mktemp -t hestia-docker-apt.XXXXXX)"
 echo "Installing Docker ($docker_req)..."
 # shellcheck disable=SC2086
-DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install $docker_req $host_req $optional_pkgs > "$apt_log" 2>&1
+DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq install $docker_req $host_req $optional_pkgs >> "$apt_log" 2>&1
 
 # Every package: apt can report success on a partial transaction.
 missing=''

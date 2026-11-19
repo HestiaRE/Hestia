@@ -185,6 +185,9 @@ install_base() {
 	getent group hestia-users &> /dev/null || groupadd hestia-users
 	usermod -aG hestia-users hestia
 	# caddy joins hestia-users in the panel stage (user doesn't exist yet here)
+	# Before the panel stage starts caddy: a panel asked without its rule makes sudo mail root about it.
+	mkdir -p /etc/sudoers.d
+	deploy_hestia_sudoers
 
 	echo "[ * ] Hardening SSH..."
 	if grep -qiE "^#?.*Subsystem.+(sftp )?sftp-server" /etc/ssh/sshd_config; then
@@ -1123,14 +1126,23 @@ install_exim_sendonly() {
 # Cron and the panel mail root@<hostname> and the admin contact; the base image's root: line points at a user
 # that does not exist here, and admin@<hostname> has no target at all.
 configure_system_aliases() {
-	local target='' al=/etc/aliases
+	local target='' al=/etc/aliases _a
 	# Only an address outside this host is worth forwarding to; the default contact is
 	# admin@<hostname> and would point back at the box.
 	case "${HESTIA_EMAIL:-}" in
 		'' | *@"${HESTIA_HOSTNAME}") : ;;
 		*) target="$HESTIA_EMAIL" ;;
 	esac
-	touch "$al"
+	# exim4-config writes the Debian defaults only into a missing file, and this one now runs before exim is installed.
+	if [ ! -e "$al" ]; then
+		{
+			echo '# /etc/aliases'
+			echo 'mailer-daemon: postmaster'
+			for _a in postmaster nobody hostmaster usenet news webmaster www ftp abuse noc security; do
+				echo "${_a}: root"
+			done
+		} > "$al"
+	fi
 	# Both lines go: an inherited "<admin>: root" together with our "root: <admin>" is a loop, and
 	# exim resolves a loop by delivering as root, which never_users then refuses.
 	sed -i "/^[[:space:]]*root:/d;/^[[:space:]]*${HESTIA_ADMIN}:/d" "$al"
@@ -1177,13 +1189,14 @@ install_base
 install_panel
 install_web
 install_db
+# Before exim runs on our config, which refuses delivery as root: root mail from then on needs its alias.
+configure_system_aliases
 if is_on "${COMPONENT_MAIL_BLOCK_PRESENT:-}"; then
 	install_mail
 else
 	echo "[ * ] Mail block not present — skipping mail stage"
 	install_exim_sendonly
 fi
-configure_system_aliases
 install_security
 install_addons
 configure_hestia

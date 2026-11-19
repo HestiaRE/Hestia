@@ -31,6 +31,14 @@ the releases of the command audit, into another.
   old copies. `docs/docker.md` covers the companion account, the id mapping, publishing on a domain, the database
   sockets, limits and backup scope, and ends with what to tell a customer.
 
+### Changed
+
+- **A customer's container can log in to its PostgreSQL database over the socket** (#1391). Debian's
+  `local all all peer` compared the role with the OS user behind the socket, which a Hestia role (`<user>_<db>`)
+  never is, so mounting `/run/postgresql` into a container got as far as the socket and no further. The socket
+  now takes the role's password, as `127.0.0.1` already did; `postgres` keeps peer. A role whose password is still
+  an md5 hash logs in over neither path and needs a new password.
+
 ### Fixed
 
 - **One hand-edited line in the firewall whitelist stopped every firewall change** (#1384). A line the add command

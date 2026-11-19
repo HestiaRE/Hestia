@@ -48,6 +48,17 @@
       "reversible": false
     },
     {
+      "id": "pgsql-socket-password",
+      "description": "PostgreSQL takes a password over its local socket for every role but postgres, which keeps peer, so a customer's container can log in to a database from the panel. Before, the socket allowed peer only, which a Hestia role never passes. A role whose password is still an md5 hash logs in over neither the socket nor TCP and needs a new password. Skipped where the line was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "DB_POSTGRESQL_SYSTEM", "value": "os" },
+        { "type": "file_contains", "path": "/etc/postgresql/*/*/pg_hba.conf", "value": "local   all             all                                     peer" }
+      ],
+      "action": { "type": "function_call", "function": "pgsql_hba_local_password" },
+      "paths": ["/etc/postgresql"],
+      "reversible": false
+    },
+    {
       "id": "remove-root-backup-md",
       "description": "BACKUP.md moved to docs/backup.md; the copy in the install root would stay behind and go stale",
       "conditions": [

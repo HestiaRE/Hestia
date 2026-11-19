@@ -1044,29 +1044,42 @@ pgsql_hba_local_password() {
 				|| echo "[ * ] $f: the local all all line was changed by hand and stays as it is."
 			continue
 		fi
+		# Without its own line postgres falls to the password line and sudo -u postgres psql stops working.
+		if ! grep -qE '^local[[:space:]]+all[[:space:]]+postgres[[:space:]]+peer' "$f"; then
+			echo "[ * ] $f has no local all postgres peer line, so the local all all line stays as it is."
+			continue
+		fi
 		cl=${f%/pg_hba.conf}
 		ver=${cl%/*}
 		ver=${ver##*/}
 		cl=${cl##*/}
-		keep=$(mktemp) && cp -p "$f" "$keep" || continue
+		keep=$(mktemp) || continue
+		cp -p "$f" "$keep" || {
+			rm -f "$keep"
+			continue
+		}
 		# Through > so the file keeps its inode, owner and mode.
-		awk -v l="$line" '$0 == l { sub(/peer$/, "scram-sha-256") } { print }' "$keep" > "$f"
-		# A stopped cluster reads the file when it starts.
-		if ! pg_ctlcluster "$ver" "$cl" status > /dev/null 2>&1; then
+		if ! awk -v l="$line" '$0 == l { sub(/peer$/, "scram-sha-256") } { print }' "$keep" > "$f"; then
+			rules='not written'
+		elif ! pg_ctlcluster "$ver" "$cl" status > /dev/null 2>&1; then
+			# A stopped cluster reads the file when it starts.
 			rm -f "$keep"
 			continue
-		fi
-		rules=$(cd /tmp && sudo -u postgres psql --cluster "$ver/$cl" -tAXc "SELECT count(*) FILTER (WHERE error IS NOT NULL)
-			|| ':' || count(*) FILTER (WHERE type = 'local' AND database = '{all}' AND user_name = '{all}'
-			AND auth_method = 'scram-sha-256') FROM pg_hba_file_rules" 2> /dev/null)
-		if [ "$rules" = '0:1' ] && pg_ctlcluster "$ver" "$cl" reload > /dev/null 2>&1; then
-			rm -f "$keep"
-			continue
+		else
+			rules=$(cd /tmp && sudo -u postgres psql -w --cluster "$ver/$cl" -tAXc "SELECT
+				count(*) FILTER (WHERE error IS NOT NULL) || ':' || count(*) FILTER (WHERE type = 'local'
+				AND database = '{all}' AND user_name = '{all}' AND auth_method = 'scram-sha-256')
+				FROM pg_hba_file_rules" 2> /dev/null < /dev/null)
+			if [ "$rules" = '0:1' ] && pg_ctlcluster "$ver" "$cl" reload > /dev/null 2>&1; then
+				rm -f "$keep"
+				continue
+			fi
 		fi
 		cat "$keep" > "$f"
 		rm -f "$keep"
 		pg_ctlcluster "$ver" "$cl" reload > /dev/null 2>&1
-		echo "[ ! ] PostgreSQL $ver/$cl did not take the password line ($rules), so its socket stays peer only."
+		echo "[ ! ] PostgreSQL $ver/$cl did not take the password line (${rules:-no answer}), so its socket stays peer;" \
+			"h-add-sys-postgresql tries again."
 	done
 	return 0
 }

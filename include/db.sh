@@ -1030,3 +1030,56 @@ delete_pgsql_user() {
 	query="DROP ROLE $old_dbuser"
 	psql_query "$query" > /dev/null
 }
+
+# The Debian default "local all all peer" compares the role with the OS user behind the socket, which a Hestia role
+# (<user>_<db>) never is, so a customer's container could not log in over the socket. A password instead, as over
+# TCP; "local all postgres peer" above it stays. Only the default line is replaced, a line changed by hand stays.
+# Runs at install and from the update, so it always returns 0.
+pgsql_hba_local_password() {
+	local f keep ver cl rules line='local   all             all                                     peer'
+	for f in /etc/postgresql/*/*/pg_hba.conf; do
+		[ -e "$f" ] || continue
+		if ! grep -qxF "$line" "$f"; then
+			grep -qE '^local[[:space:]]+all[[:space:]]+all[[:space:]]+scram-sha-256[[:space:]]*$' "$f" \
+				|| echo "[ * ] $f: the local all all line was changed by hand and stays as it is."
+			continue
+		fi
+		# Without its own line postgres falls to the password line and sudo -u postgres psql stops working.
+		if ! grep -qE '^local[[:space:]]+all[[:space:]]+postgres[[:space:]]+peer' "$f"; then
+			echo "[ * ] $f has no local all postgres peer line, so the local all all line stays as it is."
+			continue
+		fi
+		cl=${f%/pg_hba.conf}
+		ver=${cl%/*}
+		ver=${ver##*/}
+		cl=${cl##*/}
+		keep=$(mktemp) || continue
+		cp -p "$f" "$keep" || {
+			rm -f "$keep"
+			continue
+		}
+		# Through > so the file keeps its inode, owner and mode.
+		if ! awk -v l="$line" '$0 == l { sub(/peer$/, "scram-sha-256") } { print }' "$keep" > "$f"; then
+			rules='not written'
+		elif ! pg_ctlcluster "$ver" "$cl" status > /dev/null 2>&1; then
+			# A stopped cluster reads the file when it starts.
+			rm -f "$keep"
+			continue
+		else
+			rules=$(cd /tmp && sudo -u postgres psql -w --cluster "$ver/$cl" -tAXc "SELECT
+				count(*) FILTER (WHERE error IS NOT NULL) || ':' || count(*) FILTER (WHERE type = 'local'
+				AND database = '{all}' AND user_name = '{all}' AND auth_method = 'scram-sha-256')
+				FROM pg_hba_file_rules" 2> /dev/null < /dev/null)
+			if [ "$rules" = '0:1' ] && pg_ctlcluster "$ver" "$cl" reload > /dev/null 2>&1; then
+				rm -f "$keep"
+				continue
+			fi
+		fi
+		cat "$keep" > "$f"
+		rm -f "$keep"
+		pg_ctlcluster "$ver" "$cl" reload > /dev/null 2>&1
+		echo "[ ! ] PostgreSQL $ver/$cl did not take the password line (${rules:-no answer}), so its socket stays peer;" \
+			"h-add-sys-postgresql tries again."
+	done
+	return 0
+}

@@ -3,9 +3,9 @@
     "folder": "include/",
     "description": "Per-file provenance vs HestiaCP. A file with no upstream_path is HestiaRE-native. Recompute is a manual, occasional job (when we reimplement against upstream or re-measure a snapshot); numbers are a snapshot at each file's upstream_ref + measured_at, not live. HestiaRE does not cherry-pick: every adoption is a reimplementation, compared per function against the upstream diff, so these numbers are orientation for that comparison - not a merge plan.",
     "upstream_branch": "upstream/hestiacp",
-    "upstream_ref": "b3b53f2f",
-    "upstream_ref_date": "2026-11-14",
-    "last_updated": "2026-11-17",
+    "upstream_ref": "610faf74",
+    "upstream_ref_date": "2026-11-19",
+    "last_updated": "2026-11-19",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from a line diff between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR, func/->include/), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -34,15 +34,15 @@
       "path": "backup.sh",
       "source_type": "derived",
       "upstream_path": "func/backup.sh",
-      "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-15",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-19",
       "divergence": {
         "upstream_lines": 583,
-        "our_lines": 2483,
-        "added": 2077,
+        "our_lines": 2482,
+        "added": 2076,
         "removed": 177,
         "pct": 73,
-        "measured_at": "2026-11-15"
+        "measured_at": "2026-11-19"
       },
       "note": "Backup format is bidirectionally compatible with HestiaCP forever, so this stays close to upstream on purpose."
     },
@@ -77,15 +77,15 @@
       "path": "db.sh",
       "source_type": "derived",
       "upstream_path": "func/db.sh",
-      "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-09",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-19",
       "divergence": {
         "upstream_lines": 696,
-        "our_lines": 1032,
-        "added": 596,
+        "our_lines": 1085,
+        "added": 649,
         "removed": 260,
-        "pct": 49,
-        "measured_at": "2026-11-09"
+        "pct": 51,
+        "measured_at": "2026-11-19"
       },
       "note": ""
     },
@@ -138,7 +138,7 @@
       "path": "domain.sh",
       "source_type": "derived",
       "upstream_path": "func/domain.sh",
-      "upstream_ref": "b3b53f2f",
+      "upstream_ref": "610faf74",
       "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 1217,
@@ -172,15 +172,15 @@
       "path": "firewall.sh",
       "source_type": "derived",
       "upstream_path": "func/firewall.sh",
-      "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-14",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-19",
       "divergence": {
         "upstream_lines": 25,
-        "our_lines": 826,
-        "added": 814,
+        "our_lines": 848,
+        "added": 836,
         "removed": 13,
         "pct": 97,
-        "measured_at": "2026-11-14"
+        "measured_at": "2026-11-19"
       },
       "note": "Effectively eigenbau: upstream ships 25 lines, this is the 685-line nftables renderer (#495). Kept mapped rather than relabelled so the upstream path stays findable."
     },
@@ -242,7 +242,7 @@
       "path": "ip.sh",
       "source_type": "derived",
       "upstream_path": "func/ip.sh",
-      "upstream_ref": "b3b53f2f",
+      "upstream_ref": "610faf74",
       "last_reconciled": "2026-11-14",
       "divergence": {
         "upstream_lines": 282,
@@ -267,15 +267,15 @@
       "path": "main.sh",
       "source_type": "derived",
       "upstream_path": "func/main.sh",
-      "upstream_ref": "b3b53f2f",
-      "last_reconciled": "2026-11-17",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-19",
       "divergence": {
-        "upstream_lines": 2609,
-        "our_lines": 3245,
-        "added": 1956,
-        "removed": 1320,
-        "pct": 55,
-        "measured_at": "2026-11-17"
+        "upstream_lines": 2615,
+        "our_lines": 3249,
+        "added": 1961,
+        "removed": 1327,
+        "pct": 56,
+        "measured_at": "2026-11-19"
       },
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },
@@ -310,7 +310,7 @@
       "path": "rebuild.sh",
       "source_type": "derived",
       "upstream_path": "func/rebuild.sh",
-      "upstream_ref": "b3b53f2f",
+      "upstream_ref": "610faf74",
       "last_reconciled": "2026-11-17",
       "divergence": {
         "upstream_lines": 972,
@@ -335,7 +335,7 @@
       "path": "sanitize_html.php",
       "source_type": "derived",
       "upstream_path": "func/internal/sanitize_html.php",
-      "upstream_ref": "b3b53f2f",
+      "upstream_ref": "610faf74",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 19,
@@ -369,7 +369,7 @@
       "path": "syshealth.sh",
       "source_type": "derived",
       "upstream_path": "func/syshealth.sh",
-      "upstream_ref": "b3b53f2f",
+      "upstream_ref": "610faf74",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 666,

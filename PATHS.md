@@ -14,7 +14,7 @@
 | Shell profile | `/etc/profile.d/hestia.sh` | Exports `$HESTIA`, adds `$HESTIA/bin` to `$PATH` |
 | Sudo rules | `/etc/sudoers.d/hestia` | `hestia ALL=NOPASSWD:/usr/local/hestia/bin/*` |
 | Log dir | `/var/log/hestia` | Symlinked as `$HESTIA/log` |
-| Update runs | `/root/hestiare-update/<time>_<from>_<to>/` | One directory per run: backup, plan, log, `rollback.sh`. Nothing prunes it, see `UPDATE.md` |
+| Update runs | `/root/hestiare-update/<time>_<from>_<to>/` | One directory per run: backup, plan, log, `rollback.sh`. Nothing prunes it, see `docs/update.md` |
 
 ### Install root subdirectory layout
 
@@ -387,4 +387,4 @@ The entire internal user setup (`hestia`, `admin`, roles) is going on the audit 
 
 - The command is gone; the HestiaRE-native mechanism is `update.sh`, reached as `hestia update`
 - Auto-update stays out by design: a daily `--check` sets the panel flag, installing is a human
-  decision at a shell. See `UPDATE.md`
+  decision at a shell. See `docs/update.md`

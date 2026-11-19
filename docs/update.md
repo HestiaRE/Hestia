@@ -1,4 +1,4 @@
-# UPDATE.md - updating a box
+# update.md - updating a box
 
 > `PATHS.md` has the filesystem layout, `STRUCTURE.md` why it diverges from HestiaCP,
 > `CODEMAP.json` which file does what. **This file is the operator's view:** what an

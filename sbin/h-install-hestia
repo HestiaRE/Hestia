@@ -35,7 +35,7 @@ _on_error() {
 	echo "       Completed stages are skipped (see $CONF_DIR/.done.*); only the" >&2
 	echo "       failed and later stages run again:" >&2
 	echo "         h-install-hestia" >&2
-	echo "       Details + how to force a stage to re-run: TROUBLESHOOTING.md" >&2
+	echo "       Details + how to force a stage to re-run: /usr/local/hestia/docs/troubleshooting.md" >&2
 }
 trap '_on_error "$?" "$LINENO"' ERR
 

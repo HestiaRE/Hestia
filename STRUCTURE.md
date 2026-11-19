@@ -507,7 +507,7 @@ wrappers (deltas 1-2), so there is no `hestia-nginx`/`hestia-php` deb to update.
 
 **Updating follows from that** (#949, delta 15 below): with no packages there is nothing for
 `apt upgrade` to do, so an update is the same tarball again, unpacked over the tree, plus a list of
-things a box has to catch up on beyond the files. `UPDATE.md` is the operator's view.
+things a box has to catch up on beyond the files. `docs/update.md` is the operator's view.
 
 ---
 

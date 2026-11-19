@@ -90,7 +90,7 @@ re-installing from scratch instead, `bash install.sh --force` carries the flag t
 
 ## When an update fails
 
-`UPDATE.md` has the whole picture: what a run does in order, what the run directory holds, and what
+`docs/update.md` has the whole picture: what a run does in order, what the run directory holds, and what
 the backup covers. The short version for the moment something went wrong:
 
 Everything a run wrote is in one directory under `/root/hestiare-update/`, and nothing prunes it.

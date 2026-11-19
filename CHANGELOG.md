@@ -28,6 +28,14 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **One hand-edited line in the firewall whitelist stopped every firewall change** (#1384). A line the add command
+  would refuse, such as `1.2.3.4/33`, passed the renderer's pattern, nft then rejected the whole ruleset, and the box
+  kept its old rules until someone found the line. The renderer now leaves such a line out and names it in the
+  activity log. A mask with a leading zero is refused everywhere an address is entered: nft read `2001:db8::/064` as
+  octal and whitelisted a `/52`, and refused `1.2.3.4/08` outright. Such an address stored before has to be removed
+  from `excludes.conf` or `banlist.conf` by hand, since the delete commands refuse it as well; `grep -E '/0[0-9]'`
+  over the firewall files finds one.
+
 - **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). CrowdSec read
   the log of every domain whatever its switch said, and a ban from one domain locked the address out of the whole box;
   the whitelist exempted it in the firewall but not from CrowdSec, whose bouncer kept answering 403. Now CrowdSec counts

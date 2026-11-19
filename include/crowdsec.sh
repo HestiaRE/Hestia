@@ -368,8 +368,8 @@ crowdsec_whitelist_sync() {
 	[ -f "$keep" ] && mv -f "$keep" "$CS_WHITELIST"
 	if [ -f "$excludes" ]; then
 		while read -r a; do
-			# One address the engine cannot parse would make it refuse the whole file.
-			[ "$(_is_cidr_valid "$a" 46)" = 0 ] || continue
+			# One address the engine cannot parse would make it refuse the whole file; an unanswered check keeps it.
+			[ "$(_is_cidr_valid "$a" 46)" = 1 ] && continue
 			case "$a" in */*) cidrs+=("$a") ;; *) ips+=("$a") ;; esac
 		done < <(grep -E "$FW_ADDR_RE|$FW_ADDR6_RE" "$excludes")
 	fi

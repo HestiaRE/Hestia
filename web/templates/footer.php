@@ -12,7 +12,7 @@
 		<span class="u-text-bold">New updates are available!</span> To upgrade your server now, run
 		<code>hestia update</code> from a shell session.
 		(<button type="button" class="u-text-bold" x-on:click="open = false">
-			hide
+			<?= tohtml(_("hide")) ?>
 		</button>)
 	</p>
 <?php } ?>

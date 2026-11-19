@@ -32,17 +32,22 @@ ptr_resolvers() {
 	awk '$1 == "nameserver" && $2 !~ /^127\.0\.0\.5[34]$/ { print $2 }' "$f" 2> /dev/null
 }
 
-# The records of TYPE, lowercase without the final dot. SERVFAIL, REFUSED or silence are no answer and must not read
-# as a missing record: rc 2 when no resolver gave one.
+# Sets ANSWER to the records of TYPE, lowercase without the final dot. SERVFAIL, REFUSED or silence are no answer and
+# must not read as a missing record: rc 2 when no resolver gave one. When none even replied, DNS is out and nothing
+# further is asked, so a page load does not wait out the timeout once per address.
 dns_ask() { # TYPE DIG_QUESTION...
-	local t=$1 ns out
+	local t=$1 ns out heard=''
 	shift
+	ANSWER=''
+	[ -z "$DNS_SILENT" ] || return 2
 	for ns in $RESOLVERS; do
 		out=$(timeout 4 dig "@$ns" +time=2 +tries=1 +noall +comments +answer "$@" 2> /dev/null) || continue
+		heard=1
 		[[ $out == *'status: NOERROR'* || $out == *'status: NXDOMAIN'* ]] || continue
-		awk -v t="$t" '$4 == t { sub(/\.$/, "", $5); print tolower($5) }' <<< "$out"
+		ANSWER=$(awk -v t="$t" '$4 == t { sub(/\.$/, "", $5); print tolower($5) }' <<< "$out")
 		return 0
 	done
+	[ -n "$heard" ] || DNS_SILENT=1
 	return 2
 }
 
@@ -71,7 +76,7 @@ ip_private() {
 
 # Sets PUBLIC PTR HELO STATUS for one IP record.
 ptr_check() {
-	local nat out names rtype=A
+	local nat names name rc rtype=A
 	PTR='' HELO='' STATUS=unchecked
 	nat=$(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$CONF_DIR/ips/$1" | head -n1)
 	PUBLIC=${nat:-$1}
@@ -80,17 +85,27 @@ ptr_check() {
 		return
 	fi
 	case "$PUBLIC" in *:*) rtype=AAAA ;; esac
-	HELO=$(helo_of "$1")
-	out=$(dns_ask PTR -x "$PUBLIC") || return
-	names=$(grep -E "$HOST_RE" <<< "$out" | sort -u)
+	dns_ask PTR -x "$PUBLIC"
+	rc=$?
+	# A PTR lookup in helo_data would wait out the same outage.
+	[ -n "$DNS_SILENT" ] || HELO=$(helo_of "$1")
+	[ "$rc" = 0 ] || return
+	names=$(grep -E "$HOST_RE" <<< "$ANSWER" | sort -u)
 	if [ -z "$names" ]; then
 		STATUS=noptr
 		return
 	fi
-	# Of several names the HELO's is the one a receiver can match.
-	PTR=$(grep -xF -m1 -- "$HELO" <<< "$names") || PTR=$(head -n1 <<< "$names")
-	out=$(dns_ask "$rtype" "$PTR" "$rtype") || return
-	if ! grep -qxF -- "$PUBLIC" <<< "$out"; then
+	# The HELO's name first, as the one a receiver can match; of the rest the first that leads back counts.
+	names=$(
+		grep -xF -- "$HELO" <<< "$names"
+		grep -vxF -- "$HELO" <<< "$names"
+	)
+	for name in $names; do
+		dns_ask "$rtype" "$name" "$rtype" || return
+		grep -qxF -- "$PUBLIC" <<< "$ANSWER" && PTR=$name && break
+	done
+	if [ -z "$PTR" ]; then
+		PTR=$(head -n1 <<< "$names")
 		STATUS=unconfirmed
 	elif [ -z "$HELO" ]; then
 		STATUS=unchecked
@@ -104,7 +119,7 @@ ptr_check() {
 declare -a IPS=() ROWS=()
 warn='' open=''
 if [ -n "$MAIL_SYSTEM" ]; then
-	RESOLVERS=''
+	RESOLVERS='' DNS_SILENT=''
 	command -v dig > /dev/null && RESOLVERS=$(ptr_resolvers)
 	HELO_DATA=$(exim -bP transport remote_smtp 2> /dev/null | sed -n 's/^ *helo_data = //p')
 	for f in "$CONF_DIR"/ips/*; do

@@ -46,6 +46,36 @@
       "action": { "type": "function_call", "function": "sieve_reject_off_apply" },
       "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
       "reversible": false
+    },
+    {
+      "id": "remove-root-backup-md",
+      "description": "BACKUP.md moved to docs/backup.md; the copy in the install root would stay behind and go stale",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/BACKUP.md" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/BACKUP.md" },
+      "paths": ["/usr/local/hestia/BACKUP.md"],
+      "reversible": false
+    },
+    {
+      "id": "remove-root-update-md",
+      "description": "UPDATE.md moved to docs/update.md; the copy in the install root would stay behind and go stale",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/UPDATE.md" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/UPDATE.md" },
+      "paths": ["/usr/local/hestia/UPDATE.md"],
+      "reversible": false
+    },
+    {
+      "id": "remove-root-troubleshooting-md",
+      "description": "TROUBLESHOOTING.md moved to docs/troubleshooting.md; the copy in the install root would stay behind and go stale",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/TROUBLESHOOTING.md" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/TROUBLESHOOTING.md" },
+      "paths": ["/usr/local/hestia/TROUBLESHOOTING.md"],
+      "reversible": false
     }
   ]
 }

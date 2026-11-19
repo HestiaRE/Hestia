@@ -26,6 +26,11 @@ the releases of the command audit, into another.
   catching legitimate traffic, such as an AI agent crawling a site; the SSH pair stays with the firewall model. The
   switch is per box: a mesh peer with the scenario on keeps publishing its bans, and this box still imports them for L7.
 
+- **The operator docs live in `docs/`, with a new guide to the per-customer Docker model** (#1390). Backup, update and
+  install recovery moved there from the repository root, on a box to `/usr/local/hestia/docs/`; an update removes the
+  old copies. `docs/docker.md` covers the companion account, the id mapping, publishing on a domain, the database
+  sockets, limits and backup scope, and ends with what to tell a customer.
+
 ### Fixed
 
 - **One hand-edited line in the firewall whitelist stopped every firewall change** (#1384). A line the add command

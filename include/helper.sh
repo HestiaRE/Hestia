@@ -953,8 +953,13 @@ sieve_reject_off_apply() {
 			}
 			{ print }' "$keep" > "$f"
 	fi
-	if grep -qE -- '-reject$|^  reject = no$' "$f" && doveconf -n > /dev/null 2>&1 \
-		&& systemctl restart dovecot && systemctl is-active --quiet dovecot; then
+	# The manifest's file_contains is a substring test, so a line extended by hand still lands here.
+	if cmp -s "$keep" "$f"; then
+		rm -f "$keep"
+		echo '[ * ] sieve_extensions in 90-sieve.conf was changed by hand and stays as it is; Sieve reject is still on.'
+		return 0
+	fi
+	if doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot; then
 		rm -f "$keep"
 		return 0
 	fi

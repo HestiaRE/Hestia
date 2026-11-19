@@ -932,19 +932,71 @@ sieve_max_redirects_apply() {
 	return 0
 }
 
-# The line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in,
-# as there: the crontabs directory is sticky, where opening the file is EACCES even for root.
-forward_bounces_cron_apply() {
+# reject mails its refusal to the envelope sender, forged in most spam. A script that still uses it no longer compiles,
+# and its mail goes to the inbox instead, so nothing is lost.
+sieve_reject_off_apply() {
+	local f=/etc/dovecot/conf.d/90-sieve.conf keep
+	local c='# reject mails its refusal to the envelope sender, which spam forges: backscatter.'
+	[ -f "$f" ] || return 0
+	grep -qE -- '-reject$|^  reject = no$' "$f" && return 0
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	# Rewritten through > so the file keeps its inode, owner and mode.
+	if grep -q '^#sieve_extensions {' "$keep"; then
+		awk -v c="$c" '
+			{ print }
+			/^#sieve_extensions \{/ { b = 1 }
+			b && /^#}$/ { print c; print "sieve_extensions {"; print "  reject = no"; print "}"; b = 0 }' "$keep" > "$f"
+	else
+		awk -v c="$c" '
+			/^[[:space:]]*sieve_extensions = \+notify \+imapflags$/ {
+				i = $0; sub(/[^[:space:]].*/, "", i); print i c; print $0 " -reject"; next
+			}
+			{ print }' "$keep" > "$f"
+	fi
+	# The manifest's file_contains is a substring test, so a line extended by hand still lands here.
+	if cmp -s "$keep" "$f"; then
+		rm -f "$keep"
+		echo '[ * ] sieve_extensions in 90-sieve.conf was changed by hand and stays as it is; Sieve reject is still on.'
+		return 0
+	fi
+	if doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl restart dovecot
+	echo '[ ! ] dovecot did not take the Sieve reject switch-off; reject still answers the envelope sender.'
+	return 0
+}
+
+# A line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in, as
+# there: the crontabs directory is sticky, where opening the file is EACCES even for root.
+hestia_crontab_line_add() { # COMMAND LINE WHAT
 	local ct='/var/spool/cron/crontabs/hestia' tmp="/var/spool/cron/crontabs/.hestia.$$"
 	# Empty counts as missing: the daily repair writes it whole, with this line.
 	[ -s "$ct" ] || return 0
-	grep -q 'h-delete-mail-forward-bounces' "$ct" && return 0
-	if { sed -e '$a\' "$ct" && echo "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces"; } > "$tmp" \
+	grep -qF -- "$1" "$ct" && return 0
+	if { sed -e '$a\' "$ct" && echo "$2"; } > "$tmp" \
 		&& chmod 600 "$tmp" && chown hestia:hestia "$tmp" && mv -f "$tmp" "$ct"; then
 		return 0
 	fi
 	rm -f "$tmp"
-	echo '[ ! ] The hestia crontab did not take the daily cleanup of old bounces in forward-only mailboxes.'
+	echo "[ ! ] The hestia crontab did not take $3."
+	return 0
+}
+
+forward_bounces_cron_apply() {
+	hestia_crontab_line_add h-delete-mail-forward-bounces "45 03 * * * sudo $HESTIA/bin/h-delete-mail-forward-bounces" \
+		'the daily cleanup of old bounces in forward-only mailboxes'
+	return 0
+}
+
+ptr_check_cron_apply() {
+	hestia_crontab_line_add h-check-sys-ip-ptr "50 03 * * * sudo $HESTIA/bin/h-check-sys-ip-ptr" \
+		'the daily reverse DNS check of the system IPs'
+	# Once now, so the banner does not wait for the first night.
+	"$HESTIA/bin/h-check-sys-ip-ptr" > /dev/null 2>&1 || echo '[ ! ] The reverse DNS check did not run, the night will.'
 	return 0
 }
 

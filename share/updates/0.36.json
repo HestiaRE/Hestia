@@ -1,0 +1,92 @@
+{
+  "version": "0.36",
+  "entries": [
+    {
+      "id": "ptr-check-cron",
+      "description": "A daily job checks the reverse DNS of the system IPs against the name exim greets with and raises a banner for the admin when one does not match. One line added to the hestia crontab, the rest stays as it is, and the check runs once right away",
+      "conditions": [
+        { "type": "path_exists", "path": "/var/spool/cron/crontabs/hestia" },
+        { "type": "file_lacks", "path": "/var/spool/cron/crontabs/hestia", "value": "h-check-sys-ip-ptr" }
+      ],
+      "action": { "type": "function_call", "function": "ptr_check_cron_apply" },
+      "paths": ["/var/spool/cron/crontabs/hestia"],
+      "reversible": false
+    },
+    {
+      "id": "crowdsec-whitelist",
+      "description": "CrowdSec honours the firewall whitelist and a domain's CrowdSec switch: a whitelisted address and the log of a domain switched off are no longer counted, so no ban arises from them. A domain without a choice yet, i.e. one created before the default, gets the default and is switched on",
+      "conditions": [
+        { "type": "package_installed", "name": "crowdsec" },
+        { "type": "path_absent", "path": "/etc/crowdsec/parsers/s02-enrich/hestia-whitelist.yaml" }
+      ],
+      "action": { "type": "function_call", "function": "crowdsec_whitelist_apply" },
+      "paths": ["/etc/crowdsec/parsers/s02-enrich", "/etc/hestia/users"],
+      "reversible": false
+    },
+    {
+      "id": "sieve-reject-off",
+      "description": "Sieve reject is switched off on dovecot 2.3: it mailed its refusal to the envelope sender, which spam forges. Neither webmail offers the action any more; a script that still uses it no longer compiles, and its mail goes to the inbox. Skipped where the line was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "sieve_extensions = +notify +imapflags" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "-reject" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_reject_off_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false
+    },
+    {
+      "id": "sieve-reject-off-24",
+      "description": "Sieve reject is switched off on dovecot 2.4, the same as on 2.3. Skipped where the commented sieve_extensions block was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "#sieve_extensions {" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "reject = no" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_reject_off_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false
+    },
+    {
+      "id": "pgsql-socket-password",
+      "description": "PostgreSQL takes a password over its local socket for every role but postgres, which keeps peer, so a customer's container can log in to a database from the panel. Before, the socket allowed peer only, which a Hestia role never passes. A role whose password is still an md5 hash logs in over neither the socket nor TCP and needs a new password. Skipped where the line was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "DB_POSTGRESQL_SYSTEM", "value": "os" },
+        { "type": "file_contains", "path": "/etc/postgresql/*/*/pg_hba.conf", "value": "local   all             all                                     peer" }
+      ],
+      "action": { "type": "function_call", "function": "pgsql_hba_local_password" },
+      "paths": ["/etc/postgresql"],
+      "reversible": false
+    },
+    {
+      "id": "remove-root-backup-md",
+      "description": "BACKUP.md moved to docs/backup.md; the copy in the install root would stay behind and go stale",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/BACKUP.md" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/BACKUP.md" },
+      "paths": ["/usr/local/hestia/BACKUP.md"],
+      "reversible": false
+    },
+    {
+      "id": "remove-root-update-md",
+      "description": "UPDATE.md moved to docs/update.md; the copy in the install root would stay behind and go stale",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/UPDATE.md" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/UPDATE.md" },
+      "paths": ["/usr/local/hestia/UPDATE.md"],
+      "reversible": false
+    },
+    {
+      "id": "remove-root-troubleshooting-md",
+      "description": "TROUBLESHOOTING.md moved to docs/troubleshooting.md; the copy in the install root would stay behind and go stale",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/TROUBLESHOOTING.md" }
+      ],
+      "action": { "type": "path_delete", "path": "/usr/local/hestia/TROUBLESHOOTING.md" },
+      "paths": ["/usr/local/hestia/TROUBLESHOOTING.md"],
+      "reversible": false
+    }
+  ]
+}

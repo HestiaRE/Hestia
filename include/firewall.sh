@@ -353,16 +353,38 @@ fw_set_fed() {
 # Buffered bans plus the source file, filtered to the set's own family: one bad element fails the whole document.
 # The boot copy leaves every fed set empty, so a reboot cannot bring back an element its writer has lifted since.
 fw_set_elements() {
-	local id="$1" name src
+	local id="$1" name src re fam
 	name="$(cat "$FW_WORK/name.$id")"
 	[ "${2:-}" = boot ] && fw_set_fed "$name" && return 0
 	[ -s "$FW_WORK/elem.$id" ] && cat "$FW_WORK/elem.$id"
 	src="$(fw_set_src "$name")"
+	[ -s "$src" ] || return 0
 	case "$(cat "$FW_WORK/set.$id" 2> /dev/null)" in
-		v6*) [ -s "$src" ] && grep -oE "$FW_ADDR6_RE" "$src" ;;
-		*) [ -s "$src" ] && grep -oE "$FW_ADDR_RE" "$src" ;;
+		v6*) re="$FW_ADDR6_RE" fam=6 ;;
+		*) re="$FW_ADDR_RE" fam=4 ;;
+	esac
+	case "$name" in
+		excludes | excludes6) fw_excludes_valid "$src" "$re" "$fam" "${2:-}" ;;
+		*) grep -oE "$re" "$src" ;;
 	esac
 	return 0
+}
+
+# The one hand-kept source. The regex passes a line nft refuses (1.2.3.4/33), and one such element fails the whole
+# ruleset, so what the add command would refuse is left out and named; the boot copy renders it a second time, quietly.
+fw_excludes_valid() { # FILE RE FAMILY [boot]
+	local a
+	while read -r a; do
+		# Only a firm no: an unanswered check prints nothing, and that must not empty the whitelist.
+		if [ "$(_is_cidr_valid "$a" "$3")" = 1 ]; then
+			[ "$4" = boot ] && continue
+			fw_say 4 "excludes.conf: $a is not an address nft takes, left out"
+			"$HESTIA/bin/h-log-action" system Warning Firewall \
+				"The whitelist line $a in excludes.conf is not a valid address and was left out." > /dev/null 2>&1 || true
+			continue
+		fi
+		echo "$a"
+	done < <(grep -oE "$2" "$1")
 }
 
 fw_render_sets() {

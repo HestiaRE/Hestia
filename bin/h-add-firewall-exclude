@@ -48,7 +48,17 @@ if [ -n "$FIREWALL_EXTENSION" ] && [ -f "$HESTIA/include/fail2ban.sh" ]; then
 	systemctl reload-or-restart fail2ban > /dev/null 2>&1
 fi
 
+# CrowdSec too: a whitelisted address is never counted, and its decisions go, or the L7 bouncer keeps answering 403.
+if [ -n "$CROWDSEC_SYSTEM" ] && [ -f "$HESTIA/include/crowdsec.sh" ]; then
+	# shellcheck source=/usr/local/hestia/include/crowdsec.sh
+	source "$HESTIA/include/crowdsec.sh"
+	crowdsec_whitelist_sync
+	crowdsec_decisions_release "$ip_cidr"
+fi
+
 $BIN/h-log-action "system" "Info" "Firewall" "Whitelisted IP address $ip_cidr."
+[ -z "$CS_WHITELIST_REFUSED" ] \
+	|| check_result "$E_UPDATE" "the firewall took it, CrowdSec refused its whitelist: check crowdsec -t"
 log_event "$OK" "$ARGUMENTS"
 
 exit

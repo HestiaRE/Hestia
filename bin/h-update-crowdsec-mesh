@@ -53,7 +53,8 @@ mkdir -p "$(dirname "$MESH_PUBLISH")" "$MESH_PEERS_DIR"
 
 # A local API that does not answer keeps the last list: an empty one would unban this box's attackers on every peer.
 pub=$(mktemp)
-if raw=$(cscli decisions list -o json 2> /dev/null); then
+# --no-simu: a scenario switched off still decides, in simulation, and that must reach no peer.
+if raw=$(cscli decisions list --no-simu -o json 2> /dev/null); then
 	jq -c '[ (if type=="array" then .[] else . end) | (.decisions // [])[]
 		| select(.type == "ban" and .origin == "crowdsec")
 		| {value, duration, scope} ]' <<< "$raw" > "$pub" 2> /dev/null

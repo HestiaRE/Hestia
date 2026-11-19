@@ -77,6 +77,11 @@ Some HestiaCP subsystems are **intentionally left out**, not missing but decided
 
 The same reasoning removes vsftpd, SpamAssassin (rspamd is the mail-filter), and the Software Installer. These are settled decisions, not backlog items.
 
+### Documentation
+
+The operator docs are in [`docs/`](docs/README.md): install recovery, updating, backup and restore,
+and the per-customer Docker model. An installed box carries them under `/usr/local/hestia/docs/`.
+
 ### Development approach
 
 HestiaRE is developed through **agentic AI-assisted development**: an AI agent (Claude) writes and iterates on code, scripts, and documentation, while every change is reviewed, tested, and merged exclusively by a human maintainer. No commit reaches `main` without human review: the agent proposes, the human decides.

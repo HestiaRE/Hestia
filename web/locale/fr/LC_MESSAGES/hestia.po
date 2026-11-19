@@ -827,6 +827,7 @@ msgid "State"
 msgstr "État / Province"
 
 #: web/inc/helpers.php web/login/index.php web/reset/index.php
+#: web/reset2fa/index.php
 msgid "An internal error occurred"
 msgstr "Une erreur interne est survenue"
 
@@ -952,7 +953,7 @@ msgstr ""
 "--\n"
 "{{appname}}"
 
-#: web/reset/index.php
+#: web/reset/index.php web/reset2fa/index.php
 msgid "Invalid username or code"
 msgstr "Nom d'utilisateur ou code de confirmation invalide."
 
@@ -1009,6 +1010,10 @@ msgid "Add new object"
 msgstr "Ajouter un nouvel objet"
 
 #: web/templates/footer.php
+msgid "Check the IP addresses"
+msgstr ""
+
+#: web/templates/footer.php
 msgid "Display / Hide shortcuts"
 msgstr "Afficher/Masquer les raccourcis"
 
@@ -1061,6 +1066,14 @@ msgid "Move up through elements list"
 msgstr "Se déplacer vers le haut dans la liste des éléments"
 
 #: web/templates/footer.php
+msgid "Receiving mail servers may reject mail from this server or mark it as spam."
+msgstr ""
+
+#: web/templates/footer.php
+msgid "Reverse DNS does not match."
+msgstr ""
+
+#: web/templates/footer.php
 msgid "Save form"
 msgstr "Enregistrer le formulaire"
 
@@ -1071,6 +1084,10 @@ msgstr "Raccourcis"
 #: web/templates/footer.php
 msgid "Unsave form"
 msgstr "Annuler l'enregistrement du formulaire"
+
+#: web/templates/footer.php
+msgid "hide"
+msgstr ""
 
 #: web/templates/header.php
 msgid "Your browser version is not supported. Please update your browser to use the control panel."
@@ -1349,6 +1366,7 @@ msgstr "Aoû"
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_crowdsec.php
 #: web/templates/pages/list_firewall_exclude.php
 #: web/templates/pages/list_firewall_ipset.php
 #: web/templates/pages/list_firewall_jail.php
@@ -3566,6 +3584,7 @@ msgid "Show password"
 msgstr ""
 
 #: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_firewall_crowdsec.php
 #: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
 #: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
 #: web/templates/pages/list_server_preview.php
@@ -3812,6 +3831,11 @@ msgid "Banned IP Addresses"
 msgstr "Adresses IP bannies"
 
 #: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "CrowdSec Scenarios"
+msgstr ""
+
+#: web/templates/pages/list_firewall.php
 msgid "Firewall Rules"
 msgstr "Règles de pare-feu"
 
@@ -3890,6 +3914,56 @@ msgstr "Il n'y a actuellement aucune adresse IP bannie."
 #: web/templates/pages/list_firewall_banlist.php
 msgid "When"
 msgstr "Moment"
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#, php-format
+msgid "%d scenario"
+msgid_plural "%d scenarios"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "A scenario switched off runs in simulation: it still detects, but it bans nobody, and its current bans are lifted."
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Active"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "CrowdSec listed no scenario."
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#: web/templates/pages/list_services.php
+msgid "Description"
+msgstr "Description"
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Scenario"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Simulation"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Switch off"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#, php-format
+msgid "Switch off scenario %s? It keeps detecting but bans nobody, and its current bans are lifted."
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Switch on"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#, php-format
+msgid "Switch on scenario %s? It bans again from now on."
+msgstr ""
 
 #: web/templates/pages/list_firewall_exclude.php
 #, php-format
@@ -4030,17 +4104,56 @@ msgid_plural "%d IP addresses"
 msgstr[0] "%d adresse IP"
 msgstr[1] "%d adresses IP"
 
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not match the HELO name %s"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "Does not resolve back to %s"
+msgstr ""
+
 #: web/templates/pages/list_ip.php web/templates/pages/list_stats.php
 msgid "IP Addresses"
 msgstr "Adresses IP"
+
+#: web/templates/pages/list_ip.php
+msgid "Matches the HELO name"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "No DNS server answered, or the HELO name is unknown"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "No PTR record"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+#, php-format
+msgid "No PTR record for %s"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
+msgid "Not checked"
+msgstr ""
 
 #: web/templates/pages/list_ip.php web/templates/pages/list_search.php
 msgid "Owner"
 msgstr "Propriétaire"
 
 #: web/templates/pages/list_ip.php
+msgid "Private address"
+msgstr ""
+
+#: web/templates/pages/list_ip.php
 msgid "Refresh IP Addresses"
 msgstr "Actualiser les adresses IP"
+
+#: web/templates/pages/list_ip.php
+msgid "Reverse DNS"
+msgstr ""
 
 #: web/templates/pages/list_key.php
 #, php-format
@@ -4306,10 +4419,6 @@ msgstr "Êtes-vous sûr de vouloir démarrer le service %s ?"
 #, php-format
 msgid "Are you sure you want to stop the %s service?"
 msgstr "Êtes-vous sûr de vouloir arrêter le service %s ?"
-
-#: web/templates/pages/list_services.php
-msgid "Description"
-msgstr "Description"
 
 #: web/templates/pages/list_services.php
 msgid "Load Average"

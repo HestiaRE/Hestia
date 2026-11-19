@@ -69,6 +69,9 @@
 			<div class="units-table-cell"></div>
 			<div class="units-table-cell u-text-center"><?= tohtml(_("Netmask")) ?></div>
 			<div class="units-table-cell u-text-center"><?= tohtml(_("Interface")) ?></div>
+			<?php if ($ptr_check) { ?>
+				<div class="units-table-cell u-text-center"><?= tohtml(_("Reverse DNS")) ?></div>
+			<?php } ?>
 			<div class="units-table-cell u-text-center"><?= tohtml(_("Status")) ?></div>
 			<div class="units-table-cell u-text-center"><?= tohtml(_("Domains")) ?></div>
 			<div class="units-table-cell u-text-center"><?= tohtml(_("Owner")) ?></div>
@@ -134,6 +137,47 @@
 					<span class="u-hide-desktop u-text-bold"><?= tohtml(_("Interface")) ?>:</span>
 					<?= tohtml($data[$key]["INTERFACE"]) ?>
 				</div>
+				<?php if ($ptr_check) {
+					$p = $ptr[$key] ?? [];
+					$p_name = (string) ($p["PTR"] ?? "");
+					switch ($p["STATUS"] ?? "") {
+						case "ok":
+							$p_icon = "fa-circle-check icon-green";
+							$p_text = $p_name;
+							$p_title = _("Matches the HELO name");
+							break;
+						case "mismatch":
+							$p_icon = "fa-triangle-exclamation icon-orange";
+							$p_text = $p_name;
+							$p_title = sprintf(_("Does not match the HELO name %s"), $p["HELO"] ?? "");
+							break;
+						case "unconfirmed":
+							$p_icon = "fa-triangle-exclamation icon-orange";
+							$p_text = $p_name;
+							$p_title = sprintf(_("Does not resolve back to %s"), $p["PUBLIC"] ?? "");
+							break;
+						case "noptr":
+							$p_icon = "fa-circle-xmark icon-red";
+							$p_text = _("No PTR record");
+							$p_title = sprintf(_("No PTR record for %s"), $p["PUBLIC"] ?? "");
+							break;
+						case "private":
+							$p_icon = "";
+							$p_text = _("Private address");
+							$p_title = "";
+							break;
+						default:
+							$p_icon = "fa-circle-question";
+							$p_text = _("Not checked");
+							$p_title = _("No DNS server answered, or the HELO name is unknown");
+					}
+					?>
+					<div class="units-table-cell u-text-center-desktop" title="<?= tohtml($p_title) ?>">
+						<span class="u-hide-desktop u-text-bold"><?= tohtml(_("Reverse DNS")) ?>:</span>
+						<?php if ($p_icon !== "") { ?><i class="fas <?= tohtml($p_icon) ?>"></i><?php } ?>
+						<?= tohtml($p_text) ?>
+					</div>
+				<?php } ?>
 				<div class="units-table-cell u-text-bold u-text-center-desktop">
 					<span class="u-hide-desktop"><?= tohtml(_("Status")) ?>:</span>
 					<?= tohtml(_($data[$key]["STATUS"])) ?>

@@ -501,13 +501,18 @@ memory for the full Gitea-release -> mirror -> GitHub chain. No compiled artifac
 private repo, no build toolchain on target (the earlier `just`/Make dependency was
 removed - pure bash).
 
-**Follow-on.** `VERSION` is stamped by CI, never edited. Upstream update tooling keyed
-on deb package names does not apply. The panel and its PHP are OS/Sury packages + local
+**Follow-on.** `VERSION` is committed in the tree before the tag, and CI only compares it. Upstream update tooling
+keyed on deb package names does not apply. The panel and its PHP are OS/Sury packages + local
 wrappers (deltas 1-2), so there is no `hestia-nginx`/`hestia-php` deb to update.
 
 **Updating follows from that** (#949, delta 15 below): with no packages there is nothing for
 `apt upgrade` to do, so an update is the same tarball again, unpacked over the tree, plus a list of
-things a box has to catch up on beyond the files. `UPDATE.md` is the operator's view.
+things a box has to catch up on beyond the files. `docs/update.md` is the operator's view.
+
+**The docs ship with the tree** (#1390). Upstream's `docs/` is the source of its VitePress website, published on its
+own. Ours holds the operator docs (backup, update, install recovery, the Docker model) and goes into the tarball, so a
+box carries them under `/usr/local/hestia/docs/`. The developer references (`PATHS.md`, this file, `CODEMAP.json`)
+stay in the repository root and out of the tarball.
 
 ---
 
@@ -852,6 +857,24 @@ get every mail twice. A catch-all goes to an account of its own domain only.
   daily once they are 7 days old.
 - Mail from Sieve passes exim's `acl_not_smtp`: on dovecot 2.4 it comes as root and skips the websites' limit, on
   2.3 it comes as the mailbox owner and counts per customer.
+
+## 25. PostgreSQL socket login: peer -> a password (#1391)
+
+**Upstream.** PostgreSQL keeps Debian's `pg_hba.conf`: `local all all peer` on the socket, a password over
+`127.0.0.1` only. A Hestia role (`<user>_<db>`) is never an OS user, so it can log in over TCP and nowhere else.
+
+**HestiaRE.** The default socket line becomes `scram-sha-256` (`pgsql_hba_local_password` in `include/db.sh`, from
+`h-add-sys-postgresql` and the 0.36 entry `pgsql-socket-password`), because a customer's container has no TCP path to
+the host's loopback (rootlesskit `--disable-host-loopback`, see `docs/docker.md`) and mounts
+`/run/postgresql` instead, as it mounts `/run/mysqld` for MariaDB. `local all postgres peer` stays above it, and the
+switch requires it, so `sudo -u postgres psql` keeps working.
+
+**Follow-on.**
+- Only the exact Debian default line is replaced; a line changed by hand stays and is named.
+- The switch is checked against `pg_hba_file_rules` before the reload and rolled back if the file does not parse.
+  It cannot see the order of lines: someone who swapped the two Debian lines by hand locks `postgres` out (known,
+  left on purpose).
+- A role still carrying an md5 hash logs in over neither path; it needs a new password.
 
 ## Known inconsistencies (flagged, not yet resolved)
 

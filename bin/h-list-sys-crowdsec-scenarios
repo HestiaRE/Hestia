@@ -1,0 +1,58 @@
+#!/bin/bash
+# info: list the CrowdSec scenarios and whether each one bans
+# options: [FORMAT]
+#
+# example: h-list-sys-crowdsec-scenarios json
+#
+# Every installed scenario but the SSH pair, which the firewall model switches. Off is CrowdSec's simulation: the
+# scenario still detects and its alerts stay visible, but it bans nobody.
+
+format="${1-shell}"
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/crowdsec.sh
+source $HESTIA/include/crowdsec.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '0' "$#" '[FORMAT]'
+case "$format" in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+is_system_enabled "$CROWDSEC_SYSTEM" 'CROWDSEC_SYSTEM'
+
+rows=$(crowdsec_scenarios) || check_result "$E_CONNECT" "cscli did not list the scenarios"
+
+json_list() {
+	local first=1 NAME STATE DESCRIPTION
+	echo '{'
+	while IFS=$'\t' read -r NAME STATE DESCRIPTION; do
+		[ -n "$NAME" ] || continue
+		[ "$first" = 1 ] || echo ','
+		first=0
+		json_escape NAME STATE DESCRIPTION
+		printf '    "%s": {\n        "STATE": "%s",\n        "DESCRIPTION": "%s"\n    }' "$NAME" "$STATE" "$DESCRIPTION"
+	done <<< "$rows"
+	[ "$first" = 1 ] || echo
+	echo '}'
+}
+
+shell_list() {
+	local NAME STATE DESCRIPTION
+	echo "SCENARIO STATE"
+	echo "-------- -----"
+	while IFS=$'\t' read -r NAME STATE DESCRIPTION; do
+		[ -n "$NAME" ] && echo "$NAME $STATE"
+	done <<< "$rows"
+}
+
+case $format in
+	json) json_list ;;
+	plain) [ -z "$rows" ] || echo "$rows" ;;
+	shell) shell_list | column -t ;;
+esac
+
+exit

@@ -1,20 +1,38 @@
 		</main>
 		<?php require $_SERVER["HESTIA"] . "/web/templates/includes/app-footer.php"; ?>
 	</div> <?php // Closes `<div class="app">` in header.php?>
+	<div class="updates-banners">
 <?php if (
-		$_SESSION["userContext"] === "admin" &&
-		$_SESSION["POLICY_SYSTEM_HIDE_SERVICES"] !== "yes" &&
-		$_SESSION["UPDATE_AVAILABLE"] === "yes"
-	) {
-		?>
+	$_SESSION["userContext"] === "admin" &&
+	$_SESSION["POLICY_SYSTEM_HIDE_SERVICES"] !== "yes" &&
+	$_SESSION["UPDATE_AVAILABLE"] === "yes"
+) {
+	?>
 	<p x-data="{ open: true }" x-cloak x-show="open" class="updates-banner">
 		<span class="u-text-bold">New updates are available!</span> To upgrade your server now, run
 		<code>hestia update</code> from a shell session.
 		(<button type="button" class="u-text-bold" x-on:click="open = false">
-			hide
+			<?= tohtml(_("hide")) ?>
 		</button>)
 	</p>
 <?php } ?>
+<?php if (
+	$_SESSION["userContext"] === "admin" &&
+	$_SESSION["POLICY_SYSTEM_HIDE_SERVICES"] !== "yes" &&
+	!empty($_SESSION["MAIL_SYSTEM"]) &&
+	($_SESSION["PTR_WARNING"] ?? "") === "yes"
+) {
+	?>
+	<p x-data="{ open: true }" x-cloak x-show="open" class="updates-banner updates-banner-warning">
+		<span class="u-text-bold"><?= tohtml(_("Reverse DNS does not match.")) ?></span>
+		<?= tohtml(_("Receiving mail servers may reject mail from this server or mark it as spam.")) ?>
+		<a href="/list/ip/"><?= tohtml(_("Check the IP addresses")) ?></a>
+		(<button type="button" class="u-text-bold" x-on:click="open = false">
+			<?= tohtml(_("hide")) ?>
+		</button>)
+	</p>
+<?php } ?>
+	</div>
 	<div class="spinner-overlay js-spinner">
 		<i class="fas fa-circle-notch fa-spin"></i>
 	</div>

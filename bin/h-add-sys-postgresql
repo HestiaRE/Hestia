@@ -5,13 +5,16 @@
 # example: h-add-sys-postgresql
 #
 # Installs PostgreSQL and registers it as the local DB host. The panel logs in as postgres over TCP loopback,
-# which the default pg_hba already allows, with a password kept in conf/pgsql.conf; socket peer auth is unaffected.
+# which the default pg_hba already allows, with a password kept in conf/pgsql.conf. The socket takes a password for
+# every role but postgres, which keeps peer (pgsql_hba_local_password), so a customer's container can log in.
 # Readiness is pg_isready: the umbrella unit reports active while the cluster is down.
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/db.sh
+source $HESTIA/include/db.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 MGMT_ROLE="postgres"
@@ -25,6 +28,8 @@ if dpkg -l postgresql 2> /dev/null | grep -q '^ii' \
 	&& grep -qs "HOST='localhost'" "$HESTIA/conf/pgsql.conf"; then
 	echo "INFO: PostgreSQL is already installed."
 	change_sys_value "DB_POSTGRESQL_SYSTEM" "os"
+	# A cluster created anew (pg_createcluster) starts from the Debian default again.
+	pgsql_hba_local_password
 	exit 0
 fi
 
@@ -55,6 +60,7 @@ if [ "$_ready" != 1 ]; then
 	echo "ERROR: PostgreSQL cluster is not ready (pg_isready)"
 	exit "$E_RESTART"
 fi
+pgsql_hba_local_password
 
 echo "[ * ] Setting management credentials..."
 PGPASS=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 16 || true)

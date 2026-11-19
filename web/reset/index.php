@@ -15,6 +15,7 @@ $v_user_agent = quoteshellarg((string) ($_SERVER["HTTP_USER_AGENT"] ?? ""));
 
 if (isset($_SESSION["user"])) {
 	header("Location: /list/user");
+	exit();
 }
 
 if ($_SESSION["POLICY_SYSTEM_PASSWORD_RESET"] == "no") {

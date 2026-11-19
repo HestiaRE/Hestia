@@ -827,6 +827,7 @@ msgid "State"
 msgstr "Bundesland"
 
 #: web/inc/helpers.php web/login/index.php web/reset/index.php
+#: web/reset2fa/index.php
 msgid "An internal error occurred"
 msgstr "Ein interner Fehler ist aufgetreten"
 
@@ -952,7 +953,7 @@ msgstr ""
 "--\n"
 "{{appname}}"
 
-#: web/reset/index.php
+#: web/reset/index.php web/reset2fa/index.php
 msgid "Invalid username or code"
 msgstr "Falscher Benutzername oder Code"
 

@@ -39,6 +39,10 @@ the releases of the command audit, into another.
   sudoers rule existed, so every request made sudo mail root, and exim ran on our configuration before root had an
   alias, so it refused the delivery. The installer now writes the sudoers rule with the system users and the root
   alias before the mail stage; the smoke no longer reports a FAIL on a box that is fine.
+- **A customer's Sieve `reject` answered spam's forged sender** (#1371). Roundcube and Tachyon both offer it as a
+  filter action ("Discard with a message"), and Pigeonhole mailed its refusal to the envelope sender, which is
+  backscatter whenever that sender is forged. The extension is now switched off on dovecot 2.3 and 2.4, so neither
+  webmail offers it; a script that still uses it no longer compiles, and its mail goes to the inbox.
 
 - **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). CrowdSec read
   the log of every domain whatever its switch said, and a ban from one domain locked the address out of the whole box;

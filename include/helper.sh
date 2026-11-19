@@ -932,6 +932,39 @@ sieve_max_redirects_apply() {
 	return 0
 }
 
+# reject mails its refusal to the envelope sender, forged in most spam. A script that still uses it no longer compiles,
+# and its mail goes to the inbox instead, so nothing is lost.
+sieve_reject_off_apply() {
+	local f=/etc/dovecot/conf.d/90-sieve.conf keep
+	local c='# reject mails its refusal to the envelope sender, which spam forges: backscatter.'
+	[ -f "$f" ] || return 0
+	grep -qE -- '-reject$|^  reject = no$' "$f" && return 0
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	# Rewritten through > so the file keeps its inode, owner and mode.
+	if grep -q '^#sieve_extensions {' "$keep"; then
+		awk -v c="$c" '
+			{ print }
+			/^#sieve_extensions \{/ { b = 1 }
+			b && /^#}$/ { print c; print "sieve_extensions {"; print "  reject = no"; print "}"; b = 0 }' "$keep" > "$f"
+	else
+		awk -v c="$c" '
+			/^[[:space:]]*sieve_extensions = \+notify \+imapflags$/ {
+				i = $0; sub(/[^[:space:]].*/, "", i); print i c; print $0 " -reject"; next
+			}
+			{ print }' "$keep" > "$f"
+	fi
+	if grep -qE -- '-reject$|^  reject = no$' "$f" && doveconf -n > /dev/null 2>&1 \
+		&& systemctl reload dovecot && systemctl is-active --quiet dovecot; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl reload dovecot
+	echo '[ ! ] dovecot did not take the Sieve reject switch-off; reject still answers the envelope sender.'
+	return 0
+}
+
 # A line system_crontab_write writes, added alone: the rest of the crontab is operator surface (#972). Renamed in, as
 # there: the crontabs directory is sticky, where opening the file is EACCES even for root.
 hestia_crontab_line_add() { # COMMAND LINE WHAT

@@ -8,7 +8,7 @@
 				<?= tohtml(_("Account Unlocked")) ?>
 			</h1>
 			<div class="u-mt20">
-				<p><?_("Two-factor authentication is now turned off for your account.<br><br>You may now proceed to log in.");?></p>
+				<p><?= _("Two-factor authentication is now turned off for your account.<br><br>You may now proceed to log in.") ?></p>
 				<a href="/login/" class="button button-secondary">
 					<?= tohtml(_("Log in")) ?>
 				</a>

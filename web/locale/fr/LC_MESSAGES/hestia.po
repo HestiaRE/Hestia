@@ -952,7 +952,7 @@ msgstr ""
 "--\n"
 "{{appname}}"
 
-#: web/reset/index.php
+#: web/reset/index.php web/reset2fa/index.php
 msgid "Invalid username or code"
 msgstr "Nom d'utilisateur ou code de confirmation invalide."
 

@@ -5,12 +5,14 @@ use function Hestiacp\quoteshellarg\quoteshellarg;
 define("NO_AUTH_REQUIRED", true);
 $TAB = "RESET PASSWORD";
 
-if (isset($_SESSION["user"])) {
-	header("Location: /list/user");
-}
-
 // Main include
 include $_SERVER["DOCUMENT_ROOT"] . "/inc/main.php";
+
+// After the include: the session starts there.
+if (isset($_SESSION["user"])) {
+	header("Location: /list/user");
+	exit();
+}
 
 // The failed attempts below feed the auth log and fail2ban; unset, the arguments shifted and nothing was logged.
 $v_ip = quoteshellarg(get_real_user_ip());
@@ -21,7 +23,7 @@ $v_user_agent = quoteshellarg((string) ($_SERVER["HTTP_USER_AGENT"] ?? ""));
 if (!empty($_POST["user"]) && !empty($_POST["twofa"])) {
 	// Check token
 	verify_csrf($_POST);
-	$error = true;
+	$error = _("Invalid username or code");
 	$v_user = quoteshellarg($_POST["user"]);
 	$user = $_POST["user"];
 	$twofa = $_POST["twofa"];

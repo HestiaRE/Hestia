@@ -729,9 +729,9 @@ check_login_alias_passdb() {
 }
 
 # A patch entry decides by context. A later change to a line it uses as context leaves it neither applied nor
-# reversible: rc 2 on every box that has the newer file, and upd_plan refuses each later update there. So every patch the
-# engine reads reverses onto the tree file named in its +++ line. git apply, not patch(1): the runner is not known to
-# have patch, and on the shipped patches both agree. Not covered: a name shipped twice (dovecot 2.3 and 2.4) passes
+# reversible: rc 2 on every box that has the newer file, and upd_plan refuses each later update there. So every patch
+# the engine reads reverses onto the tree file named in its +++ line. git apply, not patch(1): the runner is not known
+# to have patch, and on the shipped patches both agree. Not covered: a name shipped twice (dovecot 2.3 and 2.4) passes
 # when the patch reverses onto either copy, and an operator's edit on a box is the smoke's question, not this one.
 check_update_patches_reverse() {
 	local lib="$HESTIA/include/update.sh" m p lvl name f d t hit n=0 bad='' with=0 list

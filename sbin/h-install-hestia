@@ -1126,14 +1126,23 @@ install_exim_sendonly() {
 # Cron and the panel mail root@<hostname> and the admin contact; the base image's root: line points at a user
 # that does not exist here, and admin@<hostname> has no target at all.
 configure_system_aliases() {
-	local target='' al=/etc/aliases
+	local target='' al=/etc/aliases _a
 	# Only an address outside this host is worth forwarding to; the default contact is
 	# admin@<hostname> and would point back at the box.
 	case "${HESTIA_EMAIL:-}" in
 		'' | *@"${HESTIA_HOSTNAME}") : ;;
 		*) target="$HESTIA_EMAIL" ;;
 	esac
-	touch "$al"
+	# exim4-config writes the Debian defaults only into a missing file, and this one now runs before exim is installed.
+	if [ ! -e "$al" ]; then
+		{
+			echo '# /etc/aliases'
+			echo 'mailer-daemon: postmaster'
+			for _a in postmaster nobody hostmaster usenet news webmaster www ftp abuse noc security; do
+				echo "${_a}: root"
+			done
+		} > "$al"
+	fi
 	# Both lines go: an inherited "<admin>: root" together with our "root: <admin>" is a loop, and
 	# exim resolves a loop by delivering as root, which never_users then refuses.
 	sed -i "/^[[:space:]]*root:/d;/^[[:space:]]*${HESTIA_ADMIN}:/d" "$al"

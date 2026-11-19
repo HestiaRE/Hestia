@@ -954,13 +954,13 @@ sieve_reject_off_apply() {
 			{ print }' "$keep" > "$f"
 	fi
 	if grep -qE -- '-reject$|^  reject = no$' "$f" && doveconf -n > /dev/null 2>&1 \
-		&& systemctl reload dovecot && systemctl is-active --quiet dovecot; then
+		&& systemctl restart dovecot && systemctl is-active --quiet dovecot; then
 		rm -f "$keep"
 		return 0
 	fi
 	cat "$keep" > "$f"
 	rm -f "$keep"
-	systemctl reload dovecot
+	systemctl restart dovecot
 	echo '[ ! ] dovecot did not take the Sieve reject switch-off; reject still answers the envelope sender.'
 	return 0
 }

@@ -734,8 +734,18 @@ check_login_alias_passdb() {
 # have patch, and on the shipped patches both agree. Not covered: a name shipped twice (dovecot 2.3 and 2.4) passes
 # when the patch reverses onto either copy, and an operator's edit on a box is the smoke's question, not this one.
 check_update_patches_reverse() {
-	local lib="$HESTIA/include/update.sh" m p lvl name f d t hit n=0 bad='' with=0
+	local lib="$HESTIA/include/update.sh" m p lvl name f d t hit n=0 bad='' with=0 list
 	[ -f "$lib" ] || return
+	# A renamed or failing derivation must not read as an empty scope.
+	if ! list=$(
+		# shellcheck source=/usr/local/hestia/include/update.sh
+		source "$lib" > /dev/null 2>&1
+		declare -F upd_manifest_files > /dev/null || exit 3
+		upd_manifest_files "$UPD_VERSION_MAX" 2> /dev/null
+	); then
+		no "update patches: the manifest scope could not be derived" "nothing was checked"
+		return
+	fi
 	t=$(mktemp -d) || {
 		no "update patches: no temporary directory" "nothing was checked"
 		return
@@ -762,15 +772,11 @@ check_update_patches_reverse() {
 			done < <(find share -type f -name "${name##*/}" ! -path 'share/updates/*')
 			[ -n "$hit" ] || bad+=" $p(${name##*/})"
 		done < <(jq -r '.entries[].conditions[]? | select(.type == "file_patch_pending") | .source' "$m")
-	done < <(
-		# shellcheck source=/usr/local/hestia/include/update.sh
-		source "$lib" > /dev/null 2>&1
-		upd_manifest_files "$UPD_VERSION_MAX" 2> /dev/null
-	)
+	done <<< "$list"
 	rm -rf "${t:?}"
 	if [ -n "$bad" ]; then
 		no "update patches that no longer reverse onto their tree file:$bad" \
-			"a later change took their context, so their entry reads rc 2 and stops every update after it"
+			"their context changed or no single tree file is named; the entry reads rc 2 and stops every later update"
 	elif [ "$n" -eq 0 ] && [ "$with" -gt 0 ]; then
 		no "update patches: $with manifest(s) above the bound name one, but none was read" "nothing was checked"
 	elif [ "$n" -eq 0 ]; then

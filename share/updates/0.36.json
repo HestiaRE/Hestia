@@ -22,6 +22,30 @@
       "action": { "type": "function_call", "function": "crowdsec_whitelist_apply" },
       "paths": ["/etc/crowdsec/parsers/s02-enrich", "/etc/hestia/users"],
       "reversible": false
+    },
+    {
+      "id": "sieve-reject-off",
+      "description": "Sieve reject is switched off on dovecot 2.3: it mailed its refusal to the envelope sender, which spam forges. Neither webmail offers the action any more; a script that still uses it no longer compiles, and its mail goes to the inbox. Skipped where the line was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "sieve_extensions = +notify +imapflags" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "-reject" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_reject_off_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false
+    },
+    {
+      "id": "sieve-reject-off-24",
+      "description": "Sieve reject is switched off on dovecot 2.4, the same as on 2.3. Skipped where the commented sieve_extensions block was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "#sieve_extensions {" },
+        { "type": "file_lacks", "path": "/etc/dovecot/conf.d/90-sieve.conf", "value": "reject = no" }
+      ],
+      "action": { "type": "function_call", "function": "sieve_reject_off_apply" },
+      "paths": ["/etc/dovecot/conf.d/90-sieve.conf"],
+      "reversible": false
     }
   ]
 }

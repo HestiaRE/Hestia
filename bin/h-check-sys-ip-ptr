@@ -33,8 +33,8 @@ ptr_resolvers() {
 }
 
 # Sets ANSWER to the records of TYPE, lowercase without the final dot. SERVFAIL, REFUSED or silence are no answer and
-# must not read as a missing record: rc 2 when no resolver gave one. When none even replied, DNS is out and nothing
-# further is asked, so a page load does not wait out the timeout once per address.
+# must not read as a missing record: rc 2 when no resolver gave one. When none even replied, and none answers about
+# the root either, DNS is out and nothing further is asked, so a page load does not wait out the timeout per address.
 dns_ask() { # TYPE DIG_QUESTION...
 	local t=$1 ns out heard=''
 	shift
@@ -47,8 +47,17 @@ dns_ask() { # TYPE DIG_QUESTION...
 		ANSWER=$(awk -v t="$t" '$4 == t { sub(/\.$/, "", $5); print tolower($5) }' <<< "$out")
 		return 0
 	done
-	[ -n "$heard" ] || DNS_SILENT=1
+	[ -n "$heard" ] || dns_alive || DNS_SILENT=1
 	return 2
+}
+
+# A silent zone, a badly delegated reverse zone above all, is not an outage.
+dns_alive() {
+	local ns
+	for ns in $RESOLVERS; do
+		timeout 4 dig "@$ns" +time=2 +tries=1 . NS > /dev/null 2>&1 && return 0
+	done
+	return 1
 }
 
 # exim's own expansion with the address in place of $sending_ip_address, so an operator's helo_data counts as it is.

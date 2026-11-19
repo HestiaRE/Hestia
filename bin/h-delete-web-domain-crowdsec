@@ -25,9 +25,11 @@ is_format_valid 'user' 'domain' 'restart'
 is_object_valid 'user' 'USER' "$user"
 is_object_valid 'web' 'DOMAIN' "$domain"
 
+previous=$(get_object_value 'web' 'DOMAIN' "$domain" '$CROWDSEC')
 update_object_value 'web' 'DOMAIN' "$domain" '$CROWDSEC' 'no'
 
 crowdsec_render_domain_fragment "$user" "$domain"
+crowdsec_switch_refused_undo "$user" "$domain" "$previous"
 
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null

@@ -353,6 +353,7 @@ crowdsec_render_all_fragments() {
 }
 
 CS_WHITELIST=/etc/crowdsec/parsers/s02-enrich/hestia-whitelist.yaml
+CS_WHITELIST_REFUSED=""
 
 # What CrowdSec must not count: the firewall whitelist, which every other layer already exempts, and the logs of the
 # domains whose switch is off, so no ban arises from them at L7 or L3. The log paths come from our acquisition file,
@@ -361,10 +362,14 @@ CS_WHITELIST=/etc/crowdsec/parsers/s02-enrich/hestia-whitelist.yaml
 # paths stay until the next sync, harmless: its log is gone, and a domain added under that name syncs on its add.
 crowdsec_whitelist_sync() {
 	local excludes="$CONF_DIR/firewall/excludes.conf" acq=/etc/crowdsec/acquis.d/hestia-nginx.yaml
-	local dir tmp keep a wc d ips=() cidrs=() srcs=()
+	local dir tmp keep="${CS_WHITELIST%/*}/.hestia-whitelist.keep" a wc d ips=() cidrs=() srcs=()
 	command -v crowdsec > /dev/null 2>&1 && [ -d "${CS_WHITELIST%/*}" ] || return 0
+	# Left by an interrupted run, it is the last file that passed; the one beside it may not have.
+	[ -f "$keep" ] && mv -f "$keep" "$CS_WHITELIST"
 	if [ -f "$excludes" ]; then
 		while read -r a; do
+			# One address the engine cannot parse would make it refuse the whole file.
+			[ "$(_is_cidr_valid "$a" 46)" = 0 ] || continue
 			case "$a" in */*) cidrs+=("$a") ;; *) ips+=("$a") ;; esac
 		done < <(grep -E "$FW_ADDR_RE|$FW_ADDR6_RE" "$excludes")
 	fi
@@ -406,24 +411,35 @@ crowdsec_whitelist_sync() {
 		return 0
 	fi
 	chmod 644 "$tmp"
-	keep="${CS_WHITELIST%/*}/.hestia-whitelist.keep"
-	rm -f "$keep"
 	[ -f "$CS_WHITELIST" ] && cp -p "$CS_WHITELIST" "$keep"
 	mv -f "$tmp" "$CS_WHITELIST"
 	if crowdsec -t -c /etc/crowdsec/config.yaml > /dev/null 2>&1; then
 		systemctl reload crowdsec > /dev/null 2>&1 || true
 	else
 		if [ -f "$keep" ]; then mv -f "$keep" "$CS_WHITELIST"; else rm -f "$CS_WHITELIST"; fi
+		CS_WHITELIST_REFUSED=yes
 		echo "[ ! ] CrowdSec refused its whitelist, the previous one stays: check crowdsec -t" >&2
 	fi
 	rm -f "$keep"
 	return 0
 }
 
+# A domain switch the engine did not take goes back, so the record, the fragment and the whitelist keep agreeing.
+crowdsec_switch_refused_undo() { # USER DOMAIN PREVIOUS_VALUE
+	[ -n "$CS_WHITELIST_REFUSED" ] || return 0
+	update_object_value 'web' 'DOMAIN' "$2" '$CROWDSEC' "$3"
+	crowdsec_render_domain_fragment "$1" "$2"
+	check_result "$E_UPDATE" "CrowdSec refused its whitelist, so the switch stays as it was: check crowdsec -t"
+}
+
 # A whitelisted address loses its decisions as well, or the L7 bouncer keeps answering 403 until they expire.
 crowdsec_decisions_release() { # IP_CIDR
 	local sel i out
 	command -v cscli > /dev/null 2>&1 || return 0
+	if ! systemctl is-active --quiet crowdsec; then
+		echo "[ ! ] CrowdSec is not running, so its current bans on $1 were not lifted" >&2
+		return 0
+	fi
 	case "$1" in
 		*/*) sel=(--range "$1" --contained) ;;
 		*) sel=(--ip "$1") ;;

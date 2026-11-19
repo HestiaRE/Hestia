@@ -57,6 +57,8 @@ if [ -n "$CROWDSEC_SYSTEM" ] && [ -f "$HESTIA/include/crowdsec.sh" ]; then
 fi
 
 $BIN/h-log-action "system" "Info" "Firewall" "Whitelisted IP address $ip_cidr."
+[ -z "$CS_WHITELIST_REFUSED" ] \
+	|| check_result "$E_UPDATE" "the firewall took it, CrowdSec refused its whitelist: check crowdsec -t"
 log_event "$OK" "$ARGUMENTS"
 
 exit

@@ -35,6 +35,7 @@ if [ "$pub" != "nginx" ]; then
 	exit "$E_NOTEXIST"
 fi
 parse_object_kv_list "$(grep -F "DOMAIN='$domain'" $USER_DATA/web.conf)"
+previous=$CROWDSEC
 
 if [ -z "$CROWDSEC" ]; then
 	add_object_key "web" 'DOMAIN' "$domain" 'CROWDSEC' 'SUSPENDED'
@@ -42,6 +43,7 @@ fi
 update_object_value 'web' 'DOMAIN' "$domain" '$CROWDSEC' 'yes'
 
 crowdsec_render_domain_fragment "$user" "$domain"
+crowdsec_switch_refused_undo "$user" "$domain" "$previous"
 
 $BIN/h-restart-web "$restart"
 check_result $? "Web restart failed" > /dev/null

@@ -35,6 +35,10 @@ the releases of the command audit, into another.
   octal and whitelisted a `/52`, and refused `1.2.3.4/08` outright. Such an address stored before has to be removed
   from `excludes.conf` or `banlist.conf` by hand, since the delete commands refuse it as well; `grep -E '/0[0-9]'`
   over the firewall files finds one.
+- **A scan during a fresh install left a line in exim's paniclog** (#1376). The panel answered for minutes before its
+  sudoers rule existed, so every request made sudo mail root, and exim ran on our configuration before root had an
+  alias, so it refused the delivery. The installer now writes the sudoers rule with the system users and the root
+  alias before the mail stage; the smoke no longer reports a FAIL on a box that is fine.
 
 - **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). CrowdSec read
   the log of every domain whatever its switch said, and a ban from one domain locked the address out of the whole box;

@@ -185,6 +185,9 @@ install_base() {
 	getent group hestia-users &> /dev/null || groupadd hestia-users
 	usermod -aG hestia-users hestia
 	# caddy joins hestia-users in the panel stage (user doesn't exist yet here)
+	# Before the panel stage starts caddy: a panel asked without its rule makes sudo mail root about it.
+	mkdir -p /etc/sudoers.d
+	deploy_hestia_sudoers
 
 	echo "[ * ] Hardening SSH..."
 	if grep -qiE "^#?.*Subsystem.+(sftp )?sftp-server" /etc/ssh/sshd_config; then
@@ -1177,13 +1180,14 @@ install_base
 install_panel
 install_web
 install_db
+# Before exim runs on our config, which refuses delivery as root: root mail from then on needs its alias.
+configure_system_aliases
 if is_on "${COMPONENT_MAIL_BLOCK_PRESENT:-}"; then
 	install_mail
 else
 	echo "[ * ] Mail block not present — skipping mail stage"
 	install_exim_sendonly
 fi
-configure_system_aliases
 install_security
 install_addons
 configure_hestia

@@ -432,27 +432,48 @@ crowdsec_switch_refused_undo() { # USER DOMAIN PREVIOUS_VALUE
 	check_result "$E_UPDATE" "CrowdSec refused its whitelist, so the switch stays as it was: check crowdsec -t"
 }
 
-# A whitelisted address loses its decisions as well, or the L7 bouncer keeps answering 403 until they expire.
-crowdsec_decisions_release() { # IP_CIDR
-	local sel i out
+# Deleted, then checked until none is left: a reload restarts the local API, and a delete sent in that second is lost
+# without a word. Simulated decisions ban nobody, so only the real ones have to be gone.
+crowdsec_decisions_clear() { # CSCLI_SELECTOR...
+	local i out
 	command -v cscli > /dev/null 2>&1 || return 0
 	if ! systemctl is-active --quiet crowdsec; then
-		echo "[ ! ] CrowdSec is not running, so its current bans on $1 were not lifted" >&2
+		echo "[ ! ] CrowdSec is not running, so its decisions for $* were not deleted" >&2
 		return 0
 	fi
-	case "$1" in
-		*/*) sel=(--range "$1" --contained) ;;
-		*) sel=(--ip "$1") ;;
-	esac
-	# Checked, not trusted: a reload restarts the local API, and a delete sent in that second is lost without a word.
 	for i in $(seq 1 15); do
-		cscli decisions delete "${sel[@]}" > /dev/null 2>&1
-		out=$(cscli decisions list "${sel[@]}" -o json 2> /dev/null) \
+		cscli decisions delete "$@" > /dev/null 2>&1
+		out=$(cscli decisions list --no-simu "$@" -o json 2> /dev/null) \
 			&& [ "$(jq '[.[]?.decisions[]?] | length' <<< "$out" 2> /dev/null)" = 0 ] && return 0
 		sleep 1
 	done
-	echo "[ ! ] CrowdSec still holds decisions for $1: cscli decisions delete ${sel[*]}" >&2
+	echo "[ ! ] CrowdSec still holds decisions for $*: cscli decisions delete $*" >&2
 	return 0
+}
+
+# A whitelisted address loses its decisions as well, or the L7 bouncer keeps answering 403 until they expire.
+crowdsec_decisions_release() { # IP_CIDR
+	case "$1" in
+		*/*) crowdsec_decisions_clear --range "$1" --contained ;;
+		*) crowdsec_decisions_clear --ip "$1" ;;
+	esac
+}
+
+# NAME<TAB>on|off<TAB>DESCRIPTION per installed scenario an admin may switch. Off is CrowdSec's simulation, read from
+# its own simulation.yaml, so there is no second list: exclusions are the simulated ones, or with the global switch on
+# the ones that are not. The SSH pair belongs to the firewall model (crowdsec_gate_bruteforce) and is left out.
+crowdsec_scenarios() {
+	local f=/etc/crowdsec/simulation.yaml out global sim
+	command -v cscli > /dev/null 2>&1 || return 0
+	out=$(cscli scenarios list -o json 2> /dev/null) || return 1
+	global=$(sed -n 's/^simulation:[[:space:]]*\([a-z]*\).*/\1/p' "$f" 2> /dev/null)
+	sim=$(sed -n '/^exclusions:/,/^[^[:space:]-]/s/^[[:space:]]*-[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$f" 2> /dev/null)
+	case "$global" in on | true) global=on ;; *) global=off ;; esac
+	jq -r --arg global "$global" --arg sim "$sim" --arg own "$CS_BF_SCENARIOS" '
+		($sim | split("\n") | map(select(. != ""))) as $ex | ($own | split(" ")) as $own
+		| .scenarios[]? | .name as $n | select($own | any(. == $n) | not)
+		| (($ex | any(. == $n)) != ($global == "on")) as $simulated
+		| [$n, (if $simulated then "off" else "on" end), (.description // "")] | @tsv' <<< "$out"
 }
 
 # A domain without a choice gets the one a new domain gets. Before #1381 an empty field showed as off in the panel

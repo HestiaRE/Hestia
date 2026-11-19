@@ -1297,6 +1297,7 @@ msgstr ""
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_firewall.php
 #: web/templates/pages/list_firewall_banlist.php
+#: web/templates/pages/list_firewall_crowdsec.php
 #: web/templates/pages/list_firewall_exclude.php
 #: web/templates/pages/list_firewall_ipset.php
 #: web/templates/pages/list_firewall_jail.php
@@ -3514,6 +3515,7 @@ msgid "Show password"
 msgstr ""
 
 #: web/templates/pages/list_dns_providers.php
+#: web/templates/pages/list_firewall_crowdsec.php
 #: web/templates/pages/list_firewall_jail.php web/templates/pages/list_ip.php
 #: web/templates/pages/list_log_auth.php web/templates/pages/list_search.php
 #: web/templates/pages/list_server_preview.php
@@ -3760,6 +3762,11 @@ msgid "Banned IP Addresses"
 msgstr ""
 
 #: web/templates/pages/list_firewall.php
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "CrowdSec Scenarios"
+msgstr ""
+
+#: web/templates/pages/list_firewall.php
 msgid "Firewall Rules"
 msgstr ""
 
@@ -3837,6 +3844,56 @@ msgstr ""
 
 #: web/templates/pages/list_firewall_banlist.php
 msgid "When"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#, php-format
+msgid "%d scenario"
+msgid_plural "%d scenarios"
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "A scenario switched off runs in simulation: it still detects, but it bans nobody, and its current bans are lifted."
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Active"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "CrowdSec listed no scenario."
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#: web/templates/pages/list_services.php
+msgid "Description"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Scenario"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Simulation"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Switch off"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#, php-format
+msgid "Switch off scenario %s? It keeps detecting but bans nobody, and its current bans are lifted."
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+msgid "Switch on"
+msgstr ""
+
+#: web/templates/pages/list_firewall_crowdsec.php
+#, php-format
+msgid "Switch on scenario %s? It bans again from now on."
 msgstr ""
 
 #: web/templates/pages/list_firewall_exclude.php
@@ -4292,10 +4349,6 @@ msgstr ""
 #: web/templates/pages/list_services.php
 #, php-format
 msgid "Are you sure you want to stop the %s service?"
-msgstr ""
-
-#: web/templates/pages/list_services.php
-msgid "Description"
 msgstr ""
 
 #: web/templates/pages/list_services.php

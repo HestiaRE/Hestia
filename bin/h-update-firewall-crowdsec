@@ -32,7 +32,8 @@ CACHE6="$CONF_DIR/firewall/crowdsec6.iplist"
 deny='req-limit'
 [ -n "$FIREWALL_EXTENSION" ] && deny='ssh|ftp|smtp|imap|pop3|dovecot|postfix|exim|mysql|mariadb|postgres|req-limit'
 raw="$(mktemp)"
-cscli decisions list -o json 2> /dev/null \
+# --no-simu: a scenario switched off still decides, in simulation, and that must not reach the firewall.
+cscli decisions list --no-simu -o json 2> /dev/null \
 	| jq -r --arg deny "$deny" '(if type=="array" then .[] else . end)
 		| (.decisions // [])[]
 		| select(.type == "ban" and .origin == "crowdsec"

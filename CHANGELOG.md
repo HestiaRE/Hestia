@@ -20,6 +20,12 @@ the releases of the command audit, into another.
   receiver that finds none of that may refuse the mail or score it as spam. The page checks live, so a fixed PTR shows
   on reload; a daily job raises a banner for the admin while one does not match. Both only on a box with mail.
 
+- **CrowdSec scenarios can be switched off one by one** (#1381), on a new page under Firewall. Off runs the scenario
+  in CrowdSec's simulation: it still detects and its alerts stay, but it bans nobody, and the bans it already set are
+  lifted; the L7 bouncer may still answer 403 for up to a minute from its cache. Meant for a scenario that keeps
+  catching legitimate traffic, such as an AI agent crawling a site; the SSH pair stays with the firewall model. The
+  switch is per box: a mesh peer with the scenario on keeps publishing its bans, and this box still imports them for L7.
+
 ### Fixed
 
 - **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). CrowdSec read

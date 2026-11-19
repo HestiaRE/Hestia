@@ -20,6 +20,16 @@ the releases of the command audit, into another.
   receiver that finds none of that may refuse the mail or score it as spam. The page checks live, so a fixed PTR shows
   on reload; a daily job raises a banner for the admin while one does not match. Both only on a box with mail.
 
+### Fixed
+
+- **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). CrowdSec read
+  the log of every domain whatever its switch said, and a ban from one domain locked the address out of the whole box;
+  the whitelist exempted it in the firewall but not from CrowdSec, whose bouncer kept answering 403. Now CrowdSec counts
+  neither a whitelisted address nor the log of a domain switched off, whitelisting an address releases its current
+  bans, and the switch works without the L7 bouncer too. Domains from before the default had an empty switch that the
+  panel showed as off while CrowdSec still watched them; the update switches them on, and a restore does the same
+  for an archived domain without a choice.
+
 ## v0.35 (2026-11-17)
 
 Forwards and autoreplies live in Sieve and no longer bounce to a forged sender, a full mailbox is refused in the SMTP

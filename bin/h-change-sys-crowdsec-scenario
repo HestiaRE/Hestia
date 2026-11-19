@@ -26,9 +26,13 @@ case "$state" in
 	*) check_result "$E_INVALID" "invalid state: $state (on or off)" ;;
 esac
 
-scenario_state() { crowdsec_scenarios | awk -F'\t' -v n="$scenario" '$1 == n { print $2 }'; }
+scenario_state() {
+	local list
+	list=$(crowdsec_scenarios) || return 1
+	awk -F'\t' -v n="$scenario" '$1 == n { print $2 }' <<< "$list"
+}
 
-cur=$(scenario_state)
+cur=$(scenario_state) || check_result "$E_UPDATE" "cscli could not list the scenarios"
 [ -n "$cur" ] || check_result "$E_NOTEXIST" "$scenario is not an installed scenario that can be switched here"
 
 if [ "$cur" != "$state" ]; then
@@ -38,7 +42,8 @@ if [ "$cur" != "$state" ]; then
 		cscli simulation disable "$scenario" > /dev/null 2>&1
 	fi
 	[ "$(scenario_state)" = "$state" ] || check_result "$E_UPDATE" "CrowdSec did not take $scenario $state"
-	systemctl reload crowdsec > /dev/null 2>&1
+	systemctl reload crowdsec > /dev/null 2>&1 \
+		|| check_result "$E_UPDATE" "CrowdSec did not reload: $scenario is $state in its configuration, not yet in the engine"
 fi
 
 # Also when it was off already: a ban it set before stays one until it expires, whatever the switch says.

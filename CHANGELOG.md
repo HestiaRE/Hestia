@@ -22,8 +22,9 @@ the releases of the command audit, into another.
 
 - **CrowdSec scenarios can be switched off one by one** (#1381), on a new page under Firewall. Off runs the scenario
   in CrowdSec's simulation: it still detects and its alerts stay, but it bans nobody, and the bans it already set are
-  lifted. Meant for a scenario that keeps catching legitimate traffic, such as an AI agent crawling a site; the SSH
-  pair stays with the firewall model.
+  lifted; the L7 bouncer may still answer 403 for up to a minute from its cache. Meant for a scenario that keeps
+  catching legitimate traffic, such as an AI agent crawling a site; the SSH pair stays with the firewall model. The
+  switch is per box: a mesh peer with the scenario on keeps publishing its bans, and this box still imports them for L7.
 
 ### Fixed
 

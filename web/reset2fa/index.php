@@ -40,6 +40,7 @@ if (!empty($_POST["user"]) && !empty($_POST["twofa"])) {
 				$success = true;
 				session_destroy();
 			} else {
+				$error = _("An internal error occurred");
 				check_return_code($return_var, $output);
 			}
 		} else {

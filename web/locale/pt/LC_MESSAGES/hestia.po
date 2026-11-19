@@ -827,6 +827,7 @@ msgid "State"
 msgstr "Estado|Região"
 
 #: web/inc/helpers.php web/login/index.php web/reset/index.php
+#: web/reset2fa/index.php
 msgid "An internal error occurred"
 msgstr "Ocorreu um erro interno"
 

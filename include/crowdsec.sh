@@ -301,7 +301,7 @@ crowdsec_l3_teardown() {
 }
 
 # The CROWDSEC field is intent, this is capability: an nginx without the bouncer fails the whole config or answers
-# 500 per request. Keyed on the artefact the apply step installs; shared by the renderer and the restore's report.
+# 500 per request. Keyed on the artefact the apply step installs.
 crowdsec_domain_capable() {
 	local sys
 	if [ -n "$PROXY_SYSTEM" ]; then sys="$PROXY_SYSTEM"; else sys="$WEB_SYSTEM"; fi

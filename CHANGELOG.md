@@ -13,7 +13,11 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Changed
+
+- **An update ends with the smoke test** (#1405), as an install does. The terminal shows its FAIL lines and a
+  result line, the full output stays in the run directory as `smoke.txt`. It reports and does not change the
+  update's exit code.
 
 ## v0.36 (2026-11-19)
 

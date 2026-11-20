@@ -283,7 +283,7 @@ fail2ban_jail_logpath() {
 
 # Mirror the whitelist into ignoreip so a whitelisted address is never even counted. Own file, whole rewrite.
 fail2ban_sync_ignoreip() {
-	local excludes="$CONF_DIR/firewall/excludes.conf" ips='' rc=0
+	local excludes="$CONF_DIR/firewall/excludes.conf" ips='' rc=0 a keep=()
 	[ -d "$F2B_DIR/jail.d" ] || return 0
 	# shellcheck source=/usr/local/hestia/include/firewall.sh
 	declare -F fw_is_addr > /dev/null 2>&1 || source "$HESTIA/include/firewall.sh"
@@ -291,7 +291,12 @@ fail2ban_sync_ignoreip() {
 	if [ -f "$excludes" ]; then
 		ips="$(grep -oE "$FW_ADDR_RE|$FW_ADDR6_RE" "$excludes")" || rc=$?
 		[ "$rc" -le 1 ] || check_result "$E_PARSING" "fail2ban_sync_ignoreip: cannot read $excludes (grep rc=$rc)"
-		ips="$(printf '%s' "$ips" | paste -sd' ' -)"
+		while read -r a; do
+			# What the firewall leaves out stays out: fail2ban reads 10.0.0.0/08 as a /8. Only a firm no drops it.
+			if [ -n "$a" ] && [ "$(_is_cidr_valid "$a" 46)" != 1 ]; then keep+=("$a"); fi
+		done <<< "$ips"
+		printf -v ips '%s ' "${keep[@]}"
+		ips="${ips% }"
 	fi
 	# Written even when the whitelist is empty: loopback belongs in ignoreip regardless.
 	{

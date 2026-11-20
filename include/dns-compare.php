@@ -1,12 +1,15 @@
 <?php
 
 // Desired against actual records of one zone, for h-check-dns-zone and h-sync-dns-zone.
-//   dns-compare.php ZONE DESIRED ACTUAL APEX [SECTION OBJECT]
+//   dns-compare.php ZONE DESIRED ACTUAL APEX KEPT [SECTION OBJECT]
 // DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE); ACTUAL: driver rows
-// (REL TYPE PRIORITY TTL VALUE FLAG RAW); APEX yes when an object on the box holds the zone apex.
-// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE: the zone's delegation (SECTION
-// delegation: public name servers against the provider's), the desired rows, then every record no desired row
-// consumed (SECTION foreign, or hidden outside the box's names in a zone without apex).
+// (REL TYPE PRIORITY TTL VALUE FLAG RAW); APEX yes when an object on the box holds the zone apex; KEPT: the
+// exceptions (OWNER REL TYPE VALUE, one row per accepted value, an empty VALUE alone for "kept absent").
+// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE FOUND EXCEPTION KEPT: the zone's
+// delegation (SECTION delegation: public name servers against the provider's), the desired rows, then every record
+// no desired row consumed (SECTION foreign, or hidden outside the box's names in a zone without apex). FOUND is what
+// answers for a desired row at the provider, KEPT the values its exception accepts (both \x1f separated), EXCEPTION
+// yes when it has one. A row whose FOUND matches its exception is "exception", one that drifted from it "different".
 // Per type: A/AAAA as an address, MX as priority and target, SPF by whether it authorises the desired addresses,
 // DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
 // a check it cut short is "unchecked", never "different".
@@ -15,12 +18,12 @@
 // names a record a desired row of the section consumed, so no foreign record is touched, and nothing is written
 // to a zone the public name servers do not point at.
 
-if (PHP_SAPI !== "cli" || ($argc !== 5 && $argc !== 7)) {
-	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX [SECTION OBJECT]\n");
+if (PHP_SAPI !== "cli" || ($argc !== 6 && $argc !== 8)) {
+	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX KEPT [SECTION OBJECT]\n");
 	exit(1);
 }
-[, $zone, $desiredFile, $actualFile, $apex] = $argv;
-$planFor = $argc === 7 ? [$argv[5], strtolower($argv[6])] : null;
+[, $zone, $desiredFile, $actualFile, $apex, $keptFile] = $argv;
+$planFor = $argc === 8 ? [$argv[6], strtolower($argv[7])] : null;
 $zone = strtolower(rtrim($zone, "."));
 
 /** @return list<list<string>> */
@@ -61,8 +64,48 @@ function txt(string $v): string
 	return $v;
 }
 
+// One value as an exception compares it: an address, priority and host, a TXT without blanks; what answers through
+// a CNAME, an ALIAS or a wildcard by that.
+function canon(string $type, string $v): string
+{
+	if (preg_match('/^(CNAME|ALIAS) (.*)$/', $v, $m)) {
+		return $m[1] . " " . host($m[2]);
+	}
+	if (str_starts_with($v, "wildcard ")) {
+		return strtolower($v);
+	}
+	return match ($type) {
+		"A", "AAAA" => addr($v),
+		"MX" => preg_match('/^(\d+)\s+(\S+)$/', trim($v), $m) ? (int) $m[1] . " " . host($m[2]) : strtolower(trim($v)),
+		"TXT" => (string) preg_replace('/\s+/', "", $v),
+		default => strtolower(trim($v)),
+	};
+}
+
+/**
+ * @param list<string> $a
+ * @param list<string> $b
+ */
+function same_set(string $type, array $a, array $b): bool
+{
+	$c = fn ($l) => array_values(array_unique(array_map(fn ($v) => canon($type, $v), $l)));
+	$a = $c($a);
+	$b = $c($b);
+	sort($a);
+	sort($b);
+	return $a === $b;
+}
+
 $desired = tsv($desiredFile, 10);
 $actual = tsv($actualFile, 7);
+/** @var array<string, list<string>> $kept */
+$kept = [];
+foreach (tsv($keptFile, 4) as [$owner, $rel, $type, $value]) {
+	$kept["$owner\t$rel\t$type"] ??= [];
+	if ($value !== "") {
+		$kept["$owner\t$rel\t$type"][] = $value;
+	}
+}
 $used = [];
 // The time public DNS has left in this run, and whether a lookup since the last reset went unanswered.
 final class Dig
@@ -347,8 +390,92 @@ function spf_merge(string $rec, array $missed): string
 	return implode(" ", $terms);
 }
 
+// The writes that put an exception back: its values in place of the derived one, by the same verbs. A CNAME or a
+// wildcard it keeps, or a main IP it cannot be, is left to the provider's page.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @return list<list<string>>
+ */
+function kept_ops(array $x, bool $include, bool $mainV6): array
+{
+	global $actual;
+	[, , , , , $rel, $type, , $ttl, $value] = $x["d"];
+	$want = $x["kept"] ?? [];
+	$skip = fn ($why) => [["skip", $rel, $type, "", $ttl, $value, $why]];
+	foreach ($want as $w) {
+		if (preg_match('/^(CNAME|ALIAS|wildcard) /', $w)) {
+			return $skip("the exception keeps a CNAME, ALIAS or wildcard: put it back at the provider, or lift it");
+		}
+	}
+	$wantC = array_values(array_unique(array_map(fn ($v) => canon($type, $v), $want)));
+	$ops = [];
+	$hits = $x["hits"];
+	if ($type === "A" || $type === "AAAA") {
+		if ($rel === "www" && $include) {
+			return $skip("www follows the apex (www include), which differs");
+		}
+		$main = null;
+		$own = [];
+		foreach ($hits as $i) {
+			if ($actual[$i][5] === "main") {
+				$main = $i;
+			} elseif ($actual[$i][5] === "") {
+				$own[] = $i;
+			}
+		}
+		if ($rel === "@" && $type === "AAAA" && $main !== null) {
+			return $skip("the main IP holds an IPv6 address");
+		}
+		$have = [];
+		if ($rel === "@" && $type === "A" && ($main !== null || (!$own && !$mainV6))) {
+			if (count($wantC) !== 1) {
+				return $skip("the main IP holds exactly one address: put the exception back at the provider, or lift it");
+			}
+			if ($main === null || addr($actual[$main][4]) !== $wantC[0]) {
+				$ops[] = ["main", $rel, $type, "", $ttl, $wantC[0], "kept as an exception"];
+			}
+			$have[] = $wantC[0];
+		}
+		foreach ($own as $i) {
+			if (in_array(addr($actual[$i][4]), $wantC, true)) {
+				$have[] = addr($actual[$i][4]);
+			} else {
+				$ops[] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+			}
+		}
+		foreach ($wantC as $w) {
+			if (!in_array($w, $have, true)) {
+				$ops[] = ["add", $rel, $type, "", $ttl, $w, "kept as an exception"];
+			}
+		}
+		return $ops;
+	}
+	$have = [];
+	foreach ($hits as $i) {
+		$c = $type === "MX" ? canon("MX", $actual[$i][2] . " " . $actual[$i][4]) : canon($type, txt($actual[$i][4]));
+		if (in_array($c, $wantC, true)) {
+			$have[] = $c;
+		} else {
+			$ops[] = ["rem", $rel, $type, $type === "MX" ? $actual[$i][2] : "", $actual[$i][3], $actual[$i][6], ""];
+		}
+	}
+	foreach ($want as $w) {
+		if (in_array(canon($type, $w), $have, true)) {
+			continue;
+		}
+		$have[] = canon($type, $w);
+		if ($type === "MX") {
+			[$p, $h] = preg_split('/\s+/', trim($w), 2) + [1 => ""];
+			$ops[] = ["add", $rel, $type, (string) (int) $p, $ttl, host($h), "kept as an exception"];
+		} else {
+			$ops[] = ["add", $rel, $type, "", $ttl, $w, "kept as an exception"];
+		}
+	}
+	return $ops;
+}
+
 // The writes for one section, as the header describes. $results as the compare loop collects them.
-/** @param list<array{d: list<string>, status: string, hits: list<int>, missed: list<string>}> $results */
+/** @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results */
 function plan(array $results, string $section, string $object, string $delegation): void
 {
 	global $actual;
@@ -372,7 +499,13 @@ function plan(array $results, string $section, string $object, string $delegatio
 		[, , , , , $rel, $type, , , $value] = $x["d"];
 		if ($rel === "@") {
 			$apexWant[$type] = addr($value);
-			$apexDone[$type] = $x["status"] === "ok";
+			if ($x["kept"] !== null) {
+				unset($apexWant[$type]);
+				if (count($x["kept"]) === 1) {
+					$apexWant[$type] = canon($type, $x["kept"][0]);
+				}
+			}
+			$apexDone[$type] = in_array($x["status"], ["ok", "exception"], true);
 		}
 	}
 	$ops = [];
@@ -380,20 +513,22 @@ function plan(array $results, string $section, string $object, string $delegatio
 		if (!$apexPass) {
 			foreach ($results as $k => $x) {
 				[, , $s, $o, , $rel, $type] = $x["d"];
-				if ($rel === "@" && $s === $section && strtolower($o) === $object && $x["status"] !== "ok") {
+				if ($rel === "@" && $s === $section && strtolower($o) === $object && !in_array($x["status"], ["ok", "exception"], true)) {
 					$apexDone[$type] = !in_array("skip", array_column($ops[$k] ?? [], 0), true);
 				}
 			}
 		}
 		foreach ($results as $k => $x) {
 			[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
-			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object || $x["status"] === "ok") {
+			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object
+				|| in_array($x["status"], ["ok", "exception"], true)) {
 				continue;
 			}
 			$status = $x["status"];
 			$hits = $x["hits"];
-			$note = $delegation !== "" ? $delegation : ($skip[$status] ?? "");
-			if ($status === "cname") {
+			// The status a row had before its exception was weighed: what holds the name decides what can be written.
+			$note = $delegation !== "" ? $delegation : ($skip[$x["base"]] ?? "");
+			if ($x["base"] === "cname") {
 				$note = "a CNAME or ALIAS holds the name";
 			}
 			foreach ($hits as $i) {
@@ -403,6 +538,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 			}
 			if ($note !== "") {
 				$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, $note];
+				continue;
+			}
+			if ($x["kept"] !== null) {
+				$ops[$k] = kept_ops($x, $include, $mainV6);
 				continue;
 			}
 			if ($type === "A" || $type === "AAAA") {
@@ -531,7 +670,7 @@ if ($planFor === null) {
 	out(["delegation", $zone, "", "@", "NS", "", "", implode(" ", $ns), $status, implode(" ", $public), $note]);
 }
 
-/** @var list<array{d: list<string>, status: string, hits: list<int>, missed: list<string>}> $results */
+/** @var list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results */
 $results = [];
 foreach ($desired as $d) {
 	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value] = $d;
@@ -539,6 +678,7 @@ foreach ($desired as $d) {
 	$shown = [];
 	$hits = [];
 	$missed = [];
+	$found = [];
 	$note = "";
 	$cut = delegated($rel);
 	Dig::$failed = false;
@@ -555,6 +695,7 @@ foreach ($desired as $d) {
 				$used[$i] = true;
 				$vals[] = addr($actual[$i][4]);
 				$shown[] = $actual[$i][4];
+				$found[] = addr($actual[$i][4]);
 				if ($actual[$i][5] === "main") {
 					$note = "main IP";
 				} elseif ($actual[$i][5] === "include") {
@@ -572,9 +713,11 @@ foreach ($desired as $d) {
 				$via = $actual[$cn[0]][1];
 				$target = $actual[$cn[0]][4];
 				$shown[] = "$via $target";
+				$found[] = "$via " . host($target);
 				$vals = resolve($target, $type);
 			} elseif ($wc !== "" && (at($wc, $type) || at($wc, "CNAME"))) {
 				$via = "wildcard $wc";
+				$found[] = $via;
 				$w = at($wc, $type);
 				if ($w) {
 					$vals = array_map(fn ($i) => addr($actual[$i][4]), $w);
@@ -596,6 +739,7 @@ foreach ($desired as $d) {
 		$cn = at($rel, "CNAME");
 		$used[$cn[0]] = true;
 		$shown[] = "CNAME " . $actual[$cn[0]][4];
+		$found[] = "CNAME " . host($actual[$cn[0]][4]);
 		$status = "cname";
 		$note = "a CNAME holds the name, no $type can stand beside it";
 	} elseif ($type === "MX") {
@@ -607,6 +751,7 @@ foreach ($desired as $d) {
 			$vals[] = (int) $actual[$i][2] . " " . host($actual[$i][4]);
 		}
 		$shown = $vals;
+		$found = $vals;
 		if ($hits) {
 			$status = array_values(array_unique($vals)) === [$want] ? "ok" : "different";
 		}
@@ -624,6 +769,7 @@ foreach ($desired as $d) {
 			$used[$i] = true;
 			$shown[] = txt($actual[$i][4]);
 		}
+		$found = $shown;
 		if ($hits) {
 			if ($kind === "spf1") {
 				if (count($hits) > 1) {
@@ -656,15 +802,32 @@ foreach ($desired as $d) {
 			}
 		}
 	}
+	// An exception stands in for the derived value until it is lifted: matching it is "exception", and a row that
+	// left it is different, even when the provider holds the derived value again.
+	$base = $status;
+	$accepted = $status === "delegated" ? null : ($kept["$owner\t$rel\t$type"] ?? null);
+	if ($accepted !== null) {
+		$keeps = $accepted ? implode(" | ", $accepted) : "no record";
+		if (same_set($type, $found, $accepted)) {
+			$status = "exception";
+			$note = "kept as an exception";
+		} else {
+			$note = $status === "ok" ? "the provider holds the derived value, the exception keeps $keeps"
+				: "differs from the exception, which keeps $keeps";
+			$status = "different";
+		}
+	}
 	// A blanked value is not the stored one, so it never counts as in place.
 	$ctl = ctl_note($hits);
 	if ($ctl !== "") {
-		$status = $status === "ok" ? "different" : $status;
+		$status = in_array($status, ["ok", "exception"], true) ? "different" : $status;
 		$note = trim("$note; $ctl", "; ");
 	}
-	$results[] = ["d" => $d, "status" => $status, "hits" => $hits, "missed" => $missed];
+	$results[] = ["d" => $d, "status" => $status, "base" => $base, "hits" => $hits, "missed" => $missed,
+		"kept" => $accepted];
 	if ($planFor === null) {
-		out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note]);
+		out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note,
+			implode("\x1f", $found), $accepted === null ? "" : "yes", implode("\x1f", $accepted ?? [])]);
 	}
 }
 

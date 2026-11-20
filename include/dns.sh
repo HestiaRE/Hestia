@@ -367,3 +367,87 @@ dns_user_zones() {
 	done <<< "$DNS_ANCHORED"
 	DNS_USER_ZONES=$(sort -u <<< "$out" | sed '/^$/d')
 }
+
+# The records a user keeps for a zone, one line per value: KIND exception is a value accepted instead of the derived
+# one. In the user's data directory, so they travel with the backup; zones/, never dns/, which a HestiaCP restore
+# reads as its own records.
+dns_zone_file() {
+	echo "$CONF_DIR/users/$1/zones/$2.conf"
+}
+
+# dns_exception_rows ZONE OWNER...: OWNER REL TYPE VALUE of each accepted value the owners keep in ZONE, an MX as
+# "PRIORITY HOST". The file may come from an archive: a line outside the record grammar is left out.
+dns_exception_rows() {
+	local zone="$1" owner f line rel type prio value
+	shift
+	for owner in "$@"; do
+		f=$(dns_zone_file "$owner" "$zone")
+		[ -f "$f" ] && [ ! -L "$f" ] || continue
+		while IFS= read -r line || [ -n "$line" ]; do
+			record_line_valid "$line" || continue
+			[ "$(record_field "$line" KIND)" = 'exception' ] || continue
+			rel=$(record_field "$line" RECORD) && type=$(record_field "$line" TYPE) || continue
+			prio=$(record_field "$line" PRIORITY)
+			value=$(record_value_decode "$(record_field "$line" VALUE)")
+			[ "$type" = MX ] && [ -n "$value" ] && value="$prio $value"
+			printf '%s\t%s\t%s\t%s\n' "$owner" "$rel" "$type" "${value//$'\t'/ }"
+		done < "$f"
+	done
+}
+
+# dns_exception_set USER ZONE REL TYPE SECTION OBJECT [VALUE...]: replace what USER keeps for REL TYPE in ZONE by
+# these values; none means the record is kept absent. An MX value is "PRIORITY HOST". Written through a temp file,
+# so a reader never sees half a file.
+dns_exception_set() {
+	local user="$1" zone="$2" rel="$3" type="$4" section="$5" object="$6" f tmp line v prio now
+	shift 6
+	f=$(dns_zone_file "$user" "$zone")
+	mkdir -p "${f%/*}" || return 1
+	tmp=$(mktemp "${f%/*}/.tmp.XXXXXX") || return 1
+	now="TIME='$(date +%T)' DATE='$(date +%F)'"
+	{
+		if [ -f "$f" ] && [ ! -L "$f" ]; then
+			while IFS= read -r line || [ -n "$line" ]; do
+				record_line_valid "$line" || continue
+				[ "$(record_field "$line" KIND)" = 'exception' ] && [ "$(record_field "$line" RECORD)" = "$rel" ] \
+					&& [ "$(record_field "$line" TYPE)" = "$type" ] && continue
+				printf '%s\n' "$line"
+			done < "$f"
+		fi
+		[ "$#" -gt 0 ] || set -- ''
+		for v in "$@"; do
+			prio=''
+			if [ "$type" = MX ] && [[ "$v" =~ ^([0-9]+)\ +(.+)$ ]]; then
+				prio=${BASH_REMATCH[1]}
+				v=${BASH_REMATCH[2]}
+			fi
+			printf "RECORD='%s' TYPE='%s' PRIORITY='%s' VALUE='%s' SECTION='%s' OBJECT='%s' KIND='exception' %s\n" \
+				"$rel" "$type" "$prio" "$(record_value_encode "$v")" "$section" "$object" "$now"
+		done
+	} > "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	chmod 640 "$tmp"
+	mv -f "$tmp" "$f"
+}
+
+# dns_exception_drop USER ZONE REL TYPE: forget what USER keeps for REL TYPE; the file goes with its last line.
+dns_exception_drop() {
+	local f tmp line
+	f=$(dns_zone_file "$1" "$2")
+	[ -f "$f" ] && [ ! -L "$f" ] || return 0
+	tmp=$(mktemp "${f%/*}/.tmp.XXXXXX") || return 1
+	while IFS= read -r line || [ -n "$line" ]; do
+		record_line_valid "$line" || continue
+		[ "$(record_field "$line" KIND)" = 'exception' ] && [ "$(record_field "$line" RECORD)" = "$3" ] \
+			&& [ "$(record_field "$line" TYPE)" = "$4" ] && continue
+		printf '%s\n' "$line"
+	done < "$f" > "$tmp"
+	if [ -s "$tmp" ]; then
+		chmod 640 "$tmp"
+		mv -f "$tmp" "$f"
+	else
+		rm -f "$tmp" "$f"
+	fi
+}

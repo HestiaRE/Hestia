@@ -107,6 +107,31 @@ if (isset($_GET["providers"])) {
 	$anchor = (isset($_GET["mail"]) ? "obj-mail-" : "obj-") . $domain;
 	header("Location: /list/dns/?" . http_build_query(["zone" => $zone]) . "#" . rawurlencode($anchor));
 	exit();
+} elseif (isset($_GET["zone"], $_GET["exception"])) {
+	// One row kept as an exception with what the provider holds for it as the page showed it, or lifted again. The
+	// owner is the section's; nothing goes to the provider.
+	verify_csrf($_POST);
+	$v_zone = strtolower((string) $_GET["zone"]);
+	$v_record = (string) ($_POST["v_record"] ?? "");
+	$v_type = (string) ($_POST["v_type"] ?? "");
+	$lift = ($_POST["v_action"] ?? "") === "lift";
+	$args = [(string) ($_POST["v_owner"] ?? ""), $v_zone, $v_record, $v_type];
+	if (!$lift) {
+		foreach ((array) ($_POST["v_values"] ?? []) as $v) {
+			$args[] = (string) $v;
+		}
+	}
+	$command = $lift ? "h-delete-dns-zone-exception " : "h-add-dns-zone-exception ";
+	exec(HESTIA_CMD . $command . implode(" ", array_map(fn ($a) => quoteshellarg($a), $args)), $output, $return_var);
+	check_return_code($return_var, $output);
+	unset($output);
+	if (empty($_SESSION["error_msg"])) {
+		$msg = $lift ? _("The exception for %s %s has been lifted.") : _("%s %s is kept as an exception.");
+		$_SESSION["ok_msg"] = tohtml(sprintf($msg, $v_record, $v_type));
+	}
+	$anchor = (string) ($_POST["v_anchor"] ?? "");
+	header("Location: /list/dns/?" . http_build_query(["zone" => $v_zone]) . ($anchor !== "" ? "#" . rawurlencode($anchor) : ""));
+	exit();
 } elseif (isset($_GET["zone"], $_GET["sync"])) {
 	// One section written to the provider: a preview with its plan id, then the write of exactly that plan. The
 	// owner is the section's, which may be a customer the real admin is looking at.
@@ -185,7 +210,7 @@ if (isset($_GET["providers"])) {
 		$records = cli_json("h-list-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json");
 	}
 	// Counted as DNSP_DIFFS counts, so the page and the zone list agree.
-	$v_differences = count(array_filter($records, fn ($r) => ($r["STATUS"] ?? "ok") !== "ok"))
+	$v_differences = count(array_filter($records, fn ($r) => !in_array($r["STATUS"] ?? "ok", ["ok", "exception"], true)))
 		+ ($v_delegation !== null && $v_delegation["STATUS"] !== "ok" ? 1 : 0);
 
 	// Sections in the order the lister gives, one per kind, object and owner.

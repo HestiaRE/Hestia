@@ -885,12 +885,22 @@ msgstr ""
 
 #: web/list/dns/index.php
 #, php-format
+msgid "%s %s is kept as an exception."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
 msgid "Account %s has been added."
 msgstr ""
 
 #: web/list/dns/index.php
 #, php-format
 msgid "No DNS zone found for %s."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
+msgid "The exception for %s %s has been lifted."
 msgstr ""
 
 #: web/list/dns/index.php
@@ -3683,6 +3693,10 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Accept what the provider holds instead of the derived value. Sync then leaves it alone."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Alias of"
 msgstr ""
 
@@ -3703,6 +3717,10 @@ msgid "CNAME"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Compare with the derived value again. Sync then writes that."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Sync shows a section's writes before anything changes."
 msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Sync shows a section's writes before anything changes."
@@ -3712,6 +3730,18 @@ msgstr[1] ""
 #: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "Compared with account %s just now: every record HestiaRE derives is in place."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep as exception"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep without this record"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Lift exception"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3757,6 +3787,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "different"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "exception"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

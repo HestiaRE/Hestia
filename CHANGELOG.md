@@ -13,6 +13,13 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **DNS records can be kept as exceptions** (#1333). On a zone page a row that differs from what HestiaRE derives,
+  such as an MX to another host or an SPF of its own, is kept with what the provider holds, or kept without the
+  record. It then counts as in line and a sync leaves it alone; when the provider changes it later, the row shows
+  the drift and a sync puts the kept value back. The exceptions belong to the user and travel with the backup.
+
 ### Changed
 
 - **An update ends with the smoke test** (#1405), as an install does. The terminal shows its FAIL lines and a

@@ -885,6 +885,11 @@ msgstr "%s %s wurde zum Provider geschrieben und zurückgelesen."
 
 #: web/list/dns/index.php
 #, php-format
+msgid "%s %s is kept as an exception."
+msgstr "%s %s wird als Ausnahme behalten."
+
+#: web/list/dns/index.php
+#, php-format
 msgid "Account %s has been added."
 msgstr "Das Konto %s wurde angelegt."
 
@@ -892,6 +897,11 @@ msgstr "Das Konto %s wurde angelegt."
 #, php-format
 msgid "No DNS zone found for %s."
 msgstr "Keine DNS-Zone für %s gefunden."
+
+#: web/list/dns/index.php
+#, php-format
+msgid "The exception for %s %s has been lifted."
+msgstr "Die Ausnahme für %s %s ist aufgehoben."
 
 #: web/list/dns/index.php
 msgid "The zones are being compared in the background. Each result shows up here as it lands."
@@ -3683,6 +3693,10 @@ msgstr[0] "%d Eintrag, den kein Objekt dieses Servers ableitet. HestiaRE ändert
 msgstr[1] "%d Einträge, die kein Objekt dieses Servers ableitet. HestiaRE ändert sie nie."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Accept what the provider holds instead of the derived value. Sync then leaves it alone."
+msgstr "Annehmen, was beim Provider steht, statt des abgeleiteten Werts. Der Abgleich lässt den Eintrag dann unangetastet."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Alias of"
 msgstr "Alias von"
 
@@ -3703,6 +3717,10 @@ msgid "CNAME"
 msgstr "CNAME"
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Compare with the derived value again. Sync then writes that."
+msgstr "Wieder mit dem abgeleiteten Wert vergleichen. Der Abgleich schreibt dann diesen."
+
+#: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Sync shows a section's writes before anything changes."
 msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Sync shows a section's writes before anything changes."
@@ -3713,6 +3731,18 @@ msgstr[1] "Eben mit Konto %2$s verglichen: %1$d Records weichen von dem ab, was 
 #, php-format
 msgid "Compared with account %s just now: every record HestiaRE derives is in place."
 msgstr "Eben mit dem Konto %s verglichen: Jeder Eintrag, den HestiaRE ableitet, ist vorhanden."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep as exception"
+msgstr "Als Ausnahme behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep without this record"
+msgstr "Ohne diesen Eintrag behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Lift exception"
+msgstr "Ausnahme aufheben"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "No provider account holds this zone. Enter the records at the provider by hand."
@@ -3758,6 +3788,10 @@ msgstr "delegiert"
 #: web/templates/pages/list_dns_zone.php
 msgid "different"
 msgstr "abweichend"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "exception"
+msgstr "Ausnahme"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "missing"

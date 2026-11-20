@@ -5,10 +5,11 @@
 # example: h-check-dns-zone admin example.com json
 #
 # Every row HestiaRE derives for the zone against the records its provider account holds, with a STATUS per row
-# (ok, missing, different, cname, wildcard, delegated, unchecked), led by the zone's delegation (SECTION delegation:
-# public name servers against the provider's) and followed by the provider's other records (SECTION foreign, or
-# hidden outside the box's names in a zone whose apex lies elsewhere). Read-only at the provider; the result becomes
-# the zone's status in h-list-dns-zones.
+# (ok, exception, missing, different, cname, wildcard, delegated, unchecked), led by the zone's delegation (SECTION
+# delegation: public name servers against the provider's) and followed by the provider's other records (SECTION
+# foreign, or hidden outside the box's names in a zone whose apex lies elsewhere). FOUND is what answers for a row,
+# KEPT what its exception accepts (h-add-dns-zone-exception). Read-only at the provider; the result becomes the
+# zone's status in h-list-dns-zones.
 
 user=$1
 zone=$2
@@ -28,7 +29,9 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 json_list() {
 	jq -R -n '[inputs | select(length > 0) | split("\t") | {SECTION: .[0], OBJECT: .[1], OWNER: .[2], NAME: .[3],
-		TYPE: .[4], PRIORITY: .[5], TTL: .[6], VALUE: .[7], STATUS: .[8], ACTUAL: .[9], NOTE: (.[10] // "")}]' <<< "$DNSP_CHECK"
+		TYPE: .[4], PRIORITY: .[5], TTL: .[6], VALUE: .[7], STATUS: .[8], ACTUAL: .[9], NOTE: (.[10] // ""),
+		FOUND: ((.[11] // "") | split("\u001f")), EXCEPTION: ((.[12] // "") == "yes"),
+		KEPT: ((.[13] // "") | split("\u001f"))}]' <<< "$DNSP_CHECK"
 }
 
 shell_list() {

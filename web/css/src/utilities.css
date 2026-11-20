@@ -183,6 +183,14 @@
 	max-height: 300px !important;
 }
 
+.u-flex {
+	display: flex !important;
+}
+
+.u-align-center {
+	align-items: center !important;
+}
+
 .u-side-by-side {
 	display: flex !important;
 	justify-content: space-between !important;

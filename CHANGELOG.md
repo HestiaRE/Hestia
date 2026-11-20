@@ -19,6 +19,13 @@ the releases of the command audit, into another.
   result line, the full output stays in the run directory as `smoke.txt`. It reports and does not change the
   update's exit code.
 
+### Fixed
+
+- **Project quota stayed pending on boxes whose initramfs dracut builds** (#1329), such as the Ubuntu 26.04 cloud
+  images. The one-shot that sets the ext4 features went in as an initramfs-tools hook, which dracut never reads. It
+  now goes in as a dracut module, and the update arms such a box again; quota turns on at the next reboot, which the
+  update leaves to the operator. The smoke checks that the one-shot is in the image the next boot uses.
+
 ## v0.36 (2026-11-19)
 
 CrowdSec honours the whitelist and a domain's switch and lets single scenarios go quiet, the IP page checks reverse

@@ -11,6 +11,8 @@ QUOTA_ARM_STATUS=/run/hestia-quota-arm.status
 QUOTA_UNIT='hestia-quota-on.service'
 QUOTA_HOOK=/etc/initramfs-tools/hooks/hestia-quota
 QUOTA_PREMOUNT=/etc/initramfs-tools/scripts/local-premount/hestia-quota
+QUOTA_DRACUT_MOD=/usr/lib/dracut/modules.d/90hestia-quota
+QUOTA_DRACUT_CONF=/etc/dracut.conf.d/hestia-quota.conf
 QUOTA_GRUB_DROPIN=/etc/default/grub.d/hestia-quota.cfg
 
 # Fills QUOTA_MNT / QUOTA_DEV / QUOTA_FSTYPE for the mount that carries /home.
@@ -81,18 +83,93 @@ quota_install_unit() {
 	systemctl enable "$QUOTA_UNIT" > /dev/null 2>&1
 }
 
+# The package that owns update-initramfs builds the image: by package, not by OS version, since dracut is a choice on
+# Ubuntu 26.04 (its cloud images) and an install from the ISO keeps initramfs-tools.
+quota_initramfs_generator() {
+	local owner
+	owner=$(dpkg -S /usr/sbin/update-initramfs 2> /dev/null | head -n1)
+	case "${owner%%:*}" in
+		initramfs-tools*) echo initramfs-tools ;;
+		dracut*) echo dracut ;;
+		*) return 1 ;;
+	esac
+}
+
 quota_install_initramfs_hook() {
-	# e2fsck ships in the initramfs, tune2fs does not - without copy_exec the
-	# premount dies and the box stays silently pending forever
-	install -m 755 "$HESTIA/share/quota/initramfs/hestia-quota.hook" "$QUOTA_HOOK" || return 1
-	install -m 755 "$HESTIA/share/quota/initramfs/hestia-quota.premount" "$QUOTA_PREMOUNT" || return 1
+	local gen
+	gen=$(quota_initramfs_generator) || return 1
+	if [ "$gen" = dracut ]; then
+		# dracut reads neither initramfs-tools directory, so the hook there never reached the image.
+		mkdir -p "$QUOTA_DRACUT_MOD" "${QUOTA_DRACUT_CONF%/*}" || return 1
+		install -m 755 "$HESTIA/share/quota/dracut/module-setup.sh" "$QUOTA_DRACUT_MOD/module-setup.sh" || return 1
+		install -m 755 "$HESTIA/share/quota/dracut/hestia-quota-hook.sh" "$QUOTA_DRACUT_MOD/hestia-quota-hook.sh" || return 1
+		install -m 755 "$HESTIA/share/quota/initramfs/hestia-quota.premount" "$QUOTA_DRACUT_MOD/hestia-quota.premount" \
+			|| return 1
+		# Named, not left to check(): a host-only image takes only the modules it is told about.
+		echo 'add_dracutmodules+=" hestia-quota "' > "$QUOTA_DRACUT_CONF" || return 1
+		rm -f "$QUOTA_HOOK" "$QUOTA_PREMOUNT"
+	else
+		# e2fsck ships in the initramfs, tune2fs does not - without copy_exec the
+		# premount dies and the box stays silently pending forever
+		install -m 755 "$HESTIA/share/quota/initramfs/hestia-quota.hook" "$QUOTA_HOOK" || return 1
+		install -m 755 "$HESTIA/share/quota/initramfs/hestia-quota.premount" "$QUOTA_PREMOUNT" || return 1
+	fi
 	update-initramfs -u > /dev/null 2>&1
 }
 
 quota_remove_initramfs_hook() {
-	[ -f "$QUOTA_HOOK" ] || [ -f "$QUOTA_PREMOUNT" ] || return 0
-	rm -f "$QUOTA_HOOK" "$QUOTA_PREMOUNT"
+	[ -f "$QUOTA_HOOK" ] || [ -f "$QUOTA_PREMOUNT" ] || [ -e "$QUOTA_DRACUT_MOD" ] || [ -f "$QUOTA_DRACUT_CONF" ] \
+		|| return 0
+	rm -f "$QUOTA_HOOK" "$QUOTA_PREMOUNT" "$QUOTA_DRACUT_CONF"
+	rm -rf "$QUOTA_DRACUT_MOD"
 	update-initramfs -u > /dev/null 2>&1
+}
+
+# rc 0 the image the next boot uses carries the one-shot, 1 it does not, 2 no image or an unreadable one. The newest is
+# the one update-initramfs -u builds and the boot loader starts. Only an image with its kernel beside it counts: a
+# backup (.old-dkms, .dpkg-bak) sorts above its original.
+quota_initramfs_carries_oneshot() {
+	local f img list
+	img=$(for f in /boot/initrd.img-*; do
+		[ -e "$f" ] || continue
+		[ -e "/boot/vmlinuz-${f#/boot/initrd.img-}" ] && printf '%s\n' "$f"
+	done | sort -V | tail -n1)
+	[ -f "$img" ] || return 2
+	# lsinitramfs belongs to initramfs-tools-core, which a box that switched to dracut may no longer carry.
+	if [ "$(quota_initramfs_generator)" = dracut ]; then
+		list=$(lsinitrd "$img" 2> /dev/null)
+	else
+		list=$(lsinitramfs "$img" 2> /dev/null)
+	fi
+	QUOTA_INITRD="$img"
+	# Every image holds a shell: without one the listing read nothing, which is no answer.
+	[[ "$list" == *bin/sh* ]] || return 2
+	[[ "$list" == *hestia-quota* ]]
+}
+
+# The 0.37 update: a dracut box armed by the hook dracut never read stays pending. Arms again, the module this time;
+# the features are set at the next boot, which the operator chooses.
+# A failed arming warns and leaves the update running. quota_arm writes none: on a failure, which the smoke skips and
+# the entry no longer matches, so the old key and the absent module come back: the box stays red, the entry open.
+quota_dracut_apply() {
+	local was
+	source_conf "$HESTIA/conf/hestia.conf"
+	[ "${PROJECT_QUOTA%%:*}" = pending ] || return 0
+	[ "$(quota_initramfs_generator)" = dracut ] || return 0
+	was="$PROJECT_QUOTA"
+	quota_arm
+	source_conf "$HESTIA/conf/hestia.conf"
+	case "$PROJECT_QUOTA" in
+		pending:reboot) echo "[ * ] project quota: the dracut module is in the initramfs, the next reboot turns quota on" ;;
+		active) ;;
+		none:*)
+			quota_set_key "$was"
+			quota_remove_initramfs_hook
+			echo "[ ! ] project quota: arming under dracut failed ($PROJECT_QUOTA), left at $was; the next update tries again"
+			;;
+		*) echo "[ ! ] project quota: arming under dracut did not take ($PROJECT_QUOTA), quota stays off" ;;
+	esac
+	return 0
 }
 
 # Installer entry point; must run before any customer exists (separate-/home

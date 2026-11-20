@@ -367,7 +367,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	keep_conffiles_apply exim_forward_errors_apply ipv6_nonlocal_bind_apply sieve_mandatory_apply
 	exim_sieve_only_apply dovecot_quota_status_apply exim_quota_status_apply fail2ban_pyinotify_apply
 	exim_ratelimit_inbound_apply exim_sieve_forward_apply sieve_max_redirects_apply forward_bounces_cron_apply
-	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password)
+	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password
+	quota_dracut_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

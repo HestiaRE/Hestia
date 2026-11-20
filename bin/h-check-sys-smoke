@@ -749,7 +749,19 @@ check_project_quota() {
 		pending)
 			# The expected state before the install reboot; a FAIL there trains people to ignore fails.
 			if [ "$reason" = 'reboot' ]; then
-				skip "project quota: armed, waiting for the install reboot (pending is not verified)"
+				# A one-shot missing from the image makes the reboot wait for nothing, as under dracut (#1329).
+				if quota_home_fs && [ "$QUOTA_FSTYPE" = ext4 ] && [ "$QUOTA_MNT" = / ]; then
+					quota_initramfs_carries_oneshot
+					case $? in
+						0) skip "project quota: armed, the one-shot is in ${QUOTA_INITRD##*/}, waiting for a reboot" ;;
+						1) no "project quota armed, but ${QUOTA_INITRD##*/} lacks the one-shot" \
+							"the reboot would not set the features; h-update-sys-quota installs it for this initramfs" ;;
+						*) no "project quota armed, the boot image is not readable" \
+							"no initrd.img beside its kernel, or its listing was empty" ;;
+					esac
+				else
+					skip "project quota: armed, waiting for a reboot (pending is not verified)"
+				fi
 			else
 				no "project quota stuck pending" "arming failed: ${reason} - see /run/hestia-quota-arm.status; h-update-sys-quota re-arms once the cause is fixed"
 			fi

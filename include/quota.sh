@@ -126,12 +126,21 @@ quota_remove_initramfs_hook() {
 }
 
 # rc 0 the image the next boot uses carries the one-shot, 1 it does not, 2 no image or an unreadable one. The newest is
-# the one update-initramfs -u builds and the boot loader starts.
+# the one update-initramfs -u builds and the boot loader starts. Only an image with its kernel beside it counts: a
+# backup (.old-dkms, .dpkg-bak) sorts above its original.
 quota_initramfs_carries_oneshot() {
-	local img list
-	img=$(printf '%s\n' /boot/initrd.img-* | sort -V | tail -n1)
+	local f img list
+	img=$(for f in /boot/initrd.img-*; do
+		[ -e "$f" ] || continue
+		[ -e "/boot/vmlinuz-${f#/boot/initrd.img-}" ] && printf '%s\n' "$f"
+	done | sort -V | tail -n1)
 	[ -f "$img" ] || return 2
-	list=$(lsinitramfs "$img" 2> /dev/null)
+	# lsinitramfs belongs to initramfs-tools-core, which a box that switched to dracut may no longer carry.
+	if [ "$(quota_initramfs_generator)" = dracut ]; then
+		list=$(lsinitrd "$img" 2> /dev/null)
+	else
+		list=$(lsinitramfs "$img" 2> /dev/null)
+	fi
 	QUOTA_INITRD="$img"
 	# Every image holds a shell: without one the listing read nothing, which is no answer.
 	[[ "$list" == *bin/sh* ]] || return 2
@@ -140,19 +149,26 @@ quota_initramfs_carries_oneshot() {
 
 # The 0.37 update: a dracut box armed by the hook dracut never read stays pending. Arms again, the module this time;
 # the features are set at the next boot, which the operator chooses.
-# A failed arming warns and leaves the update running: quota was off before, and the module stays absent, so the next
-# update asks again.
+# A failed arming warns and leaves the update running. quota_arm writes none: on a failure, which the smoke skips and
+# the entry no longer matches, so the old key and the absent module come back: the box stays red, the entry open.
 quota_dracut_apply() {
+	local was
 	source_conf "$HESTIA/conf/hestia.conf"
 	[ "${PROJECT_QUOTA%%:*}" = pending ] || return 0
 	[ "$(quota_initramfs_generator)" = dracut ] || return 0
+	was="$PROJECT_QUOTA"
 	quota_arm
 	source_conf "$HESTIA/conf/hestia.conf"
-	if [ "$PROJECT_QUOTA" = 'pending:reboot' ]; then
-		echo "[ * ] project quota: the dracut module is in the initramfs, the next reboot turns quota on"
-	else
-		echo "[ ! ] project quota: arming under dracut did not take ($PROJECT_QUOTA), quota stays off"
-	fi
+	case "$PROJECT_QUOTA" in
+		pending:reboot) echo "[ * ] project quota: the dracut module is in the initramfs, the next reboot turns quota on" ;;
+		active) ;;
+		none:*)
+			quota_set_key "$was"
+			quota_remove_initramfs_hook
+			echo "[ ! ] project quota: arming under dracut failed ($PROJECT_QUOTA), left at $was; the next update tries again"
+			;;
+		*) echo "[ ! ] project quota: arming under dracut did not take ($PROJECT_QUOTA), quota stays off" ;;
+	esac
 	return 0
 }
 

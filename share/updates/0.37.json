@@ -13,7 +13,10 @@
       "paths": [
         "/usr/local/hestia/conf/hestia.conf",
         "/etc/initramfs-tools/hooks/hestia-quota",
-        "/etc/initramfs-tools/scripts/local-premount/hestia-quota"
+        "/etc/initramfs-tools/scripts/local-premount/hestia-quota",
+        "/usr/lib/dracut/modules.d/90hestia-quota",
+        "/etc/dracut.conf.d/hestia-quota.conf",
+        "/etc/systemd/system/hestia-quota-on.service"
       ],
       "reversible": false
     }

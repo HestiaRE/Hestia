@@ -756,7 +756,8 @@ check_project_quota() {
 						0) skip "project quota: armed, the one-shot is in ${QUOTA_INITRD##*/}, waiting for a reboot" ;;
 						1) no "project quota armed, but ${QUOTA_INITRD##*/} lacks the one-shot" \
 							"the reboot would not set the features; h-update-sys-quota installs it for this initramfs" ;;
-						*) no "project quota armed, the boot image is not readable" "lsinitramfs on /boot/initrd.img-* read nothing" ;;
+						*) no "project quota armed, the boot image is not readable" \
+							"no initrd.img beside its kernel, or its listing was empty" ;;
 					esac
 				else
 					skip "project quota: armed, waiting for a reboot (pending is not verified)"

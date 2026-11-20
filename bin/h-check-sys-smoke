@@ -1277,7 +1277,7 @@ check_mail_web_pairs() {
 # Every record line against record_line_valid: a line that loses its quotes stays readable, but every writer
 # looks for KEY='...' and silently changes nothing.
 check_record_grammar() {
-	local f n=0 bad=0 first="" line
+	local f n=0 bad=0 first="" line hint=""
 	if ! declare -F record_line_valid > /dev/null 2>&1; then
 		no "record grammar not checkable" "record_line_valid missing - include/main.sh not sourced"
 		return
@@ -1293,6 +1293,7 @@ check_record_grammar() {
 			record_line_valid "$line" && continue
 			bad=$((bad + 1))
 			[ -z "$first" ] && first="$f: ${line:0:60}"
+			[ "${f##*/}" != cron.conf ] || hint="; a cron job: saving it once in the panel encodes it"
 		done < "$f"
 	done
 	# Nothing to look at is a finding: every box has records.
@@ -1301,7 +1302,7 @@ check_record_grammar() {
 	elif [ "$bad" -eq 0 ]; then
 		ok "record grammar holds on $n record lines"
 	else
-		no "$bad record line(s) are not KEY='value'" "$first - readable but unwritable: every writer looks for KEY='...'"
+		no "$bad record line(s) are not KEY='value'" "$first - readable but unwritable: every writer looks for KEY='...'$hint"
 	fi
 }
 

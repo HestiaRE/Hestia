@@ -1,0 +1,21 @@
+{
+  "version": "0.37",
+  "entries": [
+    {
+      "id": "quota-dracut",
+      "description": "Project quota is armed again on a box whose initramfs dracut builds (Ubuntu 26.04 cloud images): the one-shot that sets the ext4 features went in as an initramfs-tools hook, which dracut never reads, so quota stayed pending. It now goes in as a dracut module. Quota turns on at the next reboot, which this update does not do",
+      "conditions": [
+        { "type": "package_installed", "name": "dracut" },
+        { "type": "file_contains", "path": "/usr/local/hestia/conf/hestia.conf", "value": "PROJECT_QUOTA='pending:" },
+        { "type": "path_absent", "path": "/usr/lib/dracut/modules.d/90hestia-quota" }
+      ],
+      "action": { "type": "function_call", "function": "quota_dracut_apply" },
+      "paths": [
+        "/usr/local/hestia/conf/hestia.conf",
+        "/etc/initramfs-tools/hooks/hestia-quota",
+        "/etc/initramfs-tools/scripts/local-premount/hestia-quota"
+      ],
+      "reversible": false
+    }
+  ]
+}

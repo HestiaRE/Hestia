@@ -16,8 +16,9 @@ $dns_status_labels = [
 	"delegated" => ["fa-circle-pause icon-dim", _("delegated")],
 	"unchecked" => ["fa-circle-question icon-dim", _("unchecked")],
 ];
-// The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them.
-$dns_provider_rows = function (array $rows): void {
+// The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them;
+// $after adds to a row's value cell.
+$dns_provider_rows = function (array $rows, ?callable $after = null): void {
 	?>
 	<div class="units-table js-units-container u-mb10">
 		<div class="units-table-header">
@@ -38,6 +39,9 @@ $dns_provider_rows = function (array $rows): void {
 					<?php if (($r["NOTE"] ?? "") !== "") { ?>
 						<br><span class="u-text-muted u-text-small"><?= tohtml($r["NOTE"]) ?></span>
 					<?php } ?>
+					<?php if ($after !== null) {
+						$after($r);
+					} ?>
 				</div>
 			</div>
 		<?php } ?>
@@ -231,6 +235,34 @@ foreach ($sections as $s) {
 			<summary><?= tohtml(_("As zone file lines")) ?></summary>
 			<textarea class="form-control u-console" readonly rows="<?= count($s["rows"]) + 1 ?>"><?= tohtml($s["text"]) ?></textarea>
 		</details>
+	<?php } ?>
+
+	<?php foreach ($orphans as $o) { ?>
+		<h2 class="u-mt20 u-mb10" id="<?= tohtml("obj-orphan-" . $o["object"]) ?>">
+			<?= tohtml(_("Orphaned")) ?>: <?= tohtml($o["object"]) ?>
+			<span class="u-text-muted u-text-small">
+				<?php if ($o["owner"] !== $user_plain) { ?>
+					<i class="fas fa-user icon-dim u-ml5"></i> <?= tohtml(sprintf(_("user %s"), $o["owner"])) ?>
+				<?php } ?>
+			</span>
+		</h2>
+		<p class="u-mb10"><?= tohtml(_("HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the value changed.")) ?></p>
+		<p class="u-mb10">
+			<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => "orphan", "object" => $o["object"], "owner" => $o["owner"]])) ?>">
+				<i class="fas fa-trash icon-red"></i><?= tohtml(_("Remove from provider")) ?>
+			</a>
+		</p>
+		<?php $dns_provider_rows($o["rows"], function (array $r) use ($o, $v_zone): void { ?>
+			<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "orphan" => 1])) ?>">
+				<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+				<input type="hidden" name="v_owner" value="<?= tohtml($o["owner"]) ?>">
+				<input type="hidden" name="v_record" value="<?= tohtml($r["NAME"]) ?>">
+				<input type="hidden" name="v_type" value="<?= tohtml($r["TYPE"]) ?>">
+				<button type="submit" class="button button-secondary" title="<?= tohtml(_("The record stays at the provider, and HestiaRE no longer offers to remove it.")) ?>">
+					<i class="fas fa-thumbtack icon-blue"></i><?= tohtml(_("Keep as foreign record")) ?>
+				</button>
+			</form>
+		<?php }); ?>
 	<?php } ?>
 
 	<?php if ($v_checked) { ?>

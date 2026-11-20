@@ -1,0 +1,42 @@
+#!/bin/bash
+# info: forget that HestiaRE wrote a DNS record
+# options: USER ZONE RECORD TYPE
+#
+# example: h-delete-dns-zone-written admin example.com www AAAA
+#
+# The records at RECORD TYPE that a sync wrote for USER stay at the provider as foreign ones: no longer shown as
+# orphaned, never removed by HestiaRE. Nothing is written to the provider.
+
+user=$1
+zone=$2
+record=${3,,}
+type=${4^^}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '4' "$#" 'USER ZONE RECORD TYPE'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+[[ "$record" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] || check_result "$E_INVALID" "invalid record: $3"
+case $type in
+	A | AAAA | MX | TXT) ;;
+	*) check_result "$E_INVALID" "invalid type: $4" ;;
+esac
+
+zone=$(dns_ascii "$zone")
+dns_store_read "$(dns_zone_file "$user" "$zone")" "$user" written \
+	| awk -F '\t' -v r="$record" -v t="$type" '$2 == r && $3 == t { f = 1 } END { exit !f }' \
+	|| check_result "$E_NOTEXIST" "no record HestiaRE wrote for $user at $record $type in zone $zone"
+dns_written_drop "$user" "$zone" "$record" "$type" || check_result "$E_DISK" "the written record could not be forgotten"
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS record kept as foreign (Zone: $zone, Record: $record $type, User: $user)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

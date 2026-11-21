@@ -21,10 +21,10 @@
 
 require_once __DIR__ . '/adminer-plugins/login-servers.php';
 
-// verify_token() splits the posted token unchecked: an array or a non-numeric half ends in a Fatal before any login,
-// an overlong half in a lossy int conversion. get_token()'s shape passes, anything else never verifies.
+// verify_token() splits the posted token unchecked: an array ends in a Fatal before any login. get_token()'s shape
+// (hex of 32 bytes, colon, 32 hex digits) passes, anything else never verifies.
 $v_token = $_POST["token"] ?? null;
-if ($v_token !== null && !(is_string($v_token) && preg_match('/^[0-9]{1,10}:[0-9]{1,10}$/D', $v_token))) {
+if ($v_token !== null && !(is_string($v_token) && preg_match('/^[0-9a-f]{64}:[0-9a-f]{32}$/D', $v_token))) {
 	$_POST["token"] = "-1:0";
 }
 

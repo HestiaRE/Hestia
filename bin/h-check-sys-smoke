@@ -870,30 +870,43 @@ check_panel_translates() {
 # A policy fragment (CrowdSec, bot limit) must be in every domain template of its web system, or switching
 # templates escapes it. Feature fragments are not checked. Scope: templates carrying %domain%.
 check_policy_fragment_coverage() {
-	local f frag miss=0 first="" checked=0
-	# By file under both roots, not by service directory, so a template outside the usual subdirs is not skipped.
+	policy_fragment_scan "$TPL_SHIP" "$SHARETPL"
+	if [ "${#PF_GAPS[@]}" -eq 0 ]; then
+		ok "policy fragment includes complete ($PF_CHECKED domain templates)"
+	else
+		no "${#PF_GAPS[@]} policy fragment include(s) missing from web templates" "${PF_GAPS[0]#"$HESTIA/"}"
+	fi
+	# What the operator copies, edits or writes under /etc is the operator's: a gap is named, the box stays green.
+	policy_fragment_scan "$TPL_OWN"
+	if [ "${#PF_GAPS[@]}" -eq 0 ]; then
+		ok "policy fragment includes complete in the operator's templates ($PF_CHECKED under $TPL_OWN)"
+	else
+		local IFS=';'
+		skip "${#PF_GAPS[@]} policy fragment include(s) missing from the operator's templates: ${PF_GAPS[*]//"$TPL_OWN/"/}"
+	fi
+}
+
+# policy_fragment_scan ROOT...: the domain templates (those carrying %domain%) under the roots counted into PF_CHECKED,
+# each missing include as "FILE lacks FRAGMENT" into PF_GAPS.
+policy_fragment_scan() {
+	local f frag frags
+	PF_CHECKED=0 PF_GAPS=()
+	# By file under the roots, not by service directory, so a template outside the usual subdirs is not skipped.
 	while read -r f; do
 		[ -n "$f" ] || continue
 		# Decided by content, not path: a rename would otherwise shrink the guard silently.
 		if grep -q '^[[:space:]]*<VirtualHost' "$f"; then
-			set -- botlimit.apache2.conf
+			frags=(botlimit.apache2.conf)
 		elif grep -qE '^[[:space:]]*server[[:space:]]*\{' "$f"; then
-			set -- nginx.crowdsec.conf nginx.botlimit.conf
+			frags=(nginx.crowdsec.conf nginx.botlimit.conf)
 		else
 			continue
 		fi
-		checked=$((checked + 1))
-		for frag in "$@"; do
-			grep -q "$frag" "$f" && continue
-			miss=$((miss + 1))
-			[ -z "$first" ] && first="${f#"$HESTIA/"} lacks $frag"
+		PF_CHECKED=$((PF_CHECKED + 1))
+		for frag in "${frags[@]}"; do
+			grep -q "$frag" "$f" || PF_GAPS+=("$f lacks $frag")
 		done
-	done < <(grep -rl '%domain%' "$TPL_SHIP" "$SHARETPL" 2> /dev/null | grep -E '\.(tpl|stpl)$')
-	if [ "$miss" -eq 0 ]; then
-		ok "policy fragment includes complete ($checked domain templates)"
-	else
-		no "$miss policy fragment include(s) missing from web templates" "$first"
-	fi
+	done < <(grep -rl '%domain%' "$@" 2> /dev/null | grep -E '\.(tpl|stpl)$' | sort)
 }
 
 # The grant every privileged panel action and cron job goes through. One setting the running sudo rejects

@@ -42,11 +42,11 @@ json_list() {
 }
 
 shell_list() {
-	printf 'OP\tNAME\tTYPE\tPRIORITY\tVALUE\tNOTE\n'
-	printf -- '--\t----\t----\t--------\t-----\t----\n'
+	printf 'OP\tNAME\tTYPE\tPRIORITY\tVALUE\tCONFIRM\tNOTE\n'
+	printf -- '--\t----\t----\t--------\t-----\t-------\t----\n'
 	# A DKIM key is longer than any terminal line.
-	awk -F '\t' 'BEGIN { OFS = FS } { if (length($6) > 64) $6 = substr($6, 1, 61) "..."; print $1, $2, $3, $4, $6, $7 }' \
-		<<< "$DNSP_PLAN"
+	awk -F '\t' 'BEGIN { OFS = FS } { if (length($6) > 64) $6 = substr($6, 1, 61) "..."
+		print $1, $2, $3, $4, $6, $8, $7 }' <<< "$DNSP_PLAN"
 }
 
 # check_failed RC: dnsp_check_zone's failure as the command's.
@@ -164,10 +164,18 @@ if [ -n "$writes" ]; then
 	rc=$?
 	if [ "$rc" != 0 ]; then
 		rm -f "$tmp"
-		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
-		sync_log "result" "records refused${include:+ (the www include went off before)}: $DNSP_ERROR"
-		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR"
-		check_result "$E_CONNECT" "the provider did not take the records of zone $zone${include:+ (the www include went off before)}: $DNSP_ERROR"
+		err=$DNSP_ERROR
+		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$err"
+		# Nothing of www went out, so switching the include back on restores what was there.
+		note=''
+		if [ -n "$include" ]; then
+			note=' (the www include went off and is on again)'
+			dnsp_call include "$zone" "$DNSP_REF" true > /dev/null \
+				|| note=' (the www include went off and stays off: www does not resolve until the next sync)'
+		fi
+		sync_log "result" "records refused$note: $err"
+		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT$note: $err"
+		check_result "$E_CONNECT" "the provider did not take the records of zone $zone$note: $err"
 	fi
 	# A merged SPF record carries terms HestiaRE did not write, so it is never noted as an orphan to be.
 	while IFS=$'\t' read -r rel type value; do

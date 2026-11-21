@@ -3809,7 +3809,7 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
-msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the value changed."
+msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

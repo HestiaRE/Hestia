@@ -25,6 +25,11 @@ source "$HESTIA/include/ip.sh"
 source "$HESTIA/include/dns.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
+# txt_kind VALUE: spf1, dmarc1, dkim1 or empty, as dns-compare.php tells TXT records apart.
+txt_kind() {
+	[[ "${1,,}" =~ ^\"?v=(spf1|dmarc1|dkim1)([^a-z0-9]|$) ]] && echo "${BASH_REMATCH[1]}"
+}
+
 check_args '4' "$#" 'USER ZONE RECORD TYPE [VALUE...]'
 is_format_valid 'user'
 is_domain_format_valid "$zone"
@@ -47,7 +52,10 @@ for v in "$@"; do
 		case $type in
 			A) is_ip_format_valid "$v" 'value' ;;
 			AAAA) is_ipv6_format_valid "$v" 'value' ;;
-			MX) [[ "$v" =~ ^[0-9]{1,5}\ +[a-zA-Z0-9_.-]+$ ]] || check_result "$E_INVALID" "an MX value is PRIORITY HOST: $v" ;;
+			MX)
+				[[ "$v" =~ ^([0-9]{1,5})\ +[a-zA-Z0-9_.-]+$ ]] && [ "${BASH_REMATCH[1]}" -le 65535 ] \
+					|| check_result "$E_INVALID" "an MX value is PRIORITY HOST, the priority up to 65535: $v"
+				;;
 			TXT) [ -n "$v" ] || check_result "$E_INVALID" "an empty TXT value" ;;
 		esac
 	fi
@@ -57,9 +65,18 @@ done
 zone=$(dns_ascii "$zone")
 # Only a row the user owns: an exception for a name HestiaRE does not derive would compare against nothing.
 row=$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" -v r="$record" -v t="$type" \
-	'$5 == u && $6 == r && $7 == t { print $3 "\t" $4; exit }')
+	'$5 == u && $6 == r && $7 == t { print $3 "\t" $4 "\t" $10; exit }')
 [ -n "$row" ] || check_result "$E_NOTEXIST" "$user has no derived $type row at $record in zone $zone"
-IFS=$'\t' read -r section object <<< "$row"
+IFS=$'\t' read -r section object derived <<< "$row"
+# The compare matches a TXT row by its kind, so a value of another kind would never be found and replace the record.
+kind=''
+[ "$type" = TXT ] && kind=$(txt_kind "$derived")
+if [ -n "$kind" ]; then
+	for v in "${values[@]}"; do
+		[[ "$v" =~ ^(CNAME|ALIAS|wildcard)\  ]] && continue
+		[ "$(txt_kind "$v")" = "$kind" ] || check_result "$E_INVALID" "the $record TXT row is v=$kind, the value is not: $v"
+	done
+fi
 
 dns_exception_set "$user" "$zone" "$record" "$type" "$section" "${object,,}" "${values[@]}" \
 	|| check_result "$E_DISK" "the exception could not be written"

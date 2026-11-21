@@ -3773,8 +3773,8 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr "Eben mit dem Konto %s verglichen: Jeder Eintrag, den HestiaRE ableitet, ist vorhanden."
 
 #: web/templates/pages/list_dns_zone.php
-msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the value changed."
-msgstr "HestiaRE hat diese Einträge geschrieben, und nichts auf diesem Server leitet sie mehr ab: Die Domain oder der Alias ist weg, oder der Wert hat sich geändert."
+msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type."
+msgstr "HestiaRE hat diese Einträge geschrieben, und nichts auf diesem Server leitet sie mehr ab: Die Domain oder der Alias ist weg, oder der Name bekommt keinen Eintrag dieses Typs mehr."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep as exception"

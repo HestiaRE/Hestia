@@ -246,7 +246,7 @@ foreach ($sections as $s) {
 				<?php } ?>
 			</span>
 		</h2>
-		<p class="u-mb10"><?= tohtml(_("HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the value changed.")) ?></p>
+		<p class="u-mb10"><?= tohtml(_("HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type.")) ?></p>
 		<p class="u-mb10">
 			<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => "orphan", "object" => $o["object"], "owner" => $o["owner"]])) ?>">
 				<i class="fas fa-trash icon-red"></i><?= tohtml(_("Remove from provider")) ?>

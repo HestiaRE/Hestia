@@ -20,7 +20,7 @@ the releases of the command audit, into another.
   record. It then counts as in line and a sync leaves it alone; when the provider changes it later, the row shows
   the drift and a sync puts the kept value back. The exceptions belong to the user and travel with the backup.
 - **Orphaned DNS records can be removed** (#1333). HestiaRE notes the records a sync adds; when the domain or alias
-  is deleted, or a value is no longer derived, they show as orphaned on the zone page, with a preview to remove them
+  is deleted, or a name no longer gets that type, they show as orphaned on the zone page, with a preview to remove them
   or a click to keep them as foreign records. A merged SPF record is never noted, it carries terms of others.
 - **A CNAME or the www include can be replaced on confirmation** (#1333). The sync preview offers to replace a CNAME
   at a derived name by the records of its own, and to switch the InterNetX www include off when www has to differ

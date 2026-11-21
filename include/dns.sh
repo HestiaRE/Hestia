@@ -446,6 +446,8 @@ dns_store_line() {
 # dns_store_write FILE: stdin as FILE through a temp file, so a reader never sees half a file; nothing left, no file.
 dns_store_write() {
 	local f="$1" tmp
+	# A restored archive can carry zones/ as a symlink, and mktemp and mv would follow it.
+	[ -L "${f%/*}" ] && return 1
 	mkdir -p "${f%/*}" || return 1
 	tmp=$(mktemp "${f%/*}/.tmp.XXXXXX") || return 1
 	cat > "$tmp" || {

@@ -3,59 +3,49 @@
 # DO NOT MODIFY THIS FILE! CHANGES WILL BE LOST WHEN REBUILDING DOMAINS   #
 # https carries the panel. Plain http serves the site as the default      #
 # template does, until the force-SSL switch sends it to https.            #
-# The https part is the same in share/web/nginx/panel.tpl.                #
+# The https part is the same in share/templates/nginx/panel.tpl.          #
 #=========================================================================#
 
 server {
-	listen      %ip%:%web_port%;
-	listen      [%ip6%]:%web_port%;
+	listen      %ip%:%proxy_port%;
+	listen      [%ip6%]:%proxy_port%;
 	server_name %domain_idn% %alias_idn%;
 	include %home%/%user%/conf/web/%domain%/nginx.crowdsec.conf*;
 	include %home%/%user%/conf/web/%domain%/nginx.botlimit.conf*;
-	root        %docroot%;
-	index       index.php index.html index.htm;
-	access_log  /var/log/%web_system%/domains/%domain%.log combined;
-	access_log  /var/log/%web_system%/domains/%domain%.bytes bytes;
 	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
 
 	include %home%/%user%/conf/web/%domain%/nginx.forcessl.conf*;
 
-	location ~ /\.(?!well-known\/) {
+	location ~ /\.(?!well-known\/|file) {
 		deny all;
 		return 404;
 	}
 
 	location / {
-		location ~* ^.+\.(jpeg|jpg|png|webp|gif|bmp|ico|svg|css|js)$ {
-			expires max;
-			fastcgi_hide_header "Set-Cookie";
+		proxy_pass http://%backend_addr%:%web_port%;
+
+		# per-domain fragments (a location / block cannot be replaced by a later include)
+		include %home%/%user%/conf/web/%domain%/nginx.location.d/*.conf;
+
+		location ~* ^.+\.(%proxy_extensions%)$ {
+			try_files  $uri @fallback;
+
+			root       %docroot%;
+			access_log /var/log/%web_system%/domains/%domain%.log combined;
+			access_log /var/log/%web_system%/domains/%domain%.bytes bytes;
+
+			expires    max;
 		}
+	}
 
-		location ~ [^/]\.php(/|$) {
-			try_files $uri =404;
-
-			include /etc/nginx/fastcgi_params;
-
-			fastcgi_index index.php;
-			fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-
-			fastcgi_pass %backend_lsnr%;
-
-			include %home%/%user%/conf/web/%domain%/nginx.fastcgi_cache.conf*;
-		}
+	location @fallback {
+		proxy_pass http://%backend_addr%:%web_port%;
 	}
 
 	location /error/ {
 		alias %home%/%user%/web/%domain%/document_errors/;
 	}
 
-	location /vstats/ {
-		alias   %home%/%user%/web/%domain%/stats/;
-		include %home%/%user%/conf/web/%domain%/nginx.stats_auth.conf*;
-	}
-
-	include /etc/nginx/conf.d/phpmyadmin.inc*;
-	include /etc/nginx/conf.d/phppgadmin.inc*;
 	include %home%/%user%/conf/web/%domain%/nginx.conf_*;
 }
 #=HESTIARE-SSL-VHOST=#

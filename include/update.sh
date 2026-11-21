@@ -368,7 +368,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	exim_sieve_only_apply dovecot_quota_status_apply exim_quota_status_apply fail2ban_pyinotify_apply
 	exim_ratelimit_inbound_apply exim_sieve_forward_apply sieve_max_redirects_apply forward_bounces_cron_apply
 	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password
-	quota_dracut_apply)
+	quota_dracut_apply templates_etc_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -925,5 +925,44 @@ upd_manifest_check() {
 	upd_scan "$UPD_VERSION_MAX" || return 2
 	upd_check_entries || return 2
 	printf '%s\n' "${#UPD_ENTRIES[@]}"
+	return 0
+}
+
+# templates_etc_apply: the template tree under $HESTIA/templates and the both-model proxy templates in share/web/nginx
+# move to /etc/hestia/templates (#1411). A file as a release since the lower bound shipped it is dropped: the seed
+# brings the current copy, default and panel stay shipped. Anything else is the operator's and moves as it is, an
+# edited default or panel as an override; what has no place any more (docker, apache) goes to unplaced/. On a failure
+# the old tree stays, so the entry stays open and runs again with the next update.
+templates_etc_apply() {
+	local known="$HESTIA/share/updates/patches/0.37/templates-shipped.sha256" f rel to
+	if [ ! -f "$known" ] || ! mkdir -p "$TPL_OWN"; then
+		echo "Warning: templates not moved to $TPL_OWN: $known or the directory is missing" >&2
+		return 0
+	fi
+	while IFS= read -r f; do
+		[ -n "$f" ] || continue
+		rel=${f#"$HESTIA"/}
+		grep -qxF "$(sha256sum < "$f" | cut -d ' ' -f 1)  $rel" "$known" && continue
+		# Generated per PHP version before the version became a field of its own: nothing to keep.
+		[[ "$rel" == templates/php/PHP-* ]] && continue
+		case $rel in
+			templates/nginx/* | templates/php/* | templates/email/*) to=${rel#templates/} ;;
+			share/web/nginx/*) to=proxy/${rel#share/web/nginx/} ;;
+			*) to=unplaced/$rel ;;
+		esac
+		if ! { mkdir -p "$TPL_OWN/${to%/*}" && cp -p "$f" "$TPL_OWN/$to"; }; then
+			echo "Warning: templates not moved, $rel could not be copied to $TPL_OWN/$to" >&2
+			return 0
+		fi
+		echo "kept as the operator's: $rel -> $TPL_OWN/$to"
+	done <<< "$(find "$HESTIA/templates" "$HESTIA/share/web/nginx" "$HESTIA/share/web/apache2" -type f \
+		! -path "$HESTIA/share/web/nginx/proxy_ip.tpl" 2> /dev/null | sort)"
+	if ! f=$(tpl_seed); then
+		echo "Warning: templates not moved, the shipped ones could not all be copied to $TPL_OWN" >&2
+		return 0
+	fi
+	[ -z "$f" ] || sed 's/^/copied: /' <<< "$f"
+	find "$HESTIA/share/web/nginx" -mindepth 1 ! -name proxy_ip.tpl -exec rm -rf -- {} + 2> /dev/null
+	rm -rf "${HESTIA:?}/templates" "${HESTIA:?}/share/web/apache2"
 	return 0
 }

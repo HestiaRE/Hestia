@@ -888,7 +888,7 @@ check_policy_fragment_coverage() {
 			miss=$((miss + 1))
 			[ -z "$first" ] && first="${f#"$HESTIA/"} lacks $frag"
 		done
-	done < <(grep -rl '%domain%' "$WEBTPL" "$SHARETPL" 2> /dev/null | grep -E '\.(tpl|stpl)$')
+	done < <(grep -rl '%domain%' "$TPL_SHIP" "$SHARETPL" 2> /dev/null | grep -E '\.(tpl|stpl)$')
 	if [ "$miss" -eq 0 ]; then
 		ok "policy fragment includes complete ($checked domain templates)"
 	else
@@ -1207,7 +1207,7 @@ check_web_records() {
 				miss=$((miss + 1))
 				[ -z "$first" ] && first="$u/$d PROXY='$proxy' is missing"
 			fi
-			if [ -n "$WEB_BACKEND" ] && [ -n "$backend" ] && [ ! -f "$PHPTPL/$backend.tpl" ]; then
+			if [ -n "$WEB_BACKEND" ] && [ -n "$backend" ] && [ ! -f "$(tpl_path php "$backend.tpl")" ]; then
 				miss=$((miss + 1))
 				[ -z "$first" ] && first="$u/$d BACKEND='$backend' is missing"
 			fi

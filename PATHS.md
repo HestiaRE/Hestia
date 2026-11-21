@@ -257,9 +257,9 @@ Variables set in `include/main.sh`:
 |----------|-------|
 | `HOMEDIR` | `/home` |
 | `USER_DATA` | `$CONF_DIR/users/$user` |
-| `WEBTPL` | `$HESTIA/templates` |
+| `TPL_OWN` | `$CONF_DIR/templates` (the operator's, #1411) |
+| `TPL_SHIP` | `$HESTIA/share/templates` |
 | `SHARETPL` | `$HESTIA/share/web` |
-| `PHPTPL` | `$HESTIA/templates/php` |
 | `RRD` | `$HESTIA/web/rrd` |
 | `SENDMAIL` | `$HESTIA/web/inc/mail-wrapper.php` |
 

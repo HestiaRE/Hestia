@@ -19,6 +19,21 @@
         "/etc/systemd/system/hestia-quota-on.service"
       ],
       "reversible": false
+    },
+    {
+      "id": "templates-etc",
+      "description": "The templates an operator chooses and edits move to /etc/hestia/templates: an update overwrote every shipped one under /usr/local/hestia/templates, and the both model could not offer a template of its own. A file still as shipped is replaced by the current copy, an edited or own one moves as it is, an edited default or panel becomes an override; files without a place any more (docker, apache) land in /etc/hestia/templates/unplaced/. Each moved file is named in the log",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/templates" }
+      ],
+      "action": { "type": "function_call", "function": "templates_etc_apply" },
+      "paths": [
+        "/usr/local/hestia/templates",
+        "/usr/local/hestia/share/web/nginx",
+        "/usr/local/hestia/share/web/apache2",
+        "/etc/hestia/templates"
+      ],
+      "reversible": false
     }
   ]
 }

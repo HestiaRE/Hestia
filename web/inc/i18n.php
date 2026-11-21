@@ -57,26 +57,15 @@ function htmlify_trans($string, $closingTag)
 	);
 }
 
-// An admin override for a notification mail, or false so the caller uses its inline default. Read
-// from templates/email/, the mixed shipped+custom tree (upstream data/templates parity, #119), NOT
-// from share/ which an update overwrites. templates/email/examples/ holds copy-from samples and is
-// never read here - a custom lives one level up, as templates/email/<file>.html or per language.
+// The operator's override of a notification mail from /etc/hestia/templates/email/, per language first,
+// or false so the caller uses its inline default. Through the CLI: the panel cannot read /etc/hestia.
 function get_email_template($file, $language)
 {
-	$base = $_SERVER["HESTIA"] . "/templates/email/";
-	// $language becomes a path component, so it may only ever be a bare locale name. The callers are
-	// validated today (is_language_valid checks the char class AND that web/locale/<lang>/ exists,
-	// and the session is only set once the CLI accepted it) - this is the constraint living where the
-	// path is actually built, so no caller can turn a language into traversal or into a quoted value.
-	if (preg_match('/^[A-Za-z0-9_-]+$/', (string) $language)) {
-		if (file_exists($base . $language . "/" . $file . ".html")) {
-			return file_get_contents($base . $language . "/" . $file . ".html");
-		}
-	}
-	if (file_exists($base . $file . ".html")) {
-		return file_get_contents($base . $file . ".html");
-	}
-	return false;
+	$language = preg_match('/^[A-Za-z0-9_-]+$/', (string) $language) ? (string) $language : "";
+	$data = cli_json(
+		"h-open-sys-email-template " . quoteshellarg((string) $file) . ($language !== "" ? " " . quoteshellarg($language) : ""),
+	);
+	return isset($data["content"]) ? (string) $data["content"] : false;
 }
 
 function translate_email($string, $replace)

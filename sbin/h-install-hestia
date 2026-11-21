@@ -84,6 +84,9 @@ trap 'apt_auto_units_restore' EXIT
 
 load_os_profile "$INSTALL_OS"
 
+# The operator's template copies under /etc/hestia/templates, before any stage renders a vhost; never overwrites.
+tpl_seed > /dev/null
+
 # Panel PHP is the OS default. Empty is fatal: a fallback would pin a version this OS never shipped.
 PHP_VER="${PHP_REFERENCE_VERSION:-}"
 [ -n "$PHP_VER" ] || PHP_VER=$(os_default_php)

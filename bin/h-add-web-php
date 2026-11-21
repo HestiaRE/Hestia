@@ -155,9 +155,6 @@ fi
 # The whole apply, not this version's drop-in alone: it also restarts the master apt just started outside the slice.
 customer_php_limit_apply
 
-# A stale per-version pool profile would reappear in the selector.
-rm -f "$PHPTPL/PHP-${version/\./_}.tpl"
-
 # A failed record fails the command although the version is installed: a silent status gap is worse.
 sys_key_token_set PHP_VERSIONS add "$version" > /dev/null || check_result "$E_UPDATE" "PHP_VERSIONS: could not record $version"
 

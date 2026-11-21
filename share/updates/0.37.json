@@ -22,7 +22,7 @@
     },
     {
       "id": "templates-etc",
-      "description": "The templates an operator chooses and edits move to /etc/hestia/templates: an update overwrote every shipped one under /usr/local/hestia/templates, and the both model could not offer a template of its own. A file still as shipped is replaced by the current copy, an edited or own one moves as it is, an edited default or panel becomes an override; files without a place any more (docker, apache) land in /etc/hestia/templates/unplaced/. Each moved file is named in the log",
+      "description": "The templates an operator chooses and edits move to /etc/hestia/templates: an update overwrote every shipped one under /usr/local/hestia/templates, and the both model could not offer a template of its own. A file still as shipped is replaced by the current copy, an edited or own one moves as it is, an edited default or panel becomes an override; files without a place any more (docker, apache) land in /etc/hestia/templates/unplaced/. The update output names each file it kept",
       "conditions": [
         { "type": "path_exists", "path": "/usr/local/hestia/templates" }
       ],

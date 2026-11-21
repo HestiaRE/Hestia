@@ -118,9 +118,9 @@ in the record, so a web-model switch keeps the Docker choice.
 
 The command refuses a port that a wildcard listener on the host already holds (the container
 could never bind it) and a target that a process of someone else holds. A container already on the
-target is the normal case: app first, then the domain. Front templates live in
-`templates/docker/<front>/`; `h-list-web-templates-docker` lists them, and the panel offers a choice
-once there is more than one.
+target is the normal case: app first, then the domain. Front templates are shipped in
+`/usr/local/hestia/share/templates/docker/<front>/`, with no operator directory of their own;
+`h-list-web-templates-docker` lists them, and the panel offers a choice once there is more than one.
 
 ### Databases
 

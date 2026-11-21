@@ -13,7 +13,11 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **Deleting a web domain, mail domain or database left the user's disk counters too high until night** (#1417).
+  The record's share stayed in `U_DISK` until the nightly recount at 02:15, the panel showed it, and the smoke was red
+  in between. The three deletes recompute the counters now. Inherited from upstream.
 
 ## v0.37 (2026-11-21)
 

@@ -78,6 +78,8 @@ if [ -n "$SUSPENDED" ]; then
 		decrease_user_value "$user" '$SUSPENDED_MAIL'
 	fi
 fi
+# The record's share leaves the totals now, not at the nightly recount.
+recalc_user_disk_usage
 
 [ -n "$restart_mail" ] && restart_after_delete h-restart-mail ''
 if [ -n "$restart_web" ]; then

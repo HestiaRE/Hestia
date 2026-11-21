@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "610faf74",
     "upstream_ref_date": "2026-11-19",
-    "last_updated": "2026-11-19",
+    "last_updated": "2026-11-21",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -15,12 +15,12 @@
     "third_party_note": "Third-party vendored code is tracked in VENDORED.json, not here; those paths are excluded to keep the two manifests disjoint.",
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
-      "upstream_mapped_files": 72,
-      "eigenbau_files": 162,
+      "upstream_mapped_files": 78,
+      "eigenbau_files": 182,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 234,
-      "files_mapped": 72
+      "files_total": 260,
+      "files_mapped": 78
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
   },
@@ -2457,13 +2457,13 @@
       "note": "no upstream counterpart found; native or renamed - confirm manually"
     },
     {
-      "path": "web/apache2/default.tpl",
+      "path": "templates/apache/default.tpl",
       "source_type": "eigenbau",
       "upstream_path": null,
       "upstream_ref": null,
-      "last_reconciled": "2026-08-12",
+      "last_reconciled": "2026-11-21",
       "divergence": null,
-      "note": "moved here from templates/web/apache2/php-fpm/default.tpl in #219 phase 5; upstream keeps the php-fpm variant under install/deb/templates/web/apache2/php-fpm/ - not pinned 1:1 because the merged .tpl/.stpl shape (#593) has no upstream equivalent."
+      "note": "moved here from templates/web/apache2/php-fpm/default.tpl in #219 phase 5; upstream keeps the php-fpm variant under install/deb/templates/web/apache2/php-fpm/ - not pinned 1:1 because the merged .tpl/.stpl shape (#593) has no upstream equivalent. Moved from share/web/apache2/default.tpl to share/templates/apache/default.tpl in #1411."
     },
     {
       "path": "web/awstats/awstats.tpl",
@@ -2514,22 +2514,22 @@
       "note": ""
     },
     {
-      "path": "web/nginx/default.tpl",
+      "path": "templates/proxy/default.tpl",
       "source_type": "eigenbau",
       "upstream_path": null,
       "upstream_ref": null,
-      "last_reconciled": "2026-08-12",
+      "last_reconciled": "2026-11-21",
       "divergence": null,
-      "note": "moved here from templates/web/nginx/ in #219 phase 5 (the both-model proxy vhost); merged shape (#593), so no 1:1 upstream path."
+      "note": "moved here from templates/web/nginx/ in #219 phase 5 (the both-model proxy vhost); merged shape (#593), so no 1:1 upstream path. Moved from share/web/nginx/default.tpl to share/templates/proxy/default.tpl in #1411."
     },
     {
-      "path": "web/nginx/panel.tpl",
+      "path": "templates/proxy/panel.tpl",
       "source_type": "eigenbau",
       "upstream_path": null,
       "upstream_ref": null,
-      "last_reconciled": "2026-09-26",
+      "last_reconciled": "2026-11-21",
       "divergence": null,
-      "note": "HestiaRE-native (#878): proxies a web domain's https side to the panel on loopback."
+      "note": "HestiaRE-native (#878): proxies a web domain's https side to the panel on loopback. Moved from share/web/nginx/panel.tpl to share/templates/proxy/panel.tpl in #1411."
     },
     {
       "path": "web/nginx/proxy_ip.tpl",
@@ -2690,6 +2690,282 @@
       "last_reconciled": "2026-08-12",
       "divergence": null,
       "note": "unassigned-host page, moved from templates/ in #219 phase 5."
+    },
+    {
+      "path": "templates/nginx/laravel.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/laravel.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/magento.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/magento.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/no-php.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/no-php.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/owncloud.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/owncloud.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/prestashop.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/prestashop.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/symfony4-5.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/symfony4-5.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/wordpress-disable-xmlrpc.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/wordpress-disable-xmlrpc.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/wordpress.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/wordpress.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/wordpress_mu_subdir.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Merged .tpl/.stpl shape (#593), so no 1:1 upstream path; origin install/deb/templates/web/nginx/php-fpm/wordpress_mu_subdir.tpl. Moved from templates/nginx/ to share/templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/default.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "The nginx-only web vhost; merged .tpl/.stpl shape (#593), so no 1:1 upstream path. Moved from templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/nginx/panel.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native (#878): the nginx-only variant proxying a web domain to the panel on loopback. Moved from templates/nginx/ in #1411."
+    },
+    {
+      "path": "templates/php/default.tpl",
+      "source_type": "verbatim",
+      "upstream_path": "install/deb/templates/web/php-fpm/default.tpl",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-21",
+      "divergence": {
+        "upstream_lines": 34,
+        "our_lines": 34,
+        "added": 0,
+        "removed": 0,
+        "pct": 0,
+        "measured_at": "2026-11-21"
+      },
+      "note": "PHP pool profile. Moved from templates/php/ in #1411."
+    },
+    {
+      "path": "templates/php/high.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native PHP pool profile. Moved from templates/php/ in #1411."
+    },
+    {
+      "path": "templates/php/small.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native PHP pool profile. Moved from templates/php/ in #1411."
+    },
+    {
+      "path": "templates/docker/apache2/default.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native (#389/#566): the vhost publishing a customer's container behind apache. Moved from templates/docker/ in #1411."
+    },
+    {
+      "path": "templates/docker/nginx/default.tpl",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native (#389/#566): the vhost publishing a customer's container behind nginx. Moved from templates/docker/ in #1411."
+    },
+    {
+      "path": "templates/email/README.md",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native: how the operator overrides a notification mail. Moved from templates/email/ in #1411."
+    },
+    {
+      "path": "templates/email/examples/account_ready.html",
+      "source_type": "verbatim",
+      "upstream_path": "install/common/templates/email/examples/account_ready.html",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-21",
+      "divergence": {
+        "upstream_lines": 12,
+        "our_lines": 12,
+        "added": 0,
+        "removed": 0,
+        "pct": 0,
+        "measured_at": "2026-11-21"
+      },
+      "note": "Moved from templates/email/examples/ in #1411."
+    },
+    {
+      "path": "templates/email/examples/database_credentials.html",
+      "source_type": "verbatim",
+      "upstream_path": "install/common/templates/email/examples/database_credentials.html",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-21",
+      "divergence": {
+        "upstream_lines": 11,
+        "our_lines": 11,
+        "added": 0,
+        "removed": 0,
+        "pct": 0,
+        "measured_at": "2026-11-21"
+      },
+      "note": "Moved from templates/email/examples/ in #1411."
+    },
+    {
+      "path": "templates/email/examples/email_credentials.html",
+      "source_type": "verbatim",
+      "upstream_path": "install/common/templates/email/examples/email_credentials.html",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-21",
+      "divergence": {
+        "upstream_lines": 30,
+        "our_lines": 30,
+        "added": 0,
+        "removed": 0,
+        "pct": 0,
+        "measured_at": "2026-11-21"
+      },
+      "note": "Moved from templates/email/examples/ in #1411."
+    },
+    {
+      "path": "templates/email/examples/ftp_credentials.html",
+      "source_type": "verbatim",
+      "upstream_path": "install/common/templates/email/examples/ftp_credentials.html",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-21",
+      "divergence": {
+        "upstream_lines": 10,
+        "our_lines": 10,
+        "added": 0,
+        "removed": 0,
+        "pct": 0,
+        "measured_at": "2026-11-21"
+      },
+      "note": "Moved from templates/email/examples/ in #1411."
+    },
+    {
+      "path": "templates/email/examples/reset_password.html",
+      "source_type": "verbatim",
+      "upstream_path": "install/common/templates/email/examples/reset_password.html",
+      "upstream_ref": "610faf74",
+      "last_reconciled": "2026-11-21",
+      "divergence": {
+        "upstream_lines": 15,
+        "our_lines": 15,
+        "added": 0,
+        "removed": 0,
+        "pct": 0,
+        "measured_at": "2026-11-21"
+      },
+      "note": "Moved from templates/email/examples/ in #1411."
+    },
+    {
+      "path": "quota/dracut/hestia-quota-hook.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native (#1329): arms project quota from the initramfs under dracut."
+    },
+    {
+      "path": "quota/dracut/module-setup.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native (#1329): the dracut module that installs the quota hook."
+    },
+    {
+      "path": "updates/0.37.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native: the v0.37 update manifest."
+    },
+    {
+      "path": "updates/patches/0.37/templates-shipped.sha256",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "HestiaRE-native (#1411): every template file a release since the lower bound shipped, so the update can tell an operator's edit from a shipped copy."
     }
   ]
 }

@@ -113,3 +113,10 @@ dnsp_autodns_main() {
 		+ (if $t != "" then {ttl: ($t | tonumber)} else {} end))}') || return 2
 	dnsp_autodns_req PATCH "/zone/$1/$2" "$body"
 }
+
+# dnsp_autodns_include ZONE REF true|false: whether www serves the apex (wwwInclude), by the same PATCH.
+dnsp_autodns_include() {
+	local body
+	body=$(jq -n --arg z "$1" --argjson i "$3" '{origin: $z, wwwInclude: $i}') || return 2
+	dnsp_autodns_req PATCH "/zone/$1/$2" "$body"
+}

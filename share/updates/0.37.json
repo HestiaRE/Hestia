@@ -1,0 +1,71 @@
+{
+  "version": "0.37",
+  "entries": [
+    {
+      "id": "quota-dracut",
+      "description": "Project quota is armed again on a box whose initramfs dracut builds (Ubuntu 26.04 cloud images): the one-shot that sets the ext4 features went in as an initramfs-tools hook, which dracut never reads, so quota stayed pending. It now goes in as a dracut module. Quota turns on at the next reboot, which this update does not do",
+      "conditions": [
+        { "type": "package_installed", "name": "dracut" },
+        { "type": "file_contains", "path": "/usr/local/hestia/conf/hestia.conf", "value": "PROJECT_QUOTA='pending:" },
+        { "type": "path_absent", "path": "/usr/lib/dracut/modules.d/90hestia-quota" }
+      ],
+      "action": { "type": "function_call", "function": "quota_dracut_apply" },
+      "paths": [
+        "/usr/local/hestia/conf/hestia.conf",
+        "/etc/initramfs-tools/hooks/hestia-quota",
+        "/etc/initramfs-tools/scripts/local-premount/hestia-quota",
+        "/usr/lib/dracut/modules.d/90hestia-quota",
+        "/etc/dracut.conf.d/hestia-quota.conf",
+        "/etc/systemd/system/hestia-quota-on.service"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "templates-etc",
+      "description": "The templates an operator chooses and edits move to /etc/hestia/templates: an update overwrote every shipped one under /usr/local/hestia/templates, and the both model could not offer a template of its own. A file still as shipped is replaced by the current copy, an edited or own one moves as it is, an edited default or panel becomes an override; files without a place any more (docker, apache) land in /etc/hestia/templates/unplaced/. The update output names each file it kept",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/local/hestia/templates" }
+      ],
+      "action": { "type": "function_call", "function": "templates_etc_apply" },
+      "paths": [
+        "/usr/local/hestia/templates",
+        "/usr/local/hestia/share/web/nginx",
+        "/usr/local/hestia/share/web/apache2",
+        "/etc/hestia/templates"
+      ],
+      "reversible": false
+    },
+    {
+      "id": "tachyon-pin",
+      "description": "Tachyon 4.7.0: saving the admin settings no longer can empty application.ini and switch every plugin off, and the admin panel no longer freezes when a mail tab logs in or out",
+      "conditions": [
+        { "type": "pin_differs", "name": "tachyon", "path": "/var/lib/tachyon/data/VERSION" }
+      ],
+      "action": { "type": "function_call", "function": "tachyon_pin_apply" },
+      "paths": ["/var/lib/tachyon"],
+      "reversible": false
+    },
+    {
+      "id": "adminer-core",
+      "description": "Adminer 6.3.1 as shipped: it closes an SQL injection through a geometry column name (MySQL), HTML injection in the search form and two advisories (GHSA-qjv8-pw8g-jw65, GHSA-5xfm-7vgj-3f39), and its CSRF token becomes 128 random bits. h-add-sys-adminer stops at an existing install",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/share/adminer/index.php" },
+        { "type": "file_differs", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" }
+      ],
+      "action": { "type": "file_copy", "source": "share/adminer/adminer.php", "target": "/usr/share/adminer/index.php" },
+      "paths": ["/usr/share/adminer/index.php"],
+      "reversible": true
+    },
+    {
+      "id": "adminer-plugins-token",
+      "description": "Adminer's plugin file drops a posted token of the wrong shape, which ended in a PHP Fatal before any login, and lets the hex token of 6.3.1 through: with the old file every login of 6.3.1 would fail its token check",
+      "conditions": [
+        { "type": "path_exists", "path": "/usr/share/adminer/adminer-plugins.php" },
+        { "type": "file_differs", "source": "share/adminer/adminer-plugins.php", "target": "/usr/share/adminer/adminer-plugins.php" }
+      ],
+      "action": { "type": "file_copy", "source": "share/adminer/adminer-plugins.php", "target": "/usr/share/adminer/adminer-plugins.php" },
+      "paths": ["/usr/share/adminer/adminer-plugins.php"],
+      "reversible": true
+    }
+  ]
+}

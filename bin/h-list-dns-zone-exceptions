@@ -1,0 +1,72 @@
+#!/bin/bash
+# info: list the DNS exceptions a user keeps in a zone
+# options: USER ZONE [FORMAT]
+#
+# example: h-list-dns-zone-exceptions admin example.com json
+#
+# One entry per RECORD TYPE with the values it accepts (none: kept absent). DERIVED is no for an exception whose row
+# HestiaRE no longer derives, a domain or alias that went: it compares against nothing and can be lifted.
+
+user=$1
+zone=$2
+format=${3-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+# Lines: RECORD TYPE VALUE SECTION OBJECT DATE TIME DERIVED, one per accepted value.
+json_list() {
+	jq -R -n '[inputs | select(length > 0) | split("\t")] | group_by(.[0] + "\t" + .[1]) | map({RECORD: .[0][0],
+		TYPE: .[0][1], VALUES: (map(.[2]) | map(select(. != ""))), SECTION: .[0][3], OBJECT: .[0][4], DATE: .[0][5],
+		TIME: .[0][6], DERIVED: (.[0][7] == "yes")})' <<< "$list"
+}
+
+shell_list() {
+	printf 'RECORD\tTYPE\tVALUE\tSECTION\tOBJECT\tDERIVED\tDATE\n'
+	printf -- '------\t----\t-----\t-------\t------\t-------\t----\n'
+	awk -F '\t' 'BEGIN { OFS = FS } NF { print $1, $2, ($3 == "" ? "(none)" : $3), $4, $5, $8, $6 }' <<< "$list"
+}
+
+check_args '2' "$#" 'USER ZONE [FORMAT]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+case $format in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+zone=$(dns_ascii "$zone")
+f=$(dns_zone_file "$user" "$zone")
+derived=$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" '$5 == u { print $6 "\t" $7 }')
+list=''
+if [ -f "$f" ] && [ ! -L "$f" ]; then
+	while IFS= read -r line || [ -n "$line" ]; do
+		record_line_valid "$line" || continue
+		[ "$(record_field "$line" KIND)" = 'exception' ] || continue
+		r=$(record_field "$line" RECORD)
+		t=$(record_field "$line" TYPE)
+		v=$(record_value_decode "$(record_field "$line" VALUE)")
+		p=$(record_field "$line" PRIORITY)
+		[ "$t" = MX ] && [ -n "$v" ] && v="$p $v"
+		d=no
+		grep -qxF "$r"$'\t'"$t" <<< "$derived" && d=yes
+		list+=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s' "$r" "$t" "${v//$'\t'/ }" "$(record_field "$line" SECTION)" \
+			"$(record_field "$line" OBJECT)" "$(record_field "$line" DATE)" "$(record_field "$line" TIME)" "$d")$'\n'
+	done < "$f"
+fi
+
+case $format in
+	json) json_list ;;
+	plain) printf '%s' "$list" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+esac
+
+exit

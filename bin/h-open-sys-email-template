@@ -1,0 +1,30 @@
+#!/bin/bash
+# info: open the operator's override of a notification mail
+# options: NAME [LANGUAGE]
+# labels: internal
+# caller: the panel, get_email_template in web/inc/i18n.php
+#
+# example: h-open-sys-email-template email_credentials de
+#
+# Prints {"path", "content"} of /etc/hestia/templates/email/LANGUAGE/NAME.html, else of email/NAME.html, and rc 3 when
+# neither exists: the panel then sends its built-in text. The panel cannot read /etc/hestia (0700) itself.
+
+name=$1
+language=$2
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+
+check_args '1' "$#" 'NAME [LANGUAGE]'
+# Both become path components.
+[[ "$name" =~ ^[A-Za-z0-9_-]+$ ]] || check_result "$E_INVALID" "invalid name: $name"
+[ -z "$language" ] || [[ "$language" =~ ^[A-Za-z0-9_-]+$ ]] || check_result "$E_INVALID" "invalid language: $language"
+
+for f in ${language:+"$TPL_OWN/email/$language/$name.html"} "$TPL_OWN/email/$name.html"; do
+	[ -f "$f" ] || continue
+	jq -Rs --arg p "$f" '{path: $p, content: .}' < "$f"
+	exit
+done
+exit "$E_NOTEXIST"

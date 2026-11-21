@@ -55,7 +55,7 @@ for port in $ports; do
 	fi
 done
 
-cat $PHPTPL/$template.tpl \
+cat "$(tpl_path php "$template.tpl")" \
 	| sed -e "s|%backend_port%|$backend_port|" \
 		-e "s|%user%|$user|g" \
 		-e "s|%domain%|$domain|g" \

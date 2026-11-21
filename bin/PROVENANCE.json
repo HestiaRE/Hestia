@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "610faf74",
     "upstream_ref_date": "2026-11-19",
-    "last_updated": "2026-11-19",
+    "last_updated": "2026-11-21",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from `git diff --numstat` between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 400,
-      "eigenbau_files": 135,
+      "eigenbau_files": 140,
       "weighted_pct": 48,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 535,
+      "files_total": 540,
       "files_mapped": 400
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -1357,14 +1357,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-web-php",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 164,
-        "our_lines": 167,
-        "added": 105,
+        "our_lines": 164,
+        "added": 102,
         "removed": 102,
         "pct": 62,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-21"
       },
       "note": ""
     },
@@ -4013,14 +4013,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-delete-web-php",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 117,
-        "our_lines": 134,
-        "added": 85,
+        "our_lines": 131,
+        "added": 82,
         "removed": 68,
         "pct": 60,
-        "measured_at": "2026-11-06"
+        "measured_at": "2026-11-21"
       },
       "note": ""
     },
@@ -5635,14 +5635,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-templates",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 84,
-        "our_lines": 65,
-        "added": 19,
-        "removed": 38,
-        "pct": 38,
-        "measured_at": "2026-11-06"
+        "our_lines": 60,
+        "added": 15,
+        "removed": 39,
+        "pct": 37,
+        "measured_at": "2026-11-21"
       },
       "note": ""
     },
@@ -5651,14 +5651,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-templates-backend",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 88,
-        "our_lines": 61,
+        "our_lines": 58,
         "added": 11,
-        "removed": 38,
-        "pct": 32,
-        "measured_at": "2026-11-06"
+        "removed": 41,
+        "pct": 35,
+        "measured_at": "2026-11-21"
       },
       "note": ""
     },
@@ -5676,14 +5676,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-web-templates-proxy",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 89,
-        "our_lines": 62,
+        "our_lines": 58,
         "added": 11,
-        "removed": 38,
-        "pct": 32,
-        "measured_at": "2026-11-06"
+        "removed": 42,
+        "pct": 36,
+        "measured_at": "2026-11-21"
       },
       "note": ""
     },
@@ -7650,6 +7650,51 @@
       "last_reconciled": "2026-08-12",
       "divergence": null,
       "note": ""
+    },
+    {
+      "path": "h-add-dns-zone-exception",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Keeps a DNS record as an exception to what HestiaRE derives (#1333)."
+    },
+    {
+      "path": "h-delete-dns-zone-exception",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Lifts a DNS exception (#1333)."
+    },
+    {
+      "path": "h-delete-dns-zone-written",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Forgets a record HestiaRE wrote, so it stays at the provider as a foreign one (#1333)."
+    },
+    {
+      "path": "h-list-dns-zone-exceptions",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Lists the DNS exceptions of a zone (#1333)."
+    },
+    {
+      "path": "h-open-sys-email-template",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-21",
+      "divergence": null,
+      "note": "Hands the panel an operator's mail override from /etc/hestia/templates/email, which it cannot read itself (#1411)."
     }
   ]
 }

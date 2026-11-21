@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "610faf74",
     "upstream_ref_date": "2026-11-19",
-    "last_updated": "2026-11-19",
+    "last_updated": "2026-11-21",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from a line diff between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR, func/->include/), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -35,14 +35,14 @@
       "source_type": "derived",
       "upstream_path": "func/backup.sh",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-19",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 583,
-        "our_lines": 2482,
-        "added": 2076,
+        "our_lines": 2486,
+        "added": 2080,
         "removed": 177,
         "pct": 73,
-        "measured_at": "2026-11-19"
+        "measured_at": "2026-11-21"
       },
       "note": "Backup format is bidirectionally compatible with HestiaCP forever, so this stays close to upstream on purpose."
     },
@@ -268,14 +268,14 @@
       "source_type": "derived",
       "upstream_path": "func/main.sh",
       "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-19",
+      "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 2615,
-        "our_lines": 3249,
-        "added": 1961,
-        "removed": 1327,
+        "our_lines": 3287,
+        "added": 1995,
+        "removed": 1323,
         "pct": 56,
-        "measured_at": "2026-11-19"
+        "measured_at": "2026-11-21"
       },
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },

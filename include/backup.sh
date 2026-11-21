@@ -187,7 +187,7 @@ restore_record_name() {
 # the line kept; a line with a field outside its rule is dropped. Both are named on stderr, and the dropped entries
 # are left in RESTORE_DROPPED for the caller's failure report. An empty result is valid: no jobs, no accounts.
 restore_records_filter() {
-	local _src="$1" _dst="$2" _t="$3" _allow _line _orig _k _n=0 _tmp _unknown=''
+	local _src="$1" _dst="$2" _t="$3" _allow _line _orig _k _v _n=0 _tmp _unknown=''
 	RESTORE_DROPPED=''
 	[ -f "$_src" ] || return 1
 	_allow=" $(syshealth_known_keys "$_t") " || return 1
@@ -207,6 +207,10 @@ restore_records_filter() {
 			}
 			[[ " $_unknown " == *" $_k "* ]] || _unknown="${_unknown:+$_unknown }$_k"
 		done
+		# HestiaCP encodes only ' in a command, so " ` and \ arrive raw; ours are encoded already and stay as they are.
+		if [ "$_t" = cron ] && [ -n "$_line" ] && _v=$(record_field "$_line" CMD); then
+			record_rewrite _line "$_line" set CMD "$(record_value_encode "$_v")" || true
+		fi
 		# The shape check is per type: a cron command may hold quotes that no other record carries.
 		if [ -n "$_line" ] && restore_line_fields_ok "$_t" "$_line"; then
 			printf '%s\n' "$_line" >> "$_tmp"

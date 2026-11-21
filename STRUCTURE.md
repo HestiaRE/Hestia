@@ -99,8 +99,8 @@ a stock OS Caddy (the HestiaRE OS-repo-first principle). See also
   (`v-update-sys-hestia`) does not apply.
 - Protected downloads had to change because Caddy's `file_server` runs as `caddy`
   (delta 3).
-- A web domain can carry the panel (#878): the `panel` template (`templates/nginx/panel.tpl`,
-  `share/web/nginx/panel.tpl`) proxies the domain's https side to the panel on loopback, so the port can
+- A web domain can carry the panel (#878): the `panel` template (`share/templates/nginx/panel.tpl`,
+  `share/templates/proxy/panel.tpl`) proxies the domain's https side to the panel on loopback, so the port can
   be closed. The panel still sees the real client address, and the login jail's action
   (`share/fail2ban/action.d/hestia-panel.conf`) bans on 80/443 as well as on the panel port.
 
@@ -138,7 +138,7 @@ into **five** on that one `hestia` master:
 | `roundcube.conf` | `caddy` | `/run/hestia-webmail-roundcube.sock` | Caddy `:8090` |
 | `tachyon.conf` | `caddy` | `/run/hestia-webmail-tachyon.sock` | Caddy `:8091` |
 
-Plus per-customer pools on the **customer** PHP (`templates/php/{default,small,high}.tpl`,
+Plus per-customer pools on the **customer** PHP (`share/templates/php/{default,small,high}.tpl`,
 `user=%user%`) and the FM pool (delta 5).
 
 **Why.** Isolate by trust boundary (see the system-user table). Upstream already
@@ -381,10 +381,11 @@ updates. `CONF_DIR="${CONF_DIR:-/etc/hestia}"` (`include/main.sh:48`), exported 
 | `/etc/hestia/conf/` | panel config; `$HESTIA/conf` is now a **symlink** here (#129) |
 | `/etc/hestia/{firewall,ips,queue,users}/` | moved out of `$HESTIA/data/` (#148/#154/#156) |
 | `/etc/hestia/packages/` | hosting packages: instance state, panel-created; seeded from `share/hestia/packages/` at install (#663) |
+| `/etc/hestia/templates/` | the operator's templates: copies of the shipped ready-made ones, own ones, overrides (#1411) |
 | `/etc/hestia/.done.*` | installer idempotency sentinels |
 
 The `$HESTIA/data/` tree is **fully dissolved**. `install/` (build-time tree) was split
-into `share/` (shipped runtime assets) + `templates/` (`WEBTPL`); `HESTIA_INSTALL_DIR`/
+into `share/` (shipped runtime assets, templates under `share/templates/`); `HESTIA_INSTALL_DIR`/
 `HESTIA_COMMON_DIR` no longer exist. The `packages/` split of #119/#150 was revised in #663:
 hosting packages are instance state (panel-created, restore-writable), so they live in
 `/etc/hestia/packages/`, and the shipped `default`/`system.pkg` seed there from
@@ -413,39 +414,37 @@ the model: the wizard fixes that preset to `WEB_SERVER=NGINX` for the webmail vh
 termination (`share/manifest.json`). Upstream has no equivalent - it installs both servers and
 decides at render time.
 
-### Template tree: selectable vs shipped (#219)
+### Template tree: the operator's under /etc, the shipped set under share (#219, #1411)
 
-`templates/` holds **only what somebody chooses**, everything else moved to `share/`:
+The templates an operator chooses and edits live in **`/etc/hestia/templates/`**, which no update writes; the shipped
+set lives in `share/templates/` under the same directory names, and an update overwrites it:
 
-| Path | Anchor | Contents |
+| Directory | Shipped (`$TPL_SHIP`) | Operator (`$TPL_OWN`) |
 |---|---|---|
-| `templates/nginx/` | `$WEBTPL/nginx` | the nginx-only vhost selection (wordpress, laravel, …) |
-| `templates/php/` | `$PHPTPL` | FPM pool profiles (`default`, `small`, `high`) - nothing generated per version since #591 |
-| `templates/docker/<front>/` | `$WEBTPL/docker` | vhosts for a docker domain, per front system (#566/#592) |
-| `share/web/nginx/` | `$SHARETPL/nginx` | the both-model proxy vhost + `proxy_ip` |
-| `share/web/apache2/` | `$SHARETPL/apache2` | the apache vhost (both models render it) |
-| `share/web/suspend/` | `$SHARETPL/suspend` | admin suspension + customer offline, per role |
-| `share/web/{skel,awstats,unassigned}/` | | assets, never selectable |
-| `templates/email/` | | notification mail bodies; shipped samples plus admin overrides (#393) |
+| `nginx/` | nginx serves the domain itself (nginx-only): default, panel, the selection (wordpress, laravel, …) | copies of the selection, own ones, overrides |
+| `proxy/` | nginx in front of apache (both): default, panel | own ones, e.g. an app proxied past apache; overrides |
+| `php/` | FPM pool profiles default, small, high - nothing generated per version since #591 | copies of small and high, own ones, overrides |
+| `email/` | README and samples of the notification mails (#393) | copies of both, the overrides themselves (`<name>.html`, `<lang>/<name>.html`) |
+| `apache/` | the one apache vhost (both, apache-only) | none |
+| `docker/<front>/` | vhosts for a docker domain, per front system (#566/#592) | none |
 
-Two consequences worth knowing before touching this:
+`share/web/` keeps what is rendered or copied but never chosen: `suspend/` (admin suspension, customer offline, per
+role), `skel/`, `awstats/`, `unassigned/`, `nginx/proxy_ip.tpl`.
 
-- **Selectable web templates exist where nginx itself serves the content.** The criterion is the
-  role, not the model name: `templates/nginx/*` are standalone web vhosts (`root` plus a fastcgi
-  handler), so they only apply where nginx is the web role. Wherever apache serves, apache decides
-  the shape - there is one apache vhost - and per-domain variance runs through switches instead
-  (cache, http3, hsts, offline, docker). A model that adds a front therefore inherits the answer:
-  serves it itself, so it offers a choice; proxies to apache, so it does not. A form that offers
-  the choice where the criterion does not hold renders an empty select, which is why the package
-  form only renders the row where something is selectable (#644).
-- **The role picks the directory, not the service name.** In the both model nginx is the
-  proxy and renders `share/web/nginx/default.tpl`; in nginx-only the same service is the
-  web role and renders `templates/nginx/default.tpl`. Both files are called `default` and
-  are not interchangeable - `web_template_file` in `include/domain.sh` is the only place that
-  decides, and validators and renderer both go through it.
-- **`PHPTPL` is its own anchor**, not `$WEBTPL/$WEB_BACKEND`. `WEB_BACKEND` is a config
-  VALUE (`php-fpm`); deriving a directory name from it would mean renaming the directory
-  forces renaming the value everywhere it is compared.
+- **Resolution by name:** `tpl_path` (include/main.sh) takes the operator's file before the shipped one, so a file in
+  `/etc` with a shipped name is an override. `default` and `panel` stay shipped and are only overridden.
+- **Copies:** `tpl_seed` copies a shipped ready-made template that is missing in `/etc`, at install and after every
+  update, and never overwrites. A later fix to a shipped template reaches a copy as a patch entry
+  (`file_patch_pending`, see `share/updates/README.md`), which leaves the operator's edits alone.
+- **The panel cannot read `/etc/hestia`** (0700): the mail overrides go through `h-open-sys-email-template`.
+- **Selectable web templates exist where nginx itself serves the content.** Wherever apache serves, apache decides
+  the shape - there is one apache vhost - and per-domain variance runs through switches instead (cache, http3, hsts,
+  offline, docker). In the both model the choice is the proxy template. A form renders the select only where
+  something is selectable (#644).
+- **The role picks the directory, not the service name.** In the both model nginx is the proxy and renders
+  `proxy/default.tpl`; in nginx-only the same service is the web role and renders `nginx/default.tpl`. Both files
+  are called `default` and are not interchangeable - `web_template_file` in `include/domain.sh` is the only place
+  that decides, and validators and renderer both go through it.
 
 Upstream keeps one flat `templates/web/<service>/<backend>/` tree with every variant
 selectable, including the mod_php-era apache ones.

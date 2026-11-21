@@ -102,6 +102,15 @@ if ! "$BIN/h-repair-sys-config" repair > /dev/null 2>&1; then
 	log "warn  repair ended non-zero"
 fi
 "$BIN/h-update-sys-defaults" > /dev/null 2>&1 || true
+# The operator's template copies: a shipped one that is missing there is copied in, an existing file is never touched.
+if seeded=$(tpl_seed); then
+	while IFS= read -r t; do
+		[ -n "$t" ] && log "template copied to $TPL_OWN: $t"
+	done <<< "$seeded"
+else
+	echo "[ ! ] the shipped templates could not all be copied to $TPL_OWN"
+	log "warn  template seed failed"
+fi
 
 # Already right means no write: a needless rewrite moves an mtime that guards read.
 tree_version=$(cat "$HESTIA/VERSION" 2> /dev/null)
@@ -122,4 +131,20 @@ log "run done"
 echo
 echo "Done: $count entry(s), status version $(cat "$HESTIA/VERSION" 2> /dev/null). Log: $LOG"
 
-exit
+# The smoke ends a run as it ends an install. It reports, it does not fail the update. Skips only as a count:
+# the installer-only addon recount skips on every run and would bury a real one.
+SMOKE="$RUNDIR/smoke.txt"
+echo
+echo "[ * ] Running the smoke test"
+"$BIN/h-check-sys-smoke" > "$SMOKE" 2>&1
+smoke_rc=$?
+grep -E '^\[ FAIL \]' "$SMOKE"
+result=$(sed -n 's/^=== result: \(.*\) ===$/\1/p' "$SMOKE" | tail -n 1)
+log "smoke rc=$smoke_rc ${result:-no result line}"
+if [ -z "$result" ]; then
+	echo "Smoke: ended without a result line (rc=$smoke_rc). Output: $SMOKE"
+else
+	echo "Smoke: $result, $(grep -c '^\[ skip \]' "$SMOKE") skipped. Output: $SMOKE"
+fi
+
+exit 0

@@ -117,9 +117,6 @@ fi
 
 [ -n "$ion_ext" ] && rm -f "$ion_ext/ioncube.so"
 
-# After the checks, so a refused delete leaves it alone.
-rm -f "$PHPTPL/PHP-${version/./_}.tpl"
-
 [[ -d /etc/php/$version ]] && rm -rf "/etc/php/$version"
 
 customer_php_slice_remove "$version"

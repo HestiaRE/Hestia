@@ -53,6 +53,9 @@ $dns_section_labels = [
 				<div class="units-table-cell">
 					<span class="u-hide-desktop u-text-bold"><?= tohtml(_("Sections")) ?>:</span>
 					<?= tohtml(implode(", ", $labels)) ?>
+					<?php if (!$labels) { ?>
+						<span class="u-text-muted">(<?= tohtml(_("none left, records written earlier")) ?>)</span>
+					<?php } ?>
 					<?php if (($z["APEX"] ?? "") === "no") { ?>
 						<span class="u-text-muted">(<?= tohtml(_("only subdomains")) ?>)</span>
 					<?php } ?>

@@ -257,9 +257,9 @@ Variables set in `include/main.sh`:
 |----------|-------|
 | `HOMEDIR` | `/home` |
 | `USER_DATA` | `$CONF_DIR/users/$user` |
-| `WEBTPL` | `$HESTIA/templates` |
+| `TPL_OWN` | `$CONF_DIR/templates` (the operator's, #1411) |
+| `TPL_SHIP` | `$HESTIA/share/templates` |
 | `SHARETPL` | `$HESTIA/share/web` |
-| `PHPTPL` | `$HESTIA/templates/php` |
 | `RRD` | `$HESTIA/web/rrd` |
 | `SENDMAIL` | `$HESTIA/web/inc/mail-wrapper.php` |
 
@@ -303,7 +303,7 @@ Migrated via the data/-dissolution PRs (#129 conf, #148 ips/queue/extensions/ses
 | `/usr/local/hestia/data/sessions/` | `/var/lib/hestia/sessions/` | PHP panel sessions — **DONE (#148, moved again in #974)**: first to `.sessions/` under the install root, then out of it entirely. An update tars the install root to roll the overlay back, and live sessions have no place in that snapshot; keeping them outside also spares `check_install_root_owner` a group-writable exception. Owner `hestia:hestia`, mode 0770, swept by `/etc/cron.daily/php-session-cleanup` |
 | `/usr/local/hestia/data/users/` | `/etc/hestia/users/` | Per-user config tree — **DONE (#156)**: backup format is location-agnostic (relative archive paths), so old archives restore unchanged |
 | `/usr/local/hestia/data/packages/` | `/etc/hestia/packages/` | Hosting plans — **DONE (#150/#663)**: instance state under `CONF_DIR`, seeded from `share/hestia/packages/` samples only when absent |
-| `/usr/local/hestia/data/templates/` | `/usr/local/hestia/templates/` | vhost/php-fpm templates — **DONE (#150)**: repo-root tarball asset |
+| `/usr/local/hestia/data/templates/` | `/etc/hestia/templates/` + `/usr/local/hestia/share/templates/` | vhost/php-fpm/mail templates — **DONE (#150, #1411)**: first a repo-root tarball asset under the install root, which every update overwrote; now the shipped set in `share/templates/` and the operator's copies, own ones and overrides in `/etc/hestia/templates/` |
 | `/etc/hestiacp/hooks/` | `/etc/hestia/hooks/` | Lifecycle scripts (usually empty) |
 
 ### 5b. Deliberately not moved

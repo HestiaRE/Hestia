@@ -12,22 +12,22 @@
 
 # One resolution for validator and renderer: if they disagree, a template is either rejected
 # though it would render, or passes and then writes an empty vhost. The ROLE picks the directory,
-# not the service name - both roles hold a file called default and they are not interchangeable.
+# not the service name: nginx as the proxy and nginx as the web server each hold a default, and
+# they are not interchangeable. apache and docker have no operator directory.
 web_template_file() {
-	local system="$1" name="$2" ext="$3" loc
+	local system="$1" name="$2" ext="$3"
 	if [ -n "$PROXY_SYSTEM" ] && [ "$system" = "$PROXY_SYSTEM" ]; then
-		echo "$SHARETPL/$system/$name.$ext"
-		return
+		tpl_path proxy "$name.$ext"
+	elif [ "$system" = 'nginx' ]; then
+		tpl_path nginx "$name.$ext"
+	else
+		echo "$TPL_SHIP/apache/$name.$ext"
 	fi
-	for loc in "$WEBTPL/$system" "$SHARETPL/$system"; do
-		[ -f "$loc/$name.$ext" ] && break
-	done
-	echo "$loc/$name.$ext"
 }
 
 # One resolution for the docker template, so validation and render cannot disagree.
 web_docker_template_file() {
-	echo "$WEBTPL/docker/$1/$2.tpl"
+	echo "$TPL_SHIP/docker/$1/$2.tpl"
 }
 
 # Echoes "<name> <side-effect>" and returns 0 only for a KNOWN legacy value: that distinction
@@ -79,7 +79,7 @@ accept_web_template() {
 	case "$role" in
 		web) file=$(web_template_file "$WEB_SYSTEM" "$value" 'tpl') ;;
 		proxy) file=$(web_template_file "$PROXY_SYSTEM" "$value" 'tpl') ;;
-		backend) file="$PHPTPL/$value.tpl" ;;
+		backend) file=$(tpl_path php "$value.tpl") ;;
 	esac
 	# A template name from an archive is untrusted: it is joined into a path and cat'd into the
 	# vhost. A plain name only, so path segments cannot escape the template dir and read an
@@ -140,7 +140,7 @@ is_proxy_template_valid() {
 
 is_backend_template_valid() {
 	if [ -n "$WEB_BACKEND" ]; then
-		if [ ! -e "$PHPTPL/$1.tpl" ]; then
+		if [ ! -e "$(tpl_path php "$1.tpl")" ]; then
 			check_result "$E_NOTEXIST" "$1 backend template doesn't exist"
 		fi
 	fi
@@ -561,7 +561,7 @@ add_web_config() {
 		WEBTPL_LOCATION="$WEBTPL_OVERRIDE"
 	fi
 
-	# Docker domain: the front renders from templates/docker/, a backend vhost would only shadow
+	# Docker domain: the front renders from the docker templates, a backend vhost would only shadow
 	# the container. TPL/PROXY stay untouched so a model switch survives; suspend override wins.
 	if [ -n "$DOCKER" ] && [ -z "$WEBTPL_OVERRIDE" ]; then
 		# DOCKER without DOCKER_IP renders "http://:PORT", and nginx and apache refuse their WHOLE

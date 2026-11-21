@@ -750,7 +750,9 @@ ioncube_pin_apply() {
 
 # The update path calls no h-add-sys-* of its own, so a moved pin reaches an installed box only here.
 tachyon_pin_apply() {
-	"$BIN/h-add-sys-tachyon" > /dev/null 2>&1
+	"$BIN/h-add-sys-tachyon" > /dev/null 2>&1 \
+		|| echo "Warning: Tachyon is not at its pin yet, h-add-sys-tachyon failed; the next update tries again" >&2
+	return 0
 }
 
 # The login alias content is the admin's once the file exists, owner and mode stay ours: the installer's

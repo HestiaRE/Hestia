@@ -1,0 +1,91 @@
+#!/bin/bash
+# info: keep a DNS record as an exception to what HestiaRE derives
+# options: USER ZONE RECORD TYPE [VALUE...]
+#
+# example: h-add-dns-zone-exception admin example.com @ MX '10 mx.example.net.'
+# example: h-add-dns-zone-exception admin example.com webmail AAAA
+#
+# The values stand in for the derived one of the row USER owns at RECORD TYPE: the zone page shows a match as
+# "exception", and a sync puts them back instead of writing the derived value. Without VALUE the record is kept
+# absent. An MX value is "PRIORITY HOST"; "CNAME HOST" and "wildcard *.NAME" accept what answers through them.
+# Nothing is written to the provider.
+
+user=$1
+zone=$2
+record=${3,,}
+type=${4^^}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+# txt_kind VALUE: spf1, dmarc1, dkim1 or empty, as dns-compare.php tells TXT records apart.
+txt_kind() {
+	[[ "${1,,}" =~ ^v=(spf1|dmarc1|dkim1)([^a-z0-9_]|$) ]] && echo "${BASH_REMATCH[1]}"
+}
+
+check_args '4' "$#" 'USER ZONE RECORD TYPE [VALUE...]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+[[ "$record" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] || check_result "$E_INVALID" "invalid record: $3"
+case $type in
+	A | AAAA | MX | TXT) ;;
+	*) check_result "$E_INVALID" "invalid type: $4" ;;
+esac
+shift 4
+values=()
+for v in "$@"; do
+	[[ "$v" == *[[:cntrl:]]* ]] && check_result "$E_INVALID" "a value carries a control character"
+	[ "${#v}" -le 4096 ] || check_result "$E_INVALID" "a value is longer than 4096 characters"
+	if [[ "$v" =~ ^(CNAME|ALIAS)\ +([a-zA-Z0-9_.-]+)$ ]]; then
+		v="${BASH_REMATCH[1]} ${BASH_REMATCH[2]}"
+	elif [[ "$v" =~ ^wildcard\ +(\*(\.[a-zA-Z0-9_-]+)*)$ ]]; then
+		v="wildcard ${BASH_REMATCH[1]}"
+	else
+		case $type in
+			A) is_ip_format_valid "$v" 'value' ;;
+			AAAA) is_ipv6_format_valid "$v" 'value' ;;
+			MX)
+				[[ "$v" =~ ^([0-9]{1,5})\ +[a-zA-Z0-9_.-]+$ ]] && [ "${BASH_REMATCH[1]}" -le 65535 ] \
+					|| check_result "$E_INVALID" "an MX value is PRIORITY HOST, the priority up to 65535: $v"
+				;;
+			TXT)
+				[ -n "$v" ] || check_result "$E_INVALID" "an empty TXT value"
+				# The compare reads the provider's TXT unquoted, a quoted exception would never match it.
+				[[ "$v" == \"* ]] && check_result "$E_INVALID" "a TXT value goes without the quotes of a zone file: $v"
+				;;
+		esac
+	fi
+	values+=("$v")
+done
+
+zone=$(dns_ascii "$zone")
+# Only a row the user owns: an exception for a name HestiaRE does not derive would compare against nothing.
+row=$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" -v r="$record" -v t="$type" \
+	'$5 == u && $6 == r && $7 == t { print $3 "\t" $4 "\t" $10; exit }')
+[ -n "$row" ] || check_result "$E_NOTEXIST" "$user has no derived $type row at $record in zone $zone"
+IFS=$'\t' read -r section object derived <<< "$row"
+# The compare matches a TXT row by its kind, so a value of another kind would never be found and replace the record.
+kind=''
+[ "$type" = TXT ] && kind=$(txt_kind "$derived")
+if [ -n "$kind" ]; then
+	for v in "${values[@]}"; do
+		[[ "$v" =~ ^(CNAME|ALIAS|wildcard)\  ]] && continue
+		[ "$(txt_kind "$v")" = "$kind" ] || check_result "$E_INVALID" "the $record TXT row is v=$kind, the value is not: $v"
+	done
+fi
+
+dns_exception_set "$user" "$zone" "$record" "$type" "$section" "${object,,}" "${values[@]}" \
+	|| check_result "$E_DISK" "the exception could not be written"
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS exception kept (Zone: $zone, Record: $record $type, User: $user)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

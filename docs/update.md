@@ -86,6 +86,9 @@ arrived some other way.
 8. Work the plan off, entry by entry.
 9. Only when the list is done: repair, object registries, status version, clear the panel flag,
    start the panel.
+10. Run the smoke test. The terminal shows its FAIL lines and one result line, the full output
+    lands in `smoke.txt`. A red smoke does not fail the update: the run is done, the smoke says
+    what needs a look.
 
 ## The run directory
 
@@ -99,6 +102,7 @@ hestia.conf               the panel config as it was
 paths/                    every path an entry declared, as it was
 update.conf               the plan that was derived
 update.log                what happened, with timestamps
+smoke.txt                 the smoke test at the end of a finished run
 rollback.sh               the way back
 point-of-no-return        present once the run passed the line
 ```

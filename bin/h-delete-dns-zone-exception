@@ -1,0 +1,41 @@
+#!/bin/bash
+# info: lift a DNS exception
+# options: USER ZONE RECORD TYPE
+#
+# example: h-delete-dns-zone-exception admin example.com @ MX
+#
+# The row at RECORD TYPE is compared with the derived value again, and a sync writes that. Also for an exception
+# whose row is gone. Nothing is written to the provider.
+
+user=$1
+zone=$2
+record=${3,,}
+type=${4^^}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '4' "$#" 'USER ZONE RECORD TYPE'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+[[ "$record" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] || check_result "$E_INVALID" "invalid record: $3"
+case $type in
+	A | AAAA | MX | TXT) ;;
+	*) check_result "$E_INVALID" "invalid type: $4" ;;
+esac
+
+zone=$(dns_ascii "$zone")
+dns_exception_rows "$zone" "$user" | awk -F '\t' -v r="$record" -v t="$type" '$2 == r && $3 == t { f = 1 } END { exit !f }' \
+	|| check_result "$E_NOTEXIST" "$user keeps no exception for $record $type in zone $zone"
+dns_exception_drop "$user" "$zone" "$record" "$type" || check_result "$E_DISK" "the exception could not be removed"
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS exception lifted (Zone: $zone, Record: $record $type, User: $user)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

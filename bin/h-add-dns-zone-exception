@@ -27,7 +27,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # txt_kind VALUE: spf1, dmarc1, dkim1 or empty, as dns-compare.php tells TXT records apart.
 txt_kind() {
-	[[ "${1,,}" =~ ^\"?v=(spf1|dmarc1|dkim1)([^a-z0-9]|$) ]] && echo "${BASH_REMATCH[1]}"
+	[[ "${1,,}" =~ ^v=(spf1|dmarc1|dkim1)([^a-z0-9_]|$) ]] && echo "${BASH_REMATCH[1]}"
 }
 
 check_args '4' "$#" 'USER ZONE RECORD TYPE [VALUE...]'
@@ -56,7 +56,11 @@ for v in "$@"; do
 				[[ "$v" =~ ^([0-9]{1,5})\ +[a-zA-Z0-9_.-]+$ ]] && [ "${BASH_REMATCH[1]}" -le 65535 ] \
 					|| check_result "$E_INVALID" "an MX value is PRIORITY HOST, the priority up to 65535: $v"
 				;;
-			TXT) [ -n "$v" ] || check_result "$E_INVALID" "an empty TXT value" ;;
+			TXT)
+				[ -n "$v" ] || check_result "$E_INVALID" "an empty TXT value"
+				# The compare reads the provider's TXT unquoted, a quoted exception would never match it.
+				[[ "$v" == \"* ]] && check_result "$E_INVALID" "a TXT value goes without the quotes of a zone file: $v"
+				;;
 		esac
 	fi
 	values+=("$v")

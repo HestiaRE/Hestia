@@ -180,13 +180,14 @@ dnsp_mask() {
 	fi
 }
 
-# dnsp_check_zone ZONE [SECTION OBJECT]: the zone's desired rows (dns_zone_rows) against what its account holds,
-# into DNSP_CHECK as dns-compare.php prints it, and the number of differing rows into DNSP_DIFFS and the status
-# cache; with SECTION and OBJECT the writes for that section from the same read into DNSP_PLAN. DNSP_REF names the
-# zone at the provider. rc 3 when no account holds the zone, else as dnsp_call. Needs dns.sh.
+# dnsp_check_zone ZONE [SECTION OBJECT OWNER [CONFIRM]]: the zone's desired rows (dns_zone_rows) against what its
+# account holds, into DNSP_CHECK as dns-compare.php prints it, and the number of differing rows (orphans among them)
+# into DNSP_DIFFS and the status cache; with SECTION OBJECT OWNER the writes for that section from the same read into
+# DNSP_PLAN, CONFIRM as dns-compare.php takes it. DNSP_ACTUAL keeps the provider's records, DNSP_REF names the zone
+# at the provider. rc 3 when no account holds the zone, else as dnsp_call. Needs dns.sh.
 dnsp_check_zone() {
-	local zone="$1" account ref desired rc tmp apex=no
-	DNSP_CHECK='' DNSP_DIFFS='' DNSP_PLAN='' DNSP_REF=''
+	local zone="$1" account ref desired rc tmp apex=no owners
+	DNSP_CHECK='' DNSP_DIFFS='' DNSP_PLAN='' DNSP_REF='' DNSP_ACTUAL=''
 	dns_load
 	read -r account ref <<< "$(dns_zone_account "$zone")"
 	[ -n "$account" ] || return 3
@@ -202,17 +203,36 @@ dnsp_check_zone() {
 		dnsp_status_set "$zone" "$account" error
 		return "$rc"
 	fi
+	DNSP_ACTUAL=$(cat "$tmp/actual")
 	awk -F '\t' '$6 == "@" { f = 1 } END { exit !f }' <<< "$desired" && apex=yes
 	printf '%s\n' "$desired" > "$tmp/desired"
-	DNSP_CHECK=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" < /dev/null)
+	# Every owner's exceptions: the admin view holds the sections of all users in the zone.
+	mapfile -t owners < <(cut -f 5 <<< "$desired" | sort -u | sed '/^$/d')
+	dns_exception_rows "$zone" "${owners[@]}" > "$tmp/kept"
+	dns_written_rows "$zone" > "$tmp/written"
+	DNSP_CHECK=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" \
+		"$tmp/kept" "$tmp/written" < /dev/null)
 	rc=$?
-	if [ "$rc" = 0 ] && [ -n "${3-}" ]; then
-		DNSP_PLAN=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" "$2" "$3" \
-			< /dev/null)
+	if [ "$rc" = 0 ] && [ -n "${4-}" ]; then
+		DNSP_PLAN=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" \
+			"$tmp/kept" "$tmp/written" "$2" "$3" "$4" "${5-}" < /dev/null)
 		rc=$?
 	fi
 	rm -rf "$tmp"
 	[ "$rc" = 0 ] || return 2
-	DNSP_DIFFS=$(awk -F '\t' '$1 != "foreign" && $1 != "hidden" && $9 != "ok" { n++ } END { print n + 0 }' <<< "$DNSP_CHECK")
+	DNSP_DIFFS=$(awk -F '\t' '$1 != "foreign" && $1 != "hidden" && $9 != "ok" && $9 != "exception" { n++ }
+		END { print n + 0 }' <<< "$DNSP_CHECK")
 	dnsp_status_set "$zone" "$account" "$DNSP_DIFFS"
+}
+
+# dnsp_written_gone ZONE: OWNER REL TYPE VALUE of each record noted as written that DNSP_ACTUAL no longer holds.
+dnsp_written_gone() {
+	local tmp rc
+	tmp=$(mktemp -d) || return 2
+	printf '%s\n' "$DNSP_ACTUAL" > "$tmp/actual"
+	dns_written_rows "$1" > "$tmp/written"
+	"$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$1" "$tmp/actual" "$tmp/written" < /dev/null
+	rc=$?
+	rm -rf "$tmp"
+	return "$rc"
 }

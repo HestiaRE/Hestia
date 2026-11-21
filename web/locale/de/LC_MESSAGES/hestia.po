@@ -885,6 +885,16 @@ msgstr "%s %s wurde zum Provider geschrieben und zurückgelesen."
 
 #: web/list/dns/index.php
 #, php-format
+msgid "%s %s is kept as a foreign record."
+msgstr "%s %s bleibt als fremder Eintrag stehen."
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s is kept as an exception."
+msgstr "%s %s wird als Ausnahme behalten."
+
+#: web/list/dns/index.php
+#, php-format
 msgid "Account %s has been added."
 msgstr "Das Konto %s wurde angelegt."
 
@@ -892,6 +902,11 @@ msgstr "Das Konto %s wurde angelegt."
 #, php-format
 msgid "No DNS zone found for %s."
 msgstr "Keine DNS-Zone für %s gefunden."
+
+#: web/list/dns/index.php
+#, php-format
+msgid "The exception for %s %s has been lifted."
+msgstr "Die Ausnahme für %s %s ist aufgehoben."
 
 #: web/list/dns/index.php
 msgid "The zones are being compared in the background. Each result shows up here as it lands."
@@ -3528,6 +3543,10 @@ msgstr "synchron"
 msgid "no account"
 msgstr "kein Konto"
 
+#: web/templates/pages/list_dns.php
+msgid "none left, records written earlier"
+msgstr "keiner mehr, früher geschriebene Einträge"
+
 #: web/templates/pages/list_dns.php web/templates/pages/list_dns_providers.php
 msgid "not checked yet"
 msgstr "noch nicht geprüft"
@@ -3620,14 +3639,33 @@ msgid_plural "%d changes go to the provider. Records no row of this section deri
 msgstr[0] "%d Änderung geht zum Provider. Records, die keine Zeile dieses Abschnitts ableitet, bleiben unberührt."
 msgstr[1] "%d Änderungen gehen zum Provider. Records, die keine Zeile dieses Abschnitts ableitet, bleiben unberührt."
 
+#: web/templates/pages/list_dns_sync.php
+#, php-format
+msgid "%d record HestiaRE wrote for %s is removed from the provider. No other record is touched."
+msgid_plural "%d records HestiaRE wrote for %s are removed from the provider. No other record is touched."
+msgstr[0] "%d Eintrag, den HestiaRE für %s geschrieben hat, wird beim Provider entfernt. Kein anderer Eintrag wird angefasst."
+msgstr[1] "%d Einträge, die HestiaRE für %s geschrieben hat, werden beim Provider entfernt. Kein anderer Eintrag wird angefasst."
+
 #: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_mail_dns.php
 msgid "IP or Value"
 msgstr "IP oder Wert"
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Keep the CNAME"
+msgstr "CNAME behalten"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Keep the www include"
+msgstr "www-Include behalten"
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Nothing to write: the provider holds what HestiaRE derives, or every difference is left alone below."
 msgstr "Nichts zu schreiben: Der Provider hat, was HestiaRE ableitet, oder jede Abweichung bleibt unten unangetastet."
+
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
+msgid "Orphaned"
+msgstr "Verwaist"
 
 #: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_mail_dns.php
@@ -3638,6 +3676,14 @@ msgstr "Priorität"
 #: web/templates/pages/list_mail_dns.php
 msgid "Record"
 msgstr "Eintrag"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Replace the CNAME by records of its own"
+msgstr "CNAME durch eigene Einträge ersetzen"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Switch the www include off, www gets records of its own"
+msgstr "www-Include ausschalten, www bekommt eigene Einträge"
 
 #: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_mail_dns.php
@@ -3668,6 +3714,10 @@ msgstr "entfernen"
 msgid "set main IP"
 msgstr "Haupt-IP setzen"
 
+#: web/templates/pages/list_dns_sync.php
+msgid "www include off"
+msgstr "www-Include aus"
+
 #: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "%d record elsewhere in the zone, outside the names of this server."
@@ -3681,6 +3731,10 @@ msgid "%d record no object on this server derives. HestiaRE never changes it."
 msgid_plural "%d records no object on this server derives. HestiaRE never changes them."
 msgstr[0] "%d Eintrag, den kein Objekt dieses Servers ableitet. HestiaRE ändert ihn nie."
 msgstr[1] "%d Einträge, die kein Objekt dieses Servers ableitet. HestiaRE ändert sie nie."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Accept what the provider holds instead of the derived value. Sync then leaves it alone."
+msgstr "Annehmen, was beim Provider steht, statt des abgeleiteten Werts. Der Abgleich lässt den Eintrag dann unangetastet."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Alias of"
@@ -3703,6 +3757,10 @@ msgid "CNAME"
 msgstr "CNAME"
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Compare with the derived value again. Sync then writes that."
+msgstr "Wieder mit dem abgeleiteten Wert vergleichen. Der Abgleich schreibt dann diesen."
+
+#: web/templates/pages/list_dns_zone.php
 #, php-format
 msgid "Compared with account %2$s just now: %1$d record differs from what HestiaRE derives. Sync shows a section's writes before anything changes."
 msgid_plural "Compared with account %2$s just now: %1$d records differ from what HestiaRE derives. Sync shows a section's writes before anything changes."
@@ -3713,6 +3771,26 @@ msgstr[1] "Eben mit Konto %2$s verglichen: %1$d Records weichen von dem ab, was 
 #, php-format
 msgid "Compared with account %s just now: every record HestiaRE derives is in place."
 msgstr "Eben mit dem Konto %s verglichen: Jeder Eintrag, den HestiaRE ableitet, ist vorhanden."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type."
+msgstr "HestiaRE hat diese Einträge geschrieben, und nichts auf diesem Server leitet sie mehr ab: Die Domain oder der Alias ist weg, oder der Name bekommt keinen Eintrag dieses Typs mehr."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep as exception"
+msgstr "Als Ausnahme behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep as foreign record"
+msgstr "Als fremden Eintrag behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep without this record"
+msgstr "Ohne diesen Eintrag behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Lift exception"
+msgstr "Ausnahme aufheben"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "No provider account holds this zone. Enter the records at the provider by hand."
@@ -3739,8 +3817,16 @@ msgid "Public DNS did not answer for the name servers of this zone: whether anyo
 msgstr "Das öffentliche DNS hat zu den Nameservern dieser Zone nicht geantwortet: Ob jemand sie beim Provider liest, ist unbekannt."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Remove from provider"
+msgstr "Beim Provider entfernen"
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Sync to provider"
 msgstr "Mit Provider abgleichen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "The record stays at the provider, and HestiaRE no longer offers to remove it."
+msgstr "Der Eintrag bleibt beim Provider, und HestiaRE bietet nicht mehr an, ihn zu entfernen."
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format
@@ -3758,6 +3844,10 @@ msgstr "delegiert"
 #: web/templates/pages/list_dns_zone.php
 msgid "different"
 msgstr "abweichend"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "exception"
+msgstr "Ausnahme"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "missing"

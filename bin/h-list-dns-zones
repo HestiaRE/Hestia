@@ -6,7 +6,8 @@
 #
 # One entry per zone, never per domain: the sections in it, whether one of them holds the apex, and the users
 # owning them. A zone a provider account holds names the account and the result of its last check
-# (h-check-dns-zone); any other zone comes from public DNS.
+# (h-check-dns-zone); any other zone comes from public DNS. A zone the user keeps records for without a section
+# left in it (the records HestiaRE wrote for a deleted domain) is listed with no sections.
 
 user=$1
 format=${2-shell}
@@ -23,10 +24,29 @@ source $HESTIA/include/dns.sh
 source $HESTIA/include/dns-provider.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
-# ZONE STATE SECTIONS APEX USERS ROWS ALIAS_OF ACCOUNT DIFFERENCES CHECKED; sections, users and the objects whose
-# aliases the zone carries are comma separated. DIFFERENCES is a count or "error", empty before the first check.
-zone_list() {
-	dns_sections <<< "$rows" | awk -F '\t' 'BEGIN { OFS = FS }
+# ZONE STATE SECTIONS APEX USERS ROWS ALIAS_OF, what the derivation yields: sections, users and the objects whose
+# aliases the zone carries are comma separated.
+zone_derive() {
+	dns_sections <<< "$rows" | zone_sections
+	# A zone only the user's store names has no section: APEX stays empty.
+	cut -d ' ' -f 1 <<< "$DNS_USER_ZONES" | grep -vxF -f <(cut -f 1 <<< "$rows" | sed '/^$/d') \
+		| awk -v u="$user" 'NF { print $1 "\taccount\t\t\t" u "\t0\t" }'
+}
+
+# The derived lines with ACCOUNT DIFFERENCES CHECKED appended. DIFFERENCES is a count or "error", empty before the
+# first check.
+zone_status() {
+	awk -F '\t' -v accounts="$DNS_ACCOUNT_ZONES" -v status="$DNSP_CACHE/status" 'BEGIN {
+			OFS = FS
+			n = split(accounts, l, "\n")
+			for (i = 1; i <= n; i++) if (split(l[i], f, "\t") >= 2) acc[f[1]] = f[2]
+			while ((getline line < status) > 0) if (split(line, f, "\t") >= 4) { d[f[1], f[2]] = f[3]; t[f[1], f[2]] = f[4] }
+		}
+		NF { a = acc[$1]; print $1, $2, $3, $4, $5, $6, $7, a, (a != "" ? d[$1, a] : ""), (a != "" ? t[$1, a] : "") }'
+}
+
+zone_sections() {
+	awk -F '\t' 'BEGIN { OFS = FS }
 		function add(a, t, k, v) { if (!((t, k, v) in seen)) { seen[t, k, v] = 1; a[k] = a[k] (a[k] ? "," : "") v } }
 		!($1 in st) { order[++n] = $1; st[$1] = $2 }
 		{ c[$1]++; add(s, "s", $1, $3); add(u, "u", $1, $5) }
@@ -37,13 +57,7 @@ zone_list() {
 				z = order[i]
 				print z, st[z], s[z], (apex[z] ? "yes" : "no"), u[z], c[z], al[z]
 			}
-		}' | awk -F '\t' -v accounts="$DNS_ACCOUNT_ZONES" -v status="$DNSP_CACHE/status" 'BEGIN {
-			OFS = FS
-			n = split(accounts, l, "\n")
-			for (i = 1; i <= n; i++) if (split(l[i], f, "\t") >= 2) acc[f[1]] = f[2]
-			while ((getline line < status) > 0) if (split(line, f, "\t") >= 4) { d[f[1], f[2]] = f[3]; t[f[1], f[2]] = f[4] }
-		}
-		{ a = acc[$1]; print $1, $2, $3, $4, $5, $6, $7, a, (a != "" ? d[$1, a] : ""), (a != "" ? t[$1, a] : "") }'
+		}'
 }
 
 json_list() {
@@ -63,10 +77,25 @@ is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 
 dnsp_zones_fresh
-dns_user_zones "$user"
-zones=$(cut -d ' ' -f 1 <<< "$DNS_USER_ZONES" | tr '\n' ' ')
-rows=$(dns_zone_rows "$zones")
-list=$(zone_list)
+dns_account_zones_load
+# The derivation costs seconds on a box with hundreds of domains, and every page of the DNS tab lists the zones: it
+# is kept while what it reads is unchanged, an hour at most, as long as public DNS answers are trusted for an unknown.
+cache="$DNSP_CACHE/zones-$user"
+if [ -f "$cache" ] && [ $(($(date +%s) - $(stat -c %Y "$cache"))) -lt 3600 ] \
+	&& [ "$(head -n 1 "$cache")" = "$(dns_inputs_stamp)" ]; then
+	derived=$(tail -n +2 "$cache")
+else
+	dns_user_zones "$user"
+	zones=$(cut -d ' ' -f 1 <<< "$DNS_USER_ZONES" | tr '\n' ' ')
+	rows=$(dns_zone_rows "$zones")
+	derived=$(zone_derive)
+	# Taken afterwards: the derivation itself remembers the zones it looked up.
+	{
+		dns_inputs_stamp
+		printf '%s\n' "$derived"
+	} | dnsp_write "$cache"
+fi
+list=$(zone_status <<< "$derived")
 
 case $format in
 	json) json_list ;;

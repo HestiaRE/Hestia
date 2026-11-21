@@ -5,11 +5,13 @@ $dns_section_labels = [
 	"sub" => _("Subdomain"),
 	"alias" => _("Alias"),
 	"server" => _("Server"),
+	"orphan" => _("Orphaned"),
 ];
 $dns_op_labels = [
 	"add" => ["fa-circle-plus icon-green", _("add")],
 	"rem" => ["fa-circle-minus icon-red", _("remove")],
 	"main" => ["fa-pen icon-blue", _("set main IP")],
+	"include" => ["fa-link-slash icon-orange", _("www include off")],
 	"skip" => ["fa-circle-pause icon-dim", _("left alone")],
 ];
 ?>
@@ -40,7 +42,11 @@ $dns_op_labels = [
 	<?php } else { ?>
 		<div class="alert alert-info u-mb20" role="alert">
 			<i class="fas fa-exclamation"></i>
-			<p><?= tohtml(sprintf(ngettext("%d change goes to the provider. Records no row of this section derives are never touched.", "%d changes go to the provider. Records no row of this section derives are never touched.", $v_writes), $v_writes)) ?></p>
+			<?php if ($v_section === "orphan") { ?>
+				<p><?= tohtml(sprintf(ngettext("%d record HestiaRE wrote for %s is removed from the provider. No other record is touched.", "%d records HestiaRE wrote for %s are removed from the provider. No other record is touched.", $v_writes), $v_writes, $v_object)) ?></p>
+			<?php } else { ?>
+				<p><?= tohtml(sprintf(ngettext("%d change goes to the provider. Records no row of this section derives are never touched.", "%d changes go to the provider. Records no row of this section derives are never touched.", $v_writes), $v_writes)) ?></p>
+			<?php } ?>
 		</div>
 	<?php } ?>
 
@@ -79,8 +85,27 @@ $dns_op_labels = [
 		</div>
 	<?php } ?>
 
+	<?php
+	$dns_confirm_labels = [
+		"cname" => [_("Replace the CNAME by records of its own"), _("Keep the CNAME")],
+		"include" => [_("Switch the www include off, www gets records of its own"), _("Keep the www include")],
+	];
+foreach (array_unique(array_merge($v_confirmable, $v_confirm)) as $c) {
+	if (!isset($dns_confirm_labels[$c])) {
+		continue;
+	}
+	$on = in_array($c, $v_confirm, true);
+	$next = $on ? array_values(array_diff($v_confirm, [$c])) : array_merge($v_confirm, [$c]);
+	?>
+		<p class="u-mb10">
+			<a class="button button-secondary" href="<?= tohtml($v_confirm_query($next)) ?>">
+				<i class="fas <?= $on ? "fa-rotate-left icon-blue" : "fa-check icon-orange" ?>"></i><?= tohtml($dns_confirm_labels[$c][$on ? 1 : 0]) ?>
+			</a>
+		</p>
+	<?php } ?>
+
 	<?php if ($v_writes > 0) { ?>
-		<form method="post" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => $v_section, "object" => $v_object, "owner" => $v_owner])) ?>">
+		<form method="post" action="<?= tohtml($v_confirm_query($v_confirm)) ?>">
 			<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
 			<input type="hidden" name="v_plan" value="<?= tohtml($v_plan) ?>">
 			<p class="hint u-mb10"><?= tohtml(_("The zone is read again before the write: if it changed since this preview, nothing is written. Afterwards it is read once more and compared.")) ?></p>

@@ -13,6 +13,19 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **DNS records can be kept as exceptions** (#1333). On a zone page a row that differs from what HestiaRE derives,
+  such as an MX to another host or an SPF of its own, is kept with what the provider holds, or kept without the
+  record. It then counts as in line and a sync leaves it alone; when the provider changes it later, the row shows
+  the drift and a sync puts the kept value back. The exceptions belong to the user and travel with the backup.
+- **Orphaned DNS records can be removed** (#1333). HestiaRE notes the records a sync adds; when the domain or alias
+  is deleted, or a name no longer gets that type, they show as orphaned on the zone page, with a preview to remove them
+  or a click to keep them as foreign records. A merged SPF record is never noted, it carries terms of others.
+- **A CNAME or the www include can be replaced on confirmation** (#1333). The sync preview offers to replace a CNAME
+  at a derived name by the records of its own, and to switch the InterNetX www include off when www has to differ
+  from the apex; neither happens unasked.
+
 ### Changed
 
 - **An update ends with the smoke test** (#1405), as an install does. The terminal shows its FAIL lines and a

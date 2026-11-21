@@ -8,6 +8,7 @@ $dns_section_labels = [
 ];
 $dns_status_labels = [
 	"ok" => ["fa-circle-check icon-green", _("ok")],
+	"exception" => ["fa-thumbtack icon-blue", _("exception")],
 	"missing" => ["fa-circle-plus icon-orange", _("missing")],
 	"different" => ["fa-triangle-exclamation icon-orange", _("different")],
 	"cname" => ["fa-triangle-exclamation icon-orange", _("CNAME")],
@@ -15,8 +16,9 @@ $dns_status_labels = [
 	"delegated" => ["fa-circle-pause icon-dim", _("delegated")],
 	"unchecked" => ["fa-circle-question icon-dim", _("unchecked")],
 ];
-// The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them.
-$dns_provider_rows = function (array $rows): void {
+// The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them;
+// $after adds to a row's value cell.
+$dns_provider_rows = function (array $rows, ?callable $after = null): void {
 	?>
 	<div class="units-table js-units-container u-mb10">
 		<div class="units-table-header">
@@ -37,6 +39,9 @@ $dns_provider_rows = function (array $rows): void {
 					<?php if (($r["NOTE"] ?? "") !== "") { ?>
 						<br><span class="u-text-muted u-text-small"><?= tohtml($r["NOTE"]) ?></span>
 					<?php } ?>
+					<?php if ($after !== null) {
+						$after($r);
+					} ?>
 				</div>
 			</div>
 		<?php } ?>
@@ -126,7 +131,7 @@ foreach ($sections as $s) {
 				<?php } ?>
 			</span>
 		</h2>
-		<?php if ($v_checked && array_filter($s["rows"], fn ($r) => ($r["STATUS"] ?? "ok") !== "ok")) { ?>
+		<?php if ($v_checked && array_filter($s["rows"], fn ($r) => !in_array($r["STATUS"] ?? "ok", ["ok", "exception"], true))) { ?>
 			<p class="u-mb10">
 				<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => $s["kind"], "object" => $s["object"], "owner" => $s["owner"]])) ?>">
 					<i class="fas fa-arrows-rotate icon-blue"></i><?= tohtml(_("Sync to provider")) ?>
@@ -195,6 +200,32 @@ foreach ($sections as $s) {
 							<?php if (($r["NOTE"] ?? "") !== "") { ?>
 								<br><span class="u-text-muted u-text-small"><?= tohtml($r["NOTE"]) ?></span>
 							<?php } ?>
+							<?php
+							// Kept with what the provider holds as shown here; a later change there shows as a drift.
+							$keepable = in_array($r["STATUS"], ["different", "missing", "cname", "wildcard"], true) && empty($r["EXCEPTION"]);
+						if ($keepable || !empty($r["EXCEPTION"])) { ?>
+								<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "exception" => 1])) ?>">
+									<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+									<input type="hidden" name="v_owner" value="<?= tohtml($s["owner"]) ?>">
+									<input type="hidden" name="v_record" value="<?= tohtml($r["NAME"]) ?>">
+									<input type="hidden" name="v_type" value="<?= tohtml($r["TYPE"]) ?>">
+									<input type="hidden" name="v_anchor" value="<?= tohtml(($s["kind"] === "mail" ? "obj-mail-" : "obj-") . $s["object"]) ?>">
+									<?php if ($keepable) { ?>
+										<?php foreach ($r["FOUND"] ?? [] as $f) { ?>
+											<input type="hidden" name="v_values[]" value="<?= tohtml($f) ?>">
+										<?php } ?>
+										<input type="hidden" name="v_action" value="keep">
+										<button type="submit" class="button button-secondary" title="<?= tohtml(_("Accept what the provider holds instead of the derived value. Sync then leaves it alone.")) ?>">
+											<i class="fas fa-thumbtack icon-blue"></i><?= tohtml(empty($r["FOUND"]) ? _("Keep without this record") : _("Keep as exception")) ?>
+										</button>
+									<?php } else { ?>
+										<input type="hidden" name="v_action" value="lift">
+										<button type="submit" class="button button-secondary" title="<?= tohtml(_("Compare with the derived value again. Sync then writes that.")) ?>">
+											<i class="fas fa-xmark icon-red"></i><?= tohtml(_("Lift exception")) ?>
+										</button>
+									<?php } ?>
+								</form>
+							<?php } ?>
 						</div>
 					<?php } ?>
 				</div>
@@ -204,6 +235,34 @@ foreach ($sections as $s) {
 			<summary><?= tohtml(_("As zone file lines")) ?></summary>
 			<textarea class="form-control u-console" readonly rows="<?= count($s["rows"]) + 1 ?>"><?= tohtml($s["text"]) ?></textarea>
 		</details>
+	<?php } ?>
+
+	<?php foreach ($orphans as $o) { ?>
+		<h2 class="u-mt20 u-mb10" id="<?= tohtml("obj-orphan-" . $o["object"]) ?>">
+			<?= tohtml(_("Orphaned")) ?>: <?= tohtml($o["object"]) ?>
+			<span class="u-text-muted u-text-small">
+				<?php if ($o["owner"] !== $user_plain) { ?>
+					<i class="fas fa-user icon-dim u-ml5"></i> <?= tohtml(sprintf(_("user %s"), $o["owner"])) ?>
+				<?php } ?>
+			</span>
+		</h2>
+		<p class="u-mb10"><?= tohtml(_("HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type.")) ?></p>
+		<p class="u-mb10">
+			<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => "orphan", "object" => $o["object"], "owner" => $o["owner"]])) ?>">
+				<i class="fas fa-trash icon-red"></i><?= tohtml(_("Remove from provider")) ?>
+			</a>
+		</p>
+		<?php $dns_provider_rows($o["rows"], function (array $r) use ($o, $v_zone): void { ?>
+			<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "orphan" => 1])) ?>">
+				<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+				<input type="hidden" name="v_owner" value="<?= tohtml($o["owner"]) ?>">
+				<input type="hidden" name="v_record" value="<?= tohtml($r["NAME"]) ?>">
+				<input type="hidden" name="v_type" value="<?= tohtml($r["TYPE"]) ?>">
+				<button type="submit" class="button button-secondary" title="<?= tohtml(_("The record stays at the provider, and HestiaRE no longer offers to remove it.")) ?>">
+					<i class="fas fa-thumbtack icon-blue"></i><?= tohtml(_("Keep as foreign record")) ?>
+				</button>
+			</form>
+		<?php }); ?>
 	<?php } ?>
 
 	<?php if ($v_checked) { ?>

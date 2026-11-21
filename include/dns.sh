@@ -301,6 +301,19 @@ dns_anchored() {
 		}'
 }
 
+# dns_inputs_stamp: one line that changes when anything the derivation reads does, by name, size and time. Keep in
+# step with dns_rows, dns_mail_addrs, get_user_ips, the zones store and the zone caches. Not covered, so a caller
+# keeps what it stamped an hour at most: a public DNS answer expiring in the zone cache, the public suffix list.
+dns_inputs_stamp() {
+	{
+		stat -c '%n %s %Y' "$CONF_DIR"/users/*/user.conf "$CONF_DIR"/users/*/web.conf "$CONF_DIR"/users/*/mail.conf \
+			"$CONF_DIR"/users/*/mail/*.pub "$CONF_DIR"/users/*/zones/*.conf "$HOMEDIR"/*/conf/mail/*/ip \
+			"$HOMEDIR"/*/conf/mail/*/ipv6 "$CONF_DIR"/ips/* "$CONF_DIR"/dns/*.conf "$DNS_ACCOUNT_CACHE"/*.zones \
+			"$DNS_ZONE_CACHE" "$HESTIA/conf/hestia.conf" /etc/hostname 2> /dev/null
+		hostname -f 2> /dev/null
+	} | sha256sum | cut -c 1-16
+}
+
 declare -A DNS_ZONE_MEMO
 
 # dns_load: the anchored rows into DNS_ANCHORED and their names into DNS_NAMES, once per process. The derivation is
@@ -355,15 +368,159 @@ dns_zone_rows() {
 	done <<< "$DNS_ANCHORED"
 }
 
-# dns_user_zones USER: the zones USER's rows live in, one "ZONE STATE" per line, into DNS_USER_ZONES. Not stdout:
-# run in this shell, its lookups stay in the memo, which a later dns_zone_rows in a $() inherits.
+# dns_user_zones USER: the zones USER's rows live in, one "ZONE STATE" per line, into DNS_USER_ZONES, and those of
+# the user's zones store an account holds: what HestiaRE wrote there outlives a deleted domain. Not stdout: run in
+# this shell, its lookups stay in the memo, which a later dns_zone_rows in a $() inherits.
 dns_user_zones() {
-	local anchor kind obj owner rest out=''
+	local anchor kind obj owner rest out='' f z
 	dns_load
 	while IFS=$'\t' read -r anchor kind obj owner rest; do
 		[ "$owner" = "$1" ] || continue
 		dns_anchor_zone "$anchor"
 		out+="$DNS_ZONE_STATE"$'\n'
 	done <<< "$DNS_ANCHORED"
+	for f in "$CONF_DIR/users/$1/zones"/*.conf; do
+		[ -e "$f" ] || continue
+		z=${f##*/}
+		z=${z%.conf}
+		[ -n "$(dns_zone_account "$z")" ] && out+="$z account"$'\n'
+	done
 	DNS_USER_ZONES=$(sort -u <<< "$out" | sed '/^$/d')
+}
+
+# The records a user keeps for a zone, one line per value: KIND exception is a value accepted instead of the derived
+# one, KIND written a derived record HestiaRE wrote to the provider. In the user's data directory, so they travel with
+# the backup; zones/, never dns/, which a HestiaCP restore reads as its own records.
+dns_zone_file() {
+	echo "$CONF_DIR/users/$1/zones/$2.conf"
+}
+
+# dns_store_read FILE OWNER KIND: OWNER REL TYPE VALUE SECTION OBJECT of each line of KIND, an MX value as
+# "PRIORITY HOST". The file may come from an archive: a line outside the record grammar is left out.
+dns_store_read() {
+	local line rel type prio value
+	[ -f "$1" ] && [ ! -L "$1" ] || return 0
+	while IFS= read -r line || [ -n "$line" ]; do
+		record_line_valid "$line" || continue
+		[ "$(record_field "$line" KIND)" = "$3" ] || continue
+		rel=$(record_field "$line" RECORD) && type=$(record_field "$line" TYPE) || continue
+		prio=$(record_field "$line" PRIORITY)
+		value=$(record_value_decode "$(record_field "$line" VALUE)")
+		[ "$type" = MX ] && [ -n "$value" ] && value="$prio $value"
+		printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$2" "$rel" "$type" "${value//$'\t'/ }" "$(record_field "$line" SECTION)" \
+			"$(record_field "$line" OBJECT)"
+	done < "$1"
+}
+
+# dns_store_other FILE KIND [REL TYPE [VALUE]]: the valid lines of FILE but those of KIND, or of KIND at REL TYPE
+# (with VALUE as dns_store_read prints it).
+dns_store_other() {
+	local line v
+	[ -f "$1" ] && [ ! -L "$1" ] || return 0
+	while IFS= read -r line || [ -n "$line" ]; do
+		record_line_valid "$line" || continue
+		if [ "$(record_field "$line" KIND)" = "$2" ]; then
+			[ "$#" -lt 4 ] && continue
+			if [ "$(record_field "$line" RECORD)" = "$3" ] && [ "$(record_field "$line" TYPE)" = "$4" ]; then
+				[ "$#" -lt 5 ] && continue
+				v=$(record_value_decode "$(record_field "$line" VALUE)")
+				[ "$4" = MX ] && [ -n "$v" ] && v="$(record_field "$line" PRIORITY) $v"
+				[ "${v//$'\t'/ }" = "$5" ] && continue
+			fi
+		fi
+		printf '%s\n' "$line"
+	done < "$1"
+}
+
+# dns_store_line KIND REL TYPE VALUE SECTION OBJECT: one line, an MX VALUE given as "PRIORITY HOST".
+dns_store_line() {
+	local v="$4" prio=''
+	if [ "$3" = MX ] && [[ "$v" =~ ^([0-9]+)\ +(.+)$ ]]; then
+		prio=${BASH_REMATCH[1]}
+		v=${BASH_REMATCH[2]}
+	fi
+	printf "RECORD='%s' TYPE='%s' PRIORITY='%s' VALUE='%s' SECTION='%s' OBJECT='%s' KIND='%s' TIME='%s' DATE='%s'\n" \
+		"$2" "$3" "$prio" "$(record_value_encode "$v")" "$5" "$6" "$1" "$(date +%T)" "$(date +%F)"
+}
+
+# dns_store_write FILE: stdin as FILE through a temp file, so a reader never sees half a file; nothing left, no file.
+dns_store_write() {
+	local f="$1" tmp
+	# A restored archive can carry zones/ as a symlink, and mktemp and mv would follow it.
+	[ -L "${f%/*}" ] && return 1
+	mkdir -p "${f%/*}" || return 1
+	tmp=$(mktemp "${f%/*}/.tmp.XXXXXX") || return 1
+	cat > "$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	if [ -s "$tmp" ]; then
+		chmod 640 "$tmp"
+		mv -f "$tmp" "$f"
+	else
+		rm -f "$tmp" "$f"
+	fi
+}
+
+# dns_exception_rows ZONE OWNER...: OWNER REL TYPE VALUE SECTION OBJECT of each accepted value the owners keep in ZONE.
+dns_exception_rows() {
+	local zone="$1" owner
+	shift
+	for owner in "$@"; do
+		dns_store_read "$(dns_zone_file "$owner" "$zone")" "$owner" exception
+	done
+}
+
+# dns_exception_set USER ZONE REL TYPE SECTION OBJECT [VALUE...]: replace what USER keeps for REL TYPE in ZONE by
+# these values; none means the record is kept absent. An MX value is "PRIORITY HOST".
+dns_exception_set() {
+	local user="$1" zone="$2" rel="$3" type="$4" section="$5" object="$6" f v
+	shift 6
+	f=$(dns_zone_file "$user" "$zone")
+	[ "$#" -gt 0 ] || set -- ''
+	{
+		dns_store_other "$f" exception "$rel" "$type"
+		for v in "$@"; do
+			dns_store_line exception "$rel" "$type" "$v" "$section" "$object"
+		done
+	} | dns_store_write "$f"
+}
+
+# dns_exception_drop USER ZONE REL TYPE: forget what USER keeps for REL TYPE; the file goes with its last line.
+dns_exception_drop() {
+	local f
+	f=$(dns_zone_file "$1" "$2")
+	[ -f "$f" ] && [ ! -L "$f" ] || return 0
+	dns_store_other "$f" exception "$3" "$4" | dns_store_write "$f"
+}
+
+# dns_written_rows ZONE: OWNER REL TYPE VALUE SECTION OBJECT of every derived record HestiaRE wrote to ZONE, for
+# every user: the owner of a deleted domain may have no section left in the zone, and its records are the orphans.
+dns_written_rows() {
+	local d
+	for d in "$CONF_DIR"/users/*; do
+		[ -e "$d" ] || continue
+		dns_store_read "$d/zones/$1.conf" "${d##*/}" written
+	done
+}
+
+# dns_written_add USER ZONE SECTION OBJECT REL TYPE VALUE: note a record the sync wrote, once.
+dns_written_add() {
+	local f
+	f=$(dns_zone_file "$1" "$2")
+	dns_store_read "$f" "$1" written | awk -F '\t' -v r="$5" -v t="$6" -v v="${7//$'\t'/ }" \
+		'$2 == r && $3 == t && $4 == v { f = 1 } END { exit !f }' && return 0
+	{
+		dns_store_other "$f" '-'
+		dns_store_line written "$5" "$6" "$7" "$3" "$4"
+	} | dns_store_write "$f"
+}
+
+# dns_written_drop USER ZONE REL TYPE VALUE: forget a written record, VALUE as dns_store_read prints it; without
+# VALUE every one at REL TYPE.
+dns_written_drop() {
+	local f
+	f=$(dns_zone_file "$1" "$2")
+	[ -f "$f" ] && [ ! -L "$f" ] || return 0
+	dns_store_other "$f" written "${@:3}" | dns_store_write "$f"
 }

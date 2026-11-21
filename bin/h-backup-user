@@ -380,7 +380,7 @@ if [ -n "$WEB_SYSTEM" ] && [ "$WEB" != '*' ]; then
 				[ -z "$bkp_ver" ] && bkp_ver=$(multiphp_default_version)
 			fi
 			# Profiles are the shipped pool templates (custom included); anything else defaults.
-			if [[ "$BACKEND" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -f "$PHPTPL/$BACKEND.tpl" ]; then bkp_profile="$BACKEND"; else bkp_profile='default'; fi
+			if [[ "$BACKEND" =~ ^[a-zA-Z0-9_-]+$ ]] && [ -f "$(tpl_path php "$BACKEND.tpl")" ]; then bkp_profile="$BACKEND"; else bkp_profile='default'; fi
 			if [ "$bkp_ver" = 'none' ]; then bkp_backend='no-php'; else bkp_backend="PHP-${bkp_ver//./_}"; fi
 			grep -q " PHP_VERSION='" hestia/web.conf || sed -i "s| BACKEND='| PHP_VERSION='' BACKEND='|" hestia/web.conf
 			grep -q " PHP_PROFILE='" hestia/web.conf || sed -i "s| BACKEND='| PHP_PROFILE='' BACKEND='|" hestia/web.conf

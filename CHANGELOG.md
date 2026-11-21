@@ -28,6 +28,11 @@ the releases of the command audit, into another.
 
 ### Changed
 
+- **The operator's templates live in `/etc/hestia/templates`** (#1411), in `nginx/`, `proxy/`, `php/` and `email/`.
+  An update overwrote every shipped template under `/usr/local/hestia/templates`, and the both model offered no
+  template of its own. The shipped ready-made templates are copied in once and never overwritten; default and panel
+  stay shipped and are overridden by a file of the same name. In the both model an own proxy template, e.g. for an
+  app proxied past apache, can be chosen. The update moves edited and own templates over and names each in its output.
 - **An update ends with the smoke test** (#1405), as an install does. The terminal shows its FAIL lines and a
   result line, the full output stays in the run directory as `smoke.txt`. It reports and does not change the
   update's exit code.

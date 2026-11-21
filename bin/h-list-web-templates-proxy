@@ -45,11 +45,7 @@ plain_list() {
 }
 
 if [ -n "$PROXY_SYSTEM" ]; then
-	templates=$(ls -t $SHARETPL/$PROXY_SYSTEM \
-		| grep ".tpl$" \
-		| cut -f1 -d . \
-		| grep -v proxy_ip \
-		| sort -u)
+	templates=$(tpl_names "$TPL_OWN/proxy" "$TPL_SHIP/proxy")
 fi
 
 case $format in

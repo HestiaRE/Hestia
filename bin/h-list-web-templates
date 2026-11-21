@@ -44,15 +44,10 @@ plain_list() {
 	done
 }
 
-# A model whose vhost template lives in share/ (apache) offers no choice: the list is empty.
+# Only where nginx serves the domain itself: apache has one vhost, and the proxy role lists its own.
 templates=''
-if [ -z "$PROXY_SYSTEM" ] && [ -d "$WEBTPL/$WEB_SYSTEM" ]; then
-	for tpl_file in "$WEBTPL/$WEB_SYSTEM"/*.tpl; do
-		[ -e "$tpl_file" ] || continue
-		tpl_name=$(basename "$tpl_file" .tpl)
-		templates="${templates:+$templates$'\n'}$tpl_name"
-	done
-	templates=$(printf '%s\n' "$templates" | sort -V)
+if [ -z "$PROXY_SYSTEM" ] && [ "$WEB_SYSTEM" = 'nginx' ]; then
+	templates=$(tpl_names "$TPL_OWN/nginx" "$TPL_SHIP/nginx")
 fi
 
 case $format in

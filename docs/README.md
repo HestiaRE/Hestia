@@ -9,6 +9,7 @@ for. On an installed box they are under `/usr/local/hestia/docs/`.
 | [`update.md`](update.md) | updating a box: what a run does in order, the run directory, the point of no return |
 | [`backup.md`](backup.md) | backing up and restoring a customer: modes, retention, adoption, remote targets, restic |
 | [`docker.md`](docker.md) | rootless Docker per customer: the model, publishing, databases, limits, what to tell a customer |
+| [`templates.md`](templates.md) | web, proxy and PHP templates and mail texts of your own: where they live, lookup, what an update does |
 
 The release notes are in [`CHANGELOG.md`](../CHANGELOG.md), how to report a vulnerability in
 [`SECURITY.md`](../SECURITY.md).

@@ -46,14 +46,7 @@ plain_list() {
 
 templates=''
 docker_front="${PROXY_SYSTEM:-$WEB_SYSTEM}"
-if [ -n "$docker_front" ] && [ -d "$WEBTPL/docker/$docker_front" ]; then
-	declare -a tpl_names=()
-	for tpl_file in "$WEBTPL/docker/$docker_front"/*.tpl; do
-		[ -e "$tpl_file" ] || continue
-		tpl_names+=("$(basename "$tpl_file" .tpl)")
-	done
-	[ ${#tpl_names[@]} -eq 0 ] || templates=$(printf '%s\n' "${tpl_names[@]}" | sort -V)
-fi
+[ -n "$docker_front" ] && templates=$(tpl_names "$TPL_SHIP/docker/$docker_front")
 
 case $format in
 	json) json_list ;;

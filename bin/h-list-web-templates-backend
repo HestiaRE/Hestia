@@ -45,10 +45,7 @@ plain_list() {
 }
 
 if [ -n "$WEB_BACKEND" ]; then
-	templates=$(ls -t $PHPTPL \
-		| cut -f1 -d . \
-		| grep -v proxy_ip \
-		| sort -u)
+	templates=$(tpl_names "$TPL_OWN/php" "$TPL_SHIP/php")
 fi
 
 case $format in

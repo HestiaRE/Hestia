@@ -338,13 +338,13 @@ HESTIA_BACKUP="/root/hst_backups/$(date +%d%m%Y%H%M)"
 # CLI helpers run through the hestia-php wrapper (panel PHP version indirection)
 HESTIA_PHP="$SBIN/hestia-php"
 USER_DATA=$CONF_DIR/users/$user
-# Selectable vhost templates; the non-selectable ones live in share/, and the webmail ones per app
-# under $HESTIA/share/$WEB_SYSTEM/webmail/ (hence no MAILTPL). PHPTPL is its own anchor and not
-# $WEBTPL/$WEB_BACKEND: that is a config VALUE, and renaming the directory would then have to rename
-# the value everywhere it is compared.
-WEBTPL=$HESTIA/templates
+# Templates: shipped under TPL_SHIP, the operator's copies, own ones and overrides under TPL_OWN, by the same directory
+# names (nginx, proxy, php, email; apache and docker are shipped only). An update never writes TPL_OWN. SHARETPL holds
+# what is rendered or copied but never chosen (suspend, skel, awstats, proxy_ip); the webmail vhosts live per app under
+# $HESTIA/share/$WEB_SYSTEM/webmail/.
+TPL_OWN=$CONF_DIR/templates
+TPL_SHIP=$HESTIA/share/templates
 SHARETPL=$HESTIA/share/web
-PHPTPL=$HESTIA/templates/php
 RRD=$HESTIA/web/rrd
 SENDMAIL="$HESTIA/web/inc/mail-wrapper.php"
 HESTIA_GIT_REPO="https://raw.githubusercontent.com/hestiacp/hestiacp"
@@ -3246,4 +3246,42 @@ manage_sshd_allowusers() {
 	# reload only when the line is active (commented = inert, no reload needed)
 	[ -z "$prefix" ] && systemctl reload ssh > /dev/null 2>&1
 	return 0
+}
+
+# tpl_path DIR FILE: the operator's file under TPL_OWN when there is one, else the shipped one.
+tpl_path() {
+	if [ -f "$TPL_OWN/$1/$2" ]; then
+		echo "$TPL_OWN/$1/$2"
+	else
+		echo "$TPL_SHIP/$1/$2"
+	fi
+}
+
+# tpl_names DIR...: the names of the templates (*.tpl) in the directories, once each, sorted.
+tpl_names() {
+	local d f
+	for d in "$@"; do
+		for f in "$d"/*.tpl; do
+			[ -e "$f" ] || continue
+			f=${f##*/}
+			echo "${f%.tpl}"
+		done
+	done | sort -uV
+}
+
+# tpl_seed: the shipped ready-made templates the operator does not have yet, each copied in and named on stdout. A file
+# that exists is the operator's and stays as it is; default and panel stay shipped and are only overridden.
+tpl_seed() {
+	local d f rel
+	for d in nginx proxy php email; do
+		mkdir -p "$TPL_OWN/$d" || return 1
+	done
+	while IFS= read -r f; do
+		[ -n "$f" ] || continue
+		rel=${f#"$TPL_SHIP"/}
+		case ${rel##*/} in default.tpl | panel.tpl) continue ;; esac
+		[ -e "$TPL_OWN/$rel" ] || [ -L "$TPL_OWN/$rel" ] && continue
+		mkdir -p "$TPL_OWN/${rel%/*}" && cp -p "$f" "$TPL_OWN/$rel" || return 1
+		echo "$rel"
+	done <<< "$(find "$TPL_SHIP/nginx" "$TPL_SHIP/php" "$TPL_SHIP/email" -type f 2> /dev/null | sort)"
 }

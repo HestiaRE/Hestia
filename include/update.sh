@@ -950,12 +950,12 @@ templates_etc_apply() {
 			share/web/nginx/*) to=proxy/${rel#share/web/nginx/} ;;
 			*) to=unplaced/$rel ;;
 		esac
-		if ! { mkdir -p "$TPL_OWN/${to%/*}" && cp -p "$f" "$TPL_OWN/$to"; }; then
+		if ! { mkdir -p "$TPL_OWN/${to%/*}" && cp -pP "$f" "$TPL_OWN/$to"; }; then
 			echo "Warning: templates not moved, $rel could not be copied to $TPL_OWN/$to" >&2
 			return 0
 		fi
 		echo "kept as the operator's: $rel -> $TPL_OWN/$to"
-	done <<< "$(find "$HESTIA/templates" "$HESTIA/share/web/nginx" "$HESTIA/share/web/apache2" -type f \
+	done <<< "$(find "$HESTIA/templates" "$HESTIA/share/web/nginx" "$HESTIA/share/web/apache2" \( -type f -o -type l \) \
 		! -path "$HESTIA/share/web/nginx/proxy_ip.tpl" 2> /dev/null | sort)"
 	if ! f=$(tpl_seed); then
 		echo "Warning: templates not moved, the shipped ones could not all be copied to $TPL_OWN" >&2

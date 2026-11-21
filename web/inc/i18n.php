@@ -1,5 +1,7 @@
 <?php
 
+use function Hestiacp\quoteshellarg\quoteshellarg;
+
 // Functions for internationalization
 // I18N support information here
 

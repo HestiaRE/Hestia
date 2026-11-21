@@ -877,8 +877,17 @@ check_policy_fragment_coverage() {
 		no "${#PF_GAPS[@]} policy fragment include(s) missing from web templates" "${PF_GAPS[0]#"$HESTIA/"}"
 	fi
 	# What the operator copies, edits or writes under /etc is the operator's: a gap is named, the box stays green.
-	policy_fragment_scan "$TPL_OWN"
-	if [ "${#PF_GAPS[@]}" -eq 0 ]; then
+	# unplaced/ holds what the update moved aside and nothing reads.
+	local roots=() d
+	for d in "$TPL_OWN"/*/; do
+		[ -e "$d" ] || continue
+		[ "$d" = "$TPL_OWN/unplaced/" ] || roots+=("${d%/}")
+	done
+	PF_CHECKED=0 PF_GAPS=()
+	[ "${#roots[@]}" -eq 0 ] || policy_fragment_scan "${roots[@]}"
+	if [ "$PF_CHECKED" -eq 0 ]; then
+		skip "no domain templates of the operator under $TPL_OWN"
+	elif [ "${#PF_GAPS[@]}" -eq 0 ]; then
 		ok "policy fragment includes complete in the operator's templates ($PF_CHECKED under $TPL_OWN)"
 	else
 		local IFS=';'

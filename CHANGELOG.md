@@ -13,36 +13,48 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.37 (2026-11-21)
+
+DNS exceptions and orphans complete the provider sync, the operator's templates move to `/etc/hestia/templates`, and
+an update ends with the smoke test.
+
 ### Added
 
-- **DNS records can be kept as exceptions** (#1333). On a zone page a row that differs from what HestiaRE derives,
-  such as an MX to another host or an SPF of its own, is kept with what the provider holds, or kept without the
-  record. It then counts as in line and a sync leaves it alone; when the provider changes it later, the row shows
-  the drift and a sync puts the kept value back. The exceptions belong to the user and travel with the backup.
-- **Orphaned DNS records can be removed** (#1333). HestiaRE notes the records a sync adds; when the domain or alias
-  is deleted, or a name no longer gets that type, they show as orphaned on the zone page, with a preview to remove them
-  or a click to keep them as foreign records. A merged SPF record is never noted, it carries terms of others.
-- **A CNAME or the www include can be replaced on confirmation** (#1333). The sync preview offers to replace a CNAME
-  at a derived name by the records of its own, and to switch the InterNetX www include off when www has to differ
-  from the apex; neither happens unasked.
+- **DNS records can be kept as exceptions** (#1333). A row that differs from what HestiaRE derives, such as an MX to
+  another host or an SPF of its own, is kept as the provider holds it, or kept without the record. A sync leaves it
+  alone and puts it back after a drift. Exceptions belong to the user and travel with the backup.
+- **Orphaned DNS records can be removed** (#1333). The records a sync added show as orphaned once their domain or
+  alias is gone or the name no longer gets that type, with a preview to remove them or a click to keep them as foreign.
+- **A CNAME or the InterNetX www include is replaced only on confirmation** (#1333), in the sync preview.
+
+### Security
+
+- **Adminer 6.3.1 and Tachyon 4.7.0** (#1414). Adminer closes an SQL injection through a geometry column name, HTML
+  injection in the search form and two advisories, and its CSRF token becomes 128 random bits. Tachyon's admin
+  settings could empty `application.ini` and switch every plugin off. The update brings both to installed boxes.
 
 ### Changed
 
 - **The operator's templates live in `/etc/hestia/templates`** (#1411), in `nginx/`, `proxy/`, `php/` and `email/`.
   An update overwrote every shipped template under `/usr/local/hestia/templates`, and the both model offered no
-  template of its own. The shipped ready-made templates are copied in once and never overwritten; default and panel
-  stay shipped and are overridden by a file of the same name. In the both model an own proxy template, e.g. for an
-  app proxied past apache, can be chosen. The update moves edited and own templates over and names each in its output.
-- **An update ends with the smoke test** (#1405), as an install does. The terminal shows its FAIL lines and a
-  result line, the full output stays in the run directory as `smoke.txt`. It reports and does not change the
-  update's exit code.
+  template of its own. The ready-made templates are copied in once and never overwritten; default and panel stay
+  shipped and are overridden by a file of the same name. The update moves edited and own templates over and names
+  each in its output. `docs/templates.md` has the details.
+- **An update ends with the smoke test** (#1405), as an install does: FAIL lines and a result line on the terminal,
+  the full output as `smoke.txt` in the run directory. It does not change the update's exit code.
 
 ### Fixed
 
 - **Project quota stayed pending on boxes whose initramfs dracut builds** (#1329), such as the Ubuntu 26.04 cloud
-  images. The one-shot that sets the ext4 features went in as an initramfs-tools hook, which dracut never reads. It
-  now goes in as a dracut module, and the update arms such a box again; quota turns on at the next reboot, which the
-  update leaves to the operator. The smoke checks that the one-shot is in the image the next boot uses.
+  images: the one-shot went in as an initramfs-tools hook, which dracut never reads. It is a dracut module now, the
+  update arms such a box again, and quota turns on at the next reboot.
+- **The fail2ban whitelist read a malformed mask as another range** (#1401): `10.0.0.0/08` as a whole /8,
+  `203.0.113.0/33` as one host. It now leaves out what the firewall refuses.
+- **A cron job migrated from HestiaCP failed the smoke** (#1403) when its command carried `"`, a backtick or a
+  backslash. The restore stores it encoded, as the panel does; a job restored before is fixed by saving it once.
+- Smaller: the Docker proxy address and port stand in one row on the web domain page (#1408).
 
 ## v0.36 (2026-11-19)
 
@@ -51,45 +63,28 @@ DNS, a customer's container reaches PostgreSQL over the socket, and the operator
 
 ### Added
 
-- **CrowdSec scenarios can be switched off one by one** (#1381), on a new page under Firewall. Off runs the scenario
-  in CrowdSec's simulation: it still detects and alerts, but bans nobody, and its bans are lifted; the L7 bouncer may
-  answer 403 from its cache for up to a minute. Meant for a scenario that keeps catching legitimate traffic, such as an
-  AI agent crawling a site. The switch is per box: a mesh peer with the scenario on still publishes its bans.
-- **The IP page shows the reverse DNS of every address** (#1372), as a receiver sees it, for the NAT address where
-  there is one: is there a PTR, does it lead back, is it the name exim greets with. Checked live; a daily job raises a
-  banner for the admin while one does not match. Only on a box with mail.
-- **The operator docs live in `docs/`, with a guide to the per-customer Docker model** (#1390). Backup, update and
-  install recovery moved there, on a box to `/usr/local/hestia/docs/`; the update removes the old copies.
-  `docs/docker.md` covers the companion, the id mapping, publishing, the database sockets, limits and backup scope,
-  and what to tell a customer.
+- **CrowdSec scenarios can be switched off one by one** (#1381), on a page under Firewall: the scenario still detects
+  and alerts but bans nobody. The switch is per box; a mesh peer with it on still publishes its bans.
+- **The IP page shows the reverse DNS of every address** (#1372) as a receiver sees it, the NAT address included, and
+  a daily job raises a banner while one does not match. Only on a box with mail.
+- **The operator docs live in `docs/`** (#1390), on a box under `/usr/local/hestia/docs/`, with a guide to the
+  per-customer Docker model.
 
 ### Changed
 
-- **A customer's container can log in to its PostgreSQL database over the socket** (#1391). Debian's
-  `local all all peer` compared the role with the OS user behind the socket, which a Hestia role (`<user>_<db>`) never
-  is. The socket now takes the role's password, as `127.0.0.1` already did; `postgres` keeps peer, and a line changed
-  by hand stays. A role whose password is still an md5 hash logs in over neither path and needs a new password.
+- **A customer's container can log in to PostgreSQL over the socket** (#1391): the socket takes the role's password
+  instead of peer, `postgres` keeps peer. A role whose password is still an md5 hash needs a new one.
 
 ### Fixed
 
-- **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). CrowdSec read
-  the log of every domain whatever its switch said, a ban from one domain locked the address out of the whole box, and
-  the whitelist exempted it in the firewall but not from CrowdSec's bouncer. Now neither a whitelisted address nor a
-  domain switched off is counted, whitelisting releases current bans, and the switch works without the L7 bouncer.
-  Domains from before the default showed off while CrowdSec watched them; the update and a restore switch them on.
-- **One hand-edited line in the firewall whitelist stopped every firewall change** (#1384). A line the add command
-  would refuse, such as `1.2.3.4/33`, made nft reject the whole ruleset; the renderer now leaves it out and names it
-  in the activity log. A mask with a leading zero is refused everywhere: nft read `2001:db8::/064` as octal and
-  whitelisted a `/52`. One stored before is removed from `excludes.conf` or `banlist.conf` by hand;
-  `grep -E '/0[0-9]'` over the firewall files finds it.
-- **A customer's Sieve `reject` answered spam's forged sender** (#1371). Both webmails offer it ("Discard with a
-  message"), and Pigeonhole mailed the refusal to the envelope sender. The extension is off on dovecot 2.3 and 2.4; a
-  script that still uses it no longer compiles, and its mail goes to the inbox.
-- **A scan during a fresh install left a line in exim's paniclog** (#1376). Every panel request before the sudoers rule
-  existed made sudo mail root, which had no alias yet. The installer writes both before the mail stage.
-- Smaller ones: `h-change-user-password` asks twice at a terminal (#1386), `h-add-sys-docker` says when
-  `apt-get update` did not load Docker's repository (#1392), and the 2FA reset page showed neither its error nor its
-  success message (#1396).
+- **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). Neither a
+  whitelisted address nor a domain switched off is counted now, and whitelisting releases current bans.
+- **One hand-edited line in the firewall whitelist stopped every firewall change** (#1384); the renderer leaves it out
+  and names it in the activity log. A mask with a leading zero is refused: nft read `/064` as octal.
+- **A customer's Sieve `reject` answered spam's forged sender** (#1371); the extension is off on dovecot 2.3 and 2.4.
+- Smaller ones: a paniclog line after a scan during a fresh install (#1376), `h-change-user-password` asks twice at a
+  terminal (#1386), `h-add-sys-docker` names a failed repository load (#1392), and the 2FA reset page showed no
+  message (#1396).
 
 ## v0.35 (2026-11-17)
 
@@ -98,27 +93,19 @@ session, and a catch-all stays in its own domain.
 
 ### Changed
 
-- **A forward is a redirect in the mailbox's Sieve script** (#1337). exim forwarded after the SMTP session, and a
-  refusing target bounced to the sender, forged in most spam: the backscatter that got a box listed. The redirect
-  leaves from the mailbox, so a refusal stays there, and spam is no longer forwarded. The webmail can edit the rule,
-  four addresses at most; the update moves existing forwards and names the accounts whose forward stays in exim.
-- **A full mailbox is refused in the SMTP session** (#1337): exim asks dovecot's quota-status at RCPT and answers 552
-  instead of bouncing four days later.
-- **A catch-all goes to an account of its own domain** (#1337); an external one forwarded every refusal back. A restore
-  drops one and says so, one already set stays.
-- **exim no longer answers autoreplies** (#1337); the vacation rules in Sieve do, and the update moves the rest.
-- **Panel and `h-list-mail-account(s)` show a forward as the Sieve script holds it** (#1337), with `FWD_SOURCE` saying
-  where it lives.
+- **A forward is a redirect in the mailbox's Sieve script** (#1337), so a refusing target no longer bounces to the
+  forged sender of spam, the backscatter that got a box listed. Four addresses at most; the update moves existing
+  forwards. exim no longer answers autoreplies, the vacation rules in Sieve do.
+- **A full mailbox is refused in the SMTP session** (#1337) with 552, through dovecot's quota-status.
+- **A catch-all goes to an account of its own domain** (#1337); a restore drops an external one and says so.
 
 ### Fixed
 
-- **A busy sending host was refused with 550 for every mail to the box** (#1366): exim's per-account send limit counted
-  inbound mail too. Inherited from upstream.
-- **Switching the autoreply on in the panel wiped a filter set switched off in the webmail** (#1337); it now refuses.
-- **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362) without python3-pyinotify; the
-  installer, `h-add-sys-fail2ban` and the update install it.
-- **Vacation answers could be deferred once the box sent 200 an hour** (#1337) on dovecot 2.4; Sieve mail no longer
-  shares the websites' send bucket.
+- **A busy sending host was refused with 550 for every mail to the box** (#1366): exim's send limit counted inbound
+  mail too. Inherited from upstream.
+- **fail2ban stopped watching exim's log after a rotation on a quiet box** (#1362) without python3-pyinotify.
+- Smaller ones: the panel's autoreply switch wiped a filter set switched off in the webmail, and vacation answers could
+  be deferred once the box sent 200 an hour on dovecot 2.4 (both #1337).
 
 ## v0.34 (2026-11-15)
 

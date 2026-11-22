@@ -57,6 +57,8 @@ if [ -n "$suspended" ]; then
 		decrease_user_value "$user" '$SUSPENDED_DB'
 	fi
 fi
+# The record's share leaves the totals now, not at the nightly recount.
+recalc_user_disk_usage
 
 $BIN/h-log-action "$user" "Info" "Database" "Deleted database (Name: $database)."
 log_event "$OK" "$ARGUMENTS"

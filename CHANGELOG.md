@@ -20,7 +20,7 @@ the releases of the command audit, into another.
   awaited at every name server of the zone, and is removed afterwards, on failure too. Other names stay on HTTP-01
   and switch to DNS-01 only where an account exists and the name has no record or does not point at the box. Foreign
   `_acme-challenge` records are never touched. Without an account a wildcard is refused with that reason instead of
-  "not supported".
+  "not supported". A rename checks the certificate's names the same way before anything moves.
 - **An IP change and a server move carry the DNS records at the providers along** (#1419, stage 3 of #863). Only
   records HestiaRE derives that carry the old address change, an SPF gets the new address beside the old one (mail may
   still leave from the old box while both run), a record with an exception or another value stays. `h-sync-dns USER|all OLD=NEW[,...]` previews the move over every zone with an

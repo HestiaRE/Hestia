@@ -20,6 +20,10 @@ source $HESTIA/include/main.sh
 source $HESTIA/include/domain.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source $HESTIA/include/dns.sh
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source $HESTIA/include/dns-provider.sh
 source_conf "$HESTIA/conf/hestia.conf"
 web_lock_acquire || exit 1
 
@@ -103,7 +107,10 @@ if [ "$SSL" = 'yes' ]; then
 	done
 	IFS=, read -ra _alias_list <<< "$new_domain,$cert_aliases"
 	if [ "$LETSENCRYPT" = 'yes' ]; then
+		# As h-add-letsencrypt-domain chooses: where a provider account holds the zone, DNS-01 issues any name.
 		for a in "${_alias_list[@]}"; do
+			dnsp_acme_zone "$(name_idn "${a#\*.}")" && continue
+			[[ "$a" != '*.'* ]] || check_result "$E_INVALID" "$a needs DNS-01, and no DNS provider account holds its zone"
 			le_dns_check "$(name_idn "$a")"
 			case $? in
 				0) ;;

@@ -307,7 +307,7 @@ dnsp_acme_set() {
 dnsp_acme_wait() {
 	local zone="${DNSP_ACME_ZONE%% *}" end ns n left
 	end=$(($(date +%s) + $3))
-	ns=$(dig +short NS "$zone" 2> /dev/null | sed -n 's/\.$//; /^[a-z0-9.-]*$/p')
+	ns=$(dig +short NS "$zone" 2> /dev/null | tr '[:upper:]' '[:lower:]' | sed -n 's/\.$//; /^[a-z0-9.-]*$/p')
 	[ -n "$ns" ] || return 1
 	while :; do
 		left=0
@@ -328,7 +328,7 @@ dnsp_acme_clear() {
 }
 
 dnsp_acme_clear_locked() {
-	local f="$DNSP_CACHE/acme" now sel zone account ref keep='' tmp rows rc
+	local f="$DNSP_CACHE/acme" now sel zone account ref keep='' tmp rows rc left
 	[ -s "$f" ] || return 0
 	now=$(date +%s)
 	sel=$(awk -F '\t' -v w="$1" -v n="$now" 'NF && (w == "stale" ? n - $1 > 3600 : $2 == w)' "$f")
@@ -354,8 +354,11 @@ dnsp_acme_clear_locked() {
 			keep+=$(awk -F '\t' -v z="$zone" -v a="$account" '$3 == z && $4 == a' <<< "$sel")$'\n'
 			continue
 		fi
-		keep+=$(awk -F '\t' -v z="$zone" -v a="$account" 'NR == FNR { if ($2 == "TXT") h[$1 "\t" $7] = 1; next }
-			$3 == z && $4 == a && (($6 "\t" $7) in h)' "$tmp" - <<< "$sel")$'\n'
+		left=$(awk -F '\t' -v z="$zone" -v a="$account" 'NR == FNR { if ($2 == "TXT") h[$1 "\t" $7] = 1; next }
+			$3 == z && $4 == a && (($6 "\t" $7) in h)' "$tmp" - <<< "$sel")
+		[ -z "$left" ] \
+			|| dnsp_acme_log "$zone" "result"$'\t'"not removed: $(cut -f 6 <<< "$left" | paste -sd ' ') still in the zone"
+		keep+="$left"$'\n'
 	done <<< "$(cut -f 3-5 <<< "$sel" | sort -u)"
 	rm -f "$tmp"
 	awk -F '\t' 'NR == FNR { if (NF) s[$0] = 1; next } !($0 in s)' <(printf '%s\n' "$sel") "$f" \

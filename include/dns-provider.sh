@@ -302,8 +302,8 @@ dnsp_acme_set() {
 	return "$rc"
 }
 
-# dnsp_acme_wait NAME VALUE SECONDS: until every name server the parent delegates the zone to answers VALUE at
-# _acme-challenge.NAME, asked directly: a resolver could hold an older answer. rc 1 when that takes longer.
+# dnsp_acme_wait NAME VALUE SECONDS: until every name server the zone names answers VALUE at _acme-challenge.NAME,
+# asked directly: a resolver could hold an older answer. rc 1 when that takes longer.
 dnsp_acme_wait() {
 	local zone="${DNSP_ACME_ZONE%% *}" end ns n left
 	end=$(($(date +%s) + $3))

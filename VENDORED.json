@@ -16,6 +16,7 @@
       "path": "web/inc/lib/quoteshellarg.php",
       "upstream_repo": "https://github.com/hestiacp/phpquoteshellarg",
       "upstream_version": "1.1.0",
+      "upstream_branch": "upstream/phpquoteshellarg",
       "license": "Unlicense",
       "reason": "Security-hardened shell argument quoting. PHP's native escapeshellarg() corrupts UTF-8 input (e.g. æøå) in processes running a non-UTF-8 locale. This implementation avoids the locale-dependent code path on Unix by wrapping in single quotes unconditionally.",
       "transitive_deps": [],

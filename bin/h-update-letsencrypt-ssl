@@ -55,12 +55,16 @@ for user in $("$BIN/h-list-users" list); do
 
 			# The certificate holds punycode, the record the name as typed.
 			f_aliases=''
+			f_kept=''
 			IFS=, read -ra _alias_list <<< "$ALIAS"
 			for alias in "${_alias_list[@]}"; do
 				[ -n "$alias" ] || continue
 				alias_idn=$alias
 				if [[ "$alias" = *[![:ascii:]]* ]]; then
 					alias_idn=$(idn2 --quiet "$alias")
+				fi
+				if [[ "$san" == *",$alias_idn,"* ]]; then
+					f_kept+="${f_kept:+,}$alias"
 				fi
 				# A wildcard stays: without an account h-add-letsencrypt-domain leaves it out, with one it comes back.
 				if [[ "$alias" = '*.'* ]] || [[ "$san" == *",$alias_idn,"* ]]; then
@@ -71,6 +75,14 @@ for user in $("$BIN/h-list-users" list); do
 
 			msg=$($BIN/h-add-letsencrypt-domain "$user" "$domain" "$aliases")
 			rc=$?
+			# A wildcard the old certificate lacked is tried, not required: what renewed without it still does.
+			if [ "$rc" -ne 0 ] && [ "$rc" -ne "$E_LIMIT" ] && [ "$aliases" != "$f_kept" ]; then
+				why=$(tail -n 1 <<< "$msg")
+				msg=$($BIN/h-add-letsencrypt-domain "$user" "$domain" "$f_kept")
+				rc=$?
+				[ "$rc" -ne 0 ] || $BIN/h-log-action "$user" "Warning" "Web" \
+					"Let's Encrypt renewed without the new wildcard alias: ${why#Error: } (Domain: $domain)."
+			fi
 			if [ "$rc" -eq "$E_LIMIT" ]; then
 				# A rate limit says nothing about the domain; counting it would retire a healthy one in a week.
 				echo "$msg"

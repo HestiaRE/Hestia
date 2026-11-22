@@ -193,6 +193,8 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 | Provider accounts | `/etc/hestia/dns/<account>.conf` (dir root 700, file 600: provider, context and API key; never backed up, set up again after a restore, #1332) |
 | Provider cache | `/var/cache/hestia/dns-provider/` (root 700, files 600: `<account>.zones`, `<account>.state`, `<account>.last`, the zone `status`, flock files; recomputable, never backed up) |
 | Sync log | `/var/log/hestia/dns-sync.log` (root 600: every write to a provider before it goes out, with the stored value of each removed record, #1333) |
+| Exceptions and written records | `/etc/hestia/users/<user>/zones/<zone>.conf` (one line per value: an exception accepted instead of the derived value, or a derived record HestiaRE wrote; travels with the backup, #1333) |
+| Recorded server move | `/etc/hestia/users/<user>/dns-move.conf` (which old address each new one replaces, written by a restore for `h-sync-dns USER stored`; stays on the box, #1419) |
 
 ### apt (#191, #1292)
 

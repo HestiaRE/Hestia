@@ -1,0 +1,42 @@
+#!/bin/bash
+# info: list the DNS move a restore recorded
+# options: USER [FORMAT]
+#
+# example: h-list-dns-move admin json
+#
+# The old address of each pair and the one the domains got here, as h-sync-dns USER stored moves them.
+
+user=$1
+format=${2-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '1' "$#" 'USER [FORMAT]'
+is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
+case $format in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+list=$(tr ',' '\n' <<< "$(dns_move_read "$user")" | sed '/^$/d; s/=/\t/')
+case $format in
+	json) jq -R -n '[inputs | select(length > 0) | split("\t") | {OLD: .[0], NEW: .[1]}]' <<< "$list" ;;
+	plain) [ -n "$list" ] && echo "$list" ;;
+	shell)
+		if [ -n "$list" ]; then
+			{
+				printf 'OLD\tNEW\n---\t---\n'
+				echo "$list"
+			} | column -t -s $'\t'
+		fi
+		;;
+esac
+
+exit 0

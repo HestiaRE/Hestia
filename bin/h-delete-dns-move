@@ -1,0 +1,30 @@
+#!/bin/bash
+# info: forget the DNS move a restore recorded
+# options: USER
+#
+# example: h-delete-dns-move admin
+#
+# Once the records are moved, or when they are to stay: h-sync-dns USER stored and the DNS tab no longer offer it.
+# Nothing is written to a provider.
+
+user=$1
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '1' "$#" 'USER'
+is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
+
+[ -n "$(dns_move_read "$user")" ] || check_result "$E_NOTEXIST" "no DNS move recorded for $user"
+dns_move_set "$user" || check_result "$E_DISK" "the DNS move could not be removed"
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS move forgotten (User: $user)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

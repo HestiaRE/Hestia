@@ -100,6 +100,9 @@ done
 rm -f /var/spool/mail/$user
 rm -f /var/spool/cron/$user
 rm -f /var/spool/cron/crontabs/$user
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+dns_written_adopt "$user" "$ROOT_USER"
 rm -rf $USER_DATA
 
 # A no-op unless the operator activated an AllowUsers list.

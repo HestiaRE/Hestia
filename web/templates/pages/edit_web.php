@@ -121,6 +121,15 @@
 				</select>
 			</div>
 			<?php } ?>
+			<?php if ($dns_move_offered && ($ip_offered || $ip6_offered)) { ?>
+			<div class="form-check u-mb20">
+				<input class="form-check-input" type="checkbox" name="v_dns_move" id="v_dns_move">
+				<label for="v_dns_move">
+					<?= tohtml(_("On an IP change, move the domain's DNS records at the providers as well")) ?>
+				</label>
+				<p class="hint"><?= tohtml(_("Only records on the old address that HestiaRE derives: the domain's, its aliases', and those of the mail domain of the same name, which sends from the domain's address.")) ?></p>
+			</div>
+			<?php } ?>
 			<div class="form-check u-mb10">
 				<input class="form-check-input" type="checkbox" name="v_offline_check" id="v_offline_check" <?php if ($v_offline == "yes") {
 					echo "checked";

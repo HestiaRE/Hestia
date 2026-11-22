@@ -1,16 +1,18 @@
 #!/bin/bash
 # info: change web domain IPv6 address
-# options: USER DOMAIN IPV6 [RESTART]
+# options: USER DOMAIN IPV6 [RESTART] [SYNC_DNS]
 #
 # example: h-change-web-domain-ip6 admin example.com 2001:db8::2 yes
 #
 # Moves the domain to another v6, or with "none" off v6 altogether. An empty field is not the opt-out: a
 # rebuild adopts the default v6 into it. Rebuild, not sed: adding a family creates lines a replace cannot.
+# SYNC_DNS yes moves the records on the old v6 at the providers as well, as h-change-web-domain-ip does.
 
 user=$1
 domain=$2
 ip46=$3
 restart=$4
+sync_dns=${5:-no}
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -26,7 +28,8 @@ web_lock_acquire || exit 1
 format_domain
 format_domain_idn
 
-check_args '3' "$#" 'USER DOMAIN IPV6 [RESTART]'
+check_args '3' "$#" 'USER DOMAIN IPV6 [RESTART] [SYNC_DNS]'
+[[ "$sync_dns" =~ ^(yes|no)$ ]] || check_result "$E_INVALID" "invalid SYNC_DNS: $sync_dns"
 if [ "$ip46" = 'none' ]; then
 	is_format_valid 'user' 'domain' 'restart'
 else
@@ -70,5 +73,12 @@ check_result $? "Proxy restart failed" > /dev/null
 
 $BIN/h-log-action "$user" "Info" "Web" "Web domain IPv6 address changed (IP6: $ip46, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
+
+# Off v6 nothing derives the AAAA records any longer: the zone page names them, a move has no address to set.
+if [ "$sync_dns" = 'yes' ] && [ "$ip46" = 'none' ]; then
+	echo "DNS: nothing moved, the domain has no v6 now"
+elif [ "$sync_dns" = 'yes' ] && [ "$old_ip6" != 'none' ]; then
+	web_dns_move "$user" "$domain" "$old_ip6" "$ip46"
+fi
 
 exit

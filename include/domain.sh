@@ -417,6 +417,25 @@ le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable
 	return 2
 }
 
+# le_name_here NAME: whether an address NAME resolves to is one of this box, its NAT address included. A name behind a
+# proxy or still on the old box is not here, and DNS-01 can take it where an account holds its zone.
+le_name_here() {
+	local f ip box=' ' a addrs
+	for f in "$CONF_DIR"/ips/*; do
+		[ -e "$f" ] || continue
+		ip=${f##*/}
+		box+="$ip $(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$f" | head -n1) "
+	done
+	mapfile -t addrs < <(
+		dig +short A "$1" 2> /dev/null
+		dig +short AAAA "$1" 2> /dev/null
+	)
+	for a in "${addrs[@]}"; do
+		[ -n "$a" ] && [[ "$box" == *" $a "* ]] && return 0
+	done
+	return 1
+}
+
 # A domain's line in the stats queue, matched by its last two fields whatever path the command was written with.
 webstats_queue_drop() { # USER DOMAIN
 	local q="$CONF_DIR/queue/webstats.pipe"

@@ -246,3 +246,118 @@ dnsp_written_gone() {
 	rm -rf "$tmp"
 	return "$rc"
 }
+
+# DNS-01: the _acme-challenge TXT of a name, set through the account holding its zone. Each one set is noted in
+# $DNSP_CACHE/acme (TIME PID ZONE ACCOUNT REF REL VALUE) until it is gone again: a run killed before its cleanup
+# leaves its records to a later run, and records of the same name set by anyone else are never touched.
+
+# dnsp_acme_zone NAME: "ZONE ACCOUNT REF" of the account zone NAME lies in, into DNSP_ACME_ZONE; rc 1 for none.
+# Without any account it returns at once, so a box without DNS providers issues as it always did. Needs dns.sh.
+dnsp_acme_zone() {
+	local zone
+	DNSP_ACME_ZONE=''
+	compgen -G "$DNSP_CONF_DIR/*.conf" > /dev/null || return 1
+	dnsp_zones_fresh
+	[ -n "${DNS_ACCOUNT_ZONES+set}" ] || dns_account_zones_load
+	zone=$(dns_account_zone "$1")
+	[ -n "$zone" ] || return 1
+	DNSP_ACME_ZONE="$zone $(dns_zone_account "$zone")"
+}
+
+# dnsp_acme_log NAME LINE: into the sync log beside the zone writes, as section acme with this process as its id.
+dnsp_acme_log() {
+	(
+		umask 077
+		printf '%s\t%s\tacme\t%s\t%s\t%s\t%s\n' "$(date '+%F %T')" "${DNSP_ACME_ZONE%% *}" "$1" "$DNSP_ACCOUNT" "$$" \
+			"${2//$'\n'/ }" >> /var/log/hestia/dns-sync.log
+	)
+}
+
+dnsp_acme_note() {
+	local f="$DNSP_CACHE/acme"
+	{
+		[ -f "$f" ] && cat "$f"
+		printf '%s\t%s\t%s\n' "$(date +%s)" "$$" "$1"
+	} | dnsp_write "$f"
+}
+
+# dnsp_acme_set NAME VALUE: the TXT _acme-challenge.NAME with VALUE added beside whatever is there. rc as dnsp_call,
+# 3 when no account holds the zone.
+dnsp_acme_set() {
+	local zone account ref rel tmp rc
+	dnsp_acme_zone "$1" || return 3
+	read -r zone account ref <<< "$DNSP_ACME_ZONE"
+	dnsp_load "$account" || return 2
+	rel=_acme-challenge
+	[ "$1" = "$zone" ] || rel+=".${1%."$zone"}"
+	# Noted before the write: a run killed in between leaves a note for a record that may exist, never the reverse.
+	dnsp_locked acme dnsp_acme_note "$zone"$'\t'"$account"$'\t'"$ref"$'\t'"$rel"$'\t'"$2"
+	tmp=$(mktemp) || return 2
+	printf 'add\t%s\tTXT\t\t60\t%s\n' "$rel" "$2" > "$tmp"
+	dnsp_acme_log "$1" "add"$'\t'"$rel"$'\t'"TXT"$'\t\t'"60"$'\t'"$2"
+	dnsp_call change "$zone" "$ref" "$tmp" > /dev/null
+	rc=$?
+	rm -f "$tmp"
+	[ "$rc" = 0 ] || dnsp_acme_log "$1" "result"$'\t'"refused: $DNSP_ERROR"
+	return "$rc"
+}
+
+# dnsp_acme_wait NAME VALUE SECONDS: until every name server the parent delegates the zone to answers VALUE at
+# _acme-challenge.NAME, asked directly: a resolver could hold an older answer. rc 1 when that takes longer.
+dnsp_acme_wait() {
+	local zone="${DNSP_ACME_ZONE%% *}" end ns n left
+	end=$(($(date +%s) + $3))
+	ns=$(dig +short NS "$zone" 2> /dev/null | sed -n 's/\.$//; /^[a-z0-9.-]*$/p')
+	[ -n "$ns" ] || return 1
+	while :; do
+		left=0
+		for n in $ns; do
+			dig +short +norecurse +time=3 +tries=1 @"$n" TXT "_acme-challenge.$1" 2> /dev/null | grep -qxF "\"$2\"" \
+				|| left=$((left + 1))
+		done
+		[ "$left" = 0 ] && return 0
+		[ "$(date +%s)" -lt "$end" ] || return 1
+		sleep 2
+	done
+}
+
+# dnsp_acme_clear PID|stale: the noted records of that run, or those older than an hour (no run takes that long),
+# removed at their provider. A note goes once the zone no longer holds its record; a failed removal keeps it.
+dnsp_acme_clear() {
+	dnsp_locked acme dnsp_acme_clear_locked "$1"
+}
+
+dnsp_acme_clear_locked() {
+	local f="$DNSP_CACHE/acme" now sel zone account ref keep='' tmp rows rc
+	[ -s "$f" ] || return 0
+	now=$(date +%s)
+	sel=$(awk -F '\t' -v w="$1" -v n="$now" 'NF && (w == "stale" ? n - $1 > 3600 : $2 == w)' "$f")
+	[ -n "$sel" ] || return 0
+	tmp=$(mktemp) || return 2
+	while IFS=$'\t' read -r zone account ref; do
+		[ -n "$zone" ] || continue
+		DNSP_ACME_ZONE="$zone $account $ref"
+		rows=$(awk -F '\t' -v z="$zone" -v a="$account" '$3 == z && $4 == a { print "rem\t" $6 "\tTXT\t\t\t" $7 }' \
+			<<< "$sel" | sort -u)
+		if ! dnsp_load "$account"; then
+			keep+=$(awk -F '\t' -v z="$zone" -v a="$account" '$3 == z && $4 == a' <<< "$sel")$'\n'
+			continue
+		fi
+		printf '%s\n' "$rows" > "$tmp"
+		dnsp_acme_log "$zone" "$(cut -f 2,6 <<< "$rows" | paste -sd ' ')"
+		dnsp_call change "$zone" "$ref" "$tmp" > /dev/null
+		rc=$?
+		# A rem matching nothing answers success as well, so the zone is read again.
+		[ "$rc" = 0 ] && dnsp_call records "$zone" "$ref" > "$tmp" || rc=2
+		if [ "$rc" != 0 ]; then
+			dnsp_acme_log "$zone" "result"$'\t'"not removed: $DNSP_ERROR"
+			keep+=$(awk -F '\t' -v z="$zone" -v a="$account" '$3 == z && $4 == a' <<< "$sel")$'\n'
+			continue
+		fi
+		keep+=$(awk -F '\t' -v z="$zone" -v a="$account" 'NR == FNR { if ($2 == "TXT") h[$1 "\t" $7] = 1; next }
+			$3 == z && $4 == a && (($6 "\t" $7) in h)' "$tmp" - <<< "$sel")$'\n'
+	done <<< "$(cut -f 3-5 <<< "$sel" | sort -u)"
+	rm -f "$tmp"
+	awk -F '\t' 'NR == FNR { if (NF) s[$0] = 1; next } !($0 in s)' <(printf '%s\n' "$sel") "$f" \
+		| cat - <(sed '/^$/d' <<< "$keep") | dnsp_write "$f"
+}

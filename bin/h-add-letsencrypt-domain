@@ -6,7 +6,8 @@
 # example: h-add-letsencrypt-domain admin wonderland.com '' yes
 # example: h-add-letsencrypt-domain admin wonderland.com '' '' rsa
 #
-# Issues a Let's Encrypt certificate over HTTP-01 for a web domain, or with MAIL for its mail names.
+# Issues a Let's Encrypt certificate for a web domain, or with MAIL for its mail names. HTTP-01 where a name points
+# here; DNS-01 through the DNS provider account of its zone for a wildcard alias and where HTTP-01 cannot reach the box.
 # MAIL=host is h-add-letsencrypt-host on mail-only: the hostname, answered by the default server.
 # KEY_ALGO is ecdsa-256, ecdsa-384 or rsa. Without it the domain keeps the one it has, rsa for a certificate issued
 # before the record carried it, and a new one gets ecdsa-256.
@@ -33,6 +34,10 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/domain.sh
 source $HESTIA/include/domain.sh
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source $HESTIA/include/dns.sh
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source $HESTIA/include/dns-provider.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
 LE_API=$(le_api)
@@ -86,6 +91,8 @@ le_status_fail() {
 # A failed renewal must not leave the domain without the redirect and force-ssl it had.
 on_error_exit() {
 	local exit_code=$?
+	# The _acme-challenge records of this run go whatever its outcome.
+	[ -z "$le_dns_used" ] || dnsp_acme_clear "$$" > /dev/null 2>&1
 	if [[ $exit_code -eq 0 ]]; then
 		exit "$exit_code"
 	fi
@@ -122,12 +129,12 @@ elif [ -z "$mail" ] || [ "$mail" = 'no' ]; then
 	is_object_valid 'web' 'DOMAIN' "$domain"
 	is_object_unsuspended 'web' 'DOMAIN' "$domain"
 	get_domain_values 'web'
-	if [[ "$aliases" = *'*'* ]]; then
-		check_result "$E_INVALID" "Wildcard certificates (DNS-01) are not supported: HestiaRE has no DNS zone management. Request a non-wildcard certificate or complete DNS-01 manually."
-	fi
 	IFS=, read -ra _alias_list <<< "$aliases"
 	for alias in "${_alias_list[@]}"; do
 		[ -n "$alias" ] || continue
+		if [[ "$alias" = *'*'* ]] && [[ "$alias" != '*.'* || "${alias:2}" = *'*'* ]]; then
+			check_result "$E_INVALID" "a wildcard certificate name is *. before a domain: $alias"
+		fi
 		if [[ ",$ALIAS," != *",$alias,"* ]]; then
 			check_result "$E_NOTEXIST" "domain alias $alias doesn't exist"
 		fi
@@ -202,37 +209,63 @@ fi
 
 le_conf_load "$USER_DATA/ssl/le.conf"
 
-proto="http-01"
+# The challenge per name, LE takes one for each: HTTP-01 where the name points here, DNS-01 through the provider
+# account of its zone for a wildcard and wherever HTTP-01 cannot reach this box. An array, not a word list: a
+# wildcard would glob against the current directory.
+declare -A le_proto
+le_dns_used=''
+mapfile -t le_names < <(tr ',' '\n' <<< "$domain,$aliases" | sed '/^$/d' | sort -u)
+for name in "${le_names[@]}"; do
+	identifier=$name
+	if [[ "$identifier" = *[![:ascii:]]* ]]; then
+		identifier=$(idn2 --quiet "$identifier")
+	fi
+	if [[ "$identifier" = '*.'* ]]; then
+		if dnsp_acme_zone "${identifier#\*.}"; then
+			le_proto[$identifier]=dns-01
+		else
+			# Only DNS-01 reaches a wildcard: without an account the rest of the certificate is issued without it.
+			echo "Notice: $name needs DNS-01 and no DNS provider account holds its zone, left out of the certificate"
+			debug_log "DNS" "- $identifier has no DNS provider account, left out"
+			$BIN/h-log-action "$user" "Warning" "Web" \
+				"Let's Encrypt left $name out, no DNS provider account holds its zone (Domain: $domain)."
+			aliases=$(tr ',' '\n' <<< "$aliases" | grep -vxF -- "$name" | paste -sd ',')
+		fi
+		continue
+	fi
+	le_dns_check "$identifier"
+	found=$?
+	if [ "$found" = 0 ] && le_name_here "$identifier"; then
+		le_proto[$identifier]=http-01
+		continue
+	fi
+	if dnsp_acme_zone "$identifier"; then
+		le_proto[$identifier]=dns-01
+		continue
+	fi
+	le_proto[$identifier]=http-01
+	case $found in
+		0) ;;
+		1)
+			# DNS lives elsewhere: a webmail name not created yet must not cost the customer mail.<domain>.
+			if [ -n "$mail" ] && [ "$name" = "$WEBMAIL_ALIAS.$root_domain" ]; then
+				echo "Notice: no DNS record for $identifier, left out of the certificate"
+				debug_log "DNS" "- $identifier has no record, left out"
+				aliases=''
+			else
+				check_result "$E_NOTEXIST" "DNS record for $identifier doesn't exist"
+			fi
+			;;
+		*) check_result "$E_CONNECT" "cannot verify DNS for $identifier - neither the local resolver nor any fallback answered" ;;
+	esac
+done
+mapfile -t le_names < <(tr ',' '\n' <<< "$domain,$aliases" | sed '/^$/d' | sort -u)
 
 echo -e "
 - aliases: ${aliases}
-- proto: ${proto}
+- proto: $(for k in "${!le_proto[@]}"; do printf '%s=%s ' "$k" "${le_proto[$k]}"; done)
 - key_algo: ${key_algo}
 " >> "$log_file"
-
-if [ "$proto" = "http-01" ]; then
-	for identifier in $(echo $domain,$aliases | tr ',' '\n' | sort -u); do
-		name=$identifier
-		if [[ "$identifier" = *[![:ascii:]]* ]]; then
-			identifier=$(idn2 --quiet $identifier)
-		fi
-		le_dns_check "$identifier"
-		case $? in
-			0) ;;
-			1)
-				# DNS lives elsewhere: a webmail name not created yet must not cost the customer mail.<domain>.
-				if [ -n "$mail" ] && [ "$name" = "$WEBMAIL_ALIAS.$root_domain" ]; then
-					echo "Notice: no DNS record for $identifier, left out of the certificate"
-					debug_log "DNS" "- $identifier has no record, left out"
-					aliases=''
-				else
-					check_result "$E_NOTEXIST" "DNS record for $identifier doesn't exist"
-				fi
-				;;
-			*) check_result "$E_CONNECT" "cannot verify DNS for $identifier - neither the local resolver nor any fallback answered" ;;
-		esac
-	done
-fi
 
 # Step 1: nonce
 answer=$(curl --user-agent "HestiaCP" --connect-timeout 15 --max-time 60 -s -I "$LE_API/directory")
@@ -248,9 +281,9 @@ fi
 # Step 2: new order
 url="$LE_API/acme/new-order"
 payload='{"identifiers":['
-for identifier in $(echo $domain,$aliases | tr ',' '\n' | sort -u); do
+for identifier in "${le_names[@]}"; do
 	if [[ "$identifier" = *[![:ascii:]]* ]]; then
-		identifier=$(idn2 --quiet $identifier)
+		identifier=$(idn2 --quiet "$identifier")
 	fi
 	payload=$payload'{"type":"dns","value":"'$identifier'"},'
 done
@@ -269,32 +302,53 @@ if [[ "$status" -ne 201 ]]; then
 	le_status_fail "Let's Encrypt new auth status $status ($domain)"
 fi
 
-# Step 3: authorizations
+# Step 3: authorizations. Every challenge is published before the first is answered: a wildcard and its base name
+# share one _acme-challenge name, and a resolver that LE asked for the first would hold that answer without the second.
+le_urls=()
+le_idents=()
 for auth in $authz; do
 	payload=''
 	answer=$(query_le_v2 "$auth" "$payload" "$nonce")
-	url=$(echo "$answer" | grep -A3 $proto | grep -m1 url | cut -f 4 -d \")
-	token=$(echo "$answer" | grep -A3 $proto | grep token | cut -f 4 -d \")
+	# The authorization names its identifier without the "*." and says wildcard instead.
+	body=$(sed -n '/^{/,$p' <<< "$answer")
+	ident=$(jq -r '.identifier.value // empty' <<< "$body" 2> /dev/null)
+	[ "$(jq -r '.wildcard // false' <<< "$body" 2> /dev/null)" = 'true' ] && ident="*.$ident"
+	proto=${le_proto[$ident]:-http-01}
+	url=$(jq -r --arg p "$proto" 'first(.challenges[]? | select(.type == $p) | .url) // empty' <<< "$body" 2> /dev/null)
+	token=$(jq -r --arg p "$proto" 'first(.challenges[]? | select(.type == $p) | .token) // empty' <<< "$body" 2> /dev/null)
 	nonce=$(echo "$answer" | grep -i nonce | cut -f2 -d \  | tr -d '\r\n')
 	status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
 
-	debug_log "Step 3" "- status: ${status}\n- nonce: ${nonce}\n- url: ${url}\n- token: ${token}\n- answer: ${answer}"
+	debug_log "Step 3" "- status: ${status}\n- nonce: ${nonce}\n- identifier: ${ident}\n- proto: ${proto}\n- url: ${url}\n- token: ${token}\n- answer: ${answer}"
 
 	if [[ "$status" -ne 200 ]]; then
 		le_status_fail "Let's Encrypt acme/authz bad status $status ($domain)"
 	fi
 
 	# A name LE validated recently has no pending challenge and needs none.
-	if [ "$(echo "$answer" | sed '1,/^\r*$/d' | jq -r '.status' 2> /dev/null)" = 'valid' ]; then
+	if [ "$(jq -r '.status' <<< "$body" 2> /dev/null)" = 'valid' ]; then
 		debug_log "Step 3" "- authorization already valid, no challenge"
 		continue
 	fi
 
 	# Step 4: challenge. The token names a file below: base64url only.
-	if [[ ! "$token" =~ ^[A-Za-z0-9_-]+$ ]]; then
-		check_result "$E_INVALID" "Let's Encrypt sent an unusable challenge token ($domain)"
+	if [[ ! "$token" =~ ^[A-Za-z0-9_-]+$ ]] || [ -z "$url" ]; then
+		check_result "$E_INVALID" "Let's Encrypt sent no usable $proto challenge for ${ident:-a name} ($domain)"
 	fi
-	if [ -n "$host" ]; then
+	if [ "$proto" = 'dns-01' ]; then
+		# Set before the first record, so the exit trap removes whatever this run got out.
+		if [ -z "$le_dns_used" ]; then
+			le_dns_used=1
+			dnsp_acme_clear stale > /dev/null 2>&1
+		fi
+		acme_dns=${ident#\*.}
+		acme_txt=$(printf '%s' "$token.$THUMB" | openssl dgst -sha256 -binary | encode_base64)
+		dnsp_acme_set "$acme_dns" "$acme_txt" \
+			|| check_result "$E_CONNECT" "the DNS provider did not take _acme-challenge.$acme_dns ($domain): $DNSP_ERROR"
+		dnsp_acme_wait "$acme_dns" "$acme_txt" 300 \
+			|| check_result "$E_CONNECT" "_acme-challenge.$acme_dns did not reach the name servers of its zone in 5 minutes ($domain)"
+		debug_log "Step 4" "- _acme-challenge.$acme_dns set and answered by every name server of its zone"
+	elif [ -n "$host" ]; then
 		# Per token, so the cleanup below leaves the directory the default server points at.
 		acme_name="host/$token"
 		acme_token_write host "$token" "$token.$THUMB"
@@ -346,39 +400,28 @@ for auth in $authz; do
 			fi
 		fi
 	fi
-	if [ "$(webmail_front)" = 'nginx' ]; then
+	if [ "$proto" != 'dns-01' ] && [ "$(webmail_front)" = 'nginx' ]; then
 		$BIN/h-restart-web
 		check_result $? "Web restart failed" > /dev/null
 	fi
 
-	# Step 5: validation
-	validation_check=$(echo "$answer" | grep '"valid"')
-	if [[ -n "$validation_check" ]]; then
-		validation='valid'
-	else
-		validation='pending'
-		sleep 5
-	fi
+	le_urls+=("$url")
+	le_idents+=("$ident")
+done
 
-	i=1
-	while [ "$validation" = 'pending' ]; do
-		i=0
-		while true; do
-			payload='{}'
-			answer=$(query_le_v2 "$url" "$payload" "$nonce")
-			validation=$(echo "$answer" | grep -A1 $proto | tail -n1 | cut -f4 -d \")
-			nonce=$(echo "$answer" | grep -i nonce | cut -f2 -d \  | tr -d '\r\n')
-			status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
-			details=$(echo "$answer" | grep detail | cut -f 1 -d ',' | cut -f 2-4 -d ':' | cut -f 2 -d '"')
-			if [[ $(echo "$answer" | grep addressesResolved) != "" ]]; then
-				break
-			fi
-			i=$((i + 1))
-			if ((i > 30)); then
-				break
-			fi
-			sleep 2
-		done
+for k in "${!le_urls[@]}"; do
+	url=${le_urls[$k]}
+	ident=${le_idents[$k]}
+	# Step 5: validation. The {} asks LE to check, and every answer carries the challenge's state; it is read as
+	# JSON, which tells pending from valid for either challenge type.
+	i=0
+	while :; do
+		answer=$(query_le_v2 "$url" '{}' "$nonce")
+		nonce=$(echo "$answer" | grep -i nonce | cut -f2 -d \  | tr -d '\r\n')
+		status=$(echo "$answer" | grep HTTP/ | tail -n1 | cut -f 2 -d ' ')
+		body=$(sed -n '/^{/,$p' <<< "$answer")
+		validation=$(jq -r '.status // empty' <<< "$body" 2> /dev/null)
+		details=$(jq -r '.error.detail // empty' <<< "$body" 2> /dev/null)
 
 		debug_log "Step 5" "- status: ${status}\n- url: ${url}\n- nonce: ${nonce}\n- validation: ${validation}\n- details: ${details}\n- answer: ${answer}"
 
@@ -392,16 +435,16 @@ for auth in $authz; do
 			debug_log "Abort Step 5" "=> Wrong status"
 			check_result "$E_CONNECT" "Let's Encrypt validation status $status ($domain). Details: $error_code:$details"
 		fi
-
+		[ "$validation" = 'pending' ] || [ "$validation" = 'processing' ] || break
 		i=$((i + 1))
-		if [ "$i" -gt 10 ]; then
+		if [ "$i" -gt 45 ]; then
 			debug_log "Abort Step 5" "=> Too many validation retries"
 			check_result "$E_CONNECT" "Let's Encrypt domain validation timeout ($domain)"
 		fi
-		sleep $((i * 2))
+		sleep 2
 	done
-	if [ "$validation" = 'invalid' ]; then
-		check_result "$E_CONNECT" "Let's Encrypt domain verification failed ($domain)"
+	if [ "$validation" != 'valid' ]; then
+		check_result "$E_CONNECT" "Let's Encrypt domain verification failed (${ident:-$domain}${details:+: $details})"
 	fi
 done
 

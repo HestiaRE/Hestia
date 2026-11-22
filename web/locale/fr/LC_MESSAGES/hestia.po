@@ -191,8 +191,8 @@ msgstr "Veuillez saisir une adresse e-mail valide."
 #: web/templates/pages/list_backup_detail_incremental.php
 #: web/templates/pages/list_backup_exclusions.php
 #: web/templates/pages/list_backup_incremental.php
-#: web/templates/pages/list_db.php web/templates/pages/list_dns_sync.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_db.php web/templates/pages/list_dns_move.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_files_incremental.php
 #: web/templates/pages/list_mail_dns.php web/templates/pages/list_search.php
 msgid "Type"
@@ -242,7 +242,8 @@ msgstr "L'adresse IP a été ajoutée à la liste blanche."
 
 #: web/add/firewall/index.php web/edit/firewall/index.php
 #: web/templates/pages/add_firewall.php web/templates/pages/edit_firewall.php
-#: web/templates/pages/list_dns_sync.php web/templates/pages/list_firewall.php
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_firewall.php
 msgid "Action"
 msgstr "Action"
 
@@ -795,6 +796,14 @@ msgstr ""
 #: web/edit/web/index.php
 msgid "Only an administrator can select this template."
 msgstr "Seul un administrateur peut choisir ce modèle."
+
+#: web/edit/web/index.php web/templates/pages/list_dns.php
+msgid "Preview the move"
+msgstr ""
+
+#: web/edit/web/index.php
+msgid "The DNS records at the providers may still point at the old address."
+msgstr ""
 
 #: web/edit/web/index.php
 msgid "WordPress has been deleted."
@@ -1376,6 +1385,7 @@ msgstr "Aoû"
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php
 #: web/templates/pages/list_backup_exclusions.php
+#: web/templates/pages/list_dns_move.php
 #: web/templates/pages/list_dns_providers.php
 #: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_files_incremental.php
@@ -2989,6 +2999,14 @@ msgid "Off"
 msgstr "Désactivé"
 
 #: web/templates/pages/edit_web.php
+msgid "On an IP change, move the domain's DNS records at the providers as well"
+msgstr ""
+
+#: web/templates/pages/edit_web.php
+msgid "Only records on the old address that HestiaRE derives: the domain's, its aliases', and those of the mail domain of the same name, which sends from the domain's address."
+msgstr ""
+
+#: web/templates/pages/edit_web.php
 msgid "PHP Pool Size"
 msgstr "Taille du pool PHP"
 
@@ -3471,8 +3489,13 @@ msgid_plural "%d differences"
 msgstr[0] ""
 msgstr[1] ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php
+#, php-format
+msgid "A restore moved the domains from %s. The records at the providers may still point at the old addresses."
+msgstr ""
+
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_move.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 msgid "Alias"
 msgstr ""
 
@@ -3488,8 +3511,8 @@ msgstr ""
 msgid "DNS Zones"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_move.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
 msgid "Mail"
 msgstr "Messagerie"
@@ -3515,23 +3538,23 @@ msgstr ""
 msgid "Sections"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_move.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 msgid "Server"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_move.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 msgid "Subdomain"
 msgstr ""
 
-#: web/templates/pages/list_dns.php web/templates/pages/list_dns_sync.php
-#: web/templates/pages/list_dns_zone.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_move.php
+#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_server_info.php web/templates/pages/list_stats.php
 msgid "Web"
 msgstr "Web"
 
-#: web/templates/pages/list_dns.php
+#: web/templates/pages/list_dns.php web/templates/pages/list_dns_move.php
 msgid "Zone"
 msgstr ""
 
@@ -3557,6 +3580,76 @@ msgstr ""
 
 #: web/templates/pages/list_dns.php
 msgid "only subdomains"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+#, php-format
+msgid "%d change goes to the providers. Only records on an old address that HestiaRE derives are touched."
+msgid_plural "%d changes go to the providers. Only records on an old address that HestiaRE derives are touched."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_dns_move.php
+msgid "Every zone is read again before the write: if one changed since this preview, nothing is written. Each zone is read once more afterwards and compared."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+msgid "Forget the move"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
+msgid "IP or Value"
+msgstr "IP ou valeur"
+
+#: web/templates/pages/list_dns_move.php
+msgid "Move DNS records"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+msgid "Nothing to move: no record HestiaRE derives carries an old address, or every one is left alone below."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+msgid "Once the records are moved, or when they are to stay, the move recorded by the restore can be forgotten. Nothing is written to a provider."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+#: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php
+msgid "Record"
+msgstr "Enregistrement"
+
+#: web/templates/pages/list_dns_move.php
+msgid "Section"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+msgid "Write to provider"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+#, php-format
+msgid "Zones without a provider account stay as they are: %s"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+msgid "add"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+msgid "left alone"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+msgid "remove"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+msgid "set main IP"
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
+msgid "www include off"
 msgstr ""
 
 #: web/templates/pages/list_dns_providers.php
@@ -3646,11 +3739,6 @@ msgid_plural "%d records HestiaRE wrote for %s are removed from the provider. No
 msgstr[0] ""
 msgstr[1] ""
 
-#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
-#: web/templates/pages/list_mail_dns.php
-msgid "IP or Value"
-msgstr "IP ou valeur"
-
 #: web/templates/pages/list_dns_sync.php
 msgid "Keep the CNAME"
 msgstr ""
@@ -3672,11 +3760,6 @@ msgstr ""
 msgid "Priority"
 msgstr "Priorité"
 
-#: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
-#: web/templates/pages/list_mail_dns.php
-msgid "Record"
-msgstr "Enregistrement"
-
 #: web/templates/pages/list_dns_sync.php
 msgid "Replace the CNAME by records of its own"
 msgstr ""
@@ -3692,30 +3775,6 @@ msgstr "TTL"
 
 #: web/templates/pages/list_dns_sync.php
 msgid "The zone is read again before the write: if it changed since this preview, nothing is written. Afterwards it is read once more and compared."
-msgstr ""
-
-#: web/templates/pages/list_dns_sync.php
-msgid "Write to provider"
-msgstr ""
-
-#: web/templates/pages/list_dns_sync.php
-msgid "add"
-msgstr ""
-
-#: web/templates/pages/list_dns_sync.php
-msgid "left alone"
-msgstr ""
-
-#: web/templates/pages/list_dns_sync.php
-msgid "remove"
-msgstr ""
-
-#: web/templates/pages/list_dns_sync.php
-msgid "set main IP"
-msgstr ""
-
-#: web/templates/pages/list_dns_sync.php
-msgid "www include off"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

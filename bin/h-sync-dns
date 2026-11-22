@@ -1,0 +1,173 @@
+#!/bin/bash
+# info: move the DNS records of a user from old addresses to new ones at the providers
+# options: USER MOVE [PLAN] [FORMAT] [DOMAIN]
+#
+# example: h-sync-dns admin 203.0.113.10=198.51.100.20
+# example: h-sync-dns all 203.0.113.10=198.51.100.20,203.0.113.11=198.51.100.20 3f2a9c0e1b7d4a65
+# example: h-sync-dns admin stored
+#
+# Every zone of USER (or of every user) a provider account holds: the records that carry an OLD address of MOVE
+# (OLD=NEW, comma separated) and that HestiaRE derives get the NEW one; an SPF term is swapped in place. Nothing else
+# is touched, a record with an exception neither. An address of this box stands for its NAT address. MOVE stored is
+# the move the restore recorded for the user. Without PLAN (or with "preview") the planned writes and their PLAN id;
+# with that id they go out, provided every zone still yields the same plan, section by section through
+# h-sync-dns-zone. PLAN now writes without a preview, for h-change-web-domain-ip. DOMAIN limits the run to that web
+# domain's sections, its aliases included, and the mail domain of that name, which sends from the web domain's address.
+
+user=$1
+move=$2
+plan=${3:-preview}
+format=${4-shell}
+domain=${5-}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+MOVE_RE='^[0-9a-fA-F.:]+=[0-9a-fA-F.:]+(,[0-9a-fA-F.:]+=[0-9a-fA-F.:]+)*$'
+
+# Lines of OPS: USER ZONE SECTION OBJECT MOVE OP NAME TYPE PRIORITY TTL VALUE NOTE.
+json_list() {
+	jq -R -n --arg plan "$id" --arg left "$unmanaged" '{PLAN: $plan, OPS: [inputs | select(length > 0) | split("\t")
+		| {USER: .[0], ZONE: .[1], SECTION: .[2], OBJECT: .[3], OP: .[5], NAME: .[6], TYPE: .[7], PRIORITY: .[8],
+		TTL: .[9], VALUE: .[10], NOTE: (.[11] // "")}], UNMANAGED: ($left | split("\n") | map(select(length > 0)))}' \
+		<<< "$ops"
+}
+
+shell_list() {
+	printf 'ZONE\tSECTION\tOBJECT\tOP\tNAME\tTYPE\tVALUE\tNOTE\n'
+	printf -- '----\t-------\t------\t--\t----\t----\t-----\t----\n'
+	awk -F '\t' 'BEGIN { OFS = FS } NF { if (length($11) > 64) $11 = substr($11, 1, 61) "..."
+		print $2, $3, $4, $6, $7, $8, $11, $12 }' <<< "$ops"
+}
+
+# public MOVE: each address of the box as public DNS carries it, the NAT one where its IP record has one.
+public() {
+	local p out='' pairs
+	IFS=, read -ra pairs <<< "$1"
+	for p in "${pairs[@]}"; do
+		out+="${out:+,}$(dns_nat "${p%%=*}")=$(dns_nat "${p#*=}")"
+	done
+	echo "$out"
+}
+
+# collect USER MOVE: the planned writes of every section of USER in every zone with an account, into ops, and the
+# zones holding a section of the run without an account into unmanaged.
+collect() {
+	local u="$1" m="$2" zone state section object line
+	dns_user_zones "$u"
+	while read -r zone state; do
+		[ -n "$zone" ] || continue
+		while IFS=$'\t' read -r section object; do
+			[ -n "$section" ] || continue
+			if [ "$state" != 'account' ]; then
+				unmanaged+="$zone"$'\n'
+				continue
+			fi
+			if ! dnsp_check_zone "$zone" "$section" "$object" "$u" '' "$m"; then
+				failed+="$zone ($DNSP_ACCOUNT: ${DNSP_ERROR:-compare failed})"$'\n'
+				continue
+			fi
+			while IFS= read -r line; do
+				[ -n "$line" ] && ops+="$u"$'\t'"$zone"$'\t'"$section"$'\t'"$object"$'\t'"$m"$'\t'"$line"$'\n'
+			done <<< "$DNSP_PLAN"
+		done <<< "$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$u" -v d="$domain" '$5 == u &&
+			(d == "" || (tolower($4) == d && $3 != "server")) { print $3 "\t" tolower($4) }' \
+			| sort -u)"
+	done <<< "$DNS_USER_ZONES"
+}
+
+check_args '2' "$#" 'USER MOVE [PLAN] [FORMAT] [DOMAIN]'
+[ "$user" = 'all' ] || {
+	is_format_valid 'user'
+	is_object_valid 'user' 'USER' "$user"
+}
+[ "$move" = 'stored' ] || [[ "$move" =~ $MOVE_RE ]] || check_result "$E_INVALID" "invalid move: $move"
+[[ "$plan" =~ ^(preview|now|[0123456789abcdef]{16})$ ]] || check_result "$E_INVALID" "invalid plan: $plan"
+case $format in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+if [ -n "$domain" ]; then
+	[ "$user" != 'all' ] || check_result "$E_INVALID" "a DOMAIN belongs to one user"
+	is_domain_format_valid "$domain"
+	domain=$(dns_ascii "$domain")
+fi
+
+users=()
+if [ "$user" = 'all' ]; then
+	for d in "$CONF_DIR"/users/*; do
+		[ -e "$d" ] || continue
+		[ -f "$d/user.conf" ] && users+=("${d##*/}")
+	done
+else
+	users=("$user")
+fi
+
+dnsp_zones_fresh
+dns_load
+DNSP_MEMO_ON=1
+ops='' unmanaged='' failed='' moves=0
+for u in "${users[@]}"; do
+	m=$move
+	[ "$m" = 'stored' ] && m=$(dns_move_read "$u")
+	[ -n "$m" ] || continue
+	m=$(public "$m")
+	moves=$((moves + 1))
+	collect "$u" "$m"
+done
+unset DNSP_MEMO_ON
+[ "$moves" -gt 0 ] || check_result "$E_NOTEXIST" "no move recorded for $user"
+unmanaged=$(sort -u <<< "$unmanaged" | sed '/^$/d')
+failed=$(sed '/^$/d' <<< "$failed" | paste -sd ' ')
+[ -z "$failed" ] || check_result "$E_CONNECT" "zone(s) could not be read, nothing done: $failed"
+id=$(sha256sum <<< "$ops" | cut -c 1-16)
+
+if [ "$plan" = 'preview' ]; then
+	case $format in
+		json) json_list ;;
+		plain) printf '%s' "$ops" ;;
+		shell)
+			[ -n "$ops" ] && shell_list | column -t -s $'\t'
+			[ -n "$unmanaged" ] && echo "Zones without a provider account, left alone: $(paste -sd ' ' <<< "$unmanaged")"
+			echo "PLAN: $id"
+			;;
+	esac
+	exit
+fi
+
+[ "$plan" = 'now' ] || [ "$plan" = "$id" ] \
+	|| check_result "$E_EXISTS" "a zone changed since the preview, nothing written: preview again"
+sections=$(awk -F '\t' 'NF && $6 != "skip" { print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 }' <<< "$ops" | sort -u)
+if [ -z "$sections" ]; then
+	echo "nothing to write${unmanaged:+, zones without a provider account left alone: $(paste -sd ' ' <<< "$unmanaged")}"
+	exit
+fi
+
+# Each section by the command that writes one, with the id of its own plan: it reads the zone again and writes only
+# when that plan still stands. A section that fails leaves the others to go on.
+rc=0
+while IFS=$'\t' read -r u zone section object m; do
+	sid=$(awk -F '\t' -v u="$u" -v z="$zone" -v s="$section" -v o="$object" \
+		'$1 == u && $2 == z && $3 == s && $4 == o' <<< "$ops" | cut -f 6- | sha256sum | cut -c 1-16)
+	if out=$("$BIN/h-sync-dns-zone" "$u" "$zone" "$section" "$object" "$sid" plain '' "$m" 2>&1); then
+		echo "$out"
+	else
+		rc=$E_CONNECT
+		echo "zone $zone: $section $object not written: $out"
+	fi
+done <<< "$sections"
+[ -n "$unmanaged" ] && echo "Zones without a provider account, left alone: $(paste -sd ' ' <<< "$unmanaged")"
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS move written (User: $user, Move: $move)."
+log_event "$OK" "$ARGUMENTS"
+
+exit "$rc"

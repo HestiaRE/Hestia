@@ -1524,6 +1524,25 @@ web_dir_trusted() {
 #                        CMN                               #
 #----------------------------------------------------------#
 
+# web_dns_move USER DOMAIN OLD NEW: SYNC_DNS of h-change-web-domain-ip(6), the records of the domain and its mail
+# domain on OLD moved to NEW at the providers. The box change stands whatever a provider answers, so a failure is a warning, never the rc.
+web_dns_move() {
+	local out
+	[ -n "$3" ] && [ -n "$4" ] && [ "$3" != "$4" ] || return 0
+	if ! compgen -G "$CONF_DIR/dns/*.conf" > /dev/null; then
+		echo "DNS: no provider account, nothing written"
+		return 0
+	fi
+	# The web lock is the box's; a provider taking its time must not hold every web command up.
+	web_lock_release
+	if out=$("$BIN/h-sync-dns" "$1" "$3=$4" now plain "$2" 2>&1); then
+		sed 's/^/DNS: /' <<< "$out"
+	else
+		sed 's/^/Warning: DNS: /' <<< "$out"
+	fi
+	return 0
+}
+
 is_domain_new() {
 	type=$1
 	for object in ${2//,/ }; do

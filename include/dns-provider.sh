@@ -7,6 +7,10 @@ DNSP_CONF_DIR="$CONF_DIR/dns"
 DNSP_CACHE=/var/cache/hestia/dns-provider
 DNSP_DRIVERS="$HESTIA/include/dns-providers"
 
+# A zone's records once per process where DNSP_MEMO_ON is set: a run over many sections of one zone that writes
+# nothing itself. A write reads afresh, that read is its compare-and-set.
+declare -A DNSP_MEMO
+
 # Spelled out: under a German locale a-z matches umlauts.
 DNSP_AN='abcdefghijklmnopqrstuvwxyz0123456789'
 
@@ -180,11 +184,11 @@ dnsp_mask() {
 	fi
 }
 
-# dnsp_check_zone ZONE [SECTION OBJECT OWNER [CONFIRM]]: the zone's desired rows (dns_zone_rows) against what its
-# account holds, into DNSP_CHECK as dns-compare.php prints it, and the number of differing rows (orphans among them)
+# dnsp_check_zone ZONE [SECTION OBJECT OWNER [CONFIRM [MOVE]]]: the zone's desired rows (dns_zone_rows) against what
+# its account holds, into DNSP_CHECK as dns-compare.php prints it, and the number of differing rows (orphans among them)
 # into DNSP_DIFFS and the status cache; with SECTION OBJECT OWNER the writes for that section from the same read into
-# DNSP_PLAN, CONFIRM as dns-compare.php takes it. DNSP_ACTUAL keeps the provider's records, DNSP_REF names the zone
-# at the provider. rc 3 when no account holds the zone, else as dnsp_call. Needs dns.sh.
+# DNSP_PLAN, CONFIRM and MOVE as dns-compare.php takes them. DNSP_ACTUAL keeps the provider's records, DNSP_REF names
+# the zone at the provider. rc 3 when no account holds the zone, else as dnsp_call. Needs dns.sh.
 dnsp_check_zone() {
 	local zone="$1" account ref desired rc tmp apex=no owners
 	DNSP_CHECK='' DNSP_DIFFS='' DNSP_PLAN='' DNSP_REF='' DNSP_ACTUAL=''
@@ -195,9 +199,15 @@ dnsp_check_zone() {
 	DNSP_REF=$ref
 	desired=$(dns_zone_rows "$zone" | dns_sections)
 	tmp=$(mktemp -d) || return 2
-	dnsp_call records "$zone" "$ref" > "$tmp/actual"
-	rc=$?
-	dnsp_state_set "$account" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
+	if [ -n "${DNSP_MEMO[$zone]+set}" ]; then
+		printf '%s\n' "${DNSP_MEMO[$zone]}" > "$tmp/actual"
+		rc=0
+	else
+		dnsp_call records "$zone" "$ref" > "$tmp/actual"
+		rc=$?
+		dnsp_state_set "$account" "$(dnsp_state_of "$rc")" "$DNSP_ERROR"
+		[ "$rc" = 0 ] && [ -n "${DNSP_MEMO_ON-}" ] && DNSP_MEMO[$zone]=$(cat "$tmp/actual")
+	fi
 	if [ "$rc" != 0 ]; then
 		rm -rf "$tmp"
 		dnsp_status_set "$zone" "$account" error
@@ -215,7 +225,7 @@ dnsp_check_zone() {
 	rc=$?
 	if [ "$rc" = 0 ] && [ -n "${4-}" ]; then
 		DNSP_PLAN=$("$HESTIA_PHP" "$HESTIA/include/dns-compare.php" "$zone" "$tmp/desired" "$tmp/actual" "$apex" \
-			"$tmp/kept" "$tmp/written" "$2" "$3" "$4" "${5-}" < /dev/null)
+			"$tmp/kept" "$tmp/written" "$2" "$3" "$4" "${5-}" ${6:+"$6"} < /dev/null)
 		rc=$?
 	fi
 	rm -rf "$tmp"

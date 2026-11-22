@@ -524,3 +524,55 @@ dns_written_drop() {
 	[ -f "$f" ] && [ ! -L "$f" ] || return 0
 	dns_store_other "$f" written "${@:3}" | dns_store_write "$f"
 }
+
+# dns_written_adopt FROM TO: FROM's notes of what HestiaRE wrote, in every zone, noted for TO as well. A deleted
+# user's records would otherwise be foreign; under the admin they stay orphans the zone page can remove.
+dns_written_adopt() {
+	local f z owner rel type value section object
+	for f in "$CONF_DIR/users/$1/zones"/*.conf; do
+		[ -e "$f" ] || continue
+		z=${f##*/}
+		z=${z%.conf}
+		while IFS=$'\t' read -r owner rel type value section object; do
+			[ -n "$owner" ] && dns_written_add "$2" "$z" "$section" "$object" "$rel" "$type" "$value"
+		done <<< "$(dns_store_read "$f" "$1" written)"
+	done
+	return 0
+}
+
+# The server move a restore recorded: which old address each new one replaces, for h-sync-dns USER stored. Beside
+# user.conf, not under zones/: it describes this box's restore, and a later restore records its own.
+dns_move_file() {
+	echo "$CONF_DIR/users/$1/dns-move.conf"
+}
+
+# dns_move_read USER: the recorded move as OLD=NEW[,OLD=NEW...], empty without one. The file may come from an
+# archive: a line whose addresses are no addresses is left out.
+dns_move_read() {
+	local f line o n out=''
+	f=$(dns_move_file "$1")
+	[ -f "$f" ] && [ ! -L "$f" ] || return 0
+	while IFS= read -r line || [ -n "$line" ]; do
+		o=$(dns_kv OLD "$line")
+		n=$(dns_kv NEW "$line")
+		[[ "$o" =~ ^[0-9a-fA-F.:]+$ ]] && [[ "$n" =~ ^[0-9a-fA-F.:]+$ ]] || continue
+		out+="${out:+,}$o=$n"
+	done < "$f"
+	echo "$out"
+}
+
+# dns_move_set USER OLD=NEW...: record the move, replacing the one before; none removes it.
+dns_move_set() {
+	local f p
+	f=$(dns_move_file "$1")
+	shift
+	if [ "$#" = 0 ]; then
+		rm -f "$f"
+		return 0
+	fi
+	{
+		for p in "$@"; do
+			printf "OLD='%s' NEW='%s' TIME='%s' DATE='%s'\n" "${p%%=*}" "${p#*=}" "$(date +%T)" "$(date +%F)"
+		done
+	} | dns_store_write "$f"
+}

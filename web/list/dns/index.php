@@ -147,6 +147,53 @@ if (isset($_GET["providers"])) {
 	}
 	header("Location: /list/dns/?" . http_build_query(["zone" => $v_zone]));
 	exit();
+} elseif (isset($_GET["move"])) {
+	// The records still on old addresses moved at once over every zone of the user: the move the restore recorded
+	// ("stored") or the one an IP change left, limited to its domain. A preview with its plan id, then that plan.
+	$v_move = (string) $_GET["move"];
+	$v_object = (string) ($_GET["object"] ?? "");
+	$back = "/list/dns/";
+	if (isset($_POST["v_forget"]) && $v_move === "stored") {
+		verify_csrf($_POST);
+		exec(HESTIA_CMD . "h-delete-dns-move " . $user, $output, $return_var);
+		check_return_code($return_var, $output);
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	$tail = $v_object !== "" ? " " . quoteshellarg($v_object) : "";
+	if (!empty($_POST["v_plan"])) {
+		verify_csrf($_POST);
+		exec(HESTIA_CMD . "h-sync-dns " . $user . " " . quoteshellarg($v_move) . " " . quoteshellarg((string) $_POST["v_plan"]) .
+			" plain" . $tail, $output, $return_var);
+		check_return_code($return_var, $output);
+		if (empty($_SESSION["error_msg"])) {
+			// ok_msg is shown as HTML.
+			$_SESSION["ok_msg"] = nl2br(tohtml(implode("\n", $output)));
+		}
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	exec(HESTIA_CMD . "h-sync-dns " . $user . " " . quoteshellarg($v_move) . " preview json" . $tail, $output, $return_var);
+	$preview = json_decode(implode("", $output), true);
+	if ($return_var !== 0 || !is_array($preview)) {
+		check_return_code($return_var ?: 1, $output);
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	unset($output);
+	$v_pairs = $v_move === "stored" ? cli_json("h-list-dns-move " . $user . " json") : array_map(function ($p) {
+		[$old, $new] = explode("=", $p, 2) + [1 => ""];
+		return ["OLD" => $old, "NEW" => $new];
+	}, explode(",", $v_move));
+	$v_plan = (string) ($preview["PLAN"] ?? "");
+	$ops = $preview["OPS"] ?? [];
+	$v_unmanaged = $preview["UNMANAGED"] ?? [];
+	$v_writes = count(array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip"));
+	$v_query = "/list/dns/?" . http_build_query(["move" => $v_move] + ($v_object !== "" ? ["object" => $v_object] : []));
+	render_page($user, $TAB, "list_dns_move");
 } elseif (isset($_GET["zone"], $_GET["sync"])) {
 	// One section written to the provider: a preview with its plan id, then the write of exactly that plan. The
 	// owner is the section's, which may be a customer the real admin is looking at.
@@ -282,6 +329,7 @@ if (isset($_GET["providers"])) {
 	$data = cli_json("h-list-dns-zones " . $user . " json");
 	dns_zone_count($data);
 	ksort($data);
+	$v_move_pairs = cli_json("h-list-dns-move " . $user . " json");
 	render_page($user, $TAB, "list_dns");
 }
 

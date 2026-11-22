@@ -1,7 +1,7 @@
 <?php
 
 // Desired against actual records of one zone, for h-check-dns-zone and h-sync-dns-zone.
-//   dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM]]
+//   dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM [MOVE]]]
 //   dns-compare.php ZONE ACTUAL WRITTEN
 // DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE); ACTUAL: driver rows
 // (REL TYPE PRIORITY TTL VALUE FLAG RAW); APEX yes when an object on the box holds the zone apex; KEPT: the
@@ -23,10 +23,13 @@
 // OWNER, so no foreign record is touched, and nothing is written to a zone the public name servers do not point at.
 // CONFIRM (comma separated) allows what is never done unasked: cname replaces a CNAME or ALIAS at a name by the
 // section's records, include switches the www include off so that www can differ from the apex.
+// MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
+// it in an ip4/ip6 term. Only that address goes, the term is swapped in place, and a row with an exception or whose
+// derived value is not the NEW one is left alone.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
-if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11], true)) {
-	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM]]\n" .
+if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
+	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM [MOVE]]]\n" .
 		"       dns-compare.php ZONE ACTUAL WRITTEN\n");
 	exit(1);
 }
@@ -37,7 +40,22 @@ if ($argc === 4) {
 	[, $zone, $desiredFile, $actualFile, $apex, $keptFile, $writtenFile] = $argv;
 }
 $planFor = $argc >= 10 ? [$argv[7], strtolower($argv[8]), $argv[9]] : null;
-$confirm = $argc === 11 ? array_values(array_filter(explode(",", $argv[10]))) : [];
+$confirm = $argc >= 11 ? array_values(array_filter(explode(",", $argv[10]))) : [];
+/** @var ?array<string, string> $move old address => new address */
+$move = null;
+if ($argc === 12) {
+	$move = [];
+	foreach (explode(",", $argv[11]) as $pair) {
+		[$old, $new] = explode("=", $pair, 2) + [1 => ""];
+		$o = @inet_pton($old);
+		$n = @inet_pton($new);
+		if ($o === false || $n === false || strlen($o) !== strlen($n)) {
+			fwrite(STDERR, "invalid move: $pair\n");
+			exit(1);
+		}
+		$move[inet_ntop($o)] = inet_ntop($n);
+	}
+}
 $zone = strtolower(rtrim($zone, "."));
 
 /** @return list<list<string>> */
@@ -435,6 +453,49 @@ function spf_merge(string $rec, array $missed): string
 	return implode(" ", $terms);
 }
 
+// SPF record REC with each ip4/ip6 term on an address MOVE names swapped for its new one in place, a term the record
+// already holds dropped. REC itself when no term names one.
+/** @param array<string, string> $move */
+function spf_move(string $rec, array $move): string
+{
+	$terms = preg_split('/\s+/', trim($rec)) ?: [];
+	$out = [];
+	foreach ($terms as $t) {
+		if (preg_match('/^([-+~?]?ip[46]):([0-9a-f.:]+)$/i', $t, $m) && isset($move[addr($m[2])])) {
+			$t = $m[1] . ":" . $move[addr($m[2])];
+		}
+		if (!in_array(strtolower($t), array_map("strtolower", $out), true)) {
+			$out[] = $t;
+		}
+	}
+	return implode(" ", $out);
+}
+
+// The old address of MOVE a row's records carry, null for none: an A/AAAA holding it, an SPF naming it.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @param array<string, string> $move
+ */
+function moved_from(array $x, array $move): ?string
+{
+	global $actual;
+	$type = $x["d"][6];
+	foreach ($x["hits"] as $i) {
+		if ($type === "A" || $type === "AAAA") {
+			if (isset($move[addr($actual[$i][4])])) {
+				return addr($actual[$i][4]);
+			}
+		} elseif ($type === "TXT" && preg_match_all('/\bip[46]:([0-9a-f.:]+)(?=\s|$)/i', txt($actual[$i][4]), $m)) {
+			foreach ($m[1] as $a) {
+				if (isset($move[addr($a)])) {
+					return addr($a);
+				}
+			}
+		}
+	}
+	return null;
+}
+
 // The writes that put an exception back: its values in place of the derived one, by the same verbs. A CNAME or a
 // wildcard it keeps, or a main IP it cannot be, is left to the provider's page.
 /**
@@ -523,8 +584,9 @@ function kept_ops(array $x, bool $include, bool $mainV6): array
 /**
  * @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results
  * @param list<string> $confirm
+ * @param ?array<string, string> $move
  */
-function plan(array $results, string $section, string $object, string $delegation, array $confirm): void
+function plan(array $results, string $section, string $object, string $delegation, array $confirm, ?array $move): void
 {
 	global $actual;
 	$skip = [
@@ -574,11 +636,24 @@ function plan(array $results, string $section, string $object, string $delegatio
 			$follows = $rel === "www" && $include && $x["status"] === "ok" && $x["kept"] === null && $delegation === ""
 				&& ($type === "A" || $type === "AAAA");
 			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object
-				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows)) {
+				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows && $move === null)) {
 				continue;
 			}
 			$status = $x["status"];
 			$hits = $x["hits"];
+			if ($move !== null) {
+				$from = moved_from($x, $move);
+				if ($from === null || $x["kept"] !== null) {
+					continue;
+				}
+				$to = $move[$from];
+				$derives = $type === "TXT" ? preg_match('/\bip[46]:' . preg_quote($to, "/") . '(?=\s|$)/i', txt($value)) === 1
+					: addr($value) === $to;
+				if (!$derives) {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the box derives this value, not $to for $from"];
+					continue;
+				}
+			}
 			// The status a row had before its exception was weighed: what holds the name decides what can be written.
 			$note = $delegation !== "" ? $delegation : ($skip[$x["base"]] ?? "");
 			if ($x["base"] === "cname") {
@@ -614,9 +689,23 @@ function plan(array $results, string $section, string $object, string $delegatio
 				$ops[$k] = kept_ops($x, $include, $mainV6);
 				continue;
 			}
+			if ($move !== null && $type === "TXT") {
+				foreach ($hits as $i) {
+					$old = txt($actual[$i][4]);
+					$new = spf_move($old, $move);
+					if ($new !== $old) {
+						$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
+						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the old address swapped in place"];
+					}
+				}
+				continue;
+			}
 			if ($type === "A" || $type === "AAAA") {
 				$want = addr($value);
-				$own = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
+				$ownAll = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
+				// A move removes only the old addresses, whatever else stands beside them.
+				$own = array_values(array_filter($ownAll, fn ($i) => $move === null || isset($move[addr($actual[$i][4])])));
 				if ($rel === "www" && $include) {
 					// What the apex holds once this plan ran: its wanted value when it will be in line, else what it
 					// holds now.
@@ -652,16 +741,17 @@ function plan(array $results, string $section, string $object, string $delegatio
 					continue;
 				}
 				$have = false;
-				foreach ($own as $i) {
+				foreach ($ownAll as $i) {
 					if (addr($actual[$i][4]) === $want) {
 						$have = true;
-					} else {
+					} elseif (in_array($i, $own, true)) {
 						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
 					}
 				}
-				$useMain = $rel === "@" && $type === "A" && ($main !== null || (!$own && !$mainV6));
+				$useMain = $rel === "@" && $type === "A" && ($main !== null || (!$ownAll && !$mainV6));
 				if ($useMain) {
-					if ($main === null || addr($actual[$main][4]) !== $want) {
+					$mainMoves = $move === null || $main === null || isset($move[addr($actual[$main][4])]);
+					if ($mainMoves && ($main === null || addr($actual[$main][4]) !== $want)) {
 						$ops[$k][] = ["main", $rel, $type, "", $ttl, $want, ""];
 					}
 				} elseif (!$have) {
@@ -957,7 +1047,7 @@ if ($planFor !== null && $planFor[0] === "orphan") {
 	exit(0);
 }
 if ($planFor !== null) {
-	plan($results, $planFor[0], $planFor[1], $delegation, $confirm);
+	plan($results, $planFor[0], $planFor[1], $delegation, $confirm, $move);
 	exit(0);
 }
 

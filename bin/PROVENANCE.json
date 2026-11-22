@@ -7688,6 +7688,33 @@
       "note": "Lists the DNS exceptions of a zone (#1333)."
     },
     {
+      "path": "h-sync-dns",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-22",
+      "divergence": null,
+      "note": "Moves a user's DNS records from old addresses to new ones over every zone with an account, section by section through h-sync-dns-zone (#1419)."
+    },
+    {
+      "path": "h-list-dns-move",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-22",
+      "divergence": null,
+      "note": "Lists the DNS move a restore recorded (#1419)."
+    },
+    {
+      "path": "h-delete-dns-move",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-22",
+      "divergence": null,
+      "note": "Forgets the DNS move a restore recorded (#1419)."
+    },
+    {
       "path": "h-open-sys-email-template",
       "source_type": "eigenbau",
       "upstream_path": null,

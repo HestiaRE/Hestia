@@ -499,6 +499,28 @@ function moved_from(array $x, array $move): ?string
 	return null;
 }
 
+// The old address of MOVE on the wildcard answering REL, null for none or for a wildcard the box derives and moves.
+/**
+ * @param array<string, string> $move
+ * @param array<int|string, array{d: list<string>}> $results
+ */
+function wildcard_from(string $rel, string $type, array $move, array $results): ?string
+{
+	global $actual;
+	$wc = wildcard_for($rel);
+	foreach ($results as $x) {
+		if ($x["d"][5] === $wc && $x["d"][6] === $type) {
+			return null;
+		}
+	}
+	foreach ($wc !== "" ? at($wc, $type) : [] as $i) {
+		if (isset($move[addr($actual[$i][4])])) {
+			return addr($actual[$i][4]);
+		}
+	}
+	return null;
+}
+
 // The writes that put an exception back: its values in place of the derived one, by the same verbs. A CNAME or a
 // wildcard it keeps, or a main IP it cannot be, is left to the provider's page.
 /**
@@ -646,6 +668,14 @@ function plan(array $results, string $section, string $object, string $delegatio
 			$hits = $x["hits"];
 			if ($move !== null) {
 				$from = moved_from($x, $move);
+				if ($from === null && $x["status"] === "wildcard" && $x["kept"] === null) {
+					$from = wildcard_from($rel, $type, $move, $results);
+					if ($from !== null) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value,
+							"answered through a wildcard on $from the box does not derive: move it at the provider"];
+					}
+					continue;
+				}
 				if ($from === null || $x["kept"] !== null) {
 					continue;
 				}

@@ -164,6 +164,12 @@ if (isset($_GET["providers"])) {
 	$tail = $v_object !== "" ? " " . quoteshellarg($v_object) : "";
 	if (!empty($_POST["v_plan"])) {
 		verify_csrf($_POST);
+		// Only a plan id a preview showed: "now" would write without one.
+		if (!preg_match('/^[0-9a-f]{16}$/', (string) $_POST["v_plan"])) {
+			$_SESSION["error_msg"] = _("Invalid plan.");
+			header("Location: " . $back);
+			exit();
+		}
 		exec(HESTIA_CMD . "h-sync-dns " . $user . " " . quoteshellarg($v_move) . " " . quoteshellarg((string) $_POST["v_plan"]) .
 			" plain" . $tail, $output, $return_var);
 		check_return_code($return_var, $output);

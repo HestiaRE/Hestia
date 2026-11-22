@@ -908,6 +908,10 @@ msgid "Account %s has been added."
 msgstr "Das Konto %s wurde angelegt."
 
 #: web/list/dns/index.php
+msgid "Invalid plan."
+msgstr "Ungültiger Plan."
+
+#: web/list/dns/index.php
 #, php-format
 msgid "No DNS zone found for %s."
 msgstr "Keine DNS-Zone für %s gefunden."

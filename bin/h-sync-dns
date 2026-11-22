@@ -68,6 +68,10 @@ collect() {
 		[ -n "$zone" ] || continue
 		while IFS=$'\t' read -r section object; do
 			[ -n "$section" ] || continue
+			# In ACE on both sides: the record keeps the name as the domain was added, the caller may spell it either way.
+			if [ -n "$domain" ] && { [ "$section" = 'server' ] || [ "$(dns_ascii "$object")" != "$domain" ]; }; then
+				continue
+			fi
 			if [ "$state" != 'account' ]; then
 				unmanaged+="$zone"$'\n'
 				continue
@@ -79,8 +83,7 @@ collect() {
 			while IFS= read -r line; do
 				[ -n "$line" ] && ops+="$u"$'\t'"$zone"$'\t'"$section"$'\t'"$object"$'\t'"$m"$'\t'"$line"$'\n'
 			done <<< "$DNSP_PLAN"
-		done <<< "$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$u" -v d="$domain" '$5 == u &&
-			(d == "" || (tolower($4) == d && $3 != "server")) { print $3 "\t" tolower($4) }' \
+		done <<< "$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$u" '$5 == u { print $3 "\t" tolower($4) }' \
 			| sort -u)"
 	done <<< "$DNS_USER_ZONES"
 }
@@ -99,6 +102,7 @@ esac
 if [ -n "$domain" ]; then
 	[ "$user" != 'all' ] || check_result "$E_INVALID" "a DOMAIN belongs to one user"
 	is_domain_format_valid "$domain"
+	is_object_valid 'web' 'DOMAIN' "$domain"
 	domain=$(dns_ascii "$domain")
 fi
 
@@ -147,8 +151,10 @@ fi
 [ "$plan" = 'now' ] || [ "$plan" = "$id" ] \
 	|| check_result "$E_EXISTS" "a zone changed since the preview, nothing written: preview again"
 sections=$(awk -F '\t' 'NF && $6 != "skip" { print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 }' <<< "$ops" | sort -u)
+skips=$(awk -F '\t' 'NF && $6 == "skip"' <<< "$ops" | wc -l)
 if [ -z "$sections" ]; then
 	echo "nothing to write${unmanaged:+, zones without a provider account left alone: $(paste -sd ' ' <<< "$unmanaged")}"
+	[ "$skips" -eq 0 ] || echo "$skips record(s) on an old address left alone, the preview shows why"
 	exit
 fi
 
@@ -166,8 +172,13 @@ while IFS=$'\t' read -r u zone section object m; do
 	fi
 done <<< "$sections"
 [ -n "$unmanaged" ] && echo "Zones without a provider account, left alone: $(paste -sd ' ' <<< "$unmanaged")"
+[ "$skips" -eq 0 ] || echo "$skips record(s) on an old address left alone, the preview shows why"
 
-"$BIN/h-log-action" "system" "Info" "DNS" "DNS move written (User: $user, Move: $move)."
-log_event "$OK" "$ARGUMENTS"
+if [ "$rc" -eq 0 ]; then
+	"$BIN/h-log-action" "system" "Info" "DNS" "DNS move written (User: $user, Move: $move)."
+else
+	"$BIN/h-log-action" "system" "Warning" "DNS" "DNS move written in part (User: $user, Move: $move)."
+fi
+log_event "$rc" "$ARGUMENTS"
 
 exit "$rc"

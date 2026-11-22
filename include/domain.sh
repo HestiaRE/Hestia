@@ -1535,11 +1535,9 @@ web_dns_move() {
 	fi
 	# The web lock is the box's; a provider taking its time must not hold every web command up.
 	web_lock_release
-	if out=$("$BIN/h-sync-dns" "$1" "$3=$4" now plain "$2" 2>&1); then
-		sed 's/^/DNS: /' <<< "$out"
-	else
-		sed 's/^/Warning: DNS: /' <<< "$out"
-	fi
+	out=$("$BIN/h-sync-dns" "$1" "$3=$4" now plain "$2" 2>&1)
+	# Only the lines that failed: the sections written beside them stand.
+	sed -E 's/^/DNS: /; /^DNS: (Error: |zone .* not written: )/ s/^/Warning: /' <<< "$out"
 	return 0
 }
 

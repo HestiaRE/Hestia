@@ -62,7 +62,8 @@ for user in $("$BIN/h-list-users" list); do
 				if [[ "$alias" = *[![:ascii:]]* ]]; then
 					alias_idn=$(idn2 --quiet "$alias")
 				fi
-				if [[ "$san" == *",$alias_idn,"* ]]; then
+				# A wildcard stays: without an account h-add-letsencrypt-domain leaves it out, with one it comes back.
+				if [[ "$alias" = '*.'* ]] || [[ "$san" == *",$alias_idn,"* ]]; then
 					f_aliases+="${f_aliases:+,}$alias"
 				fi
 			done

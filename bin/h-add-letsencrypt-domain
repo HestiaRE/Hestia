@@ -221,9 +221,16 @@ for name in "${le_names[@]}"; do
 		identifier=$(idn2 --quiet "$identifier")
 	fi
 	if [[ "$identifier" = '*.'* ]]; then
-		dnsp_acme_zone "${identifier#\*.}" \
-			|| check_result "$E_INVALID" "$name needs DNS-01, and no DNS provider account holds its zone"
-		le_proto[$identifier]=dns-01
+		if dnsp_acme_zone "${identifier#\*.}"; then
+			le_proto[$identifier]=dns-01
+		else
+			# Only DNS-01 reaches a wildcard: without an account the rest of the certificate is issued without it.
+			echo "Notice: $name needs DNS-01 and no DNS provider account holds its zone, left out of the certificate"
+			debug_log "DNS" "- $identifier has no DNS provider account, left out"
+			$BIN/h-log-action "$user" "Warning" "Web" \
+				"Let's Encrypt left $name out, no DNS provider account holds its zone (Domain: $domain)."
+			aliases=$(tr ',' '\n' <<< "$aliases" | grep -vxF -- "$name" | paste -sd ',')
+		fi
 		continue
 	fi
 	le_dns_check "$identifier"

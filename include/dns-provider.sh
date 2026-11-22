@@ -254,12 +254,26 @@ dnsp_written_gone() {
 # dnsp_acme_zone NAME: "ZONE ACCOUNT REF" of the account zone NAME lies in, into DNSP_ACME_ZONE; rc 1 for none.
 # Without any account it returns at once, so a box without DNS providers issues as it always did. Needs dns.sh.
 dnsp_acme_zone() {
-	local zone
+	local zone a f now
 	DNSP_ACME_ZONE=''
 	compgen -G "$DNSP_CONF_DIR/*.conf" > /dev/null || return 1
 	dnsp_zones_fresh
 	[ -n "${DNS_ACCOUNT_ZONES+set}" ] || dns_account_zones_load
 	zone=$(dns_account_zone "$1")
+	# A zone added at the provider a moment ago is not in a list up to a day old: read again, once per run, and not a
+	# list read in the last five minutes.
+	if [ -z "$zone" ] && [ -z "${DNSP_ACME_REREAD-}" ]; then
+		DNSP_ACME_REREAD=1
+		now=$(date +%s)
+		while IFS= read -r a; do
+			[ -n "$a" ] || continue
+			f="$DNSP_CACHE/$a.zones"
+			[ -f "$f" ] && [ $((now - $(stat -c %Y "$f"))) -lt 300 ] && continue
+			dnsp_zones_refresh "$a" > /dev/null 2>&1
+		done <<< "$(dnsp_accounts)"
+		dns_account_zones_load
+		zone=$(dns_account_zone "$1")
+	fi
 	[ -n "$zone" ] || return 1
 	DNSP_ACME_ZONE="$zone $(dns_zone_account "$zone")"
 }

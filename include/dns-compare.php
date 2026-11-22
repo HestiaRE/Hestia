@@ -24,8 +24,8 @@
 // CONFIRM (comma separated) allows what is never done unasked: cname replaces a CNAME or ALIAS at a name by the
 // section's records, include switches the www include off so that www can differ from the apex.
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
-// it in an ip4/ip6 term. Only that address goes, the term is swapped in place, and a row with an exception or whose
-// derived value is not the NEW one is left alone.
+// it in an ip4/ip6 term. Only that address goes, an SPF keeps it beside the new one, and a row with an exception or
+// whose derived value is not the NEW one is left alone.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
 if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
@@ -453,20 +453,23 @@ function spf_merge(string $rec, array $missed): string
 	return implode(" ", $terms);
 }
 
-// SPF record REC with each ip4/ip6 term on an address MOVE names swapped for its new one in place, a term the record
-// already holds dropped. REC itself when no term names one.
+// SPF record REC with the new address of MOVE right before each ip4/ip6 term on an old one. The old term stays: mail
+// may still leave from the old box while both run. REC itself once every new term is there.
 /** @param array<string, string> $move */
 function spf_move(string $rec, array $move): string
 {
 	$terms = preg_split('/\s+/', trim($rec)) ?: [];
+	$have = array_map("strtolower", $terms);
 	$out = [];
 	foreach ($terms as $t) {
 		if (preg_match('/^([-+~?]?ip[46]):([0-9a-f.:]+)$/i', $t, $m) && isset($move[addr($m[2])])) {
-			$t = $m[1] . ":" . $move[addr($m[2])];
+			$n = $m[1] . ":" . $move[addr($m[2])];
+			if (!in_array(strtolower($n), $have, true)) {
+				$out[] = $n;
+				$have[] = strtolower($n);
+			}
 		}
-		if (!in_array(strtolower($t), array_map("strtolower", $out), true)) {
-			$out[] = $t;
-		}
+		$out[] = $t;
 	}
 	return implode(" ", $out);
 }
@@ -696,7 +699,7 @@ function plan(array $results, string $section, string $object, string $delegatio
 					if ($new !== $old) {
 						$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
 						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
-						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the old address swapped in place"];
+						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the new address beside the old one"];
 					}
 				}
 				continue;

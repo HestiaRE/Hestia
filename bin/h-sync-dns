@@ -7,7 +7,7 @@
 # example: h-sync-dns admin stored
 #
 # Every zone of USER (or of every user) a provider account holds: the records that carry an OLD address of MOVE
-# (OLD=NEW, comma separated) and that HestiaRE derives get the NEW one; an SPF term is swapped in place. Nothing else
+# (OLD=NEW, comma separated) and that HestiaRE derives get the NEW one; an SPF keeps the OLD beside it. Nothing else
 # is touched, a record with an exception neither. An address of this box stands for its NAT address. MOVE stored is
 # the move the restore recorded for the user. Without PLAN (or with "preview") the planned writes and their PLAN id;
 # with that id they go out, provided every zone still yields the same plan, section by section through

@@ -16,8 +16,8 @@ the releases of the command audit, into another.
 ### Added
 
 - **An IP change and a server move carry the DNS records at the providers along** (#1419, stage 3 of #863). Only
-  records HestiaRE derives that carry the old address change, an SPF term is swapped in place, a record with an
-  exception or another value stays. `h-sync-dns USER|all OLD=NEW[,...]` previews the move over every zone with an
+  records HestiaRE derives that carry the old address change, an SPF gets the new address beside the old one (mail may
+  still leave from the old box while both run), a record with an exception or another value stays. `h-sync-dns USER|all OLD=NEW[,...]` previews the move over every zone with an
   account and writes it under one plan id. `h-change-web-domain-ip(6)` takes `SYNC_DNS` (off by default; the edit
   page offers it as a checkbox, without it the page links the preview), the mail domain of that name along, since it
   sends from the web domain's address.

@@ -50,6 +50,12 @@ the releases of the command audit, into another.
   `h-sync-dns USER stored`, since the provider accounts stay on the old box. A deleted user's written records stay
   orphans under the admin instead of turning foreign.
 
+### Changed
+
+- **Updates start from v0.30** (#1433). A box below it is reinstalled. The manifests `0.26.json` to `0.30.json`,
+  their patches and the 11 update functions only they named are gone with it; a box that already has the old files
+  keeps them unread.
+
 ### Fixed
 
 - **A docker customer lost the own daemon socket after a reboot** (#1430). Every `useradd` that handed out a

@@ -190,7 +190,8 @@ if (isset($_GET["providers"])) {
 	unset($output);
 	if (empty($_SESSION["error_msg"])) {
 		$_SESSION["ok_msg"] = tohtml(sprintf($msg, $v_record, $v_type));
-		// Straight to the preview that removes it: the record alone, as an orphan of the section it was in.
+		// Straight to the orphan preview of the section it was in, limited to its name and type: an orphan beside it
+		// with another value is listed and removed as well.
 		if ($v_action === "remove") {
 			$object = (string) ($_POST["v_object"] ?? "");
 			header("Location: /list/dns/?" . http_build_query(["zone" => $v_zone, "sync" => "orphan",

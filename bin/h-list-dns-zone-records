@@ -1,0 +1,66 @@
+#!/bin/bash
+# info: list the DNS records a user added to a zone
+# options: USER ZONE [FORMAT]
+#
+# example: h-list-dns-zone-records admin example.com json
+#
+# The records added or adopted with h-add-dns-zone-record, with the section their name lies in now; SECTION and
+# OBJECT are empty for one whose domain is gone, which no sync writes until it is back.
+
+user=$1
+zone=$2
+format=${3-shell}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+json_list() {
+	jq -R -n '[inputs | select(length > 0) | split("\t") | {RECORD: .[0], TYPE: .[1], PRIORITY: .[2], TTL: .[3],
+		VALUE: .[4], SECTION: .[5], OBJECT: .[6]}]' <<< "$list"
+}
+
+shell_list() {
+	printf 'RECORD\tTYPE\tPRIORITY\tTTL\tVALUE\tSECTION\tOBJECT\n'
+	printf -- '------\t----\t--------\t---\t-----\t-------\t------\n'
+	awk -F '\t' 'BEGIN { OFS = FS } { if (length($5) > 64) $5 = substr($5, 1, 61) "..."; print }' <<< "$list"
+}
+
+check_args '2' "$#" 'USER ZONE [FORMAT]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+case $format in
+	json | plain | shell) ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac
+
+zone=$(dns_ascii "$zone")
+added=$(dns_added_read "$(dns_zone_file "$user" "$zone")" "$user")
+list=''
+if [ -n "$added" ]; then
+	dnsp_zones_fresh
+	dns_load
+	placed=$(dns_added_place "$(dns_zone_rows "$zone")" "$(sed "s/^/$zone\t/" <<< "$added")" | dns_sections)
+	# Each added record once, with the section dns_sections gives it, or none.
+	list=$(awk -F '\t' 'BEGIN { OFS = FS }
+		FILENAME == ARGV[1] { if (NF) s[$6 FS $7 FS $8 FS $10] = $3 FS $4; next }
+		NF { k = $2 FS $3 FS $4 FS $6; print $2, $3, $4, $5, $6, (k in s ? s[k] : FS) }' \
+		<(printf '%s' "$placed") <(printf '%s' "$added"))
+fi
+
+case $format in
+	json) json_list ;;
+	plain) [ -z "$list" ] || echo "$list" ;;
+	shell) shell_list | column -t -s $'\t' ;;
+esac
+
+exit

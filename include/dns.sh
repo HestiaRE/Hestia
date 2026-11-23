@@ -226,10 +226,11 @@ dns_zone_remember() {
 	mv -f "$tmp" "$DNS_ZONE_CACHE"
 }
 
-# dns_sections: zone rows (ZONE STATE KIND OBJECT OWNER NAME TYPE PRIORITY TTL VALUE) as ZONE STATE SECTION
-# OBJECT OWNER REL TYPE PRIORITY TTL VALUE, sorted for display: the apex objects, then each sub with its web
+# dns_sections: zone rows (ZONE STATE KIND OBJECT OWNER NAME TYPE PRIORITY TTL VALUE [ORIGIN]) as ZONE STATE SECTION
+# OBJECT OWNER REL TYPE PRIORITY TTL VALUE ORIGIN, sorted for display: the apex objects, then each sub with its web
 # before its mail, then aliases, then the server. From inside its zone a web object named after the zone is
-# "web", one below it "sub", one elsewhere "alias" (its aliases here); REL is @ for the apex.
+# "web", one below it "sub", one elsewhere "alias" (its aliases here); REL is @ for the apex. ORIGIN is added for a
+# record the user added or adopted, empty for a derived one.
 dns_sections() {
 	awk -F '\t' 'BEGIN { OFS = FS; t["A"] = 1; t["AAAA"] = 2; t["MX"] = 3; t["TXT"] = 4 }
 		NF {
@@ -237,10 +238,10 @@ dns_sections() {
 			if (k == "web") k = ($4 == z) ? "web" : (under ? "sub" : "alias")
 			g = (k == "server") ? 3 : ($4 == z) ? 0 : under ? 1 : 2
 			r = (n == z) ? "@" : substr(n, 1, length(n) - length(z) - 1)
-			print z, g, $4, (k == "mail"), (n == $4 ? 0 : 1), r, t[$7], $2, k, $5, $7, $8, $9, $10
+			print z, g, $4, (k == "mail"), (n == $4 ? 0 : 1), r, ($7 in t ? t[$7] : 5), $2, k, $5, $7, $8, $9, $10, $11
 		}' \
 		| sort -t $'\t' -k1,1 -k2,2n -k3,3 -k4,4n -k5,5n -k6,6 -k7,7n \
-		| awk -F '\t' 'BEGIN { OFS = FS } { print $1, $8, $9, $3, $10, $6, $11, $12, $13, $14 }'
+		| awk -F '\t' 'BEGIN { OFS = FS } { print $1, $8, $9, $3, $10, $6, $11, $12, $13, $14, $15 }'
 }
 
 # dns_account_zone NAME: the longest zone of a provider account NAME is or lies under, from DNS_ACCOUNT_ZONES.
@@ -346,9 +347,10 @@ dns_anchor_zone() {
 }
 
 # dns_zone_rows ZONES: the owned rows of every user that live in one of ZONES (blank separated), with zone and
-# state prefixed. Only names under one of them are looked up, so a delegated sub-zone drops out by its own SOA.
+# state prefixed, then the records the users added there (dns_added_rows). Only names under one of them are looked
+# up, so a delegated sub-zone drops out by its own SOA.
 dns_zone_rows() {
-	local zones=" $1 " z state hit anchor kind obj owner name rest
+	local zones=" $1 " z state hit anchor kind obj owner name rest out=''
 	dns_load
 	while IFS=$'\t' read -r anchor kind obj owner name rest; do
 		[ -n "$name" ] || continue
@@ -363,8 +365,10 @@ dns_zone_rows() {
 		dns_anchor_zone "$anchor"
 		read -r z state <<< "$DNS_ZONE_STATE"
 		[[ "$zones" == *" $z "* ]] || continue
-		printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$z" "$state" "$kind" "$obj" "$owner" "$name" "$rest"
+		out+=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s' "$z" "$state" "$kind" "$obj" "$owner" "$name" "$rest")$'\n'
 	done <<< "$DNS_ANCHORED"
+	printf '%s' "$out"
+	dns_added_rows "$1" "$out"
 }
 
 # dns_user_zones USER: the zones USER's rows live in, one "ZONE STATE" per line, into DNS_USER_ZONES, and those of
@@ -537,6 +541,99 @@ dns_written_adopt() {
 		done <<< "$(dns_store_read "$f" "$1" written)"
 	done
 	return 0
+}
+
+# Records a user added to a zone by hand or adopted from the provider (KIND added): desired rows like the derived ones,
+# RECORD TYPE PRIORITY VALUE TTL as the provider is to hold them. Their section is not stored but found from the name,
+# as for a derived row, so a record follows its domain through a backup and a move.
+
+# dns_added_read FILE OWNER: OWNER REL TYPE PRIORITY TTL VALUE of each added record in FILE.
+dns_added_read() {
+	local line
+	[ -f "$1" ] && [ ! -L "$1" ] || return 0
+	while IFS= read -r line || [ -n "$line" ]; do
+		record_line_valid "$line" || continue
+		[ "$(record_field "$line" KIND)" = added ] || continue
+		printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$2" "$(record_field "$line" RECORD)" "$(record_field "$line" TYPE)" \
+			"$(record_field "$line" PRIORITY)" "$(record_field "$line" TTL)" \
+			"$(record_value_decode "$(record_field "$line" VALUE)" | tr '\t' ' ')"
+	done < "$1"
+}
+
+# dns_added_rows ZONES ROWS: zone rows (ORIGIN added) for the records the users added in ZONES, placed by
+# dns_added_place among the derived ROWS. A record under none of them is left out: it has no section until its
+# domain is back.
+dns_added_rows() {
+	local z d list=''
+	for z in $1; do
+		for d in "$CONF_DIR"/users/*; do
+			[ -e "$d" ] || continue
+			list+=$(dns_added_read "$d/zones/$z.conf" "${d##*/}" | sed "s/^/$z\t/")$'\n'
+		done
+	done
+	[ -n "${list//$'\n'/}" ] || return 0
+	dns_added_place "$2" "$list"
+}
+
+# dns_added_place ROWS LIST: each "ZONE OWNER REL TYPE PRIORITY TTL VALUE" of LIST as a zone row in the section of the
+# most specific derived row of its owner in ROWS whose name it is at or under, on a tie web before mail; nothing for
+# one under none of them.
+dns_added_place() {
+	awk -F '\t' 'BEGIN { OFS = FS; r["web"] = 1; r["mail"] = 2; r["server"] = 3 }
+		FILENAME == ARGV[1] { if (NF && $11 == "") { n = $6; sub(/^\*\./, "", n); row[++m] = $0; nm[m] = n; z[m] = $1; o[m] = $5 }
+			next }
+		NF {
+			name = ($3 == "@") ? $1 : $3 "." $1; b = 0
+			for (i = 1; i <= m; i++) {
+				if (z[i] != $1 || o[i] != $2 || !(name == nm[i] || substr(name, length(name) - length(nm[i])) == "." nm[i])) continue
+				split(row[i], f, "\t")
+				if (!b || length(nm[i]) > length(nm[b]) || (length(nm[i]) == length(nm[b]) && r[f[3]] < rk)) { b = i; rk = r[f[3]]; bf = row[i] }
+			}
+			if (!b) next
+			split(bf, f, "\t")
+			print $1, f[2], f[3], f[4], $2, name, $4, $5, $6, $7, "added"
+		}' <(printf '%s' "$1") <(printf '%s' "$2")
+}
+
+# dns_added_line REL TYPE PRIORITY TTL VALUE: one line of the store.
+dns_added_line() {
+	printf "RECORD='%s' TYPE='%s' PRIORITY='%s' VALUE='%s' TTL='%s' KIND='added' TIME='%s' DATE='%s'\n" \
+		"$1" "$2" "$3" "$(record_value_encode "$5")" "$4" "$(date +%T)" "$(date +%F)"
+}
+
+# dns_added_other FILE [REL TYPE PRIORITY VALUE]: the valid lines of FILE but the added record given, or but every
+# added one.
+dns_added_other() {
+	local line
+	[ -f "$1" ] && [ ! -L "$1" ] || return 0
+	while IFS= read -r line || [ -n "$line" ]; do
+		record_line_valid "$line" || continue
+		if [ "$(record_field "$line" KIND)" = added ]; then
+			[ "$#" -lt 5 ] && continue
+			[ "$(record_field "$line" RECORD)" = "$2" ] && [ "$(record_field "$line" TYPE)" = "$3" ] \
+				&& [ "$(record_field "$line" PRIORITY)" = "$4" ] \
+				&& [ "$(record_value_decode "$(record_field "$line" VALUE)")" = "$5" ] && continue
+		fi
+		printf '%s\n' "$line"
+	done < "$1"
+}
+
+# dns_added_set USER ZONE REL TYPE PRIORITY TTL VALUE: note an added record, replacing the same one with another TTL.
+dns_added_set() {
+	local f
+	f=$(dns_zone_file "$1" "$2")
+	{
+		dns_added_other "$f" "$3" "$4" "$5" "$7"
+		dns_added_line "$3" "$4" "$5" "$6" "$7"
+	} | dns_store_write "$f"
+}
+
+# dns_added_drop USER ZONE REL TYPE PRIORITY VALUE: forget an added record; the file goes with its last line.
+dns_added_drop() {
+	local f
+	f=$(dns_zone_file "$1" "$2")
+	[ -f "$f" ] && [ ! -L "$f" ] || return 0
+	dns_added_other "$f" "$3" "$4" "$5" "$6" | dns_store_write "$f"
 }
 
 # The server move a restore recorded: which old address each new one replaces, for h-sync-dns USER stored. Beside

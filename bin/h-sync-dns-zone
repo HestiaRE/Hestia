@@ -215,11 +215,12 @@ if [ -n "$writes" ]; then
 		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT$note: $err"
 		check_result "$E_CONNECT" "the provider did not take the records of zone $zone$note: $err"
 	fi
-	# A merged or moved SPF record carries terms HestiaRE did not write, so it is never noted as an orphan to be.
+	# A merged or moved SPF record carries terms HestiaRE did not write, so it is never noted as an orphan to be; an
+	# added record is noted as such already, and forgetting it leaves it foreign.
 	while IFS=$'\t' read -r rel type value; do
 		[ -n "$value" ] && dns_written_add "$user" "$zone" "$section" "$object" "$rel" "$type" "$value"
 	done <<< "$(awk -F '\t' 'BEGIN { OFS = FS } $1 == "add" && $7 != "merged into the existing record" &&
-		$7 != "the new address beside the old one" {
+		$7 != "the new address beside the old one" && $7 !~ /^an added record/ {
 		print $2, $3, ($4 != "" ? $4 " " : "") $6 }' <<< "$writes")"
 fi
 rm -f "$tmp"

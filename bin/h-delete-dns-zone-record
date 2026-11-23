@@ -1,0 +1,74 @@
+#!/bin/bash
+# info: forget a DNS record a user added to a zone
+# options: USER ZONE RECORD TYPE VALUE [PRIORITY] [MODE]
+#
+# example: h-delete-dns-zone-record admin example.com @ TXT 'google-site-verification=abc123'
+# example: h-delete-dns-zone-record admin example.com shop CNAME shops.example.net. '' remove
+#
+# MODE forget (the default) leaves the record at the provider, where it is a foreign one again. MODE remove notes it
+# as written by HestiaRE instead, so it is an orphan of its section, which h-sync-dns-zone USER ZONE orphan OBJECT
+# removes after a preview. Nothing is written to the provider here.
+
+user=$1
+zone=$2
+record=${3,,}
+type=${4^^}
+value=$5
+prio=${6-}
+mode=${7:-forget}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '5' "$#" 'USER ZONE RECORD TYPE VALUE [PRIORITY] [MODE]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+[[ "$record" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] || check_result "$E_INVALID" "invalid record: $3"
+[[ "$type" =~ ^[A-Z][A-Z0-9]{0,9}$ ]] || check_result "$E_INVALID" "invalid type: $4"
+case $mode in
+	forget | remove) ;;
+	*) check_result "$E_INVALID" "invalid mode: $mode" ;;
+esac
+
+zone=$(dns_ascii "$zone")
+f=$(dns_zone_file "$user" "$zone")
+# The value through the environment: awk -v would read its backslashes as escapes.
+V="$value" awk -F '\t' -v r="$record" -v t="$type" -v p="$prio" 'BEGIN { v = ENVIRON["V"] }
+	$2 == r && $3 == t && $4 == p && $6 == v { f = 1 } END { exit !f }' <<< "$(dns_added_read "$f" "$user")" \
+	|| check_result "$E_NOTEXIST" "$user added no such $type record at $record in zone $zone"
+
+if [ "$mode" = remove ]; then
+	dnsp_zones_fresh
+	dns_load
+	placed=$(dns_added_place "$(dns_zone_rows "$zone")" "$zone"$'\t'"$user"$'\t'"$record"$'\t'"$type"$'\t'"$prio"$'\t\t'"$value" \
+		| dns_sections)
+	# An orphan is removed per section, and one whose domain went has none: it stays under the zone's name.
+	section=web
+	object=$zone
+	[ -z "$placed" ] || IFS=$'\t' read -r _ _ section object _ <<< "$placed"
+	# A written note keeps the priority of an MX in its value, as dns_store_line splits it.
+	v=$value
+	[ "$type" = MX ] && v="$prio $value"
+	dns_written_add "$user" "$zone" "$section" "${object,,}" "$record" "$type" "$v" \
+		|| check_result "$E_DISK" "the record could not be noted for removal"
+fi
+dns_added_drop "$user" "$zone" "$record" "$type" "$prio" "$value" || check_result "$E_DISK" "the record could not be forgotten"
+
+if [ "$mode" = remove ]; then
+	"$BIN/h-log-action" "system" "Info" "DNS" "DNS record handed to removal (Zone: $zone, Record: $record $type, User: $user)."
+else
+	"$BIN/h-log-action" "system" "Info" "DNS" "DNS record forgotten (Zone: $zone, Record: $record $type, User: $user)."
+fi
+log_event "$OK" "$ARGUMENTS"
+
+exit

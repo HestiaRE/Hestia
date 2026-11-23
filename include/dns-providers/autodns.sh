@@ -97,7 +97,7 @@ dnsp_autodns_change() {
 	local body
 	body=$(jq -R -n '[inputs | select(length > 0) | split("\t")
 		| {op: .[0], r: ({name: (if .[1] == "@" then "" else .[1] end), type: .[2], value: .[5]}
-			+ (if .[2] == "MX" and .[3] != "" then {pref: (.[3] | tonumber)} else {} end)
+			+ (if (.[2] | IN("MX", "SRV")) and .[3] != "" then {pref: (.[3] | tonumber)} else {} end)
 			+ (if .[0] == "add" and .[4] != "" then {ttl: (.[4] | tonumber)} else {} end))}]
 		| {adds: [.[] | select(.op == "add") | .r], rems: [.[] | select(.op == "rem") | .r]}' < "$3") || {
 		DNSP_ERROR='unreadable change list'

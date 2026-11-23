@@ -889,8 +889,28 @@ msgstr "Unbekannt"
 
 #: web/list/dns/index.php
 #, php-format
+msgid "%s %s has been added. Sync its section to write it to the provider."
+msgstr "%s %s ist hinzugefügt. Gleiche den Abschnitt ab, um ihn zum Provider zu schreiben."
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s has been adopted: HestiaRE keeps it as it is and writes it again where it is missing."
+msgstr "%s %s ist übernommen: HestiaRE behält ihn, wie er ist, und schreibt ihn wieder, wo er fehlt."
+
+#: web/list/dns/index.php
+#, php-format
 msgid "%s %s has been written to the provider and read back."
 msgstr "%s %s wurde zum Provider geschrieben und zurückgelesen."
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s is an orphan now. Remove it from the provider below."
+msgstr "%s %s ist jetzt verwaist. Entferne ihn unten beim Provider."
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s is forgotten and stays at the provider as a foreign record."
+msgstr "%s %s ist vergessen und bleibt als fremder Eintrag beim Provider."
 
 #: web/list/dns/index.php
 #, php-format
@@ -906,6 +926,10 @@ msgstr "%s %s wird als Ausnahme behalten."
 #, php-format
 msgid "Account %s has been added."
 msgstr "Das Konto %s wurde angelegt."
+
+#: web/list/dns/index.php
+msgid "Invalid action."
+msgstr "Ungültige Aktion."
 
 #: web/list/dns/index.php
 msgid "Invalid plan."
@@ -3821,8 +3845,37 @@ msgstr[0] "%d Eintrag, den kein Objekt dieses Servers ableitet. HestiaRE ändert
 msgstr[1] "%d Einträge, die kein Objekt dieses Servers ableitet. HestiaRE ändert sie nie."
 
 #: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "@ for %s"
+msgstr "@ für %s"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "A TXT or a CNAME of your own, in the section its name lies in. Other types are adopted from the provider's records above."
+msgstr "Ein eigener TXT oder CNAME, im Abschnitt, in dem sein Name liegt. Andere Typen werden aus den Einträgen des Providers oben übernommen."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Accept what the provider holds instead of the derived value. Sync then leaves it alone."
 msgstr "Annehmen, was beim Provider steht, statt des abgeleiteten Werts. Der Abgleich lässt den Eintrag dann unangetastet."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Add a record"
+msgstr "Eintrag hinzufügen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Add record"
+msgstr "Eintrag hinzufügen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Added on this page, not derived: HestiaRE writes it as it is."
+msgstr "Auf dieser Seite hinzugefügt, nicht abgeleitet: HestiaRE schreibt ihn, wie er ist."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Added records without a section"
+msgstr "Hinzugefügte Einträge ohne Abschnitt"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Adopt"
+msgstr "Übernehmen"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Alias of"
@@ -3865,6 +3918,14 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr "Eben mit dem Konto %s verglichen: Jeder Eintrag, den HestiaRE ableitet, ist vorhanden."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Forget"
+msgstr "Vergessen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "HestiaRE forgets the record, which stays at the provider as a foreign one."
+msgstr "HestiaRE vergisst den Eintrag, er bleibt als fremder beim Provider."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type."
 msgstr "HestiaRE hat diese Einträge geschrieben, und nichts auf diesem Server leitet sie mehr ab: Die Domain oder der Alias ist weg, oder der Name bekommt keinen Eintrag dieses Typs mehr."
 
@@ -3875,6 +3936,10 @@ msgstr "Als Ausnahme behalten"
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep as foreign record"
 msgstr "Als fremden Eintrag behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep the record as part of its section: the zone page compares it, a sync writes it where it is missing, and it travels with the backup."
+msgstr "Den Eintrag als Teil seines Abschnitts führen: die Zonenseite vergleicht ihn, ein Abgleich schreibt ihn, wo er fehlt, und er reist mit dem Backup."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep without this record"
@@ -3921,6 +3986,10 @@ msgid "Remove from provider"
 msgstr "Beim Provider entfernen"
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Remove the record from the provider. A preview shows the write first."
+msgstr "Den Eintrag beim Provider entfernen. Eine Vorschau zeigt zuerst, was geschrieben wird."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Switch the www include on: the provider serves the apex addresses at www, and the own www records go."
 msgstr "Schaltet das www-Include ein: Der Provider liefert unter www die Adressen des Apex, die eigenen www-Einträge entfallen."
 
@@ -3942,8 +4011,16 @@ msgid "The zone could not be read from account %s. Only the records HestiaRE der
 msgstr "Die Zone konnte nicht aus dem Konto %s gelesen werden. Gezeigt werden nur die Einträge, die HestiaRE ableitet."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Their domain is gone from this server. No sync writes them until it is back."
+msgstr "Ihre Domain ist nicht mehr auf diesem Server. Kein Abgleich schreibt sie, bis sie zurück ist."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Whole zone"
 msgstr "Ganze Zone"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "added"
+msgstr "hinzugefügt"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "delegated"
@@ -3960,6 +4037,14 @@ msgstr "Ausnahme"
 #: web/templates/pages/list_dns_zone.php
 msgid "missing"
 msgstr "fehlt"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "optional"
+msgstr "optional"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "shadowed"
+msgstr "verdeckt"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "unchecked"

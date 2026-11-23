@@ -3,11 +3,11 @@
 // Desired against actual records of one zone, for h-check-dns-zone and h-sync-dns-zone.
 //   dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM [MOVE]]]
 //   dns-compare.php ZONE ACTUAL WRITTEN
-// DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE); ACTUAL: driver rows
+// DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE ORIGIN); ACTUAL: driver rows
 // (REL TYPE PRIORITY TTL VALUE FLAG RAW); APEX yes when an object on the box holds the zone apex; KEPT: the
 // exceptions (OWNER REL TYPE VALUE, one row per accepted value, an empty VALUE alone for "kept absent"); WRITTEN: the
 // derived records HestiaRE wrote (OWNER REL TYPE VALUE SECTION OBJECT).
-// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE FOUND EXCEPTION KEPT: the zone's
+// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE FOUND EXCEPTION KEPT ORIGIN: the zone's
 // delegation (SECTION delegation: public name servers against the provider's), the desired rows, then every record
 // no desired row consumed: SECTION orphan when HestiaRE wrote it (OBJECT and OWNER those it wrote it for), else
 // foreign, or hidden outside the box's names in a zone without apex. FOUND is what
@@ -16,6 +16,8 @@
 // Per type: A/AAAA as an address, MX as priority and target, SPF by whether it authorises the desired addresses,
 // DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
 // a check it cut short is "unchecked", never "different".
+// A row of ORIGIN added (a record the user added or adopted) consumes only the record with its own value, a CNAME or
+// ALIAS the one at its name; it is "shadowed" where a derived row holds the name and type, or a CNAME's name at all.
 // With SECTION OBJECT OWNER the writes that bring that section in line instead, "OP REL TYPE PRIORITY TTL VALUE
 // NOTE [CONFIRM]": add, rem (VALUE as stored), main (the apex address), include (VALUE off or on: whether www follows
 // the apex), skip (left alone, NOTE says why; CONFIRM names the confirmation that would write it instead). A rem only
@@ -163,7 +165,7 @@ if ($argc === 4) {
 	}
 	exit(0);
 }
-$desired = tsv($desiredFile, 10);
+$desired = tsv($desiredFile, 11);
 /** @var array<string, list<string>> $kept */
 $kept = [];
 foreach (tsv($keptFile, 4) as [$owner, $rel, $type, $value]) {
@@ -173,6 +175,43 @@ foreach (tsv($keptFile, 4) as [$owner, $rel, $type, $value]) {
 	}
 }
 $used = [];
+// An added record's value as the provider's is compared with it: the priority only where the type has one.
+function added_canon(string $type, string $prio, string $v): string
+{
+	$v = match ($type) {
+		"A", "AAAA" => addr($v),
+		"TXT" => (string) preg_replace('/\s+/', "", txt($v)),
+		"MX", "NS", "PTR", "CNAME", "ALIAS" => host($v),
+		default => strtolower(trim($v)),
+	};
+	return (in_array($type, ["MX", "SRV"], true) ? (int) $prio . " " : "") . $v;
+}
+
+function txt_kind(string $v): string
+{
+	return preg_match('/^v=(spf1|dmarc1|dkim1)\b/i', txt($v), $m) ? strtolower($m[1]) : "";
+}
+
+// The added rows a derived row wins against, by index, with the reason: the same name and type (for TXT the same
+// kind, or a DKIM name), or any record at the name of a CNAME or ALIAS.
+/** @var array<int, string> $shadowed */
+$shadowed = [];
+foreach ($desired as $k => $d) {
+	if ($d[10] !== "added") {
+		continue;
+	}
+	foreach ($desired as $e) {
+		if ($e[10] !== "" || $e[5] !== $d[5]) {
+			continue;
+		}
+		$txtClash = $d[6] === "TXT" && (txt_kind($e[9]) === "dkim1" || (txt_kind($d[9]) !== "" && txt_kind($d[9]) === txt_kind($e[9])));
+		if (in_array($d[6], ["CNAME", "ALIAS"], true) || ($e[6] === $d[6] && ($d[6] !== "TXT" || $txtClash))) {
+			$shadowed[$k] = "the $e[2] section $e[3] derives $e[6] at this name";
+			break;
+		}
+	}
+}
+
 // The time public DNS has left in this run, and whether a lookup since the last reset went unanswered.
 final class Dig
 {
@@ -633,8 +672,9 @@ function follow_refused(
 	}
 	$www = [];
 	foreach ($results as $x) {
-		[, , $s, $o, , $rel, $type, , , $value] = $x["d"];
-		if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || !in_array($type, ["A", "AAAA"], true)) {
+		[, , $s, $o, , $rel, $type, , , $value, $origin] = $x["d"];
+		if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || !in_array($type, ["A", "AAAA"], true)
+			|| $origin !== "") {
 			continue;
 		}
 		if ($x["kept"] !== null) {
@@ -663,7 +703,7 @@ function spf_addrs(string $section, string $object): array
 	global $desired;
 	$ips = [];
 	foreach ($desired as $d) {
-		if ($d[2] === $section && $d[3] === $object && ($d[6] === "A" || $d[6] === "AAAA")) {
+		if ($d[2] === $section && $d[3] === $object && ($d[6] === "A" || $d[6] === "AAAA") && $d[10] === "") {
 			$ips[] = addr($d[9]);
 		}
 	}
@@ -712,6 +752,30 @@ function spf_normal_ops(array $x): array
 	return $ops;
 }
 
+// The writes that put an added record in place: its own value beside whatever else stands there, a CNAME or ALIAS in
+// place of the one there, never beside other records.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @return list<list<string>>
+ */
+function added_ops(array $x): array
+{
+	global $actual;
+	[, , , , , $rel, $type, $prio, $ttl, $value] = $x["d"];
+	if ($type !== "CNAME" && $type !== "ALIAS") {
+		return [["add", $rel, $type, $prio, $ttl, $type === "TXT" ? txt($value) : $value, "an added record"]];
+	}
+	if (!$x["hits"] && array_diff(at($rel), at($rel, "CNAME"), at($rel, "ALIAS"))) {
+		return [["skip", $rel, $type, "", $ttl, $value, "other records hold the name, no $type can stand beside them"]];
+	}
+	$ops = [];
+	foreach ($x["hits"] as $i) {
+		$ops[] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+	}
+	$ops[] = ["add", $rel, $type, "", $ttl, host($value), "an added record"];
+	return $ops;
+}
+
 // The writes for one section, as the header describes. $results as the compare loop collects them.
 /**
  * @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results
@@ -724,6 +788,7 @@ function plan(array $results, string $section, string $object, string $delegatio
 	$skip = [
 		"delegated" => "a delegated name, the zone does not answer for it",
 		"unchecked" => "public DNS did not answer, check again",
+		"shadowed" => "a row the box derives holds the name, the added record stays out",
 	];
 	$include = false;
 	foreach ($actual as $r) {
@@ -738,8 +803,8 @@ function plan(array $results, string $section, string $object, string $delegatio
 	$apexWant = [];
 	$apexDone = [];
 	foreach ($results as $x) {
-		[, , , , , $rel, $type, , , $value] = $x["d"];
-		if ($rel === "@") {
+		[, , , , , $rel, $type, , , $value, $origin] = $x["d"];
+		if ($rel === "@" && $origin === "") {
 			$apexWant[$type] = addr($value);
 			if ($x["kept"] !== null) {
 				unset($apexWant[$type]);
@@ -774,8 +839,9 @@ function plan(array $results, string $section, string $object, string $delegatio
 			[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
 			// www in line through the include breaks when this plan changes the apex, so it is planned as well.
 			$follows = $rel === "www" && $include && $x["status"] === "ok" && $x["kept"] === null && $delegation === ""
-				&& ($type === "A" || $type === "AAAA");
+				&& ($type === "A" || $type === "AAAA") && $x["d"][10] === "";
 			$normal = in_array("normalize", $confirm, true) && $type === "TXT" && $x["kept"] === null && $move === null
+				&& $x["d"][10] === ""
 				&& preg_match('/^v=spf1\b/i', txt($value)) === 1;
 			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object
 				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows && !$normal && $move === null)
@@ -798,6 +864,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 					continue;
 				}
 				$to = $move[$from];
+				if ($x["d"][10] === "added") {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "an added record keeps the value it was added with"];
+					continue;
+				}
 				// The derived SPF names no address: it takes the new one when the section's A/AAAA rows do.
 				$derives = $type === "TXT" ? in_array(addr($to), spf_addrs($s, $o), true) : addr($value) === $to;
 				if (!$derives) {
@@ -829,11 +899,16 @@ function plan(array $results, string $section, string $object, string $delegatio
 					"TXT" => txt($value),
 					default => $value,
 				};
-				$ops[$k][] = ["add", $rel, $type, $type === "MX" ? $prio : "", $ttl, $v, "in place of the CNAME"];
+				$why = $x["d"][10] === "added" ? "an added record, in place of the CNAME" : "in place of the CNAME";
+				$ops[$k][] = ["add", $rel, $type, $prio, $ttl, $v, $why];
 				continue;
 			}
 			if ($note !== "") {
 				$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, $note, $cnameOk ? "cname" : ""];
+				continue;
+			}
+			if ($x["d"][10] === "added") {
+				$ops[$k] = added_ops($x);
 				continue;
 			}
 			if ($x["kept"] !== null) {
@@ -961,7 +1036,7 @@ function plan(array $results, string $section, string $object, string $delegatio
 		$ops[-1] = [["include", "www", "", "", "", "off", "www stops following the apex"]];
 		foreach ($results as $k => $x) {
 			[, , $s, $o, , $rel, $type, , $ttl, $value] = $x["d"];
-			if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || $x["kept"] !== null
+			if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || $x["kept"] !== null || $x["d"][10] !== ""
 				|| !in_array($type, ["A", "AAAA"], true) || in_array("add", array_column($ops[$k] ?? [], 0), true)) {
 				continue;
 			}
@@ -1023,8 +1098,8 @@ if ($planFor === null) {
 
 /** @var list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results */
 $results = [];
-foreach ($desired as $d) {
-	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value] = $d;
+foreach ($desired as $dk => $d) {
+	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value, $origin] = $d;
 	$status = "missing";
 	$shown = [];
 	$hits = [];
@@ -1033,11 +1108,37 @@ foreach ($desired as $d) {
 	$note = "";
 	$cut = delegated($rel);
 	Dig::$failed = false;
-	if ($cut !== "") {
+	if (isset($shadowed[$dk])) {
+		$status = "shadowed";
+		$note = $shadowed[$dk];
+	} elseif ($cut !== "" && !($origin === "added" && $type === "NS" && $cut === $rel)) {
 		$status = "delegated";
 		$to = implode(", ", array_map(fn ($i) => $actual[$i][4], at($cut, "NS")));
 		$note = "delegated to $to: not answered by this zone";
-	} elseif ($type === "A" || $type === "AAAA") {
+	} elseif ($origin === "added" && ($type === "CNAME" || $type === "ALIAS")) {
+		$hits = at($rel, $type);
+		foreach ($hits as $i) {
+			$used[$i] = true;
+			$shown[] = $actual[$i][4];
+			$found[] = host($actual[$i][4]);
+		}
+		if ($hits) {
+			$status = $found === [host($value)] ? "ok" : "different";
+		} elseif (array_diff(at($rel), at($rel, "CNAME"), at($rel, "ALIAS"))) {
+			$note = "other records hold the name, no $type can stand beside them";
+		}
+	} elseif ($origin === "added" && !at($rel, "CNAME")) {
+		$want = added_canon($type, $prio, $value);
+		foreach (at($rel, $type) as $i) {
+			if (added_canon($type, $actual[$i][2], $actual[$i][4]) === $want) {
+				$hits[] = $i;
+				$used[$i] = true;
+				$shown[] = $type === "TXT" ? txt($actual[$i][4]) : $actual[$i][4];
+			}
+		}
+		$found = $shown;
+		$status = $hits ? "ok" : "missing";
+	} elseif ($origin === "" && ($type === "A" || $type === "AAAA")) {
 		$want = addr($value);
 		$hits = at($rel, $type);
 		if ($hits) {
@@ -1155,7 +1256,7 @@ foreach ($desired as $d) {
 	// An exception stands in for the derived value until it is lifted: matching it is "exception", and a row that
 	// left it is different, even when the provider holds the derived value again.
 	$base = $status;
-	$accepted = $status === "delegated" ? null : ($kept["$owner\t$rel\t$type"] ?? null);
+	$accepted = $status === "delegated" || $origin !== "" ? null : ($kept["$owner\t$rel\t$type"] ?? null);
 	if ($accepted !== null) {
 		$keeps = $accepted ? implode(" | ", $accepted) : "no record";
 		if (same_set($type, $found, $accepted)) {
@@ -1177,7 +1278,7 @@ foreach ($desired as $d) {
 		"kept" => $accepted];
 	if ($planFor === null) {
 		out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note,
-			implode("\x1f", $found), $accepted === null ? "" : "yes", implode("\x1f", $accepted ?? [])]);
+			implode("\x1f", $found), $accepted === null ? "" : "yes", implode("\x1f", $accepted ?? []), $origin]);
 	}
 }
 
@@ -1206,7 +1307,7 @@ if ($planFor !== null && $planFor[0] === "orphan") {
 		if ($delegation !== "") {
 			out(["skip", $r[0], $r[1], $r[2], $r[3], $r[4], $delegation]);
 		} else {
-			out(["rem", $r[0], $r[1], $r[1] === "MX" ? $r[2] : "", $r[3], $r[6], "orphaned"]);
+			out(["rem", $r[0], $r[1], in_array($r[1], ["MX", "SRV"], true) ? $r[2] : "", $r[3], $r[6], "orphaned"]);
 		}
 	}
 	exit(0);

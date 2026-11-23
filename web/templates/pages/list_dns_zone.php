@@ -15,7 +15,30 @@ $dns_status_labels = [
 	"wildcard" => ["fa-triangle-exclamation icon-orange", _("wildcard")],
 	"delegated" => ["fa-circle-pause icon-dim", _("delegated")],
 	"unchecked" => ["fa-circle-question icon-dim", _("unchecked")],
+	"shadowed" => ["fa-circle-minus icon-dim", _("shadowed")],
 ];
+// The actions on a record the user added: forget it (it stays at the provider), or hand it to the orphan removal.
+$dns_added_actions = function (array $r, string $owner, string $object, bool $remove) use ($v_zone): void {
+	?>
+	<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "added" => 1])) ?>">
+		<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+		<input type="hidden" name="v_owner" value="<?= tohtml($owner) ?>">
+		<input type="hidden" name="v_object" value="<?= tohtml($object) ?>">
+		<input type="hidden" name="v_record" value="<?= tohtml($r["NAME"] ?? $r["RECORD"]) ?>">
+		<input type="hidden" name="v_type" value="<?= tohtml($r["TYPE"]) ?>">
+		<input type="hidden" name="v_value" value="<?= tohtml($r["VALUE"]) ?>">
+		<input type="hidden" name="v_priority" value="<?= tohtml($r["PRIORITY"]) ?>">
+		<button type="submit" name="v_action" value="forget" class="button button-secondary" title="<?= tohtml(_("HestiaRE forgets the record, which stays at the provider as a foreign one.")) ?>">
+			<i class="fas fa-thumbtack icon-blue"></i><?= tohtml(_("Forget")) ?>
+		</button>
+		<?php if ($remove) { ?>
+			<button type="submit" name="v_action" value="remove" class="button button-secondary" title="<?= tohtml(_("Remove the record from the provider. A preview shows the write first.")) ?>">
+				<i class="fas fa-trash icon-red"></i><?= tohtml(_("Remove from provider")) ?>
+			</button>
+		<?php } ?>
+	</form>
+	<?php
+};
 // The records of the provider in one table: name, type, priority, TTL, value and what the driver said about them;
 // $after adds to a row's value cell.
 $dns_provider_rows = function (array $rows, ?callable $after = null): void {
@@ -191,6 +214,9 @@ foreach ($sections as $s) {
 					<div class="units-table-cell u-text-bold u-text-center-desktop">
 						<span class="u-hide-desktop"><?= tohtml(_("Type")) ?>:</span>
 						<?= tohtml($r["TYPE"]) ?>
+						<?php if (!empty($r["ADDED"])) { ?>
+							<br><span class="u-text-muted u-text-small" title="<?= tohtml(_("Added on this page, not derived: HestiaRE writes it as it is.")) ?>"><?= tohtml(_("added")) ?></span>
+						<?php } ?>
 					</div>
 					<div class="units-table-cell u-text-bold u-text-center-desktop">
 						<span class="u-hide-desktop"><?= tohtml(_("Priority")) ?>:</span>
@@ -203,6 +229,9 @@ foreach ($sections as $s) {
 					<div class="units-table-cell">
 						<label class="u-hide-desktop u-text-bold"><?= tohtml(_("IP or Value")) ?>:</label>
 						<input type="text" class="form-control" readonly value="<?= tohtml($r["VALUE"]) ?>">
+						<?php if (!$v_checked && !empty($r["ADDED"])) {
+							$dns_added_actions($r, $s["owner"], $s["object"], false);
+						} ?>
 					</div>
 					<?php if ($v_checked) {
 						[$icon, $label] = $dns_status_labels[$r["STATUS"]] ?? ["fa-circle-question icon-dim", $r["STATUS"]];
@@ -218,7 +247,8 @@ foreach ($sections as $s) {
 							<?php } ?>
 							<?php
 							// Kept with what the provider holds as shown here; a later change there shows as a drift.
-							$keepable = in_array($r["STATUS"], ["different", "missing", "cname", "wildcard"], true) && empty($r["EXCEPTION"]);
+							$keepable = in_array($r["STATUS"], ["different", "missing", "cname", "wildcard"], true) && empty($r["EXCEPTION"])
+								&& empty($r["ADDED"]);
 						if ($keepable || !empty($r["EXCEPTION"])) { ?>
 								<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "exception" => 1])) ?>">
 									<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
@@ -246,7 +276,7 @@ foreach ($sections as $s) {
 						$row_query = $sync_query + ["record" => $r["NAME"], "type" => $r["TYPE"]];
 						$applicable = in_array($r["STATUS"], ["missing", "different", "cname", "wildcard"], true);
 						// Offered for an SPF record other than the standard one, whatever its status.
-						$normalizable = $r["TYPE"] === "TXT" && empty($r["EXCEPTION"]) && preg_match('/^v=spf1\b/i', $r["VALUE"]) === 1
+						$normalizable = $r["TYPE"] === "TXT" && empty($r["EXCEPTION"]) && empty($r["ADDED"]) && preg_match('/^v=spf1\b/i', $r["VALUE"]) === 1
 							&& ($r["FOUND"] ?? []) !== [] && ($r["FOUND"] ?? []) !== ["v=spf1 a mx ~all"];
 						if ($applicable || $normalizable) { ?>
 								<p class="u-mt10">
@@ -262,6 +292,9 @@ foreach ($sections as $s) {
 									<?php } ?>
 								</p>
 							<?php } ?>
+							<?php if (!empty($r["ADDED"])) {
+								$dns_added_actions($r, $s["owner"], $s["object"], ($r["FOUND"] ?? []) !== []);
+							} ?>
 						</div>
 					<?php } ?>
 				</div>
@@ -306,7 +339,23 @@ foreach ($sections as $s) {
 		<?php if ($foreign) { ?>
 			<details class="u-mb20">
 				<summary><?= tohtml(sprintf(ngettext("%d record no object on this server derives. HestiaRE never changes it.", "%d records no object on this server derives. HestiaRE never changes them.", count($foreign)), count($foreign))) ?></summary>
-				<?php $dns_provider_rows($foreign); ?>
+				<?php $dns_provider_rows($foreign, function (array $r) use ($v_zone): void {
+					// The main IP, the www include and a blanked value are no record of the provider's own.
+					if (($r["NOTE"] ?? "") !== "") {
+						return;
+					} ?>
+					<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "added" => 1])) ?>">
+						<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+						<input type="hidden" name="v_record" value="<?= tohtml($r["NAME"]) ?>">
+						<input type="hidden" name="v_type" value="<?= tohtml($r["TYPE"]) ?>">
+						<input type="hidden" name="v_value" value="<?= tohtml($r["VALUE"]) ?>">
+						<input type="hidden" name="v_priority" value="<?= tohtml($r["PRIORITY"]) ?>">
+						<input type="hidden" name="v_ttl" value="<?= tohtml($r["TTL"]) ?>">
+						<button type="submit" name="v_action" value="adopt" class="button button-secondary" title="<?= tohtml(_("Keep the record as part of its section: the zone page compares it, a sync writes it where it is missing, and it travels with the backup.")) ?>">
+							<i class="fas fa-hand-holding icon-blue"></i><?= tohtml(_("Adopt")) ?>
+						</button>
+					</form>
+				<?php }); ?>
 			</details>
 		<?php } else { ?>
 			<p class="u-mb20"><?= tohtml(_("None.")) ?></p>
@@ -318,6 +367,43 @@ foreach ($sections as $s) {
 			</details>
 		<?php } ?>
 	<?php } ?>
+
+	<?php if ($v_unplaced) { ?>
+		<h2 class="u-mt20 u-mb10"><?= tohtml(_("Added records without a section")) ?></h2>
+		<p class="u-mb10"><?= tohtml(_("Their domain is gone from this server. No sync writes them until it is back.")) ?></p>
+		<?php $dns_provider_rows(array_map(fn ($r) => $r + ["NAME" => $r["RECORD"]], $v_unplaced), function (array $r) use ($dns_added_actions, $user_plain): void {
+			$dns_added_actions($r, $user_plain, "", false);
+		}); ?>
+	<?php } ?>
+
+	<h2 class="u-mt20 u-mb10"><?= tohtml(_("Add a record")) ?></h2>
+	<p class="u-mb10"><?= tohtml(_("A TXT or a CNAME of your own, in the section its name lies in. Other types are adopted from the provider's records above.")) ?></p>
+	<form method="post" class="u-mb20" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "added" => 1])) ?>">
+		<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+		<input type="hidden" name="v_action" value="new">
+		<div class="u-mb10">
+			<label for="v_record" class="form-label"><?= tohtml(_("Record")) ?> <span class="optional">(<?= tohtml(sprintf(_("@ for %s"), $v_zone)) ?>)</span></label>
+			<input type="text" class="form-control" name="v_record" id="v_record" required>
+		</div>
+		<div class="u-mb10">
+			<label for="v_type" class="form-label"><?= tohtml(_("Type")) ?></label>
+			<select class="form-select" name="v_type" id="v_type">
+				<option value="TXT">TXT</option>
+				<option value="CNAME">CNAME</option>
+			</select>
+		</div>
+		<div class="u-mb10">
+			<label for="v_value" class="form-label"><?= tohtml(_("IP or Value")) ?></label>
+			<input type="text" class="form-control" name="v_value" id="v_value" required>
+		</div>
+		<div class="u-mb10">
+			<label for="v_ttl" class="form-label"><?= tohtml(_("TTL")) ?> <span class="optional">(<?= tohtml(_("optional")) ?>)</span></label>
+			<input type="text" class="form-control" name="v_ttl" id="v_ttl" placeholder="3600">
+		</div>
+		<button type="submit" class="button">
+			<i class="fas fa-plus icon-green"></i><?= tohtml(_("Add record")) ?>
+		</button>
+	</form>
 
 	<?php if (count($sections) > 1) { ?>
 		<h2 class="u-mt20 u-mb10"><?= tohtml(_("Whole zone")) ?></h2>

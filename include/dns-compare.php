@@ -823,7 +823,8 @@ function plan(array $results, string $section, string $object, string $delegatio
 		if (!$apexPass) {
 			foreach ($results as $k => $x) {
 				[, , $s, $o, , $rel, $type] = $x["d"];
-				if ($rel === "@" && $s === $section && strtolower($o) === $object && !in_array($x["status"], ["ok", "exception"], true)) {
+				if ($rel === "@" && $s === $section && strtolower($o) === $object && $x["d"][10] === ""
+					&& !in_array($x["status"], ["ok", "exception"], true)) {
 					$apexDone[$type] = !in_array("skip", array_column($ops[$k] ?? [], 0), true);
 				}
 			}

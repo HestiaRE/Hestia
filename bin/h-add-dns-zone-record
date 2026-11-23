@@ -92,14 +92,16 @@ IFS=$'\t' read -r _ _ section object _ <<< "$placed"
 # row holds at the name (for TXT one of the same kind, or a DKIM name), and the same record twice.
 # The value through the environment: awk -v would read its backslashes as escapes.
 conflict=$(dns_sections <<< "$rows" | V="$value" awk -F '\t' -v r="$record" -v t="$type" -v p="$prio" \
-	-v k="$(txt_kind "$value")" 'BEGIN { v = ENVIRON["V"] } function kind(x) { x = tolower(x); return x ~ /^v=spf1([^a-z0-9_]|$)/ ? "spf1" :
-		x ~ /^v=dmarc1([^a-z0-9_]|$)/ ? "dmarc1" : x ~ /^v=dkim1([^a-z0-9_]|$)/ ? "dkim1" : "" }
+	-v k="$(txt_kind "$value")" 'BEGIN { v = ENVIRON["V"] }
+	function kind(x) { x = tolower(x); if (x ~ /^v=spf1([^a-z0-9_]|$)/) return "spf1"
+		if (x ~ /^v=dmarc1([^a-z0-9_]|$)/) return "dmarc1"; if (x ~ /^v=dkim1([^a-z0-9_]|$)/) return "dkim1"; return "" }
 	$6 != r { next }
 	$11 == "added" && $7 == t && $8 == p && $10 == v { print "the record is added already"; exit }
 	t == "CNAME" { print "a CNAME cannot stand beside the " $7 " record at " r; exit }
 	$11 == "added" && $7 == "CNAME" { print "an added CNAME holds " r; exit }
 	$11 == "" && $7 == t && (t != "TXT" || kind($10) == "dkim1" || (k != "" && kind($10) == k)) {
-		print "the " $3 " section " $4 " derives " t " at " r; exit }')
+		print "the " $3 " section " $4 " derives " t " at " r; exit }') \
+	|| check_result "$E_INVALID" "the record could not be checked"
 [ -z "$conflict" ] || check_result "$E_EXISTS" "$conflict"
 
 if [ "$mode" = adopt ]; then
@@ -121,6 +123,10 @@ if [ "$mode" = adopt ]; then
 fi
 
 dns_added_set "$user" "$zone" "$record" "$type" "$prio" "$ttl" "$value" || check_result "$E_DISK" "the record could not be noted"
+# One handed to removal before is the user's again: forgotten later, it is foreign, not an orphan.
+v=$value
+[ "$type" = MX ] && v="$prio $value"
+dns_written_drop "$user" "$zone" "$record" "$type" "$v" || check_result "$E_DISK" "the record could not be noted"
 
 "$BIN/h-log-action" "system" "Info" "DNS" "DNS record added (Zone: $zone, Record: $record $type, Section: $section $object, User: $user)."
 log_event "$OK" "$ARGUMENTS"

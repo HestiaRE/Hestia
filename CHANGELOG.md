@@ -13,69 +13,50 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.38 (2026-11-23)
+
+The DNS provider sync follows an IP change, issues wildcard certificates and takes a customer's own records, and a
+package a mirror does not serve no longer ends an install.
+
 ### Added
 
-- **Own DNS records on the zone page** (#1428, stage 5 of #863). A TXT or a CNAME can be added there
-  (`h-add-dns-zone-record`), and any record the provider holds beside what HestiaRE derives can be adopted with the
-  value it has. Such a record belongs to the section its name lies in: the page compares it, a sync writes it where
-  it is missing, and it travels with the user's backup, so after a move the next sync writes it again. "Forget" leaves
-  it at the provider as a foreign record, "Remove from provider" goes through the orphan preview. A record a derived
-  row holds the name and type of is shown as shadowed and never written. An added CNAME replaces another one at its
-  name only on the cname confirmation.
-- **The DNS zone page applies a single record, normalizes an SPF and lets www follow the apex again** (#1428, stage 5
-  of #863). "Apply" writes one row instead of the whole section (`h-sync-dns-zone ... RECORD TYPE`). "Normalize" puts
-  the SPF record back to `v=spf1 a mx ~all`, without addresses or includes, and only where `a` and `mx` authorise the
-  box. "www follows the apex" switches the InterNetX www include on again and removes own www addresses that would
-  stand beside it. Each goes through the preview and its plan id like every sync. The SPF a mail domain derives, on the
-  mail "DNS records" page and in every sync, is that same `v=spf1 a mx ~all` now instead of `a mx ip4:... ip6:... -all`;
-  the zone check still requires it to authorise the addresses of the domain's `mail` records. An IP change still puts
-  the new address beside the old one in an SPF that names addresses, as an earlier version wrote it. "www follows the
-  apex" is refused while a CNAME, ALIAS or NS record holds www.
-- **Wildcard certificates through the DNS provider** (#1422, stage 4 of #863). A web domain with a `*.` alias gets Let's
-  Encrypt when a DNS provider account holds the zone: the `_acme-challenge` TXT goes out through the account, is awaited
-  at every name server of the zone, and is removed afterwards, on failure too. Other names stay on HTTP-01 and switch to
-  DNS-01 only where an account exists and the name has no record or does not point at the box. Foreign `_acme-challenge`
-  records are never touched. Without an account the wildcard is left out of the certificate, with a notice on the
-  panel's save and a warning in the user log, and the other names are issued as before; a renewal tries the wildcard
-  again, so it comes back once an account holds the zone, and renews without it when that fails. A zone the account's
-  cached list misses is looked up again at once. A rename checks the certificate's names the same way before anything
-  moves.
-- **An IP change and a server move carry the DNS records at the providers along** (#1419, stage 3 of #863). Only
-  records HestiaRE derives that carry the old address change, an SPF gets the new address beside the old one (mail may
-  still leave from the old box while both run), a record with an exception or another value stays. `h-sync-dns USER|all OLD=NEW[,...]` previews the move over every zone with an
-  account and writes it under one plan id. `h-change-web-domain-ip(6)` takes `SYNC_DNS` (off by default; the edit
-  page offers it as a checkbox, without it the page links the preview), the mail domain of that name along, since it
-  sends from the web domain's address.
-  A restore that gives the domains new addresses records the move and only offers it, on the DNS tab or as
-  `h-sync-dns USER stored`, since the provider accounts stay on the old box. A deleted user's written records stay
-  orphans under the admin instead of turning foreign.
+- **Own DNS records on the zone page** (#1428). A TXT or a CNAME can be added there, and any record the provider holds
+  beside what HestiaRE derives can be adopted with its value. It belongs to the section its name lies in: the page
+  compares it, a sync writes it where it is missing, and it travels with the user's backup. "Forget" leaves it at the
+  provider as a foreign record, "Remove from provider" goes through the orphan preview; one a derived row holds the
+  name and type of shows as shadowed and is never written.
+- **Single records, SPF normalisation and www following the apex again** (#1428). "Apply" writes one row through its
+  own preview, "Normalize" puts an SPF back to `v=spf1 a mx ~all`, and "www follows the apex" switches the InterNetX
+  www include on again, refused while a CNAME, ALIAS or NS holds www.
+- **Wildcard certificates through the DNS provider** (#1422). A `*.` alias gets Let's Encrypt over DNS-01 where a
+  provider account holds the zone; other names switch to DNS-01 only where they do not point at the box. Without an
+  account the wildcard is left out with a notice, and every renewal tries it again.
+- **An IP change and a server move carry the DNS records along** (#1419). `h-sync-dns USER|all OLD=NEW` previews and
+  writes the move over every zone with an account; only derived records with the old address change, and an SPF keeps
+  the old address beside the new one while both boxes run. `h-change-web-domain-ip(6)` takes it as `SYNC_DNS`, and a
+  restore records the move and offers it on the DNS tab.
 
 ### Changed
 
-- **Updates start from v0.30** (#1433). A box below it is reinstalled. The manifests `0.26.json` to `0.30.json`,
-  their patches and the 11 update functions only they named are gone with it; a box that already has the old files
-  keeps them unread.
+- **The SPF HestiaRE derives is `v=spf1 a mx ~all`** (#1428), was `a mx ip4:... ip6:... -all`. The check still
+  requires it to authorise the addresses of the domain's mail records, and an SPF with addresses that an earlier
+  version wrote keeps working and follows an IP change.
+- **Updates start from v0.30** (#1433). A box below it is reinstalled.
 
 ### Fixed
 
-- **One package a mirror did not serve ended the whole install** (#1418). Sury's signed noble index once named a
-  `php8.3-igbinary` its pool no longer had, and every fresh install on Ubuntu 24.04 stopped at the reference PHP. An
-  apt call that failed before dpkg ran (a download, a held lock) now runs once more after a minute on fresh package
-  lists. A PHP version, at install and in the update's module refresh alike, then takes every package alone: a
-  module that still does not come is left out with a warning, named in the install summary, on the server page and
-  by the smoke until `h-add-web-php VERSION` closes the gap. Only fpm, cli and common missing is still an error.
-
+- **One package a mirror did not serve ended the whole install** (#1418). An apt call that failed before dpkg ran gets
+  one more try on fresh package lists, and a PHP version takes its modules one by one: one that still does not come is
+  left out with a warning, in the install summary, on the server page and in the smoke, until `h-add-web-php VERSION`
+  brings it. The update's module refresh no longer stops over it either.
 - **A docker customer lost the own daemon socket after a reboot** (#1430). Every `useradd` that handed out a
-  subordinate id range sorted `/etc/subuid` and `/etc/subgid`, and the companion's mapping lives in their order: the
-  next daemon start put the customer at container id 1 instead of 1000, the socket's group became a helper id
-  ("permission denied"), and files a uid-1000 image wrote landed on that helper id. HestiaRE's own `useradd` calls and
-  `login.defs`, so a manual `useradd` too, hand out no range any more; an update entry puts the lines back in order and
-  restarts a daemon running on the wrong map, and a re-run of `h-add-user-docker` does the same. Neither changes an
-  owner: what a uid-1000 container wrote during the wrong map keeps its host id (the helper range's start plus 998)
-  and shows as uid 999 in the container afterwards, so it needs a `chown` back to the customer by hand.
-- **Deleting a web domain, mail domain or database left the user's disk counters too high until night** (#1417).
-  The record's share stayed in `U_DISK` until the nightly recount at 02:15, the panel showed it, and the smoke was red
-  in between. The three deletes recompute the counters now. Inherited from upstream.
+  subordinate id range sorted `/etc/subuid` and `/etc/subgid`, and the customer's id mapping lives in their order. No
+  `useradd` hands out a range any more, and the update puts the lines back in order. What a container wrote during the
+  wrong map keeps the helper id and needs a `chown` by hand.
+- **Deleting a web domain, mail domain or database left the disk counters too high until night** (#1417). Inherited
+  from upstream.
 
 ## v0.37 (2026-11-21)
 
@@ -84,69 +65,51 @@ an update ends with the smoke test.
 
 ### Added
 
-- **DNS records can be kept as exceptions** (#1333). A row that differs from what HestiaRE derives, such as an MX to
-  another host or an SPF of its own, is kept as the provider holds it, or kept without the record. A sync leaves it
-  alone and puts it back after a drift. Exceptions belong to the user and travel with the backup.
-- **Orphaned DNS records can be removed** (#1333). The records a sync added show as orphaned once their domain or
-  alias is gone or the name no longer gets that type, with a preview to remove them or a click to keep them as foreign.
-- **A CNAME or the InterNetX www include is replaced only on confirmation** (#1333), in the sync preview.
+- **DNS exceptions and orphans** (#1333). A row that differs from what HestiaRE derives can be kept as the provider
+  holds it, and the records a sync added show as orphaned once nothing derives them, to remove or to keep. A CNAME or
+  the InterNetX www include is replaced only on confirmation.
 
 ### Security
 
-- **Adminer 6.3.1 and Tachyon 4.7.0** (#1414). Adminer closes an SQL injection through a geometry column name, HTML
-  injection in the search form and two advisories, and its CSRF token becomes 128 random bits. Tachyon's admin
-  settings could empty `application.ini` and switch every plugin off. The update brings both to installed boxes.
+- **Adminer 6.3.1 and Tachyon 4.7.0** (#1414): an SQL and an HTML injection in Adminer, and Tachyon's admin settings
+  could switch every plugin off.
 
 ### Changed
 
-- **The operator's templates live in `/etc/hestia/templates`** (#1411), in `nginx/`, `proxy/`, `php/` and `email/`.
-  An update overwrote every shipped template under `/usr/local/hestia/templates`, and the both model offered no
-  template of its own. The ready-made templates are copied in once and never overwritten; default and panel stay
-  shipped and are overridden by a file of the same name. The update moves edited and own templates over and names
-  each in its output. `docs/templates.md` has the details.
-- **An update ends with the smoke test** (#1405), as an install does: FAIL lines and a result line on the terminal,
-  the full output as `smoke.txt` in the run directory. It does not change the update's exit code.
+- **The operator's templates live in `/etc/hestia/templates`** (#1411). An update no longer overwrites them; default
+  and panel stay shipped and are overridden by a file of the same name. `docs/templates.md` has the details.
+- **An update ends with the smoke test** (#1405), without changing its exit code.
 
 ### Fixed
 
-- **Project quota stayed pending on boxes whose initramfs dracut builds** (#1329), such as the Ubuntu 26.04 cloud
-  images: the one-shot went in as an initramfs-tools hook, which dracut never reads. It is a dracut module now, the
-  update arms such a box again, and quota turns on at the next reboot.
-- **The fail2ban whitelist read a malformed mask as another range** (#1401): `10.0.0.0/08` as a whole /8,
-  `203.0.113.0/33` as one host. It now leaves out what the firewall refuses.
-- **A cron job migrated from HestiaCP failed the smoke** (#1403) when its command carried `"`, a backtick or a
-  backslash. The restore stores it encoded, as the panel does; a job restored before is fixed by saving it once.
-- Smaller: the Docker proxy address and port stand in one row on the web domain page (#1408).
+- **Project quota stayed pending where dracut builds the initramfs** (#1329), such as the Ubuntu 26.04 cloud images.
+- Smaller: the fail2ban whitelist read a malformed mask as another range (#1401), a cron job migrated from HestiaCP
+  with `"`, a backtick or a backslash failed the smoke (#1403), and the Docker proxy address and port stand in one row
+  (#1408).
 
 ## v0.36 (2026-11-19)
 
-CrowdSec honours the whitelist and a domain's switch and lets single scenarios go quiet, the IP page checks reverse
-DNS, a customer's container reaches PostgreSQL over the socket, and the operator docs move to `docs/`.
+CrowdSec honours the whitelist and a domain's switch, the IP page checks reverse DNS, a customer's container reaches
+PostgreSQL over the socket, and the operator docs move to `docs/`.
 
 ### Added
 
-- **CrowdSec scenarios can be switched off one by one** (#1381), on a page under Firewall: the scenario still detects
-  and alerts but bans nobody. The switch is per box; a mesh peer with it on still publishes its bans.
-- **The IP page shows the reverse DNS of every address** (#1372) as a receiver sees it, the NAT address included, and
-  a daily job raises a banner while one does not match. Only on a box with mail.
-- **The operator docs live in `docs/`** (#1390), on a box under `/usr/local/hestia/docs/`, with a guide to the
-  per-customer Docker model.
+- **CrowdSec scenarios can be switched off one by one** (#1381): they still detect and alert, but ban nobody.
+- **The IP page shows the reverse DNS of every address** (#1372), with a daily banner while one does not match.
+- **The operator docs live in `docs/`** (#1390), with a guide to the per-customer Docker model.
 
 ### Changed
 
-- **A customer's container can log in to PostgreSQL over the socket** (#1391): the socket takes the role's password
-  instead of peer, `postgres` keeps peer. A role whose password is still an md5 hash needs a new one.
+- **A customer's container logs in to PostgreSQL over the socket by password** (#1391); a role with an md5 hash needs
+  a new one.
 
 ### Fixed
 
-- **The CrowdSec switch of a domain and the firewall whitelist did not stop a CrowdSec ban** (#1381). Neither a
-  whitelisted address nor a domain switched off is counted now, and whitelisting releases current bans.
-- **One hand-edited line in the firewall whitelist stopped every firewall change** (#1384); the renderer leaves it out
-  and names it in the activity log. A mask with a leading zero is refused: nft read `/064` as octal.
-- **A customer's Sieve `reject` answered spam's forged sender** (#1371); the extension is off on dovecot 2.3 and 2.4.
-- Smaller ones: a paniclog line after a scan during a fresh install (#1376), `h-change-user-password` asks twice at a
-  terminal (#1386), `h-add-sys-docker` names a failed repository load (#1392), and the 2FA reset page showed no
-  message (#1396).
+- **CrowdSec banned whitelisted addresses and domains switched off** (#1381).
+- **One hand-edited whitelist line stopped every firewall change** (#1384); it is left out and named.
+- Smaller: Sieve `reject` answered spam's forged sender (#1371), a paniclog line after a fresh install (#1376),
+  `h-change-user-password` asks twice (#1386), `h-add-sys-docker` names a failed repository load (#1392), and the 2FA
+  reset page showed no message (#1396).
 
 ## v0.35 (2026-11-17)
 

@@ -58,6 +58,13 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **One package a mirror did not serve ended the whole install** (#1418). Sury's signed noble index once named a
+  `php8.3-igbinary` its pool no longer had, and every fresh install on Ubuntu 24.04 stopped at the reference PHP. An
+  apt call that failed before dpkg ran (a download, a held lock) now runs once more after a minute on fresh package
+  lists. A PHP version, at install and in the update's module refresh alike, then takes every package alone: a
+  module that still does not come is left out with a warning, named in the install summary, on the server page and
+  by the smoke until `h-add-web-php VERSION` closes the gap. Only fpm, cli and common missing is still an error.
+
 - **A docker customer lost the own daemon socket after a reboot** (#1430). Every `useradd` that handed out a
   subordinate id range sorted `/etc/subuid` and `/etc/subgid`, and the companion's mapping lives in their order: the
   next daemon start put the customer at container id 1 instead of 1000, the socket's group became a helper id

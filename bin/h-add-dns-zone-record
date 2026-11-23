@@ -79,6 +79,8 @@ if [ "$mode" = new ]; then
 		[ "${value%.}" != "$self" ] || check_result "$E_INVALID" "a CNAME cannot point at itself"
 	fi
 fi
+dns_added_valid "$record" "$type" "$prio" "$ttl" "$value" \
+	|| check_result "$E_INVALID" "$type at $record belongs to the zone, not to a user"
 
 dnsp_zones_fresh
 dns_load

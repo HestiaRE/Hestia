@@ -14,9 +14,10 @@
 # out, with the stored value of each record it removes, in /var/log/hestia/dns-sync.log. The records a write added
 # are noted in the user's zones store; SECTION orphan removes those of OBJECT no row derives any longer. CONFIRM
 # allows what is never done unasked, in the preview and the write alike: cname replaces a CNAME by the section's
-# records, include switches the www include off so that www can differ from the apex, follow switches it on again,
-# normalize puts the SPF record back to "v=spf1 a mx ~all". MOVE (OLD=NEW, comma separated) limits the writes to the
-# records that carry an OLD address, as h-sync-dns hands it on. RECORD TYPE limits them to that one row.
+# records or by an added one, include switches the www include off so that www can differ from the apex, follow
+# switches it on again, normalize puts the SPF record back to "v=spf1 a mx ~all". MOVE (OLD=NEW, comma separated)
+# limits the writes to the records that carry an OLD address, as h-sync-dns hands it on. RECORD TYPE limits them to
+# that one row.
 
 user=$1
 zone=$2

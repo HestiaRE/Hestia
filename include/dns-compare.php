@@ -24,9 +24,9 @@
 // ever names a record a desired row of the section consumed, or for SECTION orphan an orphan written for OBJECT and
 // OWNER, so no foreign record is touched, and nothing is written to a zone the public name servers do not point at.
 // CONFIRM (comma separated) allows what is never done unasked: cname replaces a CNAME or ALIAS at a name by the
-// section's records, include switches the www include off so that www can differ from the apex, follow switches it
-// on again where www derives what the apex holds, normalize puts the SPF record back to the standard
-// "v=spf1 a mx ~all".
+// section's records or by an added one to another target, include switches the www include off so that www can
+// differ from the apex, follow switches it on again where www derives what the apex holds, normalize puts the SPF
+// record back to the standard "v=spf1 a mx ~all".
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
 // it in an ip4/ip6 term. Only that address goes, an SPF keeps it beside the new one, and a row with an exception or
 // whose derived value is not the NEW one is left alone.
@@ -753,12 +753,13 @@ function spf_normal_ops(array $x): array
 }
 
 // The writes that put an added record in place: its own value beside whatever else stands there, a CNAME or ALIAS in
-// place of the one there, never beside other records.
+// place of the one there on the cname confirmation only, never beside other records.
 /**
  * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @param list<string> $confirm
  * @return list<list<string>>
  */
-function added_ops(array $x): array
+function added_ops(array $x, array $confirm): array
 {
 	global $actual;
 	[, , , , , $rel, $type, $prio, $ttl, $value] = $x["d"];
@@ -768,8 +769,12 @@ function added_ops(array $x): array
 	if (!$x["hits"] && array_diff(at($rel), at($rel, "CNAME"), at($rel, "ALIAS"))) {
 		return [["skip", $rel, $type, "", $ttl, $value, "other records hold the name, no $type can stand beside them"]];
 	}
+	$held = array_merge(at($rel, "CNAME"), at($rel, "ALIAS"));
+	if ($held && !in_array("cname", $confirm, true)) {
+		return [["skip", $rel, $type, "", $ttl, $value, "a CNAME or ALIAS to another target holds the name", "cname"]];
+	}
 	$ops = [];
-	foreach ($x["hits"] as $i) {
+	foreach ($held as $i) {
 		$ops[] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
 	}
 	$ops[] = ["add", $rel, $type, "", $ttl, host($value), "an added record"];
@@ -909,7 +914,7 @@ function plan(array $results, string $section, string $object, string $delegatio
 				continue;
 			}
 			if ($x["d"][10] === "added") {
-				$ops[$k] = added_ops($x);
+				$ops[$k] = added_ops($x, $confirm);
 				continue;
 			}
 			if ($x["kept"] !== null) {

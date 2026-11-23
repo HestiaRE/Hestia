@@ -547,16 +547,35 @@ dns_written_adopt() {
 # RECORD TYPE PRIORITY VALUE TTL as the provider is to hold them. Their section is not stored but found from the name,
 # as for a derived row, so a record follows its domain through a backup and a move.
 
-# dns_added_read FILE OWNER: OWNER REL TYPE PRIORITY TTL VALUE of each added record in FILE.
+# dns_added_valid REL TYPE PRIORITY TTL VALUE: whether a record can stand as an added one. The name servers and a
+# CNAME at the apex belong to the zone, never to a user. h-add-dns-zone-record asks the same, so nothing it notes
+# is dropped here.
+dns_added_valid() {
+	[[ "$1" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] && [[ "$2" =~ ^[A-Z][A-Z0-9]{0,9}$ ]] || return 1
+	[[ "$3" =~ ^[0-9]{0,5}$ ]] && [ "${3:-0}" -le 65535 ] && [[ "$4" =~ ^[0-9]{0,7}$ ]] || return 1
+	case $2 in
+		MX | SRV) ;;
+		*) [ -z "$3" ] || return 1 ;;
+	esac
+	[ "$1" = @ ] && [[ "$2" =~ ^(NS|CNAME)$ ]] && return 1
+	[ -n "$5" ] && [ "${#5}" -le 4096 ] && [[ "$5" != *[[:cntrl:]]* ]]
+}
+
+# dns_added_read FILE OWNER: OWNER REL TYPE PRIORITY TTL VALUE of each added record in FILE. The file may come from
+# an archive or a hand: a record the command would not take is left out.
 dns_added_read() {
-	local line
+	local line rel type prio ttl value
 	[ -f "$1" ] && [ ! -L "$1" ] || return 0
 	while IFS= read -r line || [ -n "$line" ]; do
 		record_line_valid "$line" || continue
 		[ "$(record_field "$line" KIND)" = added ] || continue
-		printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$2" "$(record_field "$line" RECORD)" "$(record_field "$line" TYPE)" \
-			"$(record_field "$line" PRIORITY)" "$(record_field "$line" TTL)" \
-			"$(record_value_decode "$(record_field "$line" VALUE)" | tr '\t' ' ')"
+		rel=$(record_field "$line" RECORD)
+		type=$(record_field "$line" TYPE)
+		prio=$(record_field "$line" PRIORITY)
+		ttl=$(record_field "$line" TTL)
+		value=$(record_value_decode "$(record_field "$line" VALUE)")
+		dns_added_valid "$rel" "$type" "$prio" "$ttl" "$value" || continue
+		printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$2" "$rel" "$type" "$prio" "$ttl" "$value"
 	done < "$1"
 }
 

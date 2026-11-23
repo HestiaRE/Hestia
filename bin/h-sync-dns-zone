@@ -68,12 +68,16 @@ sync_log() {
 	)
 }
 
-# row_only: the plan of the row RECORD TYPE alone. The include goes with www, and every www address with it.
+# row_only: the plan of the row RECORD TYPE alone. The include goes with www, and every www address with it; a CNAME
+# or ALIAS goes only along with a write of the row that replaces it.
 row_only() {
 	[ -n "$record" ] || return 0
-	DNSP_PLAN=$(awk -F '\t' -v r="$record" -v t="$rtype" '{ l[NR] = $0; rr[NR] = $2; tt[NR] = $3 }
-		$1 == "include" { inc = 1 } END { for (i = 1; i <= NR; i++)
-		if (rr[i] == r && (tt[i] == t || tt[i] == "" || (inc && (tt[i] == "A" || tt[i] == "AAAA")))) print l[i] }' \
+	DNSP_PLAN=$(awk -F '\t' -v r="$record" -v t="$rtype" '{ l[NR] = $0; op[NR] = $1; rr[NR] = $2; tt[NR] = $3 }
+		$1 == "include" { inc = 1 } END { for (i = 1; i <= NR; i++) {
+			cn[i] = rr[i] == r && op[i] == "rem" && (tt[i] == "CNAME" || tt[i] == "ALIAS")
+			own[i] = rr[i] == r && (tt[i] == t || tt[i] == "" || (inc && (tt[i] == "A" || tt[i] == "AAAA")))
+			if (own[i] && op[i] != "skip") any = 1 }
+		for (i = 1; i <= NR; i++) if (own[i] || (any && cn[i])) print l[i] }' \
 		<<< "$DNSP_PLAN")
 }
 

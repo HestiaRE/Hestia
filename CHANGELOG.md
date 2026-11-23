@@ -21,7 +21,9 @@ the releases of the command audit, into another.
   box. "www follows the apex" switches the InterNetX www include on again and removes own www addresses that would
   stand beside it. Each goes through the preview and its plan id like every sync. The SPF a mail domain derives, on the
   mail "DNS records" page and in every sync, is that same `v=spf1 a mx ~all` now instead of `a mx ip4:... ip6:... -all`;
-  the zone check still requires it to authorise the addresses of the domain's `mail` records.
+  the zone check still requires it to authorise the addresses of the domain's `mail` records. An IP change still puts
+  the new address beside the old one in an SPF that names addresses, as an earlier version wrote it. "www follows the
+  apex" is refused while a CNAME, ALIAS or NS record holds www.
 - **Wildcard certificates through the DNS provider** (#1422, stage 4 of #863). A web domain with a `*.` alias gets Let's
   Encrypt when a DNS provider account holds the zone: the `_acme-challenge` TXT goes out through the account, is awaited
   at every name server of the zone, and is removed afterwards, on failure too. Other names stay on HTTP-01 and switch to

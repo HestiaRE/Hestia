@@ -626,6 +626,11 @@ function follow_refused(
 	if ($delegation !== "") {
 		return $delegation;
 	}
+	foreach (["CNAME", "ALIAS", "NS"] as $type) {
+		if (at("www", $type)) {
+			return "a record of type $type holds www";
+		}
+	}
 	$www = [];
 	foreach ($results as $x) {
 		[, , $s, $o, , $rel, $type, , , $value] = $x["d"];
@@ -679,6 +684,7 @@ function spf_normal_ops(array $x): array
 		return [];
 	}
 	$missed = [];
+	Dig::$failed = false;
 	foreach (spf_addrs($section, $object) as $ip) {
 		$lookups = 0;
 		if (!spf_pass($ip, SPF_NORMAL, fqdn($rel, $zone), $lookups)) {
@@ -792,10 +798,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 					continue;
 				}
 				$to = $move[$from];
-				$derives = $type === "TXT" ? preg_match('/\bip[46]:' . preg_quote($to, "/") . '(?=\s|$)/i', txt($value)) === 1
-					: addr($value) === $to;
+				// The derived SPF names no address: it takes the new one when the section's A/AAAA rows do.
+				$derives = $type === "TXT" ? in_array(addr($to), spf_addrs($s, $o), true) : addr($value) === $to;
 				if (!$derives) {
-					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the box derives this value, not $to for $from"];
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the box derives no $to for $from here"];
 					continue;
 				}
 			}

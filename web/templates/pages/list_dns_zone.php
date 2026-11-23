@@ -132,7 +132,7 @@ foreach ($sections as $s) {
 			</span>
 		</h2>
 		<?php
-		$sync_query = ["zone" => $v_zone, "sync" => $s["kind"], "object" => $s["object"], "owner" => $s["owner"]];
+	$sync_query = ["zone" => $v_zone, "sync" => $s["kind"], "object" => $s["object"], "owner" => $s["owner"]];
 	// www can follow the apex again where it has records of its own that equal what the apex derives; the preview
 	// says when the apex is not in line yet.
 	$www = array_filter($s["rows"], fn ($r) => $r["NAME"] === "www" && in_array($r["TYPE"], ["A", "AAAA"], true));
@@ -243,7 +243,7 @@ foreach ($sections as $s) {
 								</form>
 							<?php } ?>
 							<?php
-							$row_query = $sync_query + ["record" => $r["NAME"], "type" => $r["TYPE"]];
+						$row_query = $sync_query + ["record" => $r["NAME"], "type" => $r["TYPE"]];
 						$applicable = in_array($r["STATUS"], ["missing", "different", "cname", "wildcard"], true);
 						// Offered for an SPF record other than the standard one, whatever its status.
 						$normalizable = $r["TYPE"] === "TXT" && empty($r["EXCEPTION"]) && preg_match('/^v=spf1\b/i', $r["VALUE"]) === 1

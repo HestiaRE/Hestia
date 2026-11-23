@@ -811,11 +811,6 @@ fw_blocklist_interval_apply() {
 	return 0
 }
 
-# Without this render the first reboot after the update still boots the bans and caches of the last one.
-firewall_boot_banlist_apply() {
-	"$HESTIA/bin/h-update-firewall" > /dev/null 2>&1
-}
-
 fw_blocklist_timer_remove() {
 	systemctl -q disable --now hestia-blocklist.timer 2> /dev/null
 	rm -f /etc/systemd/system/hestia-blocklist.service /etc/systemd/system/hestia-blocklist.timer

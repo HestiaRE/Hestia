@@ -683,26 +683,6 @@ panel_caddy_site_edit() {
 	systemctl try-restart caddy
 }
 
-# The rrd store sits under the panel web root and belongs to the admin view alone.
-panel_caddy_rrd_internal_apply() {
-	local f='/etc/caddy/hestia.conf'
-	[ -f "$f" ] || return 0
-	if ! grep -q '^[[:space:]]*@internal path ' "$f"; then
-		echo "update: $f has no @internal matcher - add /rrd/* to whatever keeps the panel internals unreachable" >&2
-		return 0
-	fi
-	# Before a trailing comment, so the path does not land inside it.
-	panel_caddy_site_edit 's|^\([[:space:]]*@internal path [^#]*[^#[:space:]]\)|\1 /rrd/*|' \
-		'^[[:space:]]*@internal path [^#]* /rrd/\*'
-}
-
-# The response placeholder holds what goes to the client, not the upstream header, so the rewrite had no target.
-panel_caddy_accel_apply() {
-	[ -f /etc/caddy/hestia.conf ] || return 0
-	panel_caddy_site_edit 's/{http\.response\.header\.X-Accel-Redirect}/{http.reverse_proxy.header.X-Accel-Redirect}/' \
-		'{http\.reverse_proxy\.header\.X-Accel-Redirect}'
-}
-
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
 # directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {
@@ -768,40 +748,6 @@ dovecot_login_aliases_ensure() {
 	fi
 	[ -e "$f" ] && return 0
 	install -m 640 -o root -g dovecot "$HESTIA/share/dovecot/2.4/login-aliases" "$f"
-}
-
-# The login alias passdb, patched because the operator may have edited the file. Taken back when dovecot refuses it.
-dovecot_login_alias_apply() {
-	local f=/etc/dovecot/conf.d/auth-passwdfile.conf.ext
-	local pf="$HESTIA/share/updates/patches/0.28/dovecot-login-alias.patch"
-	[ -f "$f" ] && [ -f "$pf" ] || return 1
-	dovecot_login_aliases_ensure || return 1
-	patch --dry-run -F0 -s "$f" < "$pf" > /dev/null 2>&1 || return 1
-	patch -F0 -s --no-backup-if-mismatch "$f" < "$pf" > /dev/null 2>&1 || return 1
-	doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot && return 0
-	patch -R -F0 -s --no-backup-if-mismatch "$f" < "$pf" > /dev/null 2>&1
-	systemctl restart dovecot
-	return 1
-}
-
-# Only our own Authentication-Results reaches a mailbox, so webmail cannot show a sender's own verdict.
-exim_auth_results_apply() {
-	exim_template_patch 0.30/exim-auth-results.patch
-}
-
-# The HELO checks compare against the verified PTR; the old IP-like rule never fired.
-exim_helo_checks_apply() {
-	exim_template_patch 0.30/exim-helo-checks.patch
-}
-
-# exim takes the DKIM selector from the domain's selector file, mail without one.
-exim_dkim_selector_apply() {
-	exim_template_patch 0.30/exim-dkim-selector.patch
-}
-
-# Every scanned mail says its score and threshold; spam keeps the bare Yes the Sieve vacation tests for.
-exim_spam_status_score_apply() {
-	exim_template_patch 0.30/exim-spam-status-score.patch
 }
 
 # A failed external forward bounces into devnull, never to the sender of what was forwarded.

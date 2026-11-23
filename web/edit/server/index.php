@@ -290,6 +290,7 @@ if (!empty($_POST["save"])) {
 		$v_hostname = $_POST["v_hostname"];
 	}
 
+	$php_notes = [];
 	if ($_SESSION["WEB_BACKEND"] == "php-fpm") {
 		// Install/remove php versions
 		if (empty($_SESSION["error_msg"])) {
@@ -300,7 +301,7 @@ if (!empty($_POST["save"])) {
 				if (empty($post_php)) {
 					$post_php = [];
 				}
-				array_map(function ($php_version) use ($post_php) {
+				array_map(function ($php_version) use ($post_php, &$php_notes) {
 					if (array_key_exists($php_version->tpl, $post_php)) {
 						if (!$php_version->installed) {
 							exec(
@@ -311,6 +312,12 @@ if (!empty($_POST["save"])) {
 								$return_var,
 							);
 							check_return_code($return_var, $output);
+							// Installed, but without a module the mirror did not serve, or without ionCube.
+							foreach ($return_var == 0 ? $output : [] as $line) {
+								if (str_starts_with($line, "WARNING: ")) {
+									$php_notes[] = substr($line, 9);
+								}
+							}
 							unset($output);
 							if (empty($_SESSION["error_msg"])) {
 								$php_version->installed = true;
@@ -1544,12 +1551,13 @@ if (!empty($_POST["save"])) {
 	}
 
 	// Flush field values on success
+	$saved = _("Changes have been saved.") . implode("", array_map(fn ($n) => "<br>" . tohtml($n), $php_notes));
 	if (empty($_SESSION["error_msg"])) {
-		$_SESSION["ok_msg"] = _("Changes have been saved.");
+		$_SESSION["ok_msg"] = $saved;
 	}
 	if ($require_refresh == true) {
 		$refresh = $_SERVER["REQUEST_URI"];
-		$_SESSION["ok_msg"] = _("Changes have been saved.");
+		$_SESSION["ok_msg"] = $saved;
 		header("Location: $refresh");
 		die();
 	}

@@ -1099,9 +1099,9 @@ check_restic_mode_supported() {
 	fi
 }
 # h-add-web-php leaves out a module the mirror did not serve and only warns. A package apt cannot install here
-# (opcache from 8.5 on) is no gap.
+# (opcache from 8.5 on) is no gap; a version no repo serves any more cannot be judged at all, so it is no pass.
 check_php_modules() {
-	local v p list pkgs gaps='' fix='' miss n=0
+	local v p list pkgs gaps='' fix='' miss n=0 nosrc=''
 	list=$("$BIN/h-list-sys-php" plain 2> /dev/null)
 	if [ -z "$list" ]; then
 		no "PHP module set: h-list-sys-php named no PHP version" "nothing was checked"
@@ -1116,6 +1116,11 @@ check_php_modules() {
 			no "PHP module set: no package list for PHP $v" "php_module_pkgs in include/helper.sh"
 			return
 		fi
+		# A version line with a URI is a repo, the dpkg status alone is not: whatever the language or the version.
+		if ! apt-cache policy "php$v-fpm" 2> /dev/null | grep -qE '^ +-?[0-9]+ [a-z][a-z0-9+.-]*:/'; then
+			nosrc="$nosrc $v"
+			continue
+		fi
 		n=$((n + 1))
 		miss=''
 		for p in $pkgs; do
@@ -1126,9 +1131,12 @@ check_php_modules() {
 		gaps="$gaps PHP $v without$miss;"
 		fix="$fix${fix:+, }h-add-web-php $v"
 	done
+	if [ -n "$nosrc" ]; then
+		no "PHP module set: no repo serves php-fpm for PHP$nosrc, the set cannot be checked" "apt-get update, or the repo"
+	fi
 	if [ -n "$gaps" ]; then
 		no "PHP module set incomplete:${gaps%;}" "$fix"
-	else
+	elif [ -z "$nosrc" ]; then
 		ok "PHP module set complete ($n version(s))"
 	fi
 }

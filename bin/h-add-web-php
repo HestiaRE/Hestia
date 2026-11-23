@@ -73,33 +73,14 @@ esac
 
 # Not /dev/null: a failure has to leave something to read.
 apt_log=$(mktemp)
-php_apt_install() {
-	# shellcheck disable=SC2068 # one package per word
-	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq -o Dpkg::Options::="--force-confold" \
-		install $@ >> "$apt_log" 2>&1
-}
-# A package the mirror does not serve fails the whole transaction. After one retry on fresh lists only fpm, cli
-# and common are required; the rest goes one by one, and what does not come is named below.
-php_install() {
-	php_apt_install $mph && return 0
-	apt_fetch_fails -y install $mph || return 1
-	echo "apt could not fetch a package of PHP $version, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists"
-	apt_fetch_wait
-	php_apt_install $mph && return 0
-	apt_fetch_fails -y install $mph || return 1
-	php_apt_install $required || return 1
-	for _p in $mph; do
-		case " $required " in *" $_p "*) continue ;; esac
-		php_apt_install "$_p" || true
-	done
-	return 0
-}
+# fpm, cli and common are required; another module the mirror does not serve is left out and named below.
 required=''
 for _p in "php$version-common" "php$version-cli" "php$version-fpm"; do
 	case " $mph " in *" $_p "*) required="$required $_p" ;; esac
 done
 
-php_install &
+# shellcheck disable=SC2086 # one package per word
+APT_LOG=$apt_log apt_install_tolerant $mph &
 
 BACK_PID=$!
 
@@ -126,7 +107,8 @@ for _p in $mph; do
 		*) skipped="$skipped $_p" ;;
 	esac
 done
-if [ "$apt_rc" -ne 0 ] || [ -n "$missing" ]; then
+# A failing apt that left out nothing but optional modules is the skip above, not an error.
+if [ -n "$missing" ] || { [ "$apt_rc" -ne 0 ] && [ -z "$skipped" ]; }; then
 	echo "ERROR: Installation failed, please run the following command manually for debugging:"
 	echo "apt-get install $mph"
 	[ "$apt_rc" -ne 0 ] && echo "apt exited $apt_rc"

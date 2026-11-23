@@ -37,24 +37,49 @@ _hestia_spin_stop() {
 	_hestia_spin_pid=""
 }
 
-# apt_fetch_fails [apt-get args...]: whether a failed apt-get call failed at the download, asked again with
-# --download-only; an update has nothing else to fail at. Not read from apt's messages, which are translated.
-apt_fetch_fails() {
+# apt_failed_before_dpkg [apt-get args...]: whether a failed apt-get call is worth one more try. It is when apt can
+# resolve the call and dpkg was left with nothing half done: the download or a held lock stopped it, not a package.
+# Not read from apt's messages, which are translated. An update has nothing else to fail at.
+apt_failed_before_dpkg() {
 	case " $* " in
 		*" update "*) return 0 ;;
 		*" install "* | *" upgrade "* | *" dist-upgrade "* | *" full-upgrade "*) ;;
 		*) return 1 ;;
 	esac
-	! DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -qq \
-		--download-only "$@" > /dev/null 2>&1
+	apt-get -qq -s "$@" > /dev/null 2>&1 || return 1
+	[ -z "$(dpkg --audit 2> /dev/null)" ]
 }
 
-# apt_fetch_wait: the pause before the one retry after a failed download, then fresh package lists. A mirror whose
-# signed index runs ahead of or behind its pool usually heals within minutes.
+# apt_fetch_wait: the pause before the one retry, then fresh package lists. A mirror whose signed index runs ahead of
+# or behind its pool usually heals within minutes; a failed update here leaves the old lists, which may still do.
 apt_fetch_wait() {
 	sleep "${HESTIA_APT_RETRY_WAIT:-60}"
 	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -qq update \
-		> /dev/null 2>&1
+		> /dev/null 2>&1 || true
+}
+
+# apt_install_tolerant PKG...: one transaction, and after a failure before dpkg one more on fresh lists; then each
+# package alone, so one the mirror does not serve keeps out only itself and what depends on it. apt's output goes to
+# APT_LOG (default none), the rc is that of the last failing call; the caller asks dpkg what came.
+apt_install_tolerant() {
+	local rc=0 p
+	_apt_install_quiet "$@" && return 0
+	rc=$?
+	apt_failed_before_dpkg -y install "$@" || return "$rc"
+	echo "apt failed before dpkg ran, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists" >&2
+	apt_fetch_wait
+	_apt_install_quiet "$@" && return 0
+	rc=$?
+	apt_failed_before_dpkg -y install "$@" || return "$rc"
+	for p in "$@"; do
+		_apt_install_quiet "$p" || rc=$?
+	done
+	return "$rc"
+}
+
+_apt_install_quiet() {
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -y -qq \
+		-o Dpkg::Options::="--force-confold" install "$@" >> "${APT_LOG:-/dev/null}" 2>&1
 }
 
 # Usage: hestia_apt [apt-get args...]
@@ -69,12 +94,12 @@ hestia_apt() {
 		DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" "$@" \
 			1>> "${LOG}" \
 			2> >(tee -a "${LOG}" >&2) || _rc=$?
-		if [ "$_rc" = 0 ] || [ "$_try" = 2 ] || ! apt_fetch_fails "$@"; then
+		if [ "$_rc" = 0 ] || [ "$_try" = 2 ] || ! apt_failed_before_dpkg "$@"; then
 			_hestia_spin_stop
 			break
 		fi
 		_hestia_spin_stop
-		echo "[ ! ] apt could not fetch a package, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists" \
+		echo "[ ! ] apt failed before dpkg ran, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists" \
 			| tee -a "${LOG}" >&2
 		apt_fetch_wait
 	done
@@ -727,9 +752,10 @@ panel_session_cleanup_apply() {
 }
 
 # redis, igbinary and mcrypt joined the set (#1069). Packages only; whatever else of the set a version
-# lacks comes along.
+# lacks comes along. A module the mirror does not serve is left out with a warning, as h-add-web-php does: the entry
+# stays pending and the smoke names the gap.
 php_modules_apply() {
-	local v p miss want="" touched=""
+	local v p miss want="" touched="" gap=""
 	while read -r v; do
 		[ -n "$v" ] || continue
 		miss=""
@@ -738,7 +764,10 @@ php_modules_apply() {
 		done
 		[ -n "$miss" ] || continue
 		# shellcheck disable=SC2086 # one package per word
-		miss=$(filter_installable_php_pkgs "opcache:8.5" $miss 2> /dev/null) || return 1
+		if ! miss=$(filter_installable_php_pkgs "opcache:8.5" $miss 2> /dev/null); then
+			echo "Warning: PHP $v: apt could not be asked for the missing modules, the next update tries again" >&2
+			continue
+		fi
 		[ -n "$miss" ] || continue
 		want="$want $miss"
 		touched="$touched $v"
@@ -746,13 +775,17 @@ php_modules_apply() {
 	[ -n "$want" ] || return 0
 	dpkg --configure -a > /dev/null 2>&1
 	# shellcheck disable=SC2086 # one package per word
-	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install $want > /dev/null 2>&1
+	apt_install_tolerant $want || true
 	for p in $want; do
-		[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] || return 1
+		[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] || gap="$gap $p"
 	done
+	[ -z "$gap" ] \
+		|| echo "Warning: PHP modules not installed:$gap; the next update or h-add-web-php VERSION tries again" >&2
 	for v in $touched; do
-		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || return 1
+		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 \
+			|| echo "Warning: php$v-fpm did not come back after its modules, check: systemctl status php$v-fpm" >&2
 	done
+	return 0
 }
 
 # Same for the ionCube loader.

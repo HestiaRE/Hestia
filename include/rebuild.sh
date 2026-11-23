@@ -60,8 +60,9 @@ rebuild_user_conf() {
 			return 1
 		fi
 		getent group "$user" > /dev/null 2>&1 || /usr/sbin/groupadd -g "$user_uid" "$user"
-		if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
-			-s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1; then
+		# No subordinate range, as in h-add-user: handing one out sorts /etc/subuid under the docker companions.
+		if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" -K SUB_UID_COUNT=0 -K SUB_GID_COUNT=0 "$user" \
+			-u "$user_uid" -g "$user_uid" -s "$shell" -c "$CONTACT" -m -d "$HOMEDIR/$user" > /dev/null 2>&1; then
 			echo "Error: the account $user could not be created"
 			return 1
 		fi

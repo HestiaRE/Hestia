@@ -564,13 +564,14 @@ proc_visible_add() {
 # ── login.defs guard rail for the panel UID band (#388) ─────────────────────
 # Keeps a bare useradd/adduser out of the band include/identity.sh allocates from; a
 # foreign account inside it would collide with an allocation. SUB_UID_MAX has to be
-# raised too - the shipped 600100000 is below our highest range end (1048675999).
+# raised too - the shipped 600100000 is below our highest range end (1048675999). No range of its own either: useradd
+# sorts /etc/subuid and /etc/subgid when it hands one out, and a docker companion's mapping lives in their order.
 login_defs_guard() {
 	local f='/etc/login.defs' kv k v
 	[ -f "$f" ] || return 0
 	for kv in 'UID_MAX 9999' 'GID_MAX 9999' \
 		'SUB_UID_MIN 100000' 'SUB_UID_MAX 2147483647' \
-		'SUB_GID_MIN 100000' 'SUB_GID_MAX 2147483647'; do
+		'SUB_GID_MIN 100000' 'SUB_GID_MAX 2147483647' 'SUB_UID_COUNT 0' 'SUB_GID_COUNT 0'; do
 		k="${kv%% *}"
 		v="${kv##* }"
 		if grep -qE "^[[:space:]]*#?[[:space:]]*${k}[[:space:]]" "$f"; then
@@ -579,6 +580,7 @@ login_defs_guard() {
 			printf '%s\t\t\t%s\n' "$k" "$v" >> "$f"
 		fi
 	done
+	return 0
 }
 
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──

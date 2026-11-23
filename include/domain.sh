@@ -1009,10 +1009,11 @@ ftp_list_edit() { # LIST N [VALUE]
 	echo "${_out[*]}"
 }
 
-# An FTP account is a second name on the customer's uid, homed below the domain folder.
+# An FTP account is a second name on the customer's uid, homed below the domain folder. No subordinate range, as in
+# h-add-user: handing one out sorts /etc/subuid under the docker companions.
 ftp_account_add() { # FTP_USER HOME
-	/usr/sbin/useradd "$1" -s "${FTP_SHELL:-$(which nologin)}" -o -u "$(id -u "$user")" -g "$(id -g "$user")" \
-		-G hestia-users -M -d "$2" > /dev/null 2>&1
+	/usr/sbin/useradd "$1" -K SUB_UID_COUNT=0 -K SUB_GID_COUNT=0 -s "${FTP_SHELL:-$(which nologin)}" -o \
+		-u "$(id -u "$user")" -g "$(id -g "$user")" -G hestia-users -M -d "$2" > /dev/null 2>&1
 }
 
 # A crypt string and nothing else: the value can come from an archive and goes to chpasswd -e.

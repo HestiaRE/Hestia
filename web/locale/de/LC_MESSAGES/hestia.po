@@ -3748,6 +3748,14 @@ msgid "Keep the CNAME"
 msgstr "CNAME behalten"
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Keep the SPF record"
+msgstr "SPF-Eintrag behalten"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Keep the own www records"
+msgstr "Eigene www-Einträge behalten"
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Keep the www include"
 msgstr "www-Include behalten"
 
@@ -3765,12 +3773,20 @@ msgid "Priority"
 msgstr "Priorität"
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Put the SPF record back to v=spf1 a mx ~all"
+msgstr "SPF-Eintrag auf v=spf1 a mx ~all zurücksetzen"
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Replace the CNAME by records of its own"
 msgstr "CNAME durch eigene Einträge ersetzen"
 
 #: web/templates/pages/list_dns_sync.php
 msgid "Switch the www include off, www gets records of its own"
 msgstr "www-Include ausschalten, www bekommt eigene Einträge"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Switch the www include on, www follows the apex again"
+msgstr "www-Include einschalten, www folgt wieder dem Apex"
 
 #: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
 #: web/templates/pages/list_mail_dns.php
@@ -3780,6 +3796,15 @@ msgstr "TTL"
 #: web/templates/pages/list_dns_sync.php
 msgid "The zone is read again before the write: if it changed since this preview, nothing is written. Afterwards it is read once more and compared."
 msgstr "Vor dem Schreiben wird die Zone neu gelesen: Hat sie sich seit dieser Vorschau geändert, wird nichts geschrieben. Danach wird sie noch einmal gelesen und verglichen."
+
+#: web/templates/pages/list_dns_sync.php
+#, php-format
+msgid "only %s %s"
+msgstr "nur %s %s"
+
+#: web/templates/pages/list_dns_sync.php
+msgid "www include on"
+msgstr "www-Include an"
 
 #: web/templates/pages/list_dns_zone.php
 #, php-format
@@ -3806,6 +3831,10 @@ msgstr "Alias von"
 #: web/templates/pages/list_dns_zone.php
 msgid "Aliases in other zones"
 msgstr "Aliase in anderen Zonen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Apply"
+msgstr "Anwenden"
 
 #: web/templates/pages/list_dns_zone.php
 msgid "As zone file lines"
@@ -3868,6 +3897,10 @@ msgid "None."
 msgstr "Keine."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Normalize"
+msgstr "Normalisieren"
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Other records at the provider"
 msgstr "Weitere Einträge beim Provider"
 
@@ -3880,8 +3913,20 @@ msgid "Public DNS did not answer for the name servers of this zone: whether anyo
 msgstr "Das öffentliche DNS hat zu den Nameservern dieser Zone nicht geantwortet: Ob jemand sie beim Provider liest, ist unbekannt."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Put the SPF record back to v=spf1 a mx ~all, without addresses or includes. A preview shows the writes first."
+msgstr "Setzt den SPF-Eintrag auf v=spf1 a mx ~all zurück, ohne Adressen oder Includes. Eine Vorschau zeigt zuerst, was geschrieben wird."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Remove from provider"
 msgstr "Beim Provider entfernen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Switch the www include on: the provider serves the apex addresses at www, and the own www records go."
+msgstr "Schaltet das www-Include ein: Der Provider liefert unter www die Adressen des Apex, die eigenen www-Einträge entfallen."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Sync this record alone. A preview shows the writes first."
+msgstr "Nur diesen Eintrag abgleichen. Eine Vorschau zeigt zuerst, was geschrieben wird."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Sync to provider"
@@ -3928,6 +3973,10 @@ msgstr "Benutzer %s"
 #: web/templates/pages/list_dns_zone.php
 msgid "wildcard"
 msgstr "Wildcard"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "www follows the apex"
+msgstr "www folgt dem Apex"
 
 #: web/templates/pages/list_files_incremental.php
 msgid "Date / Time"

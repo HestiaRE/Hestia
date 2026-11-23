@@ -15,6 +15,11 @@ the releases of the command audit, into another.
 
 ### Added
 
+- **The DNS zone page applies a single record, normalizes an SPF and lets www follow the apex again** (#1428, stage 5
+  of #863). "Apply" writes one row instead of the whole section (`h-sync-dns-zone ... RECORD TYPE`). "Normalize" puts
+  the SPF record back to `v=spf1 a mx ~all`, without addresses or includes, and only where `a` and `mx` authorise the
+  box. "www follows the apex" switches the InterNetX www include on again and removes own www addresses that would
+  stand beside it. Each goes through the preview and its plan id like every sync.
 - **Wildcard certificates through the DNS provider** (#1422, stage 4 of #863). A web domain with a `*.` alias gets Let's
   Encrypt when a DNS provider account holds the zone: the `_acme-challenge` TXT goes out through the account, is awaited
   at every name server of the zone, and is removed afterwards, on failure too. Other names stay on HTTP-01 and switch to

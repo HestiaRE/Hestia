@@ -208,14 +208,19 @@ if (isset($_GET["providers"])) {
 	$v_object = (string) ($_GET["object"] ?? "");
 	$v_owner = (string) ($_GET["owner"] ?? "");
 	// What the admin confirmed on the preview: the write carries the same, or its plan id no longer matches.
-	$v_confirm = array_values(array_intersect(["cname", "include"], explode(",", (string) ($_GET["confirm"] ?? ""))));
+	$v_confirm = array_values(array_intersect(["cname", "include", "follow", "normalize"], explode(",", (string) ($_GET["confirm"] ?? ""))));
+	// One row of the section instead of all of them; the command checks that the section derives it.
+	$v_record = (string) ($_GET["record"] ?? "");
+	$v_type = (string) ($_GET["type"] ?? "");
+	$v_row = $v_record !== "" && $v_type !== "" ? ["record" => $v_record, "type" => $v_type] : [];
 	$args = implode(" ", array_map(fn ($a) => quoteshellarg($a), [$v_owner, $v_zone, $v_section, $v_object]));
 	$confirm_arg = quoteshellarg(implode(",", $v_confirm));
+	$row_arg = $v_row ? " '' " . quoteshellarg($v_record) . " " . quoteshellarg($v_type) : "";
 	$prefix = ["mail" => "obj-mail-", "orphan" => "obj-orphan-"][$v_section] ?? "obj-";
 	$back = "/list/dns/?" . http_build_query(["zone" => $v_zone]) . "#" . rawurlencode($prefix . $v_object);
 	if (!empty($_POST["v_plan"])) {
 		verify_csrf($_POST);
-		exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " " . quoteshellarg((string) $_POST["v_plan"]) . " plain " . $confirm_arg, $output, $return_var);
+		exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " " . quoteshellarg((string) $_POST["v_plan"]) . " plain " . $confirm_arg . $row_arg, $output, $return_var);
 		check_return_code($return_var, $output);
 		if (empty($_SESSION["error_msg"])) {
 			// ok_msg is shown as HTML.
@@ -225,7 +230,7 @@ if (isset($_GET["providers"])) {
 		header("Location: " . $back);
 		exit();
 	}
-	exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " preview json " . $confirm_arg, $output, $return_var);
+	exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " preview json " . $confirm_arg . $row_arg, $output, $return_var);
 	$preview = json_decode(implode("", $output), true);
 	if ($return_var !== 0 || !is_array($preview)) {
 		check_return_code($return_var ?: 1, $output);
@@ -240,7 +245,7 @@ if (isset($_GET["providers"])) {
 	// The confirmations the plan offers, and those already given.
 	$v_confirmable = array_values(array_unique(array_filter(array_map(fn ($o) => (string) ($o["CONFIRM"] ?? ""), $ops))));
 	$v_confirm_query = fn (array $c) => "/list/dns/?" . http_build_query(["zone" => $v_zone, "sync" => $v_section,
-		"object" => $v_object, "owner" => $v_owner] + ($c ? ["confirm" => implode(",", $c)] : []));
+		"object" => $v_object, "owner" => $v_owner] + $v_row + ($c ? ["confirm" => implode(",", $c)] : []));
 	render_page($user, $TAB, "list_dns_sync");
 } elseif (isset($_GET["zone"])) {
 	$v_zone = strtolower((string) $_GET["zone"]);

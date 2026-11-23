@@ -131,11 +131,27 @@ foreach ($sections as $s) {
 				<?php } ?>
 			</span>
 		</h2>
-		<?php if ($v_checked && array_filter($s["rows"], fn ($r) => !in_array($r["STATUS"] ?? "ok", ["ok", "exception"], true))) { ?>
+		<?php
+	$sync_query = ["zone" => $v_zone, "sync" => $s["kind"], "object" => $s["object"], "owner" => $s["owner"]];
+	// www can follow the apex again where it has records of its own that equal what the apex derives; the preview
+	// says when the apex is not in line yet.
+	$www = array_filter($s["rows"], fn ($r) => $r["NAME"] === "www" && in_array($r["TYPE"], ["A", "AAAA"], true));
+	$apex = array_column(array_filter($s["rows"], fn ($r) => $r["NAME"] === "@" && in_array($r["TYPE"], ["A", "AAAA"], true)), "VALUE", "TYPE");
+	$followable = $v_checked && $www && !array_filter($www, fn ($r) => ($r["NOTE"] ?? "") === "follows the apex (www include)"
+		|| !empty($r["EXCEPTION"]) || ($apex[$r["TYPE"]] ?? null) !== $r["VALUE"]);
+	$unsynced = $v_checked && array_filter($s["rows"], fn ($r) => !in_array($r["STATUS"] ?? "ok", ["ok", "exception"], true));
+	if ($unsynced || $followable) { ?>
 			<p class="u-mb10">
-				<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "sync" => $s["kind"], "object" => $s["object"], "owner" => $s["owner"]])) ?>">
-					<i class="fas fa-arrows-rotate icon-blue"></i><?= tohtml(_("Sync to provider")) ?>
-				</a>
+				<?php if ($unsynced) { ?>
+					<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query($sync_query)) ?>">
+						<i class="fas fa-arrows-rotate icon-blue"></i><?= tohtml(_("Sync to provider")) ?>
+					</a>
+				<?php } ?>
+				<?php if ($followable) { ?>
+					<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query($sync_query + ["confirm" => "follow"])) ?>" title="<?= tohtml(_("Switch the www include on: the provider serves the apex addresses at www, and the own www records go.")) ?>">
+						<i class="fas fa-link icon-blue"></i><?= tohtml(_("www follows the apex")) ?>
+					</a>
+				<?php } ?>
 			</p>
 		<?php } ?>
 		<?php if ($s["kind"] === "alias") { ?>
@@ -225,6 +241,26 @@ foreach ($sections as $s) {
 										</button>
 									<?php } ?>
 								</form>
+							<?php } ?>
+							<?php
+						$row_query = $sync_query + ["record" => $r["NAME"], "type" => $r["TYPE"]];
+						$applicable = in_array($r["STATUS"], ["missing", "different", "cname", "wildcard"], true);
+						// Offered for an SPF record other than the standard one, whatever its status.
+						$normalizable = $r["TYPE"] === "TXT" && empty($r["EXCEPTION"]) && preg_match('/^v=spf1\b/i', $r["VALUE"]) === 1
+							&& ($r["FOUND"] ?? []) !== [] && ($r["FOUND"] ?? []) !== ["v=spf1 a mx ~all"];
+						if ($applicable || $normalizable) { ?>
+								<p class="u-mt10">
+									<?php if ($applicable) { ?>
+										<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query($row_query)) ?>" title="<?= tohtml(_("Sync this record alone. A preview shows the writes first.")) ?>">
+											<i class="fas fa-arrows-rotate icon-blue"></i><?= tohtml(_("Apply")) ?>
+										</a>
+									<?php } ?>
+									<?php if ($normalizable) { ?>
+										<a class="button button-secondary" href="/list/dns/?<?= tohtml(http_build_query($row_query + ["confirm" => "normalize"])) ?>" title="<?= tohtml(_("Put the SPF record back to v=spf1 a mx ~all, without addresses or includes. A preview shows the writes first.")) ?>">
+											<i class="fas fa-broom icon-blue"></i><?= tohtml(_("Normalize")) ?>
+										</a>
+									<?php } ?>
+								</p>
 							<?php } ?>
 						</div>
 					<?php } ?>

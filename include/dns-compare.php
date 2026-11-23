@@ -17,12 +17,14 @@
 // DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
 // a check it cut short is "unchecked", never "different".
 // With SECTION OBJECT OWNER the writes that bring that section in line instead, "OP REL TYPE PRIORITY TTL VALUE
-// NOTE [CONFIRM]": add, rem (VALUE as stored), main (the apex address), include (VALUE off: www stops following the
-// apex), skip (left alone, NOTE says why; CONFIRM names the confirmation that would write it instead). A rem only
+// NOTE [CONFIRM]": add, rem (VALUE as stored), main (the apex address), include (VALUE off or on: whether www follows
+// the apex), skip (left alone, NOTE says why; CONFIRM names the confirmation that would write it instead). A rem only
 // ever names a record a desired row of the section consumed, or for SECTION orphan an orphan written for OBJECT and
 // OWNER, so no foreign record is touched, and nothing is written to a zone the public name servers do not point at.
 // CONFIRM (comma separated) allows what is never done unasked: cname replaces a CNAME or ALIAS at a name by the
-// section's records, include switches the www include off so that www can differ from the apex.
+// section's records, include switches the www include off so that www can differ from the apex, follow switches it
+// on again where www derives what the apex holds, normalize puts the SPF record back to the standard
+// "v=spf1 a mx ~all".
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
 // it in an ip4/ip6 term. Only that address goes, an SPF keeps it beside the new one, and a row with an exception or
 // whose derived value is not the NEW one is left alone.
@@ -57,6 +59,7 @@ if ($argc === 12) {
 	}
 }
 $zone = strtolower(rtrim($zone, "."));
+const SPF_NORMAL = "v=spf1 a mx ~all";
 
 /** @return list<list<string>> */
 function tsv(string $file, int $n): array
@@ -605,6 +608,110 @@ function kept_ops(array $x, bool $include, bool $mainV6): array
 	return $ops;
 }
 
+// Why www cannot follow the apex again, or "": the include serves the apex's A and AAAA at www, so www has to derive
+// exactly those, and the apex has to hold them once the plan ran.
+/**
+ * @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results
+ * @param array<string, string> $apexWant
+ * @param array<string, bool> $apexDone
+ */
+function follow_refused(
+	array $results,
+	string $section,
+	string $object,
+	string $delegation,
+	array $apexWant,
+	array $apexDone,
+): string {
+	if ($delegation !== "") {
+		return $delegation;
+	}
+	foreach (["CNAME", "ALIAS", "NS"] as $type) {
+		if (at("www", $type)) {
+			return "a record of type $type holds www";
+		}
+	}
+	$www = [];
+	foreach ($results as $x) {
+		[, , $s, $o, , $rel, $type, , , $value] = $x["d"];
+		if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || !in_array($type, ["A", "AAAA"], true)) {
+			continue;
+		}
+		if ($x["kept"] !== null) {
+			return "an exception holds www $type";
+		}
+		$www[$type] = addr($value);
+	}
+	if (!$www) {
+		return "the section derives no www address";
+	}
+	foreach (["A", "AAAA"] as $type) {
+		if (($www[$type] ?? null) !== ($apexWant[$type] ?? null)) {
+			return "www and the apex derive different $type values";
+		}
+		if (isset($www[$type]) && !($apexDone[$type] ?? false)) {
+			return "the apex $type is not in line";
+		}
+	}
+	return "";
+}
+
+// The addresses a section's SPF has to authorise: its A/AAAA rows, as the SPF it derives names none.
+/** @return list<string> */
+function spf_addrs(string $section, string $object): array
+{
+	global $desired;
+	$ips = [];
+	foreach ($desired as $d) {
+		if ($d[2] === $section && $d[3] === $object && ($d[6] === "A" || $d[6] === "AAAA")) {
+			$ips[] = addr($d[9]);
+		}
+	}
+	return array_values(array_unique($ips));
+}
+
+// The SPF record put back to the standard, which names no address: only where a and mx authorise every address the
+// box derives, as a receiver resolves them now.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @return list<list<string>>
+ */
+function spf_normal_ops(array $x): array
+{
+	global $actual, $zone;
+	[, , $section, $object, , $rel, $type, , $ttl] = $x["d"];
+	if (array_map(fn ($i) => txt($actual[$i][4]), $x["hits"]) === [SPF_NORMAL]) {
+		return [];
+	}
+	$missed = [];
+	Dig::$failed = false;
+	foreach (spf_addrs($section, $object) as $ip) {
+		$lookups = 0;
+		if (!spf_pass($ip, SPF_NORMAL, fqdn($rel, $zone), $lookups)) {
+			$missed[] = $ip;
+		}
+	}
+	if ($missed) {
+		$why = Dig::failed() ? "public DNS did not answer"
+			: "a and mx do not authorise " . implode(", ", $missed) . ", bring the A and MX records in line first";
+		return [["skip", $rel, $type, "", $ttl, SPF_NORMAL, $why]];
+	}
+	$ops = [];
+	$keep = null;
+	foreach ($x["hits"] as $i) {
+		if ($keep === null && txt($actual[$i][4]) === SPF_NORMAL) {
+			$keep = $i;
+		} else {
+			$ops[] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+		}
+	}
+	if ($keep === null) {
+		$t = $x["hits"] && $actual[$x["hits"][0]][3] !== "" ? $actual[$x["hits"][0]][3] : $ttl;
+		$ops[] = ["add", $rel, $type, "", $t, SPF_NORMAL, "normalized"];
+	}
+	return $ops;
+}
+
 // The writes for one section, as the header describes. $results as the compare loop collects them.
 /**
  * @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results
@@ -646,6 +753,7 @@ function plan(array $results, string $section, string $object, string $delegatio
 	$ops = [];
 	$replaced = [];
 	$includeOff = false;
+	$follow = false;
 	foreach ([true, false] as $apexPass) {
 		if (!$apexPass) {
 			foreach ($results as $k => $x) {
@@ -654,14 +762,24 @@ function plan(array $results, string $section, string $object, string $delegatio
 					$apexDone[$type] = !in_array("skip", array_column($ops[$k] ?? [], 0), true);
 				}
 			}
+			if (in_array("follow", $confirm, true) && !$include && $move === null) {
+				$why = follow_refused($results, $section, $object, $delegation, $apexWant, $apexDone);
+				$follow = $why === "";
+				if (!$follow) {
+					$ops[-1] = [["skip", "www", "", "", "", "", "www cannot follow the apex: $why"]];
+				}
+			}
 		}
 		foreach ($results as $k => $x) {
 			[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
 			// www in line through the include breaks when this plan changes the apex, so it is planned as well.
 			$follows = $rel === "www" && $include && $x["status"] === "ok" && $x["kept"] === null && $delegation === ""
 				&& ($type === "A" || $type === "AAAA");
+			$normal = in_array("normalize", $confirm, true) && $type === "TXT" && $x["kept"] === null && $move === null
+				&& preg_match('/^v=spf1\b/i', txt($value)) === 1;
 			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object
-				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows && $move === null)) {
+				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows && !$normal && $move === null)
+				|| ($follow && $rel === "www" && ($type === "A" || $type === "AAAA"))) {
 				continue;
 			}
 			$status = $x["status"];
@@ -680,10 +798,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 					continue;
 				}
 				$to = $move[$from];
-				$derives = $type === "TXT" ? preg_match('/\bip[46]:' . preg_quote($to, "/") . '(?=\s|$)/i', txt($value)) === 1
-					: addr($value) === $to;
+				// The derived SPF names no address: it takes the new one when the section's A/AAAA rows do.
+				$derives = $type === "TXT" ? in_array(addr($to), spf_addrs($s, $o), true) : addr($value) === $to;
 				if (!$derives) {
-					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the box derives this value, not $to for $from"];
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the box derives no $to for $from here"];
 					continue;
 				}
 			}
@@ -720,6 +838,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 			}
 			if ($x["kept"] !== null) {
 				$ops[$k] = kept_ops($x, $include, $mainV6);
+				continue;
+			}
+			if ($normal) {
+				$ops[$k] = spf_normal_ops($x);
 				continue;
 			}
 			if ($move !== null && $type === "TXT") {
@@ -846,6 +968,17 @@ function plan(array $results, string $section, string $object, string $delegatio
 			$own = array_filter(at("www", $type), fn ($i) => $actual[$i][5] === "" && addr($actual[$i][4]) === addr($value));
 			if (!$own) {
 				$ops[$k][] = ["add", "www", $type, "", $ttl, $value, "www stops following the apex"];
+			}
+		}
+	}
+	// The provider drops the own www records equal to the apex when the include goes on, any other stays beside it.
+	if ($follow) {
+		$ops[-1] = [["include", "www", "", "", "", "on", "www follows the apex again"]];
+		foreach (["A", "AAAA"] as $type) {
+			foreach (at("www", $type) as $i) {
+				if ($actual[$i][5] === "" && addr($actual[$i][4]) !== ($apexWant[$type] ?? "")) {
+					$ops[-1][] = ["rem", "www", $type, "", $actual[$i][3], $actual[$i][6], "would stand beside the apex"];
+				}
 			}
 		}
 	}
@@ -994,9 +1127,8 @@ foreach ($desired as $d) {
 					$status = "different";
 					$note = "more than one SPF record (permerror)";
 				} else {
-					preg_match_all('/\bip[46]:([0-9a-f.:]+)/i', $want, $ips);
 					$missed = [];
-					foreach ($ips[1] as $ip) {
+					foreach (spf_addrs($section, $object) as $ip) {
 						$lookups = 0;
 						if (!spf_pass($ip, $shown[0], fqdn($rel, $zone), $lookups)) {
 							$missed[] = $ip;

@@ -3780,6 +3780,14 @@ msgid "Keep the CNAME"
 msgstr ""
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Keep the SPF record"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Keep the own www records"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Keep the www include"
 msgstr ""
 
@@ -3797,11 +3805,19 @@ msgid "Priority"
 msgstr "Приоритет"
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Put the SPF record back to v=spf1 a mx ~all"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Replace the CNAME by records of its own"
 msgstr ""
 
 #: web/templates/pages/list_dns_sync.php
 msgid "Switch the www include off, www gets records of its own"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "Switch the www include on, www follows the apex again"
 msgstr ""
 
 #: web/templates/pages/list_dns_sync.php web/templates/pages/list_dns_zone.php
@@ -3811,6 +3827,15 @@ msgstr "TTL"
 
 #: web/templates/pages/list_dns_sync.php
 msgid "The zone is read again before the write: if it changed since this preview, nothing is written. Afterwards it is read once more and compared."
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+#, php-format
+msgid "only %s %s"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
+msgid "www include on"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3841,6 +3866,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Aliases in other zones"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Apply"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3906,6 +3935,10 @@ msgid "None."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Normalize"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Other records at the provider"
 msgstr ""
 
@@ -3918,7 +3951,19 @@ msgid "Public DNS did not answer for the name servers of this zone: whether anyo
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Put the SPF record back to v=spf1 a mx ~all, without addresses or includes. A preview shows the writes first."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Remove from provider"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Switch the www include on: the provider serves the apex addresses at www, and the own www records go."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Sync this record alone. A preview shows the writes first."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3965,6 +4010,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "wildcard"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "www follows the apex"
 msgstr ""
 
 #: web/templates/pages/list_files_incremental.php

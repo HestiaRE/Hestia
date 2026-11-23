@@ -84,7 +84,7 @@ dns_mail_addrs() {
 
 # dns_mail_rows USER [DOMAIN]: what a mail domain needs, the values the mail "DNS records" page has shown.
 dns_mail_rows() {
-	local u="$1" line d v4 v6 sel pub spf n wm
+	local u="$1" line d v4 v6 sel pub n wm
 	[ -f "$CONF_DIR/users/$u/mail.conf" ] || return 0
 	while IFS= read -r line; do
 		d=$(dns_kv DOMAIN "$line")
@@ -100,9 +100,8 @@ dns_mail_rows() {
 			[ -n "$v6" ] && dns_row mail "$d" "$u" "$n.$d" AAAA '' "$DNS_TTL" "$v6"
 		done
 		dns_row mail "$d" "$u" "$d" MX 10 "$DNS_TTL" "mail.$(dns_ascii "$d")."
-		# Both families in one record: exim sends from whichever family the receiving MX offers.
-		spf="v=spf1 a mx${v4:+ ip4:$v4}${v6:+ ip6:$v6} -all"
-		dns_row mail "$d" "$u" "$d" TXT '' "$DNS_TTL" "$spf"
+		# No address in it, a and mx carry them: dns-compare.php checks the section's A/AAAA rows instead.
+		dns_row mail "$d" "$u" "$d" TXT '' "$DNS_TTL" 'v=spf1 a mx ~all'
 		dns_row mail "$d" "$u" "_dmarc.$d" TXT '' "$DNS_TTL" 'v=DMARC1; p=none'
 		[ -e "$CONF_DIR/users/$u/mail/$d.pub" ] || continue
 		# What exim signs with: the rebuild falls back to mail for a selector that is no DNS label.

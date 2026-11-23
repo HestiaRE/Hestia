@@ -2250,42 +2250,6 @@
       "note": ""
     },
     {
-      "path": "updates/0.26.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-09",
-      "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "updates/0.28.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-23",
-      "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "updates/0.29.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.29 update manifest. Upstream has no update path of this shape."
-    },
-    {
-      "path": "updates/0.30.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.30 update manifest. Upstream has no update path of this shape."
-    },
-    {
       "path": "updates/0.31.json",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -2347,51 +2311,6 @@
       "last_reconciled": "2026-09-13",
       "divergence": null,
       "note": ""
-    },
-    {
-      "path": "updates/patches/0.28/dovecot-login-alias.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-23",
-      "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "updates/patches/0.30/exim-auth-results.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1288): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.30/exim-dkim-selector.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1248): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.30/exim-helo-checks.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1291): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.30/exim-spam-status-score.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1295): patch an update applies to a box's exim template, which the operator may have edited."
     },
     {
       "path": "updates/patches/0.33/exim-forward-errors.patch",

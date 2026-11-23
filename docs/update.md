@@ -42,8 +42,8 @@ mechanism, not a second channel and not something an operator configures.
 
 ## The lower bound
 
-**v0.25.** A box below it is reinstalled, not updated, and the fetched updater above will say so
-rather than start. It was raised from `v0.21` once every known box had reached v0.25; below that line
+**v0.30.** A box below it is reinstalled, not updated, and the fetched updater above will say so
+rather than start. It was raised from `v0.25` for v0.38, by the author's decision; below that line
 there is nothing left in the field to reason about, and the manifests of the releases underneath can
 never apply again.
 

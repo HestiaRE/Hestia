@@ -668,7 +668,7 @@ Three properties carry the whole design:
 - **A stopped run is visible by construction.** The tree carries the new version before the plan
   runs, the status version only after it is done, so the difference is the signal and the smoke says
   so.
-- **There is a floor and no reverse gear.** `UPDATE_MIN_VERSION` is `v0.25`: a box below it is
+- **There is a floor and no reverse gear.** `UPDATE_MIN_VERSION` is `v0.30`: a box below it is
   reinstalled rather than updated, so the derivation never has to reason about a state it cannot
   read. A target older than the installed tree is refused too. The
   floor is compared against the tree version, never the status, because a run that unpacked but has

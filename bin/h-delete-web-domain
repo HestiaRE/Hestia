@@ -112,6 +112,9 @@ if [ -n "$SUSPENDED" ]; then
 		decrease_user_value "$user" '$SUSPENDED_WEB'
 	fi
 fi
+# The record's share leaves the totals now, not at the nightly recount.
+recalc_user_disk_usage
+recalc_user_bandwidth_usage
 
 # Restart the version this domain ran, else the system default.
 if [ -n "$PHP_VERSION" ] && [ "$PHP_VERSION" != 'none' ]; then

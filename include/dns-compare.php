@@ -1,13 +1,13 @@
 <?php
 
 // Desired against actual records of one zone, for h-check-dns-zone and h-sync-dns-zone.
-//   dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM]]
+//   dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM [MOVE]]]
 //   dns-compare.php ZONE ACTUAL WRITTEN
-// DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE); ACTUAL: driver rows
+// DESIRED: dns_sections rows (ZONE STATE SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE ORIGIN); ACTUAL: driver rows
 // (REL TYPE PRIORITY TTL VALUE FLAG RAW); APEX yes when an object on the box holds the zone apex; KEPT: the
 // exceptions (OWNER REL TYPE VALUE, one row per accepted value, an empty VALUE alone for "kept absent"); WRITTEN: the
 // derived records HestiaRE wrote (OWNER REL TYPE VALUE SECTION OBJECT).
-// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE FOUND EXCEPTION KEPT: the zone's
+// Out: SECTION OBJECT OWNER REL TYPE PRIORITY TTL VALUE STATUS ACTUAL NOTE FOUND EXCEPTION KEPT ORIGIN: the zone's
 // delegation (SECTION delegation: public name servers against the provider's), the desired rows, then every record
 // no desired row consumed: SECTION orphan when HestiaRE wrote it (OBJECT and OWNER those it wrote it for), else
 // foreign, or hidden outside the box's names in a zone without apex. FOUND is what
@@ -16,17 +16,24 @@
 // Per type: A/AAAA as an address, MX as priority and target, SPF by whether it authorises the desired addresses,
 // DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
 // a check it cut short is "unchecked", never "different".
+// A row of ORIGIN added (a record the user added or adopted) consumes only the record with its own value, a CNAME or
+// ALIAS the one at its name; it is "shadowed" where a derived row holds the name and type, or a CNAME's name at all.
 // With SECTION OBJECT OWNER the writes that bring that section in line instead, "OP REL TYPE PRIORITY TTL VALUE
-// NOTE [CONFIRM]": add, rem (VALUE as stored), main (the apex address), include (VALUE off: www stops following the
-// apex), skip (left alone, NOTE says why; CONFIRM names the confirmation that would write it instead). A rem only
+// NOTE [CONFIRM]": add, rem (VALUE as stored), main (the apex address), include (VALUE off or on: whether www follows
+// the apex), skip (left alone, NOTE says why; CONFIRM names the confirmation that would write it instead). A rem only
 // ever names a record a desired row of the section consumed, or for SECTION orphan an orphan written for OBJECT and
 // OWNER, so no foreign record is touched, and nothing is written to a zone the public name servers do not point at.
 // CONFIRM (comma separated) allows what is never done unasked: cname replaces a CNAME or ALIAS at a name by the
-// section's records, include switches the www include off so that www can differ from the apex.
+// section's records or by an added one to another target, include switches the www include off so that www can
+// differ from the apex, follow switches it on again where www derives what the apex holds, normalize puts the SPF
+// record back to the standard "v=spf1 a mx ~all".
+// MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
+// it in an ip4/ip6 term. Only that address goes, an SPF keeps it beside the new one, and a row with an exception or
+// whose derived value is not the NEW one is left alone.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
-if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11], true)) {
-	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM]]\n" .
+if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
+	fwrite(STDERR, "usage: dns-compare.php ZONE DESIRED ACTUAL APEX KEPT WRITTEN [SECTION OBJECT OWNER [CONFIRM [MOVE]]]\n" .
 		"       dns-compare.php ZONE ACTUAL WRITTEN\n");
 	exit(1);
 }
@@ -37,8 +44,24 @@ if ($argc === 4) {
 	[, $zone, $desiredFile, $actualFile, $apex, $keptFile, $writtenFile] = $argv;
 }
 $planFor = $argc >= 10 ? [$argv[7], strtolower($argv[8]), $argv[9]] : null;
-$confirm = $argc === 11 ? array_values(array_filter(explode(",", $argv[10]))) : [];
+$confirm = $argc >= 11 ? array_values(array_filter(explode(",", $argv[10]))) : [];
+/** @var ?array<string, string> $move old address => new address */
+$move = null;
+if ($argc === 12) {
+	$move = [];
+	foreach (explode(",", $argv[11]) as $pair) {
+		[$old, $new] = explode("=", $pair, 2) + [1 => ""];
+		$o = @inet_pton($old);
+		$n = @inet_pton($new);
+		if ($o === false || $n === false || strlen($o) !== strlen($n)) {
+			fwrite(STDERR, "invalid move: $pair\n");
+			exit(1);
+		}
+		$move[inet_ntop($o)] = inet_ntop($n);
+	}
+}
 $zone = strtolower(rtrim($zone, "."));
+const SPF_NORMAL = "v=spf1 a mx ~all";
 
 /** @return list<list<string>> */
 function tsv(string $file, int $n): array
@@ -142,7 +165,7 @@ if ($argc === 4) {
 	}
 	exit(0);
 }
-$desired = tsv($desiredFile, 10);
+$desired = tsv($desiredFile, 11);
 /** @var array<string, list<string>> $kept */
 $kept = [];
 foreach (tsv($keptFile, 4) as [$owner, $rel, $type, $value]) {
@@ -152,6 +175,43 @@ foreach (tsv($keptFile, 4) as [$owner, $rel, $type, $value]) {
 	}
 }
 $used = [];
+// An added record's value as the provider's is compared with it: the priority only where the type has one.
+function added_canon(string $type, string $prio, string $v): string
+{
+	$v = match ($type) {
+		"A", "AAAA" => addr($v),
+		"TXT" => (string) preg_replace('/\s+/', "", txt($v)),
+		"MX", "NS", "PTR", "CNAME", "ALIAS" => host($v),
+		default => strtolower(trim($v)),
+	};
+	return (in_array($type, ["MX", "SRV"], true) ? (int) $prio . " " : "") . $v;
+}
+
+function txt_kind(string $v): string
+{
+	return preg_match('/^v=(spf1|dmarc1|dkim1)\b/i', txt($v), $m) ? strtolower($m[1]) : "";
+}
+
+// The added rows a derived row wins against, by index, with the reason: the same name and type (for TXT the same
+// kind, or a DKIM name), or any record at the name of a CNAME or ALIAS.
+/** @var array<int, string> $shadowed */
+$shadowed = [];
+foreach ($desired as $k => $d) {
+	if ($d[10] !== "added") {
+		continue;
+	}
+	foreach ($desired as $e) {
+		if ($e[10] !== "" || $e[5] !== $d[5]) {
+			continue;
+		}
+		$txtClash = $d[6] === "TXT" && (txt_kind($e[9]) === "dkim1" || (txt_kind($d[9]) !== "" && txt_kind($d[9]) === txt_kind($e[9])));
+		if (in_array($d[6], ["CNAME", "ALIAS"], true) || ($e[6] === $d[6] && ($d[6] !== "TXT" || $txtClash))) {
+			$shadowed[$k] = "the $e[2] section $e[3] derives $e[6] at this name";
+			break;
+		}
+	}
+}
+
 // The time public DNS has left in this run, and whether a lookup since the last reset went unanswered.
 final class Dig
 {
@@ -435,6 +495,74 @@ function spf_merge(string $rec, array $missed): string
 	return implode(" ", $terms);
 }
 
+// SPF record REC with the new address of MOVE right before each ip4/ip6 term on an old one. The old term stays: mail
+// may still leave from the old box while both run. REC itself once every new term is there.
+/** @param array<string, string> $move */
+function spf_move(string $rec, array $move): string
+{
+	$terms = preg_split('/\s+/', trim($rec)) ?: [];
+	$have = array_map("strtolower", $terms);
+	$out = [];
+	foreach ($terms as $t) {
+		if (preg_match('/^([-+~?]?ip[46]):([0-9a-f.:]+)$/i', $t, $m) && isset($move[addr($m[2])])) {
+			$n = $m[1] . ":" . $move[addr($m[2])];
+			if (!in_array(strtolower($n), $have, true)) {
+				$out[] = $n;
+				$have[] = strtolower($n);
+			}
+		}
+		$out[] = $t;
+	}
+	return implode(" ", $out);
+}
+
+// The old address of MOVE a row's records carry, null for none: an A/AAAA holding it, an SPF naming it.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @param array<string, string> $move
+ */
+function moved_from(array $x, array $move): ?string
+{
+	global $actual;
+	$type = $x["d"][6];
+	foreach ($x["hits"] as $i) {
+		if ($type === "A" || $type === "AAAA") {
+			if (isset($move[addr($actual[$i][4])])) {
+				return addr($actual[$i][4]);
+			}
+		} elseif ($type === "TXT" && preg_match_all('/\bip[46]:([0-9a-f.:]+)(?=\s|$)/i', txt($actual[$i][4]), $m)) {
+			foreach ($m[1] as $a) {
+				if (isset($move[addr($a)])) {
+					return addr($a);
+				}
+			}
+		}
+	}
+	return null;
+}
+
+// The old address of MOVE on the wildcard answering REL, null for none or for a wildcard the box derives and moves.
+/**
+ * @param array<string, string> $move
+ * @param array<int|string, array{d: list<string>}> $results
+ */
+function wildcard_from(string $rel, string $type, array $move, array $results): ?string
+{
+	global $actual;
+	$wc = wildcard_for($rel);
+	foreach ($results as $x) {
+		if ($x["d"][5] === $wc && $x["d"][6] === $type) {
+			return null;
+		}
+	}
+	foreach ($wc !== "" ? at($wc, $type) : [] as $i) {
+		if (isset($move[addr($actual[$i][4])])) {
+			return addr($actual[$i][4]);
+		}
+	}
+	return null;
+}
+
 // The writes that put an exception back: its values in place of the derived one, by the same verbs. A CNAME or a
 // wildcard it keeps, or a main IP it cannot be, is left to the provider's page.
 /**
@@ -519,17 +647,153 @@ function kept_ops(array $x, bool $include, bool $mainV6): array
 	return $ops;
 }
 
+// Why www cannot follow the apex again, or "": the include serves the apex's A and AAAA at www, so www has to derive
+// exactly those, and the apex has to hold them once the plan ran.
+/**
+ * @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results
+ * @param array<string, string> $apexWant
+ * @param array<string, bool> $apexDone
+ */
+function follow_refused(
+	array $results,
+	string $section,
+	string $object,
+	string $delegation,
+	array $apexWant,
+	array $apexDone,
+): string {
+	if ($delegation !== "") {
+		return $delegation;
+	}
+	foreach (["CNAME", "ALIAS", "NS"] as $type) {
+		if (at("www", $type)) {
+			return "a record of type $type holds www";
+		}
+	}
+	$www = [];
+	foreach ($results as $x) {
+		[, , $s, $o, , $rel, $type, , , $value, $origin] = $x["d"];
+		if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || !in_array($type, ["A", "AAAA"], true)
+			|| $origin !== "") {
+			continue;
+		}
+		if ($x["kept"] !== null) {
+			return "an exception holds www $type";
+		}
+		$www[$type] = addr($value);
+	}
+	if (!$www) {
+		return "the section derives no www address";
+	}
+	foreach (["A", "AAAA"] as $type) {
+		if (($www[$type] ?? null) !== ($apexWant[$type] ?? null)) {
+			return "www and the apex derive different $type values";
+		}
+		if (isset($www[$type]) && !($apexDone[$type] ?? false)) {
+			return "the apex $type is not in line";
+		}
+	}
+	return "";
+}
+
+// The addresses a section's SPF has to authorise: its A/AAAA rows, as the SPF it derives names none.
+/** @return list<string> */
+function spf_addrs(string $section, string $object): array
+{
+	global $desired;
+	$ips = [];
+	foreach ($desired as $d) {
+		if ($d[2] === $section && $d[3] === $object && ($d[6] === "A" || $d[6] === "AAAA") && $d[10] === "") {
+			$ips[] = addr($d[9]);
+		}
+	}
+	return array_values(array_unique($ips));
+}
+
+// The SPF record put back to the standard, which names no address: only where a and mx authorise every address the
+// box derives, as a receiver resolves them now.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @return list<list<string>>
+ */
+function spf_normal_ops(array $x): array
+{
+	global $actual, $zone;
+	[, , $section, $object, , $rel, $type, , $ttl] = $x["d"];
+	if (array_map(fn ($i) => txt($actual[$i][4]), $x["hits"]) === [SPF_NORMAL]) {
+		return [];
+	}
+	$missed = [];
+	Dig::$failed = false;
+	foreach (spf_addrs($section, $object) as $ip) {
+		$lookups = 0;
+		if (!spf_pass($ip, SPF_NORMAL, fqdn($rel, $zone), $lookups)) {
+			$missed[] = $ip;
+		}
+	}
+	if ($missed) {
+		$why = Dig::failed() ? "public DNS did not answer"
+			: "a and mx do not authorise " . implode(", ", $missed) . ", bring the A and MX records in line first";
+		return [["skip", $rel, $type, "", $ttl, SPF_NORMAL, $why]];
+	}
+	$ops = [];
+	$keep = null;
+	foreach ($x["hits"] as $i) {
+		if ($keep === null && txt($actual[$i][4]) === SPF_NORMAL) {
+			$keep = $i;
+		} else {
+			$ops[] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+		}
+	}
+	if ($keep === null) {
+		$t = $x["hits"] && $actual[$x["hits"][0]][3] !== "" ? $actual[$x["hits"][0]][3] : $ttl;
+		$ops[] = ["add", $rel, $type, "", $t, SPF_NORMAL, "normalized"];
+	}
+	return $ops;
+}
+
+// The writes that put an added record in place: its own value beside whatever else stands there, a CNAME or ALIAS in
+// place of the one there on the cname confirmation only, never beside other records.
+/**
+ * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
+ * @param list<string> $confirm
+ * @return list<list<string>>
+ */
+function added_ops(array $x, array $confirm): array
+{
+	global $actual;
+	[, , , , , $rel, $type, $prio, $ttl, $value] = $x["d"];
+	if ($type !== "CNAME" && $type !== "ALIAS") {
+		return [["add", $rel, $type, $prio, $ttl, $type === "TXT" ? txt($value) : $value, "an added record"]];
+	}
+	if (!$x["hits"] && array_diff(at($rel), at($rel, "CNAME"), at($rel, "ALIAS"))) {
+		return [["skip", $rel, $type, "", $ttl, $value, "other records hold the name, no $type can stand beside them"]];
+	}
+	$held = array_merge(at($rel, "CNAME"), at($rel, "ALIAS"));
+	if ($held && !in_array("cname", $confirm, true)) {
+		return [["skip", $rel, $type, "", $ttl, $value, "a CNAME or ALIAS to another target holds the name", "cname"]];
+	}
+	$ops = [];
+	foreach ($held as $i) {
+		$ops[] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+	}
+	$ops[] = ["add", $rel, $type, "", $ttl, host($value), "an added record"];
+	return $ops;
+}
+
 // The writes for one section, as the header describes. $results as the compare loop collects them.
 /**
  * @param list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results
  * @param list<string> $confirm
+ * @param ?array<string, string> $move
  */
-function plan(array $results, string $section, string $object, string $delegation, array $confirm): void
+function plan(array $results, string $section, string $object, string $delegation, array $confirm, ?array $move): void
 {
 	global $actual;
 	$skip = [
 		"delegated" => "a delegated name, the zone does not answer for it",
 		"unchecked" => "public DNS did not answer, check again",
+		"shadowed" => "a row the box derives holds the name, the added record stays out",
 	];
 	$include = false;
 	foreach ($actual as $r) {
@@ -544,8 +808,8 @@ function plan(array $results, string $section, string $object, string $delegatio
 	$apexWant = [];
 	$apexDone = [];
 	foreach ($results as $x) {
-		[, , , , , $rel, $type, , , $value] = $x["d"];
-		if ($rel === "@") {
+		[, , , , , $rel, $type, , , $value, $origin] = $x["d"];
+		if ($rel === "@" && $origin === "") {
 			$apexWant[$type] = addr($value);
 			if ($x["kept"] !== null) {
 				unset($apexWant[$type]);
@@ -559,12 +823,21 @@ function plan(array $results, string $section, string $object, string $delegatio
 	$ops = [];
 	$replaced = [];
 	$includeOff = false;
+	$follow = false;
 	foreach ([true, false] as $apexPass) {
 		if (!$apexPass) {
 			foreach ($results as $k => $x) {
 				[, , $s, $o, , $rel, $type] = $x["d"];
-				if ($rel === "@" && $s === $section && strtolower($o) === $object && !in_array($x["status"], ["ok", "exception"], true)) {
+				if ($rel === "@" && $s === $section && strtolower($o) === $object && $x["d"][10] === ""
+					&& !in_array($x["status"], ["ok", "exception"], true)) {
 					$apexDone[$type] = !in_array("skip", array_column($ops[$k] ?? [], 0), true);
+				}
+			}
+			if (in_array("follow", $confirm, true) && !$include && $move === null) {
+				$why = follow_refused($results, $section, $object, $delegation, $apexWant, $apexDone);
+				$follow = $why === "";
+				if (!$follow) {
+					$ops[-1] = [["skip", "www", "", "", "", "", "www cannot follow the apex: $why"]];
 				}
 			}
 		}
@@ -572,13 +845,42 @@ function plan(array $results, string $section, string $object, string $delegatio
 			[, , $s, $o, , $rel, $type, $prio, $ttl, $value] = $x["d"];
 			// www in line through the include breaks when this plan changes the apex, so it is planned as well.
 			$follows = $rel === "www" && $include && $x["status"] === "ok" && $x["kept"] === null && $delegation === ""
-				&& ($type === "A" || $type === "AAAA");
+				&& ($type === "A" || $type === "AAAA") && $x["d"][10] === "";
+			$normal = in_array("normalize", $confirm, true) && $type === "TXT" && $x["kept"] === null && $move === null
+				&& $x["d"][10] === ""
+				&& preg_match('/^v=spf1\b/i', txt($value)) === 1;
 			if (($rel === "@") !== $apexPass || $s !== $section || strtolower($o) !== $object
-				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows)) {
+				|| (in_array($x["status"], ["ok", "exception"], true) && !$follows && !$normal && $move === null)
+				|| ($follow && $rel === "www" && ($type === "A" || $type === "AAAA"))) {
 				continue;
 			}
 			$status = $x["status"];
 			$hits = $x["hits"];
+			if ($move !== null) {
+				$from = moved_from($x, $move);
+				if ($from === null && $x["status"] === "wildcard" && $x["kept"] === null) {
+					$from = wildcard_from($rel, $type, $move, $results);
+					if ($from !== null) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value,
+							"answered through a wildcard on $from the box does not derive: move it at the provider"];
+					}
+					continue;
+				}
+				if ($from === null || $x["kept"] !== null) {
+					continue;
+				}
+				$to = $move[$from];
+				if ($x["d"][10] === "added") {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "an added record keeps the value it was added with"];
+					continue;
+				}
+				// The derived SPF names no address: it takes the new one when the section's A/AAAA rows do.
+				$derives = $type === "TXT" ? in_array(addr($to), spf_addrs($s, $o), true) : addr($value) === $to;
+				if (!$derives) {
+					$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the box derives no $to for $from here"];
+					continue;
+				}
+			}
 			// The status a row had before its exception was weighed: what holds the name decides what can be written.
 			$note = $delegation !== "" ? $delegation : ($skip[$x["base"]] ?? "");
 			if ($x["base"] === "cname") {
@@ -603,20 +905,43 @@ function plan(array $results, string $section, string $object, string $delegatio
 					"TXT" => txt($value),
 					default => $value,
 				};
-				$ops[$k][] = ["add", $rel, $type, $type === "MX" ? $prio : "", $ttl, $v, "in place of the CNAME"];
+				$why = $x["d"][10] === "added" ? "an added record, in place of the CNAME" : "in place of the CNAME";
+				$ops[$k][] = ["add", $rel, $type, $prio, $ttl, $v, $why];
 				continue;
 			}
 			if ($note !== "") {
 				$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, $note, $cnameOk ? "cname" : ""];
 				continue;
 			}
+			if ($x["d"][10] === "added") {
+				$ops[$k] = added_ops($x, $confirm);
+				continue;
+			}
 			if ($x["kept"] !== null) {
 				$ops[$k] = kept_ops($x, $include, $mainV6);
 				continue;
 			}
+			if ($normal) {
+				$ops[$k] = spf_normal_ops($x);
+				continue;
+			}
+			if ($move !== null && $type === "TXT") {
+				foreach ($hits as $i) {
+					$old = txt($actual[$i][4]);
+					$new = spf_move($old, $move);
+					if ($new !== $old) {
+						$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
+						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the new address beside the old one"];
+					}
+				}
+				continue;
+			}
 			if ($type === "A" || $type === "AAAA") {
 				$want = addr($value);
-				$own = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
+				$ownAll = array_values(array_filter($hits, fn ($i) => $actual[$i][5] === ""));
+				// A move removes only the old addresses, whatever else stands beside them.
+				$own = array_values(array_filter($ownAll, fn ($i) => $move === null || isset($move[addr($actual[$i][4])])));
 				if ($rel === "www" && $include) {
 					// What the apex holds once this plan ran: its wanted value when it will be in line, else what it
 					// holds now.
@@ -652,16 +977,17 @@ function plan(array $results, string $section, string $object, string $delegatio
 					continue;
 				}
 				$have = false;
-				foreach ($own as $i) {
+				foreach ($ownAll as $i) {
 					if (addr($actual[$i][4]) === $want) {
 						$have = true;
-					} else {
+					} elseif (in_array($i, $own, true)) {
 						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
 					}
 				}
-				$useMain = $rel === "@" && $type === "A" && ($main !== null || (!$own && !$mainV6));
+				$useMain = $rel === "@" && $type === "A" && ($main !== null || (!$ownAll && !$mainV6));
 				if ($useMain) {
-					if ($main === null || addr($actual[$main][4]) !== $want) {
+					$mainMoves = $move === null || $main === null || isset($move[addr($actual[$main][4])]);
+					if ($mainMoves && ($main === null || addr($actual[$main][4]) !== $want)) {
 						$ops[$k][] = ["main", $rel, $type, "", $ttl, $want, ""];
 					}
 				} elseif (!$have) {
@@ -716,13 +1042,24 @@ function plan(array $results, string $section, string $object, string $delegatio
 		$ops[-1] = [["include", "www", "", "", "", "off", "www stops following the apex"]];
 		foreach ($results as $k => $x) {
 			[, , $s, $o, , $rel, $type, , $ttl, $value] = $x["d"];
-			if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || $x["kept"] !== null
+			if ($rel !== "www" || $s !== $section || strtolower($o) !== $object || $x["kept"] !== null || $x["d"][10] !== ""
 				|| !in_array($type, ["A", "AAAA"], true) || in_array("add", array_column($ops[$k] ?? [], 0), true)) {
 				continue;
 			}
 			$own = array_filter(at("www", $type), fn ($i) => $actual[$i][5] === "" && addr($actual[$i][4]) === addr($value));
 			if (!$own) {
 				$ops[$k][] = ["add", "www", $type, "", $ttl, $value, "www stops following the apex"];
+			}
+		}
+	}
+	// The provider drops the own www records equal to the apex when the include goes on, any other stays beside it.
+	if ($follow) {
+		$ops[-1] = [["include", "www", "", "", "", "on", "www follows the apex again"]];
+		foreach (["A", "AAAA"] as $type) {
+			foreach (at("www", $type) as $i) {
+				if ($actual[$i][5] === "" && addr($actual[$i][4]) !== ($apexWant[$type] ?? "")) {
+					$ops[-1][] = ["rem", "www", $type, "", $actual[$i][3], $actual[$i][6], "would stand beside the apex"];
+				}
 			}
 		}
 	}
@@ -767,8 +1104,8 @@ if ($planFor === null) {
 
 /** @var list<array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>}> $results */
 $results = [];
-foreach ($desired as $d) {
-	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value] = $d;
+foreach ($desired as $dk => $d) {
+	[, , $section, $object, $owner, $rel, $type, $prio, $ttl, $value, $origin] = $d;
 	$status = "missing";
 	$shown = [];
 	$hits = [];
@@ -777,11 +1114,37 @@ foreach ($desired as $d) {
 	$note = "";
 	$cut = delegated($rel);
 	Dig::$failed = false;
-	if ($cut !== "") {
+	if (isset($shadowed[$dk])) {
+		$status = "shadowed";
+		$note = $shadowed[$dk];
+	} elseif ($cut !== "" && !($origin === "added" && $type === "NS" && $cut === $rel)) {
 		$status = "delegated";
 		$to = implode(", ", array_map(fn ($i) => $actual[$i][4], at($cut, "NS")));
 		$note = "delegated to $to: not answered by this zone";
-	} elseif ($type === "A" || $type === "AAAA") {
+	} elseif ($origin === "added" && ($type === "CNAME" || $type === "ALIAS")) {
+		$hits = at($rel, $type);
+		foreach ($hits as $i) {
+			$used[$i] = true;
+			$shown[] = $actual[$i][4];
+			$found[] = host($actual[$i][4]);
+		}
+		if ($hits) {
+			$status = $found === [host($value)] ? "ok" : "different";
+		} elseif (array_diff(at($rel), at($rel, "CNAME"), at($rel, "ALIAS"))) {
+			$note = "other records hold the name, no $type can stand beside them";
+		}
+	} elseif ($origin === "added" && !at($rel, "CNAME")) {
+		$want = added_canon($type, $prio, $value);
+		foreach (at($rel, $type) as $i) {
+			if (added_canon($type, $actual[$i][2], $actual[$i][4]) === $want) {
+				$hits[] = $i;
+				$used[$i] = true;
+				$shown[] = $type === "TXT" ? txt($actual[$i][4]) : $actual[$i][4];
+			}
+		}
+		$found = $shown;
+		$status = $hits ? "ok" : "missing";
+	} elseif ($origin === "" && ($type === "A" || $type === "AAAA")) {
 		$want = addr($value);
 		$hits = at($rel, $type);
 		if ($hits) {
@@ -871,9 +1234,8 @@ foreach ($desired as $d) {
 					$status = "different";
 					$note = "more than one SPF record (permerror)";
 				} else {
-					preg_match_all('/\bip[46]:([0-9a-f.:]+)/i', $want, $ips);
 					$missed = [];
-					foreach ($ips[1] as $ip) {
+					foreach (spf_addrs($section, $object) as $ip) {
 						$lookups = 0;
 						if (!spf_pass($ip, $shown[0], fqdn($rel, $zone), $lookups)) {
 							$missed[] = $ip;
@@ -900,7 +1262,7 @@ foreach ($desired as $d) {
 	// An exception stands in for the derived value until it is lifted: matching it is "exception", and a row that
 	// left it is different, even when the provider holds the derived value again.
 	$base = $status;
-	$accepted = $status === "delegated" ? null : ($kept["$owner\t$rel\t$type"] ?? null);
+	$accepted = $status === "delegated" || $origin !== "" ? null : ($kept["$owner\t$rel\t$type"] ?? null);
 	if ($accepted !== null) {
 		$keeps = $accepted ? implode(" | ", $accepted) : "no record";
 		if (same_set($type, $found, $accepted)) {
@@ -922,7 +1284,7 @@ foreach ($desired as $d) {
 		"kept" => $accepted];
 	if ($planFor === null) {
 		out([$section, $object, $owner, $rel, $type, $prio, $ttl, $value, $status, implode(" | ", $shown), $note,
-			implode("\x1f", $found), $accepted === null ? "" : "yes", implode("\x1f", $accepted ?? [])]);
+			implode("\x1f", $found), $accepted === null ? "" : "yes", implode("\x1f", $accepted ?? []), $origin]);
 	}
 }
 
@@ -951,13 +1313,13 @@ if ($planFor !== null && $planFor[0] === "orphan") {
 		if ($delegation !== "") {
 			out(["skip", $r[0], $r[1], $r[2], $r[3], $r[4], $delegation]);
 		} else {
-			out(["rem", $r[0], $r[1], $r[1] === "MX" ? $r[2] : "", $r[3], $r[6], "orphaned"]);
+			out(["rem", $r[0], $r[1], in_array($r[1], ["MX", "SRV"], true) ? $r[2] : "", $r[3], $r[6], "orphaned"]);
 		}
 	}
 	exit(0);
 }
 if ($planFor !== null) {
-	plan($results, $planFor[0], $planFor[1], $delegation, $confirm);
+	plan($results, $planFor[0], $planFor[1], $delegation, $confirm, $move);
 	exit(0);
 }
 

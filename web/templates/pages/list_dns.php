@@ -29,6 +29,15 @@ $dns_section_labels = [
 
 	<h1 class="u-text-center u-hide-desktop u-mt20 u-pr30 u-mb20 u-pl30"><?= tohtml(_("DNS Zones")) ?></h1>
 	<?php show_alert_message($_SESSION); ?>
+	<?php if ($v_move_pairs) { ?>
+		<div class="alert alert-info u-mb20" role="alert">
+			<i class="fas fa-truck-moving"></i>
+			<p>
+				<?= tohtml(sprintf(_("A restore moved the domains from %s. The records at the providers may still point at the old addresses."), implode(", ", array_map(fn ($p) => ($p["OLD"] ?? "") . " → " . ($p["NEW"] ?? ""), $v_move_pairs)))) ?>
+				<a href="/list/dns/?move=stored"><?= tohtml(_("Preview the move")) ?></a>
+			</p>
+		</div>
+	<?php } ?>
 
 	<div class="units-table js-units-container">
 		<div class="units-table-header">

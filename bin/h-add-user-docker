@@ -228,7 +228,7 @@ daemon_json="$companion_home/.config/docker/daemon.json"
 daemon_json_want="$(printf '{\n  "ip": "%s",\n  "default-network-opts": {\n    "bridge": {\n      "com.docker.network.bridge.host_binding_ipv4": "%s"\n    }\n  }\n}' "$docker_ip" "$docker_ip")"
 
 if docker_alive && [ "$(cat "$override_dir/hestia.conf" 2> /dev/null)" = "$override_want" ] \
-	&& [ "$(cat "$daemon_json" 2> /dev/null)" = "$daemon_json_want" ]; then
+	&& [ "$(cat "$daemon_json" 2> /dev/null)" = "$daemon_json_want" ] && companion_map_ok "$user"; then
 	echo "Docker is already enabled and running for $user."
 	$BIN/h-log-action "system" "Info" "System" "Verified rootless Docker for $user."
 	log_event "$OK" "$ARGUMENTS"

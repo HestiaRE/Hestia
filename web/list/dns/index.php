@@ -147,6 +147,113 @@ if (isset($_GET["providers"])) {
 	}
 	header("Location: /list/dns/?" . http_build_query(["zone" => $v_zone]));
 	exit();
+} elseif (isset($_GET["zone"], $_GET["added"])) {
+	// A record the user adds (TXT or CNAME), adopts from the provider's other records, forgets again, or hands to the
+	// removal of orphans. Nothing goes to the provider here: a sync writes it, the orphan preview removes it.
+	verify_csrf($_POST);
+	$v_zone = strtolower((string) $_GET["zone"]);
+	$v_action = (string) ($_POST["v_action"] ?? "");
+	$v_record = strtolower(trim((string) ($_POST["v_record"] ?? "")));
+	// A name as typed: the zone itself, or a name under it, comes relative.
+	if ($v_record === "" || $v_record === $v_zone || $v_record === $v_zone . ".") {
+		$v_record = "@";
+	} elseif (str_ends_with(rtrim($v_record, "."), "." . $v_zone)) {
+		$v_record = substr(rtrim($v_record, "."), 0, -strlen($v_zone) - 1);
+	}
+	$v_type = strtoupper((string) ($_POST["v_type"] ?? ""));
+	$v_value = trim((string) ($_POST["v_value"] ?? ""));
+	$v_priority = (string) ($_POST["v_priority"] ?? "");
+	$v_ttl = (string) ($_POST["v_ttl"] ?? "");
+	$v_owner = (string) ($_POST["v_owner"] ?? "");
+	$back = "/list/dns/?" . http_build_query(["zone" => $v_zone]);
+	$q = fn (array $a) => implode(" ", array_map(fn ($x) => quoteshellarg((string) $x), $a));
+	switch ($v_action) {
+		case "new":
+		case "adopt":
+			$command = "h-add-dns-zone-record " . $user . " " . $q([$v_zone, $v_record, $v_type, $v_value, $v_action, $v_priority, $v_ttl]);
+			$msg = $v_action === "new" ? _("%s %s has been added. Sync its section to write it to the provider.")
+				: _("%s %s has been adopted: HestiaRE keeps it as it is and writes it again where it is missing.");
+			break;
+		case "forget":
+		case "remove":
+			$command = "h-delete-dns-zone-record " . $q([$v_owner, $v_zone, $v_record, $v_type, $v_value, $v_priority, $v_action]);
+			$msg = $v_action === "forget" ? _("%s %s is forgotten and stays at the provider as a foreign record.")
+				: _("%s %s is an orphan now. Remove it from the provider below.");
+			break;
+		default:
+			$_SESSION["error_msg"] = _("Invalid action.");
+			header("Location: " . $back);
+			exit();
+	}
+	exec(HESTIA_CMD . $command, $output, $return_var);
+	check_return_code($return_var, $output);
+	unset($output);
+	if (empty($_SESSION["error_msg"])) {
+		$_SESSION["ok_msg"] = tohtml(sprintf($msg, $v_record, $v_type));
+		// Straight to the orphan preview of the section it was in, limited to its name and type: an orphan beside it
+		// with another value is listed and removed as well.
+		if ($v_action === "remove") {
+			$object = (string) ($_POST["v_object"] ?? "");
+			header("Location: /list/dns/?" . http_build_query(["zone" => $v_zone, "sync" => "orphan",
+				"object" => $object !== "" ? $object : $v_zone, "owner" => $v_owner, "record" => $v_record, "type" => $v_type]));
+			exit();
+		}
+	}
+	header("Location: " . $back);
+	exit();
+} elseif (isset($_GET["move"])) {
+	// The records still on old addresses moved at once over every zone of the user: the move the restore recorded
+	// ("stored") or the one an IP change left, limited to its domain. A preview with its plan id, then that plan.
+	$v_move = (string) $_GET["move"];
+	$v_object = (string) ($_GET["object"] ?? "");
+	$back = "/list/dns/";
+	if (isset($_POST["v_forget"]) && $v_move === "stored") {
+		verify_csrf($_POST);
+		exec(HESTIA_CMD . "h-delete-dns-move " . $user, $output, $return_var);
+		check_return_code($return_var, $output);
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	$tail = $v_object !== "" ? " " . quoteshellarg($v_object) : "";
+	if (!empty($_POST["v_plan"])) {
+		verify_csrf($_POST);
+		// Only a plan id a preview showed: "now" would write without one.
+		if (!preg_match('/^[0-9a-f]{16}$/', (string) $_POST["v_plan"])) {
+			$_SESSION["error_msg"] = _("Invalid plan.");
+			header("Location: " . $back);
+			exit();
+		}
+		exec(HESTIA_CMD . "h-sync-dns " . $user . " " . quoteshellarg($v_move) . " " . quoteshellarg((string) $_POST["v_plan"]) .
+			" plain" . $tail, $output, $return_var);
+		check_return_code($return_var, $output);
+		if (empty($_SESSION["error_msg"])) {
+			// ok_msg is shown as HTML.
+			$_SESSION["ok_msg"] = nl2br(tohtml(implode("\n", $output)));
+		}
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	exec(HESTIA_CMD . "h-sync-dns " . $user . " " . quoteshellarg($v_move) . " preview json" . $tail, $output, $return_var);
+	$preview = json_decode(implode("", $output), true);
+	if ($return_var !== 0 || !is_array($preview)) {
+		check_return_code($return_var ?: 1, $output);
+		unset($output);
+		header("Location: " . $back);
+		exit();
+	}
+	unset($output);
+	$v_pairs = $v_move === "stored" ? cli_json("h-list-dns-move " . $user . " json") : array_map(function ($p) {
+		[$old, $new] = explode("=", $p, 2) + [1 => ""];
+		return ["OLD" => $old, "NEW" => $new];
+	}, explode(",", $v_move));
+	$v_plan = (string) ($preview["PLAN"] ?? "");
+	$ops = $preview["OPS"] ?? [];
+	$v_unmanaged = $preview["UNMANAGED"] ?? [];
+	$v_writes = count(array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip"));
+	$v_query = "/list/dns/?" . http_build_query(["move" => $v_move] + ($v_object !== "" ? ["object" => $v_object] : []));
+	render_page($user, $TAB, "list_dns_move");
 } elseif (isset($_GET["zone"], $_GET["sync"])) {
 	// One section written to the provider: a preview with its plan id, then the write of exactly that plan. The
 	// owner is the section's, which may be a customer the real admin is looking at.
@@ -155,14 +262,19 @@ if (isset($_GET["providers"])) {
 	$v_object = (string) ($_GET["object"] ?? "");
 	$v_owner = (string) ($_GET["owner"] ?? "");
 	// What the admin confirmed on the preview: the write carries the same, or its plan id no longer matches.
-	$v_confirm = array_values(array_intersect(["cname", "include"], explode(",", (string) ($_GET["confirm"] ?? ""))));
+	$v_confirm = array_values(array_intersect(["cname", "include", "follow", "normalize"], explode(",", (string) ($_GET["confirm"] ?? ""))));
+	// One row of the section instead of all of them; the command checks that the section derives it.
+	$v_record = (string) ($_GET["record"] ?? "");
+	$v_type = (string) ($_GET["type"] ?? "");
+	$v_row = $v_record !== "" && $v_type !== "" ? ["record" => $v_record, "type" => $v_type] : [];
 	$args = implode(" ", array_map(fn ($a) => quoteshellarg($a), [$v_owner, $v_zone, $v_section, $v_object]));
 	$confirm_arg = quoteshellarg(implode(",", $v_confirm));
+	$row_arg = $v_row ? " '' " . quoteshellarg($v_record) . " " . quoteshellarg($v_type) : "";
 	$prefix = ["mail" => "obj-mail-", "orphan" => "obj-orphan-"][$v_section] ?? "obj-";
 	$back = "/list/dns/?" . http_build_query(["zone" => $v_zone]) . "#" . rawurlencode($prefix . $v_object);
 	if (!empty($_POST["v_plan"])) {
 		verify_csrf($_POST);
-		exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " " . quoteshellarg((string) $_POST["v_plan"]) . " plain " . $confirm_arg, $output, $return_var);
+		exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " " . quoteshellarg((string) $_POST["v_plan"]) . " plain " . $confirm_arg . $row_arg, $output, $return_var);
 		check_return_code($return_var, $output);
 		if (empty($_SESSION["error_msg"])) {
 			// ok_msg is shown as HTML.
@@ -172,7 +284,7 @@ if (isset($_GET["providers"])) {
 		header("Location: " . $back);
 		exit();
 	}
-	exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " preview json " . $confirm_arg, $output, $return_var);
+	exec(HESTIA_CMD . "h-sync-dns-zone " . $args . " preview json " . $confirm_arg . $row_arg, $output, $return_var);
 	$preview = json_decode(implode("", $output), true);
 	if ($return_var !== 0 || !is_array($preview)) {
 		check_return_code($return_var ?: 1, $output);
@@ -187,7 +299,7 @@ if (isset($_GET["providers"])) {
 	// The confirmations the plan offers, and those already given.
 	$v_confirmable = array_values(array_unique(array_filter(array_map(fn ($o) => (string) ($o["CONFIRM"] ?? ""), $ops))));
 	$v_confirm_query = fn (array $c) => "/list/dns/?" . http_build_query(["zone" => $v_zone, "sync" => $v_section,
-		"object" => $v_object, "owner" => $v_owner] + ($c ? ["confirm" => implode(",", $c)] : []));
+		"object" => $v_object, "owner" => $v_owner] + $v_row + ($c ? ["confirm" => implode(",", $c)] : []));
 	render_page($user, $TAB, "list_dns_sync");
 } elseif (isset($_GET["zone"])) {
 	$v_zone = strtolower((string) $_GET["zone"]);
@@ -237,6 +349,11 @@ if (isset($_GET["providers"])) {
 	if (!$v_checked) {
 		$records = cli_json("h-list-dns-zone " . $user . " " . quoteshellarg($v_zone) . " json");
 	}
+	// The user's added records no section holds, because their domain is gone: they come back with it.
+	$v_unplaced = array_values(array_filter(
+		cli_json("h-list-dns-zone-records " . $user . " " . quoteshellarg($v_zone) . " json"),
+		fn ($r) => ($r["SECTION"] ?? "") === ""
+	));
 	// Counted as DNSP_DIFFS counts, so the page and the zone list agree.
 	$v_differences = count(array_filter($records, fn ($r) => !in_array($r["STATUS"] ?? "ok", ["ok", "exception"], true)))
 		+ ($v_delegation !== null && $v_delegation["STATUS"] !== "ok" ? 1 : 0)
@@ -282,6 +399,7 @@ if (isset($_GET["providers"])) {
 	$data = cli_json("h-list-dns-zones " . $user . " json");
 	dns_zone_count($data);
 	ksort($data);
+	$v_move_pairs = cli_json("h-list-dns-move " . $user . " json");
 	render_page($user, $TAB, "list_dns");
 }
 

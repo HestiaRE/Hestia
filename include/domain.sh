@@ -417,6 +417,25 @@ le_dns_check() { # NAME -> 0 found, 1 missing, 2 not verifiable
 	return 2
 }
 
+# le_name_here NAME: whether an address NAME resolves to is one of this box, its NAT address included. A name behind a
+# proxy or still on the old box is not here, and DNS-01 can take it where an account holds its zone.
+le_name_here() {
+	local f ip box=' ' a addrs
+	for f in "$CONF_DIR"/ips/*; do
+		[ -e "$f" ] || continue
+		ip=${f##*/}
+		box+="$ip $(sed -n "s/^NAT='\([^']*\)'.*/\1/p" "$f" | head -n1) "
+	done
+	mapfile -t addrs < <(
+		dig +short A "$1" 2> /dev/null
+		dig +short AAAA "$1" 2> /dev/null
+	)
+	for a in "${addrs[@]}"; do
+		[ -n "$a" ] && [[ "$box" == *" $a "* ]] && return 0
+	done
+	return 1
+}
+
 # A domain's line in the stats queue, matched by its last two fields whatever path the command was written with.
 webstats_queue_drop() { # USER DOMAIN
 	local q="$CONF_DIR/queue/webstats.pipe"
@@ -990,10 +1009,11 @@ ftp_list_edit() { # LIST N [VALUE]
 	echo "${_out[*]}"
 }
 
-# An FTP account is a second name on the customer's uid, homed below the domain folder.
+# An FTP account is a second name on the customer's uid, homed below the domain folder. No subordinate range, as in
+# h-add-user: handing one out sorts /etc/subuid under the docker companions.
 ftp_account_add() { # FTP_USER HOME
-	/usr/sbin/useradd "$1" -s "${FTP_SHELL:-$(which nologin)}" -o -u "$(id -u "$user")" -g "$(id -g "$user")" \
-		-G hestia-users -M -d "$2" > /dev/null 2>&1
+	/usr/sbin/useradd "$1" -K SUB_UID_COUNT=0 -K SUB_GID_COUNT=0 -s "${FTP_SHELL:-$(which nologin)}" -o \
+		-u "$(id -u "$user")" -g "$(id -g "$user")" -G hestia-users -M -d "$2" > /dev/null 2>&1
 }
 
 # A crypt string and nothing else: the value can come from an archive and goes to chpasswd -e.
@@ -1523,6 +1543,23 @@ web_dir_trusted() {
 #----------------------------------------------------------#
 #                        CMN                               #
 #----------------------------------------------------------#
+
+# web_dns_move USER DOMAIN OLD NEW: SYNC_DNS of h-change-web-domain-ip(6), the records of the domain and its mail
+# domain on OLD moved to NEW at the providers. The box change stands whatever a provider answers, so a failure is a warning, never the rc.
+web_dns_move() {
+	local out
+	[ -n "$3" ] && [ -n "$4" ] && [ "$3" != "$4" ] || return 0
+	if ! compgen -G "$CONF_DIR/dns/*.conf" > /dev/null; then
+		echo "DNS: no provider account, nothing written"
+		return 0
+	fi
+	# The web lock is the box's; a provider taking its time must not hold every web command up.
+	web_lock_release
+	out=$("$BIN/h-sync-dns" "$1" "$3=$4" now plain "$2" 2>&1)
+	# Only the lines that failed: the sections written beside them stand.
+	sed -E 's/^/DNS: /; /^DNS: (Error: |zone .* not written: )/ s/^/Warning: /' <<< "$out"
+	return 0
+}
 
 is_domain_new() {
 	type=$1

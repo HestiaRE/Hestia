@@ -31,7 +31,12 @@ $dns_op_labels = [
 <div class="container">
 
 	<h1 class="u-mt20 u-mb10"><?= tohtml($v_zone) ?></h1>
-	<h2 class="u-mb20"><?= tohtml($dns_section_labels[$v_section] ?? $v_section) ?>: <?= tohtml($v_object) ?></h2>
+	<h2 class="u-mb20">
+		<?= tohtml($dns_section_labels[$v_section] ?? $v_section) ?>: <?= tohtml($v_object) ?>
+		<?php if ($v_row) { ?>
+			<span class="u-text-muted"><?= tohtml(sprintf(_("only %s %s"), $v_row["record"], $v_row["type"])) ?></span>
+		<?php } ?>
+	</h2>
 	<?php show_alert_message($_SESSION); ?>
 
 	<?php if ($v_writes === 0) { ?>
@@ -62,6 +67,9 @@ $dns_op_labels = [
 			</div>
 			<?php foreach ($ops as $o) {
 				[$icon, $label] = $dns_op_labels[$o["OP"] ?? ""] ?? ["fa-circle-question icon-dim", (string) ($o["OP"] ?? "")];
+				if (($o["OP"] ?? "") === "include" && ($o["VALUE"] ?? "") === "on") {
+					[$icon, $label] = ["fa-link icon-green", _("www include on")];
+				}
 				?>
 				<div class="units-table-row js-unit">
 					<div class="units-table-cell u-text-bold">
@@ -89,6 +97,8 @@ $dns_op_labels = [
 	$dns_confirm_labels = [
 		"cname" => [_("Replace the CNAME by records of its own"), _("Keep the CNAME")],
 		"include" => [_("Switch the www include off, www gets records of its own"), _("Keep the www include")],
+		"follow" => [_("Switch the www include on, www follows the apex again"), _("Keep the own www records")],
+		"normalize" => [_("Put the SPF record back to v=spf1 a mx ~all"), _("Keep the SPF record")],
 	];
 foreach (array_unique(array_merge($v_confirmable, $v_confirm)) as $c) {
 	if (!isset($dns_confirm_labels[$c])) {

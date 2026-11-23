@@ -475,6 +475,8 @@ if ! restore_passwd_read "$tmpdir/pam/passwd"; then
 fi
 new_uid=$(awk -F : -v u="$user" '$1 == u {print $3; exit}' /etc/passwd)
 
+# Old address => the one the domains got here: what the DNS at the providers still points at.
+declare -A restore_dns_move=()
 if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 	echo -e "\n-- WEB --" | tee -a $tmpdir/restore.log
 
@@ -545,6 +547,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 				get_user_ip $user
 				old_ip=$IP
 				IP=$ip
+				[ -n "$old_ip" ] && [ -n "$IP" ] && restore_dns_move[$old_ip]=$IP
 			fi
 			# The opt-out holds while the domain keeps a v4; without one it takes the v6 like an empty field.
 			[ "$IP6" = 'none' ] && [ -z "$IP" ] && IP6=''
@@ -552,6 +555,7 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 			# drop.
 			if [ -n "$IP6" ] && [ "$IP6" != 'none' ] && [ ! -e "$CONF_DIR/ips/$IP6" ]; then
 				if get_user_ip6; then
+					restore_dns_move[$IP6]=$ip6
 					IP6="$ip6"
 				else
 					IP6=''
@@ -797,6 +801,24 @@ if [ "$web" != 'no' ] && [ -n "$WEB_SYSTEM" ]; then
 	if [ -n "$PROXY_SYSTEM" ]; then
 		$BIN/h-restart-proxy
 		check_result $? "Proxy restart failed"
+	fi
+fi
+
+# Offered, never run: the provider accounts stay on the old box, so here there is usually none yet.
+if [ "${#restore_dns_move[@]}" -gt 0 ]; then
+	# shellcheck source=/usr/local/hestia/include/dns.sh
+	source "$HESTIA/include/dns.sh"
+	_pairs=()
+	for _old in "${!restore_dns_move[@]}"; do
+		_pairs+=("$_old=${restore_dns_move[$_old]}")
+	done
+	if dns_move_set "$user" "${_pairs[@]}"; then
+		{
+			echo "DNS: the domains moved from ${_pairs[*]} (old=new). Once a provider account holds their zones,"
+			echo "     h-sync-dns $user stored, or the DNS tab, shows the records still on the old addresses."
+		} | tee -a "$tmpdir/restore.log"
+	else
+		echo "Warning!: the DNS move ${_pairs[*]} could not be recorded" | tee -a "$tmpdir/restore.log"
 	fi
 fi
 

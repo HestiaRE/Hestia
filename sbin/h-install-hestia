@@ -418,6 +418,7 @@ install_web() {
 		wcv "PHP_SOURCE" "os"
 	fi
 	echo "[ * ] Installing PHP versions: $php_versions"
+	local p miss
 	for v in $php_versions; do
 		echo "  php$v..."
 		# reference version failure aborts; an extra customer version only warns
@@ -427,6 +428,17 @@ install_web() {
 				exit 1
 			fi
 			echo "[ ! ] WARNING: PHP $v failed to install, skipping (see $LOG)" >&2
+			continue
+		fi
+		# h-add-web-php leaves out a module the mirror did not serve; opcache has no package from 8.5 on.
+		miss=''
+		for p in $(php_module_pkgs "$v"); do
+			[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] && continue
+			apt-get -qq -s install "$p" > /dev/null 2>&1 && miss="$miss $p"
+		done
+		if [ -n "$miss" ]; then
+			echo "[ ! ] WARNING: PHP $v is installed without:$miss" >&2
+			HESTIA_INSTALL_WARNINGS="${HESTIA_INSTALL_WARNINGS:-}php $v (h-add-web-php $v):${miss}"$'\n'
 		fi
 	done
 

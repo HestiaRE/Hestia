@@ -37,17 +37,72 @@ _hestia_spin_stop() {
 	_hestia_spin_pid=""
 }
 
+# apt_failed_before_dpkg [apt-get args...]: whether a failed apt-get call is worth one more try. It is when apt can
+# resolve the call and dpkg was left with nothing half done: the download or a held lock stopped it, not a package.
+# Not read from apt's messages, which are translated. An update has nothing else to fail at.
+apt_failed_before_dpkg() {
+	case " $* " in
+		*" update "*) return 0 ;;
+		*" install "* | *" upgrade "* | *" dist-upgrade "* | *" full-upgrade "*) ;;
+		*) return 1 ;;
+	esac
+	apt-get -qq -s "$@" > /dev/null 2>&1 || return 1
+	[ -z "$(dpkg --audit 2> /dev/null)" ]
+}
+
+# apt_fetch_wait: the pause before the one retry, then fresh package lists. A mirror whose signed index runs ahead of
+# or behind its pool usually heals within minutes; a failed update here leaves the old lists, which may still do.
+apt_fetch_wait() {
+	sleep "${HESTIA_APT_RETRY_WAIT:-60}"
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -qq update \
+		> /dev/null 2>&1 || true
+}
+
+# apt_install_tolerant PKG...: one transaction, and after a failure before dpkg one more on fresh lists; then each
+# package alone, so one the mirror does not serve keeps out only itself and what depends on it. apt's output goes to
+# APT_LOG (default none), the rc is that of the last failing call; the caller asks dpkg what came.
+apt_install_tolerant() {
+	local rc=0 p
+	_apt_install_quiet "$@" && return 0
+	rc=$?
+	apt_failed_before_dpkg -y install "$@" || return "$rc"
+	echo "apt failed before dpkg ran, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists" >&2
+	apt_fetch_wait
+	_apt_install_quiet "$@" && return 0
+	rc=$?
+	apt_failed_before_dpkg -y install "$@" || return "$rc"
+	for p in "$@"; do
+		_apt_install_quiet "$p" || rc=$?
+	done
+	return "$rc"
+}
+
+_apt_install_quiet() {
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -y -qq \
+		-o Dpkg::Options::="--force-confold" install "$@" >> "${APT_LOG:-/dev/null}" 2>&1
+}
+
 # Usage: hestia_apt [apt-get args...]
 hestia_apt() {
-	_hestia_spin_start
-	local _rc=0
-	# Lock::Timeout: wait for a held dpkg/apt lock instead of failing fast. On a freshly booted box
-	# unattended-upgrades/apt-daily commonly hold it for the first minutes, and a fast failure on an
-	# optional component used to leave the component flagged on with the package absent (#480).
-	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" "$@" \
-		1>> "${LOG}" \
-		2> >(tee -a "${LOG}" >&2) || _rc=$?
-	_hestia_spin_stop
+	local _rc=0 _try
+	for _try in 1 2; do
+		_hestia_spin_start
+		_rc=0
+		# Lock::Timeout: wait for a held dpkg/apt lock instead of failing fast. On a freshly booted box
+		# unattended-upgrades/apt-daily commonly hold it for the first minutes, and a fast failure on an
+		# optional component used to leave the component flagged on with the package absent (#480).
+		DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" "$@" \
+			1>> "${LOG}" \
+			2> >(tee -a "${LOG}" >&2) || _rc=$?
+		if [ "$_rc" = 0 ] || [ "$_try" = 2 ] || ! apt_failed_before_dpkg "$@"; then
+			_hestia_spin_stop
+			break
+		fi
+		_hestia_spin_stop
+		echo "[ ! ] apt failed before dpkg ran, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists" \
+			| tee -a "${LOG}" >&2
+		apt_fetch_wait
+	done
 	return $_rc
 }
 
@@ -564,13 +619,14 @@ proc_visible_add() {
 # ── login.defs guard rail for the panel UID band (#388) ─────────────────────
 # Keeps a bare useradd/adduser out of the band include/identity.sh allocates from; a
 # foreign account inside it would collide with an allocation. SUB_UID_MAX has to be
-# raised too - the shipped 600100000 is below our highest range end (1048675999).
+# raised too - the shipped 600100000 is below our highest range end (1048675999). No range of its own either: useradd
+# sorts /etc/subuid and /etc/subgid when it hands one out, and a docker companion's mapping lives in their order.
 login_defs_guard() {
 	local f='/etc/login.defs' kv k v
 	[ -f "$f" ] || return 0
 	for kv in 'UID_MAX 9999' 'GID_MAX 9999' \
 		'SUB_UID_MIN 100000' 'SUB_UID_MAX 2147483647' \
-		'SUB_GID_MIN 100000' 'SUB_GID_MAX 2147483647'; do
+		'SUB_GID_MIN 100000' 'SUB_GID_MAX 2147483647' 'SUB_UID_COUNT 0' 'SUB_GID_COUNT 0'; do
 		k="${kv%% *}"
 		v="${kv##* }"
 		if grep -qE "^[[:space:]]*#?[[:space:]]*${k}[[:space:]]" "$f"; then
@@ -579,6 +635,7 @@ login_defs_guard() {
 			printf '%s\t\t\t%s\n' "$k" "$v" >> "$f"
 		fi
 	done
+	return 0
 }
 
 # ── Callables an update manifest may name (UPDATE_CALLABLE in include/update.sh) ──
@@ -681,26 +738,6 @@ panel_caddy_site_edit() {
 	systemctl try-restart caddy
 }
 
-# The rrd store sits under the panel web root and belongs to the admin view alone.
-panel_caddy_rrd_internal_apply() {
-	local f='/etc/caddy/hestia.conf'
-	[ -f "$f" ] || return 0
-	if ! grep -q '^[[:space:]]*@internal path ' "$f"; then
-		echo "update: $f has no @internal matcher - add /rrd/* to whatever keeps the panel internals unreachable" >&2
-		return 0
-	fi
-	# Before a trailing comment, so the path does not land inside it.
-	panel_caddy_site_edit 's|^\([[:space:]]*@internal path [^#]*[^#[:space:]]\)|\1 /rrd/*|' \
-		'^[[:space:]]*@internal path [^#]* /rrd/\*'
-}
-
-# The response placeholder holds what goes to the client, not the upstream header, so the rewrite had no target.
-panel_caddy_accel_apply() {
-	[ -f /etc/caddy/hestia.conf ] || return 0
-	panel_caddy_site_edit 's/{http\.response\.header\.X-Accel-Redirect}/{http.reverse_proxy.header.X-Accel-Redirect}/' \
-		'{http\.reverse_proxy\.header\.X-Accel-Redirect}'
-}
-
 # Path from the pool's php.ini, never spelled again: #974 moved the store and left this sweeping a
 # directory that no longer exists. check_panel_session_store holds the two together.
 panel_session_cleanup_apply() {
@@ -715,9 +752,10 @@ panel_session_cleanup_apply() {
 }
 
 # redis, igbinary and mcrypt joined the set (#1069). Packages only; whatever else of the set a version
-# lacks comes along.
+# lacks comes along. A module the mirror does not serve is left out with a warning, as h-add-web-php does: the entry
+# stays pending and the smoke names the gap.
 php_modules_apply() {
-	local v p miss want="" touched=""
+	local v p miss want="" touched="" gap=""
 	while read -r v; do
 		[ -n "$v" ] || continue
 		miss=""
@@ -726,7 +764,10 @@ php_modules_apply() {
 		done
 		[ -n "$miss" ] || continue
 		# shellcheck disable=SC2086 # one package per word
-		miss=$(filter_installable_php_pkgs "opcache:8.5" $miss 2> /dev/null) || return 1
+		if ! miss=$(filter_installable_php_pkgs "opcache:8.5" $miss 2> /dev/null); then
+			echo "Warning: PHP $v: apt could not be asked for the missing modules, the next update tries again" >&2
+			continue
+		fi
 		[ -n "$miss" ] || continue
 		want="$want $miss"
 		touched="$touched $v"
@@ -734,13 +775,17 @@ php_modules_apply() {
 	[ -n "$want" ] || return 0
 	dpkg --configure -a > /dev/null 2>&1
 	# shellcheck disable=SC2086 # one package per word
-	DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confold" install $want > /dev/null 2>&1
+	apt_install_tolerant $want || true
 	for p in $want; do
-		[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] || return 1
+		[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] || gap="$gap $p"
 	done
+	[ -z "$gap" ] \
+		|| echo "Warning: PHP modules not installed:$gap; the next update or h-add-web-php VERSION tries again" >&2
 	for v in $touched; do
-		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 || return 1
+		systemctl reload-or-restart "php$v-fpm" > /dev/null 2>&1 \
+			|| echo "Warning: php$v-fpm did not come back after its modules, check: systemctl status php$v-fpm" >&2
 	done
+	return 0
 }
 
 # Same for the ionCube loader.
@@ -766,40 +811,6 @@ dovecot_login_aliases_ensure() {
 	fi
 	[ -e "$f" ] && return 0
 	install -m 640 -o root -g dovecot "$HESTIA/share/dovecot/2.4/login-aliases" "$f"
-}
-
-# The login alias passdb, patched because the operator may have edited the file. Taken back when dovecot refuses it.
-dovecot_login_alias_apply() {
-	local f=/etc/dovecot/conf.d/auth-passwdfile.conf.ext
-	local pf="$HESTIA/share/updates/patches/0.28/dovecot-login-alias.patch"
-	[ -f "$f" ] && [ -f "$pf" ] || return 1
-	dovecot_login_aliases_ensure || return 1
-	patch --dry-run -F0 -s "$f" < "$pf" > /dev/null 2>&1 || return 1
-	patch -F0 -s --no-backup-if-mismatch "$f" < "$pf" > /dev/null 2>&1 || return 1
-	doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot && return 0
-	patch -R -F0 -s --no-backup-if-mismatch "$f" < "$pf" > /dev/null 2>&1
-	systemctl restart dovecot
-	return 1
-}
-
-# Only our own Authentication-Results reaches a mailbox, so webmail cannot show a sender's own verdict.
-exim_auth_results_apply() {
-	exim_template_patch 0.30/exim-auth-results.patch
-}
-
-# The HELO checks compare against the verified PTR; the old IP-like rule never fired.
-exim_helo_checks_apply() {
-	exim_template_patch 0.30/exim-helo-checks.patch
-}
-
-# exim takes the DKIM selector from the domain's selector file, mail without one.
-exim_dkim_selector_apply() {
-	exim_template_patch 0.30/exim-dkim-selector.patch
-}
-
-# Every scanned mail says its score and threshold; spam keeps the bare Yes the Sieve vacation tests for.
-exim_spam_status_score_apply() {
-	exim_template_patch 0.30/exim-spam-status-score.patch
 }
 
 # A failed external forward bounces into devnull, never to the sender of what was forwarded.

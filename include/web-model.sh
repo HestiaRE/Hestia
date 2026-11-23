@@ -212,20 +212,6 @@ apache_remoteip_refresh() {
 	apache_remoteip_enable $(web_sys_proxy_ips)
 }
 
-# Update path for boxes that carry such a copy. Reload, since the copy may have cost the module already.
-apache_remoteip_link_apply() {
-	(
-		source_conf "$HESTIA/conf/hestia.conf"
-		local conf=/etc/apache2/mods-enabled/remoteip.conf
-		[ "$(web_current_model)" = both ] || exit 0
-		[ -f "$conf" ] && [ ! -L "$conf" ] || exit 0
-		apache_remoteip_refresh
-		[ -L "$conf" ] && apache2ctl -t > /dev/null 2>&1 || exit 1
-		systemctl -q is-active apache2 2> /dev/null || exit 0
-		systemctl reload apache2
-	)
-}
-
 # Without nginx in front a trusted X-Real-IP lets any client spoof its address. The caller restarts.
 apache_remoteip_disable() {
 	a2dismod -q remoteip > /dev/null 2>&1 || true
@@ -294,45 +280,6 @@ rebuild_ip_web_config() {
 
 		process_http2_directive "/etc/$PROXY_SYSTEM/conf.d/$ip.conf"
 	fi
-}
-
-# Mail-only: the default server takes the hostname's ACME location. The directory is the done-marker, since the
-# per-IP files cannot be named in a condition; h-add-letsencrypt-domain removes only the tokens inside it.
-acme_host_location_apply() {
-	# A subshell: the sourced files and hestia.conf stay out of the update run.
-	(
-		# shellcheck source=/usr/local/hestia/include/domain.sh
-		source "$HESTIA/include/domain.sh" || exit 1
-		source_conf "$HESTIA/conf/hestia.conf"
-		[ -z "$WEB_SYSTEM" ] && [ "${WEBMAIL_FRONT:-}" = 'nginx' ] || exit 0
-		bak=$(mktemp -d) || exit 1
-		trap 'rm -rf "$bak"' EXIT
-		mapfile -t ips < <(web_sys_ips)
-		for ip in "${ips[@]}"; do
-			[ -f "/etc/nginx/conf.d/$ip.conf" ] && cp -p "/etc/nginx/conf.d/$ip.conf" "$bak/"
-		done
-		ok=yes
-		for ip in "${ips[@]}"; do
-			[ -n "$ip" ] || continue
-			rebuild_ip_web_config "$ip" || ok=no
-		done
-		[ "$ok" = yes ] && nginx -t > /dev/null 2>&1 || ok=no
-		# Put back, as the model switch does: the running nginx still has the old files, the next reload would not.
-		if [ "$ok" = no ]; then
-			for ip in "${ips[@]}"; do
-				[ -n "$ip" ] || continue
-				if [ -f "$bak/$ip.conf" ]; then
-					cp -p "$bak/$ip.conf" /etc/nginx/conf.d/
-				else
-					rm -f "/etc/nginx/conf.d/$ip.conf"
-				fi
-			done
-			exit 1
-		fi
-		mkdir -p "$ACME_APACHE_DIR/host" && chmod 755 "$ACME_APACHE_DIR" "$ACME_APACHE_DIR/host" || exit 1
-		systemctl -q is-active nginx 2> /dev/null || exit 0
-		systemctl reload nginx
-	)
 }
 
 WEB_MODEL_SNAP_DIR="/var/lib/hestia/web-model-switch"

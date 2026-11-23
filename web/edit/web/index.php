@@ -270,6 +270,10 @@ if ($v_ip !== "" && !isset($ips[$v_ip])) {
 
 $v_ip_public = empty($ips[$v_ip]["NAT"]) ? $v_ip : $ips[$v_ip]["NAT"];
 
+// DNS at the providers is the real admin's, as on the DNS tab, and only where an account exists.
+$dns_move_offered = ($_SESSION["adminContext"] ?? "") === "admin"
+	&& !empty(cli_json("h-list-dns-providers json")["ACCOUNTS"] ?? []);
+
 // List web templates
 $templates = cli_json("h-list-web-templates json");
 
@@ -411,6 +415,12 @@ if (!empty($_POST["save"])) {
 	// Change web domain IP
 	$post_ip = post_or_keep("v_ip", $ip_offered, $v_ip);
 	$post_ip6 = post_or_keep("v_ip6", $ip6_offered, $v_ip6);
+	$dns_move = $dns_move_offered && !empty($_POST["v_dns_move"]);
+	// What the IP change did at the providers, or where the records that stayed behind can be moved.
+	$dns_notes = [];
+	$dns_left = [];
+	// Names Let's Encrypt left out of the certificate, a wildcard without a DNS provider account.
+	$le_notes = [];
 	if ($post_ip !== "" && $v_ip != $post_ip && empty($_SESSION["error_msg"])) {
 		exec(
 			HESTIA_CMD .
@@ -420,13 +430,21 @@ if (!empty($_POST["save"])) {
 				quoteshellarg($v_domain) .
 				" " .
 				quoteshellarg($post_ip) .
-				" 'no'",
+				" 'no' " .
+				($dns_move ? "'yes'" : "'no'"),
 			$output,
 			$return_var,
 		);
 		check_return_code($return_var, $output);
 		$restart_web = "yes";
 		$restart_proxy = "yes";
+		if ($return_var === 0 && $v_ip !== "") {
+			if ($dns_move) {
+				array_push($dns_notes, ...$output);
+			} elseif ($dns_move_offered) {
+				$dns_left[] = $v_ip . "=" . $post_ip;
+			}
+		}
 		unset($output);
 	}
 
@@ -440,13 +458,21 @@ if (!empty($_POST["save"])) {
 				quoteshellarg($v_domain) .
 				" " .
 				quoteshellarg($post_ip6) .
-				" 'no'",
+				" 'no' " .
+				($dns_move ? "'yes'" : "'no'"),
 			$output,
 			$return_var,
 		);
 		check_return_code($return_var, $output);
 		$restart_web = "yes";
 		$restart_proxy = "yes";
+		if ($return_var === 0 && $v_ip6 !== "" && $v_ip6 !== "none" && $post_ip6 !== "none") {
+			if ($dns_move) {
+				array_push($dns_notes, ...$output);
+			} elseif ($dns_move_offered) {
+				$dns_left[] = $v_ip6 . "=" . $post_ip6;
+			}
+		}
 		unset($output);
 	}
 
@@ -797,6 +823,9 @@ if (!empty($_POST["save"])) {
 					$return_var,
 				);
 				check_return_code($return_var, $output);
+				if ($return_var == 0) {
+					array_push($le_notes, ...preg_grep("/^Notice: /", (array) $output));
+				}
 				unset($output);
 				$v_letsencrypt = "yes";
 				$v_ssl = "yes";
@@ -974,12 +1003,13 @@ if (!empty($_POST["save"])) {
 			$return_var,
 		);
 		check_return_code($return_var, $output);
-		unset($output);
 		if ($return_var != 0) {
 			$v_letsencrypt = "no";
 		} else {
 			$v_letsencrypt = "yes";
+			array_push($le_notes, ...preg_grep("/^Notice: /", (array) $output));
 		}
+		unset($output);
 		$v_ssl = "yes";
 		$v_ssl_forcessl = !empty($_POST["v_ssl_forcessl"]) ? "yes" : "no";
 		$restart_web = "yes";
@@ -1907,6 +1937,22 @@ if (!empty($_POST["save"])) {
 	// WordPress install prints credentials that are shown exactly once.
 	if (empty($_SESSION["error_msg"]) && empty($_SESSION["ok_msg"])) {
 		$_SESSION["ok_msg"] = _("Changes have been saved.");
+		if ($dns_notes || $dns_left || $le_notes) {
+			// ok_msg is shown as HTML.
+			$msg = tohtml(_("Changes have been saved."));
+			foreach ($le_notes as $line) {
+				$msg .= "<br>" . tohtml(substr($line, strlen("Notice: ")));
+			}
+			foreach ($dns_notes as $line) {
+				$msg .= "<br>" . tohtml($line);
+			}
+			if ($dns_left) {
+				$link = "/list/dns/?" . http_build_query(["move" => implode(",", $dns_left), "object" => $v_domain]);
+				$msg .= "<br>" . tohtml(_("The DNS records at the providers may still point at the old address.")) .
+					' <a href="' . tohtml($link) . '">' . tohtml(_("Preview the move")) . "</a>";
+			}
+			$_SESSION["ok_msg"] = $msg;
+		}
 		header("Location: /edit/web/?domain=" . $v_domain);
 		exit();
 	}

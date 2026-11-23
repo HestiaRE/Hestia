@@ -107,3 +107,74 @@ docker_slice_clear() {
 	systemctl daemon-reload > /dev/null 2>&1
 	return 0
 }
+
+# Customers with a companion account, one per line.
+companion_users() {
+	local name
+	while IFS=: read -r name _; do
+		[ "${name%-docker}" != "$name" ] && [ -f "$CONF_DIR/users/${name%-docker}/user.conf" ] && echo "${name%-docker}"
+	done < <(getent passwd)
+	return 0
+}
+
+# The companion's lines in /etc/subuid and /etc/subgid in the order newuidmap maps them (helper ids for 1-999, the
+# customer at 1000, the rest after), and a running daemon mapping 1000 to the customer. useradd sorts both files
+# when it hands out a range of its own, and the next daemon start then maps the customer at 1.
+# Usage: companion_map_ok <user>  ->  1 on drift
+companion_map_ok() {
+	local companion f id lines pid
+	companion="$(companion_name "$1")"
+	pid="$(pgrep -u "$companion" -x dockerd 2> /dev/null | head -1)"
+	for f in uid gid; do
+		id="$(id -"${f:0:1}" "$1" 2> /dev/null)" || return 1
+		lines="$(awk -F: -v c="$companion" '$1 == c { printf "%s:%s ", $2, $3 }' "/etc/sub$f")"
+		[[ "$lines" =~ ^([0-9]+):999\ ([0-9]+):1\ ([0-9]+):64536\ $ ]] || return 1
+		[ "${BASH_REMATCH[2]}" = "$id" ] && [ "${BASH_REMATCH[3]}" = "$((BASH_REMATCH[1] + 999))" ] || return 1
+		[ -z "$pid" ] || [ "$(awk '$1 == 1000 { print $2 ":" $3 }' "/proc/$pid/${f}_map" 2> /dev/null)" = "$id:1" ] \
+			|| return 1
+	done
+	return 0
+}
+
+# The companion's three lines back in the order newuidmap needs, at the end of each file. 1 when they are not the
+# three h-add-user-docker writes: only a re-run of it knows the values then.
+# Usage: companion_subid_order <user>
+companion_subid_order() {
+	local companion f tmp rc=0
+	companion="$(companion_name "$1")"
+	for f in /etc/subuid /etc/subgid; do
+		tmp="$(mktemp)" || return 1
+		if awk -F: -v c="$companion" '
+			$1 != c { print; next }
+			$3 == 999 && a == "" { a = $0; next }
+			$3 == 1 && b == "" { b = $0; next }
+			$3 == 64536 && r == "" { r = $0; next }
+			{ bad = 1 }
+			END { if (bad || a == "" || b == "" || r == "") exit 1; print a; print b; print r }' "$f" > "$tmp"; then
+			cat "$tmp" > "$f" || rc=1
+		else
+			rc=1
+		fi
+		rm -f "$tmp"
+	done
+	return "$rc"
+}
+
+# Update entry: every companion's lines back in order, and a daemon running on the wrong map restarted through
+# h-add-user-docker, which brings its containers back. A suspended customer's daemon is stopped and stays so.
+docker_companion_map_apply() {
+	local u
+	while IFS= read -r u; do
+		[ -n "$u" ] || continue
+		companion_map_ok "$u" && continue
+		if ! companion_subid_order "$u"; then
+			echo "Warning: the subordinate ids of $(companion_name "$u") are not as h-add-user-docker writes them," \
+				"run h-add-user-docker $u" >&2
+			continue
+		fi
+		companion_map_ok "$u" && continue
+		echo "restarting the docker daemon of $u on the corrected id map"
+		"$BIN/h-add-user-docker" "$u" > /dev/null 2>&1 || echo "Warning: h-add-user-docker $u failed, run it by hand" >&2
+	done <<< "$(companion_users)"
+	return 0
+}

@@ -108,6 +108,20 @@ upd_cond_language_unlisted() {
 	[ -n "$out" ]
 }
 
+# True while a docker companion's subordinate ids are out of the order newuidmap maps, or its daemon runs on such a map.
+upd_cond_docker_map_drift() {
+	local u
+	if ! declare -F companion_map_ok > /dev/null; then
+		# shellcheck source=/usr/local/hestia/include/docker.sh
+		source "$UPDATE_ROOT/include/docker.sh" || return 2
+	fi
+	while IFS= read -r u; do
+		[ -n "$u" ] || continue
+		companion_map_ok "$u" || return 0
+	done <<< "$(companion_users)"
+	return 1
+}
+
 # locale_missing NAME, answered by locale -a: a line in /etc/locale.gen says nothing about the archive.
 upd_cond_locale_missing() {
 	[ -n "$1" ] || {
@@ -355,20 +369,17 @@ upd_action_reversible() {
 	esac
 }
 
-# The line between a vocabulary and arbitrary code. deploy_hestia_sudoers and login_defs_guard are
-# deliberately absent (#948): their targets are not copies of a tree file, so no condition could go
-# false after them. The smoke reports their drift and names the command instead.
+# The line between a vocabulary and arbitrary code. deploy_hestia_sudoers is deliberately absent (#948): its target
+# is not a copy of a tree file, so no condition could go false after it. The smoke reports its drift and names the
+# command instead. login_defs_guard is here for an entry whose file_lacks names a line it writes.
 UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cleanup_apply tachyon_pin_apply
 	system_repair_cron_write php_modules_apply ioncube_pin_apply language_fallback_apply panel_locale_apply
-	acme_host_location_apply apache_remoteip_link_apply filemanager_refresh_apply panel_caddy_rrd_internal_apply
-	panel_caddy_accel_apply dovecot_login_alias_apply fail2ban_unban_caller_apply firewall_boot_banlist_apply
-	exim_auth_results_apply exim_helo_checks_apply exim_dkim_selector_apply exim_spam_status_score_apply
-	mariadb_compat_apply host_cert_owner_apply sury_unattended_apply unattended_upgrades_apply
+	filemanager_refresh_apply mariadb_compat_apply host_cert_owner_apply sury_unattended_apply unattended_upgrades_apply
 	keep_conffiles_apply exim_forward_errors_apply ipv6_nonlocal_bind_apply sieve_mandatory_apply
 	exim_sieve_only_apply dovecot_quota_status_apply exim_quota_status_apply fail2ban_pyinotify_apply
 	exim_ratelimit_inbound_apply exim_sieve_forward_apply sieve_max_redirects_apply forward_bounces_cron_apply
 	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password
-	quota_dracut_apply templates_etc_apply)
+	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -479,6 +490,9 @@ upd_condition() {
 			"upd_cond_$t" "$@"
 			;;
 		language_unlisted | locale_missing | file_group_differs | file_owner_differs | path_not_link)
+			"upd_cond_$t" "$@"
+			;;
+		docker_map_drift)
 			"upd_cond_$t" "$@"
 			;;
 		*)

@@ -1,15 +1,18 @@
 #!/bin/bash
 # info: change web domain ip
-# options: USER DOMAIN IP [RESTART]
+# options: USER DOMAIN IP [RESTART] [SYNC_DNS]
 #
 # example: h-change-web-domain-ip admin example.com 167.86.105.230 yes
+# example: h-change-web-domain-ip admin example.com 167.86.105.230 yes yes
 #
-# Moves the domain to another v4 address.
+# Moves the domain to another v4 address. SYNC_DNS yes then moves the records on the old address at the providers as
+# well (h-sync-dns): the domain's, its aliases', and those of the mail domain of that name, which sends from it.
 
 user=$1
 domain=$2
 ip=$3
 restart=$4
+sync_dns=${5:-no}
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -25,8 +28,9 @@ web_lock_acquire || exit 1
 format_domain
 format_domain_idn
 
-check_args '3' "$#" 'USER DOMAIN IP [RESTART]'
+check_args '3' "$#" 'USER DOMAIN IP [RESTART] [SYNC_DNS]'
 is_format_valid 'user' 'domain' 'ip' 'restart'
+[[ "$sync_dns" =~ ^(yes|no)$ ]] || check_result "$E_INVALID" "invalid SYNC_DNS: $sync_dns"
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 is_object_unsuspended 'user' 'USER' "$user"
@@ -75,5 +79,9 @@ check_result $? "Proxy restart failed" > /dev/null
 
 $BIN/h-log-action "$user" "Info" "Web" "Web domain IP address changed (IP: $3, Domain: $domain)."
 log_event "$OK" "$ARGUMENTS"
+
+if [ "$sync_dns" = 'yes' ]; then
+	web_dns_move "$user" "$domain" "$old" "$new"
+fi
 
 exit

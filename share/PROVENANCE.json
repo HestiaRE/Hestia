@@ -3,9 +3,9 @@
     "folder": "share/",
     "description": "Per-file provenance vs HestiaCP. A file with no upstream_path is HestiaRE-native. Recompute is a manual, occasional job (when we reimplement against upstream or re-measure a snapshot); numbers are a snapshot at each file's upstream_ref + measured_at, not live. HestiaRE does not cherry-pick: every adoption is a reimplementation, compared per function against the upstream diff, so these numbers are orientation for that comparison - not a merge plan.",
     "upstream_branch": "upstream/hestiacp",
-    "upstream_ref": "610faf74",
+    "upstream_ref": "2104e3a8b",
     "upstream_ref_date": "2026-11-19",
-    "last_updated": "2026-11-21",
+    "last_updated": "2026-11-23",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 78,
-      "eigenbau_files": 182,
+      "eigenbau_files": 174,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 260,
+      "files_total": 252,
       "files_mapped": 78
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -38,7 +38,7 @@
       "path": "apache2/apache2.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/apache2/apache2.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 96,
@@ -63,7 +63,7 @@
       "path": "apache2/hestia-event.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/apache2/hestia-event.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 5,
@@ -97,7 +97,7 @@
       "path": "apache2/status.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/apache2/status.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 7,
@@ -113,7 +113,7 @@
       "path": "apache2/unassigned.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/apache2/unassigned.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 18,
@@ -183,7 +183,7 @@
       "path": "bubblewrap/bwrap-userns-restrict",
       "source_type": "verbatim",
       "upstream_path": "install/common/bubblewrap/bwrap-userns-restrict",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 85,
@@ -199,7 +199,7 @@
       "path": "bubblewrap/jailbash",
       "source_type": "derived",
       "upstream_path": "install/common/bubblewrap/jailbash",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 50,
@@ -224,7 +224,7 @@
       "path": "clamav/clamd.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/clamav/clamd.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -357,7 +357,7 @@
       "path": "dovecot/2.3/conf.d/10-auth.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-auth.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 5,
@@ -373,7 +373,7 @@
       "path": "dovecot/2.3/conf.d/10-logging.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-logging.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 1,
@@ -389,7 +389,7 @@
       "path": "dovecot/2.3/conf.d/10-mail.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-mail.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 8,
@@ -405,7 +405,7 @@
       "path": "dovecot/2.3/conf.d/10-master.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-master.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 31,
@@ -421,7 +421,7 @@
       "path": "dovecot/2.3/conf.d/10-ssl.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.3/conf.d/10-ssl.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 13,
@@ -455,7 +455,7 @@
       "path": "dovecot/2.3/conf.d/20-imap.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/20-imap.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 59,
@@ -471,7 +471,7 @@
       "path": "dovecot/2.3/conf.d/20-pop3.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/20-pop3.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 92,
@@ -487,7 +487,7 @@
       "path": "dovecot/2.3/conf.d/90-quota.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/90-quota.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 84,
@@ -503,7 +503,7 @@
       "path": "dovecot/2.3/conf.d/auth-passwdfile.conf.ext",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/conf.d/auth-passwdfile.conf.ext",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 9,
@@ -519,7 +519,7 @@
       "path": "dovecot/2.3/dovecot.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/dovecot.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -544,7 +544,7 @@
       "path": "dovecot/2.3/sieve/20-managesieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/sieve/20-managesieve.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 88,
@@ -569,7 +569,7 @@
       "path": "dovecot/2.3/sieve/90-sieve-extprograms.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/sieve/90-sieve-extprograms.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 44,
@@ -585,7 +585,7 @@
       "path": "dovecot/2.3/sieve/90-sieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.3/sieve/90-sieve.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-19",
       "divergence": {
         "upstream_lines": 211,
@@ -610,7 +610,7 @@
       "path": "dovecot/2.4/conf.d/10-auth.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-auth.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 141,
@@ -626,7 +626,7 @@
       "path": "dovecot/2.4/conf.d/10-logging.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-logging.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 101,
@@ -642,7 +642,7 @@
       "path": "dovecot/2.4/conf.d/10-mail.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-mail.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 439,
@@ -658,7 +658,7 @@
       "path": "dovecot/2.4/conf.d/10-master.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-master.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 174,
@@ -674,7 +674,7 @@
       "path": "dovecot/2.4/conf.d/10-metrics.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-metrics.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 143,
@@ -690,7 +690,7 @@
       "path": "dovecot/2.4/conf.d/10-ssl.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/10-ssl.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 77,
@@ -715,7 +715,7 @@
       "path": "dovecot/2.4/conf.d/15-lda.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/15-lda.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 66,
@@ -731,7 +731,7 @@
       "path": "dovecot/2.4/conf.d/15-mailboxes.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/15-mailboxes.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 143,
@@ -747,7 +747,7 @@
       "path": "dovecot/2.4/conf.d/20-imap.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/20-imap.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 125,
@@ -763,7 +763,7 @@
       "path": "dovecot/2.4/conf.d/20-pop3.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/20-pop3.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 118,
@@ -779,7 +779,7 @@
       "path": "dovecot/2.4/conf.d/90-quota.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/conf.d/90-quota.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 95,
@@ -795,7 +795,7 @@
       "path": "dovecot/2.4/conf.d/auth-passwdfile.conf.ext",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.4/conf.d/auth-passwdfile.conf.ext",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 46,
@@ -811,7 +811,7 @@
       "path": "dovecot/2.4/dovecot.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.4/dovecot.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 117,
@@ -845,7 +845,7 @@
       "path": "dovecot/2.4/sieve/20-managesieve.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/sieve/20-managesieve.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 101,
@@ -870,7 +870,7 @@
       "path": "dovecot/2.4/sieve/90-sieve-extprograms.conf",
       "source_type": "verbatim",
       "upstream_path": "install/common/dovecot/2.4/sieve/90-sieve-extprograms.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 41,
@@ -886,7 +886,7 @@
       "path": "dovecot/2.4/sieve/90-sieve.conf",
       "source_type": "derived",
       "upstream_path": "install/common/dovecot/2.4/sieve/90-sieve.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-19",
       "divergence": {
         "upstream_lines": 142,
@@ -947,7 +947,7 @@
       "path": "exim/dnsbl.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/exim/dnsbl.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 2,
@@ -963,15 +963,15 @@
       "path": "exim/exim4.conf.template",
       "source_type": "derived",
       "upstream_path": "install/deb/exim/exim4.conf.template",
-      "upstream_ref": "610faf74",
-      "last_reconciled": "2026-11-17",
+      "upstream_ref": "2104e3a8b",
+      "last_reconciled": "2026-11-23",
       "divergence": {
-        "upstream_lines": 506,
+        "upstream_lines": 508,
         "our_lines": 755,
         "added": 370,
-        "removed": 121,
-        "pct": 38,
-        "measured_at": "2026-11-17"
+        "removed": 123,
+        "pct": 39,
+        "measured_at": "2026-11-23"
       },
       "note": "exact install/deb path"
     },
@@ -979,7 +979,7 @@
       "path": "exim/limit.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/exim/limit.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 1,
@@ -995,7 +995,7 @@
       "path": "exim/spam-blocks.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/exim/spam-blocks.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 0,
@@ -1011,7 +1011,7 @@
       "path": "exim/system.filter",
       "source_type": "derived",
       "upstream_path": "install/deb/exim/system.filter",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 16,
@@ -1036,7 +1036,7 @@
       "path": "fail2ban/action.d/hestia.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/fail2ban/action.d/hestia.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-15",
       "divergence": {
         "upstream_lines": 10,
@@ -1115,7 +1115,7 @@
       "path": "fail2ban/filter.d/hestia.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/fail2ban/filter.d/hestia.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 10,
@@ -1131,7 +1131,7 @@
       "path": "fail2ban/jail.local",
       "source_type": "derived",
       "upstream_path": "install/deb/fail2ban/jail.local",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-19",
       "divergence": {
         "upstream_lines": 67,
@@ -1219,7 +1219,7 @@
       "path": "firewall/rules.conf",
       "source_type": "derived",
       "upstream_path": "install/common/firewall/rules.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 10,
@@ -1262,7 +1262,7 @@
       "path": "hestia/dhparam.pem",
       "source_type": "verbatim",
       "upstream_path": "install/deb/ssl/dhparam.pem",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 13,
@@ -1296,7 +1296,7 @@
       "path": "hestia/packages/default.pkg",
       "source_type": "derived",
       "upstream_path": "install/common/packages/default.pkg",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 25,
@@ -1312,7 +1312,7 @@
       "path": "hestia/packages/system.pkg",
       "source_type": "derived",
       "upstream_path": "install/common/packages/system.pkg",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 25,
@@ -1412,7 +1412,7 @@
       "path": "mysql/my-large.cnf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/mysql/my-large.cnf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 50,
@@ -1428,7 +1428,7 @@
       "path": "mysql/my-medium.cnf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/mysql/my-medium.cnf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 49,
@@ -1444,7 +1444,7 @@
       "path": "mysql/my-small.cnf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/mysql/my-small.cnf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 49,
@@ -1460,7 +1460,7 @@
       "path": "nginx/0rtt-anti-replay.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/0rtt-anti-replay.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 31,
@@ -1476,7 +1476,7 @@
       "path": "nginx/agents.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/agents.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 16,
@@ -1501,7 +1501,7 @@
       "path": "nginx/cloudflare.inc",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/cloudflare.inc",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 27,
@@ -1526,7 +1526,7 @@
       "path": "nginx/nginx.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/nginx/nginx.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 130,
@@ -1542,7 +1542,7 @@
       "path": "nginx/status.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/status.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 11,
@@ -1558,7 +1558,7 @@
       "path": "nginx/unassigned.inc",
       "source_type": "derived",
       "upstream_path": "install/deb/nginx/unassigned.inc",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 52,
@@ -1592,7 +1592,7 @@
       "path": "nginx/webmail/default_disabled.stpl",
       "source_type": "derived",
       "upstream_path": "install/deb/templates/mail/nginx/default_disabled.stpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 32,
@@ -1608,7 +1608,7 @@
       "path": "nginx/webmail/default_disabled.tpl",
       "source_type": "derived",
       "upstream_path": "install/deb/templates/mail/nginx/default_disabled.tpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 20,
@@ -1883,7 +1883,7 @@
       "path": "php-fpm/dummy.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/php-fpm/dummy.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 22,
@@ -1899,7 +1899,7 @@
       "path": "php-fpm/php-fpm.conf",
       "source_type": "verbatim",
       "upstream_path": "install/deb/php-fpm/php-fpm.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 145,
@@ -1915,7 +1915,7 @@
       "path": "phpmyadmin/hestia-sso.php",
       "source_type": "derived",
       "upstream_path": "install/deb/phpmyadmin/hestia-sso.php",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 250,
@@ -1940,7 +1940,7 @@
       "path": "proftpd/proftpd.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/proftpd/proftpd.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 34,
@@ -1956,7 +1956,7 @@
       "path": "proftpd/tls.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/proftpd/tls.conf",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 65,
@@ -2036,7 +2036,7 @@
       "path": "roundcube/hestia.php",
       "source_type": "derived",
       "upstream_path": "install/common/roundcube/hestia.php",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 57,
@@ -2061,7 +2061,7 @@
       "path": "roundcube/plugins/config_newmail_notifier.inc.php",
       "source_type": "derived",
       "upstream_path": "install/common/roundcube/plugins/config_newmail_notifier.inc.php",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 15,
@@ -2077,7 +2077,7 @@
       "path": "roundcube/plugins/config_zipdownload.inc.php",
       "source_type": "derived",
       "upstream_path": "install/common/roundcube/plugins/config_zipdownload.inc.php",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 21,
@@ -2192,7 +2192,7 @@
       "path": "tachyon/install.php",
       "source_type": "derived",
       "upstream_path": "install/common/snappymail/install.php",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 74,
@@ -2248,42 +2248,6 @@
       "last_reconciled": "2026-08-12",
       "divergence": null,
       "note": ""
-    },
-    {
-      "path": "updates/0.26.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-09",
-      "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "updates/0.28.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-23",
-      "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "updates/0.29.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.29 update manifest. Upstream has no update path of this shape."
-    },
-    {
-      "path": "updates/0.30.json",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native: the v0.30 update manifest. Upstream has no update path of this shape."
     },
     {
       "path": "updates/0.31.json",
@@ -2347,51 +2311,6 @@
       "last_reconciled": "2026-09-13",
       "divergence": null,
       "note": ""
-    },
-    {
-      "path": "updates/patches/0.28/dovecot-login-alias.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-10-23",
-      "divergence": null,
-      "note": ""
-    },
-    {
-      "path": "updates/patches/0.30/exim-auth-results.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1288): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.30/exim-dkim-selector.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1248): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.30/exim-helo-checks.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1291): patch an update applies to a box's exim template, which the operator may have edited."
-    },
-    {
-      "path": "updates/patches/0.30/exim-spam-status-score.patch",
-      "source_type": "eigenbau",
-      "upstream_path": null,
-      "upstream_ref": null,
-      "last_reconciled": "2026-11-06",
-      "divergence": null,
-      "note": "HestiaRE-native (#1295): patch an update applies to a box's exim template, which the operator may have edited."
     },
     {
       "path": "updates/patches/0.33/exim-forward-errors.patch",
@@ -2469,7 +2388,7 @@
       "path": "web/awstats/awstats.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/awstats/awstats.tpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 133,
@@ -2485,7 +2404,7 @@
       "path": "web/awstats/index.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/awstats/index.tpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 10,
@@ -2501,7 +2420,7 @@
       "path": "web/awstats/nav.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/awstats/nav.tpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 23,
@@ -2535,7 +2454,7 @@
       "path": "web/nginx/proxy_ip.tpl",
       "source_type": "derived",
       "upstream_path": "install/deb/templates/web/nginx/proxy_ip.tpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-06",
       "divergence": {
         "upstream_lines": 30,
@@ -2794,7 +2713,7 @@
       "path": "templates/php/default.tpl",
       "source_type": "verbatim",
       "upstream_path": "install/deb/templates/web/php-fpm/default.tpl",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 34,
@@ -2855,7 +2774,7 @@
       "path": "templates/email/examples/account_ready.html",
       "source_type": "verbatim",
       "upstream_path": "install/common/templates/email/examples/account_ready.html",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 12,
@@ -2871,7 +2790,7 @@
       "path": "templates/email/examples/database_credentials.html",
       "source_type": "verbatim",
       "upstream_path": "install/common/templates/email/examples/database_credentials.html",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 11,
@@ -2887,7 +2806,7 @@
       "path": "templates/email/examples/email_credentials.html",
       "source_type": "verbatim",
       "upstream_path": "install/common/templates/email/examples/email_credentials.html",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 30,
@@ -2903,7 +2822,7 @@
       "path": "templates/email/examples/ftp_credentials.html",
       "source_type": "verbatim",
       "upstream_path": "install/common/templates/email/examples/ftp_credentials.html",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 10,
@@ -2919,7 +2838,7 @@
       "path": "templates/email/examples/reset_password.html",
       "source_type": "verbatim",
       "upstream_path": "install/common/templates/email/examples/reset_password.html",
-      "upstream_ref": "610faf74",
+      "upstream_ref": "2104e3a8b",
       "last_reconciled": "2026-11-21",
       "divergence": {
         "upstream_lines": 15,
@@ -2957,6 +2876,15 @@
       "last_reconciled": "2026-11-21",
       "divergence": null,
       "note": "HestiaRE-native: the v0.37 update manifest."
+    },
+    {
+      "path": "updates/0.38.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-23",
+      "divergence": null,
+      "note": "HestiaRE-native: the v0.38 update manifest."
     },
     {
       "path": "updates/patches/0.37/templates-shipped.sha256",

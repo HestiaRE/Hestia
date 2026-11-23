@@ -107,8 +107,8 @@ for _p in $mph; do
 		*) skipped="$skipped $_p" ;;
 	esac
 done
-# A failing apt that left out nothing but optional modules is the skip above, not an error.
-if [ -n "$missing" ] || { [ "$apt_rc" -ne 0 ] && [ -z "$skipped" ]; }; then
+# dpkg decides, not apt's rc: a package that failed alone may have come along as another one's dependency.
+if [ -n "$missing" ]; then
 	echo "ERROR: Installation failed, please run the following command manually for debugging:"
 	echo "apt-get install $mph"
 	[ "$apt_rc" -ne 0 ] && echo "apt exited $apt_rc"

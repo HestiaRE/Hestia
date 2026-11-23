@@ -651,6 +651,20 @@ function follow_refused(
 	return "";
 }
 
+// The addresses a section's SPF has to authorise: its A/AAAA rows, as the SPF it derives names none.
+/** @return list<string> */
+function spf_addrs(string $section, string $object): array
+{
+	global $desired;
+	$ips = [];
+	foreach ($desired as $d) {
+		if ($d[2] === $section && $d[3] === $object && ($d[6] === "A" || $d[6] === "AAAA")) {
+			$ips[] = addr($d[9]);
+		}
+	}
+	return array_values(array_unique($ips));
+}
+
 // The SPF record put back to the standard, which names no address: only where a and mx authorise every address the
 // box derives, as a receiver resolves them now.
 /**
@@ -660,13 +674,12 @@ function follow_refused(
 function spf_normal_ops(array $x): array
 {
 	global $actual, $zone;
-	[, , , , , $rel, $type, , $ttl, $value] = $x["d"];
+	[, , $section, $object, , $rel, $type, , $ttl] = $x["d"];
 	if (array_map(fn ($i) => txt($actual[$i][4]), $x["hits"]) === [SPF_NORMAL]) {
 		return [];
 	}
-	preg_match_all('/\bip[46]:([0-9a-f.:]+)/i', txt($value), $ips);
 	$missed = [];
-	foreach ($ips[1] as $ip) {
+	foreach (spf_addrs($section, $object) as $ip) {
 		$lookups = 0;
 		if (!spf_pass($ip, SPF_NORMAL, fqdn($rel, $zone), $lookups)) {
 			$missed[] = $ip;
@@ -1108,9 +1121,8 @@ foreach ($desired as $d) {
 					$status = "different";
 					$note = "more than one SPF record (permerror)";
 				} else {
-					preg_match_all('/\bip[46]:([0-9a-f.:]+)/i', $want, $ips);
 					$missed = [];
-					foreach ($ips[1] as $ip) {
+					foreach (spf_addrs($section, $object) as $ip) {
 						$lookups = 0;
 						if (!spf_pass($ip, $shown[0], fqdn($rel, $zone), $lookups)) {
 							$missed[] = $ip;

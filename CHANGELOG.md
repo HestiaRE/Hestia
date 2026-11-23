@@ -15,6 +15,13 @@ the releases of the command audit, into another.
 
 ### Added
 
+- **Own DNS records on the zone page** (#1428, stage 5 of #863). A TXT or a CNAME can be added there
+  (`h-add-dns-zone-record`), and any record the provider holds beside what HestiaRE derives can be adopted with the
+  value it has. Such a record belongs to the section its name lies in: the page compares it, a sync writes it where
+  it is missing, and it travels with the user's backup, so after a move the next sync writes it again. "Forget" leaves
+  it at the provider as a foreign record, "Remove from provider" goes through the orphan preview. A record a derived
+  row holds the name and type of is shown as shadowed and never written. An added CNAME replaces another one at its
+  name only on the cname confirmation.
 - **The DNS zone page applies a single record, normalizes an SPF and lets www follow the apex again** (#1428, stage 5
   of #863). "Apply" writes one row instead of the whole section (`h-sync-dns-zone ... RECORD TYPE`). "Normalize" puts
   the SPF record back to `v=spf1 a mx ~all`, without addresses or includes, and only where `a` and `mx` authorise the

@@ -69,7 +69,7 @@ done
 zone=$(dns_ascii "$zone")
 # Only a row the user owns: an exception for a name HestiaRE does not derive would compare against nothing.
 row=$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" -v r="$record" -v t="$type" \
-	'$5 == u && $6 == r && $7 == t { print $3 "\t" $4 "\t" $10; exit }')
+	'$5 == u && $6 == r && $7 == t && $11 == "" { print $3 "\t" $4 "\t" $10; exit }')
 [ -n "$row" ] || check_result "$E_NOTEXIST" "$user has no derived $type row at $record in zone $zone"
 IFS=$'\t' read -r section object derived <<< "$row"
 # The compare matches a TXT row by its kind, so a value of another kind would never be found and replace the record.

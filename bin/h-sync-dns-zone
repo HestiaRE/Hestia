@@ -14,9 +14,10 @@
 # out, with the stored value of each record it removes, in /var/log/hestia/dns-sync.log. The records a write added
 # are noted in the user's zones store; SECTION orphan removes those of OBJECT no row derives any longer. CONFIRM
 # allows what is never done unasked, in the preview and the write alike: cname replaces a CNAME by the section's
-# records, include switches the www include off so that www can differ from the apex, follow switches it on again,
-# normalize puts the SPF record back to "v=spf1 a mx ~all". MOVE (OLD=NEW, comma separated) limits the writes to the
-# records that carry an OLD address, as h-sync-dns hands it on. RECORD TYPE limits them to that one row.
+# records or by an added one, include switches the www include off so that www can differ from the apex, follow
+# switches it on again, normalize puts the SPF record back to "v=spf1 a mx ~all". MOVE (OLD=NEW, comma separated)
+# limits the writes to the records that carry an OLD address, as h-sync-dns hands it on. RECORD TYPE limits them to
+# that one row.
 
 user=$1
 zone=$2
@@ -215,11 +216,12 @@ if [ -n "$writes" ]; then
 		[ "$rc" = 1 ] && check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT$note: $err"
 		check_result "$E_CONNECT" "the provider did not take the records of zone $zone$note: $err"
 	fi
-	# A merged or moved SPF record carries terms HestiaRE did not write, so it is never noted as an orphan to be.
+	# A merged or moved SPF record carries terms HestiaRE did not write, so it is never noted as an orphan to be; an
+	# added record is noted as such already, and forgetting it leaves it foreign.
 	while IFS=$'\t' read -r rel type value; do
 		[ -n "$value" ] && dns_written_add "$user" "$zone" "$section" "$object" "$rel" "$type" "$value"
 	done <<< "$(awk -F '\t' 'BEGIN { OFS = FS } $1 == "add" && $7 != "merged into the existing record" &&
-		$7 != "the new address beside the old one" {
+		$7 != "the new address beside the old one" && $7 !~ /^an added record/ {
 		print $2, $3, ($4 != "" ? $4 " " : "") $6 }' <<< "$writes")"
 fi
 rm -f "$tmp"

@@ -1,0 +1,136 @@
+#!/bin/bash
+# info: add a DNS record to a zone, or adopt one its provider holds
+# options: USER ZONE RECORD TYPE VALUE [MODE] [PRIORITY] [TTL]
+#
+# example: h-add-dns-zone-record admin example.com @ TXT 'google-site-verification=abc123'
+# example: h-add-dns-zone-record admin example.com shop CNAME shops.example.net
+# example: h-add-dns-zone-record admin example.com _sip._tcp SRV '5 5060 sip.example.net.' adopt 10 3600
+#
+# The record becomes a row of the section its name lies in, like a derived one: the zone page compares it, a sync
+# writes it, and it travels with the user's backup. MODE new (the default) takes a TXT or a CNAME; adopt takes a
+# record of any type exactly as the provider account holding the zone has it, as one of its other records. Nothing
+# is written to the provider here.
+
+user=$1
+zone=$2
+record=${3,,}
+type=${4^^}
+value=$5
+mode=${6:-new}
+prio=${7-}
+ttl=${8-}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+# shellcheck source=/usr/local/hestia/include/ip.sh
+source "$HESTIA/include/ip.sh"
+# shellcheck source=/usr/local/hestia/include/dns.sh
+source "$HESTIA/include/dns.sh"
+# shellcheck source=/usr/local/hestia/include/dns-provider.sh
+source "$HESTIA/include/dns-provider.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+# txt_kind VALUE: spf1, dmarc1, dkim1 or empty, as dns-compare.php tells TXT records apart.
+txt_kind() {
+	[[ "${1,,}" =~ ^v=(spf1|dmarc1|dkim1)([^a-z0-9_]|$) ]] && echo "${BASH_REMATCH[1]}"
+}
+
+check_args '5' "$#" 'USER ZONE RECORD TYPE VALUE [MODE] [PRIORITY] [TTL]'
+is_format_valid 'user'
+is_domain_format_valid "$zone"
+is_object_valid 'user' 'USER' "$user"
+[[ "$record" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] || check_result "$E_INVALID" "invalid record: $3"
+case $mode in
+	new)
+		case $type in
+			TXT | CNAME) ;;
+			*) check_result "$E_INVALID" "a new record is a TXT or a CNAME, $4 only by adopting it" ;;
+		esac
+		;;
+	adopt) [[ "$type" =~ ^[A-Z][A-Z0-9]{0,9}$ ]] || check_result "$E_INVALID" "invalid type: $4" ;;
+	*) check_result "$E_INVALID" "invalid mode: $mode" ;;
+esac
+[[ "$value" == *[[:cntrl:]]* ]] && check_result "$E_INVALID" "the value carries a control character"
+[ -n "$value" ] || check_result "$E_INVALID" "an empty value"
+# A DKIM key is the longest record the box derives, and fits.
+[ "${#value}" -le 4096 ] || check_result "$E_INVALID" "the value is longer than 4096 characters"
+[[ "$prio" =~ ^[0-9]{0,5}$ ]] && [ "${prio:-0}" -le 65535 ] || check_result "$E_INVALID" "invalid priority: $prio"
+[[ "$ttl" =~ ^[0-9]{0,7}$ ]] || check_result "$E_INVALID" "invalid ttl: $ttl"
+# Only these types carry a priority of their own; a provider may show a 0 for the others.
+case $type in
+	MX | SRV) ;;
+	*) prio='' ;;
+esac
+
+zone=$(dns_ascii "$zone")
+if [ "$mode" = new ]; then
+	ttl=${ttl:-3600}
+	if [ "$type" = TXT ]; then
+		# The compare reads the provider's TXT unquoted, a quoted value would never match it.
+		[[ "$value" == \"* ]] && check_result "$E_INVALID" "a TXT value goes without the quotes of a zone file: $value"
+	else
+		[ "$record" != '@' ] || check_result "$E_INVALID" "no CNAME at the apex of a zone"
+		[[ "$value" =~ ^[a-zA-Z0-9_]([a-zA-Z0-9_.-]*[a-zA-Z0-9_])?\.?$ ]] || check_result "$E_INVALID" "invalid target: $value"
+		value="${value,,}"
+		value="${value%.}."
+		self=$record.$zone
+		[ "${value%.}" != "$self" ] || check_result "$E_INVALID" "a CNAME cannot point at itself"
+	fi
+fi
+dns_added_valid "$record" "$type" "$prio" "$ttl" "$value" \
+	|| check_result "$E_INVALID" "$type at $record belongs to the zone, not to a user"
+
+dnsp_zones_fresh
+dns_load
+rows=$(dns_zone_rows "$zone")
+placed=$(dns_added_place "$rows" "$zone"$'\t'"$user"$'\t'"$record"$'\t'"$type"$'\t'"$prio"$'\t'"$ttl"$'\t'"$value" \
+	| dns_sections)
+[ -n "$placed" ] || check_result "$E_NOTEXIST" "$record lies in no section of $user in zone $zone"
+IFS=$'\t' read -r _ _ section object _ <<< "$placed"
+
+# What would keep the record from standing: a CNAME beside anything, anything beside an added CNAME, a type a derived
+# row holds at the name (for TXT one of the same kind, or a DKIM name), and the same record twice.
+# The value through the environment: awk -v would read its backslashes as escapes.
+conflict=$(dns_sections <<< "$rows" | V="$value" awk -F '\t' -v r="$record" -v t="$type" -v p="$prio" \
+	-v k="$(txt_kind "$value")" 'BEGIN { v = ENVIRON["V"] }
+	function kind(x) { x = tolower(x); if (x ~ /^v=spf1([^a-z0-9_]|$)/) return "spf1"
+		if (x ~ /^v=dmarc1([^a-z0-9_]|$)/) return "dmarc1"; if (x ~ /^v=dkim1([^a-z0-9_]|$)/) return "dkim1"; return "" }
+	$6 != r { next }
+	$11 == "added" && $7 == t && $8 == p && $10 == v { print "the record is added already"; exit }
+	t == "CNAME" { print "a CNAME cannot stand beside the " $7 " record at " r; exit }
+	$11 == "added" && $7 == "CNAME" { print "an added CNAME holds " r; exit }
+	$11 == "" && $7 == t && (t != "TXT" || kind($10) == "dkim1" || (k != "" && kind($10) == k)) {
+		print "the " $3 " section " $4 " derives " t " at " r; exit }') \
+	|| check_result "$E_INVALID" "the record could not be checked"
+[ -z "$conflict" ] || check_result "$E_EXISTS" "$conflict"
+
+if [ "$mode" = adopt ]; then
+	dnsp_check_zone "$zone"
+	case $? in
+		0) ;;
+		3) check_result "$E_NOTEXIST" "no provider account holds zone $zone" ;;
+		1) check_result "$E_FORBIDEN" "the provider refused the key of account $DNSP_ACCOUNT: $DNSP_ERROR" ;;
+		*) check_result "$E_CONNECT" "zone $zone could not be read from account $DNSP_ACCOUNT: ${DNSP_ERROR:-compare failed}" ;;
+	esac
+	# Only a record of the provider's own, as it holds it: the main IP, the www include and the name servers are
+	# settings of the zone, and a blanked control character is not the stored value.
+	V="$value" awk -F '\t' -v r="$record" -v t="$type" -v p="$prio" \
+		'BEGIN { v = ENVIRON["V"] } $1 == r && $2 == t && $6 == "" && $5 == v && (p == "" || $3 == p) { f = 1 } END { exit !f }' <<< "$DNSP_ACTUAL" \
+		|| check_result "$E_NOTEXIST" "zone $zone holds no $type record at $record with this value"
+	V="$value" awk -F '\t' -v r="$record" -v t="$type" 'BEGIN { v = ENVIRON["V"] }
+		($1 == "foreign" || $1 == "hidden") && $4 == r && $5 == t && $8 == v { f = 1 } END { exit !f }' <<< "$DNSP_CHECK" \
+		|| check_result "$E_EXISTS" "a row of the zone answers for the $type record at $record already"
+fi
+
+dns_added_set "$user" "$zone" "$record" "$type" "$prio" "$ttl" "$value" || check_result "$E_DISK" "the record could not be noted"
+# One handed to removal before is the user's again: forgotten later, it is foreign, not an orphan.
+v=$value
+[ "$type" = MX ] && v="$prio $value"
+dns_written_drop "$user" "$zone" "$record" "$type" "$v" || check_result "$E_DISK" "the record could not be noted"
+
+"$BIN/h-log-action" "system" "Info" "DNS" "DNS record added (Zone: $zone, Record: $record $type, Section: $section $object, User: $user)."
+log_event "$OK" "$ARGUMENTS"
+
+exit

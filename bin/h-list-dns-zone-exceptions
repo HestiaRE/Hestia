@@ -45,7 +45,7 @@ esac
 
 zone=$(dns_ascii "$zone")
 f=$(dns_zone_file "$user" "$zone")
-derived=$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" '$5 == u { print $6 "\t" $7 }')
+derived=$(dns_zone_rows "$zone" | dns_sections | awk -F '\t' -v u="$user" '$5 == u && $11 == "" { print $6 "\t" $7 }')
 list=''
 if [ -f "$f" ] && [ ! -L "$f" ]; then
 	while IFS= read -r line || [ -n "$line" ]; do

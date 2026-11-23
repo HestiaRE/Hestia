@@ -889,7 +889,27 @@ msgstr "Desconhecido"
 
 #: web/list/dns/index.php
 #, php-format
+msgid "%s %s has been added. Sync its section to write it to the provider."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s has been adopted: HestiaRE keeps it as it is and writes it again where it is missing."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
 msgid "%s %s has been written to the provider and read back."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s is an orphan now. Remove it from the provider below."
+msgstr ""
+
+#: web/list/dns/index.php
+#, php-format
+msgid "%s %s is forgotten and stays at the provider as a foreign record."
 msgstr ""
 
 #: web/list/dns/index.php
@@ -905,6 +925,10 @@ msgstr ""
 #: web/list/dns/index.php
 #, php-format
 msgid "Account %s has been added."
+msgstr ""
+
+#: web/list/dns/index.php
+msgid "Invalid action."
 msgstr ""
 
 #: web/list/dns/index.php
@@ -3821,7 +3845,36 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: web/templates/pages/list_dns_zone.php
+#, php-format
+msgid "@ for %s"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "A TXT or a CNAME of your own, in the section its name lies in. Other types are adopted from the provider's records above."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Accept what the provider holds instead of the derived value. Sync then leaves it alone."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Add a record"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Add record"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Added on this page, not derived: HestiaRE writes it as it is."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Added records without a section"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Adopt"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3865,6 +3918,14 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Forget"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "HestiaRE forgets the record, which stays at the provider as a foreign one."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "HestiaRE wrote these records, and nothing on this server derives them any longer: the domain or alias is gone, or the name no longer gets a record of this type."
 msgstr ""
 
@@ -3874,6 +3935,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep as foreign record"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Keep the record as part of its section: the zone page compares it, a sync writes it where it is missing, and it travels with the backup."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3921,6 +3986,10 @@ msgid "Remove from provider"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Remove the record from the provider. A preview shows the write first."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Switch the www include on: the provider serves the apex addresses at www, and the own www records go."
 msgstr ""
 
@@ -3942,7 +4011,15 @@ msgid "The zone could not be read from account %s. Only the records HestiaRE der
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Their domain is gone from this server. No sync writes them until it is back."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Whole zone"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "added"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3959,6 +4036,14 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "missing"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "optional"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "shadowed"
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

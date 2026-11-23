@@ -41,7 +41,9 @@ the releases of the command audit, into another.
   next daemon start put the customer at container id 1 instead of 1000, the socket's group became a helper id
   ("permission denied"), and files a uid-1000 image wrote landed on that helper id. HestiaRE's own `useradd` calls and
   `login.defs`, so a manual `useradd` too, hand out no range any more; an update entry puts the lines back in order and
-  restarts a daemon running on the wrong map, and a re-run of `h-add-user-docker` does the same.
+  restarts a daemon running on the wrong map, and a re-run of `h-add-user-docker` does the same. Neither changes an
+  owner: what a uid-1000 container wrote during the wrong map keeps its host id (the helper range's start plus 998)
+  and shows as uid 999 in the container afterwards, so it needs a `chown` back to the customer by hand.
 - **Deleting a web domain, mail domain or database left the user's disk counters too high until night** (#1417).
   The record's share stayed in `U_DISK` until the nightly recount at 02:15, the panel showed it, and the smoke was red
   in between. The three deletes recompute the counters now. Inherited from upstream.

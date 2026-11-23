@@ -3,7 +3,7 @@
   "entries": [
     {
       "id": "login-defs-subid",
-      "description": "useradd hands out no subordinate id range any more, a manual one included: handing one out sorts /etc/subuid and /etc/subgid, and a docker customer's id mapping lives in their order. login.defs gets SUB_UID_COUNT and SUB_GID_COUNT 0",
+      "description": "useradd hands out no subordinate id range any more, a manual one included: handing one out sorts /etc/subuid and /etc/subgid, and a docker customer's id mapping lives in their order. login.defs gets SUB_UID_COUNT and SUB_GID_COUNT 0, and login_defs_guard puts UID_MAX, GID_MAX and the SUB_*_MIN/MAX bounds back to its values where they differ",
       "conditions": [
         { "type": "file_lacks", "path": "/etc/login.defs", "value": "SUB_UID_COUNT\t\t\t0" }
       ],

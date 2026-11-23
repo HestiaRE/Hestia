@@ -73,8 +73,33 @@ esac
 
 # Not /dev/null: a failure has to leave something to read.
 apt_log=$(mktemp)
-# shellcheck disable=SC2086
-DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq -o Dpkg::Options::="--force-confold" install $mph > "$apt_log" 2>&1 &
+php_apt_install() {
+	# shellcheck disable=SC2068 # one package per word
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y -qq -o Dpkg::Options::="--force-confold" \
+		install $@ >> "$apt_log" 2>&1
+}
+# A package the mirror does not serve fails the whole transaction. After one retry on fresh lists only fpm, cli
+# and common are required; the rest goes one by one, and what does not come is named below.
+php_install() {
+	php_apt_install $mph && return 0
+	apt_fetch_fails -y install $mph || return 1
+	echo "apt could not fetch a package of PHP $version, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists"
+	apt_fetch_wait
+	php_apt_install $mph && return 0
+	apt_fetch_fails -y install $mph || return 1
+	php_apt_install $required || return 1
+	for _p in $mph; do
+		case " $required " in *" $_p "*) continue ;; esac
+		php_apt_install "$_p" || true
+	done
+	return 0
+}
+required=''
+for _p in "php$version-common" "php$version-cli" "php$version-fpm"; do
+	case " $mph " in *" $_p "*) required="$required $_p" ;; esac
+done
+
+php_install &
 
 BACK_PID=$!
 
@@ -93,14 +118,19 @@ echo
 
 # Asked of the whole requested list: the panel stage may already have installed part of this version.
 missing=""
+skipped=""
 for _p in $mph; do
-	[ "$(dpkg-query -W -f='${db:Status-Status}' "$_p" 2> /dev/null)" = installed ] || missing="$missing $_p"
+	[ "$(dpkg-query -W -f='${db:Status-Status}' "$_p" 2> /dev/null)" = installed ] && continue
+	case " $required " in
+		*" $_p "*) missing="$missing $_p" ;;
+		*) skipped="$skipped $_p" ;;
+	esac
 done
 if [ "$apt_rc" -ne 0 ] || [ -n "$missing" ]; then
 	echo "ERROR: Installation failed, please run the following command manually for debugging:"
 	echo "apt-get install $mph"
 	[ "$apt_rc" -ne 0 ] && echo "apt exited $apt_rc"
-	[ -n "$missing" ] && echo "not installed:$missing"
+	[ -n "$missing$skipped" ] && echo "not installed:$missing$skipped"
 	sed -n '$p' "$apt_log" 2> /dev/null
 	rm -f "$apt_log"
 	exit "$E_INVALID"
@@ -160,5 +190,12 @@ sys_key_token_set PHP_VERSIONS add "$version" > /dev/null || check_result "$E_UP
 
 $BIN/h-log-action "system" "Info" "System" "Installed PHP $version."
 log_event "$OK" "$ARGUMENTS"
+
+# Only a warning, as for ionCube: the version runs, and the smoke names the gap until a re-run closes it.
+if [ -n "$skipped" ]; then
+	echo "WARNING: PHP $version is installed without:$skipped"
+	echo "Run h-add-web-php $version again once the mirror serves them."
+	$BIN/h-log-action "system" "Warning" "System" "PHP $version is installed without:$skipped."
+fi
 
 exit

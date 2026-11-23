@@ -37,17 +37,47 @@ _hestia_spin_stop() {
 	_hestia_spin_pid=""
 }
 
+# apt_fetch_fails [apt-get args...]: whether a failed apt-get call failed at the download, asked again with
+# --download-only; an update has nothing else to fail at. Not read from apt's messages, which are translated.
+apt_fetch_fails() {
+	case " $* " in
+		*" update "*) return 0 ;;
+		*" install "* | *" upgrade "* | *" dist-upgrade "* | *" full-upgrade "*) ;;
+		*) return 1 ;;
+	esac
+	! DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -qq \
+		--download-only "$@" > /dev/null 2>&1
+}
+
+# apt_fetch_wait: the pause before the one retry after a failed download, then fresh package lists. A mirror whose
+# signed index runs ahead of or behind its pool usually heals within minutes.
+apt_fetch_wait() {
+	sleep "${HESTIA_APT_RETRY_WAIT:-60}"
+	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" -qq update \
+		> /dev/null 2>&1
+}
+
 # Usage: hestia_apt [apt-get args...]
 hestia_apt() {
-	_hestia_spin_start
-	local _rc=0
-	# Lock::Timeout: wait for a held dpkg/apt lock instead of failing fast. On a freshly booted box
-	# unattended-upgrades/apt-daily commonly hold it for the first minutes, and a fast failure on an
-	# optional component used to leave the component flagged on with the package absent (#480).
-	DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" "$@" \
-		1>> "${LOG}" \
-		2> >(tee -a "${LOG}" >&2) || _rc=$?
-	_hestia_spin_stop
+	local _rc=0 _try
+	for _try in 1 2; do
+		_hestia_spin_start
+		_rc=0
+		# Lock::Timeout: wait for a held dpkg/apt lock instead of failing fast. On a freshly booted box
+		# unattended-upgrades/apt-daily commonly hold it for the first minutes, and a fast failure on an
+		# optional component used to leave the component flagged on with the package absent (#480).
+		DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout="${HESTIA_APT_LOCK_WAIT:-300}" "$@" \
+			1>> "${LOG}" \
+			2> >(tee -a "${LOG}" >&2) || _rc=$?
+		if [ "$_rc" = 0 ] || [ "$_try" = 2 ] || ! apt_fetch_fails "$@"; then
+			_hestia_spin_stop
+			break
+		fi
+		_hestia_spin_stop
+		echo "[ ! ] apt could not fetch a package, once more in ${HESTIA_APT_RETRY_WAIT:-60}s on fresh package lists" \
+			| tee -a "${LOG}" >&2
+		apt_fetch_wait
+	done
 	return $_rc
 }
 

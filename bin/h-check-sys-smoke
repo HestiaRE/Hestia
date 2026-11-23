@@ -1098,6 +1098,41 @@ check_restic_mode_supported() {
 		no "$bad customer(s) in restic mode without support" "$first"
 	fi
 }
+# h-add-web-php leaves out a module the mirror did not serve and only warns. A package apt cannot install here
+# (opcache from 8.5 on) is no gap.
+check_php_modules() {
+	local v p list pkgs gaps='' fix='' miss n=0
+	list=$("$BIN/h-list-sys-php" plain 2> /dev/null)
+	if [ -z "$list" ]; then
+		no "PHP module set: h-list-sys-php named no PHP version" "nothing was checked"
+		return
+	fi
+	for v in $list; do
+		pkgs=$(
+			# shellcheck source=/usr/local/hestia/include/helper.sh
+			source "$HESTIA/include/helper.sh" > /dev/null 2>&1 && php_module_pkgs "$v"
+		)
+		if [ -z "$pkgs" ]; then
+			no "PHP module set: no package list for PHP $v" "php_module_pkgs in include/helper.sh"
+			return
+		fi
+		n=$((n + 1))
+		miss=''
+		for p in $pkgs; do
+			[ "$(dpkg-query -W -f='${db:Status-Status}' "$p" 2> /dev/null)" = installed ] && continue
+			apt-get -qq -s install "$p" > /dev/null 2>&1 && miss="$miss $p"
+		done
+		[ -z "$miss" ] && continue
+		gaps="$gaps PHP $v without$miss;"
+		fix="$fix${fix:+, }h-add-web-php $v"
+	done
+	if [ -n "$gaps" ]; then
+		no "PHP module set incomplete:${gaps%;}" "$fix"
+	else
+		ok "PHP module set complete ($n version(s))"
+	fi
+}
+
 # h-add-web-php only warns when a new version misses the loader. Covers loading, not the loader's behaviour.
 check_ioncube_versions() {
 	local v list checked=0 noload='' bad=''
@@ -1798,6 +1833,7 @@ check_mail_domain_links
 check_mail_web_pairs
 check_logrotate_parses
 check_restic_mode_supported
+check_php_modules
 check_ioncube_versions
 check_install_root_owner
 check_secret_file_modes

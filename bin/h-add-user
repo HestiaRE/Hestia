@@ -68,8 +68,9 @@ read -r user_uid _ < <(identity_allocate "$user")
 # Explicit, not useradd -U: -U would take the next free gid instead of mirroring uid.
 /usr/sbin/groupadd -g "$user_uid" "$user"
 check_result $? "group creation failed" "$E_INVALID"
-if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" "$user" -u "$user_uid" -g "$user_uid" \
-	-s "$shell" -c "$email" -m -d "$HOMEDIR/$user"; then
+# No subordinate range: handing one out sorts /etc/subuid, and the docker companions' mapping lives in its order.
+if ! /usr/sbin/useradd -K "UID_MAX=$IDENTITY_BAND_END" -K SUB_UID_COUNT=0 -K SUB_GID_COUNT=0 "$user" \
+	-u "$user_uid" -g "$user_uid" -s "$shell" -c "$email" -m -d "$HOMEDIR/$user"; then
 	/usr/sbin/groupdel "$user" > /dev/null 2>&1
 	check_result "$E_INVALID" "user creation failed"
 fi

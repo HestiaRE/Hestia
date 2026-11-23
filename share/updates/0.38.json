@@ -1,0 +1,25 @@
+{
+  "version": "0.38",
+  "entries": [
+    {
+      "id": "login-defs-subid",
+      "description": "useradd hands out no subordinate id range any more, a manual one included: handing one out sorts /etc/subuid and /etc/subgid, and a docker customer's id mapping lives in their order. login.defs gets SUB_UID_COUNT and SUB_GID_COUNT 0, and login_defs_guard puts UID_MAX, GID_MAX and the SUB_*_MIN/MAX bounds back to its values where they differ",
+      "conditions": [
+        { "type": "file_lacks", "path": "/etc/login.defs", "value": "SUB_UID_COUNT\t\t\t0" }
+      ],
+      "action": { "type": "function_call", "function": "login_defs_guard" },
+      "paths": ["/etc/login.defs"],
+      "reversible": false
+    },
+    {
+      "id": "docker-id-map",
+      "description": "A docker customer whose subordinate ids an earlier useradd sorted gets them back in order, so container 1000 is the customer again and the customer reaches the own daemon socket. A daemon already running on the wrong map is restarted through h-add-user-docker, its containers come back by their restart policy",
+      "conditions": [
+        { "type": "docker_map_drift" }
+      ],
+      "action": { "type": "function_call", "function": "docker_companion_map_apply" },
+      "paths": ["/etc/subuid", "/etc/subgid"],
+      "reversible": false
+    }
+  ]
+}

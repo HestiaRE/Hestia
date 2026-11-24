@@ -17,6 +17,11 @@ $dns_status_labels = [
 	"unchecked" => ["fa-circle-question icon-dim", _("unchecked")],
 	"shadowed" => ["fa-circle-minus icon-dim", _("shadowed")],
 ];
+// ok judges SPF and DMARC by effect, so an ok row can hold another value than the derived one: shown then as well.
+$dns_actual_differs = function (array $r): bool {
+	$norm = fn (string $v) => strtolower((string) preg_replace('/\s+/', "", $v));
+	return $r["ACTUAL"] !== "" && !in_array($norm($r["ACTUAL"]), [$norm($r["VALUE"]), $norm($r["PRIORITY"] . $r["VALUE"])], true);
+};
 // The actions on a record the user added: forget it (it stays at the provider), or hand it to the orphan removal.
 $dns_added_actions = function (array $r, string $owner, string $object, bool $remove) use ($v_zone): void {
 	?>
@@ -239,7 +244,7 @@ foreach ($sections as $s) {
 						<div class="units-table-cell u-text-break">
 							<span class="u-hide-desktop u-text-bold"><?= tohtml(_("At the provider")) ?>:</span>
 							<i class="fas <?= tohtml($icon) ?> u-mr5" title="<?= tohtml($label) ?>"></i><span class="u-text-bold"><?= tohtml($label) ?></span>
-							<?php if ($r["ACTUAL"] !== "" && $r["STATUS"] !== "ok") { ?>
+							<?php if ($r["ACTUAL"] !== "" && ($r["STATUS"] !== "ok" || $dns_actual_differs($r))) { ?>
 								<br><?= tohtml($r["ACTUAL"]) ?>
 							<?php } ?>
 							<?php if (($r["NOTE"] ?? "") !== "") { ?>

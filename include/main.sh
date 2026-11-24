@@ -1621,6 +1621,10 @@ is_user_format_valid() {
 
 	# Only for new users
 	if [[ "$FROM_V_ADD_USER" == "true" ]]; then
+		# A database is <user>_<name>: with a one- or two-letter prefix, a wildcard grant reaches far more names.
+		if [ ${#1} -lt 3 ]; then
+			check_result "$E_INVALID" "$2 name '$1' is too short: at least 3 characters"
+		fi
 		if ! [[ "$1" =~ ^[a-zA-Z][-_[:alnum:]]{0,28}[[:alnum:]]$ ]]; then
 			check_result "$E_INVALID" "invalid $2 format :: $1"
 		fi
@@ -1642,6 +1646,8 @@ is_login_name_reserved() {
 		docker containerd proftpd ftp clamav postgres postgresql redis opensearch filemanager
 		# MariaDB/MySQL database names, and sudo (that group always has sudo rights)
 		aria aria_log mysql_upgrade ib ib_buffer ddl ddl_recovery performance sudo
+		# with a one-letter database, mys and m_s make a grant that covers mysql while _ is a wildcard; mysq by decision
+		mys m_s mysq
 		# h-backup-server writes server.*.tar into the same /backup namespace as customer archives
 		server
 		# the user name the log commands read as the global activity log

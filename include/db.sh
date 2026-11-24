@@ -499,9 +499,11 @@ delete_mysql_database_temp_user() {
 
 # mysql_drop_sso_users DB: SSO logins hold their own grant on DB, which neither a suspend nor DROP DATABASE takes back.
 mysql_drop_sso_users() {
-	local u
-	mysql_query "SELECT User FROM mysql.db WHERE Db IN ('$(mysql_sql_escape "$1")', '$(mysql_sql_escape "$(mysql_db_grant "$1")")')
-		AND Host='localhost' AND User LIKE 'hestia\\_sso\\_%'" \
+	local u old exact
+	old=$(mysql_sql_escape "$1")
+	exact=$(mysql_sql_escape "$(mysql_db_grant "$1")")
+	mysql_query "SELECT User FROM mysql.db WHERE Db IN ('$old', '$exact') AND Host='localhost'
+		AND User LIKE 'hestia\\_sso\\_%'" \
 		| tail -n +2 | while IFS= read -r u; do
 		[[ "$u" =~ ^hestia_sso_[[:alnum:]]+$ ]] || continue
 		mysql_query "DROP USER IF EXISTS \`$u\`@localhost" > /dev/null

@@ -122,7 +122,7 @@ upd_cond_docker_map_drift() {
 	return 1
 }
 
-# True while a MySQL database of a record still carries a grant whose name acts as a pattern, or its host cannot be read.
+# True while a MySQL database of a record still has a grant whose name acts as a pattern, or its host is unreadable.
 upd_cond_mysql_wildcard_grants() {
 	[ -s "$UPDATE_ROOT/conf/mysql.conf" ] || return 1
 	if ! declare -F mysql_wildcard_grants > /dev/null; then

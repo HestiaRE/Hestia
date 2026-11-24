@@ -390,7 +390,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	exim_ratelimit_inbound_apply exim_sieve_forward_apply sieve_max_redirects_apply forward_bounces_cron_apply
 	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password
 	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply
-	exim_authresults_apply mysql_grants_escape_apply)
+	exim_authresults_apply mysql_grants_escape_apply
+	nginx_early_data_off_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0

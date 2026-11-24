@@ -4,7 +4,7 @@ exec(HESTIA_CMD . "h-list-user-notes " . $user . " json", $notes_out, $notes_rc)
 $v_notes = $notes_rc === 0 ? (json_decode(implode("\n", $notes_out), true)["NOTES"] ?? null) : null;
 unset($notes_out, $notes_rc);
 ?>
-<div class="container">
+<div class="container user-notes">
 	<?php if (!is_string($v_notes)) { ?>
 		<p class="u-mt20 u-mb20 u-text-muted"><?= tohtml(_("The notes on this user could not be read.")) ?></p>
 	<?php } else { ?>

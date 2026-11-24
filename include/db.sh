@@ -772,9 +772,10 @@ mysql_db_privs() {
 }
 
 # mysql_grant_slot DBUSER DB RO: RO 'yes' read-only, else full rights. GRANT before REVOKE keeps SELECT through the
-# switch; rc 1 unless SHOW GRANTS reads back exactly that.
+# switch; rc 1 unless SHOW GRANTS reads back exactly that. Both hosts always run: a stop after the first would leave
+# the second's old grant standing.
 mysql_grant_slot() {
-	local h p g grant='ALL' want='ALL PRIVILEGES'
+	local h p g rc=0 grant='ALL' want='ALL PRIVILEGES'
 	g=$(mysql_db_grant "$2")
 	if [ "$3" = 'yes' ]; then
 		grant='SELECT, SHOW VIEW'
@@ -789,8 +790,9 @@ mysql_grant_slot() {
 		fi
 		# A grant from before the escaping goes once the exact one stands, so access never drops in between.
 		[ "$g" = "$2" ] || mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@\`$h\`" > /dev/null
-		[ "$(mysql_db_privs "$1" "$2" "$h")" = "$want" ] || return 1
+		[ "$(mysql_db_privs "$1" "$2" "$h")" = "$want" ] || rc=1
 	done
+	return "$rc"
 }
 
 # mysql_revoke_slot DBUSER DB: the exact grant and one from before the escaping.
@@ -820,6 +822,7 @@ mysql_wildcard_grants() {
 				|| names+=", '$(mysql_sql_escape "$(db_record_field "$line" DBUSER_SECOND)")'"
 			# A subshell: mysql_connect sets HOST, USER and PASSWORD globally and exits when the host is down.
 			n=$( (
+				notify='no'
 				mysql_connect "$(db_record_field "$line" HOST)" > /dev/null
 				mysql_query "SELECT COUNT(*) FROM mysql.db WHERE Db='$(mysql_sql_escape "$db")' AND User IN ($names)" \
 					| tail -n 1
@@ -841,6 +844,7 @@ mysql_grant_escape_record() {
 	database=$2
 	get_database_values
 	suspended=$SUSPENDED
+	notify='no'
 	mysql_connect "$HOST" > /dev/null
 	if [ "$suspended" = 'yes' ]; then
 		mysql_revoke_slot "$DBUSER" "$database"

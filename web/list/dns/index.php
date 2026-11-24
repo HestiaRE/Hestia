@@ -207,10 +207,11 @@ if (isset($_GET["providers"])) {
 } elseif (isset($_GET["move"])) {
 	// The records still on old addresses moved at once over every zone of the user: the move the restore recorded
 	// ("stored") or the one an IP change left, limited to its domain. A preview with its plan id, then that plan.
+	// "finish" drops the old addresses from the SPF records once the stored move is written, and forgets it.
 	$v_move = (string) $_GET["move"];
 	$v_object = (string) ($_GET["object"] ?? "");
 	$back = "/list/dns/";
-	if (isset($_POST["v_forget"]) && $v_move === "stored") {
+	if (isset($_POST["v_forget"]) && in_array($v_move, ["stored", "finish"], true)) {
 		verify_csrf($_POST);
 		exec(HESTIA_CMD . "h-delete-dns-move " . $user, $output, $return_var);
 		check_return_code($return_var, $output);
@@ -247,7 +248,7 @@ if (isset($_GET["providers"])) {
 		exit();
 	}
 	unset($output);
-	$v_pairs = $v_move === "stored" ? cli_json("h-list-dns-move " . $user . " json") : array_map(function ($p) {
+	$v_pairs = in_array($v_move, ["stored", "finish"], true) ? cli_json("h-list-dns-move " . $user . " json") : array_map(function ($p) {
 		[$old, $new] = explode("=", $p, 2) + [1 => ""];
 		return ["OLD" => $old, "NEW" => $new];
 	}, explode(",", $v_move));
@@ -255,6 +256,9 @@ if (isset($_GET["providers"])) {
 	$ops = $preview["OPS"] ?? [];
 	$v_unmanaged = $preview["UNMANAGED"] ?? [];
 	$v_writes = count(array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip"));
+	// The test h-sync-dns finish makes: nothing but SPF records left to write, which finishing takes care of.
+	$v_finishable = $v_move === "stored" && $v_object === ""
+		&& !array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip" && ($o["TYPE"] ?? "") !== "TXT");
 	$v_query = "/list/dns/?" . http_build_query(["move" => $v_move] + ($v_object !== "" ? ["object" => $v_object] : []));
 	render_page($user, $TAB, "list_dns_move");
 } elseif (isset($_GET["zone"], $_GET["sync"])) {

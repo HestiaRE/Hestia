@@ -16,8 +16,8 @@
 # allows what is never done unasked, in the preview and the write alike: cname replaces a CNAME by the section's
 # records or by an added one, include switches the www include off so that www can differ from the apex, follow
 # switches it on again, normalize puts the SPF record back to "v=spf1 a mx ~all". MOVE (OLD=NEW, comma separated)
-# limits the writes to the records that carry an OLD address, as h-sync-dns hands it on. RECORD TYPE limits them to
-# that one row.
+# limits the writes to the records that carry an OLD address, as h-sync-dns hands it on; with finish it drops the OLD
+# terms from the SPF instead. RECORD TYPE limits them to that one row.
 
 user=$1
 zone=$2
@@ -113,11 +113,12 @@ case $section in
 	*) check_result "$E_INVALID" "invalid section: $section" ;;
 esac
 [[ "$plan" =~ ^(preview|[0123456789abcdef]{16})$ ]] || check_result "$E_INVALID" "invalid plan: $plan"
-[[ "$confirm" =~ ^((cname|include|follow|normalize)(,(cname|include|follow|normalize))*)?$ ]] \
+[[ "$confirm" =~ ^((cname|include|follow|normalize|finish)(,(cname|include|follow|normalize|finish))*)?$ ]] \
 	|| check_result "$E_INVALID" "invalid confirmation: $confirm"
 [[ "$move" =~ ^([0-9a-fA-F.:]+=[0-9a-fA-F.:]+(,[0-9a-fA-F.:]+=[0-9a-fA-F.:]+)*)?$ ]] \
 	|| check_result "$E_INVALID" "invalid move: $move"
 [ -n "$move" ] && [ "$section" = 'orphan' ] && check_result "$E_INVALID" "a move has no orphans to remove"
+[[ ",$confirm," == *,finish,* ]] && [ -z "$move" ] && check_result "$E_INVALID" "finish needs the move it ends"
 if [ -n "$record$rtype" ]; then
 	[[ "$record" =~ ^(@|[a-z0-9_*]([a-z0-9_.*-]*[a-z0-9_])?)$ ]] || check_result "$E_INVALID" "invalid record: $9"
 	[[ "$rtype" =~ ^[A-Z]{1,10}$ ]] || check_result "$E_INVALID" "invalid type: ${10-}"
@@ -233,6 +234,7 @@ if [ -n "$writes" ]; then
 		[ -n "$value" ] && dns_written_add "$user" "$zone" "$section" "$object" "$rel" "$type" "$value"
 	done <<< "$(awk -F '\t' 'BEGIN { OFS = FS } $1 == "add" && $7 != "merged into the existing record" &&
 		$7 != "the new address beside the old one" && $7 != "the old address kept beside a and mx" &&
+		index($7, "the old address dropped, the move is done") != 1 &&
 		$7 !~ /^an added record/ {
 		print $2, $3, ($4 != "" ? $4 " " : "") $6 }' <<< "$writes")"
 fi

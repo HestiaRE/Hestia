@@ -24,6 +24,9 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **A server move passed silently over records kept as an exception** (#1442). A row with an exception is never moved,
+  so an SPF or A exception on the old address stayed as it was and the preview did not say so. It now shows a skip
+  line naming the old address, and the summary counts it among the records left alone.
 - **A server move dropped the old box from an SPF that relies on `a` and `mx`** (#1439). The move only knew address
   terms, so `v=spf1 a mx ~all` kept nothing for the old box, and a plain sync before the A and MX records had moved
   merged the new address in instead. SPF is now judged by the zone as it stands once it is in line: an `a`/`mx` record

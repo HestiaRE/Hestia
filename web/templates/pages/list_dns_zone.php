@@ -299,10 +299,10 @@ foreach ($sections as $s) {
 										<input type="hidden" name="v_action" value="keep">
 										<input type="text" class="form-control u-mb10" name="v_edit" required value="<?= tohtml(count($current) === 1 ? $current[0] : $r["VALUE"]) ?>">
 										<p class="u-text-muted u-text-small u-mb10">
+											<?= tohtml(_("Kept as an exception, the next sync writes it.")) ?>
 											<?= tohtml($spf
-												? _("Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns.")
-												: _("Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed.")) ?>
-											<?= tohtml(_("Kept as an exception: the next sync writes it, lifting it returns to the derived value.")) ?>
+												? _("Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns. Lifted, the exception leaves a record that authorises the server as it is; Normalize puts it back to v=spf1 a mx ~all.")
+												: _("Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; saving v=DMARC1; p=none here goes back to the derived one.")) ?>
 										</p>
 										<button type="submit" class="button button-secondary">
 											<i class="fas fa-pencil icon-blue"></i><?= tohtml(_("Save")) ?>

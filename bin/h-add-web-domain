@@ -87,6 +87,8 @@ source_conf "$USER_DATA/user.conf"
 web_add_undo() {
 	home_run "$user" web root -- rm -rf -- "./$domain"
 	web_domain_logs "$domain" | while IFS= read -r f; do rm -f "$f"; done
+	backend_type="$domain"
+	delete_web_backend
 	if [ -n "$FIREWALL_EXTENSION" ] && declare -F fail2ban_watch_domain > /dev/null; then
 		fail2ban_watch_domain del "$domain"
 	fi

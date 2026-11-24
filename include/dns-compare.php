@@ -30,9 +30,10 @@
 // record back to the standard "v=spf1 a mx ~all".
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
 // it in an ip4/ip6 term or covering it only through a and mx. Only that address goes from an A/AAAA; an SPF keeps it
-// beside the new one, or as a term of its own beside a and mx. A row with an exception or whose derived value is not
-// the NEW one is left alone. SPF is judged by the zone once it is in line, so a and mx cover what the box derives,
-// except at a CNAME, an ALIAS or a delegation, where nothing is written.
+// beside the new one, or as a term of its own beside a and mx. A row whose derived value is not the NEW one is left
+// alone, so is one with an exception, by a skip where it or the provider's record names an OLD address. SPF is
+// judged by the zone once it is in line, so a and mx cover what the box derives, except at a CNAME, an ALIAS or a
+// delegation, where nothing is written.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
 if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
@@ -659,6 +660,24 @@ function moved_from(array $x, array $move): ?string
 	return null;
 }
 
+// The old address of MOVE an exception's values name, null for none: as an address, or as an ip4/ip6 term.
+/**
+ * @param list<string> $kept
+ * @param array<string, string> $move
+ */
+function kept_from(array $kept, string $type, array $move): ?string
+{
+	foreach ($kept as $v) {
+		$addrs = $type === "TXT" ? (preg_match_all('/\bip[46]:([0-9a-f.:]+)(?=\s|$)/i', $v, $m) ? $m[1] : []) : [$v];
+		foreach ($addrs as $a) {
+			if (isset($move[addr($a)])) {
+				return addr($a);
+			}
+		}
+	}
+	return null;
+}
+
 // The old address of MOVE on the wildcard answering REL, null for none or for a wildcard the box derives and moves.
 /**
  * @param array<string, string> $move
@@ -984,7 +1003,14 @@ function plan(array $results, string $section, string $object, string $delegatio
 					}
 					continue;
 				}
-				if ($from === null || $x["kept"] !== null) {
+				if ($x["kept"] !== null) {
+					$from ??= kept_from($x["kept"], $type, $move);
+					if ($from !== null) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "an exception holds the row, not moved from $from: edit or lift it"];
+					}
+					continue;
+				}
+				if ($from === null) {
 					continue;
 				}
 				$to = $move[$from];

@@ -757,10 +757,6 @@ msgstr "Voer een geldige naam in."
 msgid "An internal error occurred"
 msgstr "Er is een interne error opgetreden"
 
-#: web/edit/user/notes/index.php
-msgid "The notes have been saved."
-msgstr ""
-
 #: web/edit/web/index.php
 msgid "Container address must end in a number between 1 and 254."
 msgstr "Het containeradres moet eindigen op een getal tussen 1 en 254."
@@ -1385,6 +1381,10 @@ msgstr ""
 
 #: web/templates/includes/user-notes.php
 msgid "Save notes"
+msgstr ""
+
+#: web/templates/includes/user-notes.php
+msgid "The notes have been saved."
 msgstr ""
 
 #: web/templates/includes/user-notes.php

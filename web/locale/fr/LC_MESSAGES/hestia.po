@@ -757,10 +757,6 @@ msgstr "Veuillez entrer un nom de contact valide."
 msgid "An internal error occurred"
 msgstr "Une erreur interne est survenue"
 
-#: web/edit/user/notes/index.php
-msgid "The notes have been saved."
-msgstr ""
-
 #: web/edit/web/index.php
 msgid "Container address must end in a number between 1 and 254."
 msgstr "L'adresse du conteneur doit se terminer par un nombre entre 1 et 254."
@@ -1385,6 +1381,10 @@ msgstr ""
 
 #: web/templates/includes/user-notes.php
 msgid "Save notes"
+msgstr ""
+
+#: web/templates/includes/user-notes.php
+msgid "The notes have been saved."
 msgstr ""
 
 #: web/templates/includes/user-notes.php

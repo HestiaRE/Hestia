@@ -713,10 +713,6 @@ msgstr ""
 msgid "An internal error occurred"
 msgstr ""
 
-#: web/edit/user/notes/index.php
-msgid "The notes have been saved."
-msgstr ""
-
 #: web/edit/web/index.php
 msgid "Container address must end in a number between 1 and 254."
 msgstr ""
@@ -1317,6 +1313,10 @@ msgstr ""
 
 #: web/templates/includes/user-notes.php
 msgid "Save notes"
+msgstr ""
+
+#: web/templates/includes/user-notes.php
+msgid "The notes have been saved."
 msgstr ""
 
 #: web/templates/includes/user-notes.php

@@ -1103,8 +1103,14 @@ finalize_install() {
 	if [ -n "${HESTIA_INSTALL_WARNINGS:-}" ]; then
 		echo "  [ ! ] Some optional packages did not install:"
 		printf '%s' "$HESTIA_INSTALL_WARNINGS" | sed '/^$/d; s/^/        /'
-		echo "        The matching feature is NOT active. Re-run its h-add-sys-* command once the"
-		echo "        system is idle, or install the package and re-run the installer."
+		echo "        The matching feature is NOT active."
+		# A line that names its command (h-add-web-php, h-add-sys-X failed) needs no pointer to a generic one.
+		if grep -qv 'h-add-' <<< "$(sed '/^$/d' <<< "$HESTIA_INSTALL_WARNINGS")"; then
+			echo "        Re-run its h-add-sys-* command once the system is idle, or install the package"
+			echo "        and re-run the installer."
+		else
+			echo "        Re-run the command its line names once the system is idle."
+		fi
 		echo ""
 	fi
 }

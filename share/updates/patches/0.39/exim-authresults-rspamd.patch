@@ -9,7 +9,7 @@
 +AUTHRES_SYM = ${sg{$spam_report}{\N(?s)\n (Subject|Message|Message-ID):.*\N}{}}
 +AUTHRES_SPF = ${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_ALLOW\(\N}{pass}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_FAIL\(\N}{fail}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_SOFTFAIL\(\N}{softfail}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_NEUTRAL\(\N}{neutral}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_NA\(\N}{none}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_DNSFAIL\(\N}{temperror}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_PERMFAIL\(\N}{permerror}{}}}}}}}}}}}}}}
 +AUTHRES_DMARC = ${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_POLICY_ALLOW(_WITH_FAILURES)?\(\N}{pass}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_POLICY_(REJECT|QUARANTINE|SOFTFAIL)\(\N}{fail}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_NA\(\N}{none}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_DNSFAIL\(\N}{temperror}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_BAD_POLICY\(\N}{permerror}{}}}}}}}}}}
-+AUTHRES_EXTRA = ${if eq{AUTHRES_SPF}{}{}{;\n\tspf=AUTHRES_SPF smtp.mailfrom=${if def:sender_address_domain{$sender_address_domain}{$sender_helo_name}}}}${if eq{AUTHRES_DMARC}{}{}{;\n\tdmarc=AUTHRES_DMARC${if eq{${lc:${domain:${address:$h_from:}}}}{}{}{ header.from=${lc:${domain:${address:$h_from:}}}}}}}
++AUTHRES_EXTRA = ${if eq{AUTHRES_SPF}{}{}{;\n\tspf=AUTHRES_SPF${if def:sender_address_domain{ smtp.mailfrom=$sender_address_domain}{${if def:sender_helo_name{ smtp.helo=$sender_helo_name}}}}}}${if eq{AUTHRES_DMARC}{}{}{;\n\tdmarc=AUTHRES_DMARC${if eq{${lc:${domain:${address:$h_from:}}}}{}{}{ header.from=${lc:${domain:${address:$h_from:}}}}}}}
  .endif
  
  .ifdef CLAMD
@@ -24,14 +24,16 @@
  
  .ifdef CLAMD
    deny   message        = Message contains a virus ($malware_name) and has been rejected
-@@ -318,6 +324,10 @@
+@@ -317,6 +325,12 @@
+         add_header     = X-Spam-Bar: $spam_bar
          add_header     = X-Spam-Report: $spam_report
          set acl_m2     = $spam_score_int
- 
++        # Taken here: $spam_report outlives the message in an SMTP session, an acl_m variable does not.
++        set acl_m_authres = AUTHRES_EXTRA
++
 +  # One Authentication-Results: exim's own, with rspamd's SPF and DMARC where it scanned the mail.
 + warn   !authenticated = *
-+        add_header     = :at_start:${authresults{$primary_hostname}}AUTHRES_EXTRA
-+
++        add_header     = :at_start:${authresults{$primary_hostname}}$acl_m_authres
+ 
   warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
          condition      = ${if >{$acl_m2}{$acl_m4} {no}{yes}}
-         add_header     = X-Spam-Status: No, score=$spam_score required=${eval:$acl_m4/10}.${eval:$acl_m4%10}

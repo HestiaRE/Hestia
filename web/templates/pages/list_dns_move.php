@@ -45,12 +45,6 @@ $dns_op_labels = [
 				? _("Nothing left to finish: no SPF record names an old address, or every one is left alone below.")
 				: _("Nothing to move: no record HestiaRE derives carries an old address, or every one is left alone below.")) ?></p>
 		</div>
-		<?php if ($v_move === "stored") { ?>
-			<p class="u-mb20">
-				<?= tohtml(_("Once the old box sends no more mail, finishing the move drops its addresses from the SPF records and forgets the move.")) ?>
-				<a href="/list/dns/?move=finish"><?= tohtml(_("Preview finishing the move")) ?></a>
-			</p>
-		<?php } ?>
 	<?php } else { ?>
 		<div class="alert alert-info u-mb20" role="alert">
 			<i class="fas fa-exclamation"></i>
@@ -58,6 +52,12 @@ $dns_op_labels = [
 				? sprintf(ngettext("%d change goes to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards.", "%d changes go to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards.", $v_writes), $v_writes)
 				: sprintf(ngettext("%d change goes to the providers. Only records on an old address that HestiaRE derives are touched.", "%d changes go to the providers. Only records on an old address that HestiaRE derives are touched.", $v_writes), $v_writes)) ?></p>
 		</div>
+	<?php } ?>
+	<?php if ($v_finishable) { ?>
+		<p class="u-mb20">
+			<?= tohtml(_("Once the old box sends no more mail, finishing the move drops its addresses from the SPF records and forgets the move.")) ?>
+			<a href="/list/dns/?move=finish"><?= tohtml(_("Preview finishing the move")) ?></a>
+		</p>
 	<?php } ?>
 	<?php if ($v_unmanaged) { ?>
 		<div class="alert alert-info u-mb20" role="alert">

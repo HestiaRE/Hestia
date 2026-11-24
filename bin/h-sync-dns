@@ -14,7 +14,7 @@
 # with that id they go out, provided every zone still yields the same plan, section by section through
 # h-sync-dns-zone. PLAN now writes without a preview, for h-change-web-domain-ip. DOMAIN limits the run to that web
 # domain's sections, its aliases included, and the mail domain of that name, which sends from the web domain's address.
-# MOVE finish ends the stored move once it is written, and refuses while the move itself still has records to write:
+# MOVE finish ends the stored move once it is written, and refuses while a record other than the SPF is still to move:
 # each SPF loses its terms on an OLD address, and a user whose zones then hold nothing more to do forgets the move.
 
 user=$1
@@ -52,12 +52,13 @@ shell_list() {
 		print $2, $3, $4, $6, $7, $8, $11, $12 }' <<< "$ops"
 }
 
-# forget: a finished move is forgotten once nothing of it is left alone; a skip keeps it for another round.
+# forget: a finished move is forgotten for each user nothing of it is left alone for; a skip keeps it for another round.
 forget() {
 	local u
-	[ "$move" = 'finish' ] && [ "$skips" -eq 0 ] || return 0
+	[ "$move" = 'finish' ] || return 0
 	for u in "${users[@]}"; do
 		[ -n "$(dns_move_read "$u")" ] || continue
+		awk -F '\t' -v u="$u" '$1 == u && $6 == "skip" { f = 1 } END { exit !f }' <<< "$ops" && continue
 		dns_move_set "$u" && echo "the DNS move of $u is finished and forgotten"
 	done
 	[ -z "$unmanaged" ] || echo "Zones without an account keep the old address: $(paste -sd ' ' <<< "$unmanaged")"
@@ -141,11 +142,12 @@ for u in "${users[@]}"; do
 	[ -n "$m" ] || continue
 	m=$(public "$m")
 	moves=$((moves + 1))
-	# Finishing judges the SPF by the records the move writes, so the move itself has to be in first.
+	# Finishing judges the SPF by the records the move writes, so those have to be in first. The SPF itself is left
+	# to finishing: a record the new address is not in yet stays a skip there, and a skip keeps the move.
 	if [ "$move" = 'finish' ]; then
-		kept=$ops ops=''
+		kept=$ops ops='' confirm=''
 		collect "$u" "$m"
-		awk -F '\t' 'NF && $6 != "skip" { f = 1 } END { exit !f }' <<< "$ops" && pending+="$u "
+		awk -F '\t' 'NF && $6 != "skip" && $8 != "TXT" { f = 1 } END { exit !f }' <<< "$ops" && pending+="$u "
 		ops=$kept confirm=finish
 	fi
 	collect "$u" "$m"
@@ -153,7 +155,7 @@ done
 unset DNSP_MEMO_ON
 [ "$moves" -gt 0 ] || check_result "$E_NOTEXIST" "no move recorded for $user"
 unmanaged=$(sort -u <<< "$unmanaged" | sed '/^$/d')
-failed=$(sed '/^$/d' <<< "$failed" | paste -sd ' ')
+failed=$(sed '/^$/d' <<< "$failed" | sort -u | paste -sd ' ')
 [ -z "$failed" ] || check_result "$E_CONNECT" "zone(s) could not be read, nothing done: $failed"
 [ -z "$pending" ] || check_result "$E_EXISTS" "the move is not written yet, nothing done: write it first: ${pending% }"
 id=$(sha256sum <<< "$ops" | cut -c 1-16)

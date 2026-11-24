@@ -256,6 +256,9 @@ if (isset($_GET["providers"])) {
 	$ops = $preview["OPS"] ?? [];
 	$v_unmanaged = $preview["UNMANAGED"] ?? [];
 	$v_writes = count(array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip"));
+	// The test h-sync-dns finish makes: nothing but SPF records left to write, which finishing takes care of.
+	$v_finishable = $v_move === "stored" && $v_object === ""
+		&& !array_filter($ops, fn ($o) => ($o["OP"] ?? "") !== "skip" && ($o["TYPE"] ?? "") !== "TXT");
 	$v_query = "/list/dns/?" . http_build_query(["move" => $v_move] + ($v_object !== "" ? ["object" => $v_object] : []));
 	render_page($user, $TAB, "list_dns_move");
 } elseif (isset($_GET["zone"], $_GET["sync"])) {

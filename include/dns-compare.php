@@ -641,7 +641,9 @@ function spf_finish(string $rec, string $domain, array $move): ?string
 	$out = [];
 	$dropped = [];
 	foreach (preg_split('/\s+/', trim($rec)) ?: [] as $t) {
-		if (preg_match('/^[-+~?]?ip[46]:([0-9a-f.:]+)(\/\d+)?$/i', $t, $m) && isset($move[addr($m[1])])) {
+		// Only the address itself: a range starting at it may cover other hosts, so it stays and is named.
+		if (preg_match('/^[-+~?]?ip[46]:([0-9a-f.:]+)(?:\/(\d+))?$/i', $t, $m) && isset($move[addr($m[1])])
+			&& (($m[2] ?? "") === "" || (int) $m[2] === (str_contains($m[1], ":") ? 128 : 32))) {
 			$dropped[] = addr($m[1]);
 			continue;
 		}

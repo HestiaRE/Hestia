@@ -84,6 +84,11 @@ mysql_sql_escape() {
 	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e "s/'/''/g"
 }
 
+# mysql_db_grant DB: DB as a grant names it. _ and % are LIKE wildcards there, so a grant on mys_l covers mysql too.
+mysql_db_grant() {
+	printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/_/\\_/g' -e 's/%/\\%/g'
+}
+
 # A value for a PostgreSQL '...' literal: standard-conforming strings, backslash is no escape, only quotes double.
 sql_escape() {
 	printf '%s' "$1" | sed "s/'/''/g"
@@ -397,8 +402,8 @@ add_mysql_database() {
 
 	# A reused user keeps its password, and its hash stays in the record that created it.
 	if [ -n "${reuse:-}" ]; then
-		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@\`%\`" > /dev/null
-		mysql_query "GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost" > /dev/null
+		mysql_query "GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@\`%\`" > /dev/null
+		mysql_query "GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@localhost" > /dev/null
 		md5=''
 		return 0
 	fi
@@ -414,17 +419,17 @@ add_mysql_database() {
             IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 
-		query="GRANT ALL ON \`$database\`.* TO \`$dbuser\`@\`%\`"
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@\`%\`"
 		mysql_query "$query" > /dev/null
 
-		query="GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost"
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@localhost"
 		mysql_query "$query" > /dev/null
 	else
-		query="GRANT ALL ON \`$database\`.* TO \`$dbuser\`@\`%\`
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@\`%\`
             IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 
-		query="GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@localhost
             IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 	fi
@@ -478,10 +483,10 @@ add_mysql_database_temp_user() {
 			IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 
-		query="GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost"
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@localhost"
 		mysql_query "$query" > /dev/null
 	else
-		query="GRANT ALL ON \`$database\`.* TO \`$dbuser\`@localhost
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$dbuser\`@localhost
     		IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 	fi
@@ -495,7 +500,8 @@ delete_mysql_database_temp_user() {
 # mysql_drop_sso_users DB: SSO logins hold their own grant on DB, which neither a suspend nor DROP DATABASE takes back.
 mysql_drop_sso_users() {
 	local u
-	mysql_query "SELECT User FROM mysql.db WHERE Db='$1' AND Host='localhost' AND User LIKE 'hestia\\_sso\\_%'" \
+	mysql_query "SELECT User FROM mysql.db WHERE Db IN ('$(mysql_sql_escape "$1")', '$(mysql_sql_escape "$(mysql_db_grant "$1")")')
+		AND Host='localhost' AND User LIKE 'hestia\\_sso\\_%'" \
 		| tail -n +2 | while IFS= read -r u; do
 		[[ "$u" =~ ^hestia_sso_[[:alnum:]]+$ ]] || continue
 		mysql_query "DROP USER IF EXISTS \`$u\`@localhost" > /dev/null
@@ -534,20 +540,20 @@ change_mysql_password() {
 			query="SET PASSWORD FOR \`$DBUSER\`@localhost = '$dbpass_esc'"
 			mysql_query "$query" > /dev/null
 		else
-			query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@\`%\`
+			query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$DBUSER\`@\`%\`
                   IDENTIFIED BY '$dbpass_esc'"
 			mysql_query "$query" > /dev/null
 
-			query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@localhost
+			query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$DBUSER\`@localhost
                   IDENTIFIED BY '$dbpass_esc'"
 			mysql_query "$query" > /dev/null
 		fi
 	else
-		query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@\`%\`
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$DBUSER\`@\`%\`
               IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 
-		query="GRANT ALL ON \`$database\`.* TO \`$DBUSER\`@localhost
+		query="GRANT ALL ON \`$(mysql_db_grant "$database")\`.* TO \`$DBUSER\`@localhost
               IDENTIFIED BY '$dbpass_esc'"
 		mysql_query "$query" > /dev/null
 	fi
@@ -757,32 +763,107 @@ MYSQL_WRITE_PRIVS=(INSERT UPDATE DELETE CREATE DROP REFERENCES INDEX ALTER 'CREA
 
 # mysql_db_privs DBUSER DB HOST: what DBUSER@HOST holds on DB, worded as SHOW GRANTS words it.
 mysql_db_privs() {
-	mysql_query "SHOW GRANTS FOR \`$1\`@\`$3\`" | sed -n "s/^GRANT \(.*\) ON \`$2\`\.\* TO .*/\1/p"
+	local re
+	# The client's batch output doubles a backslash, so the name is matched as it prints, not as it is stored.
+	re=$(mysql_db_grant "$2" | sed -e 's/\\/\\\\/g' -e 's/[][\\.*^$/]/\\&/g')
+	mysql_query "SHOW GRANTS FOR \`$1\`@\`$3\`" | sed -n "s/^GRANT \(.*\) ON \`$re\`\.\* TO .*/\1/p"
 }
 
 # mysql_grant_slot DBUSER DB RO: RO 'yes' read-only, else full rights. GRANT before REVOKE keeps SELECT through the
 # switch; rc 1 unless SHOW GRANTS reads back exactly that.
 mysql_grant_slot() {
-	local h p grant='ALL' want='ALL PRIVILEGES'
+	local h p g grant='ALL' want='ALL PRIVILEGES'
+	g=$(mysql_db_grant "$2")
 	if [ "$3" = 'yes' ]; then
 		grant='SELECT, SHOW VIEW'
 		want='SELECT, SHOW VIEW'
 	fi
 	for h in '%' localhost; do
-		mysql_query "GRANT $grant ON \`$2\`.* TO \`$1\`@\`$h\`" > /dev/null
+		mysql_query "GRANT $grant ON \`$g\`.* TO \`$1\`@\`$h\`" > /dev/null
 		if [ "$3" = 'yes' ]; then
 			for p in "${MYSQL_WRITE_PRIVS[@]}"; do
-				mysql_query "REVOKE $p ON \`$2\`.* FROM \`$1\`@\`$h\`" > /dev/null
+				mysql_query "REVOKE $p ON \`$g\`.* FROM \`$1\`@\`$h\`" > /dev/null
 			done
 		fi
+		# A grant from before the escaping goes once the exact one stands, so access never drops in between.
+		[ "$g" = "$2" ] || mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@\`$h\`" > /dev/null
 		[ "$(mysql_db_privs "$1" "$2" "$h")" = "$want" ] || return 1
 	done
 }
 
-# mysql_revoke_slot DBUSER DB
+# mysql_revoke_slot DBUSER DB: the exact grant and one from before the escaping.
 mysql_revoke_slot() {
-	mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@\`%\`" > /dev/null
-	mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@localhost" > /dev/null
+	local h g
+	g=$(mysql_db_grant "$2")
+	for h in '%' localhost; do
+		mysql_query "REVOKE ALL ON \`$g\`.* FROM \`$1\`@\`$h\`" > /dev/null
+		[ "$g" = "$2" ] || mysql_query "REVOKE ALL ON \`$2\`.* FROM \`$1\`@\`$h\`" > /dev/null
+	done
+}
+
+# mysql_wildcard_grants: "USER DB" for each MySQL database of a record whose slot users still hold a grant from before
+# the escaping. A host that cannot be read prints "USER DB ?", so a caller cannot take it for clean.
+mysql_wildcard_grants() {
+	local conf line u db names n
+	for conf in "$CONF_DIR"/users/*/db.conf; do
+		[ -e "$conf" ] || continue
+		u=${conf%/db.conf}
+		u=${u##*/}
+		while IFS= read -r line; do
+			[ "$(db_record_field "$line" TYPE)" = 'mysql' ] || continue
+			db=$(db_record_field "$line" DB)
+			[ "$(mysql_db_grant "$db")" != "$db" ] || continue
+			names="'$(mysql_sql_escape "$(db_record_field "$line" DBUSER)")'"
+			[ -z "$(db_record_field "$line" DBUSER_SECOND)" ] \
+				|| names+=", '$(mysql_sql_escape "$(db_record_field "$line" DBUSER_SECOND)")'"
+			# A subshell: mysql_connect sets HOST, USER and PASSWORD globally and exits when the host is down.
+			n=$( (
+				mysql_connect "$(db_record_field "$line" HOST)" > /dev/null
+				mysql_query "SELECT COUNT(*) FROM mysql.db WHERE Db='$(mysql_sql_escape "$db")' AND User IN ($names)" \
+					| tail -n 1
+			) 2> /dev/null)
+			if ! [[ "$n" =~ ^[0-9]+$ ]]; then
+				echo "$u $db ?"
+			elif [ "$n" != 0 ]; then
+				echo "$u $db"
+			fi
+		done < "$conf"
+	done
+}
+
+# mysql_grant_escape_record USER DB: the slot users of DB get the exact grant, or of a suspended DB lose the old one.
+mysql_grant_escape_record() {
+	local suspended
+	user=$1
+	USER_DATA="$CONF_DIR/users/$1"
+	database=$2
+	get_database_values
+	suspended=$SUSPENDED
+	mysql_connect "$HOST" > /dev/null
+	if [ "$suspended" = 'yes' ]; then
+		mysql_revoke_slot "$DBUSER" "$database"
+		[ -z "$DBUSER_SECOND" ] || mysql_revoke_slot "$DBUSER_SECOND" "$database"
+		return 0
+	fi
+	mysql_grant_slot "$DBUSER" "$database" '' || return 1
+	[ -z "$DBUSER_SECOND" ] || mysql_grant_slot "$DBUSER_SECOND" "$database" "$DBUSER_SECOND_RO"
+}
+
+# Update: every grant from before the escaping becomes the exact one, through the same slot code as a rebuild. A
+# suspended database only loses the old grant. One that fails warns and keeps the entry pending for the next update.
+mysql_grants_escape_apply() {
+	local u db flag
+	while read -r u db flag; do
+		[ -n "$db" ] || continue
+		if [ -n "$flag" ]; then
+			echo "[ ! ] $db of $u: its database host cannot be read, the next update retries"
+			continue
+		fi
+		# A subshell: the record and mysql_connect set globals, and mysql_connect exits when the host is down.
+		(mysql_grant_escape_record "$u" "$db") \
+			|| echo "[ ! ] $db of $u: the rights did not read back as granted, the next update retries"
+	done <<< "$(mysql_wildcard_grants)"
+	return 0
 }
 
 # mysql_drop_user_if_free DBUSER [SELF_DB]: drops DBUSER once no record of the customer holds it in a slot.
@@ -825,12 +906,7 @@ delete_mysql_database() {
 	query="DROP DATABASE IF EXISTS \`$database\`"
 	mysql_query "$query" || return 2
 	mysql_drop_sso_users "$database"
-
-	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@\`%\`"
-	mysql_query "$query" > /dev/null
-
-	query="REVOKE ALL ON \`$database\`.* FROM \`$DBUSER\`@localhost"
-	mysql_query "$query" > /dev/null
+	mysql_revoke_slot "$DBUSER" "$database"
 
 	db_user_in_use "$DBUSER" mysql "$HOST" "$database"
 	if [ $? -eq 1 ]; then
@@ -1001,11 +1077,7 @@ get_pgsql_disk_usage() {
 delete_mysql_user() {
 	mysql_connect $HOST
 
-	query="REVOKE ALL ON \`$database\`.* FROM \`$old_dbuser\`@\`%\`"
-	mysql_query "$query" > /dev/null
-
-	query="REVOKE ALL ON \`$database\`.* FROM \`$old_dbuser\`@localhost"
-	mysql_query "$query" > /dev/null
+	mysql_revoke_slot "$old_dbuser" "$database"
 
 	# The rights on this database go either way; the user only when no other database still names it.
 	db_user_in_use "$old_dbuser" mysql "$HOST"

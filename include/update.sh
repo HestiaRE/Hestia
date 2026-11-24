@@ -122,6 +122,16 @@ upd_cond_docker_map_drift() {
 	return 1
 }
 
+# True while a MySQL database of a record still carries a grant whose name acts as a pattern, or its host cannot be read.
+upd_cond_mysql_wildcard_grants() {
+	[ -s "$UPDATE_ROOT/conf/mysql.conf" ] || return 1
+	if ! declare -F mysql_wildcard_grants > /dev/null; then
+		# shellcheck source=/usr/local/hestia/include/db.sh
+		source "$UPDATE_ROOT/include/db.sh" || return 2
+	fi
+	[ -n "$(mysql_wildcard_grants)" ]
+}
+
 # locale_missing NAME, answered by locale -a: a line in /etc/locale.gen says nothing about the archive.
 upd_cond_locale_missing() {
 	[ -n "$1" ] || {
@@ -380,7 +390,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	exim_ratelimit_inbound_apply exim_sieve_forward_apply sieve_max_redirects_apply forward_bounces_cron_apply
 	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password
 	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply
-	exim_authresults_apply)
+	exim_authresults_apply mysql_grants_escape_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -493,7 +503,7 @@ upd_condition() {
 		language_unlisted | locale_missing | file_group_differs | file_owner_differs | path_not_link)
 			"upd_cond_$t" "$@"
 			;;
-		docker_map_drift)
+		docker_map_drift | mysql_wildcard_grants)
 			"upd_cond_$t" "$@"
 			;;
 		*)

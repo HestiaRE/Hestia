@@ -15,6 +15,14 @@
       "action": { "type": "function_call", "function": "exim_authresults_apply" },
       "paths": ["/etc/exim4/exim4.conf.template"],
       "reversible": false
+    },
+    {
+      "id": "mysql-grant-escape",
+      "description": "A MySQL grant names its database exactly: _ and % in the name were wildcards, so a customer whose name starts another database's name (mys for mysql) got rights on it. Every grant of a database in a record is replaced by the exact one, a suspended database only loses the old grant",
+      "conditions": [{ "type": "mysql_wildcard_grants" }],
+      "action": { "type": "function_call", "function": "mysql_grants_escape_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

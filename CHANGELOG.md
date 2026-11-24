@@ -43,6 +43,9 @@ the releases of the command audit, into another.
 - **A customer could run commands as root through their stats folder** (#1464, upstream 1.10.10). The stats run put
   every folder name below `stats/` into a sed script it ran as root. Only month folders (`YYYY-MM`) are listed now,
   and that sed runs as the customer.
+- **A customer could get rights on another database, up to MariaDB root** (#1466, upstream 1.10.10). A grant named
+  its database unescaped, where `_` and `%` are wildcards, so customer `mys` with database `l` held rights on `mysql`.
+  Every grant names its database exactly now, and the update replaces the old grants on an installed box.
 
 ### Fixed
 

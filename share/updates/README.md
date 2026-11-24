@@ -84,7 +84,7 @@ Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exis
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
 `file_mode_wider`, `file_group_differs`, `file_owner_differs`, `language_unlisted`, `locale_missing`, `path_not_link`,
-`docker_map_drift`. Actions:
+`docker_map_drift`, `mysql_wildcard_grants`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
@@ -168,6 +168,8 @@ overlay has already replaced the list when the plan is derived, while a dropped 
 disk until its own entry deletes it.
 `docker_map_drift` takes no field and is true while a docker companion's lines in `/etc/subuid` or `/etc/subgid`
 are out of the order `newuidmap` maps them, or its running daemon maps container 1000 to someone else than the customer.
+`mysql_wildcard_grants` takes no field and is true while a MySQL database of a record still has a grant for its
+slot users under the bare name, where `_` and `%` act as wildcards, or while its database host cannot be read.
 `locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
 there says nothing about whether the locale was generated.
 Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin

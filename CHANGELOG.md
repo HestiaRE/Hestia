@@ -35,6 +35,9 @@ the releases of the command audit, into another.
 - **SRV records that differ only in priority looked alike** (#1450). `h-check-dns-zone` has a PRIORITY column, and an
   added MX or SRV shows its priority beside the provider's value, as a derived MX does.
 - **The orphan preview without orphans was an error** (#1450). It is an empty plan now, like every other section.
+- **An added record whose domain was deleted could only be forgotten** (#1452). It stayed at the provider
+  with no way to remove it from the zone page. Its row now offers "Remove from provider" as well, through the same
+  orphan preview as any other record HestiaRE wrote.
 - **A server move passed silently over records kept as an exception** (#1442). A row with an exception is never moved,
   so an SPF or A exception on the old address stayed as it was and the preview did not say so. It now shows a skip
   line naming the old address, and the summary counts it among the records left alone.

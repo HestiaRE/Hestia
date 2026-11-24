@@ -882,6 +882,11 @@ exim_ratelimit_inbound_apply() {
 	exim_template_patch 0.35/exim-ratelimit-inbound.patch
 }
 
+# Authentication-Results carries rspamd's SPF and DMARC beside exim's iprev and DKIM, in one header.
+exim_authresults_apply() {
+	exim_template_patch 0.39/exim-authresults-rspamd.patch
+}
+
 # The aliases lines of a mail domain's accounts, that is its forwards, without those exim keeps for :blackhole:.
 forward_exim_lines() { # CONF_MAIL_DOMAIN_DIR
 	[ -s "$1/passwd" ] && [ -s "$1/aliases" ] || return 0

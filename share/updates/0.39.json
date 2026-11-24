@@ -1,0 +1,20 @@
+{
+  "version": "0.39",
+  "entries": [
+    {
+      "id": "exim-authresults",
+      "description": "Authentication-Results names SPF and DMARC as rspamd judged them, beside exim's iprev and DKIM, so a mail client shows spf=pass. One header, not two; without rspamd, or where a mail is not scanned, exim's own line stays as it was. Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.39/exim-authresults-rspamd.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": { "type": "function_call", "function": "exim_authresults_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
+    }
+  ]
+}

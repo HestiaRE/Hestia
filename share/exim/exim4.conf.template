@@ -39,9 +39,11 @@ acl_smtp_mime = acl_check_mime
 .ifdef RSPAMD
 spamd_address = /run/rspamd/normal.sock variant=rspamd
 # SPF and DMARC as rspamd judged them, for exim's Authentication-Results: exim checks neither. Empty without a scan.
-AUTHRES_SPF = ${if match{$spam_report}{\N\bR_SPF_ALLOW\b\N}{pass}{${if match{$spam_report}{\N\bR_SPF_FAIL\b\N}{fail}{${if match{$spam_report}{\N\bR_SPF_SOFTFAIL\b\N}{softfail}{${if match{$spam_report}{\N\bR_SPF_NEUTRAL\b\N}{neutral}{${if match{$spam_report}{\N\bR_SPF_NA\b\N}{none}{${if match{$spam_report}{\N\bR_SPF_DNSFAIL\b\N}{temperror}{${if match{$spam_report}{\N\bR_SPF_PERMFAIL\b\N}{permerror}{}}}}}}}}}}}}}}
-AUTHRES_DMARC = ${if match{$spam_report}{\N\bDMARC_POLICY_ALLOW(_WITH_FAILURES)?\b\N}{pass}{${if match{$spam_report}{\N\bDMARC_POLICY_(REJECT|QUARANTINE|SOFTFAIL)\b\N}{fail}{${if match{$spam_report}{\N\bDMARC_NA\b\N}{none}{${if match{$spam_report}{\N\bDMARC_DNSFAIL\b\N}{temperror}{${if match{$spam_report}{\N\bDMARC_BAD_POLICY\b\N}{permerror}{}}}}}}}}}}
-AUTHRES_EXTRA = ${if eq{AUTHRES_SPF}{}{}{;\n\tspf=AUTHRES_SPF smtp.mailfrom=${if def:sender_address_domain{$sender_address_domain}{$sender_helo_name}}}}${if eq{AUTHRES_DMARC}{}{}{;\n\tdmarc=AUTHRES_DMARC header.from=${lc:${domain:${address:$h_from:}}}}}
+# Only the symbol lines count: the lines after them carry text the sender chose (subject, Message-ID).
+AUTHRES_SYM = ${sg{$spam_report}{\N(?s)\n (Subject|Message|Message-ID):.*\N}{}}
+AUTHRES_SPF = ${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_ALLOW\(\N}{pass}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_FAIL\(\N}{fail}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_SOFTFAIL\(\N}{softfail}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_NEUTRAL\(\N}{neutral}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_NA\(\N}{none}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_DNSFAIL\(\N}{temperror}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_PERMFAIL\(\N}{permerror}{}}}}}}}}}}}}}}
+AUTHRES_DMARC = ${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_POLICY_ALLOW(_WITH_FAILURES)?\(\N}{pass}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_POLICY_(REJECT|QUARANTINE|SOFTFAIL)\(\N}{fail}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_NA\(\N}{none}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_DNSFAIL\(\N}{temperror}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_BAD_POLICY\(\N}{permerror}{}}}}}}}}}}
+AUTHRES_EXTRA = ${if eq{AUTHRES_SPF}{}{}{;\n\tspf=AUTHRES_SPF smtp.mailfrom=${if def:sender_address_domain{$sender_address_domain}{$sender_helo_name}}}}${if eq{AUTHRES_DMARC}{}{}{;\n\tdmarc=AUTHRES_DMARC${if eq{${lc:${domain:${address:$h_from:}}}}{}{}{ header.from=${lc:${domain:${address:$h_from:}}}}}}}
 .endif
 
 .ifdef CLAMD

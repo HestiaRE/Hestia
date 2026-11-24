@@ -218,7 +218,13 @@ if [ -n "$writes" ]; then
 		dnsp_state_set "$DNSP_ACCOUNT" "$(dnsp_state_of "$rc")" "$err"
 		# Nothing of www went out, so switching the include back on restores what was there.
 		note=''
-		if [ "$include" = 'on' ]; then
+		cname=$(awk -F '\t' '$1 == "rem" && $2 == "www" && ($3 == "CNAME" || $3 == "ALIAS")' <<< "$writes")
+		# A CNAME at www outranks the include, so a second run would find nothing left to do while it stands.
+		if [ "$include" = 'on' ] && [ -n "$cname" ]; then
+			note=' (the www include went on and is off again)'
+			dnsp_call include "$zone" "$DNSP_REF" false > /dev/null \
+				|| note=' (the www include is on, the CNAME at www still answers: remove it at the provider)'
+		elif [ "$include" = 'on' ]; then
 			note=' (the www include is on, www follows the apex beside what was to be removed)'
 		elif [ -n "$include" ]; then
 			note=' (the www include went off and is on again)'

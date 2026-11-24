@@ -1288,7 +1288,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 		$ops[-1] = [["include", "www", "", "", "", "on", "www follows the apex again"]];
 		// The CNAME would win over the include in public DNS, so it goes in the same plan.
 		foreach (array_merge(at("www", "CNAME"), at("www", "ALIAS")) as $i) {
-			$ops[-1][] = ["rem", "www", $actual[$i][1], "", $actual[$i][3], $actual[$i][6], "replaced by the www include"];
+			if (!isset($replaced[$i])) {
+				$replaced[$i] = true;
+				$ops[-1][] = ["rem", "www", $actual[$i][1], "", $actual[$i][3], $actual[$i][6], "replaced by the www include"];
+			}
 		}
 		foreach (["A", "AAAA"] as $type) {
 			foreach (at("www", $type) as $i) {

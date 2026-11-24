@@ -3791,6 +3791,10 @@ msgid "Replace the CNAME by records of its own"
 msgstr ""
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Replace the CNAME by the www include"
+msgstr ""
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Switch the www include off, www gets records of its own"
 msgstr ""
 

@@ -51,7 +51,8 @@ the releases of the command audit, into another.
 
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
-  and keeps running, the other versions restart. The reload used to report success while the master died.
+  and keeps running, the other versions restart. The reload used to report success while the master died. A new
+  domain or a PHP change on that version stops with the error too, instead of landing on a master that cannot start.
 - **"Apply" on www did nothing while the apex differed** (#1451). A www that AutoDNS mirrors from the apex (www
   include) only changes with the apex, so its row now takes the apex write along; the preview says so.
 - **SRV records that differ only in priority looked alike** (#1450). `h-check-dns-zone` has a PRIORITY column, and an

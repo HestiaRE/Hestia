@@ -1592,6 +1592,7 @@ msgstr "Samstag"
 #: web/templates/pages/edit_server_service.php
 #: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
 #: web/templates/pages/edit_whitelabel.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Save"
 msgstr "Speichern"
 
@@ -3918,6 +3919,14 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr "Eben mit dem Konto %s verglichen: Jeder Eintrag, den HestiaRE ableitet, ist vorhanden."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Edit DMARC"
+msgstr "DMARC bearbeiten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Edit SPF"
+msgstr "SPF bearbeiten"
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Forget"
 msgstr "Vergessen"
 
@@ -3944,6 +3953,10 @@ msgstr "Den Eintrag als Teil seines Abschnitts führen: die Zonenseite vergleich
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep without this record"
 msgstr "Ohne diesen Eintrag behalten"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Kept as an exception, the next sync writes it."
+msgstr "Wird als Ausnahme behalten, der nächste Sync schreibt sie."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Lift exception"
@@ -3990,6 +4003,14 @@ msgid "Remove the record from the provider. A preview shows the write first."
 msgstr "Den Eintrag beim Provider entfernen. Eine Vorschau zeigt zuerst, was geschrieben wird."
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Starts with v=DMARC1; p= and none, quarantine or reject, then sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; to go back to the derived one, save v=DMARC1; p=none here and lift the exception then."
+msgstr "Beginnt mit v=DMARC1; p= und none, quarantine oder reject, danach sp=, pct=, rua= und der Rest nach Bedarf. Wird die Ausnahme aufgehoben, bleibt der Eintrag, wie er ist; zurück zum abgeleiteten Wert: hier v=DMARC1; p=none speichern und danach die Ausnahme aufheben."
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns. Lifted, the exception leaves a record that authorises the server as it is; Normalize puts it back to v=spf1 a mx ~all."
+msgstr "Beginnt mit v=spf1. Ein Eintrag, der diesen Server nicht erlaubt, ist möglich, die Zeile warnt dann. Wird die Ausnahme aufgehoben, bleibt ein Eintrag, der den Server erlaubt, wie er ist; Normalisieren setzt ihn auf v=spf1 a mx ~all zurück."
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Switch the www include on: the provider serves the apex addresses at www, and the own www records go."
 msgstr "Schaltet das www-Include ein: Der Provider liefert unter www die Adressen des Apex, die eigenen www-Einträge entfallen."
 
@@ -4000,6 +4021,10 @@ msgstr "Nur diesen Eintrag abgleichen. Eine Vorschau zeigt zuerst, was geschrieb
 #: web/templates/pages/list_dns_zone.php
 msgid "Sync to provider"
 msgstr "Mit Provider abgleichen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "The provider holds more than one, which receivers do not accept: the one saved here replaces them."
+msgstr "Beim Provider stehen mehrere, das akzeptieren Empfänger nicht: der hier gespeicherte ersetzt sie."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "The record stays at the provider, and HestiaRE no longer offers to remove it."

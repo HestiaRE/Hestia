@@ -13,6 +13,7 @@
 // foreign, or hidden outside the box's names in a zone without apex. FOUND is what
 // answers for a desired row at the provider, KEPT the values its exception accepts (both \x1f separated), EXCEPTION
 // yes when it has one. A row whose FOUND matches its exception is "exception", one that drifted from it "different".
+// An SPF exception that leaves out the box's addresses is allowed; its NOTE says which.
 // Per type: A/AAAA as an address, MX as priority and target, SPF by whether it authorises the desired addresses,
 // DMARC on existence, DKIM and other TXT exactly after joining; TTL never. Public DNS gets ten seconds per run in all,
 // a check it cut short is "unchecked", never "different".
@@ -219,6 +220,8 @@ final class Dig
 {
 	public static float $deadline = 0;
 	public static bool $failed = false;
+	/** @var array<string, list<string>> */
+	public static array $seen = [];
 
 	/** @phpstan-impure */
 	public static function failed(): bool
@@ -255,6 +258,19 @@ function rel_of(string $name, string $zone): ?string
 		return "@";
 	}
 	return str_ends_with($name, ".$zone") ? substr($name, 0, -strlen($zone) - 1) : null;
+}
+
+// An SPF kept as an exception may leave out the box's addresses: allowed, but the note says so.
+function spf_unauthorised(string $rec, string $section, string $object, string $domain): string
+{
+	$missed = array_filter(spf_addrs($section, $object), fn ($ip) => !spf_pass_in_line($ip, $rec, $domain));
+	if (!$missed) {
+		return "";
+	}
+	if (Dig::failed()) {
+		return "; public DNS did not answer, whether the exception authorises the box is unchecked";
+	}
+	return "; the exception does not authorise " . implode(", ", $missed);
 }
 
 // What the zone holds at REL TYPE once it is in line: the derived values, or those an exception keeps instead; null
@@ -316,6 +332,10 @@ function dig(string $name, string $type): array
 	if (strlen($name) > 253 || str_contains($name, "..") || !preg_match($host, $name)) {
 		return [];
 	}
+	$key = strtolower(rtrim($name, ".")) . "\t" . $type;
+	if (isset(Dig::$seen[$key])) {
+		return Dig::$seen[$key];
+	}
 	$left = (int) ceil(Dig::$deadline - microtime(true));
 	if ($left <= 0) {
 		Dig::$failed = true;
@@ -340,8 +360,9 @@ function dig(string $name, string $type): array
 	}
 	if ($rc !== 0 || ($status !== "NOERROR" && $status !== "NXDOMAIN")) {
 		Dig::$failed = true;
+		return $vals;
 	}
-	return $vals;
+	return Dig::$seen[$key] = $vals;
 }
 
 function in_cidr(string $ip, string $net, ?int $len): bool
@@ -1372,6 +1393,9 @@ foreach ($desired as $dk => $d) {
 				: "differs from the exception, which keeps $keeps";
 			$status = "different";
 		}
+		$warn = $type === "TXT" && count($accepted) === 1 && preg_match('/^v=spf1\b/i', $accepted[0]) === 1
+			? spf_unauthorised($accepted[0], $section, $object, fqdn($rel, $zone)) : "";
+		$note .= $warn;
 	}
 	// A blanked value is not the stored one, so it never counts as in place.
 	$ctl = ctl_note($hits);

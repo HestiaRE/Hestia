@@ -108,15 +108,18 @@ if (isset($_GET["providers"])) {
 	header("Location: /list/dns/?" . http_build_query(["zone" => $zone]) . "#" . rawurlencode($anchor));
 	exit();
 } elseif (isset($_GET["zone"], $_GET["exception"])) {
-	// One row kept as an exception with what the provider holds for it as the page showed it, or lifted again. The
-	// owner is the section's; nothing goes to the provider.
+	// One row kept as an exception with what the provider holds for it as the page showed it, or with a value typed
+	// for an SPF or DMARC row, or lifted again. The owner is the section's; nothing goes to the provider.
 	verify_csrf($_POST);
 	$v_zone = strtolower((string) $_GET["zone"]);
 	$v_record = (string) ($_POST["v_record"] ?? "");
 	$v_type = (string) ($_POST["v_type"] ?? "");
 	$lift = ($_POST["v_action"] ?? "") === "lift";
 	$args = [(string) ($_POST["v_owner"] ?? ""), $v_zone, $v_record, $v_type];
-	if (!$lift) {
+	if (!$lift && isset($_POST["v_edit"])) {
+		// A value typed on the page (SPF, DMARC); the command checks it.
+		$args[] = trim((string) $_POST["v_edit"]);
+	} elseif (!$lift) {
 		foreach ((array) ($_POST["v_values"] ?? []) as $v) {
 			$args[] = (string) $v;
 		}

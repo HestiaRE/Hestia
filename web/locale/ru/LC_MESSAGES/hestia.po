@@ -1598,6 +1598,7 @@ msgstr "суббота"
 #: web/templates/pages/edit_server_service.php
 #: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
 #: web/templates/pages/edit_whitelabel.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Save"
 msgstr "Сохранить"
 
@@ -3956,6 +3957,14 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Edit DMARC"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Edit SPF"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Forget"
 msgstr ""
 
@@ -3981,6 +3990,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep without this record"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Kept as an exception, the next sync writes it."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -4028,6 +4041,14 @@ msgid "Remove the record from the provider. A preview shows the write first."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Starts with v=DMARC1; p= and none, quarantine or reject, then sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; to go back to the derived one, save v=DMARC1; p=none here and lift the exception then."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns. Lifted, the exception leaves a record that authorises the server as it is; Normalize puts it back to v=spf1 a mx ~all."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Switch the www include on: the provider serves the apex addresses at www, and the own www records go."
 msgstr ""
 
@@ -4037,6 +4058,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Sync to provider"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "The provider holds more than one, which receivers do not accept: the one saved here replaces them."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

@@ -35,9 +35,9 @@ json_list() {
 }
 
 shell_list() {
-	printf 'SECTION\tOBJECT\tNAME\tTYPE\tVALUE\tSTATUS\tACTUAL\n'
-	printf -- '-------\t------\t----\t----\t-----\t------\t------\n'
-	cut -f 1,2,4,5,8,9,10 <<< "$DNSP_CHECK"
+	printf 'SECTION\tOBJECT\tNAME\tTYPE\tPRIORITY\tVALUE\tSTATUS\tACTUAL\n'
+	printf -- '-------\t------\t----\t----\t--------\t-----\t------\t------\n'
+	cut -f 1,2,4,5,6,8,9,10 <<< "$DNSP_CHECK"
 }
 
 check_args '2' "$#" 'USER ZONE [FORMAT]'

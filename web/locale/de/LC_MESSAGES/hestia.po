@@ -3649,8 +3649,19 @@ msgstr[0] "%d Änderung geht zu den Providern. Nur Records auf einer alten Adres
 msgstr[1] "%d Änderungen gehen zu den Providern. Nur Records auf einer alten Adresse, die HestiaRE ableitet, werden angefasst."
 
 #: web/templates/pages/list_dns_move.php
+#, php-format
+msgid "%d change goes to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards."
+msgid_plural "%d changes go to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards."
+msgstr[0] "%d Änderung geht an die Provider. Nur die alten Adressen verlassen die SPF-Einträge, danach wird der Umzug vergessen."
+msgstr[1] "%d Änderungen gehen an die Provider. Nur die alten Adressen verlassen die SPF-Einträge, danach wird der Umzug vergessen."
+
+#: web/templates/pages/list_dns_move.php
 msgid "Every zone is read again before the write: if one changed since this preview, nothing is written. Each zone is read once more afterwards and compared."
 msgstr "Vor dem Schreiben wird jede Zone neu gelesen: Hat sich eine seit dieser Vorschau geändert, wird nichts geschrieben. Danach wird jede Zone noch einmal gelesen und verglichen."
+
+#: web/templates/pages/list_dns_move.php
+msgid "Finish the DNS move"
+msgstr "DNS-Umzug abschließen"
 
 #: web/templates/pages/list_dns_move.php
 msgid "Forget the move"
@@ -3666,12 +3677,24 @@ msgid "Move DNS records"
 msgstr "DNS-Records umziehen"
 
 #: web/templates/pages/list_dns_move.php
+msgid "Nothing left to finish: no SPF record names an old address, or every one is left alone below."
+msgstr "Nichts mehr abzuschließen: Kein SPF-Eintrag nennt eine alte Adresse, oder jeder bleibt unten unberührt."
+
+#: web/templates/pages/list_dns_move.php
 msgid "Nothing to move: no record HestiaRE derives carries an old address, or every one is left alone below."
 msgstr "Nichts umzuziehen: Kein Record, den HestiaRE ableitet, trägt eine alte Adresse, oder jeder bleibt unten unangetastet."
 
 #: web/templates/pages/list_dns_move.php
+msgid "Once the old box sends no more mail, finishing the move drops its addresses from the SPF records and forgets the move."
+msgstr "Sobald der alte Server keine Mail mehr verschickt, entfernt das Abschließen seine Adressen aus den SPF-Einträgen und vergisst den Umzug."
+
+#: web/templates/pages/list_dns_move.php
 msgid "Once the records are moved, or when they are to stay, the move recorded by the restore can be forgotten. Nothing is written to a provider."
 msgstr "Sind die Records umgezogen oder sollen sie bleiben, kann der vom Restore vermerkte Umzug vergessen werden. Zu keinem Provider wird etwas geschrieben."
+
+#: web/templates/pages/list_dns_move.php
+msgid "Preview finishing the move"
+msgstr "Vorschau zum Abschließen"
 
 #: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php
 #: web/templates/pages/list_dns_zone.php web/templates/pages/list_mail_dns.php

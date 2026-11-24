@@ -29,7 +29,7 @@ $dns_op_labels = [
 
 <div class="container">
 
-	<h1 class="u-mt20 u-mb10"><?= tohtml(_("Move DNS records")) ?></h1>
+	<h1 class="u-mt20 u-mb10"><?= tohtml($v_move === "finish" ? _("Finish the DNS move") : _("Move DNS records")) ?></h1>
 	<h2 class="u-mb20">
 		<?= tohtml(implode(", ", array_map(fn ($p) => ($p["OLD"] ?? "") . " → " . ($p["NEW"] ?? ""), $v_pairs))) ?>
 		<?php if ($v_object !== "") { ?>
@@ -41,12 +41,22 @@ $dns_op_labels = [
 	<?php if ($v_writes === 0) { ?>
 		<div class="alert alert-success u-mb20" role="alert">
 			<i class="fas fa-check"></i>
-			<p><?= tohtml(_("Nothing to move: no record HestiaRE derives carries an old address, or every one is left alone below.")) ?></p>
+			<p><?= tohtml($v_move === "finish"
+				? _("Nothing left to finish: no SPF record names an old address, or every one is left alone below.")
+				: _("Nothing to move: no record HestiaRE derives carries an old address, or every one is left alone below.")) ?></p>
 		</div>
+		<?php if ($v_move === "stored") { ?>
+			<p class="u-mb20">
+				<?= tohtml(_("Once the old box sends no more mail, finishing the move drops its addresses from the SPF records and forgets the move.")) ?>
+				<a href="/list/dns/?move=finish"><?= tohtml(_("Preview finishing the move")) ?></a>
+			</p>
+		<?php } ?>
 	<?php } else { ?>
 		<div class="alert alert-info u-mb20" role="alert">
 			<i class="fas fa-exclamation"></i>
-			<p><?= tohtml(sprintf(ngettext("%d change goes to the providers. Only records on an old address that HestiaRE derives are touched.", "%d changes go to the providers. Only records on an old address that HestiaRE derives are touched.", $v_writes), $v_writes)) ?></p>
+			<p><?= tohtml($v_move === "finish"
+				? sprintf(ngettext("%d change goes to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards.", "%d changes go to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards.", $v_writes), $v_writes)
+				: sprintf(ngettext("%d change goes to the providers. Only records on an old address that HestiaRE derives are touched.", "%d changes go to the providers. Only records on an old address that HestiaRE derives are touched.", $v_writes), $v_writes)) ?></p>
 		</div>
 	<?php } ?>
 	<?php if ($v_unmanaged) { ?>
@@ -106,7 +116,7 @@ $dns_op_labels = [
 		</form>
 	<?php } ?>
 
-	<?php if ($v_move === "stored") { ?>
+	<?php if ($v_move === "stored" || ($v_move === "finish" && $v_writes === 0)) { ?>
 		<form method="post" action="<?= tohtml($v_query) ?>">
 			<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
 			<input type="hidden" name="v_forget" value="1">

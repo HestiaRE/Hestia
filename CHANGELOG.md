@@ -15,6 +15,9 @@ the releases of the command audit, into another.
 
 ### Added
 
+- **A DNS move can be finished** (#1453). Once the stored move is written, `h-sync-dns USER finish` and the move
+  page drop the old addresses from the SPF records, only where the new one stays covered, and forget the move. Until
+  then the old box keeps its cover, since it may still send mail.
 - **Admin notes on a user** (#1427). The six main lists (web, mail, databases, DNS, cron, backup) carry a notes field
   above the footer for the admin, on their own account and while switched into a customer: extra software, special
   ini settings and the like. The customer's panel never shows it; the notes travel with the user's backup, where a

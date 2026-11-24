@@ -33,7 +33,8 @@
 // beside the new one, or as a term of its own beside a and mx. A row whose derived value is not the NEW one is left
 // alone, so is one with an exception, by a skip where it or the provider's record names an OLD address. SPF is
 // judged by the zone once it is in line, so a and mx cover what the box derives, except at a CNAME, an ALIAS or a
-// delegation, where nothing is written.
+// delegation, where nothing is written. CONFIRM finish with MOVE ends it instead: an SPF loses its ip4/ip6 terms on
+// an OLD address, unless that leaves the NEW one uncovered; nothing else is planned.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
 if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
@@ -630,6 +631,31 @@ function spf_move(string $rec, string $domain, array $move, array $keep = []): s
 	return implode(" ", $out);
 }
 
+// SPF record REC of DOMAIN without its ip4/ip6 terms on an old address of MOVE, once the move is done; null while the
+// result would not cover the new address, so the move is not written yet. REC itself when it names no old address.
+/**
+ * @param array<string, string> $move
+ */
+function spf_finish(string $rec, string $domain, array $move): ?string
+{
+	$out = [];
+	$dropped = [];
+	foreach (preg_split('/\s+/', trim($rec)) ?: [] as $t) {
+		if (preg_match('/^[-+~?]?ip[46]:([0-9a-f.:]+)(\/\d+)?$/i', $t, $m) && isset($move[addr($m[1])])) {
+			$dropped[] = addr($m[1]);
+			continue;
+		}
+		$out[] = $t;
+	}
+	$new = implode(" ", $out);
+	foreach ($dropped as $old) {
+		if (!spf_pass_in_line($move[$old], $new, $domain)) {
+			return null;
+		}
+	}
+	return $dropped ? $new : $rec;
+}
+
 // The old address of MOVE a row's records carry, null for none: an A/AAAA holding it, an SPF naming it.
 /**
  * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
@@ -927,6 +953,7 @@ function added_ops(array $x, array $confirm): array
 function plan(array $results, string $section, string $object, string $delegation, array $confirm, ?array $move): void
 {
 	global $actual, $zone;
+	$finish = in_array("finish", $confirm, true);
 	$skip = [
 		"delegated" => "a delegated name, the zone does not answer for it",
 		"unchecked" => "public DNS did not answer, check again",
@@ -993,6 +1020,31 @@ function plan(array $results, string $section, string $object, string $delegatio
 			}
 			$status = $x["status"];
 			$hits = $x["hits"];
+			if ($move !== null && $finish) {
+				// Finishing touches only the SPF: every other record carries the new address once the move is written.
+				if ($type !== "TXT" || $x["d"][10] === "added") {
+					continue;
+				}
+				if ($x["kept"] !== null) {
+					if (kept_from($x["kept"], $type, $move) !== null) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "an exception holds the row: edit or lift it"];
+					}
+					continue;
+				}
+				foreach ($hits as $i) {
+					$old = txt($actual[$i][4]);
+					$new = spf_finish($old, fqdn($rel, $zone), $move);
+					if ($new === null) {
+						$ops[$k][] = ["skip", $rel, $type, "", $ttl, $value, "the new address is not in yet: write the move first"];
+					} elseif ($new !== $old) {
+						$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
+						// The note keeps the record out of the written ones in h-sync-dns-zone.
+						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
+						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the old address dropped, the move is done"];
+					}
+				}
+				continue;
+			}
 			if ($move !== null) {
 				$from = moved_from($x, $move);
 				if ($from === null && $x["status"] === "wildcard" && $x["kept"] === null) {

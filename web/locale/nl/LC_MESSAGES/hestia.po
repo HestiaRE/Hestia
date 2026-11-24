@@ -3649,7 +3649,18 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: web/templates/pages/list_dns_move.php
+#, php-format
+msgid "%d change goes to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards."
+msgid_plural "%d changes go to the providers. Only the old addresses leave the SPF records, the move is forgotten afterwards."
+msgstr[0] ""
+msgstr[1] ""
+
+#: web/templates/pages/list_dns_move.php
 msgid "Every zone is read again before the write: if one changed since this preview, nothing is written. Each zone is read once more afterwards and compared."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+msgid "Finish the DNS move"
 msgstr ""
 
 #: web/templates/pages/list_dns_move.php
@@ -3666,11 +3677,23 @@ msgid "Move DNS records"
 msgstr ""
 
 #: web/templates/pages/list_dns_move.php
+msgid "Nothing left to finish: no SPF record names an old address, or every one is left alone below."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
 msgid "Nothing to move: no record HestiaRE derives carries an old address, or every one is left alone below."
 msgstr ""
 
 #: web/templates/pages/list_dns_move.php
+msgid "Once the old box sends no more mail, finishing the move drops its addresses from the SPF records and forgets the move."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
 msgid "Once the records are moved, or when they are to stay, the move recorded by the restore can be forgotten. Nothing is written to a provider."
+msgstr ""
+
+#: web/templates/pages/list_dns_move.php
+msgid "Preview finishing the move"
 msgstr ""
 
 #: web/templates/pages/list_dns_move.php web/templates/pages/list_dns_sync.php

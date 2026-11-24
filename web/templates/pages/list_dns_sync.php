@@ -95,7 +95,7 @@ $dns_op_labels = [
 
 	<?php
 	$dns_confirm_labels = [
-		"cname" => [_("Replace the CNAME by records of its own"), _("Keep the CNAME")],
+		"cname" => [in_array("follow", $v_confirm, true) ? _("Replace the CNAME by the www include") : _("Replace the CNAME by records of its own"), _("Keep the CNAME")],
 		"include" => [_("Switch the www include off, www gets records of its own"), _("Keep the www include")],
 		"follow" => [_("Switch the www include on, www follows the apex again"), _("Keep the own www records")],
 		"normalize" => [_("Put the SPF record back to v=spf1 a mx ~all"), _("Keep the SPF record")],

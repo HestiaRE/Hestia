@@ -3859,6 +3859,10 @@ msgid "Replace the CNAME by records of its own"
 msgstr "CNAME durch eigene Einträge ersetzen"
 
 #: web/templates/pages/list_dns_sync.php
+msgid "Replace the CNAME by the www include"
+msgstr "CNAME durch das www-Include ersetzen"
+
+#: web/templates/pages/list_dns_sync.php
 msgid "Switch the www include off, www gets records of its own"
 msgstr "www-Include ausschalten, www bekommt eigene Einträge"
 

@@ -390,6 +390,12 @@ if [ "$create_user" = 'yes' ]; then
 			done < "$_entry" > "$USER_DATA/$_name"
 			continue
 		fi
+		# Notes a customer could have edited in the archive: checked like h-change-user-notes and marked as restored.
+		if [ "$_name" = "notes.txt" ]; then
+			user_notes_install "$_entry" "$USER_DATA" "$backup" 2> >(tee -a "$tmpdir/restore.log" >&2) \
+				|| echo "Warning!: the archived notes.txt was skipped" | tee -a $tmpdir/restore.log
+			continue
+		fi
 		if [ "$_name" = "backup-excludes.conf" ]; then
 			copy_record_filtered "$_entry" "$USER_DATA/$_name" backup_excludes 2> >(tee -a "$tmpdir/restore.log" >&2) \
 				|| echo "Warning!: the archived $_name carries no usable keys and was skipped" | tee -a $tmpdir/restore.log

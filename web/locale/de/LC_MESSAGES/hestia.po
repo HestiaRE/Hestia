@@ -752,6 +752,15 @@ msgstr "Keine IP-Adresse und kein Netz: %s"
 msgid "Please enter a valid contact name."
 msgstr "Bitte geben Sie einen gültigen Namen der Kontaktperson ein."
 
+#: web/edit/user/notes/index.php web/inc/helpers.php web/login/index.php
+#: web/reset/index.php web/reset2fa/index.php
+msgid "An internal error occurred"
+msgstr "Ein interner Fehler ist aufgetreten"
+
+#: web/edit/user/notes/index.php
+msgid "The notes were for another user than the one shown now. Nothing was saved."
+msgstr "Die Notizen galten einem anderen Benutzer als dem jetzt angezeigten. Es wurde nichts gespeichert."
+
 #: web/edit/web/index.php
 msgid "Container address must end in a number between 1 and 254."
 msgstr "Die Container-Adresse muss auf eine Zahl zwischen 1 und 254 enden."
@@ -834,11 +843,6 @@ msgstr "Organisation"
 #: web/generate/ssl/index.php
 msgid "State"
 msgstr "Bundesland"
-
-#: web/inc/helpers.php web/login/index.php web/reset/index.php
-#: web/reset2fa/index.php
-msgid "An internal error occurred"
-msgstr "Ein interner Fehler ist aufgetreten"
 
 #: web/inc/main.php
 #, php-format
@@ -1373,6 +1377,32 @@ msgstr "mindestens 8 Zeichen"
 #: web/templates/includes/password-requirements.php
 msgid "Password must include"
 msgstr "Passwort muss enthalten"
+
+#: web/templates/includes/user-notes.php
+#, php-format
+msgid "Notes on %s"
+msgstr "Notizen zu %s"
+
+#: web/templates/includes/user-notes.php
+#, php-format
+msgid "Restored from %s on %s: the customer could have changed them in the archive. Saving them marks them as checked."
+msgstr "Aus %s am %s wiederhergestellt: Der Kunde könnte sie im Archiv geändert haben. Speichern markiert sie als geprüft."
+
+#: web/templates/includes/user-notes.php
+msgid "Save notes"
+msgstr "Notizen speichern"
+
+#: web/templates/includes/user-notes.php
+msgid "The notes have been saved."
+msgstr "Die Notizen sind gespeichert."
+
+#: web/templates/includes/user-notes.php
+msgid "The notes on this user could not be read."
+msgstr "Die Notizen zu diesem Benutzer konnten nicht gelesen werden."
+
+#: web/templates/includes/user-notes.php
+msgid "not shown in the customer's panel, but part of their backup: no passwords or keys"
+msgstr "nicht im Panel des Kunden, aber Teil seines Backups: keine Passwörter oder Schlüssel"
 
 #: web/templates/pages/add_cron.php web/templates/pages/list_cron.php
 msgid "Add Cron Job"

@@ -230,6 +230,51 @@ copy_record_filtered() {
 	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
 }
 
+# user_notes_install SRC DIR [ORIGIN]: the admin's notes from SRC as DIR/notes.txt, CR and trailing blank lines dropped;
+# empty removes them. rc 2 with the reason on stderr for more than 64 KiB, a control byte but tab and newline, or not
+# UTF-8. ORIGIN (a tar archive restored from) is noted in notes-restored.conf until an admin saves them again: a
+# customer can edit the notes in an archive they hold.
+user_notes_install() {
+	local _src="$1" _dir="$2" _origin="${3-}" _tmp
+	if [ -d "$_dir/notes.txt" ] && [ ! -L "$_dir/notes.txt" ]; then
+		echo "notes.txt is a directory, remove it by hand" >&2
+		return 1
+	fi
+	if [ ! -f "$_src" ] || [ -L "$_src" ] || [ "$(stat -c %s "$_src")" -gt 65536 ]; then
+		echo "the notes are not a file of up to 64 KiB" >&2
+		return 2
+	fi
+	_tmp=$(mktemp "$_dir/.notes.XXXXXX") || return 1
+	tr -d '\r' < "$_src" | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}' > "$_tmp"
+	# Tab and newline stay; every other control byte, NUL included, is refused.
+	if ! LC_ALL=C tr -d '\000-\010\013-\037\177' < "$_tmp" | cmp -s - "$_tmp"; then
+		rm -f "$_tmp"
+		echo "the notes carry a control character" >&2
+		return 2
+	fi
+	if ! iconv -f UTF-8 -t UTF-8 "$_tmp" > /dev/null 2>&1; then
+		rm -f "$_tmp"
+		echo "the notes are not UTF-8" >&2
+		return 2
+	fi
+	if [ -z "$(tr -d '[:space:]' < "$_tmp")" ]; then
+		rm -f "$_tmp"
+		rm -f "$_dir/notes.txt" "$_dir/notes-restored.conf"
+		return 0
+	fi
+	chmod 600 "$_tmp"
+	# -T: a directory named notes.txt is an error, not a place to move into.
+	mv -fT "$_tmp" "$_dir/notes.txt" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	if [ -n "$_origin" ]; then
+		printf "ARCHIVE='%s'\nDATE='%s'\n" "${_origin//[^A-Za-z0-9._:-]/_}" "$(date +%F)" > "$_dir/notes-restored.conf"
+	else
+		rm -f "$_dir/notes-restored.conf"
+	fi
+}
+
 # System key registry readers (share/hestia/sys-keys.json). Loaded here because the panel's config
 # emitter and the repair both sit behind main.sh.
 # shellcheck source=/usr/local/hestia/include/sysreg.sh

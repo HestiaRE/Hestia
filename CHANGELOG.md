@@ -15,6 +15,12 @@ the releases of the command audit, into another.
 
 ### Added
 
+- **Admin notes on a user** (#1427). The six main lists (web, mail, databases, DNS, cron, backup) carry a notes field
+  above the footer for the admin, on their own account and while switched into a customer: extra software, special
+  ini settings and the like. The customer's panel never shows it; the notes travel with the user's backup, where a
+  customer can read them in a downloaded archive, so they hold no secrets. Notes from a restore stay marked as such
+  until an admin saves them, since the archive was the customer's to edit; restic keeps them in its metadata package,
+  which the customer cannot read.
 - **SPF and DMARC are edited on the zone page** (#1439). Both rows take a value of their own, kept as an exception that
   the next sync writes. An SPF stays one record starting with `v=spf1`; one that does not authorise the box is saved,
   and the row warns which addresses it leaves out. A DMARC starts with `v=DMARC1; p=` and `none`, `quarantine` or

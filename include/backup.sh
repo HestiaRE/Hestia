@@ -236,8 +236,11 @@ record_del_field() {
 BACKUP_CONTAINER='hestia'
 
 # BACKUP_USER_DATA_CORE: data-dir entries that travel in NEITHER direction, rebuilt per object
-# (web|mail|db|cron.conf, mail), box-local (backup.conf, dns-move.conf), gone (dns), or secret (restic.conf, auth.log).
-BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns-move.conf dns.conf dns restic.conf auth.log'
+# (web|mail|db|cron.conf, mail), box-local (backup.conf, dns-move.conf, notes-restored.conf), gone (dns), or secret
+# (restic.conf, auth.log).
+BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns-move.conf notes-restored.conf dns.conf dns
+restic.conf auth.log'
+BACKUP_USER_DATA_CORE=${BACKUP_USER_DATA_CORE//$'\n'/ }
 # What the container says about the ARCHIVE rather than about the customer: written into hestia/ by
 # the backup side, read by probe and restore, never copied into $USER_DATA. .gitea/tools/check-tree.sh
 # holds this against what the writers actually emit, because a hand-kept list is how the last two leaked.

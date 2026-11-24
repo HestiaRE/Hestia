@@ -38,6 +38,12 @@ the releases of the command audit, into another.
   Lifted, the exception leaves the record to the usual rules: an SPF that authorises the box and any DMARC stay as they
   are, "Normalize" or saving `p=none` and lifting go back to the derived form.
 
+### Security
+
+- **A customer could run commands as root through their stats folder** (#1464, upstream 1.10.10). The stats run put
+  every folder name below `stats/` into a sed script it ran as root. Only month folders (`YYYY-MM`) are listed now,
+  and that sed runs as the customer.
+
 ### Fixed
 
 - **"Apply" on www did nothing while the apex differed** (#1451). A www that AutoDNS mirrors from the apex (www

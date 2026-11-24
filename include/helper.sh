@@ -889,10 +889,10 @@ exim_authresults_apply() {
 
 # nginx answers without TLS 0-RTT: the shipped line goes off, one changed by hand stays as it is.
 nginx_early_data_off_apply() {
-	local f=/etc/nginx/nginx.conf keep
+	local f=/etc/nginx/nginx.conf keep d='ssl_early_data                  '
 	local c="# Off: 0-RTT is replayable, and with it on every nginx before 1.30.8/1.31.10 burns CPU (CVE-2026-132779)."
 	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
-	sed -i -E "s|^([[:space:]]*)ssl_early_data                  on;\$|\\1$c\\n\\1ssl_early_data                  off;|" "$f"
+	sed -i -E "s|^([[:space:]]*)${d}on;\$|\\1$c\\n\\1${d}off;|" "$f"
 	if nginx -t > /dev/null 2>&1 && systemctl reload nginx && systemctl is-active --quiet nginx; then
 		rm -f "$keep"
 		return 0

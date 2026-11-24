@@ -1286,7 +1286,12 @@ foreach ($desired as $dk => $d) {
 			if (added_canon($type, $actual[$i][2], $actual[$i][4]) === $want) {
 				$hits[] = $i;
 				$used[$i] = true;
-				$shown[] = $type === "TXT" ? txt($actual[$i][4]) : $actual[$i][4];
+				// MX and SRV with their priority, as a derived MX shows it: two that differ only there must not look alike.
+				$shown[] = match ($type) {
+					"TXT" => txt($actual[$i][4]),
+					"MX", "SRV" => (int) $actual[$i][2] . " " . $actual[$i][4],
+					default => $actual[$i][4],
+				};
 			}
 		}
 		$found = $shown;

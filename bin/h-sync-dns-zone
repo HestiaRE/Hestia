@@ -153,9 +153,6 @@ fi
 
 dnsp_check_zone "$zone" "$section" "$object" "$user" "$confirm" "$move" || check_failed $?
 row_only
-if [ "$section" = 'orphan' ] && [ -z "$DNSP_PLAN" ]; then
-	check_result "$E_NOTEXIST" "zone $zone holds no orphaned record of $user for $object"
-fi
 id=$(sha256sum <<< "$DNSP_PLAN" | cut -c 1-16)
 
 if [ "$plan" = 'preview' ]; then

@@ -1,0 +1,27 @@
+#!/bin/bash
+# info: list the admin's notes on a user
+# options: USER [FORMAT]
+#
+# example: h-list-user-notes alice json
+#
+# Prints the notes kept on USER (h-change-user-notes), nothing when there are none. FORMAT json gives {"NOTES": "..."}.
+
+user=$1
+format=${2-plain}
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+
+check_args '1' "$#" 'USER [FORMAT]'
+is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
+
+notes="$USER_DATA/notes.txt"
+[ -f "$notes" ] && [ ! -L "$notes" ] || notes=/dev/null
+case $format in
+	json) jq -Rs '{NOTES: .}' < "$notes" ;;
+	plain | shell) cat "$notes" ;;
+	*) check_result "$E_INVALID" "invalid format: $format" ;;
+esac

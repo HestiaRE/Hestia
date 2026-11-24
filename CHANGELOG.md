@@ -15,6 +15,9 @@ the releases of the command audit, into another.
 
 ### Added
 
+- **Admin notes on a user** (#1427). The six main lists (web, mail, databases, DNS, cron, backup) carry a notes field
+  above the footer for the admin, on their own account and while switched into a customer: extra software, special
+  ini settings and the like. Customers never see it, and the notes travel with the user's backup.
 - **SPF and DMARC are edited on the zone page** (#1439). Both rows take a value of their own, kept as an exception that
   the next sync writes. An SPF stays one record starting with `v=spf1`; one that does not authorise the box is saved,
   and the row warns which addresses it leaves out. A DMARC starts with `v=DMARC1; p=` and `none`, `quarantine` or

@@ -752,6 +752,15 @@ msgstr "Geen IP-adres of netwerk: %s"
 msgid "Please enter a valid contact name."
 msgstr "Voer een geldige naam in."
 
+#: web/edit/user/notes/index.php web/inc/helpers.php web/login/index.php
+#: web/reset/index.php web/reset2fa/index.php
+msgid "An internal error occurred"
+msgstr "Er is een interne error opgetreden"
+
+#: web/edit/user/notes/index.php
+msgid "The notes have been saved."
+msgstr ""
+
 #: web/edit/web/index.php
 msgid "Container address must end in a number between 1 and 254."
 msgstr "Het containeradres moet eindigen op een getal tussen 1 en 254."
@@ -834,11 +843,6 @@ msgstr "Organisatie"
 #: web/generate/ssl/index.php
 msgid "State"
 msgstr "Staat / Provincie"
-
-#: web/inc/helpers.php web/login/index.php web/reset/index.php
-#: web/reset2fa/index.php
-msgid "An internal error occurred"
-msgstr "Er is een interne error opgetreden"
 
 #: web/inc/main.php
 #, php-format
@@ -1373,6 +1377,23 @@ msgstr "Minimaal 8 tekens"
 #: web/templates/includes/password-requirements.php
 msgid "Password must include"
 msgstr "Wachtwoord moet bevatten"
+
+#: web/templates/includes/user-notes.php
+#, php-format
+msgid "Notes on %s"
+msgstr ""
+
+#: web/templates/includes/user-notes.php
+msgid "Save notes"
+msgstr ""
+
+#: web/templates/includes/user-notes.php
+msgid "The notes on this user could not be read."
+msgstr ""
+
+#: web/templates/includes/user-notes.php
+msgid "only admins see them, they travel with the backup"
+msgstr ""
 
 #: web/templates/pages/add_cron.php web/templates/pages/list_cron.php
 msgid "Add Cron Job"

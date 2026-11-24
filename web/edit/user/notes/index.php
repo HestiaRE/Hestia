@@ -22,8 +22,9 @@ if ($file !== false) {
 		exec(HESTIA_CMD . "h-change-user-notes " . $user . " " . quoteshellarg($file), $output, $return_var);
 		check_return_code($return_var, $output);
 		unset($output);
+		// The lists show no ok_msg, it would surface on a later page: the field confirms it itself.
 		if (empty($_SESSION["error_msg"])) {
-			$_SESSION["ok_msg"] = tohtml(_("The notes have been saved."));
+			$_SESSION["user_notes_saved"] = true;
 		}
 	}
 	@unlink($file);

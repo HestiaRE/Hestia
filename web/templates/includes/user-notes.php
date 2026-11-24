@@ -15,6 +15,10 @@ unset($notes_out, $notes_rc);
 			<?= tohtml(sprintf(_("Notes on %s"), trim($user, "'"))) ?>
 			<span class="hint"><?= tohtml(_("only admins see them, they travel with the backup")) ?></span>
 		</label>
+		<?php if (!empty($_SESSION["user_notes_saved"])) {
+			unset($_SESSION["user_notes_saved"]); ?>
+			<p class="u-text-small u-mb10"><i class="fas fa-circle-check icon-green u-mr5"></i><?= tohtml(_("The notes have been saved.")) ?></p>
+		<?php } ?>
 		<textarea class="form-control u-min-height100 u-allow-resize" name="v_notes" id="v_user_notes"><?= tohtml($v_notes) ?></textarea>
 		<button type="submit" class="button button-secondary u-mt10">
 			<i class="fas fa-floppy-disk icon-purple"></i><?= tohtml(_("Save notes")) ?>

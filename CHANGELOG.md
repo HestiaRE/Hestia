@@ -56,6 +56,10 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **A queued restore or backup that aborted stayed in the queue** (#1474, upstream 1.10.10). The queue runs its lines
+  as a script and each command removes its own, but a restore of an archive that was missing or could not be fetched,
+  and every restic command on any abort, left the line: it ran again on every pass, and no other restore or backup of
+  that customer could be scheduled. Every exit now removes it.
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
   and keeps running, the other versions restart. The reload used to report success while the master died. A new

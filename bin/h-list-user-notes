@@ -4,7 +4,8 @@
 #
 # example: h-list-user-notes alice json
 #
-# Prints the notes kept on USER (h-change-user-notes), nothing when there are none. FORMAT json gives {"NOTES": "..."}.
+# Prints the notes kept on USER (h-change-user-notes), nothing when there are none. FORMAT json gives {"NOTES": "...",
+# "RESTORED_FROM": ARCHIVE, "RESTORED_DATE": DATE}, both set while notes from a restore are not saved again.
 
 user=$1
 format=${2-plain}
@@ -20,8 +21,13 @@ is_object_valid 'user' 'USER' "$user"
 
 notes="$USER_DATA/notes.txt"
 [ -f "$notes" ] && [ ! -L "$notes" ] || notes=/dev/null
+# Restored notes stay marked until an admin saves them: the archive was the customer's to edit.
+ARCHIVE=''
+DATE=''
+[ -f "$USER_DATA/notes-restored.conf" ] && [ ! -L "$USER_DATA/notes-restored.conf" ] \
+	&& source_conf "$USER_DATA/notes-restored.conf"
 case $format in
-	json) jq -Rs '{NOTES: .}' < "$notes" ;;
+	json) jq -Rs --arg a "$ARCHIVE" --arg d "$DATE" '{NOTES: ., RESTORED_FROM: $a, RESTORED_DATE: $d}' < "$notes" ;;
 	plain | shell) cat "$notes" ;;
 	*) check_result "$E_INVALID" "invalid format: $format" ;;
 esac

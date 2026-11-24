@@ -5,7 +5,8 @@
 # example: h-change-user-notes alice /tmp/notes.txt
 #
 # Replaces the notes kept on USER (extra software, special ini settings and the like) by the text in FILE; an empty
-# text removes them. Only an admin reads them, and they travel with the user's backup. The panel passes a temp file.
+# text removes them. The customer's panel never shows them, but they travel in the user's backup, which the customer
+# can download: no secrets. The panel passes a temp file.
 
 user=$1
 file=$2
@@ -20,27 +21,12 @@ check_args '2' "$#" 'USER FILE'
 is_format_valid 'user'
 is_object_valid 'user' 'USER' "$user"
 [ -f "$file" ] && [ ! -L "$file" ] || check_result "$E_NOTEXIST" "file $file does not exist"
-[ "$(stat -c %s "$file")" -le 65536 ] || check_result "$E_INVALID" "the notes are longer than 64 KiB"
-
-notes=$(mktemp "$USER_DATA/.notes.XXXXXX") || check_result "$E_DISK" "cannot write the notes of $user"
-# A textarea sends CRLF; trailing blank lines are dropped so an empty field means no notes.
-tr -d '\r' < "$file" | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}' > "$notes"
-# Tab and newline stay; every other control byte, NUL included, is refused.
-if ! LC_ALL=C tr -d '\000-\010\013-\037\177' < "$notes" | cmp -s - "$notes"; then
-	rm -f "$notes"
-	check_result "$E_INVALID" "the notes carry a control character"
-fi
-if ! iconv -f UTF-8 -t UTF-8 "$notes" > /dev/null 2>&1; then
-	rm -f "$notes"
-	check_result "$E_INVALID" "the notes are not UTF-8"
-fi
-
-if [ -n "$(tr -d '[:space:]' < "$notes")" ]; then
-	chmod 600 "$notes"
-	mv -f "$notes" "$USER_DATA/notes.txt" || check_result "$E_DISK" "cannot write the notes of $user"
+err=$(user_notes_install "$file" "$USER_DATA" 2>&1)
+rc=$?
+[ "$rc" -eq 0 ] || check_result "$([ "$rc" -eq 2 ] && echo "$E_INVALID" || echo "$E_DISK")" "${err:-cannot write the notes of $user}"
+if [ -f "$USER_DATA/notes.txt" ]; then
 	"$BIN/h-log-action" "system" "Info" "Users" "Notes changed (User: $user)."
 else
-	rm -f "$notes" "$USER_DATA/notes.txt"
 	"$BIN/h-log-action" "system" "Info" "Users" "Notes removed (User: $user)."
 fi
 log_event "$OK" "$ARGUMENTS"

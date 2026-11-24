@@ -13,6 +13,19 @@ if (($_SESSION["adminContext"] ?? "") !== "admin") {
 	header("Location: /login/");
 	exit();
 }
+$back = (string) ($_POST["v_back"] ?? "");
+$location = "Location: " . (in_array($back, USER_NOTES_PAGES, true) ? "/list/$back/" : "/list/web/");
+// The user the form was for: another tab may have switched to someone else since, whose notes it must not overwrite.
+if ((string) ($_POST["v_user"] ?? "") !== $user_plain) {
+	$_SESSION["error_msg"] = _("The notes were for another user than the one shown now. Nothing was saved.");
+	header($location);
+	exit();
+}
+// The protected admin account is read only (policies.php), the form leaves out its button.
+if (is_root_user($_SESSION["look"] ?? "") && ($_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] ?? "") === "yes") {
+	header($location);
+	exit();
+}
 
 $file = private_tmpfile("hst-notes-");
 if ($file !== false) {
@@ -31,6 +44,5 @@ if ($file !== false) {
 }
 
 // Back to the list the form was on, never to an address the request names freely.
-$back = (string) ($_POST["v_back"] ?? "");
-header("Location: " . (in_array($back, USER_NOTES_PAGES, true) ? "/list/$back/" : "/list/web/"));
+header($location);
 exit();

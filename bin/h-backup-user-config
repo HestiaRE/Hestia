@@ -56,6 +56,12 @@ if [ -e "$USER_DATA/history.log" ]; then
 	cp -r $USER_DATA/history.log $tmpdir/hestia/
 fi
 
+# The admin's notes; this package is not the customer's to read, unlike the tar archive.
+if [ -f "$USER_DATA/notes.txt" ] && [ ! -L "$USER_DATA/notes.txt" ]; then
+	echo -e "$(date "+%F %T") notes.txt" | tee -a $BACKUP/$user/$user.log
+	cp "$USER_DATA/notes.txt" $tmpdir/hestia/
+fi
+
 if [ -e "$USER_DATA/backup-excludes.conf" ]; then
 	echo -e "$(date "+%F %T") backup-excludes.conf" | tee -a $BACKUP/$user/$user.log
 	cp -r $USER_DATA/backup-excludes.conf $tmpdir/hestia/

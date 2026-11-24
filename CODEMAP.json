@@ -1250,7 +1250,7 @@
       "upstream_ref": "upstream v-open-fs-config filtered by keyword (nginx|ssh|hestia ...) plus /etc, which let it read the SSH host keys and the credential files"
     },
     "user_notes": {
-      "description": "Admin notes on a user (#1427): free text in $USER_DATA/notes.txt (root only, 600), so a customer never reads it and the backup takes it along as one more entry of the data directory, restored the same way (not in BACKUP_USER_DATA_CORE). h-change-user-notes USER FILE takes the text from a file (the panel passes a private temp file), drops CR and trailing blank lines, refuses control bytes but tab and newline, non-UTF-8 and more than 64 KiB, and removes the file on an empty text; h-list-user-notes USER [json]. The panel shows a textarea above the footer of the six main lists (USER_NOTES_PAGES in web/inc/main.php: web, mail, db, dns, cron, backup; render_page includes web/templates/includes/user-notes.php) for the real admin (adminContext), switched into a customer or on their own account, never on subpages; a failed read shows no form, so an empty field never overwrites notes that only did not load. POST web/edit/user/notes/ checks CSRF and adminContext again and returns to the list named in v_back (only one of USER_NOTES_PAGES).",
+      "description": "Admin notes on a user (#1427): free text in $USER_DATA/notes.txt (root only, 600). The customer's panel never shows it, but the tar backup takes it along as one more entry of the data directory, and that archive is the customer's to download: readable there, so no secrets (the hint says so). user_notes_install in include/main.sh is the one writer: CR and trailing blank lines dropped, control bytes but tab and newline, non-UTF-8 and more than 64 KiB refused, mv -T, empty removes; with an ORIGIN (h-restore-user: the archive, h-restore-user-full-restic: restic:SNAPSHOT) it notes notes-restored.conf (box-local, in BACKUP_USER_DATA_CORE) until an admin saves, since a customer can edit the notes in an archive they hold. restic carries notes.txt in the metadata package (h-backup-user-config), which the customer cannot read. h-change-user-notes USER FILE (the panel passes a private temp file); h-list-user-notes USER [json] gives NOTES, RESTORED_FROM, RESTORED_DATE. The panel shows a textarea right above the footer of the six main lists (USER_NOTES_PAGES in web/inc/main.php: web, mail, db, dns, cron, backup; render_page includes web/templates/includes/user-notes.php; light.css .app-content:has(> .user-notes)) for the real admin (adminContext), switched into a customer or on their own account, never on subpages, read only on the protected admin account; a failed read shows no form, so an empty field never overwrites notes that only did not load. POST web/edit/user/notes/ checks CSRF, adminContext, the protected admin and that v_user is the user shown now (a stale tab must not write into another user's notes), and returns to the list named in v_back (only one of USER_NOTES_PAGES).",
       "entry_points": [
         "bin/h-change-user-notes",
         "bin/h-list-user-notes"
@@ -1259,8 +1259,13 @@
         "web/edit/user/notes/index.php",
         "web/templates/includes/user-notes.php",
         "web/inc/main.php",
+        "include/main.sh",
+        "include/backup.sh",
         "bin/h-backup-user",
-        "bin/h-restore-user"
+        "bin/h-backup-user-config",
+        "bin/h-restore-user",
+        "bin/h-restore-user-full-restic",
+        "web/css/src/themes/light.css"
       ]
     },
     "panel_port": {

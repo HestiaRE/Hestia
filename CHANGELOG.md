@@ -22,6 +22,9 @@ the releases of the command audit, into another.
 - **www can follow the apex in place of a CNAME** (#1454). `follow` together with `cname` switches the www include on
   and removes the CNAME or ALIAS at www, which would otherwise win over the include in public DNS. `follow` alone
   offers the cname confirmation in the preview.
+- **Authentication-Results shows SPF and DMARC** (#1455). Where rspamd scans a mail, exim's header carries rspamd's
+  `spf=` and `dmarc=` beside its own iprev and DKIM, in one header. Without rspamd, or for a mail it does not scan,
+  exim's own line stays as it was. An installed box gets it through the update.
 - **Admin notes on a user** (#1427). The six main lists (web, mail, databases, DNS, cron, backup) carry a notes field
   above the footer for the admin, on their own account and while switched into a customer: extra software, special
   ini settings and the like. The customer's panel never shows it; the notes travel with the user's backup, where a

@@ -1,0 +1,35 @@
+--- a/exim4.conf.template
++++ b/exim4.conf.template
+@@ -38,6 +38,10 @@
+ 
+ .ifdef RSPAMD
+ spamd_address = /run/rspamd/normal.sock variant=rspamd
++# SPF and DMARC as rspamd judged them, for exim's Authentication-Results: exim checks neither. Empty without a scan.
++AUTHRES_SPF = ${if match{$spam_report}{\N\bR_SPF_ALLOW\b\N}{pass}{${if match{$spam_report}{\N\bR_SPF_FAIL\b\N}{fail}{${if match{$spam_report}{\N\bR_SPF_SOFTFAIL\b\N}{softfail}{${if match{$spam_report}{\N\bR_SPF_NEUTRAL\b\N}{neutral}{${if match{$spam_report}{\N\bR_SPF_NA\b\N}{none}{${if match{$spam_report}{\N\bR_SPF_DNSFAIL\b\N}{temperror}{${if match{$spam_report}{\N\bR_SPF_PERMFAIL\b\N}{permerror}{}}}}}}}}}}}}}}
++AUTHRES_DMARC = ${if match{$spam_report}{\N\bDMARC_POLICY_ALLOW(_WITH_FAILURES)?\b\N}{pass}{${if match{$spam_report}{\N\bDMARC_POLICY_(REJECT|QUARANTINE|SOFTFAIL)\b\N}{fail}{${if match{$spam_report}{\N\bDMARC_NA\b\N}{none}{${if match{$spam_report}{\N\bDMARC_DNSFAIL\b\N}{temperror}{${if match{$spam_report}{\N\bDMARC_BAD_POLICY\b\N}{permerror}{}}}}}}}}}}
++AUTHRES_EXTRA = ${if eq{AUTHRES_SPF}{}{}{;\n\tspf=AUTHRES_SPF smtp.mailfrom=${if def:sender_address_domain{$sender_address_domain}{$sender_helo_name}}}}${if eq{AUTHRES_DMARC}{}{}{;\n\tdmarc=AUTHRES_DMARC header.from=${lc:${domain:${address:$h_from:}}}}}
+ .endif
+ 
+ .ifdef CLAMD
+@@ -294,8 +298,10 @@
+ 
+ 
+ acl_check_data:
++.ifndef RSPAMD
+   warn   !authenticated = *
+          add_header     = :at_start:${authresults{$primary_hostname}}
++.endif
+ 
+ .ifdef CLAMD
+   deny   message        = Message contains a virus ($malware_name) and has been rejected
+@@ -318,6 +324,10 @@
+         add_header     = X-Spam-Report: $spam_report
+         set acl_m2     = $spam_score_int
+ 
++  # One Authentication-Results: exim's own, with rspamd's SPF and DMARC where it scanned the mail.
++ warn   !authenticated = *
++        add_header     = :at_start:${authresults{$primary_hostname}}AUTHRES_EXTRA
++
+  warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
+         condition      = ${if >{$acl_m2}{$acl_m4} {no}{yes}}
+         add_header     = X-Spam-Status: No, score=$spam_score required=${eval:$acl_m4/10}.${eval:$acl_m4%10}

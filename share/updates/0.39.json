@@ -26,7 +26,7 @@
     },
     {
       "id": "nginx-early-data-off",
-      "description": "nginx answers without TLS 0-RTT: with ssl_early_data on, every nginx before 1.30.8 and 1.31.10 can be made to burn CPU (CVE-2026-132779), the OS packages of all four targets among them. 0-RTT saved one round trip on a resumed connection. Skipped where the line was changed by hand",
+      "description": "nginx answers without TLS 0-RTT: with ssl_early_data on, nginx 1.21.4 to 1.31.9 can be made to burn CPU (CVE-2026-132779), the OS packages of all four targets among them. 0-RTT saved one round trip on a resumed connection. Where the line was changed by hand it stays, and the update says so",
       "conditions": [
         { "type": "file_contains", "path": "/etc/nginx/nginx.conf", "value": "ssl_early_data                  on;" }
       ],

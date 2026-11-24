@@ -890,9 +890,16 @@ exim_authresults_apply() {
 # nginx answers without TLS 0-RTT: the shipped line goes off, one changed by hand stays as it is.
 nginx_early_data_off_apply() {
 	local f=/etc/nginx/nginx.conf keep d='ssl_early_data                  '
-	local c="# Off: 0-RTT is replayable, and with it on every nginx before 1.30.8/1.31.10 burns CPU (CVE-2026-132779)."
+	local c="# Off: 0-RTT is replayable, and with it on nginx 1.21.4 to 1.31.9 can be made to burn CPU"
+	c+=" (CVE-2026-132779)."
 	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
 	sed -i -E "s|^([[:space:]]*)${d}on;\$|\\1$c\\n\\1${d}off;|" "$f"
+	# The condition finds the line anywhere in the file, the sed only in the shipped form.
+	if cmp -s "$f" "$keep"; then
+		rm -f "$keep"
+		echo "[ ! ] ssl_early_data in $f is not in the shipped form and stays as it is: check it by hand."
+		return 0
+	fi
 	if nginx -t > /dev/null 2>&1 && systemctl reload nginx && systemctl is-active --quiet nginx; then
 		rm -f "$keep"
 		return 0

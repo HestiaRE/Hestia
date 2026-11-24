@@ -232,10 +232,14 @@ copy_record_filtered() {
 
 # user_notes_install SRC DIR [ORIGIN]: the admin's notes from SRC as DIR/notes.txt, CR and trailing blank lines dropped;
 # empty removes them. rc 2 with the reason on stderr for more than 64 KiB, a control byte but tab and newline, or not
-# UTF-8. ORIGIN (an archive restored from) is noted in notes-restored.conf until an admin saves them again: a customer
-# can edit the notes in an archive they hold.
+# UTF-8. ORIGIN (a tar archive restored from) is noted in notes-restored.conf until an admin saves them again: a
+# customer can edit the notes in an archive they hold.
 user_notes_install() {
 	local _src="$1" _dir="$2" _origin="${3-}" _tmp
+	if [ -d "$_dir/notes.txt" ] && [ ! -L "$_dir/notes.txt" ]; then
+		echo "notes.txt is a directory, remove it by hand" >&2
+		return 1
+	fi
 	if [ ! -f "$_src" ] || [ -L "$_src" ] || [ "$(stat -c %s "$_src")" -gt 65536 ]; then
 		echo "the notes are not a file of up to 64 KiB" >&2
 		return 2

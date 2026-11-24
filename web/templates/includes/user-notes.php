@@ -5,8 +5,9 @@ $notes = $notes_rc === 0 ? json_decode(implode("\n", $notes_out), true) : null;
 $v_notes = is_array($notes) && is_string($notes["NOTES"] ?? null) ? $notes["NOTES"] : null;
 $v_notes_from = is_array($notes) ? (string) ($notes["RESTORED_FROM"] ?? "") : "";
 $v_notes_date = is_array($notes) ? (string) ($notes["RESTORED_DATE"] ?? "") : "";
-// The protected admin account is read only, as on every other list.
-$v_notes_ro = ($read_only ?? "") === "true";
+// Read only on the protected admin account only: $read_only also covers a suspended customer, whose notes are still
+// the admin's to edit.
+$v_notes_ro = is_root_user($_SESSION["look"] ?? "") && ($_SESSION["POLICY_SYSTEM_PROTECTED_ADMIN"] ?? "") === "yes";
 unset($notes_out, $notes_rc, $notes);
 ?>
 <div class="container user-notes">

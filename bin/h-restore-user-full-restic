@@ -90,7 +90,8 @@ copy_record_filtered "$tmpdir/hestia/user.conf" "$USER_DATA/user.conf" user \
 	|| restore_refuse "$E_PARSING" "the archived user.conf of $user carries no usable keys"
 cp -r "$tmpdir/hestia/ssl" "$USER_DATA/" > /dev/null 2>&1
 if [ -f "$tmpdir/hestia/notes.txt" ] && [ ! -L "$tmpdir/hestia/notes.txt" ]; then
-	user_notes_install "$tmpdir/hestia/notes.txt" "$USER_DATA" "restic:$snapshot" \
+	# No origin mark: the metadata package is not the customer's to read or edit, unlike a tar archive.
+	user_notes_install "$tmpdir/hestia/notes.txt" "$USER_DATA" \
 		|| echo "Warning: the archived notes.txt was skipped"
 fi
 # Filtered like user.conf: it runs through source_conf later; an absent one is normal.

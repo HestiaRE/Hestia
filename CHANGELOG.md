@@ -49,6 +49,9 @@ the releases of the command audit, into another.
 - **nginx answers without TLS 0-RTT** (#1468, CVE-2026-132779). With `ssl_early_data on`, as we shipped it, nginx
   1.21.4 to 1.31.9 can be made to burn CPU, the OS packages of all four targets among them. The update switches the
   shipped line off; one changed by hand stays, and the update says so.
+- **A new user name has at least three characters, and `mys` and `mysq` are reserved** (#1472). A database is named
+  `<user>_<name>`, and a short prefix sat one wildcard away from the system databases (see #1466). Only creating an
+  account checks it, the restore of a new one included; existing short names keep working.
 
 ### Fixed
 

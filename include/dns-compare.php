@@ -30,7 +30,8 @@
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
 // it in an ip4/ip6 term or covering it only through a and mx. Only that address goes from an A/AAAA; an SPF keeps it
 // beside the new one, or as a term of its own beside a and mx. A row with an exception or whose derived value is not
-// the NEW one is left alone. SPF is judged by the zone once it is in line, so a and mx cover what the box derives.
+// the NEW one is left alone. SPF is judged by the zone once it is in line, so a and mx cover what the box derives,
+// except at a CNAME, an ALIAS or a delegation, where nothing is written.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
 if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
@@ -262,6 +263,10 @@ function rel_of(string $name, string $zone): ?string
 function in_line_at(string $rel, string $type): ?array
 {
 	global $desired, $kept;
+	// The plan writes nothing at a CNAME, an ALIAS or a delegation, so the provider's answer stays the one that counts.
+	if (at($rel, "CNAME") || at($rel, "ALIAS") || delegated($rel) !== "") {
+		return null;
+	}
 	$vals = [];
 	$derived = false;
 	foreach ($desired as $d) {

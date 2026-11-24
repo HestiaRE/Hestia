@@ -46,6 +46,9 @@ the releases of the command audit, into another.
 - **A customer could get rights on another database, up to MariaDB root** (#1466, upstream 1.10.10). A grant named
   its database unescaped, where `_` and `%` are wildcards, so customer `mys` with database `l` held rights on `mysql`.
   Every grant names its database exactly now, and the update replaces the old grants on an installed box.
+- **nginx answers without TLS 0-RTT** (#1468, CVE-2026-132779). With `ssl_early_data on`, as we shipped it, every
+  nginx before 1.30.8 and 1.31.10 can be made to burn CPU, the OS packages of all four targets among them. The
+  update switches the shipped line off and leaves one changed by hand alone.
 
 ### Fixed
 

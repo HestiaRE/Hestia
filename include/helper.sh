@@ -887,6 +887,23 @@ exim_authresults_apply() {
 	exim_template_patch 0.39/exim-authresults-rspamd.patch
 }
 
+# nginx answers without TLS 0-RTT: the shipped line goes off, one changed by hand stays as it is.
+nginx_early_data_off_apply() {
+	local f=/etc/nginx/nginx.conf keep
+	local c="# Off: 0-RTT is replayable, and with it on every nginx before 1.30.8/1.31.10 burns CPU (CVE-2026-132779)."
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	sed -i -E "s|^([[:space:]]*)ssl_early_data                  on;\$|\\1$c\\n\\1ssl_early_data                  off;|" "$f"
+	if nginx -t > /dev/null 2>&1 && systemctl reload nginx && systemctl is-active --quiet nginx; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl reload nginx
+	echo '[ ! ] nginx did not take ssl_early_data off, it stays on.'
+	return 0
+}
+
 # The aliases lines of a mail domain's accounts, that is its forwards, without those exim keeps for :blackhole:.
 forward_exim_lines() { # CONF_MAIL_DOMAIN_DIR
 	[ -s "$1/passwd" ] && [ -s "$1/aliases" ] || return 0

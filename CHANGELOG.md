@@ -13,6 +13,13 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **SPF and DMARC are edited on the zone page** (#1439). Both rows take a value of their own, kept as an exception that
+  the next sync writes and lifting returns to the derived one. An SPF stays one record starting with `v=spf1`; one
+  that does not authorise the box is saved, and the row warns which addresses it leaves out. A DMARC starts with
+  `v=DMARC1` and needs `p=none`, `quarantine` or `reject`, the other tags are free.
+
 ### Fixed
 
 - **A server move dropped the old box from an SPF that relies on `a` and `mx`** (#1439). The move only knew address

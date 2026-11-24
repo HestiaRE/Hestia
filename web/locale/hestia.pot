@@ -1524,6 +1524,7 @@ msgstr ""
 #: web/templates/pages/edit_server_service.php
 #: web/templates/pages/edit_user.php web/templates/pages/edit_web.php
 #: web/templates/pages/edit_whitelabel.php
+#: web/templates/pages/list_dns_zone.php
 msgid "Save"
 msgstr ""
 
@@ -3850,6 +3851,14 @@ msgid "Compared with account %s just now: every record HestiaRE derives is in pl
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
+msgid "Edit DMARC"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Edit SPF"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
 msgid "Forget"
 msgstr ""
 
@@ -3875,6 +3884,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Keep without this record"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Kept as an exception: the next sync writes it, lifting it returns to the derived value."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -3919,6 +3932,14 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Remove the record from the provider. A preview shows the write first."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed."
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

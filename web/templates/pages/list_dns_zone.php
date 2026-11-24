@@ -278,6 +278,39 @@ foreach ($sections as $s) {
 								</form>
 							<?php } ?>
 							<?php
+							// SPF and DMARC take a value of the user's own, kept as an exception that the sync then writes.
+							$editable = $r["TYPE"] === "TXT" && empty($r["ADDED"]) && $r["STATUS"] !== "delegated"
+								&& preg_match('/^v=(spf1|dmarc1)\b/i', $r["VALUE"], $kind) === 1;
+						if ($editable) {
+							$spf = strtolower($kind[1]) === "spf1";
+							$current = array_values(array_filter(
+								empty($r["EXCEPTION"]) ? ($r["FOUND"] ?? []) : ($r["KEPT"] ?? []),
+								fn ($v) => preg_match('/^v=' . $kind[1] . '\b/i', $v) === 1
+							));
+							?>
+								<details class="u-mt10">
+									<summary><?= tohtml($spf ? _("Edit SPF") : _("Edit DMARC")) ?></summary>
+									<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "exception" => 1])) ?>">
+										<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
+										<input type="hidden" name="v_owner" value="<?= tohtml($s["owner"]) ?>">
+										<input type="hidden" name="v_record" value="<?= tohtml($r["NAME"]) ?>">
+										<input type="hidden" name="v_type" value="<?= tohtml($r["TYPE"]) ?>">
+										<input type="hidden" name="v_anchor" value="<?= tohtml(($s["kind"] === "mail" ? "obj-mail-" : "obj-") . $s["object"]) ?>">
+										<input type="hidden" name="v_action" value="keep">
+										<input type="text" class="form-control u-mb10" name="v_edit" required value="<?= tohtml(count($current) === 1 ? $current[0] : $r["VALUE"]) ?>">
+										<p class="u-text-muted u-text-small u-mb10">
+											<?= tohtml($spf
+												? _("Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns.")
+												: _("Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed.")) ?>
+											<?= tohtml(_("Kept as an exception: the next sync writes it, lifting it returns to the derived value.")) ?>
+										</p>
+										<button type="submit" class="button button-secondary">
+											<i class="fas fa-pencil icon-blue"></i><?= tohtml(_("Save")) ?>
+										</button>
+									</form>
+								</details>
+							<?php } ?>
+							<?php
 						$row_query = $sync_query + ["record" => $r["NAME"], "type" => $r["TYPE"]];
 						$applicable = in_array($r["STATUS"], ["missing", "different", "cname", "wildcard"], true);
 						// Offered for an SPF record other than the standard one, whatever its status.

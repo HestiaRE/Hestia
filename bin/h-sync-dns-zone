@@ -234,7 +234,7 @@ if [ -n "$writes" ]; then
 		[ -n "$value" ] && dns_written_add "$user" "$zone" "$section" "$object" "$rel" "$type" "$value"
 	done <<< "$(awk -F '\t' 'BEGIN { OFS = FS } $1 == "add" && $7 != "merged into the existing record" &&
 		$7 != "the new address beside the old one" && $7 != "the old address kept beside a and mx" &&
-		$7 != "the old address dropped, the move is done" &&
+		index($7, "the old address dropped, the move is done") != 1 &&
 		$7 !~ /^an added record/ {
 		print $2, $3, ($4 != "" ? $4 " " : "") $6 }' <<< "$writes")"
 fi

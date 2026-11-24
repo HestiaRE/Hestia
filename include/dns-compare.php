@@ -656,6 +656,28 @@ function spf_finish(string $rec, string $domain, array $move): ?string
 	return $dropped ? $new : $rec;
 }
 
+// The ip4/ip6 ranges of SPF record REC that still take in an old address of MOVE: finishing leaves them standing.
+/**
+ * @param array<string, string> $move
+ * @return list<string>
+ */
+function spf_old_ranges(string $rec, array $move): array
+{
+	$out = [];
+	foreach (preg_split('/\s+/', trim($rec)) ?: [] as $t) {
+		if (!preg_match('/^[-+~?]?ip[46]:([0-9a-f.:]+)\/(\d+)$/i', $t, $m)) {
+			continue;
+		}
+		foreach (array_keys($move) as $old) {
+			if (in_cidr((string) $old, $m[1], (int) $m[2])) {
+				$out[] = $t;
+				break;
+			}
+		}
+	}
+	return $out;
+}
+
 // The old address of MOVE a row's records carry, null for none: an A/AAAA holding it, an SPF naming it.
 /**
  * @param array{d: list<string>, status: string, base: string, hits: list<int>, missed: list<string>, kept: ?list<string>} $x
@@ -1040,7 +1062,9 @@ function plan(array $results, string $section, string $object, string $delegatio
 						$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
 						// The note keeps the record out of the written ones in h-sync-dns-zone.
 						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
-						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the old address dropped, the move is done"];
+						$ranges = spf_old_ranges($new, $move);
+						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the old address dropped, the move is done"
+							. ($ranges ? "; " . implode(" ", $ranges) . " still takes it in" : "")];
 					}
 				}
 				continue;

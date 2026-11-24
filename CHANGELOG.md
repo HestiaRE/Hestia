@@ -30,6 +30,8 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **"Apply" on www did nothing while the apex differed** (#1451). A www that AutoDNS mirrors from the apex (www
+  include) only changes with the apex, so its row now takes the apex write along; the preview says so.
 - **A server move passed silently over records kept as an exception** (#1442). A row with an exception is never moved,
   so an SPF or A exception on the old address stayed as it was and the preview did not say so. It now shows a skip
   line naming the old address, and the summary counts it among the records left alone.

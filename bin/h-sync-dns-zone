@@ -70,16 +70,30 @@ sync_log() {
 }
 
 # row_only: the plan of the row RECORD TYPE alone. The include goes with www, and every www address with it; a CNAME
-# or ALIAS goes only along with a write of the row that replaces it.
+# or ALIAS goes only along with a write of the row that replaces it. A www mirrored by the include takes the apex write.
 row_only() {
+	local follows=''
 	[ -n "$record" ] || return 0
-	DNSP_PLAN=$(awk -F '\t' -v r="$record" -v t="$rtype" '{ l[NR] = $0; op[NR] = $1; rr[NR] = $2; tt[NR] = $3 }
+	# A www that answers through the include changes only with the apex: its row takes the apex write along.
+	if [ "$record" = 'www' ] && awk -F '\t' -v t="$rtype" '$1 == "www" && $2 == t && $6 == "include" { f = 1 }
+		END { exit !f }' <<< "$DNSP_ACTUAL"; then
+		follows=1
+	fi
+	DNSP_PLAN=$(awk -F '\t' -v r="$record" -v t="$rtype" -v fw="$follows" 'BEGIN { OFS = FS }
+		{ l[NR] = $0; op[NR] = $1; rr[NR] = $2; tt[NR] = $3 }
 		$1 == "include" { inc = 1 } END { for (i = 1; i <= NR; i++) {
 			cn[i] = rr[i] == r && op[i] == "rem" && (tt[i] == "CNAME" || tt[i] == "ALIAS")
 			own[i] = rr[i] == r && (tt[i] == t || tt[i] == "" || (inc && (tt[i] == "A" || tt[i] == "AAAA")))
+			apex[i] = fw && rr[i] == "@" && tt[i] == t && op[i] != "skip"
 			if (own[i] && op[i] != "skip") any = 1 }
-		for (i = 1; i <= NR; i++) if (own[i] || (any && cn[i])) print l[i] }' \
-		<<< "$DNSP_PLAN")
+		for (i = 1; i <= NR; i++) {
+			if (own[i] || (any && cn[i])) print l[i]
+			else if (apex[i] && !any) {
+				n = split(l[i], f, "\t")
+				if (f[7] == "") f[7] = "the apex, www follows it"
+				out = f[1]; for (j = 2; j <= (n < 7 ? 7 : n); j++) out = out OFS f[j]; print out
+			}
+		} }' <<< "$DNSP_PLAN")
 }
 
 check_failed() {

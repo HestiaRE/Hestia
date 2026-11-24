@@ -26,7 +26,8 @@
 // OWNER, so no foreign record is touched, and nothing is written to a zone the public name servers do not point at.
 // CONFIRM (comma separated) allows what is never done unasked: cname replaces a CNAME or ALIAS at a name by the
 // section's records or by an added one to another target, include switches the www include off so that www can
-// differ from the apex, follow switches it on again where www derives what the apex holds, normalize puts the SPF
+// differ from the apex, follow switches it on again where www derives what the apex holds (with cname also in
+// place of a CNAME or ALIAS at www, which would win over the include in public DNS), normalize puts the SPF
 // record back to the standard "v=spf1 a mx ~all".
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
 // it in an ip4/ip6 term or covering it only through a and mx. Only that address goes from an A/AAAA; an SPF keeps it
@@ -848,11 +849,13 @@ function follow_refused(
 	string $delegation,
 	array $apexWant,
 	array $apexDone,
+	bool $cname,
 ): string {
 	if ($delegation !== "") {
 		return $delegation;
 	}
-	foreach (["CNAME", "ALIAS", "NS"] as $type) {
+	// A CNAME or ALIAS goes on the cname confirmation, as it does for records of the section's own.
+	foreach ($cname ? ["NS"] : ["CNAME", "ALIAS", "NS"] as $type) {
 		if (at("www", $type)) {
 			return "a record of type $type holds www";
 		}
@@ -1022,10 +1025,13 @@ function plan(array $results, string $section, string $object, string $delegatio
 				}
 			}
 			if (in_array("follow", $confirm, true) && !$include && $move === null) {
-				$why = follow_refused($results, $section, $object, $delegation, $apexWant, $apexDone);
+				$why = follow_refused($results, $section, $object, $delegation, $apexWant, $apexDone,
+					in_array("cname", $confirm, true));
 				$follow = $why === "";
 				if (!$follow) {
-					$ops[-1] = [["skip", "www", "", "", "", "", "www cannot follow the apex: $why"]];
+					$byCname = !in_array("cname", $confirm, true)
+						&& follow_refused($results, $section, $object, $delegation, $apexWant, $apexDone, true) === "";
+					$ops[-1] = [["skip", "www", "", "", "", "", "www cannot follow the apex: $why", $byCname ? "cname" : ""]];
 				}
 			}
 		}
@@ -1280,6 +1286,10 @@ function plan(array $results, string $section, string $object, string $delegatio
 	// The provider drops the own www records equal to the apex when the include goes on, any other stays beside it.
 	if ($follow) {
 		$ops[-1] = [["include", "www", "", "", "", "on", "www follows the apex again"]];
+		// The CNAME would win over the include in public DNS, so it goes in the same plan.
+		foreach (array_merge(at("www", "CNAME"), at("www", "ALIAS")) as $i) {
+			$ops[-1][] = ["rem", "www", $actual[$i][1], "", $actual[$i][3], $actual[$i][6], "replaced by the www include"];
+		}
 		foreach (["A", "AAAA"] as $type) {
 			foreach (at("www", $type) as $i) {
 				if ($actual[$i][5] === "" && addr($actual[$i][4]) !== ($apexWant[$type] ?? "")) {

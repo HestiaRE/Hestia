@@ -19,6 +19,9 @@ the releases of the command audit, into another.
   page drop the old addresses from the SPF records, only where the new one stays covered, and forget the move. Until
   then the old box keeps its cover, since it may still send mail. A move whose other records are still to write is
   refused, and a range that still takes in an old address is named in the preview.
+- **www can follow the apex in place of a CNAME** (#1454). `follow` together with `cname` switches the www include on
+  and removes the CNAME or ALIAS at www, which would otherwise win over the include in public DNS. `follow` alone
+  offers the cname confirmation in the preview.
 - **Admin notes on a user** (#1427). The six main lists (web, mail, databases, DNS, cron, backup) carry a notes field
   above the footer for the admin, on their own account and while switched into a customer: extra software, special
   ini settings and the like. The customer's panel never shows it; the notes travel with the user's backup, where a

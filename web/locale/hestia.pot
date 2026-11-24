@@ -3998,7 +3998,7 @@ msgid "The zone could not be read from account %s. Only the records HestiaRE der
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
-msgid "Their domain is gone from this server. No sync writes them until it is back."
+msgid "Their domain is gone from this server. No sync writes them until it is back. Remove one from the provider, or forget it to leave it there."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

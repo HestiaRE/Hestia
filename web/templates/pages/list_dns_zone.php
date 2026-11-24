@@ -413,9 +413,17 @@ foreach ($sections as $s) {
 
 	<?php if ($v_unplaced) { ?>
 		<h2 class="u-mt20 u-mb10"><?= tohtml(_("Added records without a section")) ?></h2>
-		<p class="u-mb10"><?= tohtml(_("Their domain is gone from this server. No sync writes them until it is back.")) ?></p>
-		<?php $dns_provider_rows(array_map(fn ($r) => $r + ["NAME" => $r["RECORD"]], $v_unplaced), function (array $r) use ($dns_added_actions, $user_plain): void {
-			$dns_added_actions($r, $user_plain, "", false);
+		<p class="u-mb10"><?= tohtml(_("Their domain is gone from this server. No sync writes them until it is back. Remove one from the provider, or forget it to leave it there.")) ?></p>
+		<?php // Removable only when the check found it at the provider: a record never written leaves nothing to remove.
+		$dns_record_key = fn (array $r) => implode("\t", [rtrim(strtolower($r["NAME"] ?? $r["RECORD"]), "."),
+			strtoupper($r["TYPE"]), $r["PRIORITY"] ?? "", $r["TYPE"] === "TXT" ? $r["VALUE"] : rtrim(strtolower($r["VALUE"]), ".")]);
+		$at_provider = [];
+		foreach (array_merge($foreign, $hidden, ...array_column($orphans, "rows")) as $r) {
+			$at_provider[$dns_record_key($r)] = true;
+		}
+		// An orphan without a section is removed under the zone's name, as h-delete-dns-zone-record notes it.
+		$dns_provider_rows(array_map(fn ($r) => $r + ["NAME" => $r["RECORD"]], $v_unplaced), function (array $r) use ($dns_added_actions, $user_plain, $v_zone, $dns_record_key, $at_provider): void {
+			$dns_added_actions($r, $user_plain, $v_zone, isset($at_provider[$dns_record_key($r)]));
 		}); ?>
 	<?php } ?>
 

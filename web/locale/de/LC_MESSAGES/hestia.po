@@ -4066,8 +4066,8 @@ msgid "The zone could not be read from account %s. Only the records HestiaRE der
 msgstr "Die Zone konnte nicht aus dem Konto %s gelesen werden. Gezeigt werden nur die Einträge, die HestiaRE ableitet."
 
 #: web/templates/pages/list_dns_zone.php
-msgid "Their domain is gone from this server. No sync writes them until it is back."
-msgstr "Ihre Domain ist nicht mehr auf diesem Server. Kein Abgleich schreibt sie, bis sie zurück ist."
+msgid "Their domain is gone from this server. No sync writes them until it is back. Remove one from the provider, or forget it to leave it there."
+msgstr "Ihre Domain ist nicht mehr auf diesem Server. Kein Abgleich schreibt sie, bis sie zurück ist. Einen beim Provider entfernen, oder vergessen, damit er dort bleibt."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Whole zone"

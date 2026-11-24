@@ -13,7 +13,16 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Fixed
+
+- **A server move dropped the old box from an SPF that relies on `a` and `mx`** (#1439). The move only knew address
+  terms, so `v=spf1 a mx ~all` kept nothing for the old box, and a plain sync before the A and MX records had moved
+  merged the new address in instead. SPF is now judged by the zone as it stands once it is in line: an `a`/`mx` record
+  needs no new address, and a move adds the old one as `ip4:`/`ip6:` beside `a` and `mx` while both boxes run. An SPF
+  of addresses only still gets the new address before the old one.
+- **The zone page hid the provider's SPF and DMARC when they read ok** (#1439). Both are judged by effect, so an SPF
+  with an extra `ip4:` or a DMARC with `p=reject` showed only the derived value. The provider's value now stands under
+  every row it differs from.
 
 ## v0.38 (2026-11-23)
 

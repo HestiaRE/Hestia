@@ -28,8 +28,10 @@
 // differ from the apex, follow switches it on again where www derives what the apex holds, normalize puts the SPF
 // record back to the standard "v=spf1 a mx ~all".
 // MOVE (OLD=NEW, comma separated) plans only the rows that carry an OLD address: an A/AAAA holding it, an SPF naming
-// it in an ip4/ip6 term. Only that address goes, an SPF keeps it beside the new one, and a row with an exception or
-// whose derived value is not the NEW one is left alone.
+// it in an ip4/ip6 term or covering it only through a and mx. Only that address goes from an A/AAAA; an SPF keeps it
+// beside the new one, or as a term of its own beside a and mx. A row with an exception or whose derived value is not
+// the NEW one is left alone. SPF is judged by the zone once it is in line, so a and mx cover what the box derives,
+// except at a CNAME, an ALIAS or a delegation, where nothing is written.
 // With ZONE ACTUAL WRITTEN only the WRITTEN rows no longer at the provider, "OWNER REL TYPE VALUE".
 
 if (PHP_SAPI !== "cli" || !in_array($argc, [4, 7, 10, 11, 12], true)) {
@@ -226,6 +228,12 @@ final class Dig
 }
 Dig::$deadline = microtime(true) + 10;
 
+// Whether resolve() and mx_hosts() answer the zone's own names as the zone holds them once it is in line.
+final class InLine
+{
+	public static bool $on = false;
+}
+
 // Indexes of actual rows at REL, optionally of one type.
 /** @return list<int> */
 function at(string $rel, ?string $type = null): array
@@ -249,12 +257,42 @@ function rel_of(string $name, string $zone): ?string
 	return str_ends_with($name, ".$zone") ? substr($name, 0, -strlen($zone) - 1) : null;
 }
 
+// What the zone holds at REL TYPE once it is in line: the derived values, or those an exception keeps instead; null
+// where the box derives nothing there, or the exception keeps a CNAME, ALIAS or wildcard.
+/** @return ?list<string> */
+function in_line_at(string $rel, string $type): ?array
+{
+	global $desired, $kept;
+	// The plan writes nothing at a CNAME, an ALIAS or a delegation, so the provider's answer stays the one that counts.
+	if (at($rel, "CNAME") || at($rel, "ALIAS") || delegated($rel) !== "") {
+		return null;
+	}
+	$vals = [];
+	$derived = false;
+	foreach ($desired as $d) {
+		if ($d[5] !== $rel || $d[6] !== $type) {
+			continue;
+		}
+		$derived = true;
+		foreach ($d[10] === "" ? ($kept["$d[4]\t$rel\t$type"] ?? [$d[9]]) : [$d[9]] as $v) {
+			if (preg_match('/^(CNAME|ALIAS|wildcard) /', $v)) {
+				return null;
+			}
+			$vals[] = $type === "MX" ? host((string) preg_replace('/^\d+\s+/', "", trim($v))) : addr($v);
+		}
+	}
+	return $derived ? array_values(array_unique($vals)) : null;
+}
+
 // Addresses of TYPE a name has: from the zone's own records (following one CNAME inside it), else public DNS.
 /** @return list<string> */
 function resolve(string $name, string $type): array
 {
 	global $actual, $zone;
 	$rel = rel_of($name, $zone);
+	if ($rel !== null && InLine::$on && ($vals = in_line_at($rel, $type)) !== null) {
+		return $vals;
+	}
 	if ($rel !== null) {
 		$vals = array_map(fn ($i) => addr($actual[$i][4]), at($rel, $type));
 		if (!$vals) {
@@ -399,11 +437,27 @@ function spf_pass(string $ip, string $rec, string $domain, int &$lookups, int $d
 	return false;
 }
 
+// spf_pass on the zone once it is in line: a and mx of its own names resolve to what the box derives there, so the SPF
+// is not judged by A and MX records a write of the same plan, or of another section, is about to replace.
+function spf_pass_in_line(string $ip, string $rec, string $domain): bool
+{
+	$lookups = 0;
+	InLine::$on = true;
+	try {
+		return spf_pass($ip, $rec, $domain, $lookups);
+	} finally {
+		InLine::$on = false;
+	}
+}
+
 /** @return list<string> */
 function mx_hosts(string $name): array
 {
 	global $actual, $zone;
 	$rel = rel_of($name, $zone);
+	if ($rel !== null && InLine::$on && ($hosts = in_line_at($rel, "MX")) !== null) {
+		return $hosts;
+	}
 	if ($rel !== null) {
 		return array_map(fn ($i) => $actual[$i][4], at($rel, "MX"));
 	}
@@ -495,16 +549,45 @@ function spf_merge(string $rec, array $missed): string
 	return implode(" ", $terms);
 }
 
-// SPF record REC with the new address of MOVE right before each ip4/ip6 term on an old one. The old term stays: mail
-// may still leave from the old box while both run. REC itself once every new term is there.
-/** @param array<string, string> $move */
-function spf_move(string $rec, array $move): string
+// The old addresses of MOVE an SPF record REC at REL authorises only through a and mx: once the zone is in line these
+// answer with the new address, which REC then passes, and the old box would lose its cover while both run.
+/**
+ * @param array<string, string> $move
+ * @return list<string>
+ */
+function spf_kept_old(string $rec, string $rel, string $section, string $object, array $move): array
+{
+	global $zone;
+	if (txt_kind($rec) !== "spf1") {
+		return [];
+	}
+	$named = preg_match_all('/(?:^|\s)[-+~?]?ip[46]:([0-9a-f.:]+)(?=[\s\/]|$)/i', $rec, $m) ? array_map("addr", $m[1]) : [];
+	$keep = [];
+	foreach ($move as $old => $new) {
+		if (!in_array($old, $named, true) && in_array(addr($new), spf_addrs($section, $object), true)
+			&& spf_pass_in_line($new, $rec, fqdn($rel, $zone)) && !spf_pass_in_line($old, $rec, fqdn($rel, $zone))) {
+			$keep[] = $old;
+		}
+	}
+	return $keep;
+}
+
+// SPF record REC of DOMAIN with the new address of MOVE right before each ip4/ip6 term on an old one, unless a and mx
+// cover it once the zone is in line. The old term stays: mail may still leave from the old box while both run. KEEP
+// are old addresses REC covered through a and mx: they go in as terms of their own before the first that can reject,
+// or the all. REC itself once nothing is missing.
+/**
+ * @param array<string, string> $move
+ * @param list<string> $keep
+ */
+function spf_move(string $rec, string $domain, array $move, array $keep = []): string
 {
 	$terms = preg_split('/\s+/', trim($rec)) ?: [];
 	$have = array_map("strtolower", $terms);
 	$out = [];
 	foreach ($terms as $t) {
-		if (preg_match('/^([-+~?]?ip[46]):([0-9a-f.:]+)$/i', $t, $m) && isset($move[addr($m[2])])) {
+		if (preg_match('/^([-+~?]?ip[46]):([0-9a-f.:]+)$/i', $t, $m) && isset($move[addr($m[2])])
+			&& !spf_pass_in_line($move[addr($m[2])], $rec, $domain)) {
 			$n = $m[1] . ":" . $move[addr($m[2])];
 			if (!in_array(strtolower($n), $have, true)) {
 				$out[] = $n;
@@ -513,6 +596,15 @@ function spf_move(string $rec, array $move): string
 		}
 		$out[] = $t;
 	}
+	$at = count($out);
+	foreach ($out as $j => $t) {
+		if ($j > 0 && preg_match('/^([-~?]|\+?all$|redirect=|exp=)/i', $t)) {
+			$at = $j;
+			break;
+		}
+	}
+	$add = array_map(fn ($ip) => (str_contains($ip, ":") ? "ip6:" : "ip4:") . $ip, $keep);
+	array_splice($out, $at, 0, array_values(array_diff($add, $have)));
 	return implode(" ", $out);
 }
 
@@ -530,11 +622,16 @@ function moved_from(array $x, array $move): ?string
 			if (isset($move[addr($actual[$i][4])])) {
 				return addr($actual[$i][4]);
 			}
-		} elseif ($type === "TXT" && preg_match_all('/\bip[46]:([0-9a-f.:]+)(?=\s|$)/i', txt($actual[$i][4]), $m)) {
-			foreach ($m[1] as $a) {
+		} elseif ($type === "TXT") {
+			$rec = txt($actual[$i][4]);
+			foreach (preg_match_all('/\bip[46]:([0-9a-f.:]+)(?=\s|$)/i', $rec, $m) ? $m[1] : [] as $a) {
 				if (isset($move[addr($a)])) {
 					return addr($a);
 				}
+			}
+			$keep = spf_kept_old($rec, $x["d"][5], $x["d"][2], $x["d"][3], $move);
+			if ($keep) {
+				return $keep[0];
 			}
 		}
 	}
@@ -789,7 +886,7 @@ function added_ops(array $x, array $confirm): array
  */
 function plan(array $results, string $section, string $object, string $delegation, array $confirm, ?array $move): void
 {
-	global $actual;
+	global $actual, $zone;
 	$skip = [
 		"delegated" => "a delegated name, the zone does not answer for it",
 		"unchecked" => "public DNS did not answer, check again",
@@ -928,11 +1025,14 @@ function plan(array $results, string $section, string $object, string $delegatio
 			if ($move !== null && $type === "TXT") {
 				foreach ($hits as $i) {
 					$old = txt($actual[$i][4]);
-					$new = spf_move($old, $move);
+					$keep = spf_kept_old($old, $rel, $s, $o, $move);
+					$new = spf_move($old, fqdn($rel, $zone), $move, $keep);
 					if ($new !== $old) {
 						$t = $actual[$i][3] !== "" ? $actual[$i][3] : $ttl;
+						// Both notes keep the record out of the written ones in h-sync-dns-zone.
+						$why = $keep ? "the old address kept beside a and mx" : "the new address beside the old one";
 						$ops[$k][] = ["rem", $rel, $type, "", $actual[$i][3], $actual[$i][6], ""];
-						$ops[$k][] = ["add", $rel, $type, "", $t, $new, "the new address beside the old one"];
+						$ops[$k][] = ["add", $rel, $type, "", $t, $new, $why];
 					}
 				}
 				continue;
@@ -1236,8 +1336,7 @@ foreach ($desired as $dk => $d) {
 				} else {
 					$missed = [];
 					foreach (spf_addrs($section, $object) as $ip) {
-						$lookups = 0;
-						if (!spf_pass($ip, $shown[0], fqdn($rel, $zone), $lookups)) {
+						if (!spf_pass_in_line($ip, $shown[0], fqdn($rel, $zone))) {
 							$missed[] = $ip;
 						}
 					}

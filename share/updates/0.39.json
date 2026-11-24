@@ -33,6 +33,21 @@
       "action": { "type": "function_call", "function": "nginx_early_data_off_apply" },
       "paths": ["/etc/nginx/nginx.conf"],
       "reversible": false
+    },
+    {
+      "id": "exim-null-sender-domain",
+      "description": "Mail sent with SMTP AUTH and an empty envelope sender (read receipts, delivery reports) goes through the domain's relay, from the domain's outgoing address and with its relay exceptions, as the same mail with a sender does. A bounce stays as it was. Patched into a file the operator may have edited",
+      "conditions": [
+        { "type": "key_is", "name": "MAIL_SYSTEM", "value": "exim4" },
+        {
+          "type": "file_patch_pending",
+          "source": "share/updates/patches/0.39/exim-null-sender-domain.patch",
+          "target": "/etc/exim4/exim4.conf.template"
+        }
+      ],
+      "action": { "type": "function_call", "function": "exim_null_sender_domain_apply" },
+      "paths": ["/etc/exim4/exim4.conf.template"],
+      "reversible": false
     }
   ]
 }

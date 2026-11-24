@@ -9,7 +9,7 @@
 # The values stand in for the derived one of the row USER owns at RECORD TYPE: the zone page shows a match as
 # "exception", and a sync puts them back instead of writing the derived value. Without VALUE the record is kept
 # absent. An MX value is "PRIORITY HOST"; "CNAME HOST" and "wildcard *.NAME" accept what answers through them. An SPF
-# or DMARC row keeps one value of its kind, a DMARC one with p= none, quarantine or reject.
+# or DMARC row keeps one value of its kind, a DMARC one starting v=DMARC1; p= with none, quarantine or reject.
 # Nothing is written to the provider.
 
 user=$1
@@ -32,19 +32,22 @@ txt_kind() {
 	[[ "${1,,}" =~ ^v=(spf1|dmarc1|dkim1)([^a-z0-9_]|$) ]] && echo "${BASH_REMATCH[1]}"
 }
 
-# dmarc_policy_valid VALUE: exactly one p= tag, with a policy receivers know.
-dmarc_policy_valid() {
-	local tag n=0 ok=0
+# dmarc_valid VALUE: v=DMARC1 first, then p= with a policy receivers know, and no second p= (RFC 7489 6.3/6.4).
+dmarc_valid() {
+	local tag i=0
 	local -a tags
 	IFS=';' read -ra tags <<< "$1"
 	for tag in "${tags[@]}"; do
 		tag="${tag#"${tag%%[![:space:]]*}"}"
 		tag="${tag%"${tag##*[![:space:]]}"}"
-		[[ "${tag,,}" =~ ^p[[:space:]]*= ]] || continue
-		n=$((n + 1))
-		[[ "${tag,,}" =~ ^p[[:space:]]*=[[:space:]]*(none|quarantine|reject)$ ]] && ok=1
+		case $i in
+			0) [[ "$tag" =~ ^[vV][[:space:]]*=[[:space:]]*DMARC1$ ]] || return 1 ;;
+			1) [[ "${tag,,}" =~ ^p[[:space:]]*=[[:space:]]*(none|quarantine|reject)$ ]] || return 1 ;;
+			*) [[ "${tag,,}" =~ ^p[[:space:]]*= ]] && return 1 ;;
+		esac
+		i=$((i + 1))
 	done
-	[ "$n" -eq 1 ] && [ "$ok" -eq 1 ]
+	[ "$i" -ge 2 ]
 }
 
 check_args '4' "$#" 'USER ZONE RECORD TYPE [VALUE...]'
@@ -96,8 +99,8 @@ if [ -n "$kind" ]; then
 	for v in "${values[@]}"; do
 		[[ "$v" =~ ^(CNAME|ALIAS|wildcard)\  ]] && continue
 		[ "$(txt_kind "$v")" = "$kind" ] || check_result "$E_INVALID" "the $record TXT row is v=$kind, the value is not: $v"
-		if [ "$kind" = dmarc1 ] && ! dmarc_policy_valid "$v"; then
-			check_result "$E_INVALID" "a DMARC record carries one p= of none, quarantine or reject: $v"
+		if [ "$kind" = dmarc1 ] && ! dmarc_valid "$v"; then
+			check_result "$E_INVALID" "a DMARC record starts with v=DMARC1; p= and none, quarantine or reject: $v"
 		fi
 	done
 	# A second SPF is a permerror, a second DMARC makes receivers ignore both.

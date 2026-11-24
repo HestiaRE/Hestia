@@ -252,8 +252,10 @@ foreach ($sections as $s) {
 							<?php } ?>
 							<?php
 							// Kept with what the provider holds as shown here; a later change there shows as a drift.
-							$keepable = in_array($r["STATUS"], ["different", "missing", "cname", "wildcard"], true) && empty($r["EXCEPTION"])
-								&& empty($r["ADDED"]);
+							// SPF and DMARC keep one record: two at the provider go through the edit field below.
+							$spf_dmarc = $r["TYPE"] === "TXT" && preg_match('/^v=(spf1|dmarc1)\b/i', $r["VALUE"], $kind) === 1;
+						$keepable = in_array($r["STATUS"], ["different", "missing", "cname", "wildcard"], true) && empty($r["EXCEPTION"])
+							&& empty($r["ADDED"]) && (!$spf_dmarc || count($r["FOUND"] ?? []) <= 1);
 						if ($keepable || !empty($r["EXCEPTION"])) { ?>
 								<form method="post" class="u-mt10" action="/list/dns/?<?= tohtml(http_build_query(["zone" => $v_zone, "exception" => 1])) ?>">
 									<input type="hidden" name="token" value="<?= tohtml($_SESSION["token"]) ?>">
@@ -278,9 +280,9 @@ foreach ($sections as $s) {
 								</form>
 							<?php } ?>
 							<?php
-							// SPF and DMARC take a value of the user's own, kept as an exception that the sync then writes.
-							$editable = $r["TYPE"] === "TXT" && empty($r["ADDED"]) && $r["STATUS"] !== "delegated"
-								&& preg_match('/^v=(spf1|dmarc1)\b/i', $r["VALUE"], $kind) === 1;
+							// SPF and DMARC take a value of their own as an exception; not beside a CNAME, the sync leaves that alone.
+							$editable = $spf_dmarc && empty($r["ADDED"]) && !in_array($r["STATUS"], ["delegated", "cname", "wildcard"], true)
+								&& !preg_grep('/^(CNAME|ALIAS) /', $r["FOUND"] ?? []);
 						if ($editable) {
 							$spf = strtolower($kind[1]) === "spf1";
 							$current = array_values(array_filter(
@@ -300,9 +302,12 @@ foreach ($sections as $s) {
 										<input type="text" class="form-control u-mb10" name="v_edit" required value="<?= tohtml(count($current) === 1 ? $current[0] : $r["VALUE"]) ?>">
 										<p class="u-text-muted u-text-small u-mb10">
 											<?= tohtml(_("Kept as an exception, the next sync writes it.")) ?>
+											<?php if (empty($r["EXCEPTION"]) && count($current) > 1) { ?>
+												<?= tohtml(_("The provider holds more than one, which receivers do not accept: the one saved here replaces them.")) ?>
+											<?php } ?>
 											<?= tohtml($spf
 												? _("Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns. Lifted, the exception leaves a record that authorises the server as it is; Normalize puts it back to v=spf1 a mx ~all.")
-												: _("Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; saving v=DMARC1; p=none here goes back to the derived one.")) ?>
+												: _("Starts with v=DMARC1; p= and none, quarantine or reject, then sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; to go back to the derived one, save v=DMARC1; p=none here and lift the exception then.")) ?>
 										</p>
 										<button type="submit" class="button button-secondary">
 											<i class="fas fa-pencil icon-blue"></i><?= tohtml(_("Save")) ?>

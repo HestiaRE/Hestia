@@ -4003,8 +4003,8 @@ msgid "Remove the record from the provider. A preview shows the write first."
 msgstr "Den Eintrag beim Provider entfernen. Eine Vorschau zeigt zuerst, was geschrieben wird."
 
 #: web/templates/pages/list_dns_zone.php
-msgid "Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; saving v=DMARC1; p=none here goes back to the derived one."
-msgstr "Beginnt mit v=DMARC1 und enthält p=none, quarantine oder reject; sp=, pct=, rua= und der Rest nach Bedarf. Wird die Ausnahme aufgehoben, bleibt der Eintrag, wie er ist; v=DMARC1; p=none hier gespeichert führt zum abgeleiteten zurück."
+msgid "Starts with v=DMARC1; p= and none, quarantine or reject, then sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; to go back to the derived one, save v=DMARC1; p=none here and lift the exception then."
+msgstr "Beginnt mit v=DMARC1; p= und none, quarantine oder reject, danach sp=, pct=, rua= und der Rest nach Bedarf. Wird die Ausnahme aufgehoben, bleibt der Eintrag, wie er ist; zurück zum abgeleiteten Wert: hier v=DMARC1; p=none speichern und danach die Ausnahme aufheben."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Starts with v=spf1. A record that does not authorise this server is allowed, the row then warns. Lifted, the exception leaves a record that authorises the server as it is; Normalize puts it back to v=spf1 a mx ~all."
@@ -4021,6 +4021,10 @@ msgstr "Nur diesen Eintrag abgleichen. Eine Vorschau zeigt zuerst, was geschrieb
 #: web/templates/pages/list_dns_zone.php
 msgid "Sync to provider"
 msgstr "Mit Provider abgleichen"
+
+#: web/templates/pages/list_dns_zone.php
+msgid "The provider holds more than one, which receivers do not accept: the one saved here replaces them."
+msgstr "Beim Provider stehen mehrere, das akzeptieren Empfänger nicht: der hier gespeicherte ersetzt sie."
 
 #: web/templates/pages/list_dns_zone.php
 msgid "The record stays at the provider, and HestiaRE no longer offers to remove it."

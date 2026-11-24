@@ -4003,7 +4003,7 @@ msgid "Remove the record from the provider. A preview shows the write first."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
-msgid "Starts with v=DMARC1 and carries p=none, quarantine or reject; sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; saving v=DMARC1; p=none here goes back to the derived one."
+msgid "Starts with v=DMARC1; p= and none, quarantine or reject, then sp=, pct=, rua= and the rest as needed. Lifted, the exception leaves the record as it is; to go back to the derived one, save v=DMARC1; p=none here and lift the exception then."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
@@ -4020,6 +4020,10 @@ msgstr ""
 
 #: web/templates/pages/list_dns_zone.php
 msgid "Sync to provider"
+msgstr ""
+
+#: web/templates/pages/list_dns_zone.php
+msgid "The provider holds more than one, which receivers do not accept: the one saved here replaces them."
 msgstr ""
 
 #: web/templates/pages/list_dns_zone.php

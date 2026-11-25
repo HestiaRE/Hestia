@@ -2314,10 +2314,10 @@ BACKUP_DIFF_MAX_AGE=14
 # backup_diff_base_too_old NAME: rc 0 when the base named by its archive timestamp is past BACKUP_DIFF_MAX_AGE. A name
 # that does not parse counts as too old, so the doubt ends in a full run.
 backup_diff_base_too_old() {
-	local _ts _t
-	_ts=$(sed -n 's/^.*\.\([0-9]\{4\}-[0-9][0-9]-[0-9][0-9]\)_\([0-9][0-9]\)-\([0-9][0-9]\)-\([0-9][0-9]\)\.tar$/\1 \2:\3:\4/p' <<< "$1")
-	[ -n "$_ts" ] || return 0
-	_t=$(LC_ALL=C date -d "$_ts" +%s 2> /dev/null) || return 0
+	local _t
+	[[ "$1" =~ \.([0-9]{4}-[0-9]{2}-[0-9]{2})_([0-9]{2})-([0-9]{2})-([0-9]{2})\.tar$ ]] || return 0
+	_t=$(LC_ALL=C date -d "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}:${BASH_REMATCH[3]}:${BASH_REMATCH[4]}" +%s 2> /dev/null) \
+		|| return 0
 	[ $(($(date +%s) - _t)) -gt $((BACKUP_DIFF_MAX_AGE * 86400)) ]
 }
 

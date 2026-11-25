@@ -400,6 +400,15 @@
       "note": ""
     },
     {
+      "path": "username.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": "The rules for a new account name, shared by main.sh and the install wizard (#1482)."
+    },
+    {
       "path": "vacation.php",
       "source_type": "eigenbau",
       "upstream_path": null,

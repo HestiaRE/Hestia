@@ -38,6 +38,8 @@ LOG_DIR="/var/log/hestia"
 # Reserved-port set for the panel-port question, derived from the shipped configs (#730).
 # shellcheck source=include/ports.sh
 [ -f "${INSTALL_DIR}/include/ports.sh" ] && . "${INSTALL_DIR}/include/ports.sh"
+# shellcheck source=include/username.sh
+[ -f "${INSTALL_DIR}/include/username.sh" ] && . "${INSTALL_DIR}/include/username.sh"
 
 # ── State ──────────────────────────────────────────────────
 HAS_WHIPTAIL=false
@@ -323,6 +325,19 @@ fn_check_panel_port() {
 	fi
 }
 
+# h-add-user refuses the same names, but only at the user stage, with the box half built.
+fn_check_admin_name() {
+	local why
+	if ! declare -F new_user_name_refusal > /dev/null; then
+		echo "ERROR: ${INSTALL_DIR}/include/username.sh is missing - the admin name cannot be validated." >&2
+		exit 1
+	fi
+	if why=$(new_user_name_refusal "$1") || why=$(login_name_reserved_reason "$1"); then
+		echo "ERROR: Admin username '$1' $why." >&2
+		exit 1
+	fi
+}
+
 # Defaults that cannot be literals in the manifest: they depend on the box, on an earlier answer
 # or on a command-line flag. $2 is the manifest default, used where none of that applies.
 fn_pre_question_default() {
@@ -389,6 +404,7 @@ fn_ask_pre_questions() {
 		echo "ERROR: Admin username is required." >&2
 		exit 1
 	}
+	fn_check_admin_name "$HESTIA_ADMIN"
 	[ -n "$HESTIA_EMAIL" ] || {
 		echo "ERROR: Admin email is required." >&2
 		exit 1

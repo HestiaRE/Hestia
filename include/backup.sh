@@ -1069,8 +1069,8 @@ local_backup() {
 	rm -f $BACKUP/$user/$user.$backup_new_date.tar
 
 	# Adopted and protected archives carry a date like any other, so the rotation would take them first. Excluded by NAME.
-	backup_list=$(ls -lrt $BACKUP/$user/ 2> /dev/null | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort \
-		| backup_drop_exempt "$USER_DATA/backup.conf")
+	backup_list=$(ls -lrt $BACKUP/$user/ 2> /dev/null | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" \
+		| sort | backup_drop_exempt "$USER_DATA/backup.conf")
 	backups_count=$(grep -c . <<< "$backup_list")
 	local_keep=$(backup_rotation_keep "$BACKUPS" "$USER_DATA/backup.conf")
 	if [ "$local_keep" -le "$backups_count" ]; then
@@ -2488,7 +2488,7 @@ backup_drop_exempt() {
 		| sed -n "s/^BACKUP='\([^']*\)'.*/\1/p") || true
 }
 
-# backup_export_protect_apply: an export written as ADOPTED becomes PROTECTED, holding a slot like any protected archive.
+# backup_export_protect_apply: an export written as ADOPTED becomes PROTECTED and holds a slot like the others.
 backup_export_protect_apply() {
 	local f
 	for f in "$CONF_DIR"/users/*/backup.conf; do

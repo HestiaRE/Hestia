@@ -29,7 +29,8 @@ backup_root="$BACKUP"
 
 # Each record from empty: a key an older record lacks would show the value of the row before.
 parse_row() {
-	BACKUP='' TYPE='' SIZE='' WEB='' MAIL='' DB='' CRON='' UDIR='' MAP='' MODE='' BASE='' PROTECTED='' RUNTIME='' TIME='' DATE=''
+	BACKUP='' TYPE='' SIZE='' WEB='' MAIL='' DB='' CRON='' UDIR='' MAP='' MODE='' BASE=''
+	PROTECTED='' RUNTIME='' TIME='' DATE=''
 	parse_object_kv_list "$1"
 }
 

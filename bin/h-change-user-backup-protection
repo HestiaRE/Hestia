@@ -46,13 +46,13 @@ fi
 
 if [ "$state" = 'yes' ]; then
 	case "$line" in *" MODE='diff'"*)
-		check_result "$E_FORBIDEN" "$backup is differential and needs its base, which the rotation may take: protect a full one"
+		check_result "$E_FORBIDEN" "$backup is differential and needs its base, which may rotate away: protect a full one"
 		;;
 	esac
 	if [ "$(backup_protect_free "$USER_DATA")" -eq 0 ]; then
 		echo "Protected backups of $user (package keeps $(get_user_value '$BACKUPS')):"
 		backup_protected "$conf" | sed 's/^/  /'
-		check_result "$E_LIMIT" "no free slot to protect a backup of $user - unprotect or delete one first"
+		check_result "$E_LIMIT" "no free slot to protect a backup of $user: unprotect or delete one first"
 	fi
 	record_sed "${lnr}s/\$/ PROTECTED='yes'/" "$conf"
 	$BIN/h-log-action "$user" "Info" "Backup" "Protected backup from rotation (Archive: $backup)."

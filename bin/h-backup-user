@@ -218,7 +218,7 @@ if [ "$protect_run" != 'no' ] && [ "$(backup_protect_free "$USER_DATA")" -eq 0 ]
 	if [ "$protect_run" = 'yes' ]; then
 		echo "Protected backups of $user (package keeps $BACKUPS):"
 		backup_protected "$USER_DATA/backup.conf" | sed 's/^/  /'
-		check_result "$E_LIMIT" "no free slot to protect a backup of $user - unprotect or delete one first"
+		check_result "$E_LIMIT" "no free slot to protect a backup of $user: unprotect or delete one first"
 	fi
 	echo "No free slot to protect this backup of $user, it goes into the rotation"
 	protect_run='no'

@@ -158,12 +158,12 @@
       "options": "__dynamic__",
       "dynamic_source": "sury_repo_metadata",
       "default_rule": {
-        "standard":  "take_newest:4",
-        "compact":   "skip_newest:1,take:3",
+        "standard":  "skip_newest:1,take:4",
+        "compact":   "skip_newest:2,take:3",
         "latest":    "take_newest:2",
-        "nomail":    "skip_newest:1,take:3"
+        "nomail":    "skip_newest:2,take:3"
       },
-      "note": "install.sh must add the Sury repo as an APT source before this question (incl. apt-get update) to derive the option list via apt-cache madison or similar. No availability guarantee per the Sury maintainer - re-check on every release refresh."
+      "note": "install.sh must add the Sury repo as an APT source before this question (incl. apt-get update) to derive the option list via apt-cache madison or similar. No availability guarantee per the Sury maintainer - re-check on every release refresh. Outside latest the newest supported version is offered but not preselected (#1489): the rules count from the newest offered version, so a php_supported bump moves every preset by one unless its rule moves with it."
     },
 
     "DB_MARIADB": {

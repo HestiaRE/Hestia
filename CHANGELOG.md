@@ -15,8 +15,10 @@ the releases of the command audit, into another.
 
 ### Added
 
-- **PHP 8.6** (#1489). Sury now builds every extension of the customer set for it on all four targets. ionCube has no
-  loader for 8.6 yet, so h-add-web-php enables PHP 8.6 without it and warns. The server page reads its version list
+- **PHP 8.6** (#1489). Sury now builds every extension of the customer set for it on all four targets, except opcache,
+  which is core since 8.5. ionCube has no loader for 8.6 yet, so h-add-web-php enables PHP 8.6 without it and warns.
+  The wizard offers 8.6 in every preset but preselects it only in `latest` (8.6 and 8.5); the others keep their
+  previous selection (standard 8.5 to 8.2, compact and nomail 8.4 to 8.2). The server page reads its version list
   from `php_supported`, the same list h-add-web-php validates against, instead of keeping a copy of its own.
 
 ### Security

@@ -1,8 +1,8 @@
 #!/bin/bash
 # info: backup system user with all its objects
-# options: USER [NOTIFY] [EXPORT]
+# options: USER [NOTIFY] [EXPORT] [PROTECT]
 #
-# example: h-backup-user admin yes
+# example: h-backup-user admin yes no auto
 #
 # Archive a user with its web, mail, databases, cron jobs and data directory into $BACKUP.
 # Not read-only: each mail account's forward and vacation record is first set after its Sieve script.
@@ -11,6 +11,8 @@ user=$1
 notify=${2-no}
 # An ARGUMENT, not an environment prefix: like the consent word, a second control channel would reopen what that closed.
 export_run=${3-no}
+# yes refuses without a free slot, auto (a backup started by hand) goes into the rotation then. An export is protected.
+protect_run=${4-no}
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
@@ -193,32 +195,35 @@ get_user_disk_usage() {
 	echo ${u_usage}
 }
 
-check_args '1' "$#" 'USER [NOTIFY] [EXPORT]'
+check_args '1' "$#" 'USER [NOTIFY] [EXPORT] [PROTECT]'
 is_format_valid 'user'
 case "$export_run" in
 	yes | no) ;;
 	*) check_result "$E_INVALID" "EXPORT must be yes or no" ;;
 esac
+case "$protect_run" in
+	yes | no | auto) ;;
+	*) check_result "$E_INVALID" "PROTECT must be yes, no or auto" ;;
+esac
+if [ "$export_run" = 'yes' ]; then protect_run='yes'; fi
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
 if [ "$POLICY_BACKUP_SUSPENDED_USERS" != "yes" ]; then
 	is_object_unsuspended 'user' 'USER' "$user"
 fi
 is_backup_enabled
-# The limit sits here, not in the wrapper: this command is called directly and writes ADOPTED='yes', which no
-# rotation touches. An export is deliberate, so the limit refuses instead of clearing the oldest. Unset means two.
-if [ "$export_run" = 'yes' ]; then
-	_limit="${BACKUP_EXPORT_LIMIT:-2}"
-	case "$_limit" in '' | *[!0-9]*) _limit=2 ;; esac
-	_existing=$(grep -E "(^| )MODE='export'( |$)" "$USER_DATA/backup.conf" 2> /dev/null \
-		| sed -n "s/^BACKUP='\([^']*\)'.*/\1/p")
-	_count=$(grep -c . <<< "$_existing")
-	if [ "$_count" -ge "$_limit" ]; then
-		echo "Exports of $user ($_count, limit $_limit):"
-		sed 's/^/  /' <<< "$_existing"
-		check_result "$E_LIMIT" "$user already has $_count export(s) - delete one with h-delete-user-backup before writing another"
+# Here, not in a wrapper: this command is called directly. A protected archive holds a slot of BACKUPS and one slot
+# always stays with the rotation, so a deliberate request refuses rather than unprotecting an older one.
+if [ "$protect_run" != 'no' ] && [ "$(backup_protect_free "$USER_DATA")" -eq 0 ]; then
+	if [ "$protect_run" = 'yes' ]; then
+		echo "Protected backups of $user (package keeps $BACKUPS):"
+		backup_protected "$USER_DATA/backup.conf" | sed 's/^/  /'
+		check_result "$E_LIMIT" "no free slot to protect a backup of $user - unprotect or delete one first"
 	fi
+	echo "No free slot to protect this backup of $user, it goes into the rotation"
+	protect_run='no'
 fi
+[ "$protect_run" = 'no' ] || protect_run='yes'
 
 check_backup_conditions
 
@@ -785,7 +790,8 @@ map_records=$(backup_map_write "$tmpdir" "$tmpdir/hestia/backup.map" "$maptbl")
 # BACKUPS_MODE comes from the package; anything but 'diff' stays whole, and no base means full.
 backup_mode_sel=$(sed -n "s/^BACKUPS_MODE='\([^']*\)'.*/\1/p" "$USER_DATA/user.conf" | head -1)
 diff_base=''
-if [ "${backup_mode_sel:-full}" = 'diff' ] && [ "$map_records" -gt 0 ]; then
+# A protected archive stays alone, so it never depends on a base the rotation may take.
+if [ "${backup_mode_sel:-full}" = 'diff' ] && [ "$map_records" -gt 0 ] && [ "$protect_run" = 'no' ]; then
 	diff_base=$(backup_diff_base "$USER_DATA/backup.conf" "$USER_DATA/backup-maps") || diff_base=''
 	# Named, not silent: after rotation every run lands here and would look like "diff never engages".
 	if [ -z "$diff_base" ]; then
@@ -896,18 +902,17 @@ backup_str="$backup_str CRON='$cron_list'"
 backup_str="$backup_str UDIR='${udir_list// /,}'"
 backup_str="$backup_str WEB_SYSTEM='$WEB_SYSTEM' PROXY_SYSTEM='$PROXY_SYSTEM'"
 backup_str="$backup_str MAP='$map_records'"
-# An export is the same archive, marked: ADOPTED keeps it out of the rotation through the mechanism
-# that already exists for operator-placed files, and MODE says what it is in every listing.
 if [ "$export_run" = 'yes' ]; then
-	backup_str="$backup_str MODE='export' BASE='' ADOPTED='yes'"
+	backup_str="$backup_str MODE='export' BASE=''"
 else
 	backup_str="$backup_str MODE='$([ -n "$diff_base" ] && echo diff || echo full)' BASE='$diff_base'"
 fi
+if [ "$protect_run" = 'yes' ]; then backup_str="$backup_str PROTECTED='yes'"; fi
 backup_str="$backup_str RUNTIME='$run_time' TIME='$time' DATE='$date'"
 echo "$backup_str" >> $USER_DATA/backup.conf
 
-# Cleanup in FILE ORDER (the listers print the file as it stands). Adopted records always stay; the rest is kept per
-# SET, derived as the file rotation derives it (the new record is already in the file).
+# Cleanup in FILE ORDER (the listers print the file as it stands). Adopted and protected records always stay; the rest
+# is kept per SET, derived as the file rotation derives it (the new record is already in the file).
 # The record outlives the file: retention follows the LONGEST keep of any configured place, local or remote.
 keep_records="$BACKUPS"
 for backup_type in $(echo -e "${BACKUP_SYSTEM//,/\\n}"); do
@@ -917,6 +922,7 @@ for backup_type in $(echo -e "${BACKUP_SYSTEM//,/\\n}"); do
 	esac
 	[ "$_k" -gt "$keep_records" ] && keep_records="$_k"
 done
+keep_records=$(backup_rotation_keep "$keep_records" "$USER_DATA/backup.conf")
 LC_ALL=C awk -v keep="$keep_records" -v q="'" '
 	function field(l, k,   i, r) {
 		i = index(l, k q)
@@ -926,7 +932,7 @@ LC_ALL=C awk -v keep="$keep_records" -v q="'" '
 		if (i == 0) return ""
 		return substr(r, 1, i - 1)
 	}
-	function adopted(l) { return index(l, "ADOPTED=" q "yes" q) > 0 }
+	function adopted(l) { return index(l, "ADOPTED=" q "yes" q) > 0 || index(l, "PROTECTED=" q "yes" q) > 0 }
 	NR == FNR {
 		if (adopted($0)) next
 		n = field($0, "BACKUP=")

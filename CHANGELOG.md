@@ -20,6 +20,19 @@ the releases of the command audit, into another.
   The wizard offers 8.6 in every preset but preselects it only in `latest` (8.6 and 8.5); the others keep their
   previous selection (standard 8.5 to 8.2, compact and nomail 8.4 to 8.2). The server page reads its version list
   from `php_supported`, the same list h-add-web-php validates against, instead of keeping a copy of its own.
+- **Protected backups** (#1353). A customer keeps an archive out of the rotation with the lock in the backup list or
+  `h-change-user-backup-protection`, and **Create Backup** protects the new archive while a slot is free. Protected
+  archives hold slots of the package's `BACKUPS`, one slot always stays with the automatic run, and with none free
+  protecting is refused rather than unprotecting an older one. Local and remote places honour it alike, and a
+  protected archive is always full. Exports are protected archives now: they hold a slot instead of their own limit
+  (`BACKUP_EXPORT_LIMIT` is gone), deleting one deletes its file, and the update moves existing ones over.
+
+### Fixed
+
+- **Exports could lose their copy on a remote target, and a differential customer's export was a diff** (#1353). The
+  remote rotation counted an export as an ordinary set and deleted it there in time. And the export of a customer in
+  `diff` mode was built against the newest base but recorded without one, so on its own it restored only the
+  changes.
 
 ### Security
 

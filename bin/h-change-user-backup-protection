@@ -1,0 +1,66 @@
+#!/bin/bash
+# info: protect a user backup from the rotation, or hand it back
+# options: USER BACKUP STATE
+#
+# example: h-change-user-backup-protection admin admin.2026-11-25_10-00-00.tar yes
+#
+# A protected archive holds one of the package's BACKUPS slots, and one slot always stays with the automatic run.
+
+user=$1
+backup=$2
+state=$3
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source $HESTIA/include/main.sh
+# shellcheck source=/usr/local/hestia/include/backup.sh
+source $HESTIA/include/backup.sh
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '3' "$#" 'USER BACKUP STATE'
+is_format_valid 'user' 'backup'
+case "$state" in
+	yes | no) ;;
+	*) check_result "$E_INVALID" "STATE must be yes or no" ;;
+esac
+is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
+is_object_valid 'user' 'USER' "$user"
+is_object_valid 'backup' 'BACKUP' "$backup"
+
+conf="$USER_DATA/backup.conf"
+# By line number: the name is checked as a value, never handed to sed as a pattern.
+lnr=$(grep -nF -- "BACKUP='$backup' " "$conf" | grep -m1 -E "^[0-9]+:BACKUP='" | cut -d: -f1)
+[ -n "$lnr" ] || check_result "$E_NOTEXIST" "backup $backup of $user has no record"
+line=$(sed -n "${lnr}p" "$conf")
+
+case "$line" in *" ADOPTED='yes'"*)
+	check_result "$E_FORBIDEN" "$backup was adopted: it is the operator's own file and no rotation takes it anyway"
+	;;
+esac
+case "$line" in *" PROTECTED='yes'"*) current='yes' ;; *) current='no' ;; esac
+if [ "$current" = "$state" ]; then
+	echo "$backup is already $([ "$state" = 'yes' ] || echo 'un')protected"
+	exit 0
+fi
+
+if [ "$state" = 'yes' ]; then
+	case "$line" in *" MODE='diff'"*)
+		check_result "$E_FORBIDEN" "$backup is differential and needs its base, which the rotation may take: protect a full one"
+		;;
+	esac
+	if [ "$(backup_protect_free "$USER_DATA")" -eq 0 ]; then
+		echo "Protected backups of $user (package keeps $(get_user_value '$BACKUPS')):"
+		backup_protected "$conf" | sed 's/^/  /'
+		check_result "$E_LIMIT" "no free slot to protect a backup of $user - unprotect or delete one first"
+	fi
+	record_sed "${lnr}s/\$/ PROTECTED='yes'/" "$conf"
+	$BIN/h-log-action "$user" "Info" "Backup" "Protected backup from rotation (Archive: $backup)."
+else
+	record_sed "${lnr}s/ PROTECTED='yes'//" "$conf"
+	$BIN/h-log-action "$user" "Info" "Backup" "Backup back in rotation (Archive: $backup)."
+fi
+
+log_event "$OK" "$ARGUMENTS"
+
+exit

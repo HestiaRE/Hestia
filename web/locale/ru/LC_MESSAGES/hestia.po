@@ -3294,8 +3294,17 @@ msgid "File Name"
 msgstr "Имя файла"
 
 #: web/templates/pages/list_backup.php
-msgid "Kept until deleted; retention does not rotate exports"
-msgstr "Хранятся до удаления; политика хранения экспорты не ротирует"
+msgid "Kept until deleted or returned to the rotation"
+msgstr ""
+
+#: web/templates/pages/list_backup.php
+msgid "Protect from rotation"
+msgstr ""
+
+#: web/templates/pages/list_backup.php
+#, php-format
+msgid "Protected from rotation: %d of %d"
+msgstr ""
 
 #: web/templates/pages/list_backup.php
 #: web/templates/pages/list_backup_detail.php
@@ -3304,6 +3313,10 @@ msgstr "Хранятся до удаления; политика хранени�
 #: web/templates/pages/list_files_incremental.php
 msgid "Restore"
 msgstr "Восстановить"
+
+#: web/templates/pages/list_backup.php
+msgid "Return to rotation"
+msgstr ""
 
 #: web/templates/pages/list_backup.php
 msgid "Runtime"
@@ -3364,6 +3377,10 @@ msgstr "дифференциальная"
 #: web/templates/pages/list_backup.php
 msgid "export"
 msgstr "экспорт"
+
+#: web/templates/pages/list_backup.php
+msgid "protected"
+msgstr ""
 
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php

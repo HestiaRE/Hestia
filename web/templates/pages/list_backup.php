@@ -102,6 +102,20 @@
 										<span class="u-hide-desktop"><?= tohtml(_("Restore")) ?></span>
 									</a>
 								</li>
+								<?php // A differential archive needs its base, so only a full one can be protected.
+								$protected = ($data[$key]["PROTECTED"] ?? "no") === "yes";
+								if ($protected || ($data[$key]["MODE"] ?? "") !== "diff") { ?>
+									<li class="units-table-row-action" data-key-action="href">
+										<a
+											class="units-table-row-action-link data-controls"
+											href="/edit/backup/protection/?<?= tohtml(http_build_query(["backup" => $key, "state" => $protected ? "no" : "yes", "token" => $_SESSION["token"]])) ?>"
+											title="<?= tohtml($protected ? _("Return to rotation") : _("Protect from rotation")) ?>"
+										>
+											<i class="fas <?= $protected ? "fa-lock-open" : "fa-lock" ?> icon-orange"></i>
+											<span class="u-hide-desktop"><?= tohtml($protected ? _("Return to rotation") : _("Protect from rotation")) ?></span>
+										</a>
+									</li>
+								<?php } ?>
 								<li class="units-table-row-action shortcut-delete" data-key-action="js">
 									<a
 										class="units-table-row-action-link data-controls js-confirm-action"
@@ -142,11 +156,12 @@
 					if (($data[$key]["LOCAL"] ?? "yes") !== "yes") { ?>
 						<span class="u-text-small"><?= tohtml(_("(no local copy)")) ?></span>
 					<?php } ?>
-					<?php // Named, because retention does not touch it: an export is a deliberate
-					// artefact and stays until someone deletes it.
-					if (($data[$key]["MODE"] ?? "") === "export") { ?>
-						<span class="u-text-small" title="<?= tohtml(_("Kept until deleted; retention does not rotate exports")) ?>">
-							(<?= tohtml(_("export")) ?>)
+					<?php if (($data[$key]["MODE"] ?? "") === "export") { ?>
+						<span class="u-text-small">(<?= tohtml(_("export")) ?>)</span>
+					<?php } ?>
+					<?php if (($data[$key]["PROTECTED"] ?? "no") === "yes") { ?>
+						<span class="u-text-small" title="<?= tohtml(_("Kept until deleted or returned to the rotation")) ?>">
+							<i class="fas fa-lock icon-orange"></i> <?= tohtml(_("protected")) ?>
 						</span>
 					<?php } ?>
 					<?php if (($data[$key]["MODE"] ?? "") === "diff") { ?>
@@ -166,6 +181,15 @@
 	<div class="units-table-footer">
 		<p>
 			<?php printf(ngettext("%d backup", "%d backups", $i), $i); ?>
+		</p>
+		<?php
+		// One slot of BACKUPS stays with the automatic run; a restic customer's archives have none.
+		$slots = (int) ($panel[$user_plain]["BACKUPS"] ?? 0);
+			$slots_max = ($panel[$user_plain]["BACKUPS_MODE"] ?? "") === "restic" ? $slots : max(0, $slots - 1);
+			$n_protected = count(array_filter($data, fn ($b) => ($b["PROTECTED"] ?? "no") === "yes"));
+			?>
+		<p>
+			<?= tohtml(sprintf(_("Protected from rotation: %d of %d"), $n_protected, $slots_max)) ?>
 		</p>
 	</div>
 

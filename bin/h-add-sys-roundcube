@@ -40,6 +40,14 @@ if echo "$WEBMAIL_SYSTEM" | grep -qw 'roundcube' \
 	exit 0
 fi
 
+# The panel's PHP package answers roundcube's dependency on php. Sury's meta would follow every new PHP with its apache
+# module first in line, and without a named package apt picks any version's with its FPM.
+pv=$(cat /etc/php/hestia/php-version 2> /dev/null)
+if ! [[ "$pv" =~ ^[0-9]+\.[0-9]+$ ]]; then
+	echo "ERROR: no panel PHP version in /etc/php/hestia/php-version, apt would answer roundcube's php with Sury's meta"
+	exit 1
+fi
+
 # dbconfig-common must not set up a database of its own. After a purge the preseed finds only its own dummy template
 # and fails; a reinstall is then held back by the file dbconfig reads before it asks.
 if ! echo "roundcube-core roundcube/dbconfig-install boolean false" | debconf-set-selections 2> /dev/null \
@@ -53,7 +61,7 @@ fi
 
 # No recommends: enchant never loads in the panel pool, and classic/larry are skins nobody selects.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y --no-install-recommends install \
-	roundcube "$RC_DB_PKG" roundcube-plugins || {
+	roundcube "$RC_DB_PKG" roundcube-plugins "php$pv" || {
 	echo "ERROR: Roundcube packages did not install"
 	exit 1
 }

@@ -28,20 +28,12 @@ $v_timezones = cli_json("h-get-sys-timezones json");
 // List supported php versions
 $backend_templates = cli_json("h-list-web-templates-backend json");
 
-$v_php_versions = [
-	"php-5.6",
-	"php-7.0",
-	"php-7.1",
-	"php-7.2",
-	"php-7.3",
-	"php-7.4",
-	"php-8.0",
-	"php-8.1",
-	"php-8.2",
-	"php-8.3",
-	"php-8.4",
-	"php-8.5",
-];
+// The list h-add-web-php validates against, so the page cannot offer a version it refuses or miss one it takes.
+$manifest = json_decode((string) @file_get_contents("/usr/local/hestia/share/manifest.json"), true);
+$v_php_versions = array_map(
+	fn ($v) => "php-" . $v,
+	$manifest["software_versions"]["php_supported"] ?? [],
+);
 sort($v_php_versions);
 
 if (empty($backend_templates)) {

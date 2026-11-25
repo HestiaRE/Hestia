@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 78,
-      "eigenbau_files": 177,
+      "eigenbau_files": 178,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 255,
+      "files_total": 256,
       "files_mapped": 78
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -2311,6 +2311,15 @@
       "last_reconciled": "2026-11-25",
       "divergence": null,
       "note": "HestiaRE-native: the v0.39 update manifest."
+    },
+    {
+      "path": "updates/0.40.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": "HestiaRE-native: the v0.40 update manifest."
     },
     {
       "path": "updates/README.md",

@@ -121,7 +121,7 @@ ioncube_ext_dir() {
 	"/usr/bin/php$1" -n -r 'echo PHP_EXTENSION_DIR;' 2> /dev/null
 }
 
-# rc 3: ionCube ships no loader for this version (8.0).
+# rc 3: ionCube ships no loader for this version (8.0, and 8.6 so far).
 ioncube_version_apply() {
 	local rc
 	ioncube_lock -s || return 1

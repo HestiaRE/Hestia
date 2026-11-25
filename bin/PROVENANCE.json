@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 400,
-      "eigenbau_files": 149,
+      "eigenbau_files": 150,
       "weighted_pct": 49,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 549,
+      "files_total": 550,
       "files_mapped": 400
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -858,14 +858,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-add-sys-roundcube",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-23",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 551,
-        "our_lines": 266,
-        "added": 230,
-        "removed": 515,
-        "pct": 91,
-        "measured_at": "2026-11-23"
+        "our_lines": 274,
+        "added": 236,
+        "removed": 513,
+        "pct": 90,
+        "measured_at": "2026-11-25"
       },
       "note": ""
     },
@@ -1385,10 +1385,10 @@
       "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 818,
-        "our_lines": 981,
-        "added": 503,
+        "our_lines": 999,
+        "added": 521,
         "removed": 340,
-        "pct": 46,
+        "pct": 47,
         "measured_at": "2026-11-25"
       },
       "note": ""
@@ -4091,6 +4091,15 @@
       "note": ""
     },
     {
+      "path": "h-change-user-backup-protection",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "h-extract-fs-archive",
       "source_type": "derived",
       "upstream_path": "bin/v-extract-fs-archive",
@@ -5315,14 +5324,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backup",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 106,
-        "our_lines": 78,
-        "added": 30,
+        "our_lines": 81,
+        "added": 33,
         "removed": 58,
-        "pct": 47,
-        "measured_at": "2026-11-06"
+        "pct": 48,
+        "measured_at": "2026-11-25"
       },
       "note": ""
     },
@@ -5372,14 +5381,14 @@
       "source_type": "derived",
       "upstream_path": "bin/v-list-user-backups",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-12",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 118,
-        "our_lines": 112,
-        "added": 56,
-        "removed": 62,
-        "pct": 51,
-        "measured_at": "2026-11-12"
+        "our_lines": 114,
+        "added": 59,
+        "removed": 63,
+        "pct": 52,
+        "measured_at": "2026-11-25"
       },
       "note": ""
     },

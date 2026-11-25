@@ -15,10 +15,10 @@
     "third_party_note": "Third-party vendored code is tracked in VENDORED.json, not here; those paths are excluded to keep the two manifests disjoint.",
     "aggregate": {
       "upstream_mapped_files": 298,
-      "eigenbau_files": 60,
+      "eigenbau_files": 61,
       "weighted_pct": 34,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 358,
+      "files_total": 359,
       "files_mapped": 298
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -1004,6 +1004,15 @@
       "note": ""
     },
     {
+      "path": "edit/backup/protection/index.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "edit/cron/index.php",
       "source_type": "derived",
       "upstream_path": "web/edit/cron/index.php",
@@ -1221,10 +1230,10 @@
       "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 2012,
-        "our_lines": 1608,
-        "added": 446,
-        "removed": 850,
-        "pct": 35,
+        "our_lines": 1600,
+        "added": 452,
+        "removed": 864,
+        "pct": 36,
         "measured_at": "2026-11-25"
       },
       "note": ""
@@ -2903,15 +2912,15 @@
       "source_type": "derived",
       "upstream_path": "web/locale/da/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-17",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 235,
-        "our_lines": 219,
+        "our_lines": 216,
         "added": 235,
         "removed": 235,
         "pct": 100,
-        "measured_at": "2026-11-17",
-        "method": "binary: byte compare"
+        "method": "binary: byte compare",
+        "measured_at": "2026-11-25"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
@@ -2932,7 +2941,7 @@
       "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 253,
-        "our_lines": 257,
+        "our_lines": 258,
         "added": 253,
         "removed": 253,
         "pct": 100,
@@ -2955,15 +2964,15 @@
       "source_type": "derived",
       "upstream_path": "web/locale/es/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 222,
-        "our_lines": 211,
+        "our_lines": 209,
         "added": 222,
         "removed": 222,
         "pct": 100,
-        "measured_at": "2026-11-06",
-        "method": "binary: byte compare"
+        "method": "binary: byte compare",
+        "measured_at": "2026-11-25"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
@@ -2981,15 +2990,15 @@
       "source_type": "derived",
       "upstream_path": "web/locale/fr/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-17",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 220,
-        "our_lines": 212,
+        "our_lines": 206,
         "added": 220,
         "removed": 220,
         "pct": 100,
-        "measured_at": "2026-11-17",
-        "method": "binary: byte compare"
+        "method": "binary: byte compare",
+        "measured_at": "2026-11-25"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
@@ -3010,9 +3019,9 @@
       "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 5103,
-        "our_lines": 4957,
-        "added": 3384,
-        "removed": 3530,
+        "our_lines": 4974,
+        "added": 3399,
+        "removed": 3528,
         "pct": 68,
         "measured_at": "2026-11-25"
       },
@@ -3039,15 +3048,15 @@
       "source_type": "derived",
       "upstream_path": "web/locale/nl/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-17",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 238,
-        "our_lines": 232,
+        "our_lines": 231,
         "added": 238,
         "removed": 238,
         "pct": 100,
-        "measured_at": "2026-11-17",
-        "method": "binary: byte compare"
+        "method": "binary: byte compare",
+        "measured_at": "2026-11-25"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
@@ -3065,15 +3074,15 @@
       "source_type": "derived",
       "upstream_path": "web/locale/pt/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-17",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 232,
-        "our_lines": 222,
+        "our_lines": 221,
         "added": 232,
         "removed": 232,
         "pct": 100,
-        "measured_at": "2026-11-17",
-        "method": "binary: byte compare"
+        "method": "binary: byte compare",
+        "measured_at": "2026-11-25"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
@@ -3091,15 +3100,15 @@
       "source_type": "derived",
       "upstream_path": "web/locale/ru/LC_MESSAGES/hestiacp.mo",
       "upstream_ref": "c684e21",
-      "last_reconciled": "2026-11-17",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 227,
-        "our_lines": 219,
+        "our_lines": 215,
         "added": 227,
         "removed": 227,
         "pct": 100,
-        "measured_at": "2026-11-17",
-        "method": "binary: byte compare"
+        "method": "binary: byte compare",
+        "measured_at": "2026-11-25"
       },
       "note": "Compiled from hestia.po beside it by .gitea/tools/i18n.sh (#1160): the msgids follow this panel, the translations started from upstream's catalogue. Pinned to that ref because a newer upstream shows its continuing translation work, not a divergence of ours."
     },
@@ -4245,14 +4254,14 @@
       "source_type": "derived",
       "upstream_path": "web/templates/pages/list_backup.php",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-06",
+      "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 165,
-        "our_lines": 172,
-        "added": 57,
+        "our_lines": 196,
+        "added": 81,
         "removed": 50,
-        "pct": 31,
-        "measured_at": "2026-11-06"
+        "pct": 36,
+        "measured_at": "2026-11-25"
       },
       "note": ""
     },

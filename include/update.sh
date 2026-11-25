@@ -122,6 +122,16 @@ upd_cond_docker_map_drift() {
 	return 1
 }
 
+# True while an export still carries ADOPTED, which kept it out of the protected slots and its file on delete.
+upd_cond_backup_export_adopted() {
+	local f
+	for f in "$CONF_DIR"/users/*/backup.conf; do
+		[ -e "$f" ] || continue
+		grep -qE "^BACKUP='[^']*' .* MODE='export' .*ADOPTED='yes'" "$f" && return 0
+	done
+	return 1
+}
+
 # True while a MySQL database of a record still has a grant whose name acts as a pattern, or its host is unreadable.
 upd_cond_mysql_wildcard_grants() {
 	[ -s "$UPDATE_ROOT/conf/mysql.conf" ] || return 1
@@ -391,7 +401,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	ptr_check_cron_apply crowdsec_whitelist_apply sieve_reject_off_apply pgsql_hba_local_password
 	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply
 	exim_authresults_apply mysql_grants_escape_apply
-	nginx_early_data_off_apply exim_null_sender_domain_apply dovecot_mail_compress_apply)
+	nginx_early_data_off_apply exim_null_sender_domain_apply dovecot_mail_compress_apply
+	php_meta_off_apply backup_export_protect_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -504,7 +515,7 @@ upd_condition() {
 		language_unlisted | locale_missing | file_group_differs | file_owner_differs | path_not_link)
 			"upd_cond_$t" "$@"
 			;;
-		docker_map_drift | mysql_wildcard_grants)
+		docker_map_drift | mysql_wildcard_grants | backup_export_adopted)
 			"upd_cond_$t" "$@"
 			;;
 		*)

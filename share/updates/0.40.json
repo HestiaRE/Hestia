@@ -1,0 +1,21 @@
+{
+  "version": "0.40",
+  "entries": [
+    {
+      "id": "php-meta-off",
+      "description": "apache runs no PHP module and is back on mpm_event: Sury's php meta had brought in PHP 8.6 with its apache module, which ran a customer's .phtml and .phar as www-data, outside his PHP pool. The panel's PHP takes the meta's place for roundcube",
+      "conditions": [{ "type": "package_installed", "name": "php" }],
+      "action": { "type": "function_call", "function": "php_meta_off_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "backup-export-protected",
+      "description": "An export is a protected backup: it holds one of the package's backup slots instead of being adopted, so deleting it deletes its file",
+      "conditions": [{ "type": "backup_export_adopted" }],
+      "action": { "type": "function_call", "function": "backup_export_protect_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

@@ -41,6 +41,18 @@ The nightly cron runs `h-backup-users` once (`10 05 * * *`), and the customer's 
 picks the runner. A customer set to `restic` on a box without the addon gets an archive
 backup and a warning in the log - not a silent skip at five in the morning.
 
+In `diff` mode a run writes a new full archive, which starts a new set, in three cases:
+
+- no base is reachable, or its map cannot be read;
+- the newest full is older than 14 days (`BACKUP_DIFF_MAX_AGE`): every diff of a set
+  depends on that one file, so its age is a risk limit;
+- the web and mail members as a diff would still be 50 % or more of their full size
+  (`BACKUP_DIFF_RUN_PCT`), measured after building.
+
+There is no calendar: a quiet customer gets a full every two weeks, a busy one more often.
+Within a run, each member is written as a diff only if that saves at least half
+(`BACKUP_DIFF_MEMBER_PCT`).
+
 `BACKUP_INCREMENTAL` in `hestia.conf` is the server-side switch and means exactly
 "restic is installed and a repository is configured". It does not select a mode.
 
@@ -73,7 +85,10 @@ repository is never deleted this way; for restic there is also the explicit way 
 ## Retention, and what protects a file
 
 Rotation counts **sets**, not files: a differential archive belongs to the set of its
-base, and a base is kept as long as any kept archive names it.
+base, and a base is kept as long as any kept archive names it. With `BACKUPS='3'` a diff customer
+keeps three sets: the oldest point lies four to six weeks back for a quiet customer, as the
+oldest set goes when the fourth begins. With `BACKUPS='1'` the depth is a saw tooth between
+one and fourteen days.
 
 - The package's `BACKUPS` is what the local rotation keeps.
 - Each remote target may keep more, via its own `BACKUPS_KEEP` (empty means mirror the
@@ -82,12 +97,42 @@ base, and a base is kept as long as any kept archive names it.
   so a customer can still schedule a restore of something only a remote holds. The
   listers mark those `LOCAL='no'`.
 
-Two things protect a file from the rotation:
+Three things protect a file from the rotation:
 
 - **It lies flat in `/backup/`.** The rotation only enumerates `/backup/$user/`, so a
   flat archive is structurally out of reach.
 - **Its record says `ADOPTED='yes'`.** Adopted names are subtracted from the rotation
   list, and `h-delete-user-backup` forgets the record without deleting the file.
+- **Its record says `PROTECTED='yes'`.** The customer kept it on purpose (below).
+
+### Protected backups
+
+A protected archive stays until it is deleted or handed back to the rotation, in every
+place that holds it, local and remote. It holds one of the package's `BACKUPS` slots, so
+the rotation of each place keeps that many fewer automatic sets. One slot always stays with
+the automatic run: a package with `BACKUPS='3'` allows two protected archives, one with
+`BACKUPS='1'` none. A restic customer's archives have no automatic run, so there all slots
+count.
+
+```
+h-change-user-backup-protection $user $archive yes|no
+```
+
+- **Create Backup** in the panel protects the new archive while a slot is free; without one
+  it goes into the rotation and the run log says so. `h-backup-user USER NOTIFY EXPORT
+  PROTECT` takes `yes` (refuse without a slot), `no` or `auto` (the panel's behaviour).
+- A protected archive is always full: a differential one needs its base, which the rotation
+  may take, so protecting one is refused and a protected run never writes a diff.
+- A protected archive is never the base of a differential run: deleting it on purpose would
+  strand every diff built on it.
+- Protecting a full that already has diffs protects the full alone. Its diffs rotate on as a
+  set of their own and count as an automatic one.
+- An update that turns exports into protected archives takes their slots from the automatic
+  run: `BACKUPS='3'` with two exports keeps one automatic set afterwards.
+- With no slot free, protecting refuses and names the protected archives. Nothing is ever
+  unprotected to make room.
+- Lowering a package's `BACKUPS` below what is protected keeps the protected archives; the
+  rotation then keeps a single automatic set.
 
 An archive inside `/backup/$user/` with **no record** has neither protection: it counts
 as its own set, so with `BACKUPS='1'` the next run removes it.
@@ -179,9 +224,10 @@ h-export-user-backup $user
 
 Not a fourth mode. What comes out is the format adoption, probe, report and restore
 already handle, which is how a restic customer migrates without rebuilding an archive out
-of snapshots. Its record carries `MODE='export'` and `ADOPTED='yes'`, so retention never
-touches it. `BACKUP_EXPORT_LIMIT` (default 2) refuses and names the existing exports
-rather than clearing the oldest away.
+of snapshots. Its record carries `MODE='export'` and `PROTECTED='yes'`: it holds a slot
+like any protected archive, an export without a free slot is refused with the protected
+archives named, and deleting it deletes its file. An export is never a base for a
+differential run.
 
 One thing an export does differently: only we call the SnappyMail fork `tachyon`, and a
 foreign panel refuses the unknown value, leaving the mail domain without webmail. So an
@@ -197,8 +243,8 @@ refuses `snappymail` exactly as it refused `tachyon`.
 
 One Backups tab. It branches on the customer's mode: an archive customer sees their
 archives, a restic customer lands on the snapshot list. `?archives=1` is the way back to
-the archives from before a mode switch and to the exports, which are marked as such with
-the reason - retention does not rotate them.
+the archives from before a mode switch and to the exports. Each full archive has a lock
+to protect it or hand it back, and the footer counts the protected ones against the slots.
 
 ---
 

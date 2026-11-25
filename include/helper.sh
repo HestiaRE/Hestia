@@ -679,6 +679,59 @@ sury_unattended_apply() {
 	chmod 644 "$f"
 }
 
+# Sury's php meta names the newest PHP, whose first alternative is its apache module: that runs a customer's .phtml as
+# www-data past his pool and forces prefork. The panel's PHP package takes the meta's place for roundcube, so no
+# installed package pulls a handler for a new version any more. Every mod_php goes with its versioned package, and
+# apache gets mpm_event back. A plan that would remove anything else is refused. An apache that was not running stays
+# down, though mod_php's prerm starts it. A failed apt run keeps the meta, so the next update tries again; a failed
+# MPM swap leaves apache on prefork without a PHP module, and the smoke names it.
+php_meta_off_apply() {
+	local pv p v args want extra up=0
+	pv=$(cat /etc/php/hestia/php-version 2> /dev/null)
+	if ! [[ "$pv" =~ ^[0-9]+\.[0-9]+$ ]]; then
+		echo "[ ! ] no panel PHP version in /etc/php/hestia/php-version, the php meta stays"
+		return 0
+	fi
+	args=("php$pv" php-)
+	want=$'php\n'
+	for p in $(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'libapache2-mod-php*' 2> /dev/null \
+		| awk '$1 == "ii" { print $2 }'); do
+		v=${p#libapache2-mod-php}
+		args+=("$p-")
+		want+="$p"$'\n'
+		if [ "$v" != "$pv" ] && dpkg-query -W -f='${db:Status-Abbrev}' "php$v" 2> /dev/null | grep -q '^ii'; then
+			args+=("php$v-")
+			want+="php$v"$'\n'
+		fi
+	done
+	extra=$(comm -23 <(apt-get -s install "${args[@]}" 2> /dev/null | awk '$1 == "Remv" { print $2 }' | sort) \
+		<(printf '%s' "$want" | sort))
+	if [ -n "$extra" ]; then
+		echo "[ ! ] taking the php meta off would also remove $(tr '\n' ' ' <<< "$extra"), nothing done"
+		return 0
+	fi
+	systemctl -q is-active apache2 2> /dev/null && up=1
+	if ! DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y install "${args[@]}" > /dev/null; then
+		echo "[ ! ] apt could not take the php meta off: apt-get install ${args[*]}"
+		return 0
+	fi
+	[ "$up" = 1 ] || systemctl -q stop apache2 2> /dev/null
+	[ -d /etc/apache2/mods-enabled ] && a2query -q -m mpm_prefork 2> /dev/null || return 0
+	a2dismod -q mpm_prefork > /dev/null
+	a2enmod -q mpm_event > /dev/null
+	if apache2ctl -t > /dev/null 2>&1 && { [ "$up" = 0 ] || systemctl restart apache2; }; then
+		return 0
+	fi
+	a2dismod -q mpm_event > /dev/null
+	a2enmod -q mpm_prefork > /dev/null
+	if [ "$up" = 0 ] || systemctl restart apache2; then
+		echo "[ ! ] apache2 did not take mpm_event, back on prefork: apache2ctl -t; journalctl -u apache2"
+	else
+		echo "[ ! ] apache2 starts neither with mpm_event nor back on prefork: journalctl -u apache2"
+	fi
+	return 0
+}
+
 # A static v6 address is still tentative (DAD) when apache2 and nginx start at boot, and both bind it by name: without
 # this they stay down. Set at once too, for an address h-add-sys-ip has just added. The `-` keeps systemd-sysctl quiet
 # on a box without IPv6. A web server the race already took down is started again; one stopped on purpose stays stopped.

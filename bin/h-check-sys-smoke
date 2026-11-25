@@ -1233,6 +1233,30 @@ check_web_config_test() {
 	[ "$n" -gt 0 ] || skip "web config test (no nginx or apache2 configured on this box)"
 }
 
+# A PHP module in apache runs a customer's .phtml and .phar as www-data, past his pool, and forces prefork. Reads the
+# loaded modules, so a module enabled by hand counts too. Not covered: a handler a vhost sets on its own.
+check_apache_php_module() {
+	local mods mpm php hint
+	[ "$WEB_SYSTEM" = 'apache2' ] || {
+		skip "apache2 PHP module (no apache2 on this box)"
+		return 0
+	}
+	mods=$(apache2ctl -M 2> /dev/null)
+	mpm=$(grep -oE 'mpm_[a-z]+_module' <<< "$mods" | head -n1)
+	php=$(grep -oE 'php[0-9.]*_module' <<< "$mods" | paste -sd ' ' -)
+	if [ -z "$mpm" ]; then
+		no "apache2 lists no MPM, its modules were not read" "apache2ctl -M"
+	elif [ -n "$php" ]; then
+		hint="PHP belongs in the FPM pool of its user: hestia update takes it off while Sury's php meta is installed"
+		no "apache2 runs $php on $mpm" "$hint (0.40/php-meta-off), else remove the module's package by hand"
+	elif [ "$mpm" != 'mpm_event_module' ]; then
+		hint="a2dismod ${mpm%_module}; a2enmod mpm_event; apache2ctl -t && systemctl restart apache2"
+		no "apache2 runs no PHP module, but on $mpm" "$hint"
+	else
+		ok "apache2 runs no PHP module, $mpm ($(grep -c '_module' <<< "$mods") modules read)"
+	fi
+}
+
 # Every web record against what it renders from and to. A vhost that was skipped looks clean by being absent,
 # and a template that no longer exists only shows on the next rebuild. A docker domain in a proxy model has its
 # backend vhost removed on purpose. Not covered: the SSL variant, and whether the vhost inside is the right one.
@@ -1834,6 +1858,7 @@ check_panel_languages
 check_panel_translates
 check_policy_fragment_coverage
 check_web_config_test
+check_apache_php_module
 check_web_model_sentinel
 check_proc_hardening
 check_web_records

@@ -1,0 +1,13 @@
+{
+  "version": "0.40",
+  "entries": [
+    {
+      "id": "php-meta-off",
+      "description": "apache runs no PHP module and is back on mpm_event: Sury's php meta had brought in PHP 8.6 with its apache module, which ran a customer's .phtml and .phar as www-data, outside his PHP pool. The panel's PHP takes the meta's place for roundcube",
+      "conditions": [{ "type": "package_installed", "name": "php" }],
+      "action": { "type": "function_call", "function": "php_meta_off_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

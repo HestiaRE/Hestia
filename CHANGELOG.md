@@ -13,7 +13,14 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Security
+
+- **apache runs no PHP module, and a new Sury PHP no longer brings one along** (#1487). roundcube depends on Sury's
+  `php` meta, which now names PHP 8.6. With 8.6's FPM absent, apt chose its apache module. That module ran a
+  customer's `.phtml` and `.phar` as www-data, outside his own PHP pool, and switched apache to prefork. It came
+  through unattended-upgrades on every apache box. roundcube now takes the panel's PHP package instead of the meta,
+  so no installed package pulls a handler for a new PHP version any more. The update removes the module and the meta
+  and puts apache back on mpm_event. The smoke fails on a PHP module or a non-event MPM in apache.
 
 ## v0.39 (2026-11-25)
 

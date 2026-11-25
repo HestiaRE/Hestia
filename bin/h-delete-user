@@ -112,21 +112,33 @@ dns_written_adopt "$user" "$ROOT_USER"
 # Last before the record goes: the archive list, the transports and the restic key all live in it, and an abort above
 # keeps the backups of an account that is still there.
 if [ "$backups" = 'yes' ]; then
+	# What stays is said here and in the system log: the panel shows no output of a successful delete.
+	kept=()
 	while IFS= read -r archive; do
 		[ -n "$archive" ] || continue
-		$BIN/h-delete-user-backup "$user" "$archive" > /dev/null 2>&1 \
-			|| echo "Warning: backup $archive of $user could not be deleted"
+		if ! out=$($BIN/h-delete-user-backup "$user" "$archive" 2>&1); then
+			kept+=("backup $archive could not be deleted")
+		elif [ -n "$out" ]; then
+			kept+=("$out")
+		fi
 	done < <(sed -n "s/^BACKUP='\([^']*\)'.*/\1/p" "$USER_DATA/backup.conf" 2> /dev/null)
-	restic_out=$($BIN/h-delete-user-backups-restic "$user" all 2>&1)
-	case $? in
-		0 | "$E_NOTEXIST") ;;
-		*) echo "Warning: the restic backups of $user were not deleted: ${restic_out##*Error: }" ;;
-	esac
+	# Only where restic left something: its "nothing here" is an error log line on every other delete.
+	if [ -f "$USER_DATA/restic.conf" ] || ls "$BACKUP/$user/$user".*.meta.tgz > /dev/null 2>&1; then
+		restic_out=$($BIN/h-delete-user-backups-restic "$user" all 2>&1)
+		case $? in
+			0 | "$E_NOTEXIST") ;;
+			*) kept+=("the restic backups were not deleted: ${restic_out##*Error: }") ;;
+		esac
+	fi
 	[ -n "$BACKUP" ] && rm -f "$BACKUP/$user/$user.log"
 	# Not empty means files no record knows (adopted, or left by hand): named, never taken.
 	if [ -n "$BACKUP" ] && [ -d "$BACKUP/$user" ] && ! rmdir "$BACKUP/$user" 2> /dev/null; then
-		echo "Kept: $BACKUP/$user holds files no backup record names"
+		kept+=("$BACKUP/$user holds files no backup record names")
 	fi
+	for line in "${kept[@]}"; do
+		echo "Kept: $line"
+		$BIN/h-log-action "system" "Warning" "Backup" "Kept at user deletion (User: $user): $line"
+	done
 fi
 rm -rf $USER_DATA
 

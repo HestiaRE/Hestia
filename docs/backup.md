@@ -62,8 +62,11 @@ A hand-placed migration archive may also lie **flat in `/backup/`**. Those two p
 are the only ones, `backup_archive_path` is the only resolver of them, symlinks are
 refused, and every message names which of the two it found.
 
-`/backup/$user/` is never removed by deleting the customer: **deleting a customer keeps
-their backups.** For restic there is an explicit way out, below.
+`/backup/$user/` stays when a customer is deleted: **by default, deleting a customer keeps
+their backups.** `h-delete-user USER '' yes`, or the checkbox in the panel's delete dialog,
+takes them along: every archive on every transport (a remote one best effort), the restic
+repository and the folder. What stays is named in the system log. A remote restic
+repository is never deleted this way; for restic there is also the explicit way out, below.
 
 ---
 

@@ -40,7 +40,8 @@ the releases of the command audit, into another.
 - **Deleting a user can take the backups along** (#1477, upstream 1.10.10). `h-delete-user USER [RESTART] [BACKUPS]`:
   with `yes` every archive goes from every transport and the restic repository with it, the default `no` keeps them
   as before. The delete dialog of the user list has a checkbox for it. Without it the archives outlived the record that
-  named them, and nothing listed them any more.
+  named them, and nothing listed them any more. On a remote target the delete is best effort: an unreachable one keeps
+  its copy. What stays is named in the system log.
 
 ### Security
 

@@ -820,10 +820,11 @@ skipped by unattended-upgrades in silence.
 **HestiaRE.** The installer installs unattended-upgrades and switches it on, because Debian's installer stores it as
 off when no update policy was picked (`unattended_upgrades_preseed`, `include/helper.sh`). The distribution's own
 origins stay as shipped; the one external origin is Sury PHP (`60unattended-upgrades-hestia-php`, written by
-`add_sury_repo` with the repo). The nginx.org and MariaDB repos stay manual. `60hestia-keep-conffiles` passes
-`--force-confdef --force-confold` to every apt run, so an edited conffile stays and the package's version lands as
-`.dpkg-dist`, the answer N, instead of the package staying behind. An update brings all three to an existing box
-(`share/updates/0.32.json`).
+`add_sury_repo` with the repo). With it comes `/etc/apt/preferences.d/hestia-php`, which pins `libapache2-mod-php*`
+and Sury's `php` meta to -1, so an update never brings mod_php or the newest PHP along (#1487, `0.40/sury-php-pin`).
+The nginx.org and MariaDB repos stay manual. `60hestia-keep-conffiles` passes `--force-confdef --force-confold` to
+every apt run, so an edited conffile stays and the package's version lands as `.dpkg-dist`, the answer N, instead of
+the package staying behind. An update brings all three to an existing box (`share/updates/0.32.json`).
 
 ## 23. Failed forwards: a bounce to the sender -> a bounce into devnull (#1336)
 

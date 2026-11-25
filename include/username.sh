@@ -46,7 +46,7 @@ new_user_name_refusal() {
 		return 0
 	fi
 	if ! [[ "$1" =~ ^[a-zA-Z][-_[:alnum:]]{0,28}[[:alnum:]]$ ]] || [ "$1" != "${1//[^[:ascii:]]/}" ]; then
-		echo 'is not valid: a letter first, then letters, digits, - or _, at most 30 characters'
+		echo 'is not valid: 3 to 30 characters, a letter first, a letter or digit last, letters, digits, - or _ between'
 		return 0
 	fi
 	return 1

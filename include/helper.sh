@@ -681,10 +681,10 @@ sury_unattended_apply() {
 
 # Sury's php meta names the newest PHP, whose first alternative is its apache module: that runs a customer's .phtml as
 # www-data past his pool and forces prefork. The panel's PHP package takes the meta's place for roundcube, so no
-# installed package follows a new version any more. Every mod_php goes with its versioned package, and apache gets
-# mpm_event back. A plan that would remove anything else is refused.
-# A failure only warns: the meta stays, so the next update tries again. An apache that was not running stays down,
-# though mod_php's prerm starts it.
+# installed package pulls a handler for a new version any more. Every mod_php goes with its versioned package, and
+# apache gets mpm_event back. A plan that would remove anything else is refused. An apache that was not running stays
+# down, though mod_php's prerm starts it. A failed apt run keeps the meta, so the next update tries again; a failed
+# MPM swap leaves apache on prefork without a PHP module, and the smoke names it.
 php_meta_off_apply() {
 	local pv p v args want extra up=0
 	pv=$(cat /etc/php/hestia/php-version 2> /dev/null)

@@ -1236,7 +1236,7 @@ check_web_config_test() {
 # A PHP module in apache runs a customer's .phtml and .phar as www-data, past his pool, and forces prefork. Reads the
 # loaded modules, so a module enabled by hand counts too. Not covered: a handler a vhost sets on its own.
 check_apache_php_module() {
-	local mods mpm php
+	local mods mpm php hint
 	[ "$WEB_SYSTEM" = 'apache2' ] || {
 		skip "apache2 PHP module (no apache2 on this box)"
 		return 0
@@ -1246,8 +1246,12 @@ check_apache_php_module() {
 	php=$(grep -oE 'php[0-9.]*_module' <<< "$mods" | paste -sd ' ' -)
 	if [ -z "$mpm" ]; then
 		no "apache2 lists no MPM, its modules were not read" "apache2ctl -M"
-	elif [ -n "$php" ] || [ "$mpm" != 'mpm_event_module' ]; then
-		no "apache2 runs ${php:-no PHP module} on $mpm" "PHP belongs in the FPM pool of its user, hestia update takes it off (0.40/php-meta-off)"
+	elif [ -n "$php" ]; then
+		hint="PHP belongs in the FPM pool of its user: hestia update takes it off while Sury's php meta is installed"
+		no "apache2 runs $php on $mpm" "$hint (0.40/php-meta-off), else remove the module's package by hand"
+	elif [ "$mpm" != 'mpm_event_module' ]; then
+		hint="a2dismod ${mpm%_module}; a2enmod mpm_event; apache2ctl -t && systemctl restart apache2"
+		no "apache2 runs no PHP module, but on $mpm" "$hint"
 	else
 		ok "apache2 runs no PHP module, $mpm ($(grep -c '_module' <<< "$mods") modules read)"
 	fi

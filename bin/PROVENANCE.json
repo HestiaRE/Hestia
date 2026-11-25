@@ -7490,6 +7490,15 @@
       "note": ""
     },
     {
+      "path": "h-update-user-password-hash",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": "Replaces a DES or MD5 hash at the panel login (#1478); upstream only warns."
+    },
+    {
       "path": "h-update-user-quota",
       "source_type": "derived",
       "upstream_path": "bin/v-update-user-quota",

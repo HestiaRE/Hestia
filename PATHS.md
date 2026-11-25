@@ -83,7 +83,9 @@ Current state and migration steps are documented in Section 5.
 Since #191 the panel PHP version is not a fixed pin: it is the OS default `php` meta
 version (deb12: 8.2, deb13: 8.4, ub24: 8.3, ub26: 8.5), derived at install and recorded
 in `/etc/php/hestia/php-version` — the single runtime source of truth, read by the
-`hestia-php*` wrappers. In sury_multi mode the packages still come from Sury.
+`hestia-php*` wrappers. In sury_multi mode the packages still come from Sury. h-add-sys-roundcube
+names this version's `phpX.Y` package as roundcube's `php`, so Sury's `php` meta and its apache module never come in
+(#1487).
 
 | Item | Path |
 |------|------|
@@ -255,6 +257,10 @@ and the restic repository (#1477).
 A restic restore stages beside the homes in `/home/.hestia-restore.$user.XXXXXX` (root, 0700) and hardlinks from
 there into the home, so the data is not stored twice and root never unpacks into a tree the customer owns (#1348).
 A leftover stage is swept by the next restore and by `h-delete-user`.
+
+The archive records are `$CONF_DIR/users/$user/backup.conf`, one line per archive. `PROTECTED='yes'` keeps one out
+of every rotation and holds a slot of the package's `BACKUPS` (#1353); `ADOPTED='yes'` marks a hand-placed archive
+whose file a delete leaves in place.
 
 The admin's notes on a user are `$CONF_DIR/users/$user/notes.txt` (#1427): never shown to the customer, but in the
 user's backup, where the customer can read them.

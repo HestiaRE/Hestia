@@ -21,7 +21,7 @@
     "aggregate": {
       "upstream_mapped_files": 9,
       "eigenbau_files": 30,
-      "weighted_pct": 61,
+      "weighted_pct": 62,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
       "files_total": 39,
       "files_mapped": 9
@@ -38,10 +38,10 @@
       "last_reconciled": "2026-11-25",
       "divergence": {
         "upstream_lines": 583,
-        "our_lines": 2497,
-        "added": 2091,
-        "removed": 177,
-        "pct": 73,
+        "our_lines": 2576,
+        "added": 2171,
+        "removed": 178,
+        "pct": 74,
         "measured_at": "2026-11-25"
       },
       "note": "Backup format is bidirectionally compatible with HestiaCP forever, so this stays close to upstream on purpose."

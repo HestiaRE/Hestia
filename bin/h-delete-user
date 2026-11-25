@@ -38,8 +38,9 @@ if getent passwd "${user}-docker" > /dev/null 2>&1; then
 fi
 
 if [ -n "$WEB_SYSTEM" ] && [ "$WEB_SYSTEM" != 'no' ]; then
-	# No restart for the unsuspend: the domains go next, and their delete restarts once, a failure only warning.
-	$BIN/h-unsuspend-web-domains "$user" no
+	# No restart for the unsuspend: the domains go next, and their delete restarts once, a failure only warning. A
+	# suspended user's domains are refused here and deleted suspended.
+	$BIN/h-unsuspend-web-domains "$user" no > /dev/null 2>&1
 	$BIN/h-delete-web-domains "$user" "$restart"
 	check_result "$?" "web domain deletion failed"
 fi

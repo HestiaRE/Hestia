@@ -21,6 +21,10 @@ check_args '1' "$#" 'USER [RESTART]'
 is_format_valid 'user' 'restart'
 is_system_enabled "$WEB_SYSTEM" 'WEB_SYSTEM'
 is_object_valid 'user' 'USER' "$user"
+# The rebuild skips a suspended user's domains: the record would say live while the suspend page stays.
+if [ "$(get_user_value '$SUSPENDED')" = 'yes' ]; then
+	check_result "$E_SUSPENDED" "user $user is suspended, unsuspend the user first"
+fi
 
 for domain in $(search_objects 'web' 'SUSPENDED' "yes" 'DOMAIN'); do
 	$BIN/h-unsuspend-web-domain "$user" "$domain" 'no'

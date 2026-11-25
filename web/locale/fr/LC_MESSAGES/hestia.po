@@ -4883,6 +4883,10 @@ msgid "Are you sure you want to unsuspend user %s?"
 msgstr "Êtes-vous sûr de vouloir annuler la suspension de l'utilisateur %s?"
 
 #: web/templates/pages/list_user.php
+msgid "Delete the user's backups as well"
+msgstr ""
+
+#: web/templates/pages/list_user.php
 msgid "Rebuild Cron Jobs"
 msgstr "Reconstruire les tâches cron"
 

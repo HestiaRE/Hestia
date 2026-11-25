@@ -2478,6 +2478,7 @@ is_format_valid() {
 				antivirus) is_boolean_format_valid "$arg" 'antivirus' ;;
 				autoreply) is_autoreply_format_valid "$arg" ;;
 				backup) is_object_format_valid "$arg" 'backup' ;;
+				backups) is_boolean_format_valid "$arg" 'backups' ;;
 				charset) is_object_format_valid "$arg" "$arg_name" ;;
 				charsets) is_common_format_valid "$arg" 'charsets' ;;
 				chain) is_object_format_valid "$arg" 'chain' ;;

@@ -37,6 +37,10 @@ the releases of the command audit, into another.
   `reject`, as RFC 7489 orders it, the other tags are free. Where a CNAME holds the name the field is not offered.
   Lifted, the exception leaves the record to the usual rules: an SPF that authorises the box and any DMARC stay as they
   are, "Normalize" or saving `p=none` and lifting go back to the derived form.
+- **Deleting a user can take the backups along** (#1477, upstream 1.10.10). `h-delete-user USER [RESTART] [BACKUPS]`:
+  with `yes` every archive goes from every transport and the restic repository with it, the default `no` keeps them
+  as before. The delete dialog of the user list has a checkbox for it. Without it the archives outlived the record that
+  named them, and nothing listed them any more.
 
 ### Security
 

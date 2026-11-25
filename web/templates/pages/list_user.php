@@ -229,6 +229,8 @@
 									title="<?= tohtml(_("Delete")) ?>"
 									data-confirm-title="<?= tohtml(_("Delete")) ?>"
 									data-confirm-message="<?= tohtml(sprintf(_("Are you sure you want to delete user %s?"), $key)) ?>"
+									data-confirm-option-label="<?= tohtml(_("Delete the user's backups as well")) ?>"
+									data-confirm-option-param="backups"
 								>
 									<i class="fas fa-trash icon-red"></i>
 									<span class="u-hide-desktop"><?= tohtml(_("Delete")) ?></span>

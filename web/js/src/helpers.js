@@ -73,6 +73,9 @@ export function createConfirmationDialog({
 	// word is typed. onConfirm runs instead of navigating, for the ones that live in a form.
 	confirmWord = '',
 	confirmLabel = '',
+	// A checkbox that adds <param>=yes to targetUrl when ticked; unticked, the URL stays as it was.
+	optionLabel = '',
+	optionParam = '',
 	onConfirm = null,
 	onCancel = null,
 }) {
@@ -107,6 +110,17 @@ export function createConfirmationDialog({
 		wordInput.classList.add('form-control');
 		wordInput.setAttribute('autocomplete', 'off');
 		dialog.append(wordInput);
+	}
+
+	let optionInput = null;
+	if (optionLabel && optionParam) {
+		const optionElement = document.createElement('label');
+		optionElement.classList.add('form-check-label', 'modal-message');
+		optionInput = document.createElement('input');
+		optionInput.type = 'checkbox';
+		optionInput.classList.add('form-check-input', 'u-mr5');
+		optionElement.append(optionInput, document.createTextNode(optionLabel));
+		dialog.append(optionElement);
 	}
 
 	// Create and insert the options
@@ -148,7 +162,11 @@ export function createConfirmationDialog({
 			if (spinner) {
 				showSpinner();
 			}
-			window.location.href = targetUrl;
+			const url = new URL(targetUrl, window.location.href);
+			if (optionInput && optionInput.checked) {
+				url.searchParams.set(optionParam, 'yes');
+			}
+			window.location.href = url.href;
 		}
 
 		handleClose();

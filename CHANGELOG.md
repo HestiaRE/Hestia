@@ -77,6 +77,8 @@ the releases of the command audit, into another.
   compressed. The global `mail_plugins` carries it now, and the update adds it where the line is still ours.
 - **Unsuspending a web domain of a suspended user is refused** (#1480). The record said live while the suspend page
   stayed, since the rebuild skips a suspended user's domains. Unsuspending the user brings the domains back.
+- **The server page named a Debian box `UNKNOWN` when `/etc/issue` was a custom banner** (#1481, upstream #6050).
+  `h-list-sys-info` reads `/etc/os-release` now.
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
   and keeps running, the other versions restart. The reload used to report success while the master died. A new

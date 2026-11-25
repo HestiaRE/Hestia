@@ -4,8 +4,8 @@
 #
 # example: h-delete-user-backups-restic user 'all'
 #
-# The explicit way to remove a customer's backups: deleting a customer never deletes them. Works for a customer who
-# is already gone, which is the case it is mostly needed for.
+# The explicit way to remove a customer's restic backups; h-delete-user takes them only with BACKUPS=yes. Works
+# for a customer who is already gone, which is the case it is mostly needed for.
 
 user=$1
 consent=${2-}

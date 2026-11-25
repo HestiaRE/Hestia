@@ -57,6 +57,9 @@ the releases of the command audit, into another.
   is named `<user>_<name>`, and while `_` was a wildcard in a grant (#1466), `mys` or `m_s` with a one-letter database
   reached `mysql`. Other system databases rest on #1466 alone. Only creating an account checks it, the restore of a
   new one included; existing short names keep working.
+- **A DES or MD5 login hash is replaced at the next panel login** (#1478, upstream 1.10.10). Only a restore of a very
+  old archive brings one, and it stayed for good. The login has the password at hand and hashes it anew with the
+  system default; nothing changes for the user, and the system log names the account. Upstream only warns.
 
 ### Fixed
 

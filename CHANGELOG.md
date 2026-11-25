@@ -13,6 +13,12 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+### Added
+
+- **PHP 8.6** (#1489). Sury now builds every extension of the customer set for it on all four targets. ionCube has no
+  loader for 8.6 yet, so h-add-web-php enables PHP 8.6 without it and warns. The server page reads its version list
+  from `php_supported`, the same list h-add-web-php validates against, instead of keeping a copy of its own.
+
 ### Security
 
 - **apache runs no PHP module, and a new Sury PHP no longer brings one along** (#1487). roundcube depends on Sury's

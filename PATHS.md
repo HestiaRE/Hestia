@@ -249,9 +249,15 @@ User home structure — unchanged from HestiaCP, bidirectional backup compatibil
                           login name for exactly this reason
 ```
 
+`$user/` stays when the customer is deleted, unless `h-delete-user USER '' yes` takes it along with every archive
+and the restic repository (#1477).
+
 A restic restore stages beside the homes in `/home/.hestia-restore.$user.XXXXXX` (root, 0700) and hardlinks from
 there into the home, so the data is not stored twice and root never unpacks into a tree the customer owns (#1348).
 A leftover stage is swept by the next restore and by `h-delete-user`.
+
+The admin's notes on a user are `$CONF_DIR/users/$user/notes.txt` (#1427): never shown to the customer, but in the
+user's backup, where the customer can read them.
 
 Variables set in `include/main.sh`:
 

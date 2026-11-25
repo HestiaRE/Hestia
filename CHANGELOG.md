@@ -45,6 +45,9 @@ the releases of the command audit, into another.
 
 ### Security
 
+- **Tachyon 4.8.0** (#1484, GHSA-3w5p-7qc3-89gm): a crafted link could make Tachyon send further IMAP commands as
+  the user through the search box, the same gap was in ManageSieve and SMTP, and login cookies outlived a logout. The
+  update brings installed boxes up.
 - **A customer could run commands as root through their stats folder** (#1464, upstream 1.10.10). The stats run put
   every folder name below `stats/` into a sed script it ran as root. Only month folders (`YYYY-MM`) are listed now,
   and that sed runs as the customer.

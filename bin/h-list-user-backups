@@ -29,7 +29,8 @@ backup_root="$BACKUP"
 
 # Each record from empty: a key an older record lacks would show the value of the row before.
 parse_row() {
-	BACKUP='' TYPE='' SIZE='' WEB='' MAIL='' DB='' CRON='' UDIR='' MAP='' MODE='' BASE='' RUNTIME='' TIME='' DATE=''
+	BACKUP='' TYPE='' SIZE='' WEB='' MAIL='' DB='' CRON='' UDIR='' MAP='' MODE='' BASE=''
+	PROTECTED='' RUNTIME='' TIME='' DATE=''
 	parse_object_kv_list "$1"
 }
 
@@ -43,7 +44,7 @@ json_list() {
 		parse_row "$str"
 		# LOCAL says what this box knows: a copy is here or not. Whether a remote holds it is not asked.
 		local_of "$BACKUP"
-		json_escape BACKUP TYPE SIZE WEB MAIL DB CRON UDIR MAP MODE BASE LOCAL RUNTIME TIME DATE
+		json_escape BACKUP TYPE SIZE WEB MAIL DB CRON UDIR MAP MODE BASE LOCAL PROTECTED RUNTIME TIME DATE
 		printf '    "%s": {\n' "$BACKUP"
 		printf '        "TYPE": "%s",\n' "$TYPE"
 		printf '        "SIZE": "%s",\n' "$SIZE"
@@ -56,6 +57,7 @@ json_list() {
 		printf '        "MODE": "%s",\n' "${MODE:-full}"
 		printf '        "BASE": "%s",\n' "$BASE"
 		printf '        "LOCAL": "%s",\n' "$LOCAL"
+		printf '        "PROTECTED": "%s",\n' "${PROTECTED:-no}"
 		printf '        "RUNTIME": "%s",\n' "$RUNTIME"
 		printf '        "TIME": "%s",\n' "$TIME"
 		printf '        "DATE": "%s"\n' "$DATE"
@@ -72,13 +74,13 @@ json_list() {
 
 shell_list() {
 	IFS=$'\n'
-	echo "BACKUP   TYPE   SIZE  LOCAL  TIME  DATE"
-	echo "------   ----   ---   -----  ----  ----"
+	echo "BACKUP   TYPE   SIZE  LOCAL  TIME  DATE  PROTECTED"
+	echo "------   ----   ---   -----  ----  ----  ---------"
 	while read -r str; do
 		[[ "$str" =~ [^[:space:]] ]] || continue
 		parse_row "$str"
 		local_of "$BACKUP"
-		echo "$BACKUP $TYPE $SIZE $LOCAL $RUNTIME $DATE"
+		echo "$BACKUP $TYPE $SIZE $LOCAL $RUNTIME $DATE ${PROTECTED:-no}"
 	done < <(cat $USER_DATA/backup.conf)
 }
 
@@ -89,7 +91,7 @@ plain_list() {
 		parse_row "$str"
 		local_of "$BACKUP"
 		echo -ne "$BACKUP\t$TYPE\t$SIZE\t$WEB\t$MAIL\t$CRON\t$UDIR\t$MAP\t${MODE:-full}\t$BASE\t$LOCAL\t"
-		echo -e "$RUNTIME\t$TIME\t$DATE"
+		echo -e "$RUNTIME\t$TIME\t$DATE\t${PROTECTED:-no}"
 	done < <(cat $USER_DATA/backup.conf)
 }
 

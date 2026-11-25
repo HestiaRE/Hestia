@@ -8,6 +8,14 @@
       "action": { "type": "function_call", "function": "php_meta_off_apply" },
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "backup-export-protected",
+      "description": "An export is a protected backup: it holds one of the package's backup slots instead of being adopted, so deleting it deletes its file",
+      "conditions": [{ "type": "backup_export_adopted" }],
+      "action": { "type": "function_call", "function": "backup_export_protect_apply" },
+      "paths": [],
+      "reversible": false
     }
   ]
 }

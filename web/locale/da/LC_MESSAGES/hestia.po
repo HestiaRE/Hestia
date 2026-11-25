@@ -3278,8 +3278,17 @@ msgid "File Name"
 msgstr "Filnavn"
 
 #: web/templates/pages/list_backup.php
-msgid "Kept until deleted; retention does not rotate exports"
-msgstr "Bevares, indtil de slettes; opbevaringen roterer ikke eksporter"
+msgid "Kept until deleted or returned to the rotation"
+msgstr ""
+
+#: web/templates/pages/list_backup.php
+msgid "Protect from rotation"
+msgstr ""
+
+#: web/templates/pages/list_backup.php
+#, php-format
+msgid "Protected from rotation: %d of %d"
+msgstr ""
 
 #: web/templates/pages/list_backup.php
 #: web/templates/pages/list_backup_detail.php
@@ -3288,6 +3297,10 @@ msgstr "Bevares, indtil de slettes; opbevaringen roterer ikke eksporter"
 #: web/templates/pages/list_files_incremental.php
 msgid "Restore"
 msgstr "Gendan"
+
+#: web/templates/pages/list_backup.php
+msgid "Return to rotation"
+msgstr ""
 
 #: web/templates/pages/list_backup.php
 msgid "Runtime"
@@ -3348,6 +3361,10 @@ msgstr "differentiel"
 #: web/templates/pages/list_backup.php
 msgid "export"
 msgstr "eksport"
+
+#: web/templates/pages/list_backup.php
+msgid "protected"
+msgstr ""
 
 #: web/templates/pages/list_backup_detail.php
 #: web/templates/pages/list_backup_detail_incremental.php

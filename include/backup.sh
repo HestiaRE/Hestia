@@ -1068,20 +1068,15 @@ local_backup() {
 
 	rm -f $BACKUP/$user/$user.$backup_new_date.tar
 
-	# An adopted archive is the operator's own file and carries a date like any other, so the rotation
-	# would take it first. Excluded by NAME.
-	backup_list=$(ls -lrt $BACKUP/$user/ 2> /dev/null | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
-	if [ -s "$USER_DATA/backup.conf" ]; then
-		while IFS= read -r _adopted; do
-			[ -n "$_adopted" ] || continue
-			backup_list=$(grep -vxF -- "$_adopted" <<< "$backup_list")
-		done < <(grep -E "(^| )ADOPTED='yes'( |$)" "$USER_DATA/backup.conf" | sed -n "s/^BACKUP='\([^']*\)'.*/\1/p")
-	fi
+	# Adopted and protected archives carry a date like any other, so the rotation would take them first. Excluded by NAME.
+	backup_list=$(ls -lrt $BACKUP/$user/ 2> /dev/null | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" \
+		| sort | backup_drop_exempt "$USER_DATA/backup.conf")
 	backups_count=$(grep -c . <<< "$backup_list")
-	if [ "$BACKUPS" -le "$backups_count" ]; then
+	local_keep=$(backup_rotation_keep "$BACKUPS" "$USER_DATA/backup.conf")
+	if [ "$local_keep" -le "$backups_count" ]; then
 
 		for backup in $(echo "$backup_list" \
-			| backup_set_removals "$USER_DATA/backup.conf" "$BACKUPS" "$diff_base"); do
+			| backup_set_removals "$USER_DATA/backup.conf" "$local_keep" "$diff_base"); do
 			backup_date=$(echo $backup | sed -e "s/$user.//" -e "s/.tar$//")
 			echo -e "$(date "+%F %T") Rotated: $backup_date" \
 				| tee -a $BACKUP/$user/$user.log
@@ -1232,8 +1227,9 @@ ftp_backup() {
 	else
 		backup_list=$(ftpc "cd $BPATH" "ls" | tr -d "\r" | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	fi
+	backup_list=$(backup_drop_exempt "$USER_DATA/backup.conf" <<< "$backup_list")
 	backups_count=$(grep -c . <<< "$backup_list")
-	target_keep=$(backup_target_keep ftp)
+	target_keep=$(backup_rotation_keep "$(backup_target_keep ftp)" "$USER_DATA/backup.conf")
 	if [ "$backups_count" -ge "$target_keep" ]; then
 		for backup in $(echo "$backup_list" \
 			| backup_set_removals "$USER_DATA/backup.conf" "$target_keep" "$diff_base"); do
@@ -1828,8 +1824,9 @@ sftp_backup() {
 	else
 		backup_list=$(sftpc "cd $BPATH" "ls -l" | tr -d "\r" | awk '{print $9}' | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
 	fi
+	backup_list=$(backup_drop_exempt "$USER_DATA/backup.conf" <<< "$backup_list")
 	backups_count=$(grep -c . <<< "$backup_list")
-	target_keep=$(backup_target_keep sftp)
+	target_keep=$(backup_rotation_keep "$(backup_target_keep sftp)" "$USER_DATA/backup.conf")
 	if [ "$backups_count" -ge "$target_keep" ]; then
 		for backup in $(echo "$backup_list" \
 			| backup_set_removals "$USER_DATA/backup.conf" "$target_keep" "$diff_base"); do
@@ -1935,8 +1932,9 @@ rclone_backup() {
 
 		# Only include *.tar files
 		backup_list=$(rclone lsf $HOST: | cut -d' ' -f1 | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(backup_drop_exempt "$USER_DATA/backup.conf" <<< "$backup_list")
 		backups_count=$(grep -c . <<< "$backup_list")
-		target_keep=$(backup_target_keep rclone)
+		target_keep=$(backup_rotation_keep "$(backup_target_keep rclone)" "$USER_DATA/backup.conf")
 		if [ "$backups_count" -ge "$target_keep" ]; then
 			for backup in $(echo "$backup_list" \
 				| backup_set_removals "$USER_DATA/backup.conf" "$target_keep" "$diff_base"); do
@@ -1972,8 +1970,9 @@ rclone_backup() {
 
 		# Only include *.tar files
 		backup_list=$(rclone lsf $HOST:$BPATH | cut -d' ' -f1 | grep -E "^${user//./\\.}\.[0-9]{4}-.+\.tar$" | sort)
+		backup_list=$(backup_drop_exempt "$USER_DATA/backup.conf" <<< "$backup_list")
 		backups_count=$(grep -c . <<< "$backup_list")
-		target_keep=$(backup_target_keep rclone)
+		target_keep=$(backup_rotation_keep "$(backup_target_keep rclone)" "$USER_DATA/backup.conf")
 		if [ "$backups_count" -ge "$target_keep" ]; then
 			for backup in $(echo "$backup_list" \
 				| backup_set_removals "$USER_DATA/backup.conf" "$target_keep" "$diff_base"); do
@@ -2282,7 +2281,7 @@ backup_base_reachable() {
 	return 1
 }
 
-# backup_diff_base BACKUPCONF MAPDIR: the newest usable base: listed, not adopted, present, local
+# backup_diff_base BACKUPCONF MAPDIR: the newest usable base: listed, not adopted or protected, present, local
 # map readable. A run that finds none writes a full archive, never a diff against nothing.
 backup_diff_base() {
 	local _conf="$1" _dir="$2" _name
@@ -2292,7 +2291,8 @@ backup_diff_base() {
 		[ -n "$_name" ] || continue
 		# -F: the name holds dots, grep must not read it as a pattern.
 		_line=$(grep -F "BACKUP='$_name'" "$_conf" 2> /dev/null | head -1)
-		case "$_line" in *"ADOPTED='yes'"*) continue ;; esac
+		# A protected archive may be deleted on purpose, which would strand every diff built on it.
+		case "$_line" in *"ADOPTED='yes'"* | *"PROTECTED='yes'"*) continue ;; esac
 		# Only a FULL archive is a base, no chains.
 		case "$_line" in *"MODE='diff'"*) continue ;; esac
 		# Map first (a local file test), so the remote listing runs only for a real candidate.
@@ -2451,6 +2451,53 @@ backup_diff_keep_list() {
 	tar $_opt -tf "$_member" --quoting-style=literal > "$_skip" 2> /dev/null
 	backup_map_keep "$_bm" "$_cur" "$_pre" "$_skip" > "$_out"
 	rm -f "$_bm" "$_skip"
+}
+
+# backup_protected CONF: the archives the customer protected, one name per line. They hold slots of the package's
+# BACKUPS, and every place keeps at least one slot for the automatic run.
+backup_protected() {
+	[ -s "$1" ] || return 0
+	grep -E "(^| )PROTECTED='yes'( |$)" "$1" | sed -n "s/^BACKUP='\([^']*\)'.*/\1/p"
+}
+
+# backup_protect_free USERDIR: how many more archives the customer may protect. A restic customer's archives have no
+# automatic run to keep a slot for, so there all of BACKUPS count.
+backup_protect_free() {
+	local _n _mode _p _f
+	_n=$(sed -n "s/^BACKUPS='\([0-9]*\)'.*/\1/p" "$1/user.conf" 2> /dev/null | head -1)
+	_mode=$(sed -n "s/^BACKUPS_MODE='\([^']*\)'.*/\1/p" "$1/user.conf" 2> /dev/null | head -1)
+	_p=$(backup_protected "$1/backup.conf" | grep -c .)
+	_f=$((${_n:-0} - _p))
+	[ "$_mode" = 'restic' ] || _f=$((_f - 1))
+	[ "$_f" -ge 0 ] || _f=0
+	echo "$_f"
+}
+
+# backup_rotation_keep KEEP CONF: KEEP less the protected slots, never below 1.
+backup_rotation_keep() {
+	local _p _k
+	_p=$(backup_protected "$2" | grep -c .)
+	_k=$(($1 - _p))
+	[ "$_k" -ge 1 ] || _k=1
+	echo "$_k"
+}
+
+# backup_drop_exempt CONF: stdin without the protected and adopted archives, which no place may rotate. -x -F: names
+# carry dots; an empty name list drops nothing.
+backup_drop_exempt() {
+	grep -vxF -f <([ -s "$1" ] && grep -E "(^| )(PROTECTED|ADOPTED)='yes'( |$)" "$1" \
+		| sed -n "s/^BACKUP='\([^']*\)'.*/\1/p") || true
+}
+
+# backup_export_protect_apply: an export written as ADOPTED becomes PROTECTED and holds a slot like the others.
+backup_export_protect_apply() {
+	local f
+	for f in "$CONF_DIR"/users/*/backup.conf; do
+		[ -e "$f" ] || continue
+		sed -i "/^BACKUP='[^']*' .* MODE='export' /s/ ADOPTED='yes'/ PROTECTED='yes'/" "$f" \
+			|| echo "[ ! ] $f: exports not moved to PROTECTED, the next update retries"
+	done
+	return 0
 }
 
 # The unit is the SET: one full plus the diffs naming it. "Taking a full takes its diffs" is the wrong way round.

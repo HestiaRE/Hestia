@@ -202,7 +202,6 @@ in `/etc/php/hestia/php-version` — the single runtime source of truth, read by
 |------|------|
 | Sury repo | `/etc/apt/sources.list.d/php.list`, key `/usr/share/keyrings/sury-keyring.gpg` (`add_sury_repo`) |
 | Sury origin for unattended-upgrades | `/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php` (written with the repo) |
-| Sury PHP pin | `/etc/apt/preferences.d/hestia-php` (`libapache2-mod-php*` and the `php` meta at -1, written with the repo) |
 | Kept conffiles | `/etc/apt/apt.conf.d/60hestia-keep-conffiles` (`--force-confdef --force-confold` for every apt run) |
 | IPv6 bind before DAD | `/etc/sysctl.d/60-hestia-ipv6.conf` (`net.ipv6.ip_nonlocal_bind = 1`, `ipv6_nonlocal_bind_apply`) |
 | Panel PHP refresh hook | `/etc/apt/apt.conf.d/95hestia-php-refresh` (`DPkg::Post-Invoke`, restarts `hestia-php.service`) |

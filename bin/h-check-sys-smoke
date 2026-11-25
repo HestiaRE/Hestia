@@ -1253,20 +1253,6 @@ check_apache_php_module() {
 	fi
 }
 
-# Without the pin Sury's php meta brings each new PHP version, with its apache module first in line.
-check_sury_php_pin() {
-	[ -f /etc/apt/sources.list.d/php.list ] || {
-		skip "Sury PHP pin (no Sury repo on this box)"
-		return 0
-	}
-	if grep -qx 'Package: libapache2-mod-php\*' /etc/apt/preferences.d/hestia-php 2> /dev/null \
-		&& grep -qx 'Package: php' /etc/apt/preferences.d/hestia-php; then
-		ok "apt pins out mod_php and Sury's php meta (hestia-php)"
-	else
-		no "apt may install mod_php or follow Sury's php meta" "/etc/apt/preferences.d/hestia-php missing or changed"
-	fi
-}
-
 # Every web record against what it renders from and to. A vhost that was skipped looks clean by being absent,
 # and a template that no longer exists only shows on the next rebuild. A docker domain in a proxy model has its
 # backend vhost removed on purpose. Not covered: the SSL variant, and whether the vhost inside is the right one.
@@ -1869,7 +1855,6 @@ check_panel_translates
 check_policy_fragment_coverage
 check_web_config_test
 check_apache_php_module
-check_sury_php_pin
 check_web_model_sentinel
 check_proc_hardening
 check_web_records

@@ -340,7 +340,6 @@ add_sury_repo() {
 	printf 'deb [arch=%s signed-by=%s] https://packages.sury.org/php/ %s main\n' \
 		"$arch" "$keyring" "$codename" > "$list" || return 1
 	sury_unattended_apply
-	sury_php_pin_apply
 }
 
 # nginx.org mainline for preset latest: the key by pinned fingerprint, and a pin so a distribution update never
@@ -681,25 +680,9 @@ sury_unattended_apply() {
 }
 
 # Sury's php meta names the newest PHP, whose first alternative is its apache module: that runs a customer's .phtml as
-# www-data past his pool and forces prefork. Pinning out only the module leaves the new version's FPM to come along.
-# Written with the repo, by add_sury_repo; php_meta_off_apply takes the meta off a box that has it.
-sury_php_pin_apply() {
-	local f='/etc/apt/preferences.d/hestia-php'
-	if {
-		printf 'Explanation: HestiaRE: PHP runs in the FPM pool of its user, never in apache\n'
-		printf 'Package: libapache2-mod-php*\nPin: release *\nPin-Priority: -1\n\n'
-		printf 'Explanation: HestiaRE: a Sury PHP version is installed when chosen, not when it is the newest\n'
-		printf 'Package: php\nPin: release *\nPin-Priority: -1\n'
-	} > "$f"; then
-		chmod 644 "$f"
-	else
-		echo "[ ! ] $f not written, apt may still install mod_php or follow Sury's php meta"
-	fi
-	return 0
-}
-
-# The panel's PHP package takes the meta's place for roundcube. Every mod_php goes with its versioned package, which
-# names it as first alternative, and apache gets mpm_event back. A plan that would remove anything else is refused.
+# www-data past his pool and forces prefork. The panel's PHP package takes the meta's place for roundcube, so no
+# installed package follows a new version any more. Every mod_php goes with its versioned package, and apache gets
+# mpm_event back. A plan that would remove anything else is refused.
 # A failure only warns: the meta stays, so the next update tries again. An apache that was not running stays down,
 # though mod_php's prerm starts it.
 php_meta_off_apply() {

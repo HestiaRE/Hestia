@@ -2281,7 +2281,7 @@ backup_base_reachable() {
 	return 1
 }
 
-# backup_diff_base BACKUPCONF MAPDIR: the newest usable base: listed, not adopted, present, local
+# backup_diff_base BACKUPCONF MAPDIR: the newest usable base: listed, not adopted or protected, present, local
 # map readable. A run that finds none writes a full archive, never a diff against nothing.
 backup_diff_base() {
 	local _conf="$1" _dir="$2" _name
@@ -2291,7 +2291,8 @@ backup_diff_base() {
 		[ -n "$_name" ] || continue
 		# -F: the name holds dots, grep must not read it as a pattern.
 		_line=$(grep -F "BACKUP='$_name'" "$_conf" 2> /dev/null | head -1)
-		case "$_line" in *"ADOPTED='yes'"* | *"MODE='export'"*) continue ;; esac
+		# A protected archive may be deleted on purpose, which would strand every diff built on it.
+		case "$_line" in *"ADOPTED='yes'"* | *"PROTECTED='yes'"*) continue ;; esac
 		# Only a FULL archive is a base, no chains.
 		case "$_line" in *"MODE='diff'"*) continue ;; esac
 		# Map first (a local file test), so the remote listing runs only for a real candidate.

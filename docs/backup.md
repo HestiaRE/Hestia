@@ -108,6 +108,8 @@ h-change-user-backup-protection $user $archive yes|no
   PROTECT` takes `yes` (refuse without a slot), `no` or `auto` (the panel's behaviour).
 - A protected archive is always full: a differential one needs its base, which the rotation
   may take, so protecting one is refused and a protected run never writes a diff.
+- A protected archive is never the base of a differential run: deleting it on purpose would
+  strand every diff built on it.
 - With no slot free, protecting refuses and names the protected archives. Nothing is ever
   unprotected to make room.
 - Lowering a package's `BACKUPS` below what is protected keeps the protected archives; the

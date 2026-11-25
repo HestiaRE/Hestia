@@ -700,9 +700,10 @@ sury_php_pin_apply() {
 
 # The panel's PHP package takes the meta's place for roundcube. Every mod_php goes with its versioned package, which
 # names it as first alternative, and apache gets mpm_event back. A plan that would remove anything else is refused.
-# A failure only warns: the meta stays, so the next update tries again.
+# A failure only warns: the meta stays, so the next update tries again. An apache that was not running stays down,
+# though mod_php's prerm starts it.
 php_meta_off_apply() {
-	local pv p v args want extra
+	local pv p v args want extra up=0
 	pv=$(cat /etc/php/hestia/php-version 2> /dev/null)
 	if ! [[ "$pv" =~ ^[0-9]+\.[0-9]+$ ]]; then
 		echo "[ ! ] no panel PHP version in /etc/php/hestia/php-version, the php meta stays"
@@ -725,18 +726,24 @@ php_meta_off_apply() {
 		echo "[ ! ] taking the php meta off would also remove $(tr '\n' ' ' <<< "$extra"), nothing done"
 		return 0
 	fi
+	systemctl -q is-active apache2 2> /dev/null && up=1
 	if ! DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y install "${args[@]}" > /dev/null; then
 		echo "[ ! ] apt could not take the php meta off: apt-get install ${args[*]}"
 		return 0
 	fi
+	[ "$up" = 1 ] || systemctl -q stop apache2 2> /dev/null
 	[ -d /etc/apache2/mods-enabled ] && a2query -q -m mpm_prefork 2> /dev/null || return 0
 	a2dismod -q mpm_prefork > /dev/null
 	a2enmod -q mpm_event > /dev/null
-	if ! apache2ctl -t > /dev/null 2>&1 || ! systemctl restart apache2; then
-		echo "[ ! ] apache2 did not start with mpm_event, back on prefork: journalctl -u apache2"
-		a2dismod -q mpm_event > /dev/null
-		a2enmod -q mpm_prefork > /dev/null
-		systemctl restart apache2
+	if apache2ctl -t > /dev/null 2>&1 && { [ "$up" = 0 ] || systemctl restart apache2; }; then
+		return 0
+	fi
+	a2dismod -q mpm_event > /dev/null
+	a2enmod -q mpm_prefork > /dev/null
+	if [ "$up" = 0 ] || systemctl restart apache2; then
+		echo "[ ! ] apache2 did not take mpm_event, back on prefork: apache2ctl -t; journalctl -u apache2"
+	else
+		echo "[ ! ] apache2 starts neither with mpm_event nor back on prefork: journalctl -u apache2"
 	fi
 	return 0
 }

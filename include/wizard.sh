@@ -336,6 +336,12 @@ fn_check_admin_name() {
 		echo "ERROR: Admin username '$1' $why." >&2
 		exit 1
 	fi
+	# A re-run keeps an existing admin (h-install-hestia skips h-add-user then), so only a new one must be free.
+	[ ! -e "$CONF_DIR/users/$1" ] || return 0
+	if getent passwd "$1" > /dev/null 2>&1 || getent group "$1" > /dev/null 2>&1 || [ -e "/home/$1" ]; then
+		echo "ERROR: Admin username '$1' is already taken on this system (user, group or /home/$1)." >&2
+		exit 1
+	fi
 }
 
 # Defaults that cannot be literals in the manifest: they depend on the box, on an earlier answer

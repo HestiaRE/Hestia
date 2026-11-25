@@ -82,10 +82,10 @@ the releases of the command audit, into another.
   stayed, since the rebuild skips a suspended user's domains. Unsuspending the user brings the domains back.
 - **The server page named a Debian box `UNKNOWN` when `/etc/issue` was a custom banner** (#1481, upstream #6050).
   `h-list-sys-info` reads `/etc/os-release` now.
-- **The installer refuses an admin name that is too short, malformed or reserved** (#1482). Since #1472 a name like
-  `ab` or `mys` passed the wizard and broke the install at the user stage, with the box half built. The wizard and
-  `h-add-user` read the same name rules now (`include/username.sh`); a name the system already uses (`backup`, `mail`)
-  is still refused only at the user stage.
+- **The installer refuses an admin name that is too short, malformed, reserved or taken** (#1482). Since #1472 a name
+  like `ab` or `mys` passed the wizard and broke the install at the user stage, with the box half built. The wizard and
+  `h-add-user` read the same name rules now (`include/username.sh`), and the wizard also refuses a name the system
+  already uses (`backup`, `mail`, a group or a `/home` of that name), unless a re-run keeps the existing admin.
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
   and keeps running, the other versions restart. The reload used to report success while the master died. A new

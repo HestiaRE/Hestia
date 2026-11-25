@@ -1,0 +1,25 @@
+{
+  "version": "0.40",
+  "entries": [
+    {
+      "id": "sury-php-pin",
+      "description": "apt never installs a PHP module for apache, and Sury's php meta no longer pulls each new PHP version onto the box: it did so through roundcube, with the new version's apache module first in line",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/apt/sources.list.d/php.list" },
+        { "type": "path_absent", "path": "/etc/apt/preferences.d/hestia-php" }
+      ],
+      "action": { "type": "function_call", "function": "sury_php_pin_apply" },
+      "paths": ["/etc/apt/preferences.d/hestia-php"],
+      "reversible": false
+    },
+    {
+      "id": "php-meta-off",
+      "description": "apache runs no PHP module and is back on mpm_event: Sury's php meta had brought in PHP 8.6 with its apache module, which ran a customer's .phtml and .phar as www-data, outside his PHP pool. The panel's PHP takes the meta's place for roundcube",
+      "after": "0.40/sury-php-pin",
+      "conditions": [{ "type": "package_installed", "name": "php" }],
+      "action": { "type": "function_call", "function": "php_meta_off_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

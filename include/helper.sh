@@ -340,6 +340,7 @@ add_sury_repo() {
 	printf 'deb [arch=%s signed-by=%s] https://packages.sury.org/php/ %s main\n' \
 		"$arch" "$keyring" "$codename" > "$list" || return 1
 	sury_unattended_apply
+	sury_php_pin_apply
 }
 
 # nginx.org mainline for preset latest: the key by pinned fingerprint, and a pin so a distribution update never
@@ -677,6 +678,67 @@ sury_unattended_apply() {
 	local f='/etc/apt/apt.conf.d/60unattended-upgrades-hestia-php'
 	printf 'Unattended-Upgrade::Origins-Pattern {\n\t"origin=deb.sury.org";\n};\n' > "$f" || return 1
 	chmod 644 "$f"
+}
+
+# Sury's php meta names the newest PHP, whose first alternative is its apache module: that runs a customer's .phtml as
+# www-data past his pool and forces prefork. Pinning out only the module leaves the new version's FPM to come along.
+# Written with the repo, by add_sury_repo; php_meta_off_apply takes the meta off a box that has it.
+sury_php_pin_apply() {
+	local f='/etc/apt/preferences.d/hestia-php'
+	if {
+		printf 'Explanation: HestiaRE: PHP runs in the FPM pool of its user, never in apache\n'
+		printf 'Package: libapache2-mod-php*\nPin: release *\nPin-Priority: -1\n\n'
+		printf 'Explanation: HestiaRE: a Sury PHP version is installed when chosen, not when it is the newest\n'
+		printf 'Package: php\nPin: release *\nPin-Priority: -1\n'
+	} > "$f"; then
+		chmod 644 "$f"
+	else
+		echo "[ ! ] $f not written, apt may still install mod_php or follow Sury's php meta"
+	fi
+	return 0
+}
+
+# The panel's PHP package takes the meta's place for roundcube. Every mod_php goes with its versioned package, which
+# names it as first alternative, and apache gets mpm_event back. A plan that would remove anything else is refused.
+# A failure only warns: the meta stays, so the next update tries again.
+php_meta_off_apply() {
+	local pv p v args want extra
+	pv=$(cat /etc/php/hestia/php-version 2> /dev/null)
+	if ! [[ "$pv" =~ ^[0-9]+\.[0-9]+$ ]]; then
+		echo "[ ! ] no panel PHP version in /etc/php/hestia/php-version, the php meta stays"
+		return 0
+	fi
+	args=("php$pv" php-)
+	want=$'php\n'
+	for p in $(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'libapache2-mod-php*' 2> /dev/null | awk '$1 == "ii" { print $2 }'); do
+		v=${p#libapache2-mod-php}
+		args+=("$p-")
+		want+="$p"$'\n'
+		if [ "$v" != "$pv" ] && dpkg-query -W -f='${db:Status-Abbrev}' "php$v" 2> /dev/null | grep -q '^ii'; then
+			args+=("php$v-")
+			want+="php$v"$'\n'
+		fi
+	done
+	extra=$(comm -23 <(apt-get -s install "${args[@]}" 2> /dev/null | awk '$1 == "Remv" { print $2 }' | sort) \
+		<(printf '%s' "$want" | sort))
+	if [ -n "$extra" ]; then
+		echo "[ ! ] taking the php meta off would also remove $(tr '\n' ' ' <<< "$extra"), nothing done"
+		return 0
+	fi
+	if ! DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y install "${args[@]}" > /dev/null; then
+		echo "[ ! ] apt could not take the php meta off: apt-get install ${args[*]}"
+		return 0
+	fi
+	[ -d /etc/apache2/mods-enabled ] && a2query -q -m mpm_prefork 2> /dev/null || return 0
+	a2dismod -q mpm_prefork > /dev/null
+	a2enmod -q mpm_event > /dev/null
+	if ! apache2ctl -t > /dev/null 2>&1 || ! systemctl restart apache2; then
+		echo "[ ! ] apache2 did not start with mpm_event, back on prefork: journalctl -u apache2"
+		a2dismod -q mpm_event > /dev/null
+		a2enmod -q mpm_prefork > /dev/null
+		systemctl restart apache2
+	fi
+	return 0
 }
 
 # A static v6 address is still tentative (DAD) when apache2 and nginx start at boot, and both bind it by name: without

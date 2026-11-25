@@ -51,9 +51,15 @@ if ! echo "roundcube-core roundcube/dbconfig-install boolean false" | debconf-se
 	fi
 fi
 
+# The panel's PHP package answers roundcube's dependency on php: the meta is pinned out (sury_php_pin_apply), and
+# apt would pick any version's package with its FPM.
+rc_php=()
+pv=$(cat /etc/php/hestia/php-version 2> /dev/null)
+[[ "$pv" =~ ^[0-9]+\.[0-9]+$ ]] && rc_php=("php$pv")
+
 # No recommends: enchant never loads in the panel pool, and classic/larry are skins nobody selects.
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y --no-install-recommends install \
-	roundcube "$RC_DB_PKG" roundcube-plugins || {
+	roundcube "$RC_DB_PKG" roundcube-plugins "${rc_php[@]}" || {
 	echo "ERROR: Roundcube packages did not install"
 	exit 1
 }

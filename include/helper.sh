@@ -882,6 +882,57 @@ exim_ratelimit_inbound_apply() {
 	exim_template_patch 0.35/exim-ratelimit-inbound.patch
 }
 
+# Authentication-Results carries rspamd's SPF and DMARC beside exim's iprev and DKIM, in one header.
+exim_authresults_apply() {
+	exim_template_patch 0.39/exim-authresults-rspamd.patch
+}
+
+exim_null_sender_domain_apply() {
+	exim_template_patch 0.39/exim-null-sender-domain.patch
+}
+
+# doveadm and delivery read a compressed mail raw without the plugin; only imap and pop3 loaded it.
+dovecot_mail_compress_apply() {
+	local f=/etc/dovecot/conf.d/10-mail.conf keep
+	# The condition matches a longer line too; one changed by hand is the operator's.
+	grep -qx 'mail_plugins = quota' "$f" || return 0
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	sed -i 's/^mail_plugins = quota$/mail_plugins = mail_compress quota/' "$f"
+	if doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl restart dovecot
+	echo '[ ! ] dovecot did not take mail_compress globally, doveadm still reads a compressed mail raw.'
+	return 0
+}
+
+# nginx answers without TLS 0-RTT: the shipped line goes off, one changed by hand stays as it is.
+nginx_early_data_off_apply() {
+	local f=/etc/nginx/nginx.conf keep d='ssl_early_data                  '
+	local c="# Off: 0-RTT is replayable, and with it on nginx 1.21.4 to 1.31.9 can be made to burn CPU"
+	c+=" (CVE-2026-132779)."
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	sed -i -E "s|^([[:space:]]*)${d}on;\$|\\1$c\\n\\1${d}off;|" "$f"
+	# The condition finds the line anywhere in the file, the sed only in the shipped form.
+	if cmp -s "$f" "$keep"; then
+		rm -f "$keep"
+		echo "[ ! ] ssl_early_data in $f is not in the shipped form and stays as it is: check it by hand."
+		return 0
+	fi
+	if nginx -t > /dev/null 2>&1 && systemctl reload nginx && systemctl is-active --quiet nginx; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl reload nginx
+	echo '[ ! ] nginx did not take ssl_early_data off, it stays on.'
+	return 0
+}
+
 # The aliases lines of a mail domain's accounts, that is its forwards, without those exim keeps for :blackhole:.
 forward_exim_lines() { # CONF_MAIL_DOMAIN_DIR
 	[ -s "$1/passwd" ] && [ -s "$1/aliases" ] || return 0

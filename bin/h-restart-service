@@ -64,7 +64,18 @@ else
 	service_list="$service"
 fi
 
+fpm_test() {
+	"/usr/sbin/php-fpm$1" -t --fpm-config "/etc/php/$1/fpm/php-fpm.conf" 2>&1
+}
+
+failed=''
 for service in $service_list; do
+	# A pool the master cannot read takes every site of the version down, and a reload even reports success.
+	if [[ "$service" =~ ^php([0-9]+\.[0-9]+)-fpm$ ]] && ! out=$(fpm_test "${BASH_REMATCH[1]}"); then
+		$BIN/h-log-action "system" "Error" "System" "Service not restarted, configuration test failed (Name: $service)."
+		failed+=" $service ($(grep -m1 -iE 'error|failed' <<< "$out" || head -n 1 <<< "$out"))"
+		continue
+	fi
 	# The firewall is not a systemd unit for us - it is our own ruleset, and the service NAME follows
 	# FIREWALL_SYSTEM. Matching a hardcoded "iptables" here broke the moment that value became
 	# "nftables": the panel's firewall row fell through to systemctl and restarted the DISTRO
@@ -82,25 +93,8 @@ for service in $service_list; do
 		fi
 	elif [ "$restart" = "ssl" ] && [ "$service" = "nginx" ]; then
 		service $service upgrade >> $log 2>&1
-	elif [ -z "$restart" -o "$restart" = "no" ] && [ \
-		"$service" = "nginx" -o \
-		"$service" = "apache2" -o \
-		"$service" = "exim4" -o \
-		"$service" = "dovecot" -o \
-		"$service" = "php5.6-fpm" -o \
-		"$service" = "php7.0-fpm" -o \
-		"$service" = "php7.1-fpm" -o \
-		"$service" = "php7.2-fpm" -o \
-		"$service" = "php7.3-fpm" -o \
-		"$service" = "php7.4-fpm" -o \
-		"$service" = "php8.0-fpm" -o \
-		"$service" = "php8.1-fpm" -o \
-		"$service" = "php8.2-fpm" -o \
-		"$service" = "php8.3-fpm" -o \
-		"$service" = "php8.4-fpm" -o \
-		"$service" = "php8.5-fpm" -o \
-		"$service" = "proftpd" -o \
-		"$service" = "ssh" ]; then
+	elif { [ -z "$restart" ] || [ "$restart" = "no" ]; } \
+		&& [[ "$service" =~ ^(nginx|apache2|exim4|dovecot|proftpd|ssh|php[0-9]+\.[0-9]+-fpm)$ ]]; then
 		systemctl reload-or-restart "$service" >> $log 2>&1
 	else
 		systemctl reset-failed "$service" >> $log 2>&1
@@ -110,11 +104,12 @@ for service in $service_list; do
 	# Check the result of the service restart and report whether it failed.
 	if [ $? -ne 0 ]; then
 		$BIN/h-log-action "system" "Error" "System" "Service failed to restart (Name: $service)."
-		check_result "$E_RESTART" "Restart of $service failed"
+		failed+=" $service"
 	else
 		$BIN/h-log-action "system" "Info" "System" "Service restarted (Name: $service)."
 	fi
 done
+[ -z "$failed" ] || check_result "$E_RESTART" "Restart failed:$failed"
 
 #----------------------------------------------------------#
 #                       Hestia                             #

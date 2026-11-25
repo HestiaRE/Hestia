@@ -88,6 +88,20 @@
 	flex: 1 0 auto;
 }
 
+/* The admin's notes sit right above the footer: on their pages only, the content column takes the free height. */
+.app-content:has(> .user-notes) {
+	display: flex;
+	flex-direction: column;
+
+	& > * {
+		width: 100%;
+	}
+
+	& > .user-notes {
+		margin-top: auto;
+	}
+}
+
 /* Container
    ========================================================================== */
 

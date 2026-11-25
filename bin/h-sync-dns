@@ -5,6 +5,7 @@
 # example: h-sync-dns admin 203.0.113.10=198.51.100.20
 # example: h-sync-dns all 203.0.113.10=198.51.100.20,203.0.113.11=198.51.100.20 3f2a9c0e1b7d4a65
 # example: h-sync-dns admin stored
+# example: h-sync-dns admin finish
 #
 # Every zone of USER (or of every user) a provider account holds: the records that carry an OLD address of MOVE
 # (OLD=NEW, comma separated) and that HestiaRE derives get the NEW one; an SPF keeps the OLD beside it. Nothing else
@@ -13,6 +14,8 @@
 # with that id they go out, provided every zone still yields the same plan, section by section through
 # h-sync-dns-zone. PLAN now writes without a preview, for h-change-web-domain-ip. DOMAIN limits the run to that web
 # domain's sections, its aliases included, and the mail domain of that name, which sends from the web domain's address.
+# MOVE finish ends the stored move once it is written, and refuses while a record other than the SPF is still to move:
+# each SPF loses its terms on an OLD address, and a user whose zones then hold nothing more to do forgets the move.
 
 user=$1
 move=$2
@@ -49,6 +52,18 @@ shell_list() {
 		print $2, $3, $4, $6, $7, $8, $11, $12 }' <<< "$ops"
 }
 
+# forget: a finished move is forgotten for each user nothing of it is left alone for; a skip keeps it for another round.
+forget() {
+	local u
+	[ "$move" = 'finish' ] || return 0
+	for u in "${users[@]}"; do
+		[ -n "$(dns_move_read "$u")" ] || continue
+		awk -F '\t' -v u="$u" '$1 == u && $6 == "skip" { f = 1 } END { exit !f }' <<< "$ops" && continue
+		dns_move_set "$u" && echo "the DNS move of $u is finished and forgotten"
+	done
+	[ -z "$unmanaged" ] || echo "Zones without an account keep the old address: $(paste -sd ' ' <<< "$unmanaged")"
+}
+
 # public MOVE: each address of the box as public DNS carries it, the NAT one where its IP record has one.
 public() {
 	local p out='' pairs
@@ -76,7 +91,7 @@ collect() {
 				unmanaged+="$zone"$'\n'
 				continue
 			fi
-			if ! dnsp_check_zone "$zone" "$section" "$object" "$u" '' "$m"; then
+			if ! dnsp_check_zone "$zone" "$section" "$object" "$u" "$confirm" "$m"; then
 				failed+="$zone ($DNSP_ACCOUNT: ${DNSP_ERROR:-compare failed})"$'\n'
 				continue
 			fi
@@ -93,7 +108,7 @@ check_args '2' "$#" 'USER MOVE [PLAN] [FORMAT] [DOMAIN]'
 	is_format_valid 'user'
 	is_object_valid 'user' 'USER' "$user"
 }
-[ "$move" = 'stored' ] || [[ "$move" =~ $MOVE_RE ]] || check_result "$E_INVALID" "invalid move: $move"
+[[ "$move" =~ ^(stored|finish)$ || "$move" =~ $MOVE_RE ]] || check_result "$E_INVALID" "invalid move: $move"
 [[ "$plan" =~ ^(preview|now|[0123456789abcdef]{16})$ ]] || check_result "$E_INVALID" "invalid plan: $plan"
 case $format in
 	json | plain | shell) ;;
@@ -101,6 +116,7 @@ case $format in
 esac
 if [ -n "$domain" ]; then
 	[ "$user" != 'all' ] || check_result "$E_INVALID" "a DOMAIN belongs to one user"
+	[ "$move" != 'finish' ] || check_result "$E_INVALID" "finish ends the move of all zones of the user, not one DOMAIN"
 	is_domain_format_valid "$domain"
 	is_object_valid 'web' 'DOMAIN' "$domain"
 	domain=$(dns_ascii "$domain")
@@ -119,20 +135,29 @@ fi
 dnsp_zones_fresh
 dns_load
 DNSP_MEMO_ON=1
-ops='' unmanaged='' failed='' moves=0
+ops='' unmanaged='' failed='' moves=0 confirm='' pending=''
 for u in "${users[@]}"; do
 	m=$move
-	[ "$m" = 'stored' ] && m=$(dns_move_read "$u")
+	[ "$m" = 'stored' ] || [ "$m" = 'finish' ] && m=$(dns_move_read "$u")
 	[ -n "$m" ] || continue
 	m=$(public "$m")
 	moves=$((moves + 1))
+	# Finishing judges the SPF by the records the move writes, so those have to be in first. The SPF itself is left
+	# to finishing: a record the new address is not in yet stays a skip there, and a skip keeps the move.
+	if [ "$move" = 'finish' ]; then
+		kept=$ops ops='' confirm=''
+		collect "$u" "$m"
+		awk -F '\t' 'NF && $6 != "skip" && $8 != "TXT" { f = 1 } END { exit !f }' <<< "$ops" && pending+="$u "
+		ops=$kept confirm=finish
+	fi
 	collect "$u" "$m"
 done
 unset DNSP_MEMO_ON
 [ "$moves" -gt 0 ] || check_result "$E_NOTEXIST" "no move recorded for $user"
 unmanaged=$(sort -u <<< "$unmanaged" | sed '/^$/d')
-failed=$(sed '/^$/d' <<< "$failed" | paste -sd ' ')
+failed=$(sed '/^$/d' <<< "$failed" | sort -u | paste -sd ' ')
 [ -z "$failed" ] || check_result "$E_CONNECT" "zone(s) could not be read, nothing done: $failed"
+[ -z "$pending" ] || check_result "$E_EXISTS" "the move is not written yet, nothing done: write it first: ${pending% }"
 id=$(sha256sum <<< "$ops" | cut -c 1-16)
 
 if [ "$plan" = 'preview' ]; then
@@ -155,6 +180,7 @@ skips=$(awk -F '\t' 'NF && $6 == "skip"' <<< "$ops" | wc -l)
 if [ -z "$sections" ]; then
 	echo "nothing to write${unmanaged:+, zones without a provider account left alone: $(paste -sd ' ' <<< "$unmanaged")}"
 	[ "$skips" -eq 0 ] || echo "$skips record(s) on an old address left alone, the preview shows why"
+	forget
 	exit
 fi
 
@@ -164,7 +190,7 @@ rc=0
 while IFS=$'\t' read -r u zone section object m; do
 	sid=$(awk -F '\t' -v u="$u" -v z="$zone" -v s="$section" -v o="$object" \
 		'$1 == u && $2 == z && $3 == s && $4 == o' <<< "$ops" | cut -f 6- | sha256sum | cut -c 1-16)
-	if out=$("$BIN/h-sync-dns-zone" "$u" "$zone" "$section" "$object" "$sid" plain '' "$m" 2>&1); then
+	if out=$("$BIN/h-sync-dns-zone" "$u" "$zone" "$section" "$object" "$sid" plain "$confirm" "$m" 2>&1); then
 		echo "$out"
 	else
 		rc=$E_CONNECT
@@ -175,6 +201,7 @@ done <<< "$sections"
 [ "$skips" -eq 0 ] || echo "$skips record(s) on an old address left alone, the preview shows why"
 
 if [ "$rc" -eq 0 ]; then
+	forget
 	"$BIN/h-log-action" "system" "Info" "DNS" "DNS move written (User: $user, Move: $move)."
 else
 	"$BIN/h-log-action" "system" "Warning" "DNS" "DNS move written in part (User: $user, Move: $move)."

@@ -13,6 +13,8 @@ require_once '/usr/share/php/libphp-phpmailer/autoload.php';
 
 define("HESTIA_DIR_BIN", "/usr/local/hestia/bin/");
 define("HESTIA_CMD", "/usr/bin/sudo /usr/local/hestia/bin/");
+// The main lists that carry the admin's notes on the shown user (list/<name>/, template list_<name>.php).
+const USER_NOTES_PAGES = ["web", "mail", "db", "dns", "cron", "backup"];
 define("DEFAULT_PHP_VERSION", "php-" . exec('php -r "echo substr(phpversion(),0,3);"'));
 
 // Load Hestia Config directly
@@ -385,6 +387,12 @@ function render_page($user, $TAB, $page)
 
 	// Body
 	include $__template_dir . "pages/" . $page . ".php";
+
+	// The real admin's notes on the shown user, on the main lists only.
+	if (($_SESSION["adminContext"] ?? "") === "admin" && in_array(substr($page, 5), USER_NOTES_PAGES, true)
+		&& str_starts_with($page, "list_")) {
+		include $__template_dir . "includes/user-notes.php";
+	}
 
 	// Footer
 	include $__template_dir . "footer.php";

@@ -1,0 +1,34 @@
+#!/bin/bash
+# info: change the admin's notes on a user
+# options: USER FILE
+#
+# example: h-change-user-notes alice /tmp/notes.txt
+#
+# Replaces the notes kept on USER (extra software, special ini settings and the like) by the text in FILE; an empty
+# text removes them. The customer's panel never shows them, but they travel in the user's backup, which the customer
+# can download: no secrets. The panel passes a temp file.
+
+user=$1
+file=$2
+
+# shellcheck source=/etc/hestia/hestia.env
+source /etc/hestia/hestia.env
+# shellcheck source=/usr/local/hestia/include/main.sh
+source "$HESTIA/include/main.sh"
+source_conf "$HESTIA/conf/hestia.conf"
+
+check_args '2' "$#" 'USER FILE'
+is_format_valid 'user'
+is_object_valid 'user' 'USER' "$user"
+[ -f "$file" ] && [ ! -L "$file" ] || check_result "$E_NOTEXIST" "file $file does not exist"
+err=$(user_notes_install "$file" "$USER_DATA" 2>&1)
+rc=$?
+[ "$rc" -eq 0 ] || check_result "$([ "$rc" -eq 2 ] && echo "$E_INVALID" || echo "$E_DISK")" "${err:-cannot write the notes of $user}"
+if [ -f "$USER_DATA/notes.txt" ]; then
+	"$BIN/h-log-action" "system" "Info" "Users" "Notes changed (User: $user)."
+else
+	"$BIN/h-log-action" "system" "Info" "Users" "Notes removed (User: $user)."
+fi
+log_event "$OK" "$ARGUMENTS"
+
+exit

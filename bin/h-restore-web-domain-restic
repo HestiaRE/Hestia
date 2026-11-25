@@ -32,6 +32,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # This run's own queue line, for the abort path (see queue_drop_job).
 QUEUE_JOB="h-restore-web-domain-restic '$user' '$snapshot' '$web'"
+trap queue_job_exit EXIT
 
 args_usage='USER SNAPSHOT DOMAIN [NOTIFY] [NEW_USER]'
 check_args '3' "$#" "$args_usage"
@@ -43,7 +44,7 @@ email=$(get_user_value '$CONTACT')
 is_restic_repo_configured
 
 tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
-trap 'rm -rf "$tmpdir"' EXIT
+trap 'rm -rf "$tmpdir"; queue_job_exit' EXIT
 
 # The metadata is the package beside the repository, not part of the snapshot.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")

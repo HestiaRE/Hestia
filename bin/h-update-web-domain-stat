@@ -72,8 +72,9 @@ build_awstats() {
 
 	sed "s/%month%/$month/g" < $SHARETPL/awstats/index.tpl | user_exec tee "$dir/index.html" > /dev/null
 
-	months=$(cd / && user_exec find "$dir" -type d | sed -e "s%$dir/%%g" -e "s%$dir%%g" \
-		| grep -v icon | sort -r)
+	# Folder names are the customer's and end up in a sed script: only the month folders, by their exact form.
+	months=$(cd / && user_exec find "$dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+		| grep -E '^[0-9]{4}-[0-9]{2}$' | sort -r)
 	for link in $months; do
 		year=$(echo $link | cut -f 1 -d \-)
 		month=$(echo $link | cut -f 2 -d \- | sed -e "s/^0//")
@@ -93,7 +94,7 @@ build_awstats() {
 		esac
 		select_m="$select_m<option value=$link>$month $year<\/option>\n"
 	done
-	sed "s/%select_month%/$select_m/" < $SHARETPL/awstats/nav.tpl | user_exec tee "$dir/nav.html" > /dev/null
+	user_exec sed "s/%select_month%/$select_m/" < $SHARETPL/awstats/nav.tpl | user_exec tee "$dir/nav.html" > /dev/null
 }
 
 # An older folder may still be 551; the build opens it for itself and closes it again.

@@ -30,6 +30,7 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # This run's own queue line, for the abort paths (see queue_drop_job).
 QUEUE_JOB="h-backup-user $user "
+trap queue_job_exit EXIT
 
 DOCKER_ROOT_REL='.companion/.local/share/docker'
 # Children a Docker data root is known to have; only separates "expected" from "new" in the report.
@@ -284,7 +285,7 @@ if ! maptbl=$(mktemp -d); then
 	check_result "$E_NOTEXIST" "can't create map table dir"
 fi
 # Both, on EVERY exit: an abort leaves its half-built members in the staging tree otherwise.
-trap 'rm -rf "$maptbl" "$tmpdir"' EXIT
+trap 'rm -rf "$maptbl" "$tmpdir"; queue_job_exit' EXIT
 
 echo "-- SYSTEM --" | tee $BACKUP/$user/$user.log
 mkdir $tmpdir/hestia

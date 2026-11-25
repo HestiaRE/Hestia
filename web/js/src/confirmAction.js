@@ -9,8 +9,17 @@ export default function handleConfirmAction() {
 			const title = triggerLink.dataset.confirmTitle;
 			const message = triggerLink.dataset.confirmMessage;
 			const targetUrl = triggerLink.getAttribute('href');
+			const optionLabel = triggerLink.dataset.confirmOptionLabel || '';
+			const optionParam = triggerLink.dataset.confirmOptionParam || '';
 
-			createConfirmationDialog({ title, message, targetUrl, spinner: true });
+			createConfirmationDialog({
+				title,
+				message,
+				targetUrl,
+				spinner: true,
+				optionLabel,
+				optionParam,
+			});
 		});
 	});
 }

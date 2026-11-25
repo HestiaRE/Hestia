@@ -38,6 +38,12 @@ acl_smtp_mime = acl_check_mime
 
 .ifdef RSPAMD
 spamd_address = /run/rspamd/normal.sock variant=rspamd
+# SPF and DMARC as rspamd judged them, for exim's Authentication-Results: exim checks neither. Empty without a scan.
+# Only the symbol lines count: the lines after them carry text the sender chose (subject, Message-ID).
+AUTHRES_SYM = ${sg{$spam_report}{\N(?s)\n (Subject|Message|Message-ID):.*\N}{}}
+AUTHRES_SPF = ${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_ALLOW\(\N}{pass}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_FAIL\(\N}{fail}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_SOFTFAIL\(\N}{softfail}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_NEUTRAL\(\N}{neutral}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_NA\(\N}{none}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_DNSFAIL\(\N}{temperror}{${if match{AUTHRES_SYM}{\N\n Symbol: R_SPF_PERMFAIL\(\N}{permerror}{}}}}}}}}}}}}}}
+AUTHRES_DMARC = ${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_POLICY_ALLOW(_WITH_FAILURES)?\(\N}{pass}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_POLICY_(REJECT|QUARANTINE|SOFTFAIL)\(\N}{fail}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_NA\(\N}{none}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_DNSFAIL\(\N}{temperror}{${if match{AUTHRES_SYM}{\N\n Symbol: DMARC_BAD_POLICY\(\N}{permerror}{}}}}}}}}}}
+AUTHRES_EXTRA = ${if eq{AUTHRES_SPF}{}{}{;\n\tspf=AUTHRES_SPF${if def:sender_address_domain{ smtp.mailfrom=$sender_address_domain}{${if def:sender_helo_name{ smtp.helo=$sender_helo_name}}}}}}${if eq{AUTHRES_DMARC}{}{}{;\n\tdmarc=AUTHRES_DMARC${if eq{${lc:${domain:${address:$h_from:}}}}{}{}{ header.from=${lc:${domain:${address:$h_from:}}}}}}}
 .endif
 
 .ifdef CLAMD
@@ -86,9 +92,12 @@ DKIM_PRIVATE_KEY = ${if exists{DKIM_FILE}{DKIM_FILE}{0}}
 DKIM_SELECTOR_FILE = /etc/exim4/domains/${lookup{${lc:${domain:$h_from:}}}dsearch{/etc/exim4/domains/}}/selector
 DKIM_SELECTOR_NAME = ${if exists{DKIM_SELECTOR_FILE}{${lookup{selector}lsearch{DKIM_SELECTOR_FILE}{$value}{mail}}}{mail}}
 
-OUTGOING_IP = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/ip
+# The domain that picks relay, outgoing address and relay exceptions. A null sender sent with SMTP AUTH (read receipt,
+# delivery report) takes the login's domain; a bounce has none. No ':' in it: SMTP_RELAY_FILE is a require_files list.
+SENDER_DOMAIN = ${if eq{$sender_address_domain}{}{${extract{2}{@}{$authenticated_id}}}{$sender_address_domain}}
+OUTGOING_IP = /etc/exim4/domains/${lookup{SENDER_DOMAIN}dsearch{/etc/exim4/domains}}/ip
 # A second FILE so every /ip reader stays untouched; missing = no v6 pin, kernel picks.
-OUTGOING6_IP = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/ipv6
+OUTGOING6_IP = /etc/exim4/domains/${lookup{SENDER_DOMAIN}dsearch{/etc/exim4/domains}}/ipv6
 
 # Per-domain spam subject tag (h-change-mail-domain-spam-subject-tag): if the
 # recipient domain has this file, its content replaces the global
@@ -97,7 +106,7 @@ OUTGOING6_IP = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/e
 SPAM_SUBJECT_TAG_FILE = /etc/exim4/domains/${lookup{$domain}dsearch{/etc/exim4/domains/}}/spam_subject_tag
 SPAM_SUBJECT_TAG_ACTIVE = ${if and{{match{$h_X-Spam-Status:}{\N^Yes\N}}{exists{SPAM_SUBJECT_TAG_FILE}}}{yes}{no}}
 
-SMTP_RELAY_FILE = ${if exists{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/smtp_relay.conf}{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains}}/smtp_relay.conf}{/etc/exim4/smtp_relay.conf}}
+SMTP_RELAY_FILE = ${if exists{/etc/exim4/domains/${lookup{SENDER_DOMAIN}dsearch{/etc/exim4/domains}}/smtp_relay.conf}{/etc/exim4/domains/${lookup{SENDER_DOMAIN}dsearch{/etc/exim4/domains}}/smtp_relay.conf}{/etc/exim4/smtp_relay.conf}}
 SMTP_RELAY_HOST = ${lookup{host}lsearch{SMTP_RELAY_FILE}}
 SMTP_RELAY_PORT = ${lookup{port}lsearch{SMTP_RELAY_FILE}}
 SMTP_RELAY_USER = ${lookup{user}lsearch{SMTP_RELAY_FILE}}
@@ -294,8 +303,10 @@ acl_check_rcpt:
 
 
 acl_check_data:
+.ifndef RSPAMD
   warn   !authenticated = *
          add_header     = :at_start:${authresults{$primary_hostname}}
+.endif
 
 .ifdef CLAMD
   deny   message        = Message contains a virus ($malware_name) and has been rejected
@@ -317,6 +328,12 @@ acl_check_data:
         add_header     = X-Spam-Bar: $spam_bar
         add_header     = X-Spam-Report: $spam_report
         set acl_m2     = $spam_score_int
+        # Taken here: $spam_report outlives the message in an SMTP session, an acl_m variable does not.
+        set acl_m_authres = AUTHRES_EXTRA
+
+  # One Authentication-Results: exim's own, with rspamd's SPF and DMARC where it scanned the mail.
+ warn   !authenticated = *
+        add_header     = :at_start:${authresults{$primary_hostname}}$acl_m_authres
 
  warn   condition      = ${if !eq{$acl_m2}{} {yes}{no}}
         condition      = ${if >{$acl_m2}{$acl_m4} {no}{yes}}
@@ -444,8 +461,8 @@ system_mailbox:
 bypass_smtp_relay:
   driver = dnslookup
   domains = !+local_domains
-  require_files = /etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude
-  condition = ${lookup{$domain}nwildlsearch{/etc/exim4/domains/${lookup{$sender_address_domain}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude}{yes}{no}}
+  require_files = /etc/exim4/domains/${lookup{SENDER_DOMAIN}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude
+  condition = ${lookup{$domain}nwildlsearch{/etc/exim4/domains/${lookup{SENDER_DOMAIN}dsearch{/etc/exim4/domains/}{$value}{no.such.dir}}/smtp_relay_exclude}{yes}{no}}
   transport = remote_smtp
   no_more
   no_verify

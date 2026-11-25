@@ -236,8 +236,11 @@ record_del_field() {
 BACKUP_CONTAINER='hestia'
 
 # BACKUP_USER_DATA_CORE: data-dir entries that travel in NEITHER direction, rebuilt per object
-# (web|mail|db|cron.conf, mail), box-local (backup.conf, dns-move.conf), gone (dns), or secret (restic.conf, auth.log).
-BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns-move.conf dns.conf dns restic.conf auth.log'
+# (web|mail|db|cron.conf, mail), box-local (backup.conf, dns-move.conf, notes-restored.conf), gone (dns), or secret
+# (restic.conf, auth.log).
+BACKUP_USER_DATA_CORE='web.conf mail.conf db.conf cron.conf mail backup.conf dns-move.conf notes-restored.conf dns.conf dns
+restic.conf auth.log'
+BACKUP_USER_DATA_CORE=${BACKUP_USER_DATA_CORE//$'\n'/ }
 # What the container says about the ARCHIVE rather than about the customer: written into hestia/ by
 # the backup side, read by probe and restore, never copied into $USER_DATA. .gitea/tools/check-tree.sh
 # holds this against what the writers actually emit, because a hand-kept list is how the last two leaked.
@@ -254,6 +257,8 @@ QUEUE_JOB_DROPPED=''
 queue_drop_job() {
 	local _pipe="$1" _job="$QUEUE_JOB" _n
 	[ -n "$_job" ] || return 0
+	# A subshell cannot keep the once flag, so its drop would leave the main shell's trap a second one.
+	[ "$BASHPID" = "$$" ] || return 0
 	[ -n "$QUEUE_JOB_DROPPED" ] && return 0
 	QUEUE_JOB_DROPPED='yes'
 	[ -f "$_pipe" ] || return 0
@@ -261,6 +266,12 @@ queue_drop_job() {
 	_n=$(grep -nF -m1 -- "$_job" "$_pipe" 2> /dev/null | cut -d: -f1)
 	[ -n "$_n" ] || return 0
 	sed -i "${_n}d" "$_pipe"
+}
+
+# queue_job_exit: the EXIT trap of every queued command. The queue runs backup.pipe as a script, so a line left by an
+# abort runs again on every pass and is_backup_scheduled refuses the customer meanwhile.
+queue_job_exit() {
+	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 }
 
 # The origin line's format number. One definition for the writer and the reader.

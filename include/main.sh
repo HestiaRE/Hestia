@@ -13,6 +13,8 @@ umask 022
 # First, so a lone --help is answered before anything below runs.
 # shellcheck source=/usr/local/hestia/include/help.sh
 source "$HESTIA/include/help.sh"
+# shellcheck source=/usr/local/hestia/include/username.sh
+source "$HESTIA/include/username.sh"
 
 # Names a record must never bind: values are validated everywhere, the NAME was not, so a restored
 # user.conf with PATH=/tmp/x rebound PATH in the root shell reading it. ROOT_USER, REPO, BACKUP and
@@ -228,6 +230,51 @@ copy_record_filtered() {
 		return 1
 	fi
 	chmod 660 "$_tmp" && mv -f "$_tmp" "$_dst"
+}
+
+# user_notes_install SRC DIR [ORIGIN]: the admin's notes from SRC as DIR/notes.txt, CR and trailing blank lines dropped;
+# empty removes them. rc 2 with the reason on stderr for more than 64 KiB, a control byte but tab and newline, or not
+# UTF-8. ORIGIN (a tar archive restored from) is noted in notes-restored.conf until an admin saves them again: a
+# customer can edit the notes in an archive they hold.
+user_notes_install() {
+	local _src="$1" _dir="$2" _origin="${3-}" _tmp
+	if [ -d "$_dir/notes.txt" ] && [ ! -L "$_dir/notes.txt" ]; then
+		echo "notes.txt is a directory, remove it by hand" >&2
+		return 1
+	fi
+	if [ ! -f "$_src" ] || [ -L "$_src" ] || [ "$(stat -c %s "$_src")" -gt 65536 ]; then
+		echo "the notes are not a file of up to 64 KiB" >&2
+		return 2
+	fi
+	_tmp=$(mktemp "$_dir/.notes.XXXXXX") || return 1
+	tr -d '\r' < "$_src" | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}' > "$_tmp"
+	# Tab and newline stay; every other control byte, NUL included, is refused.
+	if ! LC_ALL=C tr -d '\000-\010\013-\037\177' < "$_tmp" | cmp -s - "$_tmp"; then
+		rm -f "$_tmp"
+		echo "the notes carry a control character" >&2
+		return 2
+	fi
+	if ! iconv -f UTF-8 -t UTF-8 "$_tmp" > /dev/null 2>&1; then
+		rm -f "$_tmp"
+		echo "the notes are not UTF-8" >&2
+		return 2
+	fi
+	if [ -z "$(tr -d '[:space:]' < "$_tmp")" ]; then
+		rm -f "$_tmp"
+		rm -f "$_dir/notes.txt" "$_dir/notes-restored.conf"
+		return 0
+	fi
+	chmod 600 "$_tmp"
+	# -T: a directory named notes.txt is an error, not a place to move into.
+	mv -fT "$_tmp" "$_dir/notes.txt" || {
+		rm -f "$_tmp"
+		return 1
+	}
+	if [ -n "$_origin" ]; then
+		printf "ARCHIVE='%s'\nDATE='%s'\n" "${_origin//[^A-Za-z0-9._:-]/_}" "$(date +%F)" > "$_dir/notes-restored.conf"
+	else
+		rm -f "$_dir/notes-restored.conf"
+	fi
 }
 
 # System key registry readers (share/hestia/sys-keys.json). Loaded here because the panel's config
@@ -1574,42 +1621,17 @@ is_user_format_valid() {
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
 
-	# Only for new users
-	if [[ "$FROM_V_ADD_USER" == "true" ]]; then
-		if ! [[ "$1" =~ ^[a-zA-Z][-_[:alnum:]]{0,28}[[:alnum:]]$ ]]; then
-			check_result "$E_INVALID" "invalid $2 format :: $1"
-		fi
+	local why
+	if [[ "$FROM_V_ADD_USER" == "true" ]] && why=$(new_user_name_refusal "$1"); then
+		check_result "$E_INVALID" "$2 name '$1' $why"
 	fi
 }
 
-# Names a service account owns, or will own once its component is installed. passwd and group know
-# only today's box, so a curated list is the only way to keep a later component's name free.
-# Callers still check passwd/group themselves.
+# The list is in include/username.sh; callers still check passwd/group themselves.
 is_login_name_reserved() {
-	local name="${1,,}" label="${2:-user}" reserved r
-	reserved=(
-		# ours
-		hestia hestia-users procvis sftp-jailed
-		# always installed
-		nginx apache2 www-data caddy php mysql mariadb phpmyadmin
-		# standard profile + optional components (h-add-sys-*, h-add-user-*)
-		exim dovecot dovenull rspamd roundcube tachyon crowdsec fail2ban
-		docker containerd proftpd ftp clamav postgres postgresql redis opensearch filemanager
-		# MariaDB/MySQL database names, and sudo (that group always has sudo rights)
-		aria aria_log mysql_upgrade ib ib_buffer ddl ddl_recovery performance sudo
-		# h-backup-server writes server.*.tar into the same /backup namespace as customer archives
-		server
-		# the user name the log commands read as the global activity log
-		system
-	)
-	for r in "${reserved[@]}"; do
-		if [ "$name" = "$r" ]; then
-			check_result "$E_INVALID" "$label name '$1' is reserved for system use"
-		fi
-	done
-	# h-add-user-docker names the companion account <user>-docker
-	if [ "${name%-docker}" != "$name" ]; then
-		check_result "$E_INVALID" "$label name '$1' is reserved: -docker is the companion suffix"
+	local why
+	if why=$(login_name_reserved_reason "$1"); then
+		check_result "$E_INVALID" "${2:-user} name '$1' $why"
 	fi
 	return 0
 }
@@ -2427,6 +2449,7 @@ is_format_valid() {
 				antivirus) is_boolean_format_valid "$arg" 'antivirus' ;;
 				autoreply) is_autoreply_format_valid "$arg" ;;
 				backup) is_object_format_valid "$arg" 'backup' ;;
+				backups) is_boolean_format_valid "$arg" 'backups' ;;
 				charset) is_object_format_valid "$arg" "$arg_name" ;;
 				charsets) is_common_format_valid "$arg" 'charsets' ;;
 				chain) is_object_format_valid "$arg" 'chain' ;;

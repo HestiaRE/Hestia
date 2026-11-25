@@ -887,6 +887,10 @@ exim_authresults_apply() {
 	exim_template_patch 0.39/exim-authresults-rspamd.patch
 }
 
+exim_null_sender_domain_apply() {
+	exim_template_patch 0.39/exim-null-sender-domain.patch
+}
+
 # nginx answers without TLS 0-RTT: the shipped line goes off, one changed by hand stays as it is.
 nginx_early_data_off_apply() {
 	local f=/etc/nginx/nginx.conf keep d='ssl_early_data                  '

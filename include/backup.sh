@@ -257,6 +257,8 @@ QUEUE_JOB_DROPPED=''
 queue_drop_job() {
 	local _pipe="$1" _job="$QUEUE_JOB" _n
 	[ -n "$_job" ] || return 0
+	# A subshell cannot keep the once flag, so its drop would leave the main shell's trap a second one.
+	[ "$BASHPID" = "$$" ] || return 0
 	[ -n "$QUEUE_JOB_DROPPED" ] && return 0
 	QUEUE_JOB_DROPPED='yes'
 	[ -f "$_pipe" ] || return 0
@@ -264,6 +266,12 @@ queue_drop_job() {
 	_n=$(grep -nF -m1 -- "$_job" "$_pipe" 2> /dev/null | cut -d: -f1)
 	[ -n "$_n" ] || return 0
 	sed -i "${_n}d" "$_pipe"
+}
+
+# queue_job_exit: the EXIT trap of every queued command. The queue runs backup.pipe as a script, so a line left by an
+# abort runs again on every pass and is_backup_scheduled refuses the customer meanwhile.
+queue_job_exit() {
+	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 }
 
 # The origin line's format number. One definition for the writer and the reader.

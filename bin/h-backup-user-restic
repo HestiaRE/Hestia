@@ -20,6 +20,9 @@ source $HESTIA/include/db.sh
 source $HESTIA/include/backup.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+QUEUE_JOB="h-backup-user-restic $user "
+trap queue_job_exit EXIT
+
 check_args '1' "$#" 'USER [NOTIFY]'
 is_format_valid 'user'
 is_system_enabled "$BACKUP_SYSTEM" 'BACKUP_SYSTEM'
@@ -57,7 +60,7 @@ dump_dir=$(restic_dump_dir "$user")
 meta_pkg="$BACKUP/$user/$user.$stamp.meta.tgz"
 backup_user_dir "$user"
 # Every exit removes the stage, not just the successful one.
-trap 'rm -rf "$meta_dir" "$dump_dir"' EXIT
+trap 'rm -rf "$meta_dir" "$dump_dir"; queue_job_exit' EXIT
 # Leftovers first, or yesterday's dump counts as occupied space in the check below.
 rm -rf "$meta_dir" "$dump_dir"
 
@@ -200,7 +203,6 @@ if [ -e "$BACKUP/$user/$user.log" ] && [ "$notify" = "yes" ]; then
 	$BIN/h-add-user-notification "$user" "Snapshot created successfully" "Snap shot of user successfully created"
 fi
 
-QUEUE_JOB="h-backup-user-restic $user "
 queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 $BIN/h-log-action "$user" "Info" "Backup" "Backup created."

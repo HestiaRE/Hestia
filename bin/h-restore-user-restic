@@ -34,6 +34,9 @@ source $HESTIA/include/syshealth.sh
 source $HESTIA/include/backup.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+QUEUE_JOB="h-restore-user-restic '$user' '$snapshot'"
+trap queue_job_exit EXIT
+
 args_usage='USER SNAPSHOT [WEB] [DNS] [MAIL] [DB] [CRON] [UDIR] [NOTIFY]'
 check_args '2' "$#" "$args_usage"
 is_format_valid 'user'
@@ -42,7 +45,7 @@ is_object_valid 'user' 'USER' "$user"
 is_restic_repo_configured
 
 tmpdir=$(mktemp -p "${BACKUP_TEMP:-$BACKUP}" -d) || check_result "$E_NOTEXIST" "Can't create tmp dir"
-trap 'rm -rf "$tmpdir"' EXIT
+trap 'rm -rf "$tmpdir"; queue_job_exit' EXIT
 
 # The metadata is the package beside the repository, not part of the snapshot.
 meta_pkg=$(restic_pkg_for_snapshot "$user" "$snapshot")
@@ -86,7 +89,6 @@ $BIN/h-update-user-counters $user
 $BIN/h-update-user-counters "$ROOT_USER"
 $BIN/h-update-sys-ip-counters
 
-QUEUE_JOB="h-restore-user-restic '$user' '$snapshot'"
 queue_drop_job "$CONF_DIR/queue/backup.pipe"
 
 if [ -n "$failed" ]; then

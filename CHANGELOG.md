@@ -56,6 +56,15 @@ the releases of the command audit, into another.
 
 ### Fixed
 
+- **A queued restore or backup that aborted stayed in the queue** (#1474, upstream 1.10.10). The queue runs its lines
+  as a script and each command removes its own, but a restore of an archive that was missing or could not be fetched,
+  and every restic command on any abort, left the line: it ran again on every pass, and no other restore or backup of
+  that customer could be scheduled. Every exit the shell sees now removes it, a SIGTERM (reboot, a stopped cron) as
+  well: a job cut off that way has to be scheduled again. A kill -9 or a power loss still leaves the line.
+- **A read receipt sent through the domain's relay went out directly instead** (#1475, upstream 1.10.10). Mail sent
+  with SMTP AUTH and an empty envelope sender (read receipts, delivery reports) found no sender domain, so it skipped
+  the domain's relay, outgoing address and relay exceptions; on a box with port 25 blocked it was lost. It now takes
+  the login's domain. A real bounce stays as it was. The update patches the exim template.
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
   and keeps running, the other versions restart. The reload used to report success while the master died. A new

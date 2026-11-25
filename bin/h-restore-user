@@ -47,6 +47,27 @@ source $HESTIA/include/syshealth.sh
 source $HESTIA/include/quota.sh
 source_conf "$HESTIA/conf/hestia.conf"
 
+# Fixed text: a queued BACKUP for the same customer must not go with this line.
+QUEUE_JOB="h-restore-user '$user' '$backup'"
+# On every exit, one trap owner: later stages add work via flags, never a second `trap ... EXIT` (it replaces silently).
+# Empty until mktemp: the trap runs from here on, and must not remove a tmpdir handed in by the environment.
+tmpdir=''
+quota_cap_lifted=''
+counters_recount=''
+restore_cleanup() {
+	rm -rf "$tmpdir"
+	# An aborted restore must not leave the customer unlimited.
+	[ "$quota_cap_lifted" = 'yes' ] && "$BIN/h-update-user-quota" "$user" > /dev/null 2>&1
+	# Also after an abort: a later h-delete-user would subtract what was never counted.
+	if [ "$counters_recount" = 'yes' ]; then
+		[ -e "$USER_DATA/user.conf" ] && "$BIN/h-update-user-counters" "$user" > /dev/null 2>&1
+		"$BIN/h-update-user-counters" "$ROOT_USER" > /dev/null 2>&1
+		"$BIN/h-update-sys-ip-counters" > /dev/null 2>&1
+	fi
+	queue_job_exit
+}
+trap restore_cleanup EXIT
+
 args_usage='USER BACKUP [WEB] [DNS] [MAIL] [DB] [CRON] [UDIR] [NOTIFY] [CONSENT]'
 check_args '2' "$#" "$args_usage"
 is_format_valid 'user' 'backup'
@@ -126,28 +147,10 @@ tmpdir=$(mktemp -p $BACKUP_TEMP -d) || {
 	queue_drop_job "$CONF_DIR/queue/backup.pipe"
 	check_result "$E_NOTEXIST" "Can't create tmp dir"
 }
-# On every exit, one trap owner: later stages add work via flags, never a second `trap ... EXIT` (it replaces silently).
-quota_cap_lifted=''
-counters_recount=''
-restore_cleanup() {
-	rm -rf "$tmpdir"
-	# An aborted restore must not leave the customer unlimited.
-	[ "$quota_cap_lifted" = 'yes' ] && "$BIN/h-update-user-quota" "$user" > /dev/null 2>&1
-	# Also after an abort: a later h-delete-user would subtract what was never counted.
-	if [ "$counters_recount" = 'yes' ]; then
-		[ -e "$USER_DATA/user.conf" ] && "$BIN/h-update-user-counters" "$user" > /dev/null 2>&1
-		"$BIN/h-update-user-counters" "$ROOT_USER" > /dev/null 2>&1
-		"$BIN/h-update-sys-ip-counters" > /dev/null 2>&1
-	fi
-}
-trap restore_cleanup EXIT
 
 # Collected and reported at the end: one broken object must not abandon the rest nor pass as a success.
 restore_failures=''
 restore_notes=''
-
-# Fixed text: a queued BACKUP for the same customer must not go with this line.
-QUEUE_JOB="h-restore-user '$user' '$backup'"
 
 # Read the archive once before anything is written: answers arriving during a run come after the write they were about.
 if ! backup_probe "$backup_path" "$tmpdir/.probe"; then

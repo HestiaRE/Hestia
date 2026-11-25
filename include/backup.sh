@@ -2328,7 +2328,7 @@ backup_diff_build() {
 	local _tmp="$1" _bm="$2" _cur="$3" _base="$4"
 	local _d _pre _arc _opt _list _work _sz_full _sz_diff _basehits _i
 	local _run_full=0 _run_kept=0
-	local -a _codec _arcs=() _pres=() _kinds=()
+	local -a _codec _ps _arcs=() _pres=() _kinds=()
 	for _d in "$_tmp"/web/*/ "$_tmp"/mail/*/; do
 		[ -d "$_d" ] || continue
 		case "$_d" in
@@ -2363,8 +2363,11 @@ backup_diff_build() {
 			# whole unchanged content along.
 			tar --sort=name -cpf- -C "$_work" --no-recursion --null -T "$_list" 2> /dev/null \
 				| "${_codec[@]}" > "$_arc.diff" 2> /dev/null
+			_ps=("${PIPESTATUS[@]}")
 			_sz_diff=$(stat -c %s "$_arc.diff" 2> /dev/null || echo 0)
-			# An empty diff is the normal quiet case; only a ZERO-BYTE file means the build failed.
+			# A full disk leaves a cut, non-empty file, and a path tar could not read leaves a short one: either keeps
+			# the member full. An empty diff is the normal quiet case; only a ZERO-BYTE file means the build failed.
+			[ "${_ps[0]}" -le 1 ] && [ "${_ps[1]}" -eq 0 ] || _sz_diff=0
 			if [ "$_sz_diff" -gt 0 ] && [ $((_sz_diff * 100)) -lt $((_sz_full * BACKUP_DIFF_MEMBER_PCT)) ]; then
 				_kinds[${#_kinds[@]} - 1]='diff'
 				_sz_full=$_sz_diff

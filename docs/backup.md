@@ -86,7 +86,9 @@ repository is never deleted this way; for restic there is also the explicit way 
 
 Rotation counts **sets**, not files: a differential archive belongs to the set of its
 base, and a base is kept as long as any kept archive names it. With `BACKUPS='3'` a diff customer
-keeps three sets, about six weeks for a quiet customer.
+keeps three sets: the oldest point lies four to six weeks back for a quiet customer, as the
+oldest set goes when the fourth begins. With `BACKUPS='1'` the depth is a saw tooth between
+one and fourteen days.
 
 - The package's `BACKUPS` is what the local rotation keeps.
 - Each remote target may keep more, via its own `BACKUPS_KEEP` (empty means mirror the

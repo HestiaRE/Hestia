@@ -35,7 +35,9 @@ the releases of the command audit, into another.
 - **A differential customer's backups never rotated** (#1492). Every run diffed against the newest full archive, so
   after the first full there was one set that only grew, and every diff in it hung on one full of any age. A run now
   writes a new full when the base is older than 14 days or when the diff would still be half the size of the web and
-  mail members, as the #712 plan intended. From then on `BACKUPS` keeps that many sets and rotates the oldest.
+  mail members, as the #712 plan intended. From then on `BACKUPS` keeps that many sets and rotates the oldest. The
+  first full after the update opens a second set, so a diff customer with `BACKUPS='1'` loses the old set with all
+  its diffs in that run and keeps the new full alone; with `BACKUPS='2'` or more nothing goes yet.
 
 ## v0.39 (2026-11-25)
 

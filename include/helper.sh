@@ -711,8 +711,8 @@ php_meta_off_apply() {
 	fi
 	args=("php$pv" php-)
 	want=$'php\n'
-	for p in $(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'libapache2-mod-php*' 2> /dev/null |
-		awk '$1 == "ii" { print $2 }'); do
+	for p in $(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'libapache2-mod-php*' 2> /dev/null \
+		| awk '$1 == "ii" { print $2 }'); do
 		v=${p#libapache2-mod-php}
 		args+=("$p-")
 		want+="$p"$'\n'

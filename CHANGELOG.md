@@ -72,6 +72,9 @@ the releases of the command audit, into another.
   with SMTP AUTH and an empty envelope sender (read receipts, delivery reports) found no sender domain, so it skipped
   the domain's relay, outgoing address and relay exceptions; on a box with port 25 blocked it was lost. It now takes
   the login's domain. A real bounce stays as it was. The update patches the exim template.
+- **doveadm read a compressed mail raw on dovecot 2.4** (#1479, upstream 1.10.10). Only imap and pop3 loaded
+  `mail_compress`, so doveadm and delivery saw the raw bytes of a mail that a migration from another server brought
+  compressed. The global `mail_plugins` carries it now, and the update adds it where the line is still ours.
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
   and keeps running, the other versions restart. The reload used to report success while the master died. A new

@@ -48,6 +48,18 @@
       "action": { "type": "function_call", "function": "exim_null_sender_domain_apply" },
       "paths": ["/etc/exim4/exim4.conf.template"],
       "reversible": false
+    },
+    {
+      "id": "dovecot-mail-compress",
+      "description": "dovecot 2.4 loads mail_compress for every service, not only imap and pop3, so doveadm and delivery read a compressed mail, as a migration from another server may bring it. Skipped where the line was changed by hand",
+      "conditions": [
+        { "type": "key_is", "name": "IMAP_SYSTEM", "value": "dovecot" },
+        { "type": "file_contains", "path": "/etc/dovecot/dovecot.conf", "value": "dovecot_config_version = 2.4" },
+        { "type": "file_contains", "path": "/etc/dovecot/conf.d/10-mail.conf", "value": "mail_plugins = quota" }
+      ],
+      "action": { "type": "function_call", "function": "dovecot_mail_compress_apply" },
+      "paths": ["/etc/dovecot/conf.d/10-mail.conf"],
+      "reversible": false
     }
   ]
 }

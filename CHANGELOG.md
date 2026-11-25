@@ -13,43 +13,38 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.40 (2026-11-25)
+
+PHP 8.6 arrives, apache loses the mod_php a Sury meta had brought in, and backups gain protected archives and a
+differential mode that rotates again.
+
 ### Added
 
-- **PHP 8.6** (#1489). Sury now builds every extension of the customer set for it on all four targets, except opcache,
-  which is core since 8.5. ionCube has no loader for 8.6 yet, so h-add-web-php enables PHP 8.6 without it and warns.
-  The wizard offers 8.6 in every preset but preselects it only in `latest` (8.6 and 8.5); the others keep their
-  previous selection (standard 8.5 to 8.2, compact and nomail 8.4 to 8.2). The server page reads its version list
-  from `php_supported`, the same list h-add-web-php validates against, instead of keeping a copy of its own.
-- **Protected backups** (#1353). A customer keeps an archive out of the rotation with the lock in the backup list or
-  `h-change-user-backup-protection`, and **Create Backup** protects the new archive while a slot is free. Protected
-  archives hold slots of the package's `BACKUPS`, one slot always stays with the automatic run, and with none free
-  protecting is refused rather than unprotecting an older one. Local and remote places honour it alike, and a
-  protected archive is always full. Exports are protected archives now: they hold a slot instead of their own limit
-  (`BACKUP_EXPORT_LIMIT` is gone), deleting one deletes its file, and the update moves existing ones over. A customer
-  who already has exports keeps that many fewer automatic sets afterwards: `BACKUPS='3'` with two exports leaves
-  one, and the next run rotates the rest.
+- **PHP 8.6** (#1489). Every extension of the customer set except opcache, which is core; ionCube has no loader for
+  it yet, so it is left out with a warning. The wizard preselects 8.6 only in `latest`, the other presets keep their
+  previous versions, and the server page reads its list from `php_supported`.
+- **Protected backups** (#1353). A lock in the backup list or `h-change-user-backup-protection` keeps an archive out
+  of the rotation in every place, and **Create Backup** protects while a slot is free. Protected archives hold slots
+  of `BACKUPS`, one always stays with the automatic run, and a protected archive is always full. Exports are
+  protected archives now (`BACKUP_EXPORT_LIMIT` is gone): a customer who has exports keeps that many fewer automatic
+  sets after the update.
 
 ### Security
 
-- **apache runs no PHP module, and a new Sury PHP no longer brings one along** (#1487). roundcube depends on Sury's
-  `php` meta, which now names PHP 8.6. With 8.6's FPM absent, apt chose its apache module. That module ran a
-  customer's `.phtml` and `.phar` as www-data, outside his own PHP pool, and switched apache to prefork. It came
-  through unattended-upgrades on every apache box. roundcube now takes the panel's PHP package instead of the meta,
-  so no installed package pulls a handler for a new PHP version any more. The update removes the module and the meta
-  and puts apache back on mpm_event. The smoke fails on a PHP module or a non-event MPM in apache.
+- **apache runs no PHP module, and a new Sury PHP no longer brings one along** (#1487). roundcube pulled Sury's `php`
+  meta, which named 8.6, and with no 8.6 FPM apt chose its apache module: a customer's `.phtml` and `.phar` ran as
+  www-data outside the own pool. roundcube takes the panel's PHP package now, the update removes module and meta and
+  puts apache back on mpm_event, and the smoke fails on either.
 
 ### Fixed
 
-- **Exports could lose their copy on a remote target, and a differential customer's export was a diff** (#1353). The
-  remote rotation counted an export as an ordinary set and deleted it there in time. And the export of a customer in
-  `diff` mode was built against the newest base but recorded without one, so on its own it restored only the
-  changes.
-- **A differential customer's backups never rotated** (#1492). Every run diffed against the newest full archive, so
-  after the first full there was one set that only grew, and every diff in it hung on one full of any age. A run now
-  writes a new full when the base is older than 14 days or when the diff would still be half the size of the web and
-  mail members, as the #712 plan intended. From then on `BACKUPS` keeps that many sets and rotates the oldest. The
-  first full after the update opens a second set, so a diff customer with `BACKUPS='1'` loses the old set with all
-  its diffs in that run and keeps the new full alone; with `BACKUPS='2'` or more nothing goes yet.
+- **A differential customer's backups never rotated** (#1492). Every run diffed against one full of any age. A new
+  full now starts past 14 days or when the diff would keep half the web and mail size, and `BACKUPS` counts sets
+  again; with `BACKUPS='1'` the first new full takes the old set along.
+- **Exports** (#1353): their copy on a remote target was rotated away, and a differential customer's export was
+  itself a diff without its base.
 
 ## v0.39 (2026-11-25)
 
@@ -58,71 +53,34 @@ page, and an admin can keep notes on a user.
 
 ### Added
 
-- **SPF and DMARC are edited on the zone page** (#1439). Each row takes a value of its own, kept as an exception the
-  next sync writes; an SPF that does not authorise the box is saved with a warning naming what it leaves out.
-- **A DNS move can be finished, and www can follow the apex in place of a CNAME** (#1453, #1454). `h-sync-dns USER
-  finish` drops the old addresses from the SPF where the new one stays covered; `follow` with `cname` switches the
-  www include on and removes the CNAME or ALIAS that would win over it.
-- **Authentication-Results carries rspamd's SPF and DMARC** (#1455) beside exim's iprev and DKIM, in one header.
-- **Admin notes on a user** (#1427), on the six main lists, never shown to the customer. They travel with the backup,
-  where the customer can read them, so they hold no secrets.
-- **Deleting a user can take the backups along** (#1477, upstream 1.10.10). `h-delete-user USER [RESTART] yes`, or
-  the checkbox in the delete dialog, removes every archive and the restic repository; a remote target is best effort,
-  and what stays is named in the system log. The default keeps them.
+- **SPF and DMARC on the zone page** (#1439), each row kept as an exception the next sync writes.
+- **A DNS move can be finished, and www can follow the apex instead of a CNAME** (#1453, #1454).
+- **Admin notes on a user** (#1427); they travel with the backup, so they hold no secrets.
+- **Deleting a user can take the backups along** (#1477, upstream 1.10.10); the default keeps them.
+- Authentication-Results carries rspamd's SPF and DMARC (#1455).
 
 ### Security
 
-- **A customer could run commands as root through their stats folder** (#1464, upstream 1.10.10). Only month folders
-  are listed now, and the sed that reads them runs as the customer.
-- **A customer could get rights on another database, up to MariaDB root** (#1466, #1472, upstream 1.10.10). A grant
-  named its database with `_` and `%` as wildcards, so `mys` with database `l` held rights on `mysql`. Grants name the
-  database exactly now, the update replaces the old ones, and a new user name has at least three characters with
-  `mys`, `m_s` and `mysq` reserved; the installer checks the admin name the same way.
-- **nginx answers without TLS 0-RTT** (#1468, CVE-2026-132779), which nginx 1.21.4 to 1.31.9 lets an attacker turn
-  into CPU load. The update switches the shipped line off.
-- **Tachyon 4.8.0** (#1484, GHSA-3w5p-7qc3-89gm): a crafted link could send IMAP commands as the user.
-- **A DES or MD5 login hash is replaced at the next correct panel password** (#1478, upstream 1.10.10). Only a very
-  old restored archive brings one; upstream only warns.
+- **Two ways from a customer account to root**: commands through the stats folder (#1464) and database grants whose
+  `_` and `%` matched `mysql` (#1466, #1472), both upstream 1.10.10. Grants name the database exactly now.
+- **nginx answers without TLS 0-RTT** (#1468, CVE-2026-132779), **Tachyon 4.8.0** (#1484, GHSA-3w5p-7qc3-89gm), and
+  an old DES or MD5 login hash is replaced at the next login (#1478).
 
 ### Fixed
 
-- **A queued restore or backup that aborted stayed in the queue** (#1474, upstream 1.10.10), ran again on every pass
-  and blocked every other one of that customer. Every exit the shell sees removes it now.
-- **A read receipt went out directly instead of through the domain's relay** (#1475, upstream 1.10.10), and was lost
-  where port 25 is blocked. Mail with SMTP AUTH and an empty sender takes the login's domain now.
-- **One broken php-fpm pool took every site of its PHP version down** (#1470, upstream #6040). A restart tests the
-  configuration first and leaves a failing version running.
-- **DNS sync** (#1439, #1442, #1450, #1451, #1452): a server move keeps the old box in an SPF of `a mx` and names the
-  exceptions it skips, the zone page shows the provider's SPF and DMARC wherever they differ, "Apply" on a www that
-  mirrors the apex takes the apex along, and an added record of a deleted domain can be removed from the provider.
-- Smaller: doveadm reads compressed mail on dovecot 2.4 (#1479, upstream 1.10.10), a web domain of a suspended user is
-  no longer unsuspended on its own (#1480), the server page reads the OS from `/etc/os-release` (#1481, upstream
-  #6050), and the wizard refuses an admin name the system already uses (#1482).
+- **An aborted queued job stayed in the queue** and blocked the customer's others (#1474); a read receipt bypassed
+  the relay (#1475); one broken php-fpm pool took its whole PHP version down (#1470).
+- DNS sync details (#1439, #1442, #1450-#1452), and smaller ones (#1479-#1482).
 
 ## v0.38 (2026-11-23)
 
-The DNS provider sync follows an IP change, issues wildcard certificates and takes a customer's own records, and a
-package a mirror does not serve no longer ends an install.
+The DNS provider sync follows an IP change, issues wildcard certificates and takes a customer's own records.
 
-### Added
-
-- **Own DNS records on the zone page** (#1428): a TXT or CNAME of the customer's, or one adopted from the provider,
-  compared and written like a derived one; single rows can be applied, an SPF normalised.
-- **Wildcard certificates through the DNS provider** (#1422), over DNS-01 where an account holds the zone.
-- **An IP change and a server move carry the DNS records along** (#1419), through `h-sync-dns USER|all OLD=NEW` with
-  a preview; a restore offers the move on the DNS tab.
-
-### Changed
-
-- **The derived SPF is `v=spf1 a mx ~all`** (#1428); an older SPF with addresses keeps working.
-- **Updates start from v0.30** (#1433).
-
-### Fixed
-
-- **One package a mirror did not serve ended the whole install** (#1418). A missing PHP module is left out with a
-  warning until `h-add-web-php VERSION` brings it.
-- **A docker customer lost the own daemon socket after a reboot** (#1430): `useradd` sorted `/etc/subuid`.
-- Smaller: disk counters stayed too high after a delete until night (#1417).
+- **Added:** own DNS records on the zone page (#1428), wildcard certificates over DNS-01 (#1422), IP changes and
+  server moves carry the DNS records along (#1419).
+- **Changed:** the derived SPF is `v=spf1 a mx ~all` (#1428); updates start from v0.30 (#1433).
+- **Fixed:** one package a mirror did not serve ended the install (#1418), a docker customer lost the own daemon
+  socket after a reboot (#1430), disk counters stayed high after a delete (#1417).
 
 ## v0.37 (2026-11-21)
 

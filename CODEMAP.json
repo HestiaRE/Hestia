@@ -1207,7 +1207,8 @@
         "bin/h-list-user-backups",
         "bin/h-list-user-backup-map",
         "bin/h-list-server-backups",
-        "bin/h-delete-user-backup","bin/h-change-user-backup-protection",
+        "bin/h-delete-user-backup",
+        "bin/h-change-user-backup-protection",
         "bin/h-download-backup",
         "include/backup.sh",
         "include/rebuild.sh"

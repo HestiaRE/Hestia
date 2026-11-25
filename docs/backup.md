@@ -110,6 +110,10 @@ h-change-user-backup-protection $user $archive yes|no
   may take, so protecting one is refused and a protected run never writes a diff.
 - A protected archive is never the base of a differential run: deleting it on purpose would
   strand every diff built on it.
+- Protecting a full that already has diffs protects the full alone. Its diffs rotate on as a
+  set of their own and count as an automatic one.
+- An update that turns exports into protected archives takes their slots from the automatic
+  run: `BACKUPS='3'` with two exports keeps one automatic set afterwards.
 - With no slot free, protecting refuses and names the protected archives. Nothing is ever
   unprotected to make room.
 - Lowering a package's `BACKUPS` below what is protected keeps the protected archives; the

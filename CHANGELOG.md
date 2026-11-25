@@ -25,7 +25,9 @@ the releases of the command audit, into another.
   archives hold slots of the package's `BACKUPS`, one slot always stays with the automatic run, and with none free
   protecting is refused rather than unprotecting an older one. Local and remote places honour it alike, and a
   protected archive is always full. Exports are protected archives now: they hold a slot instead of their own limit
-  (`BACKUP_EXPORT_LIMIT` is gone), deleting one deletes its file, and the update moves existing ones over.
+  (`BACKUP_EXPORT_LIMIT` is gone), deleting one deletes its file, and the update moves existing ones over. A customer
+  who already has exports keeps that many fewer automatic sets afterwards: `BACKUPS='3'` with two exports leaves
+  one, and the next run rotates the rest.
 
 ### Fixed
 

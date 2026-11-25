@@ -30,6 +30,13 @@ the releases of the command audit, into another.
   so no installed package pulls a handler for a new PHP version any more. The update removes the module and the meta
   and puts apache back on mpm_event. The smoke fails on a PHP module or a non-event MPM in apache.
 
+### Fixed
+
+- **A differential customer's backups never rotated** (#1492). Every run diffed against the newest full archive, so
+  after the first full there was one set that only grew, and every diff in it hung on one full of any age. A run now
+  writes a new full when the base is older than 14 days or when the diff would still be half the size of the web and
+  mail members, as the #712 plan intended. From then on `BACKUPS` keeps that many sets and rotates the oldest.
+
 ## v0.39 (2026-11-25)
 
 The upstream 1.10.10 round closes two ways from a customer account to root, SPF and DMARC become editable on the zone

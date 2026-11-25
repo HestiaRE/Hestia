@@ -2306,14 +2306,29 @@ backup_diff_base() {
 
 # Per-member threshold: a diff that saves less than this is not worth the dependency on a base.
 BACKUP_DIFF_MEMBER_PCT=50
+# Per run: diff members that would still be this share of their full size make the run a new base instead.
+BACKUP_DIFF_RUN_PCT=50
+# A base older than this many days starts a new one: a risk limit, every diff of the set depends on that one file.
+BACKUP_DIFF_MAX_AGE=14
 
-# backup_diff_build TMPDIR BASEMAP CURMAP BASE: rebuild what is worth rebuilding, record what each
-# member ended up as. Rebuilt FROM the full member, never from the live tree.
+# backup_diff_base_too_old NAME: rc 0 when the base named by its archive timestamp is past BACKUP_DIFF_MAX_AGE. A name
+# that does not parse counts as too old, so the doubt ends in a full run.
+backup_diff_base_too_old() {
+	local _ts _t
+	_ts=$(sed -n 's/^.*\.\([0-9]\{4\}-[0-9][0-9]-[0-9][0-9]\)_\([0-9][0-9]\)-\([0-9][0-9]\)-\([0-9][0-9]\)\.tar$/\1 \2:\3:\4/p' <<< "$1")
+	[ -n "$_ts" ] || return 0
+	_t=$(LC_ALL=C date -d "$_ts" +%s 2> /dev/null) || return 0
+	[ $(($(date +%s) - _t)) -gt $((BACKUP_DIFF_MAX_AGE * 86400)) ]
+}
+
+# backup_diff_build TMPDIR BASEMAP CURMAP BASE: rebuild what is worth rebuilding, record what each member ended up as.
+# Rebuilt FROM the full member, never from the live tree. Candidates first, decided per run, then committed: rc 3 when
+# the diff members would not save enough, and then every member is still full and nothing names a base.
 backup_diff_build() {
 	local _tmp="$1" _bm="$2" _cur="$3" _base="$4"
-	local _d _pre _arc _out _opt _list _work _sz_full _sz_diff _kind _basehits
-	local -a _codec
-	: > "$_tmp/$BACKUP_CONTAINER/backup.members"
+	local _d _pre _arc _opt _list _work _sz_full _sz_diff _basehits _i
+	local _run_full=0 _run_kept=0
+	local -a _codec _arcs=() _pres=() _kinds=()
 	for _d in "$_tmp"/web/*/ "$_tmp"/mail/*/; do
 		[ -d "$_d" ] || continue
 		case "$_d" in
@@ -2323,7 +2338,11 @@ backup_diff_build() {
 		esac
 		_arc=$(ls "$_d"domain_data.tar.* "$_d"accounts.tar.* 2> /dev/null | head -1)
 		[ -n "$_arc" ] || continue
-		_kind='full'
+		_arcs+=("$_arc")
+		_pres+=("$_pre")
+		_kinds+=('full')
+		_sz_full=$(stat -c %s "$_arc" 2> /dev/null || echo 0)
+		_run_full=$((_run_full + _sz_full))
 
 		# A member the base never had: a diff of it is the full member plus a dependency.
 		_basehits=$(backup_map_prefix_count "$_bm" "$_pre")
@@ -2344,20 +2363,30 @@ backup_diff_build() {
 			# whole unchanged content along.
 			tar --sort=name -cpf- -C "$_work" --no-recursion --null -T "$_list" 2> /dev/null \
 				| "${_codec[@]}" > "$_arc.diff" 2> /dev/null
-			_sz_full=$(stat -c %s "$_arc" 2> /dev/null || echo 0)
 			_sz_diff=$(stat -c %s "$_arc.diff" 2> /dev/null || echo 0)
 			# An empty diff is the normal quiet case; only a ZERO-BYTE file means the build failed.
 			if [ "$_sz_diff" -gt 0 ] && [ $((_sz_diff * 100)) -lt $((_sz_full * BACKUP_DIFF_MEMBER_PCT)) ]; then
-				_out=$(backup_diff_member_name "$_arc")
-				mv -f "$_arc.diff" "$_out"
-				rm -f "$_arc"
-				_kind='diff'
+				_kinds[${#_kinds[@]} - 1]='diff'
+				_sz_full=$_sz_diff
 			else
 				rm -f "$_arc.diff"
 			fi
 			rm -rf "$_work" "$_list"
 		fi
-		echo "$_pre=$_kind" >> "$_tmp/$BACKUP_CONTAINER/backup.members"
+		_run_kept=$((_run_kept + _sz_full))
+	done
+	if [ $((_run_kept * 100)) -ge $((_run_full * BACKUP_DIFF_RUN_PCT)) ]; then
+		for _arc in "${_arcs[@]}"; do rm -f "$_arc.diff"; done
+		rm -f "$_tmp/$BACKUP_CONTAINER/backup.members" "$_tmp/$BACKUP_CONTAINER/backup.base"
+		return 3
+	fi
+	: > "$_tmp/$BACKUP_CONTAINER/backup.members"
+	for _i in "${!_arcs[@]}"; do
+		if [ "${_kinds[$_i]}" = 'diff' ]; then
+			mv -f "${_arcs[$_i]}.diff" "$(backup_diff_member_name "${_arcs[$_i]}")"
+			rm -f "${_arcs[$_i]}"
+		fi
+		echo "${_pres[$_i]}=${_kinds[$_i]}" >> "$_tmp/$BACKUP_CONTAINER/backup.members"
 	done
 	# MAPHASH = "the base I was built against"; a same-named archive from elsewhere fails it.
 	printf "BASE='%s' MAPHASH='%s'\n" "$_base" "$(sha256sum "$_bm" | cut -d' ' -f1)" \

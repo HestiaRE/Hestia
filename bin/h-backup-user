@@ -791,6 +791,10 @@ if [ "${backup_mode_sel:-full}" = 'diff' ] && [ "$map_records" -gt 0 ]; then
 	if [ -z "$diff_base" ]; then
 		echo "$(date "+%F %T") No reachable base archive - writing a full backup" \
 			| tee -a $BACKUP/$user/$user.log
+	elif backup_diff_base_too_old "$diff_base"; then
+		echo "$(date "+%F %T") Base $diff_base is older than $BACKUP_DIFF_MAX_AGE days - writing a full backup" \
+			| tee -a $BACKUP/$user/$user.log
+		diff_base=''
 	fi
 	if [ -n "$diff_base" ]; then
 		base_map=$(mktemp)
@@ -798,7 +802,15 @@ if [ "${backup_mode_sel:-full}" = 'diff' ] && [ "$map_records" -gt 0 ]; then
 		if zstd -q -d -c "$USER_DATA/backup-maps/$diff_base.map.zst" > "$base_map" 2> /dev/null \
 			&& [ "$(backup_map_count "$base_map")" -gt 0 ]; then
 			backup_diff_build "$tmpdir" "$base_map" "$tmpdir/hestia/backup.map" "$diff_base"
-			echo "$(date "+%F %T") Differential against $diff_base" | tee -a $BACKUP/$user/$user.log
+			# Only 3 means "still full": after any other failure the members may already be diffs, so the record
+			# keeps naming the base.
+			if [ $? -eq 3 ]; then
+				echo "$(date "+%F %T") A diff against $diff_base would keep ${BACKUP_DIFF_RUN_PCT}% or more" \
+					"of the web and mail size - writing a full backup" | tee -a $BACKUP/$user/$user.log
+				diff_base=''
+			else
+				echo "$(date "+%F %T") Differential against $diff_base" | tee -a $BACKUP/$user/$user.log
+			fi
 		else
 			# An unreadable base map must force a full run, never an empty diff ("nothing changed" looks the same).
 			echo "$(date "+%F %T") Warning: base map for $diff_base is unreadable - writing a full backup" \

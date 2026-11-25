@@ -1004,6 +1004,15 @@
       "note": ""
     },
     {
+      "path": "edit/backup/protection/index.php",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "edit/cron/index.php",
       "source_type": "derived",
       "upstream_path": "web/edit/cron/index.php",

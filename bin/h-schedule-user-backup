@@ -4,7 +4,7 @@
 #
 # example: h-schedule-user-backup admin
 #
-# Queues the creation of a backup of a user.
+# Queues a backup of a user asked for by hand. It is protected from the rotation while the package has a slot free.
 
 user=$1
 
@@ -22,7 +22,7 @@ is_backup_enabled
 is_backup_scheduled 'backup'
 
 log=$HESTIA/log/backup.log
-echo "$BIN/h-backup-user $user yes >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
+echo "$BIN/h-backup-user $user yes no auto >> $log 2>&1" >> $CONF_DIR/queue/backup.pipe
 
 log_event "$OK" "$ARGUMENTS"
 

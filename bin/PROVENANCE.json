@@ -4091,6 +4091,15 @@
       "note": ""
     },
     {
+      "path": "h-change-user-backup-protection",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-25",
+      "divergence": null,
+      "note": ""
+    },
+    {
       "path": "h-extract-fs-archive",
       "source_type": "derived",
       "upstream_path": "bin/v-extract-fs-archive",

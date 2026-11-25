@@ -877,6 +877,7 @@
         "install.sh",
         "include/wizard.sh",
         "include/helper.sh",
+        "include/username.sh",
         "sbin/h-install-hestia",
         "sbin/hestia",
         "sbin/h-update-hestia",

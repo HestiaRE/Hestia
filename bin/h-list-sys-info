@@ -46,19 +46,25 @@ plain_list() {
 
 HOSTNAME=$(hostname)
 
-if [ "$(lsb_release -si)" == "Ubuntu" ] && [ -e '/etc/debian_version' ]; then
-	OS="Ubuntu"
-	VERSION=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -f 2 -d '=')
-else
-	distro=$(head -n1 /etc/issue | cut -f 1 -d ' ')
-	if [ "$distro" = 'Debian' ]; then
-		OS="Debian"
-		VERSION=$(cat /etc/debian_version)
-	else
+# os-release, not /etc/issue: that one is a login banner an operator may rewrite.
+os_release_value() {
+	sed -n "s/^$1=//p" /etc/os-release 2> /dev/null | head -n1 | tr -d "\"'"
+}
+case "$(os_release_value ID)" in
+	ubuntu)
+		OS='Ubuntu'
+		VERSION=$(os_release_value VERSION_ID)
+		;;
+	debian)
+		OS='Debian'
+		# The point release (13.2); os-release only knows the major.
+		VERSION=$(cat /etc/debian_version 2> /dev/null)
+		;;
+	*)
 		OS='UNKNOWN'
 		VERSION='UNKNOWN'
-	fi
-fi
+		;;
+esac
 
 ARCH=$(arch)
 

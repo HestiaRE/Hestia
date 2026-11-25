@@ -37,6 +37,11 @@ the releases of the command audit, into another.
   `reject`, as RFC 7489 orders it, the other tags are free. Where a CNAME holds the name the field is not offered.
   Lifted, the exception leaves the record to the usual rules: an SPF that authorises the box and any DMARC stay as they
   are, "Normalize" or saving `p=none` and lifting go back to the derived form.
+- **Deleting a user can take the backups along** (#1477, upstream 1.10.10). `h-delete-user USER [RESTART] [BACKUPS]`:
+  with `yes` every archive goes from every transport and the restic repository with it, the default `no` keeps them
+  as before. The delete dialog of the user list has a checkbox for it. Without it the archives outlived the record that
+  named them, and nothing listed them any more. On a remote target the delete is best effort: an unreachable one keeps
+  its copy. What stays is named in the system log.
 
 ### Security
 
@@ -53,6 +58,11 @@ the releases of the command audit, into another.
   is named `<user>_<name>`, and while `_` was a wildcard in a grant (#1466), `mys` or `m_s` with a one-letter database
   reached `mysql`. Other system databases rest on #1466 alone. Only creating an account checks it, the restore of a
   new one included; existing short names keep working.
+- **A DES or MD5 login hash is replaced at the next correct panel password** (#1478, upstream 1.10.10). Only a
+  restore of a very old archive brings one, and it stayed for good. The login has the password at hand and hashes it
+  anew with the system default; nothing changes for the user, and the system log names the account. A DES password
+  typed longer than 8 bytes stays as it is, since DES reads only 8 and the whole word would lock out the real one.
+  Upstream only warns.
 
 ### Fixed
 
@@ -65,6 +75,17 @@ the releases of the command audit, into another.
   with SMTP AUTH and an empty envelope sender (read receipts, delivery reports) found no sender domain, so it skipped
   the domain's relay, outgoing address and relay exceptions; on a box with port 25 blocked it was lost. It now takes
   the login's domain. A real bounce stays as it was. The update patches the exim template.
+- **doveadm read a compressed mail raw on dovecot 2.4** (#1479, upstream 1.10.10). Only imap and pop3 loaded
+  `mail_compress`, so doveadm and delivery saw the raw bytes of a mail that a migration from another server brought
+  compressed. The global `mail_plugins` carries it now, and the update adds it where the line is still ours.
+- **Unsuspending a web domain of a suspended user is refused** (#1480). The record said live while the suspend page
+  stayed, since the rebuild skips a suspended user's domains. Unsuspending the user brings the domains back.
+- **The server page named a Debian box `UNKNOWN` when `/etc/issue` was a custom banner** (#1481, upstream #6050).
+  `h-list-sys-info` reads `/etc/os-release` now.
+- **The installer refuses an admin name that is too short, malformed, reserved or taken** (#1482). Since #1472 a name
+  like `ab` or `mys` passed the wizard and broke the install at the user stage, with the box half built. The wizard and
+  `h-add-user` read the same name rules now (`include/username.sh`), and the wizard also refuses a name the system
+  already uses (`backup`, `mail`, a group or a `/home` of that name), unless a re-run keeps the existing admin.
 - **One broken php-fpm pool no longer takes every site of its PHP version down** (#1470, upstream #6040). A restart
   or reload tests the configuration first (`php-fpmX.Y -t`); a version that fails is reported with the test's error
   and keeps running, the other versions restart. The reload used to report success while the master died. A new

@@ -13,6 +13,8 @@ umask 022
 # First, so a lone --help is answered before anything below runs.
 # shellcheck source=/usr/local/hestia/include/help.sh
 source "$HESTIA/include/help.sh"
+# shellcheck source=/usr/local/hestia/include/username.sh
+source "$HESTIA/include/username.sh"
 
 # Names a record must never bind: values are validated everywhere, the NAME was not, so a restored
 # user.conf with PATH=/tmp/x rebound PATH in the root shell reading it. ROOT_USER, REPO, BACKUP and
@@ -1619,48 +1621,17 @@ is_user_format_valid() {
 		check_result "$E_INVALID" "invalid $2 format :: $1"
 	fi
 
-	# Only for new users
-	if [[ "$FROM_V_ADD_USER" == "true" ]]; then
-		# A database is <user>_<name>: with a one- or two-letter prefix, a wildcard grant reaches far more names.
-		if [ ${#1} -lt 3 ]; then
-			check_result "$E_INVALID" "$2 name '$1' is too short: at least 3 characters"
-		fi
-		if ! [[ "$1" =~ ^[a-zA-Z][-_[:alnum:]]{0,28}[[:alnum:]]$ ]]; then
-			check_result "$E_INVALID" "invalid $2 format :: $1"
-		fi
+	local why
+	if [[ "$FROM_V_ADD_USER" == "true" ]] && why=$(new_user_name_refusal "$1"); then
+		check_result "$E_INVALID" "$2 name '$1' $why"
 	fi
 }
 
-# Names a service account owns, or will own once its component is installed. passwd and group know
-# only today's box, so a curated list is the only way to keep a later component's name free.
-# Callers still check passwd/group themselves.
+# The list is in include/username.sh; callers still check passwd/group themselves.
 is_login_name_reserved() {
-	local name="${1,,}" label="${2:-user}" reserved r
-	reserved=(
-		# ours
-		hestia hestia-users procvis sftp-jailed
-		# always installed
-		nginx apache2 www-data caddy php mysql mariadb phpmyadmin
-		# standard profile + optional components (h-add-sys-*, h-add-user-*)
-		exim dovecot dovenull rspamd roundcube tachyon crowdsec fail2ban
-		docker containerd proftpd ftp clamav postgres postgresql redis opensearch filemanager
-		# MariaDB/MySQL database names, and sudo (that group always has sudo rights)
-		aria aria_log mysql_upgrade ib ib_buffer ddl ddl_recovery performance sudo
-		# with a one-letter database, mys and m_s make a grant that covers mysql while _ is a wildcard; mysq by decision
-		mys m_s mysq
-		# h-backup-server writes server.*.tar into the same /backup namespace as customer archives
-		server
-		# the user name the log commands read as the global activity log
-		system
-	)
-	for r in "${reserved[@]}"; do
-		if [ "$name" = "$r" ]; then
-			check_result "$E_INVALID" "$label name '$1' is reserved for system use"
-		fi
-	done
-	# h-add-user-docker names the companion account <user>-docker
-	if [ "${name%-docker}" != "$name" ]; then
-		check_result "$E_INVALID" "$label name '$1' is reserved: -docker is the companion suffix"
+	local why
+	if why=$(login_name_reserved_reason "$1"); then
+		check_result "$E_INVALID" "${2:-user} name '$1' $why"
 	fi
 	return 0
 }
@@ -2478,6 +2449,7 @@ is_format_valid() {
 				antivirus) is_boolean_format_valid "$arg" 'antivirus' ;;
 				autoreply) is_autoreply_format_valid "$arg" ;;
 				backup) is_object_format_valid "$arg" 'backup' ;;
+				backups) is_boolean_format_valid "$arg" 'backups' ;;
 				charset) is_object_format_valid "$arg" "$arg_name" ;;
 				charsets) is_common_format_valid "$arg" 'charsets' ;;
 				chain) is_object_format_valid "$arg" 'chain' ;;

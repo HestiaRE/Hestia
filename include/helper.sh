@@ -891,6 +891,24 @@ exim_null_sender_domain_apply() {
 	exim_template_patch 0.39/exim-null-sender-domain.patch
 }
 
+# doveadm and delivery read a compressed mail raw without the plugin; only imap and pop3 loaded it.
+dovecot_mail_compress_apply() {
+	local f=/etc/dovecot/conf.d/10-mail.conf keep
+	# The condition matches a longer line too; one changed by hand is the operator's.
+	grep -qx 'mail_plugins = quota' "$f" || return 0
+	keep=$(mktemp) && cp -p "$f" "$keep" || return 0
+	sed -i 's/^mail_plugins = quota$/mail_plugins = mail_compress quota/' "$f"
+	if doveconf -n > /dev/null 2>&1 && systemctl restart dovecot && systemctl is-active --quiet dovecot; then
+		rm -f "$keep"
+		return 0
+	fi
+	cat "$keep" > "$f"
+	rm -f "$keep"
+	systemctl restart dovecot
+	echo '[ ! ] dovecot did not take mail_compress globally, doveadm still reads a compressed mail raw.'
+	return 0
+}
+
 # nginx answers without TLS 0-RTT: the shipped line goes off, one changed by hand stays as it is.
 nginx_early_data_off_apply() {
 	local f=/etc/nginx/nginx.conf keep d='ssl_early_data                  '

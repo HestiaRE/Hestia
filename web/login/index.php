@@ -222,6 +222,23 @@ function authenticate_user($user, $password, $twofa = "")
 				cli_log("h-log-user-login " . $v_user . " " . $v_ip . " failed " . $v_session_id . " " . $v_user_agent);
 				return $error;
 			} else {
+				// The password is verified and at hand only here: a weak hash from an old archive is replaced
+				// with the system default. Best effort, the login goes on whatever it returns.
+				if ($method == "md5" || $method == "des") {
+					$v_password = secret_tmpfile($password);
+					if ($v_password !== false) {
+						exec(
+							HESTIA_CMD . "h-update-user-password-hash " . $v_user . " " . quoteshellarg($v_password),
+							$rehash_output,
+							$rehash_rc,
+						);
+						unlink($v_password);
+					} else {
+						// secret_tmpfile() set an error for the page, and this login has none.
+						unset($_SESSION["error_msg"]);
+					}
+					unset($rehash_output, $rehash_rc, $v_password);
+				}
 				// Get user specific parameters
 				$data = cli_json("h-list-user " . $v_user . " json");
 				// Fail closed. The password is already verified here, and everything below reads

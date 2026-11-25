@@ -41,6 +41,18 @@ The nightly cron runs `h-backup-users` once (`10 05 * * *`), and the customer's 
 picks the runner. A customer set to `restic` on a box without the addon gets an archive
 backup and a warning in the log - not a silent skip at five in the morning.
 
+In `diff` mode a run writes a new full archive, which starts a new set, in three cases:
+
+- no base is reachable, or its map cannot be read;
+- the newest full is older than 14 days (`BACKUP_DIFF_MAX_AGE`): every diff of a set
+  depends on that one file, so its age is a risk limit;
+- the web and mail members as a diff would still be 50 % or more of their full size
+  (`BACKUP_DIFF_RUN_PCT`), measured after building.
+
+There is no calendar: a quiet customer gets a full every two weeks, a busy one more often.
+Within a run, each member is written as a diff only if that saves at least half
+(`BACKUP_DIFF_MEMBER_PCT`).
+
 `BACKUP_INCREMENTAL` in `hestia.conf` is the server-side switch and means exactly
 "restic is installed and a repository is configured". It does not select a mode.
 
@@ -73,7 +85,10 @@ repository is never deleted this way; for restic there is also the explicit way 
 ## Retention, and what protects a file
 
 Rotation counts **sets**, not files: a differential archive belongs to the set of its
-base, and a base is kept as long as any kept archive names it.
+base, and a base is kept as long as any kept archive names it. With `BACKUPS='3'` a diff customer
+keeps three sets: the oldest point lies four to six weeks back for a quiet customer, as the
+oldest set goes when the fourth begins. With `BACKUPS='1'` the depth is a saw tooth between
+one and fourteen days.
 
 - The package's `BACKUPS` is what the local rotation keeps.
 - Each remote target may keep more, via its own `BACKUPS_KEEP` (empty means mirror the

@@ -29,13 +29,6 @@ the releases of the command audit, into another.
   who already has exports keeps that many fewer automatic sets afterwards: `BACKUPS='3'` with two exports leaves
   one, and the next run rotates the rest.
 
-### Fixed
-
-- **Exports could lose their copy on a remote target, and a differential customer's export was a diff** (#1353). The
-  remote rotation counted an export as an ordinary set and deleted it there in time. And the export of a customer in
-  `diff` mode was built against the newest base but recorded without one, so on its own it restored only the
-  changes.
-
 ### Security
 
 - **apache runs no PHP module, and a new Sury PHP no longer brings one along** (#1487). roundcube depends on Sury's
@@ -44,6 +37,19 @@ the releases of the command audit, into another.
   through unattended-upgrades on every apache box. roundcube now takes the panel's PHP package instead of the meta,
   so no installed package pulls a handler for a new PHP version any more. The update removes the module and the meta
   and puts apache back on mpm_event. The smoke fails on a PHP module or a non-event MPM in apache.
+
+### Fixed
+
+- **Exports could lose their copy on a remote target, and a differential customer's export was a diff** (#1353). The
+  remote rotation counted an export as an ordinary set and deleted it there in time. And the export of a customer in
+  `diff` mode was built against the newest base but recorded without one, so on its own it restored only the
+  changes.
+- **A differential customer's backups never rotated** (#1492). Every run diffed against the newest full archive, so
+  after the first full there was one set that only grew, and every diff in it hung on one full of any age. A run now
+  writes a new full when the base is older than 14 days or when the diff would still be half the size of the web and
+  mail members, as the #712 plan intended. From then on `BACKUPS` keeps that many sets and rotates the oldest. The
+  first full after the update opens a second set, so a diff customer with `BACKUPS='1'` loses the old set with all
+  its diffs in that run and keeps the new full alone; with `BACKUPS='2'` or more nothing goes yet.
 
 ## v0.39 (2026-11-25)
 

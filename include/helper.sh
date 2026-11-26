@@ -841,6 +841,36 @@ php_modules_apply() {
 	return 0
 }
 
+# The OPcache isolation drop-in in a customer version's FPM conf.d. The panel master has its own conf.d and keeps it.
+OPCACHE_ISOLATION_INI='99-hestia-opcache-isolation.ini'
+opcache_isolation_write() { # VERSION
+	install -m 644 "$HESTIA/share/php-fpm/$OPCACHE_ISOLATION_INI" "/etc/php/$1/fpm/conf.d/$OPCACHE_ISOLATION_INI"
+}
+
+# A reload is enough for the workers to read it. A version whose FPM rejects its configuration with the drop-in loses
+# it again and stays pending; a stopped one reads it when it starts.
+opcache_isolation_apply() {
+	local v f
+	while read -r v; do
+		[ -n "$v" ] || continue
+		f=/etc/php/$v/fpm/conf.d/$OPCACHE_ISOLATION_INI
+		cmp -s "$HESTIA/share/php-fpm/$OPCACHE_ISOLATION_INI" "$f" && continue
+		if ! opcache_isolation_write "$v"; then
+			echo "Warning: PHP $v: $f could not be written, the next update tries again" >&2
+			continue
+		fi
+		if ! "php-fpm$v" -t > /dev/null 2>&1; then
+			rm -f "$f"
+			echo "Warning: php-fpm$v -t fails with $f, removed again; the OPcache of PHP $v stays shared" >&2
+			continue
+		fi
+		systemctl -q is-active "php$v-fpm" 2> /dev/null || continue
+		systemctl reload "php$v-fpm" > /dev/null 2>&1 \
+			|| echo "Warning: php$v-fpm did not reload, its workers read $f on the next restart" >&2
+	done < <("$BIN/h-list-sys-php" plain 2> /dev/null)
+	return 0
+}
+
 # Same for the ionCube loader.
 ioncube_pin_apply() {
 	"$BIN/h-add-sys-ioncube" > /dev/null 2>&1

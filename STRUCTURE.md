@@ -139,7 +139,10 @@ into **five** on that one `hestia` master:
 | `tachyon.conf` | `caddy` | `/run/hestia-webmail-tachyon.sock` | Caddy `:8091` |
 
 Plus per-customer pools on the **customer** PHP (`share/templates/php/{default,small,high}.tpl`,
-`user=%user%`) and the FM pool (delta 5).
+`user=%user%`) and the FM pool (delta 5). Unlike upstream, the customer side is separated further (#1501): each
+apache vhost binds every FastCGI handler to its own pool (a catch-all `ProxyPassMatch` that never matches), the shared
+OPcache of a version validates permissions and root and refuses its API (`share/php-fpm/99-hestia-opcache-isolation.ini`),
+and `/tmp` is out of the pools' open_basedir.
 
 **Why.** Isolate by trust boundary (see the system-user table). Upstream already
 separated the app PHP pool (`hestiamail`) from the panel; HestiaRE keeps the split but

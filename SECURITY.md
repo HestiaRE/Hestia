@@ -16,6 +16,16 @@ Please do not open any public issue on Github or any other social media before t
 | ------- | ------------------ |
 | Latest  | :white_check_mark: |
 
+## Separation between customers
+
+Every customer runs PHP in pools of their own user, behind file modes, ACLs and open_basedir. Since v0.41 apache binds
+each customer vhost's FastCGI handlers to that domain's own pool (from apache 2.4.63 on), and OPcache refuses another
+customer's cached files and its API. The pools of one PHP version still share one FPM master, so a site that sets PHP
+values for its own pool can undo the OPcache settings, and APCu is shared; a master per customer is planned.
+
+Sites under the admin account are privileged: the admin is not in `hestia-users`, so the ACL that closes a customer's
+home to the others does not apply to them. Do not host anyone else's site under the admin account.
+
 ## Qualifying Vulnerabilities
 
 ### Vulnerabilities we really care about

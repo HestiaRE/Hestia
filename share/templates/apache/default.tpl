@@ -30,9 +30,6 @@
 
     <FilesMatch \.php$>
         SetHandler "proxy:%backend_lsnr%|fcgi://localhost"
-        # Re-grant over the server-wide "Require all denied" fallback in
-        # conf.d/hestia-event.conf (#397): this domain claims its own .php.
-        Require all granted
     </FilesMatch>
     # Never matches, yet binds any fcgi:// handler a .htaccess sets to this domain's own pool (apache >= 2.4.63).
     ProxyPassMatch "^(?!)(.*)$" "%backend_lsnr%|fcgi://$1"
@@ -77,9 +74,6 @@
 
     <FilesMatch \.php$>
         SetHandler "proxy:%backend_lsnr%|fcgi://localhost"
-        # Re-grant over the server-wide "Require all denied" fallback in
-        # conf.d/hestia-event.conf (#397): this domain claims its own .php.
-        Require all granted
     </FilesMatch>
     # Never matches, yet binds any fcgi:// handler a .htaccess sets to this domain's own pool (apache >= 2.4.63).
     ProxyPassMatch "^(?!)(.*)$" "%backend_lsnr%|fcgi://$1"

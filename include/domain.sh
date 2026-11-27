@@ -225,12 +225,19 @@ prepare_web_backend() {
 	if [ ! -e "$pool" ]; then
 		check_result $E_NOTEXIST "php-fpm pool doesn't exist"
 	fi
+	# Reset per domain: apache refuses its whole configuration over an empty or tcp listener in the catch-all
+	# ProxyPassMatch, so a pool without a usable listen line keeps the deterministic socket and only its PHP fails.
+	backend_lsnr="unix:/run/php/php${backend_version}-fpm-${domain}.sock"
+	local lsnr=''
 	if [ -e "$pool/$backend_type.conf" ]; then
-		backend_lsnr=$(grep "listen =" $pool/$backend_type.conf)
-		backend_lsnr=$(echo "$backend_lsnr" | cut -f 2 -d = | sed "s/ //")
-		if [ -n "$(echo $backend_lsnr | grep /)" ]; then
-			backend_lsnr="unix:$backend_lsnr"
-		fi
+		lsnr=$(sed -n 's/^[[:space:]]*listen[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*/\1/p' "$pool/$backend_type.conf" | tail -n1)
+	fi
+	if [[ $lsnr == /* ]]; then
+		backend_lsnr="unix:$lsnr"
+	elif [ -n "$lsnr" ] && [ "$WEB_SYSTEM" != 'apache2' ]; then
+		backend_lsnr="$lsnr"
+	elif [ -n "$lsnr" ]; then
+		echo "Warning: pool $pool/$backend_type.conf listens on $lsnr, apache needs a unix socket - PHP of $domain fails" >&2
 	fi
 }
 

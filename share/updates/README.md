@@ -175,7 +175,8 @@ identical copy in its FPM `conf.d`: the drop-in is ours alone, so the copy is th
 `web_isolation_behind` takes no field and is true while a PHP profile under `/etc/hestia/templates/php` is still byte
 for byte as 0.40 shipped it, an apache vhost on a customer docroot lacks the catch-all worker, or a pool lacks
 `sys_temp_dir` although its profile has it. An edited profile keeps none of that true, so the entry converges and the
-operator is told by name instead.
+operator is told by name instead. A suspended user's pools are left out: the rebuild skips them, and unsuspending
+renders them anew.
 `locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
 there says nothing about whether the locale was generated.
 Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin

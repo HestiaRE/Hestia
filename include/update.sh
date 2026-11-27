@@ -159,8 +159,10 @@ upd_cond_web_isolation_behind() {
 		[ -e "$f" ] || continue
 		grep -q "^[[:space:]]*DocumentRoot $HOMEDIR/" "$f" && ! grep -qF 'ProxyPassMatch "^(?!)' "$f" && return 0
 	done
+	# A suspended user's rebuild exits early and their pools stay as they were; unsuspending renders them anew.
 	for f in "$CONF_DIR"/users/*/web.conf; do
 		[ -e "$f" ] || continue
+		grep -q "^SUSPENDED='yes'" "${f%/web.conf}/user.conf" 2> /dev/null && continue
 		while IFS= read -r rec; do
 			dom=$(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" <<< "$rec")
 			be=$(sed -n "s/.* BACKEND='\([^']*\)'.*/\1/p" <<< "$rec")
@@ -1075,6 +1077,10 @@ web_isolation_apply() {
 	[ -n "$web" ] || return 0
 	while IFS= read -r u; do
 		[ -n "$u" ] || continue
+		if grep -q "^SUSPENDED='yes'" "$CONF_DIR/users/$u/user.conf" 2> /dev/null; then
+			echo "$u is suspended: their web domains take this when h-unsuspend-user renders them anew"
+			continue
+		fi
 		"$BIN/h-rebuild-web-domains" "$u" no > /dev/null 2>&1 || failed="$failed $u"
 	done < <("$BIN/h-list-users" list 2> /dev/null)
 	[ -z "$failed" ] || echo "Warning: the web rebuild failed for$failed, run h-rebuild-web-domains USER" >&2

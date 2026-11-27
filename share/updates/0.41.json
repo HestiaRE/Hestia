@@ -1,0 +1,21 @@
+{
+  "version": "0.41",
+  "entries": [
+    {
+      "id": "opcache-isolation",
+      "description": "Every customer PHP version gets the OPcache isolation drop-in in its FPM conf.d: no customer script reads another's cached files or drives the shared cache. The drop-in is ours alone, so the copy is the state.",
+      "conditions": [{ "type": "php_ini_missing", "source": "share/php-fpm/99-hestia-opcache-isolation.ini" }],
+      "action": { "type": "function_call", "function": "opcache_isolation_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "web-isolation-rebuild",
+      "description": "Web domains rendered again: apache binds every fcgi handler a .htaccess sets to the domain's own pool, and the pools lose /tmp. A PHP profile under /etc/hestia/templates takes the new one only while it is as 0.40 shipped it, an edited one is named.",
+      "conditions": [{ "type": "web_isolation_behind" }],
+      "action": { "type": "function_call", "function": "web_isolation_apply" },
+      "paths": [],
+      "reversible": false
+    }
+  ]
+}

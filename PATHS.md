@@ -99,6 +99,15 @@ names this version's `phpX.Y` package as roundcube's `php`, so Sury's `php` meta
 | Install source | `share/panel-php/` |
 | Required packages | `php<ref>-fpm -mysql -curl -zip -gmp -mbstring -opcache -xml -gd -bz2 -pgsql -intl -exif -sqlite3` |
 
+### Customer PHP — one FPM master per version (#1501)
+
+| Item | Path |
+|------|------|
+| Domain pool | `/etc/php/<ver>/fpm/pool.d/<domain>.conf`, socket `/run/php/php<ver>-fpm-<domain>.sock` |
+| OPcache isolation | `/etc/php/<ver>/fpm/conf.d/99-hestia-opcache-isolation.ini` (source `share/php-fpm/`) |
+| Temp dir | `/home/<user>/tmp` (`sys_temp_dir`, `upload_tmp_dir`, sessions); `/tmp` is not in open_basedir |
+| Pool profiles | `share/templates/php/`, the operator's under `/etc/hestia/templates/php/` |
+
 ### ionCube loader (addon, #1069)
 
 | Item | Path |

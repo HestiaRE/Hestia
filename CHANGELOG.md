@@ -13,7 +13,31 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
-_Nothing yet._
+### Security
+
+- **A .htaccess can no longer send a request to another customer's PHP pool** (#1501). apache reaches every FPM
+  socket, and a handler set in a .htaccess (`SetHandler`, `[H=]`, `[P]`, `AddHandler`) picked any of them, so a
+  compromised site ran code as another customer. Every customer vhost now carries a worker that never matches but
+  binds any `fcgi://` handler to the domain's own pool; on apache-only, the docker vhost binds one to a socket that does
+  not exist (its ACME path is served from disk). This holds from apache 2.4.63 on: Ubuntu 24.04's apache 2.4.58 stays
+  open, and the smoke says so.
+- **OPcache is isolated per customer** as far as one shared cache allows (#1501). Every customer PHP version gets
+  `opcache.validate_permission`, `validate_root` and a `restrict_api` no script satisfies, so a script no longer loads
+  another customer's cached files (wp-config.php and the like) past file modes and open_basedir, lists the cached paths
+  or resets the cache. Not yet closed: a site that rewrites these values for its own pool, through its own socket or a
+  .htaccess, gets the old behaviour back, and APCu is still shared. A PHP-FPM master per customer is the next stage.
+- **/tmp is out of every customer pool's open_basedir** (#1501). Temp files, uploads and sessions were already in the
+  customer's own `tmp`; `sys_temp_dir` now points there too.
+
+### Changed
+
+- **Customer scripts can no longer call `opcache_get_status()`, `opcache_reset()` or `opcache_invalidate()`** (#1501).
+  WordPress notices `restrict_api` and skips its invalidation; changed files still reload after `revalidate_freq`.
+  Tools like cachetool can no longer reset the cache through FPM.
+- **A script that writes to a hard-wired /tmp now hits open_basedir** (#1501); `sys_get_temp_dir()` names the
+  customer's own `tmp`. The update renders every web domain again and replaces `small.tpl` and `high.tpl` under
+  `/etc/hestia/templates/php` where they are still as shipped; an edited or own profile that keeps `/tmp` is named,
+  not changed.
 
 ## v0.40 (2026-11-25)
 

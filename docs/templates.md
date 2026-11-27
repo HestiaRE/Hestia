@@ -16,7 +16,7 @@ updates this file in the same PR.
 | `/usr/local/hestia/share/templates/` | the release | the shipped templates; every update overwrites them |
 
 Never edit under `/usr/local/hestia`: the next update puts the shipped file back. Everything under
-`/etc/hestia/templates/` is yours, and no update ever overwrites a file there.
+`/etc/hestia/templates/` is yours, and no update overwrites a file you edited there.
 
 | folder | used for |
 |---|---|
@@ -45,7 +45,10 @@ By name, `/etc/hestia/templates/<folder>/<name>.tpl` first, then the shipped one
 - **A copy is missing:** it is copied in again, after every update. To get the current shipped state
   back, delete your copy and update, or copy it from `share/templates/` by hand.
 - **A copy exists:** it is never overwritten. A fix the release needs to make to a copy comes as a
-  patch in the update manifest and only touches what it names.
+  patch in the update manifest and only touches what it names. One exception: a PHP profile that is
+  still byte for byte as an earlier release shipped it takes the new shipped one when a security fix
+  needs that (v0.41: `/tmp` out of open_basedir). An edited one is named in the update output and
+  left alone.
 - **The policy fragments** (CrowdSec, bot limit) are included, not copied, so they reach your copies
   too. `h-check-sys-smoke` names a template of yours that lacks one as `skip`; the shipped ones
   must have them.

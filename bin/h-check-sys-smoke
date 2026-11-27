@@ -1257,6 +1257,107 @@ check_apache_php_module() {
 	fi
 }
 
+# A .htaccess may set its own proxy handler and name another customer's FPM socket. A worker that never matches binds every
+# fcgi:// handler of its vhost to its own socket, from apache 2.4.63 on. Read per VirtualHost from the generated config:
+# one on a customer docroot or with a unix: proxy handler needs it, on the handler's socket where it has one. A vhost whose
+# only AllowOverride is None reads no .htaccess and is left out (the file manager's). Not covered: proxy backends other
+# than fcgi (none is loaded today), and an apache older than its version string says.
+check_apache_fpm_pinning() {
+	local ver files out n active bad
+	[ "$WEB_SYSTEM" = 'apache2' ] || {
+		skip "apache2 FPM pinning (no apache2 on this box)"
+		return 0
+	}
+	ver=$(apache2 -v 2> /dev/null | sed -n 's|^Server version: Apache/\([0-9][0-9.]*\).*|\1|p')
+	if [ -z "$ver" ]; then
+		no "apache2 -v named no version, the FPM pinning cannot be judged" "apache2 -v"
+	elif [ "$(printf '%s\n' 2.4.63 "$ver" | sort -V | head -n1)" != 2.4.63 ]; then
+		no "apache $ver < 2.4.63: customer vhosts are not pinned against routing to other FPM pools" "an apache2 >= 2.4.63"
+	else
+		ok "apache $ver can pin a vhost's fcgi handlers to its own pool (>= 2.4.63)"
+	fi
+	files=$(find -L /etc/apache2/conf.d /etc/apache2/sites-enabled -type f -name '*.conf' 2> /dev/null)
+	# shellcheck disable=SC2086 # one file per word, the names are ours
+	out=$([ -n "$files" ] && awk -v home="$HOMEDIR/" '
+		/^[[:space:]]*<VirtualHost/ { inv = 1; doc = 0; sock = ""; pin = ""; ao_none = 0; ao_other = 0; next }
+		inv && $1 ~ /^AllowOverride(List)?$/ { if ($2 == "None" && NF == 2) ao_none = 1; else ao_other = 1 }
+		inv && $1 == "DocumentRoot" && index($2, home) == 1 { doc = 1 }
+		inv && /SetHandler[[:space:]]+"proxy:unix:/ { match($0, /proxy:unix:[^|"]+/); sock = substr($0, RSTART + 6, RLENGTH - 6) }
+		inv && /ProxyPassMatch[[:space:]]+"\^\(\?!\)/ { match($0, /"unix:[^|"]+/); pin = substr($0, RSTART + 1, RLENGTH - 1) }
+		inv && /^[[:space:]]*<\/VirtualHost>/ {
+			inv = 0
+			if (!doc && sock == "") next
+			if (ao_none && !ao_other) next
+			n++
+			if (pin == "" || (sock != "" && pin != sock)) print "BAD " FILENAME
+		}
+		END { print "N " n + 0 }' $files)
+	n=$(sed -n 's/^N //p' <<< "$out")
+	bad=$(sed -n 's/^BAD //p' <<< "$out" | sort -u | xargs -r -n1 basename | paste -sd ' ' -)
+	active=$(cat "$CONF_DIR"/users/*/web.conf 2> /dev/null | grep "^DOMAIN=" | grep "SUSPENDED='no'" | grep -c "DOCKER=''")
+	if [ -n "$bad" ]; then
+		no "apache vhosts without the catch-all worker on their own socket: $bad" "h-rebuild-web-domains USER"
+	elif [ "${n:-0}" -eq 0 ] && [ "${active:-0}" -gt 0 ]; then
+		no "FPM pinning: $active active web domain(s), but no apache vhost was found to check" "nothing was checked"
+	else
+		ok "every apache vhost on a customer docroot or socket carries its catch-all worker (${n:-0} checked)"
+	fi
+}
+
+# Every customer PHP version shares one OPcache among its pools; these three keep a script out of the others' cached
+# files and off the cache API. Read from the FPM binary, with disable_functions as the control that it read the FPM ini
+# and not the CLI one. Not covered: a value a request sets through PHP_ADMIN_VALUE, which FPM honours (stage 2).
+check_opcache_isolation() {
+	local list v i ra gaps='' n=0
+	list=$("$BIN/h-list-sys-php" plain 2> /dev/null)
+	if [ -z "$list" ]; then
+		skip "OPcache isolation (no customer PHP version)"
+		return 0
+	fi
+	for v in $list; do
+		i=$("/usr/sbin/php-fpm$v" -i 2> /dev/null)
+		if ! grep -qE '^disable_functions => [^ ]*exec' <<< "$i"; then
+			gaps="$gaps PHP $v (php-fpm$v -i did not show the FPM ini);"
+			continue
+		fi
+		n=$((n + 1))
+		ra=$(sed -n 's/^opcache\.restrict_api => \([^ ]*\) => .*/\1/p' <<< "$i")
+		grep -q '^opcache\.validate_permission => On' <<< "$i" \
+			&& grep -q '^opcache\.validate_root => On' <<< "$i" \
+			&& [ -n "$ra" ] && [ "$ra" != 'no' ] && [ ! -e "$ra" ] && continue
+		gaps="$gaps PHP $v;"
+	done
+	if [ -n "$gaps" ]; then
+		no "OPcache shared without isolation:${gaps%;}" "h-add-web-php VERSION"
+	else
+		ok "OPcache isolated in every customer PHP version ($n checked)"
+	fi
+}
+
+# /tmp is shared by every customer; a pool keeps its temp files in its own tmp instead. Every pool with an open_basedir
+# counts as a customer's. Not covered: a path a script opens below an element that is itself shared.
+check_pool_tmp() {
+	local f n=0 bad=''
+	for f in /etc/php/[0-9]*/fpm/pool.d/*.conf; do
+		[ -e "$f" ] || continue
+		grep -q '^php_admin_value\[open_basedir\]' "$f" || continue
+		n=$((n + 1))
+		if grep -qE '^php_admin_value\[open_basedir\] *=(.*:)? */tmp/?(:|$)' "$f" \
+			|| ! grep -q '^php_admin_value\[sys_temp_dir\]' "$f"; then
+			bad="$bad ${f#/etc/php/}"
+		fi
+	done
+	if [ -n "$bad" ]; then
+		no "PHP pools with /tmp in open_basedir or without sys_temp_dir:$bad" \
+			"the pool profile, then h-rebuild-web-domains USER (a suspended one: h-unsuspend-user)"
+	elif [ "$n" -eq 0 ] && [ -n "$("$BIN/h-list-sys-php" plain 2> /dev/null)" ] \
+		&& grep -h '^DOMAIN=' "$CONF_DIR"/users/*/web.conf 2> /dev/null | grep -qvE "PHP_VERSION='(none)?'"; then
+		no "PHP pools: web domains with PHP, but no pool with an open_basedir was found" "nothing was checked"
+	else
+		ok "every PHP pool keeps /tmp out of open_basedir and has its own sys_temp_dir ($n checked)"
+	fi
+}
+
 # Every web record against what it renders from and to. A vhost that was skipped looks clean by being absent,
 # and a template that no longer exists only shows on the next rebuild. A docker domain in a proxy model has its
 # backend vhost removed on purpose. Not covered: the SSL variant, and whether the vhost inside is the right one.
@@ -1859,6 +1960,9 @@ check_panel_translates
 check_policy_fragment_coverage
 check_web_config_test
 check_apache_php_module
+check_apache_fpm_pinning
+check_opcache_isolation
+check_pool_tmp
 check_web_model_sentinel
 check_proc_hardening
 check_web_records

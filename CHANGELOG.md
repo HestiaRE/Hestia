@@ -24,8 +24,13 @@ the releases of the command audit, into another.
 - **OPcache is isolated per customer** as far as one shared cache allows (#1501). Every customer PHP version gets
   `opcache.validate_permission`, `validate_root` and a `restrict_api` no script satisfies, so a script no longer loads
   another customer's cached files (wp-config.php and the like) past file modes and open_basedir, lists the cached paths
-  or resets the cache. Not yet closed: a site that rewrites these values for its own pool, through its own socket or a
-  .htaccess, gets the old behaviour back, and APCu is still shared. A PHP-FPM master per customer is the next stage.
+  or resets the cache.
+- **Every customer runs PHP in an own PHP-FPM master per version** (#1503), the systemd instance
+  `hestia-php<ver>-fpm@<user>`, instead of one master per version for all. No two customers share an OPcache or APCu
+  any more, so neither a warm cache nor a value a site sets for its own pool (through its own socket or a .htaccess,
+  `opcache.validate_permission=0` and the like) reaches another customer. What this does not close: a .htaccess that
+  names another customer's socket still runs code there, which only the apache binding above prevents, so Ubuntu
+  24.04 (apache 2.4.58) on the both model stays open to that.
 - **/tmp is out of every customer pool's open_basedir** (#1501). Temp files, uploads and sessions were already in the
   customer's own `tmp`; `sys_temp_dir` now points there too.
 
@@ -38,6 +43,13 @@ the releases of the command audit, into another.
   customer's own `tmp`. The update renders every web domain again and replaces `small.tpl` and `high.tpl` under
   `/etc/hestia/templates/php` where they are still as shipped; an edited or own profile that keeps `/tmp` is named,
   not changed.
+- **Customer pools live under `/etc/php/<ver>/fpm/users/<user>/`** (#1503); a version's `pool.d` keeps only the dummy
+  pool. A master exists only for a version the customer has a pool on, and stops with its last pool. A pool php-fpm
+  refuses now takes only that customer's sites down, not every site of the version. Each master has its own OPcache of
+  128 MB (`OPCACHE_MB` in a drop-in for `hestia-php<ver>-fpm@.service` changes it) and costs about 17 MB idle (PSS): 20
+  WordPress customers took 357 MB idle and 937 MB warm, against 25 MB and 602 MB in one master. The update moves every
+  pool, suspended customers' included, with a gap of about half a second per site. Own tools that read `pool.d` need to
+  look in `users/`; `h-restart-web-backend` takes a USER third and brings just that customer's masters in line.
 
 ## v0.40 (2026-11-25)
 

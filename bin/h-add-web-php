@@ -14,6 +14,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/limits.sh
 source $HESTIA/include/limits.sh
+# shellcheck source=/usr/local/hestia/include/fpm.sh
+source "$HESTIA/include/fpm.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '1' "$#" 'VERSION'
@@ -137,6 +139,10 @@ cp -f $HESTIA/share/php-fpm/dummy.conf /etc/php/$version/fpm/pool.d/
 sed -i "s/%backend_version%/$version/g" /etc/php/$version/fpm/pool.d/dummy.conf
 cp -f $HESTIA/share/php-fpm/php-fpm.conf /etc/php/$version/fpm/
 sed -i "s/fpm_v/$version/g" /etc/php/$version/fpm/php-fpm.conf
+mkdir -p "/etc/php/$version/fpm/users"
+customer_fpm_unit_write "$version"
+[ $? -le 1 ] || check_result "$E_NOTEXIST" "PHP $version: the customer master unit could not be written"
+systemctl daemon-reload
 
 sed -i "s/upload_max_filesize = 2M/upload_max_filesize = 100M/g" /etc/php/$version/fpm/php.ini
 sed -i "s/post_max_size = 8M/post_max_size = 100M/g" /etc/php/$version/fpm/php.ini

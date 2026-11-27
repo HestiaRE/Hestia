@@ -168,11 +168,45 @@ upd_cond_web_isolation_behind() {
 			be=$(sed -n "s/.* BACKEND='\([^']*\)'.*/\1/p" <<< "$rec")
 			[ -n "$dom" ] && [ -n "$be" ] || continue
 			grep -q '^php_admin_value\[sys_temp_dir\]' "$(tpl_path php "$be.tpl")" 2> /dev/null || continue
-			for p in /etc/php/*/fpm/pool.d/"$dom".conf; do
+			for p in /etc/php/*/fpm/pool.d/"$dom".conf /etc/php/*/fpm/users/*/"$dom".conf; do
 				[ -e "$p" ] || continue
 				grep -q '^php_admin_value\[sys_temp_dir\]' "$p" || return 0
 			done
 		done < "$f"
+	done
+	return 1
+}
+
+# fpm_per_customer_behind: a domain or file manager pool of a customer still in a version master's pool.d, an installed
+# version without the customer master unit, or a customer's pool dir whose master is not enabled. Pools are found from
+# the records, so an operator's own pool in pool.d stays where it is and keeps none of this true. Not covered: a master
+# that is enabled but fails to start (the smoke names it).
+upd_cond_fpm_per_customer_behind() {
+	local out v f u dom
+	out=$("$UPDATE_ROOT/bin/h-list-sys-php" plain 2> /dev/null) || {
+		echo "update: fpm_per_customer_behind could not ask h-list-sys-php" >&2
+		return 2
+	}
+	while read -r v; do
+		[ -n "$v" ] || continue
+		[ -f "/etc/systemd/system/hestia-php$v-fpm@.service" ] || return 0
+	done <<< "$out"
+	for f in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$f" ] || continue
+		u=${f%/user.conf}
+		u=${u##*/}
+		compgen -G "/etc/php/*/fpm/pool.d/fm-$u.conf" > /dev/null && return 0
+		[ -f "${f%/user.conf}/web.conf" ] || continue
+		for dom in $(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" "${f%/user.conf}/web.conf"); do
+			compgen -G "/etc/php/*/fpm/pool.d/$dom.conf" > /dev/null && return 0
+		done
+	done
+	for f in /etc/php/*/fpm/users/*/; do
+		[ -e "$f" ] || continue
+		compgen -G "$f*.conf" > /dev/null || continue
+		u=${f%/}
+		v=${u#/etc/php/}
+		systemctl is-enabled --quiet "hestia-php${v%%/*}-fpm@${u##*/}.service" 2> /dev/null || return 0
 	done
 	return 1
 }
@@ -456,7 +490,7 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply
 	exim_authresults_apply mysql_grants_escape_apply
 	nginx_early_data_off_apply exim_null_sender_domain_apply dovecot_mail_compress_apply
-	php_meta_off_apply backup_export_protect_apply opcache_isolation_apply web_isolation_apply)
+	php_meta_off_apply backup_export_protect_apply opcache_isolation_apply web_isolation_apply fpm_per_customer_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -570,6 +604,9 @@ upd_condition() {
 			"upd_cond_$t" "$@"
 			;;
 		docker_map_drift | mysql_wildcard_grants | backup_export_adopted | web_isolation_behind | php_ini_missing)
+			"upd_cond_$t" "$@"
+			;;
+		fpm_per_customer_behind)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -1099,5 +1136,94 @@ web_isolation_apply() {
 			echo "[ ! ] nginx rejects the rebuilt vhosts and keeps the old ones loaded: nginx -t" >&2
 		fi
 	fi
+	return 0
+}
+
+# fpm_per_customer_apply: every customer's pools move from the version master's pool.d to their own master, suspended
+# customers' as well (their rebuild would exit early). Every master is tested and enabled first, then the version
+# masters let go of the sockets, and all start in one systemctl call: a customer master refuses its whole start over a
+# socket still held, and one after the other the last customer would wait for all the others. A pool.d file no record
+# names stays and is listed.
+fpm_per_customer_apply() {
+	# shellcheck source=/usr/local/hestia/include/fpm.sh
+	source "$HESTIA/include/fpm.sh"
+	local v f u dom p pv moved_v='' moved_d=' ' owners='' units='' running='' failed='' stray='' held _
+	for v in $("$BIN/h-list-sys-php" plain 2> /dev/null); do
+		mkdir -p "/etc/php/$v/fpm/users"
+		customer_fpm_unit_write "$v"
+	done
+	systemctl daemon-reload
+	for f in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$f" ] || continue
+		u=${f%/user.conf}
+		u=${u##*/}
+		for p in /etc/php/*/fpm/pool.d/fm-"$u".conf; do
+			[ -e "$p" ] || continue
+			pv=${p#/etc/php/}
+			pv=${pv%%/*}
+			mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv" \
+				&& moved_d="$moved_d$pv:$u "
+		done
+		[ -f "${f%/user.conf}/web.conf" ] || continue
+		for dom in $(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" "${f%/user.conf}/web.conf"); do
+			for p in /etc/php/*/fpm/pool.d/"$dom".conf; do
+				[ -e "$p" ] || continue
+				pv=${p#/etc/php/}
+				pv=${pv%%/*}
+				mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv" \
+					&& moved_d="$moved_d$pv:$u "
+			done
+		done
+	done
+	for f in /etc/php/*/fpm/users/*/; do
+		[ -e "$f" ] || continue
+		compgen -G "$f*.conf" > /dev/null || continue
+		u=${f%/}
+		v=${u#/etc/php/}
+		v=${v%%/*}
+		u=${u##*/}
+		owners="$owners $u"
+		if systemctl is-active --quiet "$(customer_fpm_unit "$v" "$u")"; then
+			# A pool moved into a running master is loaded by its reload once the version master let go.
+			[[ $moved_d == *" $v:$u "* ]] && running="$running $v:$u"
+			continue
+		fi
+		if customer_fpm_test "$u" "$v" && systemctl enable --quiet "$(customer_fpm_unit "$v" "$u")" > /dev/null 2>&1; then
+			units="$units $(customer_fpm_unit "$v" "$u")"
+		else
+			failed="$failed $u($v)"
+		fi
+	done
+	for v in $(tr ' ' '\n' <<< "$moved_v" | sort -u); do
+		systemctl reload "php$v-fpm" > /dev/null 2>&1 || systemctl restart "php$v-fpm" > /dev/null 2>&1 \
+			|| echo "Warning: php$v-fpm did not reload and may still hold customer sockets: journalctl -u php$v-fpm" >&2
+	done
+	# The reload signals and returns; the version master lets go a moment later.
+	for _ in $(seq 1 50); do
+		held=''
+		for u in $units; do
+			v=${u#hestia-php}
+			v=${v%%-fpm@*}
+			pv=${u##*@}
+			held="$held$(customer_fpm_foreign_sockets "$u" "$(customer_fpm_dir "$v" "${pv%.service}")")"
+		done
+		[ -z "$held" ] && break
+		sleep 0.1
+	done
+	# shellcheck disable=SC2086 # one unit name per word, ours
+	[ -z "$units" ] || systemctl start $units > /dev/null 2>&1
+	for p in $running; do
+		customer_fpm_sync "${p#*:}" "${p%%:*}" || failed="$failed ${p#*:}(${p%%:*})"
+	done
+	for u in $(tr ' ' '\n' <<< "$owners" | sort -u); do
+		customer_fpm_sync_user "$u" '' ensure 2>&1 || failed="$failed $u"
+	done
+	[ -z "$failed" ] || echo "[ ! ] PHP-FPM of$failed did not come up in its own master: journalctl -u 'hestia-php*-fpm@*'" >&2
+	for p in /etc/php/[0-9]*/fpm/pool.d/*.conf; do
+		[ -e "$p" ] || continue
+		[ "${p##*/}" = 'dummy.conf' ] && continue
+		stray="$stray ${p#/etc/php/}"
+	done
+	[ -z "$stray" ] || echo "[ i ] left in a version master, no record names them:$stray"
 	return 0
 }

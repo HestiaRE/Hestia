@@ -10,10 +10,19 @@
       "reversible": false
     },
     {
+      "id": "fpm-per-customer",
+      "description": "Every customer gets an own PHP-FPM master per version they use, hestia-php<ver>-fpm@<user>; their pools move out of the shared version master, suspended customers' included. Before web-isolation-rebuild, so that rebuild already writes into the new layout and nothing moves twice.",
+      "conditions": [{ "type": "fpm_per_customer_behind" }],
+      "action": { "type": "function_call", "function": "fpm_per_customer_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
       "id": "web-isolation-rebuild",
       "description": "Web domains rendered again: apache binds every fcgi handler a .htaccess sets to the domain's own pool, and the pools lose /tmp. A PHP profile under /etc/hestia/templates takes the new one only while it is as 0.40 shipped it, an edited one is named.",
       "conditions": [{ "type": "web_isolation_behind" }],
       "action": { "type": "function_call", "function": "web_isolation_apply" },
+      "after": "0.41/fpm-per-customer",
       "paths": [],
       "reversible": false
     }

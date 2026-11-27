@@ -46,8 +46,11 @@ if [[ -n "$BACKEND" && "$BACKEND" != "$template" ]]; then
 	check_result "$E_EXISTS" "Pool already exists"
 fi
 
+mkdir -p "$pool"
+chmod 755 "$pool" "${pool%/*}"
 backend_port=9000
-ports=$(grep -v '^;' $pool/* 2> /dev/null | grep listen | grep -o :[0-9].*)
+ports=$(grep -hv '^;' /etc/php/"$backend_version"/fpm/pool.d/* /etc/php/"$backend_version"/fpm/users/*/*.conf 2> /dev/null \
+	| grep listen | grep -o ':[0-9].*')
 ports=$(echo "$ports" | sed "s/://" | sort -n)
 for port in $ports; do
 	if [ "$backend_port" -eq "$port" ]; then
@@ -76,7 +79,7 @@ else
 	docroot="$HOMEDIR/$user/web/$domain/public_html/"
 fi
 
-$BIN/h-restart-web-backend "$restart" "$backend_version"
+$BIN/h-restart-web-backend "$restart" "$backend_version" "$user"
 check_result $? "PHP restart failed" > /dev/null
 
 $BIN/h-log-action "$user" "Info" "Web" "Web domain configuration applied (Domain: $domain, Backend: $WEB_BACKEND)."

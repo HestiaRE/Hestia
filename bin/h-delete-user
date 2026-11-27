@@ -21,6 +21,8 @@ source $HESTIA/include/domain.sh
 source $HESTIA/include/db.sh
 # shellcheck source=/usr/local/hestia/include/ip.sh
 source $HESTIA/include/ip.sh
+# shellcheck source=/usr/local/hestia/include/fpm.sh
+source "$HESTIA/include/fpm.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '1' "$#" 'USER [RESTART] [BACKUPS]'
@@ -74,6 +76,11 @@ $BIN/h-delete-user-sftp-jail "$user"
 
 # The file manager pool runs as this account; php-fpm refuses a pool whose user is gone.
 $BIN/h-delete-user-filemanager "$user" no > /dev/null 2>&1
+# Its masters go before the account, whatever pool is left (include/fpm.sh).
+for _ver in $(customer_fpm_versions "$user"); do
+	rm -f "$(customer_fpm_dir "$_ver" "$user")"/*.conf
+	customer_fpm_sync "$user" "$_ver"
+done
 
 # Read before userdel; the limit reset below keeps dead projects out of repquota.
 _quota_uid=$(id -u "$user" 2> /dev/null)

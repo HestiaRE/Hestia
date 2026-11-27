@@ -142,7 +142,12 @@ Plus per-customer pools on the **customer** PHP (`share/templates/php/{default,s
 `user=%user%`) and the FM pool (delta 5). Unlike upstream, the customer side is separated further (#1501): each
 apache vhost binds every FastCGI handler to its own pool (a catch-all `ProxyPassMatch` that never matches), the shared
 OPcache of a version validates permissions and root and refuses its API (`share/php-fpm/99-hestia-opcache-isolation.ini`),
-and `/tmp` is out of the pools' open_basedir.
+and `/tmp` is out of the pools' open_basedir. Upstream runs every customer pool of a version in one master
+(`php<ver>-fpm`, `pool.d`); here each customer has an own master per version they use, the systemd instance
+`hestia-php<ver>-fpm@<user>` with its pools under `/etc/php/<ver>/fpm/users/<user>/` (#1503), so no two customers share
+an OPcache or APCu, and a value a site sets for its own pool reaches only its own master. The version master keeps
+only the dummy pool and stays the anchor (`PartOf`, `ReloadPropagatedFrom`, `WantedBy`): apt, ionCube and
+`h-restart-web-backend` reach the customer masters through it. Socket paths are upstream's, so vhosts are unchanged.
 
 **Why.** Isolate by trust boundary (see the system-user table). Upstream already
 separated the app PHP pool (`hestiamail`) from the panel; HestiaRE keeps the split but

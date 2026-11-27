@@ -196,7 +196,8 @@ web_domain_pool_version() {
 	ver=$(grep -rhoE "php[0-9]+\.[0-9]+-fpm-${dom_re}\.sock" "$HOMEDIR/$usr/conf/web/$dom/" 2> /dev/null \
 		| head -1 | grep -oE '[0-9]+\.[0-9]+')
 	if [ -z "$ver" ]; then
-		ver=$(find -L /etc/php/ -name "$dom.conf" -printf '%h\n' 2> /dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+')
+		ver=$(find -L /etc/php/ \( -path '*/fpm/pool.d/*' -o -path '*/fpm/users/*/*' \) -name "$dom.conf" -printf '%h\n' \
+			2> /dev/null | head -1 | grep -oE '^/etc/php/[0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+')
 	fi
 	echo "$ver"
 }
@@ -220,11 +221,9 @@ prepare_web_backend() {
 	else
 		backend_version=$(multiphp_default_version)
 	fi
-	pool=$(find -L /etc/php/$backend_version -type d \( -name "pool.d" -o -name "*fpm.d" \))
-
-	if [ ! -e "$pool" ]; then
-		check_result $E_NOTEXIST "php-fpm pool doesn't exist"
-	fi
+	[ -d "/etc/php/$backend_version/fpm/pool.d" ] || check_result "$E_NOTEXIST" "php-fpm $backend_version is not installed"
+	# The customer's own master reads this directory (include/fpm.sh).
+	pool="/etc/php/$backend_version/fpm/users/$user"
 	# Reset per domain: apache refuses its whole configuration over an empty or tcp listener in the catch-all
 	# ProxyPassMatch, so a pool without a usable listen line keeps the deterministic socket and only its PHP fails.
 	backend_lsnr="unix:/run/php/php${backend_version}-fpm-${domain}.sock"
@@ -241,8 +240,13 @@ prepare_web_backend() {
 	fi
 }
 
+# Both layouts: a pool from before the customer masters still sits in the version master's pool.d.
 delete_web_backend() {
-	find -L /etc/php/ -type f -name "$backend_type.conf" -exec rm -f {} \;
+	local f
+	for f in /etc/php/*/fpm/pool.d/"$backend_type".conf /etc/php/*/fpm/users/*/"$backend_type".conf; do
+		[ -e "$f" ] || continue
+		rm -f "$f"
+	done
 }
 
 prepare_web_aliases() {

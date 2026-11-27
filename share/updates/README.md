@@ -84,7 +84,8 @@ Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exis
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
 `file_mode_wider`, `file_group_differs`, `file_owner_differs`, `language_unlisted`, `locale_missing`, `path_not_link`,
-`docker_map_drift`, `mysql_wildcard_grants`, `backup_export_adopted`, `php_ini_missing`, `web_isolation_behind`. Actions:
+`docker_map_drift`, `mysql_wildcard_grants`, `backup_export_adopted`, `php_ini_missing`, `web_isolation_behind`,
+`fpm_per_customer_behind`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
@@ -177,6 +178,10 @@ for byte as 0.40 shipped it, an apache vhost on a customer docroot lacks the cat
 `sys_temp_dir` although its profile has it. An edited profile keeps none of that true, so the entry converges and the
 operator is told by name instead. A suspended user's pools are left out: the rebuild skips them, and unsuspending
 renders them anew.
+`fpm_per_customer_behind` takes no field and is true while a customer's domain or file manager pool (found from the
+records) still sits in a version master's `pool.d`, an installed version lacks the `hestia-php<ver>-fpm@.service`
+template, or a customer's pool dir under `/etc/php/<ver>/fpm/users/` has no enabled master. A master that is enabled
+but does not start keeps it false; the smoke names that one.
 `locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
 there says nothing about whether the locale was generated.
 Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin

@@ -299,7 +299,8 @@ for domain in "${domains[@]}"; do
 			echo "[ * ] Fix permissions"
 			# ~/web stays root's, rebuild_user_conf sets it.
 			chown --no-dereference "$user:$user" "$HOMEDIR/$user/"
-			home_run "$user" "web/$domain" -- chown -h "$user:$user" . private cgi-bin public_html logs stats
+			home_run "$user" "web/$domain" -- chown -h "$user:$user" . private public_html logs stats
+			[ -d "$HOMEDIR/$user/web/$domain/cgi-bin" ] && home_run "$user" "web/$domain" -- chown -h "$user:$user" cgi-bin
 			home_run "$user" "web/$domain/document_errors" -- chown -R "$user:$user" .
 			web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 		fi

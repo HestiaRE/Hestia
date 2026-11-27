@@ -306,7 +306,6 @@ rebuild_web_domain_conf() {
 		# Propagating html skeleton
 		user_exec cp -r "$SHARETPL/skel/document_errors/" "$HOMEDIR/$user/web/$domain/"
 	fi
-	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/cgi-bin"
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/private"
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/stats"
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/logs"
@@ -333,7 +332,9 @@ rebuild_web_domain_conf() {
 	fi
 
 	# Set ownership
-	home_run "$user" "web/$domain" -- chown -h "$user:$user" . private cgi-bin public_html
+	home_run "$user" "web/$domain" -- chown -h "$user:$user" . private public_html
+	# Only domains made before cgi-bin went still have one; nothing serves it.
+	[ -d "$HOMEDIR/$user/web/$domain/cgi-bin" ] && home_run "$user" "web/$domain" -- chown -h "$user:$user" cgi-bin
 	home_run "$user" "web/$domain/document_errors" -- chown -R "$user:$user" .
 	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
@@ -578,6 +579,7 @@ auth_basic_user_file    $htpasswd;"
 	# Set folder permissions
 	local sub
 	for sub in . stats logs private cgi-bin public_html document_errors; do
+		[ "$sub" != cgi-bin ] || [ -d "$HOMEDIR/$user/web/$domain/cgi-bin" ] || continue
 		home_run "$user" "web/$domain/$sub" -- chmod 751 .
 	done
 	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done

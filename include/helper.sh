@@ -859,7 +859,7 @@ opcache_isolation_apply() {
 			echo "Warning: PHP $v: $f could not be written, the next update tries again" >&2
 			continue
 		fi
-		if ! "php-fpm$v" -t > /dev/null 2>&1; then
+		if ! "/usr/sbin/php-fpm$v" -t > /dev/null 2>&1; then
 			rm -f "$f"
 			echo "Warning: php-fpm$v -t fails with $f, removed again; the OPcache of PHP $v stays shared" >&2
 			continue

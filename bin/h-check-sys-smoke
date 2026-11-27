@@ -1312,7 +1312,7 @@ check_opcache_isolation() {
 		return 0
 	fi
 	for v in $list; do
-		i=$("php-fpm$v" -i 2> /dev/null)
+		i=$("/usr/sbin/php-fpm$v" -i 2> /dev/null)
 		if ! grep -qE '^disable_functions => [^ ]*exec' <<< "$i"; then
 			gaps="$gaps PHP $v (php-fpm$v -i did not show the FPM ini);"
 			continue

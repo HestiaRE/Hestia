@@ -10,12 +10,12 @@ CUSTOMER_FPM_GLOBAL_SRC="$HESTIA/share/php-fpm/php-fpm-user.conf"
 customer_fpm_unit() { echo "hestia-php$1-fpm@$2.service"; }
 customer_fpm_dir() { echo "/etc/php/$1/fpm/users/$2"; }
 
-# customer_fpm_unit_write VERSION: the template unit of one version; returns 0 when it changed.
+# customer_fpm_unit_write VERSION: the template unit of one version; 0 changed, 1 unchanged, 2 not written.
 customer_fpm_unit_write() {
 	local f="/etc/systemd/system/hestia-php$1-fpm@.service" new
 	new=$(sed "s|%version%|$1|g" "$CUSTOMER_FPM_UNIT_SRC") || return 2
 	[ -f "$f" ] && [ "$(< "$f")" = "$new" ] && return 1
-	printf '%s\n' "$new" > "$f" && chmod 644 "$f"
+	{ printf '%s\n' "$new" > "$f" && chmod 644 "$f"; } 2> /dev/null || return 2
 }
 
 # customer_fpm_users VERSION: every customer with a pool dir or an enabled instance of that version, so an instance
@@ -56,12 +56,13 @@ customer_fpm_versions() {
 # Sockets of the customer's pools that another process still listens on: the instance would refuse its whole start
 # over one of them, every site of the customer with it.
 customer_fpm_foreign_sockets() {
-	local unit="$1" dir="$2" cg procs s pids p held=''
+	local unit="$1" dir="$2" cg procs s pids p listen held=''
 	cg=$(systemctl show -p ControlGroup --value "$unit" 2> /dev/null)
 	procs=''
 	[ -n "$cg" ] && procs=$(cat "/sys/fs/cgroup$cg/cgroup.procs" 2> /dev/null)
+	listen=$(ss -Hxlp 2> /dev/null)
 	for s in $(sed -n 's/^[[:space:]]*listen[[:space:]]*=[[:space:]]*\(\/[^[:space:]]*\).*/\1/p' "$dir"/*.conf 2> /dev/null); do
-		pids=$(ss -Hxlp 2> /dev/null | awk -v p="$s" '$5 == p' | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
+		pids=$(awk -v p="$s" '$5 == p' <<< "$listen" | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
 		for p in $pids; do
 			grep -qx "$p" <<< "$procs" || {
 				held="$held $s"
@@ -104,11 +105,10 @@ customer_fpm_sync() {
 		echo "Error: PHP $ver has no customer master unit, run h-add-web-php $ver" >&2
 		return 1
 	}
+	[ "$mode" = 'ensure' ] && systemctl is-active --quiet "$unit" && systemctl is-enabled --quiet "$unit" 2> /dev/null \
+		&& return 0
 	customer_fpm_test "$user" "$ver" || return 1
 	systemctl is-enabled --quiet "$unit" 2> /dev/null || systemctl enable --quiet "$unit" > /dev/null 2>&1
-	if systemctl is-active --quiet "$unit"; then
-		[ "$mode" = 'ensure' ] && return 0
-	fi
 	# A socket is free a moment after the master that held it reloaded.
 	for _ in $(seq 1 50); do
 		held=$(customer_fpm_foreign_sockets "$unit" "$dir")

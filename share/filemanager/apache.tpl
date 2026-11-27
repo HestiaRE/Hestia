@@ -27,6 +27,4 @@
         # otherwise wins. Re-assert the secret gate here so index.php runs.
         Require expr "%{HTTP:X-Hestia-FM-Auth} == '%FM_SECRET%'"
     </FilesMatch>
-    # Never matches, yet binds any fcgi:// handler to this pool, as in every customer vhost (apache >= 2.4.63).
-    ProxyPassMatch "^(?!)(.*)$" "unix:/run/hestia/fm/%user%.sock|fcgi://$1"
 </VirtualHost>

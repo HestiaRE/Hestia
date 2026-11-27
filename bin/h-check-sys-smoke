@@ -1259,8 +1259,9 @@ check_apache_php_module() {
 
 # A .htaccess may set its own proxy handler and name another customer's FPM socket. A worker that never matches binds every
 # fcgi:// handler of its vhost to its own socket, from apache 2.4.63 on. Read per VirtualHost from the generated config:
-# one on a customer docroot or with a unix: proxy handler needs it, on the handler's socket where it has one. Not covered:
-# proxy backends other than fcgi (none is loaded today), and an apache older than its version string says.
+# one on a customer docroot or with a unix: proxy handler needs it, on the handler's socket where it has one. A vhost whose
+# only AllowOverride is None reads no .htaccess and is left out (the file manager's). Not covered: proxy backends other
+# than fcgi (none is loaded today), and an apache older than its version string says.
 check_apache_fpm_pinning() {
 	local ver files out n active bad
 	[ "$WEB_SYSTEM" = 'apache2' ] || {
@@ -1278,13 +1279,15 @@ check_apache_fpm_pinning() {
 	files=$(find -L /etc/apache2/conf.d /etc/apache2/sites-enabled -type f -name '*.conf' 2> /dev/null)
 	# shellcheck disable=SC2086 # one file per word, the names are ours
 	out=$([ -n "$files" ] && awk -v home="$HOMEDIR/" '
-		/^[[:space:]]*<VirtualHost/ { inv = 1; doc = 0; sock = ""; pin = ""; next }
+		/^[[:space:]]*<VirtualHost/ { inv = 1; doc = 0; sock = ""; pin = ""; ao_none = 0; ao_other = 0; next }
+		inv && $1 ~ /^AllowOverride(List)?$/ { if ($2 == "None" && NF == 2) ao_none = 1; else ao_other = 1 }
 		inv && $1 == "DocumentRoot" && index($2, home) == 1 { doc = 1 }
 		inv && /SetHandler[[:space:]]+"proxy:unix:/ { match($0, /proxy:unix:[^|"]+/); sock = substr($0, RSTART + 6, RLENGTH - 6) }
 		inv && /ProxyPassMatch[[:space:]]+"\^\(\?!\)/ { match($0, /"unix:[^|"]+/); pin = substr($0, RSTART + 1, RLENGTH - 1) }
 		inv && /^[[:space:]]*<\/VirtualHost>/ {
 			inv = 0
 			if (!doc && sock == "") next
+			if (ao_none && !ao_other) next
 			n++
 			if (pin == "" || (sock != "" && pin != sock)) print "BAD " FILENAME
 		}
@@ -1345,7 +1348,8 @@ check_pool_tmp() {
 		fi
 	done
 	if [ -n "$bad" ]; then
-		no "PHP pools with /tmp in open_basedir or without sys_temp_dir:$bad" "the pool profile, then h-rebuild-web-domains USER"
+		no "PHP pools with /tmp in open_basedir or without sys_temp_dir:$bad" \
+			"the pool profile, then h-rebuild-web-domains USER (a suspended one: h-unsuspend-user)"
 	elif [ "$n" -eq 0 ] && [ -n "$("$BIN/h-list-sys-php" plain 2> /dev/null)" ] \
 		&& grep -h '^DOMAIN=' "$CONF_DIR"/users/*/web.conf 2> /dev/null | grep -qvE "PHP_VERSION='(none)?'"; then
 		no "PHP pools: web domains with PHP, but no pool with an open_basedir was found" "nothing was checked"

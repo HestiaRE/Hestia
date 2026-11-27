@@ -116,3 +116,10 @@ worked off; `h-check-sys-smoke` says so with the command that finishes it.
   `packages.sury.org` / `dlm.mariadb.com`, then re-run.
 - **Recipe values.** Inspect `/etc/hestia/install.conf` (`COMPONENT_*`,
   `INSTALL_OS`, `INSTALL_PROFILE`); regenerate via the wizard if wrong.
+
+## A customer's PHP does not answer
+
+Every customer runs PHP in an own PHP-FPM master per version, `hestia-php<ver>-fpm@<user>`; `h-check-sys-smoke`
+names the one that is down or misconfigured. `systemctl status hestia-php8.4-fpm@alice` shows its state and
+`journalctl -t php8.4-fpm-alice` its log. `h-restart-web-backend '' '' alice` brings that customer's masters in line
+with their pools, `h-rebuild-web-domains alice` writes the pools again first.

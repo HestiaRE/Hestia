@@ -898,7 +898,13 @@ web_precheck_delete_apache2() {
 	done < <(_web_htaccess_files)
 	while IFS=$'\t' read -r u dir; do
 		d=$(basename "$dir")
-		ls "$dir"/apache2.conf_* > /dev/null 2>&1 && findings+=("apache-include:$u/$d")
+		# The auth fragment is ours and rendered for whatever model follows.
+		for f in "$dir"/apache2.conf_*; do
+			[ -e "$f" ] || continue
+			[ "${f##*/}" = apache2.conf_htaccess ] && continue
+			findings+=("apache-include:$u/$d")
+			break
+		done
 	done < <(web_domain_dirs)
 	if [ ${#findings[@]} -gt 0 ]; then
 		echo "Removing apache2 would drop apache-only config for:" >&2

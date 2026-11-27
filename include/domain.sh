@@ -949,6 +949,51 @@ is_web_domain_cert_valid() {
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
 }
 
+# web_httpauth_fragments USER DOMAIN [remove]: the basic auth fragment of every server that answers for the domain.
+# In both, apache gets its own as well, because it serves every local process on its port without asking nginx.
+# Returns 0 when a fragment changed.
+web_httpauth_fragments() {
+	local dir="$HOMEDIR/$1/conf/web/$2" srv f sf want changed=1
+	for srv in nginx apache2; do
+		f="$dir/$srv.conf_htaccess"
+		sf="$dir/$srv.ssl.conf_htaccess"
+		want=''
+		if [ "${3-}" != remove ]; then
+			if [ "$srv" = nginx ] && { [ "$WEB_SYSTEM" = nginx ] || [ "$PROXY_SYSTEM" = nginx ]; }; then
+				want="auth_basic  \"$2 password access\";
+auth_basic_user_file    $dir/htpasswd;"
+			elif [ "$srv" = apache2 ] && [ "$WEB_SYSTEM" = apache2 ]; then
+				# The whole vhost whatever its docroot, minus the ACME alias: a plain Location would override its grant.
+				want="<LocationMatch \"^/(?!\\.well-known/acme-challenge/)\">
+    AuthUserFile $dir/htpasswd
+    AuthName \"$2 access\"
+    AuthType Basic
+    Require valid-user
+</LocationMatch>"
+			fi
+		fi
+		if [ -z "$want" ]; then
+			if [ -e "$f" ] || [ -L "$f" ] || [ -e "$sf" ] || [ -L "$sf" ]; then
+				rm -f "$f" "$sf"
+				changed=0
+			fi
+			continue
+		fi
+		if [ -L "$f" ] || [ "$want" != "$(cat "$f" 2> /dev/null)" ]; then
+			rm -f "$f"
+			printf '%s\n' "$want" > "$f"
+			changed=0
+		fi
+		if [ "$(readlink "$sf" 2> /dev/null)" != "$f" ]; then
+			ln -sfn "$f" "$sf"
+			changed=0
+		fi
+		chmod 644 "$f"
+		chgrp "$1" "$f"
+	done
+	return "$changed"
+}
+
 # http-01 on an apache front: the token sits in a root-owned directory per name, published by an Alias in the vhost's
 # conf_letsencrypt fragment. Never a docroot, which the customer controls, nor a directory customers share.
 ACME_APACHE_DIR=/var/lib/hestia-acme

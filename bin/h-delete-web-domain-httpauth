@@ -37,14 +37,8 @@ htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
 web_htpasswd_drop "$htpasswd" "$auth_user"
 
 if [ "$(echo "$AUTH_USER" | tr : '\n' | wc -l)" -le 1 ]; then
-	if [ "$WEB_SYSTEM" = "nginx" ] || [ "$PROXY_SYSTEM" = "nginx" ]; then
-		htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
-		shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
-	else
-		htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
-		shtaccess="$HOMEDIR/$user/conf/web/$domain/apache2.ssl.conf_htaccess"
-	fi
-	rm -f $htaccess $htpasswd $shtaccess
+	web_httpauth_fragments "$user" "$domain" remove
+	rm -f "$htpasswd"
 	restart_required='yes'
 fi
 

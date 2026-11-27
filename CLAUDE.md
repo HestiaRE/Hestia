@@ -347,7 +347,9 @@ The remote host, the exact API call, use of TOKEN and the test-VM fleet live in
   are not read, so the one in `0.20.0.json` stopped carrying bumps at v0.21, and 4.2.5 and 4.3.1
   reached fresh installs only. The same holds for every other `pin_differs` entry (ioncube) and
   every shipped file a `file_differs`/`file_copy` entry once carried; `check-tree.sh` fails a PR
-  that changes one of them without an entry above the last public tag.
+  that changes one of them without an entry above the last public tag. **The bump moves the entry,
+  it does not add one:** the previous `tachyon-pin` goes, because every entry compares against the
+  current pin and installs it, so each old one shows up in the plan with its old version text (#1505).
 - **Check `php_supported` against Sury**: has a new PHP gone GA? The wizard offers only the
   intersection of Sury's packages and this list (#688) — a missing bump means the new version
   is silently never offered, an eager bump offers a beta to customers. Decide here, per release.

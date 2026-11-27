@@ -25,6 +25,25 @@
       "after": "0.41/fpm-per-customer",
       "paths": [],
       "reversible": false
+    },
+    {
+      "id": "apache-unclaimed-php",
+      "description": "A .php that no domain vhost claims goes to a socket nobody listens on instead of a server-wide Require all denied, so the vhosts no longer grant again in Files context and a customer's .htaccess Require (basic auth, Require ip) protects .php as it protects every other file. Takes effect with the vhost rebuild of this release",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/apache2/conf.d/hestia-event.conf" },
+        { "type": "file_differs", "source": "share/apache2/hestia-event.conf", "target": "/etc/apache2/conf.d/hestia-event.conf" }
+      ],
+      "action": { "type": "file_copy", "source": "share/apache2/hestia-event.conf", "target": "/etc/apache2/conf.d/hestia-event.conf" },
+      "paths": ["/etc/apache2/conf.d/hestia-event.conf"],
+      "reversible": true
+    },
+    {
+      "id": "apache-cgi-off",
+      "description": "apache runs no CGI any more: mod_fcgid ran every executable .fcgi in a docroot as www-data, past the customer boundary, and /cgi-bin/ served its scripts as plain text. mod_fcgid, mod_suexec and mod_actions are switched off, libapache2-mod-fcgid and apache2-suexec-custom purged; existing cgi-bin directories stay as they are, outside every docroot",
+      "conditions": [{ "type": "apache_cgi_present" }],
+      "action": { "type": "function_call", "function": "apache_cgi_off_apply" },
+      "paths": ["/etc/apache2/mods-enabled"],
+      "reversible": false
     }
   ]
 }

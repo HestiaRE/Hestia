@@ -39,6 +39,12 @@ the releases of the command audit, into another.
   `/etc/hestia/templates/php` where they are still as shipped; an edited or own profile that keeps `/tmp` is named,
   not changed.
 
+### Fixed
+
+- **The update plan listed every old Tachyon pin entry with its old version** (#1505). From v0.38 the plan showed
+  "Tachyon 4.7.0" and then "Tachyon 4.8.0", while both installed 4.8.0: each entry compares against the current pin.
+  Only the newest entry stays.
+
 ## v0.40 (2026-11-25)
 
 PHP 8.6 arrives, apache loses the mod_php a Sury meta had brought in, and backups gain protected archives and a

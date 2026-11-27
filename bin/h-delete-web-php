@@ -14,6 +14,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/limits.sh
 source $HESTIA/include/limits.sh
+# shellcheck source=/usr/local/hestia/include/fpm.sh
+source "$HESTIA/include/fpm.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '1' "$#" 'VERSION'
@@ -58,7 +60,7 @@ for uconf in "$CONF_DIR"/users/*/user.conf; do
 		in_use="$in_use $u/$d"
 	done
 done
-for pool in /etc/php/"$version"/fpm/pool.d/fm-*.conf; do
+for pool in /etc/php/"$version"/fpm/pool.d/fm-*.conf /etc/php/"$version"/fpm/users/*/fm-*.conf; do
 	[ -e "$pool" ] || continue
 	pool=${pool##*/fm-}
 	in_use="$in_use ${pool%.conf}(file manager)"
@@ -93,6 +95,11 @@ fi
 source "$HESTIA/include/ioncube.sh"
 ion_ext=$(ioncube_ext_dir "$version")
 
+# No record uses the version any more, so a customer master left on it serves nothing; it goes with its unit.
+for u in $(customer_fpm_users "$version"); do
+	systemctl disable --now "$(customer_fpm_unit "$version" "$u")" > /dev/null 2>&1
+done
+
 # shellcheck disable=SC2086 # one package name per word, from dpkg
 DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=300 -y purge $mph > /dev/null 2>&1 &
 BACK_PID=$!
@@ -120,6 +127,9 @@ fi
 [[ -d /etc/php/$version ]] && rm -rf "/etc/php/$version"
 
 customer_php_slice_remove "$version"
+rm -f "/etc/systemd/system/hestia-php$version-fpm@.service"
+rm -f "/etc/systemd/system/php$version-fpm.service.wants/hestia-php$version-fpm@"*.service
+rmdir "/etc/systemd/system/php$version-fpm.service.wants" 2> /dev/null
 systemctl daemon-reload
 
 # After the purge, and a failed record fails the command: the status must not keep a version that is gone.

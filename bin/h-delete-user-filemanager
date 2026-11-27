@@ -17,6 +17,8 @@ source /etc/hestia/hestia.env
 source $HESTIA/include/main.sh
 # shellcheck source=/usr/local/hestia/include/filemanager.sh
 source "$HESTIA/include/filemanager.sh"
+# shellcheck source=/usr/local/hestia/include/fpm.sh
+source "$HESTIA/include/fpm.sh"
 source_conf "$HESTIA/conf/hestia.conf"
 
 check_args '1' "$#" 'USER [RESTART] [KEEP_FLAG]'
@@ -27,12 +29,16 @@ check_args '1' "$#" 'USER [RESTART] [KEEP_FLAG]'
 
 is_format_valid 'user'
 
-# Whichever php version holds the pool.
-for pool in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
+# Whichever php version holds the pool, in the customer's master or still in a version master's pool.d.
+for pool in /etc/php/*/fpm/users/"$user"/fm-"$user".conf /etc/php/*/fpm/pool.d/fm-"$user".conf; do
 	[ -f "$pool" ] || continue
 	ver=$(echo "$pool" | sed -nE 's|/etc/php/([^/]+)/.*|\1|p')
 	rm -f "$pool"
-	systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
+	if [[ "$pool" == */pool.d/* ]]; then
+		systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
+	else
+		customer_fpm_sync "$user" "$ver" || true
+	fi
 done
 
 rm -f "/etc/nginx/conf.d/fm-$user.conf" "/etc/apache2/conf.d/fm-$user.conf"

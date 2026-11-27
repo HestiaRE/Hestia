@@ -18,6 +18,8 @@ source_conf "$HESTIA/conf/hestia.conf"
 
 # shellcheck source=/usr/local/hestia/include/filemanager.sh
 source "$HESTIA/include/filemanager.sh"
+# shellcheck source=/usr/local/hestia/include/fpm.sh
+source "$HESTIA/include/fpm.sh"
 : "${FILE_MANAGER_PORT:=8092}"
 
 check_args '1' "$#" 'USER [RESTART]'
@@ -56,7 +58,7 @@ fi
 # The server's default php version, never a pinned one.
 ver="$(multiphp_default_version)"
 [ -n "$ver" ] && [ -x "/usr/sbin/php-fpm$ver" ] || check_result "$E_NOTEXIST" "no php-fpm for the default php version '$ver'"
-pool="/etc/php/$ver/fpm/pool.d/fm-$user.conf"
+pool="$(customer_fpm_dir "$ver" "$user")/fm-$user.conf"
 
 if [ "$fm_web" = 'nginx' ]; then
 	vhost="/etc/nginx/conf.d/fm-$user.conf"
@@ -69,45 +71,37 @@ fi
 # Session and upload dir, the same the customer's web pool uses.
 home_dir_own "$user" tmp "$user:$user" 700 || check_result "$E_FORBIDEN" "$HOMEDIR/$user/tmp is not a directory"
 
-# A pool php-fpm refuses would take every site of that version down at its next start.
+# In the customer's own master of the default version; a pool it refuses leaves the listener as it was.
 mkdir -p "$(dirname "$pool")"
+chmod 755 "$(dirname "$pool")"
 prev=''
 [ -f "$pool" ] && prev=$(< "$pool")
 sed "s|%user%|$user|g" "$HESTIA/share/filemanager/fpm-pool.tpl" > "$pool"
 chmod 644 "$pool"
-if ! "/usr/sbin/php-fpm$ver" -t > /dev/null 2>&1; then
-	# The test can fail over another pool; a listener that worked before stays as it was.
+if ! customer_fpm_test "$user" "$ver"; then
 	if [ -n "$prev" ]; then
 		printf '%s\n' "$prev" > "$pool"
 	else
 		rm -f "$pool"
 	fi
-	check_result "$E_INVALID" "php$ver-fpm config test fails with the file manager pool for $user"
+	check_result "$E_INVALID" "the PHP $ver master of $user refuses the file manager pool"
 fi
 sock="/run/hestia/fm/$user.sock"
-# Only once the new pool passed: one left in a former default version holds the socket from a second master.
-moved=''
-for old in /etc/php/*/fpm/pool.d/fm-"$user".conf; do
+# Only once the new pool passed: one left in a former default version, or in a version master's pool.d, holds the
+# socket, and the new master would refuse its whole start over it.
+for old in /etc/php/*/fpm/pool.d/fm-"$user".conf /etc/php/*/fpm/users/"$user"/fm-"$user".conf; do
 	[ -e "$old" ] || continue
 	[ "$old" = "$pool" ] && continue
 	rm -f "$old"
 	old_ver=${old#/etc/php/}
 	old_ver=${old_ver%%/*}
-	systemctl reload "php$old_ver-fpm" 2> /dev/null || systemctl restart "php$old_ver-fpm" 2> /dev/null || true
-	moved='yes'
-done
-# Reloaded while the old master still listens, php$ver-fpm would fail as a whole, every site of that version with it.
-if [ -n "$moved" ]; then
-	for _ in $(seq 1 50); do
-		fm_sock_listened "$sock" || break
-		sleep 0.1
-	done
-	if fm_sock_listened "$sock"; then
-		[ -n "$prev" ] && printf '%s\n' "$prev" > "$pool" || rm -f "$pool"
-		check_result "$E_INVALID" "the former file manager pool of $user still listens on $sock, php$ver-fpm left untouched"
+	if [[ "$old" == */pool.d/* ]]; then
+		systemctl reload "php$old_ver-fpm" 2> /dev/null || systemctl restart "php$old_ver-fpm" 2> /dev/null || true
+	else
+		customer_fpm_sync "$user" "$old_ver"
 	fi
-fi
-systemctl reload "php$ver-fpm" 2> /dev/null || systemctl restart "php$ver-fpm" 2> /dev/null || true
+done
+customer_fpm_sync "$user" "$ver" || check_result "$E_RESTART" "the PHP $ver master of $user did not take the file manager pool"
 
 # fm-auth gates on the socket, which appears a moment after the reload; a quick click would get a 403.
 for _ in $(seq 1 50); do
@@ -117,8 +111,8 @@ done
 # Before the vhost and the flag, so a failed enable leaves nothing behind.
 if [ ! -S "$sock" ]; then
 	rm -f "$pool"
-	systemctl reload "php$ver-fpm" 2> /dev/null
-	check_result "$E_NOTEXIST" "file manager pool socket did not appear ($sock) — php$ver-fpm reload may have failed"
+	customer_fpm_sync "$user" "$ver"
+	check_result "$E_NOTEXIST" "file manager pool socket did not appear ($sock), journalctl -u $(customer_fpm_unit "$ver" "$user")"
 fi
 
 # Private-listener vhost. It carries the secret every customer's vhost shares, so root only, from the first byte.

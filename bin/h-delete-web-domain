@@ -126,7 +126,7 @@ restart_after_delete h-restart-web "$restart"
 
 restart_after_delete h-restart-proxy "$restart"
 
-restart_after_delete h-restart-web-backend "$restart" "$version"
+restart_after_delete h-restart-web-backend "$restart" "$version" "$user"
 
 # The first or last log on the box arms or disarms the fail2ban web jails.
 # shellcheck source=/usr/local/hestia/include/fail2ban.sh

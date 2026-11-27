@@ -1,19 +1,24 @@
 #!/bin/bash
 # info: restart php interpreter
-# options: [RESTART] [VERSION]
+# options: [RESTART] [VERSION] [USER]
 #
 # example: h-restart-web-backend
 #
-# Restarts every customer PHP-FPM master, or only VERSION's; 'no' skips, 'scheduled' queues it.
+# Restarts every customer PHP-FPM master, or only VERSION's; 'no' skips, 'scheduled' queues it. With USER only that
+# customer's masters (of VERSION) are brought in line with their pools, right away: a queued run restarts them all.
 
 restart=$1
 version=$2
+# Not 'user': main.sh refuses a user that is set but empty, and a call without USER is the common one.
+fpm_user=$3
 
 # shellcheck source=/etc/hestia/hestia.env
 source /etc/hestia/hestia.env
 # shellcheck source=/usr/local/hestia/include/main.sh
 source $HESTIA/include/main.sh
 source_conf "$HESTIA/conf/hestia.conf"
+# shellcheck source=/usr/local/hestia/include/fpm.sh
+source "$HESTIA/include/fpm.sh"
 
 send_email_report() {
 	email=$(grep CONTACT "$CONF_DIR/users/$ROOT_USER/user.conf")
@@ -24,6 +29,7 @@ send_email_report() {
 }
 
 is_format_valid 'restart'
+[ -z "$fpm_user" ] || is_user_format_valid "$fpm_user" 'user'
 
 if [ -n "$version" ]; then
 	if [[ ! $version =~ ^[0-9]+\.[0-9]+$ ]]; then
@@ -38,6 +44,11 @@ if [ -z "$WEB_BACKEND" ]; then
 fi
 
 if [ "$1" = "no" ]; then
+	exit
+fi
+
+if [ -n "$fpm_user" ]; then
+	customer_fpm_sync_user "$fpm_user" "$version" || check_result "$E_RESTART" "PHP-FPM of $fpm_user is not in line with its pools"
 	exit
 fi
 
@@ -60,9 +71,17 @@ if [ -z "$version" ]; then
 		fi
 		$BIN/h-restart-service "$v_php" "$restart" >> "$tmpfile" 2>&1 || failed="$failed $v_php"
 	done
+	versions=$($BIN/h-list-sys-php plain)
 else
 	$BIN/h-restart-service "php$version-fpm" "$restart" >> "$tmpfile" 2>&1 || failed="php$version-fpm"
+	versions="$version"
 fi
+# The restart above reached the enabled customer masters; a new one still has to start, one without pools to stop.
+for v in $versions; do
+	for u in $(customer_fpm_users "$v"); do
+		customer_fpm_sync "$u" "$v" ensure >> "$tmpfile" 2>&1 || failed="$failed hestia-php$v-fpm@$u"
+	done
+done
 if [ -n "$failed" ]; then
 	send_email_report
 	check_result "$E_RESTART" "restart failed:$failed"

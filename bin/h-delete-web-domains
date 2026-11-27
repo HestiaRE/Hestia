@@ -30,6 +30,8 @@ restart_after_delete h-restart-web "$restart"
 
 restart_after_delete h-restart-proxy "$restart"
 
+restart_after_delete h-restart-web-backend "$restart" '' "$user"
+
 log_event "$OK" "$ARGUMENTS"
 
 exit

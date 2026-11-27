@@ -1338,7 +1338,7 @@ check_opcache_isolation() {
 # counts as a customer's. Not covered: a path a script opens below an element that is itself shared.
 check_pool_tmp() {
 	local f n=0 bad=''
-	for f in /etc/php/[0-9]*/fpm/pool.d/*.conf; do
+	for f in /etc/php/[0-9]*/fpm/pool.d/*.conf /etc/php/[0-9]*/fpm/users/*/*.conf; do
 		[ -e "$f" ] || continue
 		grep -q '^php_admin_value\[open_basedir\]' "$f" || continue
 		n=$((n + 1))
@@ -1355,6 +1355,85 @@ check_pool_tmp() {
 		no "PHP pools: web domains with PHP, but no pool with an open_basedir was found" "nothing was checked"
 	else
 		ok "every PHP pool keeps /tmp out of open_basedir and has its own sys_temp_dir ($n checked)"
+	fi
+}
+
+# Every customer's pools run in their own master per version (include/fpm.sh), so no two customers share an OPcache or
+# APCu. Read from the box: the pool dirs under /etc/php/*/fpm/users, each socket's listener against the cgroup of the
+# customer's unit, and pool.d of every version master, which keeps only its dummy. Not covered: a customer's two
+# domains share their master on purpose, and the version master's dummy pool serves nobody.
+check_customer_fpm_masters() {
+	local list v d u unit cg procs s pids p n=0 socks=0 bad='' f want
+	list=$("$BIN/h-list-sys-php" plain 2> /dev/null)
+	if [ -z "$list" ] || [ -z "$WEB_BACKEND" ]; then
+		skip "customer PHP masters (no customer PHP version)"
+		return 0
+	fi
+	for v in $list; do
+		[ -f "/etc/systemd/system/hestia-php$v-fpm@.service" ] || bad="$bad PHP $v has no customer master unit;"
+		for f in /etc/php/"$v"/fpm/pool.d/*.conf; do
+			[ -e "$f" ] || continue
+			[ "${f##*/}" = 'dummy.conf' ] || bad="$bad ${f#/etc/php/} runs in the shared version master;"
+		done
+	done
+	for f in /etc/systemd/system/hestia-php*-fpm@.service; do
+		[ -e "$f" ] || continue
+		v=${f##*/hestia-php}
+		v=${v%-fpm@.service}
+		grep -qxF "$v" <<< "$list" || bad="$bad ${f##*/} is left from a removed version;"
+	done
+	for f in /etc/systemd/system/php*-fpm.service.wants/hestia-php*-fpm@*.service; do
+		[ -e "$f" ] || [ -L "$f" ] || continue
+		u=${f##*@}
+		u=${u%.service}
+		v=${f##*/hestia-php}
+		v=${v%%-fpm@*}
+		compgen -G "/etc/php/$v/fpm/users/$u/*.conf" > /dev/null || bad="$bad ${f##*/} is enabled without a pool;"
+	done
+	for d in /etc/php/[0-9]*/fpm/users/*/; do
+		[ -e "$d" ] || continue
+		compgen -G "$d*.conf" > /dev/null || continue
+		u=${d%/}
+		u=${u##*/}
+		v=${d#/etc/php/}
+		v=${v%%/*}
+		unit="hestia-php$v-fpm@$u.service"
+		n=$((n + 1))
+		systemctl is-enabled --quiet "$unit" 2> /dev/null || bad="$bad $unit not enabled;"
+		if ! systemctl is-active --quiet "$unit"; then
+			bad="$bad $unit not running;"
+			continue
+		fi
+		cg=$(systemctl show -p ControlGroup --value "$unit" 2> /dev/null)
+		[[ "$cg" == */"$CUSTOMER_PHP_SLICE"/* ]] || bad="$bad $unit outside $CUSTOMER_PHP_SLICE;"
+		"/usr/sbin/php-fpm$v" -t --fpm-config "/etc/php/$v/fpm/users/$u.conf" > /dev/null 2>&1 || bad="$bad $unit fails -t;"
+		want=$(sed -n 's/^[[:space:]]*user[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*/\1/p' "$d"*.conf | sort -u)
+		[ "$want" = "$u" ] || bad="$bad $unit runs pools as $(paste -sd, <<< "$want");"
+		procs=$(cat "/sys/fs/cgroup$cg/cgroup.procs" 2> /dev/null)
+		for s in $(sed -n 's/^[[:space:]]*listen[[:space:]]*=[[:space:]]*\(\/[^[:space:]]*\).*/\1/p' "$d"*.conf); do
+			socks=$((socks + 1))
+			pids=$(ss -Hxlp 2> /dev/null | awk -v p="$s" '$5 == p' | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
+			[ -n "$pids" ] || {
+				bad="$bad nobody listens on $s;"
+				continue
+			}
+			for p in $pids; do
+				grep -qx "$p" <<< "$procs" || {
+					bad="$bad $s is held outside $unit;"
+					break
+				}
+			done
+		done
+	done
+	if [ -n "$bad" ]; then
+		no "customer PHP masters:${bad%;}" "h-restart-web-backend, or h-rebuild-web-domains USER; a unit missing: h-add-web-php VERSION"
+	elif [ "$n" -eq 0 ] && grep -h '^DOMAIN=' "$CONF_DIR"/users/*/web.conf 2> /dev/null | grep "DOCKER=''" \
+		| grep -qvE "PHP_VERSION='(none)?'"; then
+		no "customer PHP masters: web domains with PHP, but no customer pool dir was found" "nothing was checked"
+	elif [ "$n" -gt 0 ] && [ "$socks" -eq 0 ]; then
+		no "customer PHP masters: $n master(s), but no pool socket was found to check" "nothing was checked"
+	else
+		ok "every customer pool runs in its own master per version, in the slice ($n master(s), $socks socket(s))"
 	fi
 }
 
@@ -1963,6 +2042,7 @@ check_apache_php_module
 check_apache_fpm_pinning
 check_opcache_isolation
 check_pool_tmp
+check_customer_fpm_masters
 check_web_model_sentinel
 check_proc_hardening
 check_web_records

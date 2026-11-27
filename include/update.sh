@@ -1147,7 +1147,7 @@ web_isolation_apply() {
 fpm_per_customer_apply() {
 	# shellcheck source=/usr/local/hestia/include/fpm.sh
 	source "$HESTIA/include/fpm.sh"
-	local v f u dom p pv moved_v='' owners='' units='' failed='' stray='' held _
+	local v f u dom p pv moved_v='' moved_d=' ' owners='' units='' running='' failed='' stray='' held _
 	for v in $("$BIN/h-list-sys-php" plain 2> /dev/null); do
 		mkdir -p "/etc/php/$v/fpm/users"
 		customer_fpm_unit_write "$v"
@@ -1161,7 +1161,8 @@ fpm_per_customer_apply() {
 			[ -e "$p" ] || continue
 			pv=${p#/etc/php/}
 			pv=${pv%%/*}
-			mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv"
+			mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv" \
+				&& moved_d="$moved_d$pv:$u "
 		done
 		[ -f "${f%/user.conf}/web.conf" ] || continue
 		for dom in $(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" "${f%/user.conf}/web.conf"); do
@@ -1169,7 +1170,8 @@ fpm_per_customer_apply() {
 				[ -e "$p" ] || continue
 				pv=${p#/etc/php/}
 				pv=${pv%%/*}
-				mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv"
+				mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv" \
+					&& moved_d="$moved_d$pv:$u "
 			done
 		done
 	done
@@ -1181,7 +1183,11 @@ fpm_per_customer_apply() {
 		v=${v%%/*}
 		u=${u##*/}
 		owners="$owners $u"
-		systemctl is-active --quiet "$(customer_fpm_unit "$v" "$u")" && continue
+		if systemctl is-active --quiet "$(customer_fpm_unit "$v" "$u")"; then
+			# A pool moved into a running master is loaded by its reload once the version master let go.
+			[[ $moved_d == *" $v:$u "* ]] && running="$running $v:$u"
+			continue
+		fi
 		if customer_fpm_test "$u" "$v" && systemctl enable --quiet "$(customer_fpm_unit "$v" "$u")" > /dev/null 2>&1; then
 			units="$units $(customer_fpm_unit "$v" "$u")"
 		else
@@ -1206,6 +1212,9 @@ fpm_per_customer_apply() {
 	done
 	# shellcheck disable=SC2086 # one unit name per word, ours
 	[ -z "$units" ] || systemctl start $units > /dev/null 2>&1
+	for p in $running; do
+		customer_fpm_sync "${p#*:}" "${p%%:*}" || failed="$failed ${p#*:}(${p%%:*})"
+	done
 	for u in $(tr ' ' '\n' <<< "$owners" | sort -u); do
 		customer_fpm_sync_user "$u" '' ensure 2>&1 || failed="$failed $u"
 	done

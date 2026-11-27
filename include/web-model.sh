@@ -80,7 +80,7 @@ _web_purge_stack() {
 # ports.conf stays empty: Listen comes per IP, and the hestia-status listener keeps apache startable until then.
 configure_apache2() {
 	echo "[ * ] Installing apache2..."
-	_web_apt_install apache2 apache2-suexec-custom libapache2-mod-fcgid
+	_web_apt_install apache2
 
 	echo "[ * ] Configuring apache2..."
 	mkdir -p /etc/apache2/conf.d/domains
@@ -90,7 +90,7 @@ configure_apache2() {
 	cp -f "$HESTIA/share/apache2/logrotate" /etc/logrotate.d/apache2
 
 	local m failed=''
-	for m in rewrite suexec ssl actions headers; do
+	for m in rewrite ssl headers; do
 		a2enmod -q "$m" > /dev/null 2>&1 || failed="$failed $m"
 	done
 	a2dismod -q status > /dev/null 2>&1 || true
@@ -106,7 +106,6 @@ configure_apache2() {
 	a2dissite -q 000-default > /dev/null 2>&1 || true
 	echo "# Powered by hestia" > /etc/apache2/ports.conf
 
-	echo -e "/home\npublic_html/cgi-bin" > /etc/apache2/suexec/www-data
 	touch /var/log/apache2/access.log /var/log/apache2/error.log
 	mkdir -p /var/log/apache2/domains
 	chmod a+x /var/log/apache2

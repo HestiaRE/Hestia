@@ -11,7 +11,6 @@
     %alias_string%
     ServerAdmin %email%
     DocumentRoot %docroot%
-    ScriptAlias /cgi-bin/ %home%/%user%/web/%domain%/cgi-bin/
     Alias /vstats/ %home%/%user%/web/%domain%/stats/
     Alias /error/ %home%/%user%/web/%domain%/document_errors/
     #SuexecUserGroup %user% %group%
@@ -26,7 +25,7 @@
     </Directory>
     <Directory %docroot%>
         AllowOverride All
-        Options +Includes -Indexes +ExecCGI
+        Options -Indexes
     </Directory>
 
     <FilesMatch \.php$>
@@ -56,7 +55,6 @@
     %alias_string%
     ServerAdmin %email%
     DocumentRoot %docroot%
-    ScriptAlias /cgi-bin/ %home%/%user%/web/%domain%/cgi-bin/
     Alias /vstats/ %home%/%user%/web/%domain%/stats/
     Alias /error/ %home%/%user%/web/%domain%/document_errors/
     #SuexecUserGroup %user% %group%
@@ -69,7 +67,7 @@
     <Directory %docroot%>
         AllowOverride All
         SSLRequireSSL
-        Options +Includes -Indexes +ExecCGI
+        Options -Indexes
 	</Directory>
     SSLEngine on
     SSLVerifyClient none

@@ -13,116 +13,74 @@ the releases of the command audit, into another.
 
 ## Unreleased
 
+_Nothing yet._
+
+## v0.41 (2026-11-28)
+
+Customers are separated on PHP: an own FPM master each, every .htaccess handler bound to the own pool, and no CGI.
+
 ### Security
 
-- **A .htaccess can no longer send a request to another customer's PHP pool** (#1501). apache reaches every FPM
-  socket, and a handler set in a .htaccess (`SetHandler`, `[H=]`, `[P]`, `AddHandler`) picked any of them, so a
-  compromised site ran code as another customer. Every customer vhost now carries a worker that never matches but
-  binds any `fcgi://` handler to the domain's own pool; on apache-only, the docker vhost binds one to a socket that does
-  not exist (its ACME path is served from disk). This holds from apache 2.4.63 on: Ubuntu 24.04's apache 2.4.58 stays
-  open, and the smoke says so.
-- **apache runs no CGI any more** (#1498). mod_fcgid was loaded and every docroot allowed ExecCGI, so any executable
-  `.fcgi` a customer put online ran as www-data, which reads other customers' sites and reaches every PHP-FPM socket.
-  `/cgi-bin/` served its scripts as plain text, credentials included. mod_fcgid, mod_suexec and mod_actions go, their
-  packages are purged, the vhosts lose `ScriptAlias /cgi-bin/`, `+ExecCGI` and `+Includes`, and a new domain gets no
-  `cgi-bin` directory; an existing one stays, outside every docroot.
-- **A customer's .htaccess `Require` protects .php again** (#1497). Basic auth or `Require ip` in a .htaccess stopped a
-  `.txt` but not the `.php` beside it: the vhost granted `.php` again in Files context, which outranks .htaccess. A
-  `.php` no vhost claims now goes to a socket nobody listens on (503), so no vhost needs that grant.
-- **Password protection of a domain holds on apache as well in both** (#1499). Only nginx asked for it, and every local
-  process reached the domain on apache's port without one. apache now gets its own fragment, with the same accounts.
-- **OPcache is isolated per customer** as far as one shared cache allows (#1501). Every customer PHP version gets
-  `opcache.validate_permission`, `validate_root` and a `restrict_api` no script satisfies, so a script no longer loads
-  another customer's cached files (wp-config.php and the like) past file modes and open_basedir, lists the cached paths
-  or resets the cache.
-- **Every customer runs PHP in an own PHP-FPM master per version** (#1503), the systemd instance
-  `hestia-php<ver>-fpm@<user>`, instead of one master per version for all. No two customers share an OPcache or APCu
-  any more, so neither a warm cache nor a value a site sets for its own pool (through its own socket or a .htaccess,
-  `opcache.validate_permission=0` and the like) reaches another customer. What this does not close: a .htaccess that
-  names another customer's socket still runs code there, which only the apache binding above prevents, so Ubuntu
-  24.04 (apache 2.4.58) on the both model stays open to that.
-- **/tmp is out of every customer pool's open_basedir** (#1501). Temp files, uploads and sessions were already in the
-  customer's own `tmp`; `sys_temp_dir` now points there too.
+- **Every customer runs PHP in an own PHP-FPM master per version** (#1503), `hestia-php<ver>-fpm@<user>`, instead of
+  one master per version for all. No two customers share an OPcache or APCu, so neither a warm cache nor a value a
+  site sets for its own pool reaches another customer.
+- **A .htaccess can no longer send a request to another customer's PHP pool** (#1501). A handler set there
+  (`SetHandler`, `[H=]`, `[P]`, `AddHandler`) could pick any FPM socket and run code as another customer; every
+  customer vhost now binds `fcgi://` handlers to the domain's own pool. This needs apache 2.4.63, so Ubuntu 24.04
+  (2.4.58) on the both model stays open, and the smoke says so.
+- **apache runs no CGI any more** (#1498). mod_fcgid ran any executable `.fcgi` in a docroot as www-data, past every
+  customer boundary, and `/cgi-bin/` served its scripts as plain text. The update switches mod_fcgid, mod_suexec and
+  mod_actions off and purges their packages; a new domain gets no `cgi-bin`, an existing one stays.
+- **OPcache is isolated per customer and /tmp is out of every pool** (#1501). `validate_permission`, `validate_root`
+  and a `restrict_api` no script satisfies keep a script from loading another customer's cached files or resetting the
+  cache; `sys_temp_dir` points to the customer's own `tmp`.
+- **A .htaccess `Require` protects .php again** (#1497), and **password protection holds on apache as well in both**
+  (#1499). The vhost granted `.php` again in Files context, which outranks .htaccess, and only nginx asked for the
+  password. A `.php` no vhost claims answers 503 now.
 
 ### Changed
 
-- **Customer scripts can no longer call `opcache_get_status()`, `opcache_reset()` or `opcache_invalidate()`** (#1501).
-  WordPress notices `restrict_api` and skips its invalidation; changed files still reload after `revalidate_freq`.
-  Tools like cachetool can no longer reset the cache through FPM.
-- **A script that writes to a hard-wired /tmp now hits open_basedir** (#1501); `sys_get_temp_dir()` names the
-  customer's own `tmp`. The update renders every web domain again and replaces `small.tpl` and `high.tpl` under
-  `/etc/hestia/templates/php` where they are still as shipped; an edited or own profile that keeps `/tmp` is named,
-  not changed.
-- **Customer pools live under `/etc/php/<ver>/fpm/users/<user>/`** (#1503); a version's `pool.d` keeps only the dummy
-  pool. A master exists only for a version the customer has a pool on, and stops with its last pool. A pool php-fpm
-  refuses now takes only that customer's sites down, not every site of the version. Each master has its own OPcache of
-  128 MB (`OPCACHE_MB` in a drop-in for `hestia-php<ver>-fpm@.service` changes it) and costs about 17 MB idle (PSS): 20
-  WordPress customers took 357 MB idle and 937 MB warm, against 25 MB and 602 MB in one master. The update moves every
-  pool, suspended customers' included, with a gap of about half a second per site. Own tools that read `pool.d` need to
-  look in `users/`; `h-restart-web-backend` takes a USER third and brings just that customer's masters in line.
+- **Customer pools live under `/etc/php/<ver>/fpm/users/<user>/`** (#1503), `pool.d` keeps only the dummy pool, and a
+  pool php-fpm refuses takes down only that customer's sites. Each master has its own 128 MB OPcache (`OPCACHE_MB` in
+  a drop-in) and costs about 17 MB idle: 20 WordPress customers took 357 MB idle and 937 MB warm, against 25 and
+  602 MB in one master. The update moves every pool with a gap of about half a second per site;
+  `h-restart-web-backend` takes a USER third.
+- **Scripts can no longer call `opcache_get_status()`, `opcache_reset()` or `opcache_invalidate()`, and a hard-wired
+  /tmp hits open_basedir** (#1501). WordPress skips its invalidation and changed files reload after
+  `revalidate_freq`; cachetool no longer resets through FPM. `small.tpl` and `high.tpl` under
+  `/etc/hestia/templates/php` take the new profile while they are as shipped, an edited one that keeps `/tmp` is named.
 
 ### Fixed
 
-- **The update plan listed every old Tachyon pin entry with its old version** (#1505). From v0.38 the plan showed
-  "Tachyon 4.7.0" and then "Tachyon 4.8.0", while both installed 4.8.0: each entry compares against the current pin.
-  Only the newest entry stays.
+- **The update plan listed every old Tachyon pin entry** (#1505): from v0.38 it showed "Tachyon 4.7.0" and then
+  "Tachyon 4.8.0", and both installed 4.8.0.
 
 ## v0.40 (2026-11-25)
 
 PHP 8.6 arrives, apache loses the mod_php a Sury meta had brought in, and backups gain protected archives and a
 differential mode that rotates again.
 
-### Added
-
-- **PHP 8.6** (#1489). Every extension of the customer set except opcache, which is core; ionCube has no loader for
-  it yet, so it is left out with a warning. The wizard preselects 8.6 only in `latest`, the other presets keep their
-  previous versions, and the server page reads its list from `php_supported`.
-- **Protected backups** (#1353). A lock in the backup list or `h-change-user-backup-protection` keeps an archive out
-  of the rotation in every place, and **Create Backup** protects while a slot is free. Protected archives hold slots
-  of `BACKUPS`, one always stays with the automatic run, and a protected archive is always full. Exports are
-  protected archives now (`BACKUP_EXPORT_LIMIT` is gone): a customer who has exports keeps that many fewer automatic
-  sets after the update.
-
-### Security
-
-- **apache runs no PHP module, and a new Sury PHP no longer brings one along** (#1487). roundcube pulled Sury's `php`
-  meta, which named 8.6, and with no 8.6 FPM apt chose its apache module: a customer's `.phtml` and `.phar` ran as
-  www-data outside the own pool. roundcube takes the panel's PHP package now, the update removes module and meta and
-  puts apache back on mpm_event, and the smoke fails on either.
-
-### Fixed
-
-- **A differential customer's backups never rotated** (#1492). Every run diffed against one full of any age. A new
-  full now starts past 14 days or when the diff would keep half the web and mail size, and `BACKUPS` counts sets
-  again; with `BACKUPS='1'` the first new full takes the old set along.
-- **Exports** (#1353): their copy on a remote target was rotated away, and a differential customer's export was
-  itself a diff without its base.
+- **Added:** PHP 8.6 without ionCube, which has no loader yet, preselected only in `latest` (#1489). Protected backups
+  (#1353): a lock keeps an archive out of the rotation, protected archives hold slots of `BACKUPS` and are always
+  full, and exports are protected archives, so a customer with exports keeps that many fewer automatic sets.
+- **Security:** apache runs no PHP module (#1487). roundcube had pulled Sury's `php` meta and with it mod_php 8.6, so
+  a `.phtml` ran as www-data; the update removes module and meta, the smoke fails on either.
+- **Fixed:** differential backups rotate again, a new full starts past 14 days or at half the size (#1492); an
+  export was rotated away on the remote target, and a differential customer's was a diff without its base (#1353).
 
 ## v0.39 (2026-11-25)
 
 The upstream 1.10.10 round closes two ways from a customer account to root, SPF and DMARC become editable on the zone
 page, and an admin can keep notes on a user.
 
-### Added
-
-- **SPF and DMARC on the zone page** (#1439), each row kept as an exception the next sync writes.
-- **A DNS move can be finished, and www can follow the apex instead of a CNAME** (#1453, #1454).
-- **Admin notes on a user** (#1427); they travel with the backup, so they hold no secrets.
-- **Deleting a user can take the backups along** (#1477, upstream 1.10.10); the default keeps them.
-- Authentication-Results carries rspamd's SPF and DMARC (#1455).
-
-### Security
-
-- **Two ways from a customer account to root**: commands through the stats folder (#1464) and database grants whose
-  `_` and `%` matched `mysql` (#1466, #1472), both upstream 1.10.10. Grants name the database exactly now.
-- **nginx answers without TLS 0-RTT** (#1468, CVE-2026-132779), **Tachyon 4.8.0** (#1484, GHSA-3w5p-7qc3-89gm), and
-  an old DES or MD5 login hash is replaced at the next login (#1478).
-
-### Fixed
-
-- **An aborted queued job stayed in the queue** and blocked the customer's others (#1474); a read receipt bypassed
-  the relay (#1475); one broken php-fpm pool took its whole PHP version down (#1470).
-- DNS sync details (#1439, #1442, #1450-#1452), and smaller ones (#1479-#1482).
+- **Added:** SPF and DMARC on the zone page (#1439), finishing a DNS move and www following the apex (#1453, #1454),
+  admin notes on a user (#1427), deleting a user with the backups (#1477), rspamd's SPF and DMARC in
+  Authentication-Results (#1455).
+- **Security:** two ways from a customer account to root, through the stats folder (#1464) and database grants whose
+  `_` and `%` matched `mysql` (#1466, #1472); nginx without TLS 0-RTT (#1468, CVE-2026-132779), Tachyon 4.8.0 (#1484,
+  GHSA-3w5p-7qc3-89gm), old DES and MD5 login hashes replaced at the next login (#1478).
+- **Fixed:** an aborted queued job blocked the queue (#1474), a read receipt bypassed the relay (#1475), one broken
+  pool took its PHP version down (#1470), DNS sync details (#1439, #1442, #1450-#1452) and smaller ones (#1479-#1482).
 
 ## v0.38 (2026-11-23)
 

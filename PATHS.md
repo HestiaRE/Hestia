@@ -112,6 +112,7 @@ names this version's `phpX.Y` package as roundcube's `php`, so Sury's `php` meta
 | OPcache isolation | `/etc/php/<ver>/fpm/conf.d/99-hestia-opcache-isolation.ini` (source `share/php-fpm/`) |
 | Temp dir | `/home/<user>/tmp` (`sys_temp_dir`, `upload_tmp_dir`, sessions); `/tmp` is not in open_basedir |
 | Pool profiles | `share/templates/php/`, the operator's under `/etc/hestia/templates/php/` |
+| Unclaimed `.php` on apache | `/etc/apache2/conf.d/hestia-event.conf` (source `share/apache2/`) hands it to `/run/hestia/php-unclaimed.sock`, which nobody listens on (503, #1497) |
 
 ### ionCube loader (addon, #1069)
 
@@ -245,7 +246,7 @@ User home structure — unchanged from HestiaCP, bidirectional backup compatibil
 │       └── $account/
 ├── conf/                 Generated service configs (immutable dir)
 │   ├── web/
-│   │   └── $domain/      nginx/apache vhost configs
+│   │   └── $domain/      nginx/apache vhost configs; `{nginx,apache2}[.ssl].conf_htaccess` + `htpasswd` when protected (#1499)
 │   └── mail/
 │       └── $domain/      Dovecot/Exim domain configs
 ├── backup/               User-level backups

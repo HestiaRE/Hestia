@@ -162,8 +162,9 @@ env (a bare `$HESTIA` expands empty -> 502).
   extension set built by `sbin/hestia-php-confd` - pruning an extension can break a
   co-tenant (the Roundcube `dom` 500 regression, #402; documented in
   `sbin/hestia-php-confd` header).
-- "PHP pools on the box" now spans two trees: `/etc/php/hestia/fpm/pool.d/*`
-  (hestia/caddy) and `/etc/php/<ver>/fpm/pool.d/*` (customers + `fm-<user>` + `dummy`).
+- "PHP pools on the box" now spans three places: `/etc/php/hestia/fpm/pool.d/*`
+  (hestia/caddy), `/etc/php/<ver>/fpm/users/<user>/*` (a customer's domains + `fm-<user>`, #1503) and
+  `/etc/php/<ver>/fpm/pool.d/dummy.conf`.
 - Panel PHP version is switchable with rollback (`bin/h-change-sys-panel-php:83-91`);
   upstream had no analogue (fixed by the deb).
 - `WEB_BACKEND=php-fpm` + `%backend_lsnr%` wiring is otherwise unchanged

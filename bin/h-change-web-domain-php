@@ -60,7 +60,7 @@ if [ "$(get_object_value 'web' 'DOMAIN' "$domain" '$WP')" = 'yes' ]; then
 fi
 
 if [ -n "$old_version" ] && [ "$old_version" != "$version" ]; then
-	$BIN/h-restart-web-backend "$restart" "$old_version"
+	$BIN/h-restart-web-backend "$restart" "$old_version" "$user"
 	check_result $? "PHP restart failed" > /dev/null
 fi
 

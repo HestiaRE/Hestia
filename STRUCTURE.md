@@ -139,7 +139,15 @@ into **five** on that one `hestia` master:
 | `tachyon.conf` | `caddy` | `/run/hestia-webmail-tachyon.sock` | Caddy `:8091` |
 
 Plus per-customer pools on the **customer** PHP (`share/templates/php/{default,small,high}.tpl`,
-`user=%user%`) and the FM pool (delta 5).
+`user=%user%`) and the FM pool (delta 5). Unlike upstream, the customer side is separated further (#1501): each
+apache vhost binds every FastCGI handler to its own pool (a catch-all `ProxyPassMatch` that never matches), the shared
+OPcache of a version validates permissions and root and refuses its API (`share/php-fpm/99-hestia-opcache-isolation.ini`),
+and `/tmp` is out of the pools' open_basedir. Upstream runs every customer pool of a version in one master
+(`php<ver>-fpm`, `pool.d`); here each customer has an own master per version they use, the systemd instance
+`hestia-php<ver>-fpm@<user>` with its pools under `/etc/php/<ver>/fpm/users/<user>/` (#1503), so no two customers share
+an OPcache or APCu, and a value a site sets for its own pool reaches only its own master. The version master keeps
+only the dummy pool and stays the anchor (`PartOf`, `ReloadPropagatedFrom`, `WantedBy`): apt, ionCube and
+`h-restart-web-backend` reach the customer masters through it. Socket paths are upstream's, so vhosts are unchanged.
 
 **Why.** Isolate by trust boundary (see the system-user table). Upstream already
 separated the app PHP pool (`hestiamail`) from the panel; HestiaRE keeps the split but
@@ -154,8 +162,9 @@ env (a bare `$HESTIA` expands empty -> 502).
   extension set built by `sbin/hestia-php-confd` - pruning an extension can break a
   co-tenant (the Roundcube `dom` 500 regression, #402; documented in
   `sbin/hestia-php-confd` header).
-- "PHP pools on the box" now spans two trees: `/etc/php/hestia/fpm/pool.d/*`
-  (hestia/caddy) and `/etc/php/<ver>/fpm/pool.d/*` (customers + `fm-<user>` + `dummy`).
+- "PHP pools on the box" now spans three places: `/etc/php/hestia/fpm/pool.d/*`
+  (hestia/caddy), `/etc/php/<ver>/fpm/users/<user>/*` (a customer's domains + `fm-<user>`, #1503) and
+  `/etc/php/<ver>/fpm/pool.d/dummy.conf`.
 - Panel PHP version is switchable with rollback (`bin/h-change-sys-panel-php:83-91`);
   upstream had no analogue (fixed by the deb).
 - `WEB_BACKEND=php-fpm` + `%backend_lsnr%` wiring is otherwise unchanged

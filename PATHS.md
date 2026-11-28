@@ -99,6 +99,21 @@ names this version's `phpX.Y` package as roundcube's `php`, so Sury's `php` meta
 | Install source | `share/panel-php/` |
 | Required packages | `php<ref>-fpm -mysql -curl -zip -gmp -mbstring -opcache -xml -gd -bz2 -pgsql -intl -exif -sqlite3` |
 
+### Customer PHP — one FPM master per customer and version (#1501, #1503)
+
+| Item | Path |
+|------|------|
+| Customer master | systemd instance `hestia-php<ver>-fpm@<user>.service` of `/etc/systemd/system/hestia-php<ver>-fpm@.service` (source `share/php-fpm/hestia-php-fpm@.service`), enabled into `php<ver>-fpm.service.wants/` |
+| Its [global] | `/etc/php/<ver>/fpm/users/<user>.conf` (source `share/php-fpm/php-fpm-user.conf`), logs to the journal as `php<ver>-fpm-<user>` |
+| Domain pool | `/etc/php/<ver>/fpm/users/<user>/<domain>.conf`, socket `/run/php/php<ver>-fpm-<domain>.sock` |
+| File manager pool | `/etc/php/<default>/fpm/users/<user>/fm-<user>.conf`, socket `/run/hestia/fm/<user>.sock` |
+| Version master | `php<ver>-fpm.service`, `/etc/php/<ver>/fpm/pool.d/dummy.conf` only; anchor for restart, reload and boot |
+| Code | `include/fpm.sh` (`customer_fpm_sync` and friends) |
+| OPcache isolation | `/etc/php/<ver>/fpm/conf.d/99-hestia-opcache-isolation.ini` (source `share/php-fpm/`) |
+| Temp dir | `/home/<user>/tmp` (`sys_temp_dir`, `upload_tmp_dir`, sessions); `/tmp` is not in open_basedir |
+| Pool profiles | `share/templates/php/`, the operator's under `/etc/hestia/templates/php/` |
+| Unclaimed `.php` on apache | `/etc/apache2/conf.d/hestia-event.conf` (source `share/apache2/`) hands it to `/run/hestia/php-unclaimed.sock`, which nobody listens on (503, #1497) |
+
 ### ionCube loader (addon, #1069)
 
 | Item | Path |
@@ -231,7 +246,7 @@ User home structure — unchanged from HestiaCP, bidirectional backup compatibil
 │       └── $account/
 ├── conf/                 Generated service configs (immutable dir)
 │   ├── web/
-│   │   └── $domain/      nginx/apache vhost configs
+│   │   └── $domain/      nginx/apache vhost configs; `{nginx,apache2}[.ssl].conf_htaccess` + `htpasswd` when protected (#1499)
 │   └── mail/
 │       └── $domain/      Dovecot/Exim domain configs
 ├── backup/               User-level backups

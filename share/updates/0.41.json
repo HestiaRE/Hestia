@@ -1,0 +1,49 @@
+{
+  "version": "0.41",
+  "entries": [
+    {
+      "id": "opcache-isolation",
+      "description": "Every customer PHP version gets the OPcache isolation drop-in in its FPM conf.d: no customer script reads another's cached files or drives the shared cache. The drop-in is ours alone, so the copy is the state.",
+      "conditions": [{ "type": "php_ini_missing", "source": "share/php-fpm/99-hestia-opcache-isolation.ini" }],
+      "action": { "type": "function_call", "function": "opcache_isolation_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "fpm-per-customer",
+      "description": "Every customer gets an own PHP-FPM master per version they use, hestia-php<ver>-fpm@<user>; their pools move out of the shared version master, suspended customers' included. Before web-isolation-rebuild, so that rebuild already writes into the new layout and nothing moves twice.",
+      "conditions": [{ "type": "fpm_per_customer_behind" }],
+      "action": { "type": "function_call", "function": "fpm_per_customer_apply" },
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "web-isolation-rebuild",
+      "description": "Web domains rendered again: apache binds every fcgi handler a .htaccess sets to the domain's own pool, the vhosts lose ScriptAlias, ExecCGI and the Files-level Require all granted, a protected domain in both gets apache's auth fragment, and the pools lose /tmp. A PHP profile under /etc/hestia/templates takes the new one only while it is as 0.40 shipped it, an edited one is named.",
+      "conditions": [{ "type": "web_isolation_behind" }],
+      "action": { "type": "function_call", "function": "web_isolation_apply" },
+      "after": "0.41/fpm-per-customer",
+      "paths": [],
+      "reversible": false
+    },
+    {
+      "id": "apache-unclaimed-php",
+      "description": "A .php that no domain vhost claims goes to a socket nobody listens on instead of a server-wide Require all denied, so the vhosts no longer grant again in Files context and a customer's .htaccess Require (basic auth, Require ip) protects .php as it protects every other file. Takes effect with the vhost rebuild of this release and has to run before it, which only the reversible-first order guarantees: keep it reversible, or the new vhosts meet the old file and answer every .php with 403",
+      "conditions": [
+        { "type": "path_exists", "path": "/etc/apache2/conf.d/hestia-event.conf" },
+        { "type": "file_differs", "source": "share/apache2/hestia-event.conf", "target": "/etc/apache2/conf.d/hestia-event.conf" }
+      ],
+      "action": { "type": "file_copy", "source": "share/apache2/hestia-event.conf", "target": "/etc/apache2/conf.d/hestia-event.conf" },
+      "paths": ["/etc/apache2/conf.d/hestia-event.conf"],
+      "reversible": true
+    },
+    {
+      "id": "apache-cgi-off",
+      "description": "apache runs no CGI any more: mod_fcgid ran every executable .fcgi in a docroot as www-data, past the customer boundary, and /cgi-bin/ served its scripts as plain text. mod_fcgid, mod_suexec and mod_actions are switched off, libapache2-mod-fcgid and apache2-suexec-custom purged; existing cgi-bin directories stay as they are, outside every docroot",
+      "conditions": [{ "type": "apache_cgi_present" }],
+      "action": { "type": "function_call", "function": "apache_cgi_off_apply" },
+      "paths": ["/etc/apache2/mods-enabled"],
+      "reversible": false
+    }
+  ]
+}

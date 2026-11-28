@@ -70,10 +70,10 @@ else
 	version=$(multiphp_default_version)
 fi
 
-$BIN/h-restart-web-backend "$restart" "$version"
+$BIN/h-restart-web-backend "$restart" "$version" "$user"
 check_result $? "PHP restart failed" > /dev/null
 if [ "$version" != "$backend_version" ]; then
-	$BIN/h-restart-web-backend "$restart" "$backend_version"
+	$BIN/h-restart-web-backend "$restart" "$backend_version" "$user"
 	check_result $? "PHP restart failed" > /dev/null
 fi
 

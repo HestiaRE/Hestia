@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "93c463d58",
     "upstream_ref_date": "2026-11-19",
-    "last_updated": "2026-11-25",
+    "last_updated": "2026-11-28",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100 from `git diff --numstat`. RAW - overstates semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -16,10 +16,10 @@
     "reorg_note": "#119 dissolved upstream install/deb/ into share/; paths do not line up 1:1. Matches are exact-path first, then unique basename; unmatched files are marked eigenbau with a note and need manual origin confirmation. Best-effort, not authoritative.",
     "aggregate": {
       "upstream_mapped_files": 78,
-      "eigenbau_files": 178,
+      "eigenbau_files": 183,
       "weighted_pct": 11,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 256,
+      "files_total": 261,
       "files_mapped": 78
     },
     "recompute_rule": "Reseed before every minor release: recompute against the current upstream/hestiacp snapshot and let source_type follow the fresh pct. verbatim/derived is a bucketing of the measured number, so it goes stale exactly when the number does - it drifted 80 entries out of step once (#551). eigenbau is the one curated value and a recompute never touches it. Byte-compared entries carry no pct at all - there is no percentage to have: the reseed reads their `identical` flag, text entries their pct."
@@ -1880,6 +1880,15 @@
       "note": "no upstream counterpart found; native or renamed - confirm manually"
     },
     {
+      "path": "php-fpm/99-hestia-opcache-isolation.ini",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-28",
+      "divergence": null,
+      "note": "HestiaRE-native (#1501): OPcache isolation drop-in for every customer PHP version."
+    },
+    {
       "path": "php-fpm/dummy.conf",
       "source_type": "derived",
       "upstream_path": "install/deb/php-fpm/dummy.conf",
@@ -1894,6 +1903,24 @@
         "measured_at": "2026-11-06"
       },
       "note": "exact install/deb path"
+    },
+    {
+      "path": "php-fpm/hestia-php-fpm@.service",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-28",
+      "divergence": null,
+      "note": "HestiaRE-native (#1503): systemd template of the per-customer PHP-FPM master."
+    },
+    {
+      "path": "php-fpm/php-fpm-user.conf",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-28",
+      "divergence": null,
+      "note": "HestiaRE-native (#1503): global section of a per-customer PHP-FPM master."
     },
     {
       "path": "php-fpm/php-fpm.conf",
@@ -2322,6 +2349,15 @@
       "note": "HestiaRE-native: the v0.40 update manifest."
     },
     {
+      "path": "updates/0.41.json",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-28",
+      "divergence": null,
+      "note": "HestiaRE-native: the v0.41 update manifest."
+    },
+    {
       "path": "updates/README.md",
       "source_type": "eigenbau",
       "upstream_path": null,
@@ -2392,6 +2428,15 @@
       "last_reconciled": "2026-11-25",
       "divergence": null,
       "note": "HestiaRE-native (#1475): patch an update applies to a box's exim template, which the operator may have edited."
+    },
+    {
+      "path": "updates/patches/0.41/php-templates-shipped.sha256",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-28",
+      "divergence": null,
+      "note": "HestiaRE-native (#1501): sums of the PHP profiles v0.40 shipped, so the update tells an edited profile from a shipped one."
     },
     {
       "path": "upstream/sync-upstream.sh",
@@ -2747,17 +2792,17 @@
     },
     {
       "path": "templates/php/default.tpl",
-      "source_type": "verbatim",
+      "source_type": "derived",
       "upstream_path": "install/deb/templates/web/php-fpm/default.tpl",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-21",
+      "last_reconciled": "2026-11-28",
       "divergence": {
         "upstream_lines": 34,
-        "our_lines": 34,
-        "added": 0,
-        "removed": 0,
-        "pct": 0,
-        "measured_at": "2026-11-21"
+        "our_lines": 35,
+        "added": 2,
+        "removed": 1,
+        "pct": 4,
+        "measured_at": "2026-11-28"
       },
       "note": "PHP pool profile. Moved from templates/php/ in #1411."
     },

@@ -386,8 +386,9 @@ HESTIA_BACKUP="/root/hst_backups/$(date +%d%m%Y%H%M)"
 HESTIA_PHP="$SBIN/hestia-php"
 USER_DATA=$CONF_DIR/users/$user
 # Templates: shipped under TPL_SHIP, the operator's copies, own ones and overrides under TPL_OWN, by the same directory
-# names (nginx, proxy, php, email; apache and docker are shipped only). An update never writes TPL_OWN. SHARETPL holds
-# what is rendered or copied but never chosen (suspend, skel, awstats, proxy_ip); the webmail vhosts live per app under
+# names (nginx, proxy, php, email; apache and docker are shipped only). An update never writes TPL_OWN, except a PHP
+# profile still byte-equal to a shipped state a security fix replaces (0.41). SHARETPL holds what is rendered or copied
+# but never chosen (suspend, skel, awstats, proxy_ip); the webmail vhosts live per app under
 # $HESTIA/share/$WEB_SYSTEM/webmail/.
 TPL_OWN=$CONF_DIR/templates
 TPL_SHIP=$HESTIA/share/templates

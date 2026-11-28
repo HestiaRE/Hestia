@@ -102,7 +102,7 @@ for domain in $($BIN/h-list-web-domains $user plain | cut -f 1); do
 			template="default"
 			update_object_value 'web' 'DOMAIN' "$domain" '$BACKEND' 'default'
 		fi
-		$BIN/h-add-web-domain-backend "$user" "$domain" "$template" "$restart"
+		$BIN/h-add-web-domain-backend "$user" "$domain" "$template" no
 	fi
 	skipped=${web_config_skipped:-0}
 	rebuild_web_domain_conf
@@ -117,6 +117,12 @@ if [ "${web_config_skipped:-0}" -gt 0 ]; then
 fi
 
 $BIN/h-update-user-counters "$user"
+
+# One reload per customer master, not one per domain; a version the customer left is stopped here too.
+if [ -n "$WEB_BACKEND" ]; then
+	$BIN/h-restart-web-backend "$restart" '' "$user"
+	check_result $? "PHP restart failed" > /dev/null
+fi
 
 if [ "$restart" = "yes" ]; then
 	$BIN/h-restart-web "$restart"

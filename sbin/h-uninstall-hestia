@@ -55,6 +55,18 @@ systemctl disable --now hestia-customer-php-limit.service 2> /dev/null || true
 rm -f /etc/systemd/system/hestia-customer-php-limit.service /etc/systemd/system/hestia-customer-php.slice
 rm -f /etc/systemd/system/php*-fpm.service.d/hestia-slice.conf
 rmdir /etc/systemd/system/php*-fpm.service.d 2> /dev/null || true
+# The customer masters go; their pools go back to the version master, so the sites keep running without the panel.
+for u in /etc/systemd/system/php*-fpm.service.wants/hestia-php*-fpm@*.service; do
+	[ -e "$u" ] || [ -L "$u" ] || continue
+	systemctl disable --now "${u##*/}" 2> /dev/null || true
+done
+for p in /etc/php/*/fpm/users/*/*.conf; do
+	[ -e "$p" ] || continue
+	v=${p#/etc/php/}
+	mv -f "$p" "/etc/php/${v%%/*}/fpm/pool.d/"
+done
+rm -rf /etc/php/*/fpm/users
+rm -f /etc/systemd/system/hestia-php*-fpm@.service
 systemctl daemon-reload
 for s in /etc/php/*/fpm; do
 	[ -d "$s" ] || continue

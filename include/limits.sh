@@ -3,11 +3,12 @@
 #
 # Defense in depth, not a per-customer limit: all customer php-fpm masters share one
 # slice, so a hammered site or a runaway PHP loop cannot take panel, mail, database
-# and ssh down with it. Separating customers from each other would need a slice per
-# pool - the predecessor tried it on user-<uid>.slice, which php-fpm never enters.
+# and ssh down with it. Each customer's own master (hestia-php<ver>-fpm@<user>, include/fpm.sh)
+# names the slice in its unit and is a cgroup of its own inside it; the version masters
+# keep only their dummy pool and get it through the drop-in below.
 #
 # The panel PHP is a different master (hestia-php.service, /etc/php/hestia) and stays
-# outside. The per-user filemanager pools (fm-<user>.conf) live in the customer master
+# outside. The per-user filemanager pools (fm-<user>.conf) live in the customer's master
 # and are inside the cap - they are that customer's own load.
 #
 # Every dash in the name is a level, so the cgroup is

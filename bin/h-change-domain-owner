@@ -153,6 +153,8 @@ if [ -n "$web_data" ]; then
 	# Rebuild config
 	$BIN/h-unsuspend-web-domain "$user" "$domain" no >> /dev/null 2>&1
 	$BIN/h-rebuild-web-domains "$owner" no
+	# The old owner's master gives the socket up first; the new owner's would refuse its whole start over it.
+	$BIN/h-restart-web-backend '' '' "$owner"
 	$BIN/h-rebuild-web-domains "$user"
 
 	# Cleanup old config

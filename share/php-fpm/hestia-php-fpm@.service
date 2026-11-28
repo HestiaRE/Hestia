@@ -1,0 +1,31 @@
+# One PHP-FPM master per customer and version, instance = user name; written per version by h-add-web-php.
+# PartOf/ReloadPropagatedFrom: a restart or reload of the version master (apt, ionCube, h-restart-web-backend) reaches
+# every customer master of that version. No RuntimeDirectory: /run/php holds every customer's sockets.
+[Unit]
+Description=PHP %version% FastCGI for customer %i
+PartOf=php%version%-fpm.service
+ReloadPropagatedFrom=php%version%-fpm.service
+After=php%version%-fpm.service hestia-customer-php-limit.service
+Wants=hestia-customer-php-limit.service
+
+[Service]
+Type=notify
+# Each master has its own OPcache segment; a drop-in can set another size.
+Environment=OPCACHE_MB=128
+ExecStart=/usr/sbin/php-fpm%version% --nodaemonize -d opcache.memory_consumption=${OPCACHE_MB} --fpm-config /etc/php/%version%/fpm/users/%i.conf
+ExecReload=/bin/kill -USR2 $MAINPID
+KillMode=mixed
+Slice=hestia-customer-php.slice
+Restart=on-failure
+RestartSec=5s
+ProtectSystem=full
+PrivateDevices=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
+RestrictNamespaces=true
+
+[Install]
+WantedBy=php%version%-fpm.service

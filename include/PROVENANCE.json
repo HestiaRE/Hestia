@@ -5,7 +5,7 @@
     "upstream_branch": "upstream/hestiacp",
     "upstream_ref": "93c463d58",
     "upstream_ref_date": "2026-11-19",
-    "last_updated": "2026-11-25",
+    "last_updated": "2026-11-28",
     "divergence_method": "churn = (added+removed)/(upstream_lines+our_lines)*100, from a line diff between the two blobs. RAW: includes the mechanical v-*->h-* rename + path churn (install/->share/, CONF_DIR, func/->include/), so it OVERSTATES semantic divergence. Triage, not truth. BINARY files are measured by byte identity instead (pct 0 or 100, method \"bytes\"): a line diff on a binary reports nothing at all - git numstat prints \"-\" - which silently read as 0% churn and typed a differing font or image as verbatim.",
     "source_type_values": {
       "verbatim": "Upstream file we track closely (churn <=3%). Mechanical: reseeded from the measured pct on every recompute, never set by hand.",
@@ -20,10 +20,10 @@
     },
     "aggregate": {
       "upstream_mapped_files": 9,
-      "eigenbau_files": 30,
+      "eigenbau_files": 31,
       "weighted_pct": 62,
       "weighted_pct_note": "text files only - binary entries are byte-compared, not line-counted",
-      "files_total": 39,
+      "files_total": 40,
       "files_mapped": 9
     },
     "scope": "include",
@@ -139,14 +139,14 @@
       "source_type": "derived",
       "upstream_path": "func/domain.sh",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-23",
+      "last_reconciled": "2026-11-28",
       "divergence": {
         "upstream_lines": 1217,
-        "our_lines": 1759,
-        "added": 1199,
-        "removed": 657,
-        "pct": 62,
-        "measured_at": "2026-11-23"
+        "our_lines": 1815,
+        "added": 1262,
+        "removed": 664,
+        "pct": 63,
+        "measured_at": "2026-11-28"
       },
       "note": "No DNS half (bind9 excluded); web/mail template handling reworked for the Caddy/nginx/apache model."
     },
@@ -201,6 +201,15 @@
       "last_reconciled": "2026-11-17",
       "divergence": null,
       "note": "HestiaRE-native (#1337): forwards as Sieve redirects, the move between exim and Sieve, and the live view."
+    },
+    {
+      "path": "fpm.sh",
+      "source_type": "eigenbau",
+      "upstream_path": null,
+      "upstream_ref": null,
+      "last_reconciled": "2026-11-28",
+      "divergence": null,
+      "note": "Customer PHP-FPM masters (#1503): one hestia-php<ver>-fpm@<user> per customer and version."
     },
     {
       "path": "help.sh",
@@ -268,14 +277,14 @@
       "source_type": "derived",
       "upstream_path": "func/main.sh",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-25",
+      "last_reconciled": "2026-11-28",
       "divergence": {
         "upstream_lines": 2615,
-        "our_lines": 3310,
-        "added": 2023,
+        "our_lines": 3311,
+        "added": 2024,
         "removed": 1328,
         "pct": 56,
-        "measured_at": "2026-11-25"
+        "measured_at": "2026-11-28"
       },
       "note": "Carries the HestiaRE input hardening (single-eval object parser, source_conf, validator char classes) and the BIN/SBIN/CONF_DIR anchors."
     },
@@ -311,14 +320,14 @@
       "source_type": "derived",
       "upstream_path": "func/rebuild.sh",
       "upstream_ref": "93c463d58",
-      "last_reconciled": "2026-11-23",
+      "last_reconciled": "2026-11-28",
       "divergence": {
         "upstream_lines": 972,
-        "our_lines": 1092,
-        "added": 583,
-        "removed": 463,
+        "our_lines": 1060,
+        "added": 553,
+        "removed": 465,
         "pct": 50,
-        "measured_at": "2026-11-23"
+        "measured_at": "2026-11-28"
       },
       "note": ""
     },

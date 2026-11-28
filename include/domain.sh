@@ -196,7 +196,8 @@ web_domain_pool_version() {
 	ver=$(grep -rhoE "php[0-9]+\.[0-9]+-fpm-${dom_re}\.sock" "$HOMEDIR/$usr/conf/web/$dom/" 2> /dev/null \
 		| head -1 | grep -oE '[0-9]+\.[0-9]+')
 	if [ -z "$ver" ]; then
-		ver=$(find -L /etc/php/ -name "$dom.conf" -printf '%h\n' 2> /dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+')
+		ver=$(find -L /etc/php/ \( -path '*/fpm/pool.d/*' -o -path '*/fpm/users/*/*' \) -name "$dom.conf" -printf '%h\n' \
+			2> /dev/null | head -1 | grep -oE '^/etc/php/[0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+')
 	fi
 	echo "$ver"
 }
@@ -220,22 +221,32 @@ prepare_web_backend() {
 	else
 		backend_version=$(multiphp_default_version)
 	fi
-	pool=$(find -L /etc/php/$backend_version -type d \( -name "pool.d" -o -name "*fpm.d" \))
-
-	if [ ! -e "$pool" ]; then
-		check_result $E_NOTEXIST "php-fpm pool doesn't exist"
-	fi
+	[ -d "/etc/php/$backend_version/fpm/pool.d" ] || check_result "$E_NOTEXIST" "php-fpm $backend_version is not installed"
+	# The customer's own master reads this directory (include/fpm.sh).
+	pool="/etc/php/$backend_version/fpm/users/$user"
+	# Reset per domain: apache refuses its whole configuration over an empty or tcp listener in the catch-all
+	# ProxyPassMatch, so a pool without a usable listen line keeps the deterministic socket and only its PHP fails.
+	backend_lsnr="unix:/run/php/php${backend_version}-fpm-${domain}.sock"
+	local lsnr=''
 	if [ -e "$pool/$backend_type.conf" ]; then
-		backend_lsnr=$(grep "listen =" $pool/$backend_type.conf)
-		backend_lsnr=$(echo "$backend_lsnr" | cut -f 2 -d = | sed "s/ //")
-		if [ -n "$(echo $backend_lsnr | grep /)" ]; then
-			backend_lsnr="unix:$backend_lsnr"
-		fi
+		lsnr=$(sed -n 's/^[[:space:]]*listen[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*/\1/p' "$pool/$backend_type.conf" | tail -n1)
+	fi
+	if [[ $lsnr == /* ]]; then
+		backend_lsnr="unix:$lsnr"
+	elif [ -n "$lsnr" ] && [ "$WEB_SYSTEM" != 'apache2' ]; then
+		backend_lsnr="$lsnr"
+	elif [ -n "$lsnr" ]; then
+		echo "Warning: pool $pool/$backend_type.conf listens on $lsnr, apache needs a unix socket - PHP of $domain fails" >&2
 	fi
 }
 
+# Both layouts: a pool from before the customer masters still sits in the version master's pool.d.
 delete_web_backend() {
-	find -L /etc/php/ -type f -name "$backend_type.conf" -exec rm -f {} \;
+	local f
+	for f in /etc/php/*/fpm/pool.d/"$backend_type".conf /etc/php/*/fpm/users/*/"$backend_type".conf; do
+		[ -e "$f" ] || continue
+		rm -f "$f"
+	done
 }
 
 prepare_web_aliases() {
@@ -936,6 +947,51 @@ is_web_domain_cert_valid() {
 	disown &> /dev/null
 	kill $pid &> /dev/null
 	check_result $? "ssl certificate key pair is not valid" $E_INVALID
+}
+
+# web_httpauth_fragments USER DOMAIN [remove]: the basic auth fragment of every server that answers for the domain.
+# In both, apache gets its own as well, because it serves every local process on its port without asking nginx.
+# Returns 0 when a fragment changed.
+web_httpauth_fragments() {
+	local dir="$HOMEDIR/$1/conf/web/$2" srv f sf want changed=1
+	for srv in nginx apache2; do
+		f="$dir/$srv.conf_htaccess"
+		sf="$dir/$srv.ssl.conf_htaccess"
+		want=''
+		if [ "${3-}" != remove ]; then
+			if [ "$srv" = nginx ] && { [ "$WEB_SYSTEM" = nginx ] || [ "$PROXY_SYSTEM" = nginx ]; }; then
+				want="auth_basic  \"$2 password access\";
+auth_basic_user_file    $dir/htpasswd;"
+			elif [ "$srv" = apache2 ] && [ "$WEB_SYSTEM" = apache2 ]; then
+				# The whole vhost whatever its docroot, minus the ACME alias: a plain Location would override its grant.
+				want="<LocationMatch \"^/(?!\\.well-known/acme-challenge/)\">
+    AuthUserFile $dir/htpasswd
+    AuthName \"$2 access\"
+    AuthType Basic
+    Require valid-user
+</LocationMatch>"
+			fi
+		fi
+		if [ -z "$want" ]; then
+			if [ -e "$f" ] || [ -L "$f" ] || [ -e "$sf" ] || [ -L "$sf" ]; then
+				rm -f "$f" "$sf"
+				changed=0
+			fi
+			continue
+		fi
+		if [ -L "$f" ] || [ "$want" != "$(cat "$f" 2> /dev/null)" ]; then
+			rm -f "$f"
+			printf '%s\n' "$want" > "$f"
+			changed=0
+		fi
+		if [ "$(readlink "$sf" 2> /dev/null)" != "$f" ]; then
+			ln -sfn "$f" "$sf"
+			changed=0
+		fi
+		chmod 644 "$f"
+		chgrp "$1" "$f"
+	done
+	return "$changed"
 }
 
 # http-01 on an apache front: the token sits in a root-owned directory per name, published by an Alias in the vhost's

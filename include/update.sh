@@ -142,6 +142,112 @@ upd_cond_mysql_wildcard_grants() {
 	[ -n "$(mysql_wildcard_grants)" ]
 }
 
+# True while the web config is behind the tenant isolation of 0.41: a PHP profile under TPL_OWN still as 0.40 shipped it,
+# an apache vhost on a customer docroot without the catch-all worker, or a pool without sys_temp_dir whose profile has
+# it. A profile the operator edited does not keep it true; web_isolation_apply names it instead.
+upd_cond_web_isolation_behind() {
+	local known="$UPDATE_ROOT/share/updates/patches/0.41/php-templates-shipped.sha256" f u rec dom be p
+	[ -f "$known" ] || {
+		echo "update: $known is missing, web_isolation_behind cannot decide" >&2
+		return 2
+	}
+	for f in "$TPL_OWN"/php/*.tpl; do
+		[ -e "$f" ] || continue
+		grep -qxF "$(sha256sum < "$f" | cut -d ' ' -f 1)  templates/php/${f##*/}" "$known" && return 0
+	done
+	for f in /etc/apache2/conf.d/domains/*.conf; do
+		[ -e "$f" ] || continue
+		grep -q "^[[:space:]]*DocumentRoot $HOMEDIR/" "$f" && ! grep -qF 'ProxyPassMatch "^(?!)' "$f" && return 0
+	done
+	# In both, a protected domain needs apache's auth fragment beside nginx's.
+	if [ "$(upd_key_value WEB_SYSTEM)" = apache2 ] && [ "$(upd_key_value PROXY_SYSTEM)" = nginx ]; then
+		for f in "$HOMEDIR"/*/conf/web/*/nginx.conf_htaccess; do
+			[ -e "$f" ] || continue
+			[ -e "${f%/nginx.conf_htaccess}/apache2.conf_htaccess" ] && continue
+			u=${f#"$HOMEDIR"/}
+			grep -q "^SUSPENDED='yes'" "$CONF_DIR/users/${u%%/*}/user.conf" 2> /dev/null || return 0
+		done
+	fi
+	# A suspended user's rebuild exits early and their pools stay as they were; unsuspending renders them anew.
+	for f in "$CONF_DIR"/users/*/web.conf; do
+		[ -e "$f" ] || continue
+		grep -q "^SUSPENDED='yes'" "${f%/web.conf}/user.conf" 2> /dev/null && continue
+		while IFS= read -r rec; do
+			dom=$(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" <<< "$rec")
+			be=$(sed -n "s/.* BACKEND='\([^']*\)'.*/\1/p" <<< "$rec")
+			[ -n "$dom" ] && [ -n "$be" ] || continue
+			grep -q '^php_admin_value\[sys_temp_dir\]' "$(tpl_path php "$be.tpl")" 2> /dev/null || continue
+			for p in /etc/php/*/fpm/pool.d/"$dom".conf /etc/php/*/fpm/users/*/"$dom".conf; do
+				[ -e "$p" ] || continue
+				grep -q '^php_admin_value\[sys_temp_dir\]' "$p" || return 0
+			done
+		done < "$f"
+	done
+	return 1
+}
+
+# Nothing in HestiaRE runs CGI: mod_fcgid ran any executable .fcgi in a docroot as www-data, past every customer boundary.
+upd_cond_apache_cgi_present() {
+	local m
+	for m in fcgid suexec actions; do
+		[ -e "/etc/apache2/mods-enabled/$m.load" ] && return 0
+	done
+	upd_cond_package_installed libapache2-mod-fcgid || upd_cond_package_installed apache2-suexec-custom
+}
+
+# fpm_per_customer_behind: a domain or file manager pool of a customer still in a version master's pool.d, an installed
+# version without the customer master unit, or a customer's pool dir whose master is not enabled. Pools are found from
+# the records, so an operator's own pool in pool.d stays where it is and keeps none of this true. Not covered: a master
+# that is enabled but fails to start (the smoke names it).
+upd_cond_fpm_per_customer_behind() {
+	local out v f u dom
+	out=$("$UPDATE_ROOT/bin/h-list-sys-php" plain 2> /dev/null) || {
+		echo "update: fpm_per_customer_behind could not ask h-list-sys-php" >&2
+		return 2
+	}
+	while read -r v; do
+		[ -n "$v" ] || continue
+		[ -f "/etc/systemd/system/hestia-php$v-fpm@.service" ] || return 0
+	done <<< "$out"
+	for f in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$f" ] || continue
+		u=${f%/user.conf}
+		u=${u##*/}
+		compgen -G "/etc/php/*/fpm/pool.d/fm-$u.conf" > /dev/null && return 0
+		[ -f "${f%/user.conf}/web.conf" ] || continue
+		for dom in $(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" "${f%/user.conf}/web.conf"); do
+			compgen -G "/etc/php/*/fpm/pool.d/$dom.conf" > /dev/null && return 0
+		done
+	done
+	for f in /etc/php/*/fpm/users/*/; do
+		[ -e "$f" ] || continue
+		compgen -G "$f*.conf" > /dev/null || continue
+		u=${f%/}
+		v=${u#/etc/php/}
+		systemctl is-enabled --quiet "hestia-php${v%%/*}-fpm@${u##*/}.service" 2> /dev/null || return 0
+	done
+	return 1
+}
+
+# php_ini_missing SOURCE: a customer PHP version whose FPM conf.d lacks an identical copy of the tree file. The versions
+# come from h-list-sys-php, as for php_ext_missing.
+upd_cond_php_ini_missing() {
+	local src="$UPDATE_ROOT/$1" v out
+	[ -n "$1" ] && [ -f "$src" ] || {
+		echo "update: php_ini_missing needs a tree-relative ini, '$1' is none" >&2
+		return 2
+	}
+	out=$("$UPDATE_ROOT/bin/h-list-sys-php" plain 2> /dev/null) || {
+		echo "update: php_ini_missing could not ask h-list-sys-php" >&2
+		return 2
+	}
+	while read -r v; do
+		[ -n "$v" ] || continue
+		cmp -s "$src" "/etc/php/$v/fpm/conf.d/${1##*/}" || return 0
+	done <<< "$out"
+	return 1
+}
+
 # locale_missing NAME, answered by locale -a: a line in /etc/locale.gen says nothing about the archive.
 upd_cond_locale_missing() {
 	[ -n "$1" ] || {
@@ -402,7 +508,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply
 	exim_authresults_apply mysql_grants_escape_apply
 	nginx_early_data_off_apply exim_null_sender_domain_apply dovecot_mail_compress_apply
-	php_meta_off_apply backup_export_protect_apply)
+	php_meta_off_apply backup_export_protect_apply opcache_isolation_apply web_isolation_apply fpm_per_customer_apply
+	apache_cgi_off_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -515,7 +622,10 @@ upd_condition() {
 		language_unlisted | locale_missing | file_group_differs | file_owner_differs | path_not_link)
 			"upd_cond_$t" "$@"
 			;;
-		docker_map_drift | mysql_wildcard_grants | backup_export_adopted)
+		docker_map_drift | mysql_wildcard_grants | backup_export_adopted | web_isolation_behind | php_ini_missing)
+			"upd_cond_$t" "$@"
+			;;
+		fpm_per_customer_behind | apache_cgi_present)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -714,6 +824,7 @@ def argv(t):
   elif t=="file_contains" or t=="file_lacks" or t=="file_mode_wider" or t=="file_group_differs"
     or t=="file_owner_differs" then [.path // "", .value // ""]
   elif t=="pin_differs" then [.name // "", .path // ""]
+  elif t=="php_ini_missing" then [.source // ""]
   elif t=="file_differs" or t=="file_patch_pending"
     then [.source // "", .target // ""]
   elif t=="file_copy" then [.source // "", .target // ""] + (if has("mode") then [.mode] else [] end)
@@ -1001,5 +1112,170 @@ templates_etc_apply() {
 	[ -z "$f" ] || sed 's/^/copied: /' <<< "$f"
 	find "$HESTIA/share/web/nginx" -mindepth 1 ! -name proxy_ip.tpl -exec rm -rf -- {} + 2> /dev/null
 	rm -rf "${HESTIA:?}/templates" "${HESTIA:?}/share/web/apache2"
+	return 0
+}
+
+# web_isolation_apply: a PHP profile under TPL_OWN that is still as 0.40 shipped it takes the new one; an edited one with
+# /tmp in its open_basedir is named and stays as it is. Then every customer's web domains are rendered again, for the
+# catch-all worker in the apache vhosts and the pools without /tmp. apache and nginx reload only after their config test.
+web_isolation_apply() {
+	local known="$HESTIA/share/updates/patches/0.41/php-templates-shipped.sha256" f u failed='' web proxy
+	web=$(upd_key_value WEB_SYSTEM)
+	proxy=$(upd_key_value PROXY_SYSTEM)
+	for f in "$TPL_OWN"/php/*.tpl; do
+		[ -e "$f" ] || continue
+		if grep -qxF "$(sha256sum < "$f" | cut -d ' ' -f 1)  templates/php/${f##*/}" "$known" 2> /dev/null; then
+			cat "$TPL_SHIP/php/${f##*/}" > "$f" || echo "Warning: $f could not take the shipped profile" >&2
+		elif grep -qE '^php_admin_value\[open_basedir\] *=(.*:)? */tmp/?(:|$)' "$f"; then
+			echo "[ ! ] $f is the operator's and keeps /tmp in open_basedir: remove it there by hand"
+		fi
+	done
+	for f in "$TPL_OWN"/apache/*.tpl; do
+		[ -e "$f" ] || continue
+		grep -q '^[[:space:]]*ScriptAlias' "$f" \
+			&& echo "[ ! ] $f is the operator's and maps a ScriptAlias, which apache now serves as plain text: remove it there"
+		grep -q '^[[:space:]]*Require all granted' "$f" \
+			&& echo "[ i ] $f is the operator's and grants again in Require all granted, which overrides a customer's .htaccess Require"
+	done
+	[ -n "$web" ] || return 0
+	while IFS= read -r u; do
+		[ -n "$u" ] || continue
+		if grep -q "^SUSPENDED='yes'" "$CONF_DIR/users/$u/user.conf" 2> /dev/null; then
+			echo "$u is suspended: their web domains take this when h-unsuspend-user renders them anew"
+			continue
+		fi
+		"$BIN/h-rebuild-web-domains" "$u" no > /dev/null 2>&1 || failed="$failed $u"
+	done < <("$BIN/h-list-users" list 2> /dev/null)
+	[ -z "$failed" ] || echo "Warning: the web rebuild failed for$failed, run h-rebuild-web-domains USER" >&2
+	"$BIN/h-restart-web-backend" > /dev/null 2>&1 || echo "Warning: a PHP-FPM master did not restart: journalctl -u 'php*-fpm'" >&2
+	if [ "$web" = 'apache2' ]; then
+		if apache2ctl -t > /dev/null 2>&1; then
+			systemctl reload apache2 > /dev/null 2>&1 || echo "Warning: apache2 did not reload: journalctl -u apache2" >&2
+		else
+			echo "[ ! ] apache2 rejects the rebuilt vhosts and keeps the old ones loaded: apache2ctl -t" >&2
+		fi
+	fi
+	if [ "$proxy" = 'nginx' ] || [ "$web" = 'nginx' ]; then
+		if nginx -t > /dev/null 2>&1; then
+			systemctl reload nginx > /dev/null 2>&1 || echo "Warning: nginx did not reload: journalctl -u nginx" >&2
+		else
+			echo "[ ! ] nginx rejects the rebuilt vhosts and keeps the old ones loaded: nginx -t" >&2
+		fi
+	fi
+	return 0
+}
+
+# The modules go off first and apache is tested without them: an operator include that still needs one (Action,
+# SuexecUserGroup) gets them back and the packages stay, so apache keeps a config it can start with.
+apache_cgi_off_apply() {
+	local m p off='' failed=''
+	for m in fcgid suexec actions; do
+		[ -e "/etc/apache2/mods-enabled/$m.load" ] || continue
+		if a2dismod -q -f "$m" > /dev/null 2>&1; then
+			off="$off $m"
+		else
+			failed="$failed $m"
+		fi
+	done
+	if ! apache2ctl -t > /dev/null 2>&1; then
+		# shellcheck disable=SC2086  # a list of module names
+		[ -z "$off" ] || a2enmod -q $off > /dev/null 2>&1
+		echo "[ ! ] apache2 rejects its config without CGI, the modules stay on and the packages installed: apache2ctl -t" >&2
+		return 0
+	fi
+	for p in libapache2-mod-fcgid apache2-suexec-custom; do
+		upd_act_package_remove "$p" || failed="$failed $p"
+	done
+	systemctl reload apache2 > /dev/null 2>&1 || echo "Warning: apache2 did not reload: journalctl -u apache2" >&2
+	[ -z "$failed" ] || echo "Warning: still in place:$failed; the next update tries again" >&2
+	return 0
+}
+
+# fpm_per_customer_apply: every customer's pools move from the version master's pool.d to their own master, suspended
+# customers' as well (their rebuild would exit early). Every master is tested and enabled first, then the version
+# masters let go of the sockets, and all start in one systemctl call: a customer master refuses its whole start over a
+# socket still held, and one after the other the last customer would wait for all the others. A pool.d file no record
+# names stays and is listed.
+fpm_per_customer_apply() {
+	# shellcheck source=/usr/local/hestia/include/fpm.sh
+	source "$HESTIA/include/fpm.sh"
+	local v f u dom p pv moved_v='' moved_d=' ' owners='' units='' running='' failed='' stray='' held _
+	for v in $("$BIN/h-list-sys-php" plain 2> /dev/null); do
+		mkdir -p "/etc/php/$v/fpm/users"
+		customer_fpm_unit_write "$v"
+	done
+	systemctl daemon-reload
+	for f in "$CONF_DIR"/users/*/user.conf; do
+		[ -e "$f" ] || continue
+		u=${f%/user.conf}
+		u=${u##*/}
+		for p in /etc/php/*/fpm/pool.d/fm-"$u".conf; do
+			[ -e "$p" ] || continue
+			pv=${p#/etc/php/}
+			pv=${pv%%/*}
+			mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv" \
+				&& moved_d="$moved_d$pv:$u "
+		done
+		[ -f "${f%/user.conf}/web.conf" ] || continue
+		for dom in $(sed -n "s/^DOMAIN='\([^']*\)'.*/\1/p" "${f%/user.conf}/web.conf"); do
+			for p in /etc/php/*/fpm/pool.d/"$dom".conf; do
+				[ -e "$p" ] || continue
+				pv=${p#/etc/php/}
+				pv=${pv%%/*}
+				mkdir -p "/etc/php/$pv/fpm/users/$u" && mv -f "$p" "/etc/php/$pv/fpm/users/$u/" && moved_v="$moved_v $pv" \
+					&& moved_d="$moved_d$pv:$u "
+			done
+		done
+	done
+	for f in /etc/php/*/fpm/users/*/; do
+		[ -e "$f" ] || continue
+		compgen -G "$f*.conf" > /dev/null || continue
+		u=${f%/}
+		v=${u#/etc/php/}
+		v=${v%%/*}
+		u=${u##*/}
+		owners="$owners $u"
+		if systemctl is-active --quiet "$(customer_fpm_unit "$v" "$u")"; then
+			# A pool moved into a running master is loaded by its reload once the version master let go.
+			[[ $moved_d == *" $v:$u "* ]] && running="$running $v:$u"
+			continue
+		fi
+		if customer_fpm_test "$u" "$v" && systemctl enable --quiet "$(customer_fpm_unit "$v" "$u")" > /dev/null 2>&1; then
+			units="$units $(customer_fpm_unit "$v" "$u")"
+		else
+			failed="$failed $u($v)"
+		fi
+	done
+	for v in $(tr ' ' '\n' <<< "$moved_v" | sort -u); do
+		systemctl reload "php$v-fpm" > /dev/null 2>&1 || systemctl restart "php$v-fpm" > /dev/null 2>&1 \
+			|| echo "Warning: php$v-fpm did not reload and may still hold customer sockets: journalctl -u php$v-fpm" >&2
+	done
+	# The reload signals and returns; the version master lets go a moment later.
+	for _ in $(seq 1 50); do
+		held=''
+		for u in $units; do
+			v=${u#hestia-php}
+			v=${v%%-fpm@*}
+			pv=${u##*@}
+			held="$held$(customer_fpm_foreign_sockets "$u" "$(customer_fpm_dir "$v" "${pv%.service}")")"
+		done
+		[ -z "$held" ] && break
+		sleep 0.1
+	done
+	# shellcheck disable=SC2086 # one unit name per word, ours
+	[ -z "$units" ] || systemctl start $units > /dev/null 2>&1
+	for p in $running; do
+		customer_fpm_sync "${p#*:}" "${p%%:*}" || failed="$failed ${p#*:}(${p%%:*})"
+	done
+	for u in $(tr ' ' '\n' <<< "$owners" | sort -u); do
+		customer_fpm_sync_user "$u" '' ensure 2>&1 || failed="$failed $u"
+	done
+	[ -z "$failed" ] || echo "[ ! ] PHP-FPM of$failed did not come up in its own master: journalctl -u 'hestia-php*-fpm@*'" >&2
+	for p in /etc/php/[0-9]*/fpm/pool.d/*.conf; do
+		[ -e "$p" ] || continue
+		[ "${p##*/}" = 'dummy.conf' ] && continue
+		stray="$stray ${p#/etc/php/}"
+	done
+	[ -z "$stray" ] || echo "[ i ] left in a version master, no record names them:$stray"
 	return 0
 }

@@ -28,6 +28,8 @@
     ProxyPass "/" "http://%docker_ip%:%docker_port%/" upgrade=websocket
     ProxyPassReverse "/" "http://%docker_ip%:%docker_port%/"
     RequestHeader set X-Forwarded-Proto "http"
+    # Never matches, yet sends any fcgi:// handler a .htaccess under the acme exemption to a socket that does not exist.
+    ProxyPassMatch "^(?!)(.*)$" "unix:/nonexistent-hestia-fcgi.sock|fcgi://$1"
 
     <Directory %docroot%>
         AllowOverride All
@@ -65,6 +67,8 @@
     ProxyPass "/" "http://%docker_ip%:%docker_port%/" upgrade=websocket
     ProxyPassReverse "/" "http://%docker_ip%:%docker_port%/"
     RequestHeader set X-Forwarded-Proto "https"
+    # Never matches, yet sends any fcgi:// handler a .htaccess under the acme exemption to a socket that does not exist.
+    ProxyPassMatch "^(?!)(.*)$" "unix:/nonexistent-hestia-fcgi.sock|fcgi://$1"
 
     <Directory %sdocroot%>
         AllowOverride All

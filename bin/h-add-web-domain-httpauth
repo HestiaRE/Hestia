@@ -40,35 +40,12 @@ if tr : '\n' <<< "$AUTH_USER" | grep -qxF -- "$auth_user"; then
 	exit "$E_EXISTS"
 fi
 
-if [ "$WEB_SYSTEM" = "nginx" ] || [ "$PROXY_SYSTEM" = "nginx" ]; then
-	htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
-	shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
-	if [ ! -f "$htaccess" ]; then
-		echo "auth_basic  \"$domain password access\";" > $htaccess
-		echo "auth_basic_user_file    $htpasswd;" >> $htaccess
-		ln -s $htaccess $shtaccess
-		restart_required='yes'
-	fi
-else
-	htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
-	shtaccess="$HOMEDIR/$user/conf/web/$domain/apache2.ssl.conf_htaccess"
-	if [ ! -f "$htaccess" ]; then
-		# The whole vhost whatever its docroot, minus the ACME alias: a plain Location would override its grant.
-		echo '<LocationMatch "^/(?!\.well-known/acme-challenge/)">' > $htaccess
-		echo "    AuthUserFile $htpasswd" >> $htaccess
-		echo "    AuthName \"$domain access\"" >> $htaccess
-		echo "    AuthType Basic" >> $htaccess
-		echo "    Require valid-user" >> $htaccess
-		echo "</LocationMatch>" >> $htaccess
-		ln -s $htaccess $shtaccess
-		restart_required='yes'
-	fi
-fi
+web_httpauth_fragments "$user" "$domain" && restart_required='yes'
 
 auth_hash=$(printf '%s\n' "$password" | $BIN/h-generate-password-hash htpasswd htpasswd)
 touch $htpasswd
-chmod 644 $htpasswd $htaccess
-chgrp $user $htpasswd $htaccess
+chmod 644 "$htpasswd"
+chgrp "$user" "$htpasswd"
 web_htpasswd_drop "$htpasswd" "$auth_user"
 echo "$auth_user:$auth_hash" >> $htpasswd
 

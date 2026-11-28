@@ -84,7 +84,8 @@ Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exis
 `path_absent`, `package_installed`, `file_differs`, `file_contains`, `file_lacks`,
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
 `file_mode_wider`, `file_group_differs`, `file_owner_differs`, `language_unlisted`, `locale_missing`, `path_not_link`,
-`docker_map_drift`, `mysql_wildcard_grants`. Actions:
+`docker_map_drift`, `mysql_wildcard_grants`, `backup_export_adopted`, `php_ini_missing`, `web_isolation_behind`,
+`fpm_per_customer_behind`, `apache_cgi_present`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
@@ -150,7 +151,9 @@ The four late conditions exist because a state outside the tree cannot be compar
 `file_contains` also takes a pattern, as `file_mode_wider` does, for a file that sits once per PHP version; one
 match carrying the marker is enough. `file_lacks` stays literal: "one of them lacks it" is a different
 question from "it is missing", and no entry has needed it yet.
-`pin_differs` reads the pin from the manifest rather than carrying a version of its own. `dir_clear`
+`pin_differs` reads the pin from the manifest rather than carrying a version of its own, so a pin has ONE
+entry, in the manifest of the release that last bumped it: an older entry would run the same install of today's pin
+under its old version text. A bump moves the entry there and removes the previous one. `dir_clear`
 empties a directory and leaves it standing, because its owner and mode are part of what it is.
 `php_ext_missing` asks `h-list-sys-php` which versions are managed, so the set is derived and not a
 second list here; its `name` takes a comma list, because an action that repairs a set has to be
@@ -170,10 +173,25 @@ disk until its own entry deletes it.
 are out of the order `newuidmap` maps them, or its running daemon maps container 1000 to someone else than the customer.
 `mysql_wildcard_grants` takes no field and is true while a MySQL database of a record still has a grant for its
 slot users under the bare name, where `_` and `%` act as wildcards, or while its database host cannot be read.
+`php_ini_missing` takes a `source` (a tree-relative ini) and is true while a version `h-list-sys-php` names lacks an
+identical copy in its FPM `conf.d`: the drop-in is ours alone, so the copy is the state.
+`web_isolation_behind` takes no field and is true while a PHP profile under `/etc/hestia/templates/php` is still byte
+for byte as 0.40 shipped it, an apache vhost on a customer docroot lacks the catch-all worker, a pool lacks
+`sys_temp_dir` although its profile has it, or in both a protected domain has no apache auth fragment beside nginx's. An edited profile keeps none of that true, so the entry converges and the
+operator is told by name instead. A suspended user's pools and auth fragments are left out: the rebuild skips them, and
+unsuspending renders them anew.
+`fpm_per_customer_behind` takes no field and is true while a customer's domain or file manager pool (found from the
+records) still sits in a version master's `pool.d`, an installed version lacks the `hestia-php<ver>-fpm@.service`
+template, or a customer's pool dir under `/etc/php/<ver>/fpm/users/` has no enabled master. A master that is enabled
+but does not start keeps it false; the smoke names that one.
 `locale_missing` takes a `name` (`en_US.UTF-8`) and asks `locale -a`, not `/etc/locale.gen`: a line
 there says nothing about whether the locale was generated.
 Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin
 (the installer's answer or `h-change-sys-locale`), and no entry ever changes it (#1164).
+`apache_cgi_present` takes no field and is true while mod_fcgid, mod_suexec or mod_actions is enabled, or
+`libapache2-mod-fcgid` or `apache2-suexec-custom` is installed: nothing in HestiaRE runs CGI, and mod_fcgid ran a
+customer's file as www-data. Its action tests apache with the modules off and turns them back on, packages kept, when
+an operator's include still needs one.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

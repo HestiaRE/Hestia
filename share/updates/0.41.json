@@ -19,7 +19,7 @@
     },
     {
       "id": "web-isolation-rebuild",
-      "description": "Web domains rendered again: apache binds every fcgi handler a .htaccess sets to the domain's own pool, and the pools lose /tmp. A PHP profile under /etc/hestia/templates takes the new one only while it is as 0.40 shipped it, an edited one is named.",
+      "description": "Web domains rendered again: apache binds every fcgi handler a .htaccess sets to the domain's own pool, the vhosts lose ScriptAlias, ExecCGI and the Files-level Require all granted, a protected domain in both gets apache's auth fragment, and the pools lose /tmp. A PHP profile under /etc/hestia/templates takes the new one only while it is as 0.40 shipped it, an edited one is named.",
       "conditions": [{ "type": "web_isolation_behind" }],
       "action": { "type": "function_call", "function": "web_isolation_apply" },
       "after": "0.41/fpm-per-customer",
@@ -28,7 +28,7 @@
     },
     {
       "id": "apache-unclaimed-php",
-      "description": "A .php that no domain vhost claims goes to a socket nobody listens on instead of a server-wide Require all denied, so the vhosts no longer grant again in Files context and a customer's .htaccess Require (basic auth, Require ip) protects .php as it protects every other file. Takes effect with the vhost rebuild of this release",
+      "description": "A .php that no domain vhost claims goes to a socket nobody listens on instead of a server-wide Require all denied, so the vhosts no longer grant again in Files context and a customer's .htaccess Require (basic auth, Require ip) protects .php as it protects every other file. Takes effect with the vhost rebuild of this release and has to run before it, which only the reversible-first order guarantees: keep it reversible, or the new vhosts meet the old file and answer every .php with 403",
       "conditions": [
         { "type": "path_exists", "path": "/etc/apache2/conf.d/hestia-event.conf" },
         { "type": "file_differs", "source": "share/apache2/hestia-event.conf", "target": "/etc/apache2/conf.d/hestia-event.conf" }

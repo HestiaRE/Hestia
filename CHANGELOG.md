@@ -21,6 +21,16 @@ the releases of the command audit, into another.
   binds any `fcgi://` handler to the domain's own pool; on apache-only, the docker vhost binds one to a socket that does
   not exist (its ACME path is served from disk). This holds from apache 2.4.63 on: Ubuntu 24.04's apache 2.4.58 stays
   open, and the smoke says so.
+- **apache runs no CGI any more** (#1498). mod_fcgid was loaded and every docroot allowed ExecCGI, so any executable
+  `.fcgi` a customer put online ran as www-data, which reads other customers' sites and reaches every PHP-FPM socket.
+  `/cgi-bin/` served its scripts as plain text, credentials included. mod_fcgid, mod_suexec and mod_actions go, their
+  packages are purged, the vhosts lose `ScriptAlias /cgi-bin/`, `+ExecCGI` and `+Includes`, and a new domain gets no
+  `cgi-bin` directory; an existing one stays, outside every docroot.
+- **A customer's .htaccess `Require` protects .php again** (#1497). Basic auth or `Require ip` in a .htaccess stopped a
+  `.txt` but not the `.php` beside it: the vhost granted `.php` again in Files context, which outranks .htaccess. A
+  `.php` no vhost claims now goes to a socket nobody listens on (503), so no vhost needs that grant.
+- **Password protection of a domain holds on apache as well in both** (#1499). Only nginx asked for it, and every local
+  process reached the domain on apache's port without one. apache now gets its own fragment, with the same accounts.
 - **OPcache is isolated per customer** as far as one shared cache allows (#1501). Every customer PHP version gets
   `opcache.validate_permission`, `validate_root` and a `restrict_api` no script satisfies, so a script no longer loads
   another customer's cached files (wp-config.php and the like) past file modes and open_basedir, lists the cached paths

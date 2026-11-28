@@ -146,7 +146,7 @@ upd_cond_mysql_wildcard_grants() {
 # an apache vhost on a customer docroot without the catch-all worker, or a pool without sys_temp_dir whose profile has
 # it. A profile the operator edited does not keep it true; web_isolation_apply names it instead.
 upd_cond_web_isolation_behind() {
-	local known="$UPDATE_ROOT/share/updates/patches/0.41/php-templates-shipped.sha256" f rec dom be p
+	local known="$UPDATE_ROOT/share/updates/patches/0.41/php-templates-shipped.sha256" f u rec dom be p
 	[ -f "$known" ] || {
 		echo "update: $known is missing, web_isolation_behind cannot decide" >&2
 		return 2
@@ -159,6 +159,15 @@ upd_cond_web_isolation_behind() {
 		[ -e "$f" ] || continue
 		grep -q "^[[:space:]]*DocumentRoot $HOMEDIR/" "$f" && ! grep -qF 'ProxyPassMatch "^(?!)' "$f" && return 0
 	done
+	# In both, a protected domain needs apache's auth fragment beside nginx's.
+	if [ "$(upd_key_value WEB_SYSTEM)" = apache2 ] && [ "$(upd_key_value PROXY_SYSTEM)" = nginx ]; then
+		for f in "$HOMEDIR"/*/conf/web/*/nginx.conf_htaccess; do
+			[ -e "$f" ] || continue
+			[ -e "${f%/nginx.conf_htaccess}/apache2.conf_htaccess" ] && continue
+			u=${f#"$HOMEDIR"/}
+			grep -q "^SUSPENDED='yes'" "$CONF_DIR/users/${u%%/*}/user.conf" 2> /dev/null || return 0
+		done
+	fi
 	# A suspended user's rebuild exits early and their pools stay as they were; unsuspending renders them anew.
 	for f in "$CONF_DIR"/users/*/web.conf; do
 		[ -e "$f" ] || continue
@@ -175,6 +184,15 @@ upd_cond_web_isolation_behind() {
 		done < "$f"
 	done
 	return 1
+}
+
+# Nothing in HestiaRE runs CGI: mod_fcgid ran any executable .fcgi in a docroot as www-data, past every customer boundary.
+upd_cond_apache_cgi_present() {
+	local m
+	for m in fcgid suexec actions; do
+		[ -e "/etc/apache2/mods-enabled/$m.load" ] && return 0
+	done
+	upd_cond_package_installed libapache2-mod-fcgid || upd_cond_package_installed apache2-suexec-custom
 }
 
 # fpm_per_customer_behind: a domain or file manager pool of a customer still in a version master's pool.d, an installed
@@ -490,7 +508,8 @@ UPDATE_CALLABLE=(proc_hardening_apply customer_php_limit_apply panel_session_cle
 	quota_dracut_apply templates_etc_apply login_defs_guard docker_companion_map_apply
 	exim_authresults_apply mysql_grants_escape_apply
 	nginx_early_data_off_apply exim_null_sender_domain_apply dovecot_mail_compress_apply
-	php_meta_off_apply backup_export_protect_apply opcache_isolation_apply web_isolation_apply fpm_per_customer_apply)
+	php_meta_off_apply backup_export_protect_apply opcache_isolation_apply web_isolation_apply fpm_per_customer_apply
+	apache_cgi_off_apply)
 
 upd_act_key_set() {
 	[ "$(upd_key_value "$1")" = "$2" ] && return 0
@@ -606,7 +625,7 @@ upd_condition() {
 		docker_map_drift | mysql_wildcard_grants | backup_export_adopted | web_isolation_behind | php_ini_missing)
 			"upd_cond_$t" "$@"
 			;;
-		fpm_per_customer_behind)
+		fpm_per_customer_behind | apache_cgi_present)
 			"upd_cond_$t" "$@"
 			;;
 		*)
@@ -1111,6 +1130,13 @@ web_isolation_apply() {
 			echo "[ ! ] $f is the operator's and keeps /tmp in open_basedir: remove it there by hand"
 		fi
 	done
+	for f in "$TPL_OWN"/apache/*.tpl; do
+		[ -e "$f" ] || continue
+		grep -q '^[[:space:]]*ScriptAlias' "$f" \
+			&& echo "[ ! ] $f is the operator's and maps a ScriptAlias, which apache now serves as plain text: remove it there"
+		grep -q '^[[:space:]]*Require all granted' "$f" \
+			&& echo "[ i ] $f is the operator's and grants again in Require all granted, which overrides a customer's .htaccess Require"
+	done
 	[ -n "$web" ] || return 0
 	while IFS= read -r u; do
 		[ -n "$u" ] || continue
@@ -1136,6 +1162,32 @@ web_isolation_apply() {
 			echo "[ ! ] nginx rejects the rebuilt vhosts and keeps the old ones loaded: nginx -t" >&2
 		fi
 	fi
+	return 0
+}
+
+# The modules go off first and apache is tested without them: an operator include that still needs one (Action,
+# SuexecUserGroup) gets them back and the packages stay, so apache keeps a config it can start with.
+apache_cgi_off_apply() {
+	local m p off='' failed=''
+	for m in fcgid suexec actions; do
+		[ -e "/etc/apache2/mods-enabled/$m.load" ] || continue
+		if a2dismod -q -f "$m" > /dev/null 2>&1; then
+			off="$off $m"
+		else
+			failed="$failed $m"
+		fi
+	done
+	if ! apache2ctl -t > /dev/null 2>&1; then
+		# shellcheck disable=SC2086  # a list of module names
+		[ -z "$off" ] || a2enmod -q $off > /dev/null 2>&1
+		echo "[ ! ] apache2 rejects its config without CGI, the modules stay on and the packages installed: apache2ctl -t" >&2
+		return 0
+	fi
+	for p in libapache2-mod-fcgid apache2-suexec-custom; do
+		upd_act_package_remove "$p" || failed="$failed $p"
+	done
+	systemctl reload apache2 > /dev/null 2>&1 || echo "Warning: apache2 did not reload: journalctl -u apache2" >&2
+	[ -z "$failed" ] || echo "Warning: still in place:$failed; the next update tries again" >&2
 	return 0
 }
 

@@ -306,7 +306,6 @@ rebuild_web_domain_conf() {
 		# Propagating html skeleton
 		user_exec cp -r "$SHARETPL/skel/document_errors/" "$HOMEDIR/$user/web/$domain/"
 	fi
-	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/cgi-bin"
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/private"
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/stats"
 	$BIN/h-add-fs-directory "$user" "$HOMEDIR/$user/web/$domain/logs"
@@ -333,7 +332,9 @@ rebuild_web_domain_conf() {
 	fi
 
 	# Set ownership
-	home_run "$user" "web/$domain" -- chown -h "$user:$user" . private cgi-bin public_html
+	home_run "$user" "web/$domain" -- chown -h "$user:$user" . private public_html
+	# Only domains made before cgi-bin went still have one; nothing serves it.
+	[ -d "$HOMEDIR/$user/web/$domain/cgi-bin" ] && home_run "$user" "web/$domain" -- chown -h "$user:$user" cgi-bin
 	home_run "$user" "web/$domain/document_errors" -- chown -R "$user:$user" .
 	web_domain_logs "$domain" | while IFS= read -r f; do chown root:"$user" "$f"; done
 
@@ -501,34 +502,6 @@ rebuild_web_domain_conf() {
 	# Http auth, derived from the record on every rebuild. The archive carries both files with an
 	# absolute path inside them, so keeping one points the protection at whatever home made it.
 	htpasswd="$HOMEDIR/$user/conf/web/$domain/htpasswd"
-	nginx_htaccess="$HOMEDIR/$user/conf/web/$domain/nginx.conf_htaccess"
-	nginx_shtaccess="$HOMEDIR/$user/conf/web/$domain/nginx.ssl.conf_htaccess"
-	apache_htaccess="$HOMEDIR/$user/conf/web/$domain/apache2.conf_htaccess"
-	apache_shtaccess="$HOMEDIR/$user/conf/web/$domain/apache2.ssl.conf_htaccess"
-	if [ "$WEB_SYSTEM" = "nginx" ] || [ "$PROXY_SYSTEM" = "nginx" ]; then
-		htaccess="$nginx_htaccess"
-		shtaccess="$nginx_shtaccess"
-		stale_htaccess="$apache_htaccess"
-		stale_shtaccess="$apache_shtaccess"
-		htaccess_want="auth_basic  \"$domain password access\";
-auth_basic_user_file    $htpasswd;"
-	else
-		htaccess="$apache_htaccess"
-		shtaccess="$apache_shtaccess"
-		stale_htaccess="$nginx_htaccess"
-		stale_shtaccess="$nginx_shtaccess"
-		htaccess_want="<LocationMatch \"^/(?!\\.well-known/acme-challenge/)\">
-    AuthUserFile $htpasswd
-    AuthName \"$domain access\"
-    AuthType Basic
-    Require valid-user
-</LocationMatch>"
-	fi
-
-	# The other web server's pair is inert here, so a wrong path in it stays unnoticed until the
-	# model is switched.
-	rm -f "$stale_htaccess" "$stale_shtaccess"
-
 	if [ -n "$AUTH_USER" ]; then
 		# The record's accounts and only those: appending keeps one the panel cannot show.
 		htpasswd_want=''
@@ -553,31 +526,26 @@ auth_basic_user_file    $htpasswd;"
 
 		# Paths only, so it is safe to correct even when no account can be written - the archive
 		# delivers a usable password file at the right place.
-		if [ "$htaccess_want" != "$(cat "$htaccess" 2> /dev/null)" ]; then
-			printf '%s\n' "$htaccess_want" > "$htaccess"
-			restart_required='yes'
-		fi
-		if [ "$(readlink "$shtaccess" 2> /dev/null)" != "$htaccess" ]; then
-			ln -sfn "$htaccess" "$shtaccess"
-			restart_required='yes'
-		fi
+		web_httpauth_fragments "$user" "$domain" && restart_required='yes'
 		# Only where the record can fill it. Compared first, so an idle rebuild causes no restart.
 		if [ -n "$htpasswd_want" ] && [ "$htpasswd_want" != "$(cat "$htpasswd" 2> /dev/null)" ]; then
 			printf '%s\n' "$htpasswd_want" > "$htpasswd"
 			restart_required='yes'
 		fi
-		chmod 644 "$htaccess"
-		chgrp "$user" "$htaccess"
 		[ -e "$htpasswd" ] && chmod 644 "$htpasswd" && chgrp "$user" "$htpasswd"
-	elif [ -e "$htaccess" ] || [ -e "$shtaccess" ] || [ -e "$htpasswd" ]; then
-		# The record names no account, so neither file belongs to this domain.
-		rm -f "$htaccess" "$shtaccess" "$htpasswd"
-		restart_required='yes'
+	else
+		# The record names no account, so no file belongs to this domain.
+		web_httpauth_fragments "$user" "$domain" remove && restart_required='yes'
+		if [ -e "$htpasswd" ]; then
+			rm -f "$htpasswd"
+			restart_required='yes'
+		fi
 	fi
 
 	# Set folder permissions
 	local sub
 	for sub in . stats logs private cgi-bin public_html document_errors; do
+		[ "$sub" != cgi-bin ] || [ -d "$HOMEDIR/$user/web/$domain/cgi-bin" ] || continue
 		home_run "$user" "web/$domain/$sub" -- chmod 751 .
 	done
 	web_domain_logs "$domain" | while IFS= read -r f; do chmod 640 "$f"; done

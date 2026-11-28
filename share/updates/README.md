@@ -85,7 +85,7 @@ Conditions: `key_empty`, `key_is`, `key_has_token`, `path_exists`, `command_exis
 `pin_differs`, `php_ext_missing`, `dir_has_secret_value`, `file_patch_pending`,
 `file_mode_wider`, `file_group_differs`, `file_owner_differs`, `language_unlisted`, `locale_missing`, `path_not_link`,
 `docker_map_drift`, `mysql_wildcard_grants`, `backup_export_adopted`, `php_ini_missing`, `web_isolation_behind`,
-`fpm_per_customer_behind`. Actions:
+`fpm_per_customer_behind`, `apache_cgi_present`. Actions:
 `key_set`, `key_clear`, `token_add`, `token_remove`, `file_copy`, `path_delete`, `dir_clear`,
 `function_call`, `package_install`, `package_remove`, `service_restart`.
 
@@ -176,10 +176,10 @@ slot users under the bare name, where `_` and `%` act as wildcards, or while its
 `php_ini_missing` takes a `source` (a tree-relative ini) and is true while a version `h-list-sys-php` names lacks an
 identical copy in its FPM `conf.d`: the drop-in is ours alone, so the copy is the state.
 `web_isolation_behind` takes no field and is true while a PHP profile under `/etc/hestia/templates/php` is still byte
-for byte as 0.40 shipped it, an apache vhost on a customer docroot lacks the catch-all worker, or a pool lacks
-`sys_temp_dir` although its profile has it. An edited profile keeps none of that true, so the entry converges and the
-operator is told by name instead. A suspended user's pools are left out: the rebuild skips them, and unsuspending
-renders them anew.
+for byte as 0.40 shipped it, an apache vhost on a customer docroot lacks the catch-all worker, a pool lacks
+`sys_temp_dir` although its profile has it, or in both a protected domain has no apache auth fragment beside nginx's. An edited profile keeps none of that true, so the entry converges and the
+operator is told by name instead. A suspended user's pools and auth fragments are left out: the rebuild skips them, and
+unsuspending renders them anew.
 `fpm_per_customer_behind` takes no field and is true while a customer's domain or file manager pool (found from the
 records) still sits in a version master's `pool.d`, an installed version lacks the `hestia-php<ver>-fpm@.service`
 template, or a customer's pool dir under `/etc/php/<ver>/fpm/users/` has no enabled master. A master that is enabled
@@ -188,6 +188,10 @@ but does not start keeps it false; the smoke names that one.
 there says nothing about whether the locale was generated.
 Only the panel's own locale is an update's business. `LANG` in `/etc/default/locale` belongs to the admin
 (the installer's answer or `h-change-sys-locale`), and no entry ever changes it (#1164).
+`apache_cgi_present` takes no field and is true while mod_fcgid, mod_suexec or mod_actions is enabled, or
+`libapache2-mod-fcgid` or `apache2-suexec-custom` is installed: nothing in HestiaRE runs CGI, and mod_fcgid ran a
+customer's file as www-data. Its action tests apache with the modules off and turns them back on, packages kept, when
+an operator's include still needs one.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.

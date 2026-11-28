@@ -146,7 +146,7 @@ upd_cond_mysql_wildcard_grants() {
 # an apache vhost on a customer docroot without the catch-all worker, or a pool without sys_temp_dir whose profile has
 # it. A profile the operator edited does not keep it true; web_isolation_apply names it instead.
 upd_cond_web_isolation_behind() {
-	local known="$UPDATE_ROOT/share/updates/patches/0.41/php-templates-shipped.sha256" f rec dom be p
+	local known="$UPDATE_ROOT/share/updates/patches/0.41/php-templates-shipped.sha256" f u rec dom be p
 	[ -f "$known" ] || {
 		echo "update: $known is missing, web_isolation_behind cannot decide" >&2
 		return 2
@@ -163,7 +163,9 @@ upd_cond_web_isolation_behind() {
 	if [ "$(upd_key_value WEB_SYSTEM)" = apache2 ] && [ "$(upd_key_value PROXY_SYSTEM)" = nginx ]; then
 		for f in "$HOMEDIR"/*/conf/web/*/nginx.conf_htaccess; do
 			[ -e "$f" ] || continue
-			[ -e "${f%/nginx.conf_htaccess}/apache2.conf_htaccess" ] || return 0
+			[ -e "${f%/nginx.conf_htaccess}/apache2.conf_htaccess" ] && continue
+			u=${f#"$HOMEDIR"/}
+			grep -q "^SUSPENDED='yes'" "$CONF_DIR/users/${u%%/*}/user.conf" 2> /dev/null || return 0
 		done
 	fi
 	# A suspended user's rebuild exits early and their pools stay as they were; unsuspending renders them anew.

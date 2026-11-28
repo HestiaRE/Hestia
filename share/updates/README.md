@@ -178,8 +178,8 @@ identical copy in its FPM `conf.d`: the drop-in is ours alone, so the copy is th
 `web_isolation_behind` takes no field and is true while a PHP profile under `/etc/hestia/templates/php` is still byte
 for byte as 0.40 shipped it, an apache vhost on a customer docroot lacks the catch-all worker, a pool lacks
 `sys_temp_dir` although its profile has it, or in both a protected domain has no apache auth fragment beside nginx's. An edited profile keeps none of that true, so the entry converges and the
-operator is told by name instead. A suspended user's pools are left out: the rebuild skips them, and unsuspending
-renders them anew.
+operator is told by name instead. A suspended user's pools and auth fragments are left out: the rebuild skips them, and
+unsuspending renders them anew.
 `fpm_per_customer_behind` takes no field and is true while a customer's domain or file manager pool (found from the
 records) still sits in a version master's `pool.d`, an installed version lacks the `hestia-php<ver>-fpm@.service`
 template, or a customer's pool dir under `/etc/php/<ver>/fpm/users/` has no enabled master. A master that is enabled

@@ -1165,21 +1165,28 @@ web_isolation_apply() {
 	return 0
 }
 
-# The modules go first, so a purge that fails still leaves nothing loaded that runs a customer's file.
+# The modules go off first and apache is tested without them: an operator include that still needs one (Action,
+# SuexecUserGroup) gets them back and the packages stay, so apache keeps a config it can start with.
 apache_cgi_off_apply() {
-	local m p failed=''
+	local m p off='' failed=''
 	for m in fcgid suexec actions; do
 		[ -e "/etc/apache2/mods-enabled/$m.load" ] || continue
-		a2dismod -q -f "$m" > /dev/null 2>&1 || failed="$failed $m"
+		if a2dismod -q -f "$m" > /dev/null 2>&1; then
+			off="$off $m"
+		else
+			failed="$failed $m"
+		fi
 	done
+	if ! apache2ctl -t > /dev/null 2>&1; then
+		# shellcheck disable=SC2086  # a list of module names
+		[ -z "$off" ] || a2enmod -q $off > /dev/null 2>&1
+		echo "[ ! ] apache2 rejects its config without CGI, the modules stay on and the packages installed: apache2ctl -t" >&2
+		return 0
+	fi
 	for p in libapache2-mod-fcgid apache2-suexec-custom; do
 		upd_act_package_remove "$p" || failed="$failed $p"
 	done
-	if apache2ctl -t > /dev/null 2>&1; then
-		systemctl reload apache2 > /dev/null 2>&1 || echo "Warning: apache2 did not reload: journalctl -u apache2" >&2
-	else
-		echo "[ ! ] apache2 rejects its config without CGI and keeps the old one loaded: apache2ctl -t" >&2
-	fi
+	systemctl reload apache2 > /dev/null 2>&1 || echo "Warning: apache2 did not reload: journalctl -u apache2" >&2
 	[ -z "$failed" ] || echo "Warning: still in place:$failed; the next update tries again" >&2
 	return 0
 }

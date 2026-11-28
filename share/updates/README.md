@@ -190,7 +190,8 @@ Only the panel's own locale is an update's business. `LANG` in `/etc/default/loc
 (the installer's answer or `h-change-sys-locale`), and no entry ever changes it (#1164).
 `apache_cgi_present` takes no field and is true while mod_fcgid, mod_suexec or mod_actions is enabled, or
 `libapache2-mod-fcgid` or `apache2-suexec-custom` is installed: nothing in HestiaRE runs CGI, and mod_fcgid ran a
-customer's file as www-data.
+customer's file as www-data. Its action tests apache with the modules off and turns them back on, packages kept, when
+an operator's include still needs one.
 
 Everything in a manifest is English: field names, type names and the description text, like the
 rest of this tree.
